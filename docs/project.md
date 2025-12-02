@@ -350,7 +350,7 @@ cd frontend/web && npm run test:e2e
 ## 待办事项
 
 ### 数据侧
-- [ ] 检查 203 条空 DNA 序列是否可从其他来源补充
+- [x] 检查 203 条空 DNA 序列是否可从其他来源补充 ✅ (2025-12-02 完成：从 8chimpManualProPromoterSeq 目录补充)
 
 ### 前端体验
 - [x] 为 Network 页和 Regulations 列表加加载/空态/错误提示 ✅ (2025-12-02 验收)
