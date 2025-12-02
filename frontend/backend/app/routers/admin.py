@@ -4,16 +4,21 @@ Admin API 路由
 提供系统监控和管理功能端点
 Phase 2 增强：响应时间分布、错误趋势、端点统计
 Phase 3 增强：系统资源监控、告警、响应时间百分位
+
+安全机制：
+- IP 白名单：只允许本地和内网 IP 访问
+- API Key 认证：可选的 X-Admin-API-Key 头验证
 """
 import os
 import time
 import logging
+import ipaddress
 from datetime import datetime
 from typing import Literal, Optional
 from collections import defaultdict, deque
 
 import psutil
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends, HTTPException, Header
 from sqlalchemy import text
 
 from app.core.database import engine
@@ -39,10 +44,106 @@ from app.schemas.monitoring import (
 
 logger = logging.getLogger(__name__)
 
+
+def _is_private_ip(ip_str: str) -> bool:
+    """
+    检查 IP 地址是否为私有/内网地址
+
+    Args:
+        ip_str: IP 地址字符串
+
+    Returns:
+        True 如果是私有/本地地址，否则 False
+    """
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return ip.is_private or ip.is_loopback or ip.is_link_local
+    except ValueError:
+        return False
+
+
+def _get_client_ip(request: Request) -> str:
+    """
+    获取客户端真实 IP 地址
+
+    支持通过代理传递的 X-Forwarded-For 头
+
+    Args:
+        request: FastAPI Request 对象
+
+    Returns:
+        客户端 IP 地址字符串
+    """
+    # 优先检查 X-Forwarded-For（反向代理场景）
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        # 取第一个 IP（客户端原始 IP）
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        # 直接连接场景
+        client_ip = request.client.host if request.client else "unknown"
+    return client_ip
+
+
+async def verify_admin_access(
+    request: Request,
+    x_admin_api_key: Optional[str] = Header(None, alias="X-Admin-API-Key"),
+) -> None:
+    """
+    验证 Admin API 访问权限
+
+    安全检查优先级：
+    1. 如果配置了 API Key，必须提供正确的 Key
+    2. 如果没有配置 API Key，检查 IP 白名单
+
+    Args:
+        request: FastAPI Request 对象
+        x_admin_api_key: 可选的 API Key 头
+
+    Raises:
+        HTTPException: 403 如果访问被拒绝
+    """
+    client_ip = _get_client_ip(request)
+
+    # 检查 API Key（如果配置了）
+    if settings.ADMIN_API_KEY:
+        if x_admin_api_key == settings.ADMIN_API_KEY:
+            logger.debug(f"Admin API access granted via API Key from {client_ip}")
+            return
+        # API Key 配置了但未提供或不正确，继续检查 IP
+        if x_admin_api_key:
+            logger.warning(f"Invalid Admin API Key from {client_ip}")
+
+    # 检查 IP 白名单
+    allowed_ips = settings.ADMIN_ALLOWED_IPS
+
+    # 检查是否在显式白名单中
+    if client_ip in allowed_ips or "localhost" in allowed_ips and client_ip == "127.0.0.1":
+        logger.debug(f"Admin API access granted via IP whitelist: {client_ip}")
+        return
+
+    # 检查是否为私有/内网 IP
+    if _is_private_ip(client_ip):
+        logger.debug(f"Admin API access granted via private IP: {client_ip}")
+        return
+
+    # 所有检查都失败，拒绝访问
+    logger.warning(f"Admin API access denied for IP: {client_ip}")
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "error": "ACCESS_DENIED",
+            "message": "Admin API access is restricted to local/internal networks or requires valid API Key",
+            "client_ip": client_ip,
+        }
+    )
+
 router = APIRouter(
     prefix="/admin",
     tags=["admin"],
+    dependencies=[Depends(verify_admin_access)],  # 所有 Admin 端点需要鉴权
     responses={
+        403: {"description": "Access denied - invalid API key or IP not allowed"},
         500: {"description": "Internal server error"},
     },
 )

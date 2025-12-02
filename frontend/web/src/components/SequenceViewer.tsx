@@ -18,7 +18,8 @@ interface SequenceViewerProps {
 
 export function SequenceViewer({ regulationId, open, onClose }: SequenceViewerProps) {
   const { t } = useTranslation('regulations')
-  const { data, isLoading } = useRegulationDetail(regulationId)
+  // 仅在弹窗打开时启用请求，关闭后停止请求
+  const { data, isLoading } = useRegulationDetail(regulationId, { enabled: open })
 
   const copyToClipboard = async (text: string, label: string) => {
     try {

@@ -33,7 +33,19 @@ export const usePrefetchRegulations = () => {
   }, [queryClient])
 }
 
-export const useRegulationDetail = (regulationId: number | null) => {
+/**
+ * 获取调控关系详情的 Hook
+ * @param regulationId - 调控关系 ID
+ * @param options - 可选配置
+ * @param options.enabled - 是否启用查询（默认 true），可用于控制弹窗关闭时停止请求
+ */
+export const useRegulationDetail = (
+  regulationId: number | null,
+  options?: { enabled?: boolean }
+) => {
+  // 默认 enabled 为 true，但需要同时满足 regulationId 存在和外部 enabled 条件
+  const isEnabled = !!regulationId && (options?.enabled ?? true)
+
   return useQuery<RegulationDetail | null>({
     queryKey: ['regulation', regulationId],
     queryFn: async () => {
@@ -41,6 +53,6 @@ export const useRegulationDetail = (regulationId: number | null) => {
       const { data } = await regulationsApi.getDetail(regulationId)
       return data
     },
-    enabled: !!regulationId,
+    enabled: isEnabled,
   })
 }

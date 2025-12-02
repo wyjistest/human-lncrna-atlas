@@ -340,7 +340,21 @@ class RegulationsImporter:
             raise
 
     def _batch_insert(self, regulations: List[Dict], sequences: Optional[List[Dict]], batch_id: Optional[int]):
-        """批量插入数据"""
+        """
+        批量插入数据
+
+        使用 ON CONFLICT DO NOTHING 防止重复导入。
+        去重基于 (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end) 组合。
+
+        注意：需要在数据库中创建唯一约束：
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_regulations_unique_key
+        ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end);
+
+        Args:
+            regulations: 调控关系数据列表
+            sequences: 序列数据列表（可选）
+            batch_id: 批次 ID
+        """
         cursor = self.conn.cursor()
 
         try:
@@ -373,7 +387,8 @@ class RegulationsImporter:
                     reg['binding_affinity'],
                 ))
 
-            # 插入regulations
+            # 插入regulations，使用 ON CONFLICT DO NOTHING 防止重复
+            # 返回实际插入的 regulation_id
             regulation_ids = execute_values(cursor, """
                 INSERT INTO regulations (
                     batch_id, species_id, lncrna_gene_id, target_gene_id,
@@ -385,15 +400,27 @@ class RegulationsImporter:
                     binding_affinity
                 )
                 VALUES %s
+                ON CONFLICT (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end)
+                DO NOTHING
                 RETURNING regulation_id
             """, reg_values, fetch=True)
 
-            self.stats['regulations_inserted'] += len(regulation_ids)
+            # 统计实际插入数量（可能因为去重而少于提交数量）
+            actual_inserted = len(regulation_ids) if regulation_ids else 0
+            skipped_duplicates = len(reg_values) - actual_inserted
+            self.stats['regulations_inserted'] += actual_inserted
 
-            # 插入sequences（如果有）
-            if sequences:
+            if skipped_duplicates > 0:
+                if 'duplicates_skipped' not in self.stats:
+                    self.stats['duplicates_skipped'] = 0
+                self.stats['duplicates_skipped'] += skipped_duplicates
+                logger.debug(f"跳过 {skipped_duplicates} 条重复记录")
+
+            # 插入sequences（如果有且有成功插入的 regulation）
+            if sequences and regulation_ids:
                 seq_values = []
-                for (reg_id,), seq in zip(regulation_ids, sequences):
+                # 只为实际插入的 regulation 添加序列
+                for (reg_id,), seq in zip(regulation_ids, sequences[:actual_inserted]):
                     if seq['lncrna_sequence'] or seq['dna_sequence']:
                         seq_values.append((
                             reg_id,
@@ -405,6 +432,9 @@ class RegulationsImporter:
                     execute_values(cursor, """
                         INSERT INTO sequences (regulation_id, lncrna_sequence, dna_sequence)
                         VALUES %s
+                        ON CONFLICT (regulation_id) DO UPDATE SET
+                            lncrna_sequence = EXCLUDED.lncrna_sequence,
+                            dna_sequence = EXCLUDED.dna_sequence
                     """, seq_values)
 
                     self.stats['sequences_inserted'] += len(seq_values)
@@ -439,6 +469,7 @@ class RegulationsImporter:
         print(f"总行数:             {self.stats['total_rows']}")
         print(f"regulations插入:    {self.stats['regulations_inserted']}")
         print(f"sequences插入:      {self.stats['sequences_inserted']}")
+        print(f"重复跳过:           {self.stats.get('duplicates_skipped', 0)}")
         print(f"跳过:               {self.stats['skipped_rows']}")
         print(f"失败:               {self.stats['failed_rows']}")
         print(f"错误数:             {len(self.stats['errors'])}")

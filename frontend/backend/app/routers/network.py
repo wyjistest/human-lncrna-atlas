@@ -253,6 +253,7 @@ def get_gene_network(
     min_ba: Optional[float] = Query(0, ge=0, description="最小结合亲和力"),
     max_distance: Optional[int] = Query(None, description="最大距离（bp）"),
     depth: int = Query(1, ge=1, le=2, description="网络深度（1或2层）"),
+    max_edges: int = Query(500, ge=1, le=5000, description="最大边数（默认500）"),
     db: Session = Depends(get_db),
 ):
     """
@@ -263,6 +264,7 @@ def get_gene_network(
     - min_ba: 最小结合亲和力
     - max_distance: 最大距离过滤
     - depth: 网络深度（1=直接调控，2=二度调控）
+    - max_edges: 最大边数限制，避免高连接度基因返回过多数据
     """
     # 验证基因存在
     center_gene = (
@@ -308,6 +310,13 @@ def get_gene_network(
             func.abs(Regulation.target_start - gene_obj.gene_start) <= max_distance
         )
 
+    # 按 binding_affinity 降序排列，并限制边数（第一层使用大部分配额）
+    first_layer_limit = max_edges if depth == 1 else int(max_edges * 0.7)
+    query_1st = query_1st.order_by(Regulation.binding_affinity.desc()).limit(first_layer_limit)
+
+    # 追踪是否数据被截断
+    truncated = False
+
     for reg, target_gene, target_core in query_1st.all():
         # 添加目标节点
         target_node_id = f"g_{target_gene.gene_id}"
@@ -352,8 +361,12 @@ def get_gene_network(
             if min_ba is not None:
                 query_2nd = query_2nd.filter(Regulation.binding_affinity >= min_ba)
 
-            # 限制第二层数量（避免过大）
-            query_2nd = query_2nd.limit(200)
+            # 限制第二层数量（使用剩余配额）
+            second_layer_limit = max_edges - len(edges)
+            if second_layer_limit <= 0:
+                truncated = True
+                second_layer_limit = 0
+            query_2nd = query_2nd.order_by(Regulation.binding_affinity.desc()).limit(second_layer_limit)
 
             for reg, target_gene, target_core in query_2nd.all():
                 source_node_id = f"g_{reg.lncrna_gene_id}"
@@ -387,6 +400,10 @@ def get_gene_network(
                     )
                 )
 
+    # 检查是否达到边数限制
+    if len(edges) >= max_edges:
+        truncated = True
+
     # 统计信息
     stats = {
         "total_nodes": len(nodes_dict),
@@ -399,6 +416,8 @@ def get_gene_network(
             if any(e.binding_affinity is not None for e in edges)
             else None
         ),
+        "truncated": truncated,
+        "max_edges_limit": max_edges,
     }
 
     return NetworkData(
@@ -412,12 +431,17 @@ def get_gene_network(
 def compare_species_networks(
     lncrna_gene_id: int = Query(..., description="lncRNA基因ID（human）"),
     min_ba: float = Query(50, ge=0, description="最小结合亲和力"),
+    max_targets_per_species: int = Query(100, ge=1, le=500, description="每个物种最大靶基因数"),
     db: Session = Depends(get_db),
 ):
     """
     跨物种网络对比
 
     返回指定lncRNA在不同物种中的调控网络数据
+
+    - lncrna_gene_id: lncRNA基因ID
+    - min_ba: 最小结合亲和力过滤
+    - max_targets_per_species: 每个物种返回的最大靶基因数，按 BA 降序取 TOP N
     """
     # 查询lncRNA的core_id
     lncrna = db.query(Gene).filter(Gene.gene_id == lncrna_gene_id).first()
@@ -436,14 +460,25 @@ def compare_species_networks(
     species_networks = {}
 
     for gene_id, species_id in ortholog_genes:
-        # 查询该基因的调控关系
-        regulations = (
+        # 查询该基因的调控关系（添加排序和限制）
+        regulations_query = (
             db.query(Regulation, Gene, CoreGene)
             .join(Gene, Regulation.target_gene_id == Gene.gene_id)
             .join(CoreGene, Gene.core_id == CoreGene.core_id)
             .filter(Regulation.lncrna_gene_id == gene_id)
             .filter(Regulation.binding_affinity >= min_ba)
-            .all()
+            .order_by(Regulation.binding_affinity.desc())
+            .limit(max_targets_per_species)
+        )
+
+        regulations = regulations_query.all()
+
+        # 查询该物种的总调控关系数（用于统计）
+        total_count = (
+            db.query(func.count(Regulation.regulation_id))
+            .filter(Regulation.lncrna_gene_id == gene_id)
+            .filter(Regulation.binding_affinity >= min_ba)
+            .scalar()
         )
 
         targets = [
@@ -460,6 +495,8 @@ def compare_species_networks(
             "lncrna_gene_id": gene_id,
             "species_id": species_id,
             "target_count": len(targets),
+            "total_target_count": total_count,
+            "truncated": total_count > max_targets_per_species,
             "targets": targets,
         }
 

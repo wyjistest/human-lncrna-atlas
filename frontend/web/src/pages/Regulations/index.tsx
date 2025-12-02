@@ -33,7 +33,8 @@ export default function Regulations() {
 
   // 转换筛选器状态为 API 参数
   // 注意：BA 范围在 AdvancedFilters 中已自动交换，始终保证 min <= max
-  const apiParams = {
+  // 使用 useMemo 包裹以避免每次渲染创建新对象，防止 useEffect 无效触发
+  const apiParams = useMemo(() => ({
     page,
     page_size: pageSize,
     min_ba: filters.min_ba,
@@ -43,7 +44,16 @@ export default function Regulations() {
     chromosomes: filters.chromosomes?.join(','),
     lncrna_gene_name: filters.lncrna_gene_name,
     target_gene_name: filters.target_gene_name,
-  }
+  }), [
+    page,
+    pageSize,
+    filters.min_ba,
+    filters.max_ba,
+    filters.species_ids,
+    filters.chromosomes,
+    filters.lncrna_gene_name,
+    filters.target_gene_name,
+  ])
 
   const { data, isLoading, error } = useRegulations(apiParams)
 

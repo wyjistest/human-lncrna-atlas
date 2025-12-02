@@ -69,6 +69,13 @@ class Settings(BaseSettings):
     # 告警阈值配置
     ALERT_THRESHOLDS: AlertThresholds = AlertThresholds()
 
+    # Admin API 安全配置
+    ADMIN_API_KEY: Optional[str] = Field(default=None, env="ADMIN_API_KEY")
+    ADMIN_ALLOWED_IPS: list = Field(
+        default=["127.0.0.1", "localhost", "::1"],
+        description="允许访问 Admin API 的 IP 地址白名单"
+    )
+
     @property
     def database_url(self) -> str:
         """构建数据库连接URL"""
