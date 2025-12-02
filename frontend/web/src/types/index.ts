@@ -13,3 +13,6 @@ export * from './api-extensions'
 
 // 导出网络可视化类型（优先使用 network.ts 中的定义）
 export * from './network'
+
+// 导出监控相关类型
+export * from './monitoring'

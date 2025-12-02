@@ -146,6 +146,7 @@ species (1) ──< genes (N) ──< regulations (N) ──< sequences (1)
 | `/api/v1/stats/detailed` | GET | 详细统计（图表数据） |
 | `/api/v1/diseases` | GET | 疾病/性状列表 |
 | `/api/v1/network/gene/{id}` | GET | 基因网络数据 |
+| `/api/v1/admin/metrics` | GET | 系统监控指标（CPU/内存/告警/百分位） |
 
 ### 启动命令
 
@@ -179,6 +180,7 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 | Diseases | `/diseases` | 疾病关联 |
 | Network | `/network` | 网络可视化 |
 | Stats | `/stats` | 统计图表 |
+| Monitoring | `/admin/monitoring` | 系统监控仪表板 |
 
 ### 关键组件
 
@@ -299,7 +301,7 @@ GROUP BY s.species_id, s.species_code
 
 | 日期 | 主要内容 | 文件 |
 |------|----------|------|
-| 2025-12-02 | 分页索引优化、前端缓存、TypeScript 修复 | [2025-12-02.md](changelog/2025-12-02.md) |
+| 2025-12-02 | **监控仪表板**、分页索引优化、前端缓存 | [2025-12-02.md](changelog/2025-12-02.md) |
 | 2025-12-01 | E2E 测试框架、Redis 缓存、代码审查 | [2025-12-01.md](changelog/2025-12-01.md) |
 | 2024-12-01 | 序列展示、性能优化 | [2024-12-01.md](changelog/2024-12-01.md) |
 
@@ -361,7 +363,7 @@ cd frontend/web && npm run test:e2e
 
 ### 回归与监控
 - [x] 补前端 E2E 或 API 合同测试 ✅ (2025-12-01 完成)
-- [ ] 简化日志/metrics 为可视化看板（基础日志已有，需 Prometheus 集成）
+- [x] 简化日志/metrics 为可视化看板 ✅ (2025-12-02 完成：完整监控仪表板)
 
 ### 文档与运维
 - [x] 完善一键启动脚本 ✅ (2025-12-02 完成：scripts/start.sh + stop.sh)

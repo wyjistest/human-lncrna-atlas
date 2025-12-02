@@ -3,7 +3,16 @@
 """
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import BaseModel, Field
+
+
+class AlertThresholds(BaseModel):
+    """告警阈值配置"""
+
+    error_rate: float = Field(default=0.05, description="错误率阈值 > 5%")
+    response_time_ms: float = Field(default=500.0, description="平均响应时间阈值 > 500ms")
+    cpu_percent: float = Field(default=80.0, description="CPU使用率阈值 > 80%")
+    memory_percent: float = Field(default=85.0, description="内存使用率阈值 > 85%")
 
 
 class Settings(BaseSettings):
@@ -56,6 +65,9 @@ class Settings(BaseSettings):
 
     # 性能配置
     QUERY_TIMEOUT: int = Field(default=30, env="QUERY_TIMEOUT")  # 查询超时（秒）
+
+    # 告警阈值配置
+    ALERT_THRESHOLDS: AlertThresholds = AlertThresholds()
 
     @property
     def database_url(self) -> str:

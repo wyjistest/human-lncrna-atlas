@@ -8,7 +8,7 @@
 import * as echarts from 'echarts/core'
 
 // 图表类型
-import { PieChart, BarChart } from 'echarts/charts'
+import { PieChart, BarChart, LineChart, GaugeChart } from 'echarts/charts'
 
 // 组件
 import {
@@ -25,7 +25,9 @@ import { CanvasRenderer } from 'echarts/renderers'
 // 类型定义
 import type {
   PieSeriesOption,
-  BarSeriesOption
+  BarSeriesOption,
+  LineSeriesOption,
+  GaugeSeriesOption
 } from 'echarts/charts'
 
 import type {
@@ -40,6 +42,8 @@ import type {
 export type ECOption = echarts.ComposeOption<
   | PieSeriesOption
   | BarSeriesOption
+  | LineSeriesOption
+  | GaugeSeriesOption
   | TitleComponentOption
   | TooltipComponentOption
   | LegendComponentOption
@@ -51,6 +55,8 @@ export type ECOption = echarts.ComposeOption<
 echarts.use([
   PieChart,
   BarChart,
+  LineChart,
+  GaugeChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,

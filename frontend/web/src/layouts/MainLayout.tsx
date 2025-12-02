@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Layout, Menu } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { HomeOutlined, DatabaseOutlined, LinkOutlined, MedicineBoxOutlined, BarChartOutlined, ApartmentOutlined } from '@ant-design/icons'
+import { HomeOutlined, DatabaseOutlined, LinkOutlined, MedicineBoxOutlined, BarChartOutlined, ApartmentOutlined, DashboardOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '@/components/LanguageSwitch'
 
@@ -19,6 +19,8 @@ export default function MainLayout() {
     { key: '/regulations', icon: <LinkOutlined />, label: t('regulations') },
     { key: '/diseases', icon: <MedicineBoxOutlined />, label: t('diseases') },
     { key: '/network', icon: <ApartmentOutlined />, label: t('network') },
+    { type: 'divider' as const },
+    { key: '/admin/monitoring', icon: <DashboardOutlined />, label: t('monitoring', 'Monitoring') },
   ], [t])
 
   return (

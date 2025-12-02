@@ -12,6 +12,7 @@ import GeneDetail from './pages/GeneDetail'
 import Regulations from './pages/Regulations'
 import Diseases from './pages/Diseases'
 import Network from './pages/Network'
+import Monitoring from './pages/Admin/Monitoring'
 
 function App() {
   const { i18n } = useTranslation()
@@ -31,6 +32,7 @@ function App() {
             <Route path="regulations" element={<Regulations />} />
             <Route path="diseases" element={<Diseases />} />
             <Route path="network" element={<Network />} />
+            <Route path="admin/monitoring" element={<Monitoring />} />
           </Route>
         </Routes>
       </ConfigProvider>

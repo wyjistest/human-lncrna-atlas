@@ -24,6 +24,13 @@ from .stats import (
     SpeciesStats,
     GeneStats,
 )
+from .monitoring import (
+    MetricsResponse,
+    RequestMetrics,
+    ErrorMetrics,
+    ResponseTimeMetrics,
+    HealthMetrics,
+)
 
 __all__ = [
     "PaginationParams",
@@ -43,4 +50,9 @@ __all__ = [
     "OverviewStats",
     "SpeciesStats",
     "GeneStats",
+    "MetricsResponse",
+    "RequestMetrics",
+    "ErrorMetrics",
+    "ResponseTimeMetrics",
+    "HealthMetrics",
 ]

@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from collections import deque
 import time
 import logging
 
@@ -14,7 +15,7 @@ from app.core.database import init_db, close_db
 from app.core.logging_config import setup_logging
 from app.middleware.logging import LoggingMiddleware, MetricsMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
-from app.routers import genes, regulations, diseases, stats, network
+from app.routers import genes, regulations, diseases, stats, network, admin
 from app.schemas.common import HealthResponse
 
 # 初始化日志
@@ -84,10 +85,36 @@ app.add_middleware(
 # 保存MetricsMiddleware实例到app.state（用于/metrics端点）
 # 注意：需要在第一个请求后才能获取实例
 app.state.metrics_data = {
+    # Phase 1 - 基础指标（保留向后兼容）
     "total_requests": 0,
     "total_errors": 0,
     "total_time": 0.0,
+    "last_minute_requests": 0,
+
+    # Phase 2 - 响应时间分布
+    "response_time_buckets": {
+        "0-50": 0,
+        "50-100": 0,
+        "100-200": 0,
+        "200-500": 0,
+        "500+": 0,
+    },
+
+    # Phase 2 - 时间序列数据（最近10分钟，每秒一条）
+    "time_series": deque(maxlen=600),
+
+    # Phase 2 - 端点统计 {"/api/v1/genes": {"requests": 0, "errors": 0, "total_time": 0.0}}
+    "endpoints": {},
+
+    # Phase 2 - 当前秒数据聚合
+    "current_second": {"timestamp": 0, "requests": 0, "errors": 0},
+
+    # Phase 3 - 响应时间原始数据（用于百分位计算）
+    "response_times": deque(maxlen=1000),
 }
+
+# 记录应用启动时间（用于计算运行时间）
+app.state.start_time = time.time()
 
 
 # 全局异常处理
@@ -141,10 +168,14 @@ def health_check():
     )
 
 
-# 监控指标端点
-@app.get("/metrics", tags=["monitoring"])
-def get_metrics():
-    """获取性能指标"""
+# 监控指标端点（原始格式，保留用于内部监控）
+@app.get("/internal/metrics", tags=["monitoring"])
+def get_internal_metrics():
+    """
+    获取原始性能指标（内部使用）
+
+    注意：前端请使用 /api/v1/admin/metrics 端点
+    """
     if hasattr(app.state, "metrics_data"):
         data = app.state.metrics_data
         total = data["total_requests"]
@@ -169,6 +200,7 @@ app.include_router(regulations.router, prefix=settings.API_V1_PREFIX)
 app.include_router(diseases.router, prefix=settings.API_V1_PREFIX)
 app.include_router(stats.router, prefix=settings.API_V1_PREFIX)
 app.include_router(network.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin.router, prefix=settings.API_V1_PREFIX)
 
 
 if __name__ == "__main__":
