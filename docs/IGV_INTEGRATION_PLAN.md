@@ -30,9 +30,9 @@
 | 物种 | 基因组版本 | UCSC ID | 数据来源 |
 |------|-----------|---------|----------|
 | Human | GRCh37 | **hg19** | IGV.org 公共服务 |
-| Chimpanzee | Pan_tro_3.0 | panTro6 | UCSC 自托管 |
-| Macaque | Mmul_10 | rheMac10 | UCSC 自托管 |
-| Marmoset | mCalJac1 | calJac4 | UCSC 自托管 |
+| Chimpanzee | Pan_tro_2.1.4 | **panTro5** | UCSC 自托管 |
+| Macaque | Mmul_10 | **rheMac10** | UCSC 自托管 |
+| Marmoset | Callithrix_jacchus-3.2 | **calJac3** | UCSC 自托管 |
 
 ---
 
@@ -232,21 +232,21 @@ frontend/web/src/
 
 - [ ] **下载参考基因组**
   ```bash
-  # Chimpanzee (panTro6)
-  wget https://hgdownload.soe.ucsc.edu/goldenPath/panTro6/bigZips/panTro6.fa.gz
+  # Chimpanzee (panTro5)
+  wget https://hgdownload.soe.ucsc.edu/goldenPath/panTro5/bigZips/panTro5.fa.gz
 
   # Macaque (rheMac10)
   wget https://hgdownload.soe.ucsc.edu/goldenPath/rheMac10/bigZips/rheMac10.fa.gz
 
-  # Marmoset (calJac4)
-  wget https://hgdownload.soe.ucsc.edu/goldenPath/calJac4/bigZips/calJac4.fa.gz
+  # Marmoset (calJac3)
+  wget https://hgdownload.soe.ucsc.edu/goldenPath/calJac3/bigZips/calJac3.fa.gz
   ```
 
 - [ ] **生成索引文件**
   ```bash
-  samtools faidx panTro6.fa
+  samtools faidx panTro5.fa
   samtools faidx rheMac10.fa
-  samtools faidx calJac4.fa
+  samtools faidx calJac3.fa
   ```
 
 - [ ] **配置静态文件服务**
@@ -282,9 +282,9 @@ frontend/web/src/
 
 | 物种 | FASTA (压缩) | FASTA (解压) | Index | 合计 |
 |------|-------------|-------------|-------|------|
-| panTro6 | 1.0 GB | 3.0 GB | 50 MB | ~4 GB |
-| rheMac10 | 0.9 GB | 2.9 GB | 50 MB | ~4 GB |
-| calJac4 | 0.9 GB | 2.8 GB | 50 MB | ~4 GB |
+| panTro5 | ~1.0 GB | ~3.0 GB | ~50 MB | ~4 GB |
+| rheMac10 | ~0.9 GB | ~2.9 GB | ~50 MB | ~4 GB |
+| calJac3 | ~0.9 GB | ~2.8 GB | ~50 MB | ~4 GB |
 | **总计** | | | | **~12 GB** |
 
 ### 5.4 验收标准
