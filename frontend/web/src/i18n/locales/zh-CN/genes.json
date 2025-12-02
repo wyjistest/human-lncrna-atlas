@@ -1,0 +1,52 @@
+{
+  "title": "基因列表",
+  "search": {
+    "placeholder": "搜索基因名或ID",
+    "geneType": "基因类型"
+  },
+  "geneTypes": {
+    "lncRNA": "lncRNA",
+    "proteinCoding": "蛋白编码基因"
+  },
+  "columns": {
+    "geneName": "基因名称",
+    "ensemblId": "Ensembl ID",
+    "ensemblLink": "Ensembl 链接",
+    "fantomLink": "FANTOM5 CAT 链接",
+    "type": "类型",
+    "species": "物种",
+    "chromosome": "染色体",
+    "start": "起始",
+    "end": "终止",
+    "regulations": "调控数"
+  },
+  "pagination": {
+    "total": "共 {{count}} 条"
+  },
+  "detail": {
+    "title": "基因详情",
+    "basicInfo": "基本信息",
+    "statistics": "统计信息",
+    "orthologs": "直系同源基因",
+    "regulations": "调控关系",
+    "diseases": "疾病关联",
+    "noOrthologs": "暂无同源基因数据",
+    "noRegulations": "暂无调控关系数据",
+    "noDiseases": "暂无疾病关联数据",
+    "regulationCount": "调控关系数",
+    "targetCount": "靶基因数",
+    "diseaseCount": "关联疾病数",
+    "notFound": "基因不存在",
+    "targetGene": "靶基因",
+    "bindingAffinity": "结合亲和力",
+    "chromosome": "染色体",
+    "position": "位置",
+    "traitName": "疾病/性状",
+    "ontology": "本体论",
+    "oddsRatio": "优势比",
+    "fdr": "FDR",
+    "literature": "文献支持",
+    "bestAvgBA": "最佳平均BA",
+    "numPeaks": "峰数"
+  }
+}

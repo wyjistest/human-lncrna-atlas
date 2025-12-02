@@ -1,0 +1,130 @@
+{
+  "title": "网络可视化",
+  "description": "根据疾病-Ontology组合构建lncRNA调控网络（支持多物种对比，最多4个）",
+
+  "species": {
+    "label": "物种",
+    "placeholder": "选择物种（最多4个）",
+    "max4Warning": "最多选择4个物种",
+    "selectAtLeast1": "请至少选择一个物种",
+    "human": "人类",
+    "chimpanzee": "黑猩猩",
+    "macaque": "猕猴",
+    "marmoset": "狨猴",
+    "unknown": "物种{{id}}"
+  },
+
+  "disease": {
+    "label": "疾病",
+    "placeholder": "选择疾病"
+  },
+
+  "ontology": {
+    "label": "Ontology",
+    "placeholder": "选择Ontology"
+  },
+
+  "query": {
+    "button": "查询网络",
+    "selectDiseaseOntology": "请选择疾病和Ontology"
+  },
+
+  "card": {
+    "noData": "该物种无网络数据",
+    "nodes": "节点",
+    "edges": "边",
+    "lncrna": "lncRNA",
+    "targetGenes": "靶基因",
+    "searchResults": "搜索结果",
+    "searchPlaceholder": "搜索基因",
+    "clickToLocate": "点击定位"
+  },
+
+  "filters": {
+    "title": "高级过滤器",
+    "enabled": "已启用",
+    "baThreshold": "Binding Affinity 阈值",
+    "baTooltip": "BA ≥ {{value}}",
+    "nodeType": "节点类型",
+    "all": "全部",
+    "targetGene": "靶基因",
+    "minDegree": "最小度数（连接数）",
+    "degreeTooltip": "度数 ≥ {{value}}",
+    "layout": "布局算法",
+    "resetAll": "重置所有设置"
+  },
+
+  "layouts": {
+    "concentric": "同心圆布局 (Concentric)",
+    "cose": "力导向布局 (COSE)",
+    "circle": "圆形布局 (Circle)",
+    "grid": "网格布局 (Grid)",
+    "breadthfirst": "层次布局 (Breadthfirst)",
+    "random": "随机布局 (Random)"
+  },
+
+  "export": {
+    "button": "导出",
+    "png": "导出为PNG",
+    "svg": "导出为SVG",
+    "csv": "导出为CSV",
+    "json": "导出为JSON",
+    "svgNotSupported": "SVG导出功能需要额外插件，当前使用PNG格式",
+    "noData": "无数据可导出",
+    "networkNotLoaded": "网络图未加载",
+    "generating": "正在生成{{species}}的{{format}}...",
+    "success": "{{species}} {{format}}导出成功",
+    "failed": "{{species}} {{format}}导出失败"
+  },
+
+  "batchExport": {
+    "button": "批量导出所有物种",
+    "buttonWithCount": "批量导出所有物种 ({{count}})",
+    "title": "批量导出所有物种网络图",
+    "speciesCount": "将导出 {{count}} 个物种的网络图",
+    "diseaseLabel": "疾病",
+    "ontologyLabel": "Ontology",
+    "selectFormats": "选择导出格式",
+    "pngFormat": "PNG 图片 (高分辨率 2x)",
+    "csvFormat": "CSV 数据 (节点和边)",
+    "jsonFormat": "JSON 原始数据",
+    "zipNote": "文件将打包为 ZIP 格式下载",
+    "startExport": "开始导出",
+    "cancel": "取消",
+    "selectAtLeastOne": "请至少选择一个导出格式",
+    "preparing": "正在准备导出...",
+    "generatingImages": "正在生成网络图...",
+    "packing": "正在打包文件...",
+    "success": "成功导出 {{count}} 个物种的网络图！",
+    "failed": "导出失败，请重试",
+    "pngFailed": "PNG 导出失败，请重试",
+    "noExportable": "没有可导出的网络图，请确保网络已加载完成",
+    "notReady": "还有 {{count}} 个物种未加载完成（{{names}}），请稍后再导出",
+    "mergeImageFailed": "合并图像生成失败，仅导出单独图片"
+  },
+
+  "drawer": {
+    "title": "基因详情",
+    "geneName": "基因名称",
+    "ensemblId": "Ensembl ID",
+    "ensemblLink": "Ensembl Link",
+    "viewInEnsembl": "View in Ensembl →",
+    "ensemblLinkNA": "N/A (仅支持 ENSG)",
+    "fantomLink": "FANTOM5 CAT Link",
+    "viewInFantom": "View in FANTOM5 CAT →",
+    "geneType": "基因类型",
+    "speciesLabel": "物种",
+    "conservationLabel": "保守性标签",
+    "conservationCount": "({{count}}/4 物种)",
+    "chromosome": "染色体",
+    "startPosition": "起始位置",
+    "endPosition": "终止位置",
+    "strand": "链",
+    "coreId": "Core ID",
+    "asSource": "作为源的调控",
+    "asTarget": "作为目标的调控",
+    "totalRegulations": "总调控关系",
+    "totalBA": "总Binding Affinity",
+    "noData": "无数据"
+  }
+}

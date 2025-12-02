@@ -1,0 +1,103 @@
+{
+  "title": "调控关系",
+  "export": {
+    "button": "导出数据",
+    "exporting": "导出中 {{percent}}%",
+    "csv": "导出为 CSV",
+    "xlsx": "导出为 XLSX",
+    "success": "导出成功",
+    "failed": "导出失败",
+    "noData": "没有可导出的数据",
+    "tooLarge": {
+      "title": "数据量过大",
+      "content": "筛选结果共 {{total}} 条记录，超过导出限制（{{limit}} 条）。请缩小筛选范围后重试。"
+    },
+    "warning": {
+      "title": "数据量较大",
+      "content": "将导出 {{total}} 条记录，可能需要一些时间。是否继续？",
+      "continue": "继续导出"
+    }
+  },
+  "filters": {
+    "baRange": "BA 范围",
+    "species": "物种",
+    "chromosome": "染色体",
+    "lncrnaName": "lncRNA 名称",
+    "targetName": "Target 名称",
+    "reset": "重置筛选"
+  },
+  "selection": {
+    "selected": "已选择 {{count}} 条",
+    "clear": "清空选择",
+    "exportSelected": "导出选中",
+    "visualize": "网络可视化",
+    "selectFirst": "请先选择要导出的数据",
+    "tooMany": "选中数据过多（{{count}} 条），超过导出限制（{{limit}} 条）",
+    "exportSuccess": "已导出 {{count}} 条数据"
+  },
+  "columns": {
+    "id": "ID",
+    "lncrna": "lncRNA",
+    "targetGene": "Target Gene",
+    "species": "物种",
+    "chr": "染色体",
+    "start": "起始",
+    "end": "终止",
+    "ba": "BA",
+    "peaks": "Peaks"
+  },
+  "pagination": {
+    "total": "共 {{count}} 条"
+  },
+  "sequence": {
+    "title": "序列详情",
+    "view": "查看序列",
+    "lncrnaGene": "LncRNA 基因",
+    "targetGene": "靶基因",
+    "lncrnaPosition": "LncRNA 位置",
+    "dnaPosition": "DNA 位置",
+    "bindingAffinity": "结合亲和力",
+    "chromosome": "染色体",
+    "lncrnaSequence": "LncRNA 序列",
+    "dnaSequence": "DNA 序列",
+    "copy": "复制",
+    "copied": "{{label}} 序列已复制",
+    "copyFailed": "复制序列失败",
+    "length": "长度",
+    "notAvailable": "序列不可用",
+    "noData": "暂无数据"
+  },
+  "visualization": {
+    "title": "调控关系网络图",
+    "titleWithCount": "调控关系网络图（{{count}} 条{{extra}}）",
+    "overLimit": "数据量超过上限（{{limit}} 条），仅显示前 {{limit}} 条",
+    "lncrna": "lncRNA",
+    "targetGene": "Target Gene",
+    "nodes": "节点",
+    "edges": "边",
+    "layout": "布局",
+    "layoutHelp": "选择不同布局算法可获得更清晰的网络视图",
+    "layouts": {
+      "cose": "力导向",
+      "circle": "圆形",
+      "concentric": "同心圆",
+      "breadthfirst": "树状",
+      "grid": "网格"
+    },
+    "layoutDesc": {
+      "cose": "自动聚类，展示关联强度（默认）",
+      "circle": "所有节点均匀分布在圆周上",
+      "concentric": "按连接数分层，高连接节点居中",
+      "breadthfirst": "层级结构，适合有向关系",
+      "grid": "规整排列，适合大量节点"
+    },
+    "resetView": "重置视图",
+    "exportPng": "导出 PNG",
+    "exportSuccess": "网络图已导出",
+    "exportFailed": "导出失败",
+    "notReady": "网络图未加载完成",
+    "createFailed": "网络图创建失败",
+    "renderTip": "正在渲染网络图...",
+    "usageTip": "提示：滚轮缩放，拖拽移动，点击节点查看详情"
+  }
+}

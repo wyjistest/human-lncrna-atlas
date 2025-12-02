@@ -1,0 +1,103 @@
+{
+  "title": "Regulations",
+  "export": {
+    "button": "Export Data",
+    "exporting": "Exporting {{percent}}%",
+    "csv": "Export as CSV",
+    "xlsx": "Export as XLSX",
+    "success": "Export successful",
+    "failed": "Export failed",
+    "noData": "No data to export",
+    "tooLarge": {
+      "title": "Data Too Large",
+      "content": "Filter results contain {{total}} records, exceeding the export limit ({{limit}}). Please narrow down your filters."
+    },
+    "warning": {
+      "title": "Large Data Set",
+      "content": "About to export {{total}} records, this may take some time. Continue?",
+      "continue": "Continue Export"
+    }
+  },
+  "filters": {
+    "baRange": "BA Range",
+    "species": "Species",
+    "chromosome": "Chromosome",
+    "lncrnaName": "lncRNA Name",
+    "targetName": "Target Name",
+    "reset": "Reset Filters"
+  },
+  "selection": {
+    "selected": "{{count}} selected",
+    "clear": "Clear Selection",
+    "exportSelected": "Export Selected",
+    "visualize": "Network Visualization",
+    "selectFirst": "Please select data to export first",
+    "tooMany": "Too many selected ({{count}}), exceeds export limit ({{limit}})",
+    "exportSuccess": "Exported {{count}} records"
+  },
+  "columns": {
+    "id": "ID",
+    "lncrna": "lncRNA",
+    "targetGene": "Target Gene",
+    "species": "Species",
+    "chr": "Chr",
+    "start": "Start",
+    "end": "End",
+    "ba": "BA",
+    "peaks": "Peaks"
+  },
+  "pagination": {
+    "total": "{{count}} records in total"
+  },
+  "sequence": {
+    "title": "Sequence Details",
+    "view": "View Sequence",
+    "lncrnaGene": "LncRNA Gene",
+    "targetGene": "Target Gene",
+    "lncrnaPosition": "LncRNA Position",
+    "dnaPosition": "DNA Position",
+    "bindingAffinity": "Binding Affinity",
+    "chromosome": "Chromosome",
+    "lncrnaSequence": "LncRNA Sequence",
+    "dnaSequence": "DNA Sequence",
+    "copy": "Copy",
+    "copied": "{{label}} sequence copied",
+    "copyFailed": "Failed to copy sequence",
+    "length": "Length",
+    "notAvailable": "Sequence not available",
+    "noData": "No data available"
+  },
+  "visualization": {
+    "title": "Regulation Network",
+    "titleWithCount": "Regulation Network ({{count}} records{{extra}})",
+    "overLimit": "Data exceeds limit ({{limit}}), showing first {{limit}} records",
+    "lncrna": "lncRNA",
+    "targetGene": "Target Gene",
+    "nodes": "Nodes",
+    "edges": "Edges",
+    "layout": "Layout",
+    "layoutHelp": "Different layouts provide clearer views for different network structures",
+    "layouts": {
+      "cose": "Force-directed",
+      "circle": "Circle",
+      "concentric": "Concentric",
+      "breadthfirst": "Hierarchical",
+      "grid": "Grid"
+    },
+    "layoutDesc": {
+      "cose": "Auto clustering, shows association strength (default)",
+      "circle": "Nodes evenly distributed on circumference",
+      "concentric": "Layered by degree, high-degree nodes in center",
+      "breadthfirst": "Hierarchical structure, suitable for directed relations",
+      "grid": "Regular arrangement, suitable for many nodes"
+    },
+    "resetView": "Reset View",
+    "exportPng": "Export PNG",
+    "exportSuccess": "Network exported",
+    "exportFailed": "Export failed",
+    "notReady": "Network not ready",
+    "createFailed": "Failed to create network",
+    "renderTip": "Rendering network...",
+    "usageTip": "Tip: Scroll to zoom, drag to pan, click nodes for details"
+  }
+}

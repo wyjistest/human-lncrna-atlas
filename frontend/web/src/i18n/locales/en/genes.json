@@ -1,0 +1,52 @@
+{
+  "title": "Gene List",
+  "search": {
+    "placeholder": "Search gene name or ID",
+    "geneType": "Gene Type"
+  },
+  "geneTypes": {
+    "lncRNA": "lncRNA",
+    "proteinCoding": "Protein Coding"
+  },
+  "columns": {
+    "geneName": "Gene Name",
+    "ensemblId": "Ensembl ID",
+    "ensemblLink": "Ensembl Link",
+    "fantomLink": "FANTOM5 CAT Link",
+    "type": "Type",
+    "species": "Species",
+    "chromosome": "Chromosome",
+    "start": "Start",
+    "end": "End",
+    "regulations": "Regulations"
+  },
+  "pagination": {
+    "total": "{{count}} records in total"
+  },
+  "detail": {
+    "title": "Gene Detail",
+    "basicInfo": "Basic Information",
+    "statistics": "Statistics",
+    "orthologs": "Orthologs",
+    "regulations": "Regulations",
+    "diseases": "Disease Associations",
+    "noOrthologs": "No ortholog data available",
+    "noRegulations": "No regulation data available",
+    "noDiseases": "No disease association data available",
+    "regulationCount": "Regulation Count",
+    "targetCount": "Target Count",
+    "diseaseCount": "Disease Count",
+    "notFound": "Gene not found",
+    "targetGene": "Target Gene",
+    "bindingAffinity": "Binding Affinity",
+    "chromosome": "Chromosome",
+    "position": "Position",
+    "traitName": "Disease/Trait",
+    "ontology": "Ontology",
+    "oddsRatio": "Odds Ratio",
+    "fdr": "FDR",
+    "literature": "Literature",
+    "bestAvgBA": "Best Avg BA",
+    "numPeaks": "Peaks"
+  }
+}
