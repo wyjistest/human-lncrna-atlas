@@ -13,10 +13,22 @@ Human LncRNA Atlas 是一个跨物种 LncRNA（长非编码 RNA）调控关系�
 
 ---
 
+## 目录说明
+
+| 目录 | 用途 | 说明 |
+|------|------|------|
+| `/data/wenyujianData/human-lncrna-atlas-github/` | GitHub 仓库 | 用于版本控制和代码托管，不含数据文件 |
+| `/data/wenyujianData/humanLncAtlas/` | 本地运行 | 包含完整数据文件、LongTarget 结果等大文件 |
+
+> **注意**：开发时在 `humanLncAtlas` 目录进行，完成后将代码同步到 `human-lncrna-atlas-github` 目录提交。
+
+---
+
 ## 项目结构
 
 ```
-/data/wenyujianData/humanLncAtlas/
+human-lncrna-atlas-github/         # GitHub 仓库目录
+├── .github/                       # GitHub Actions CI/CD
 ├── docs/                          # 项目文档
 ├── etl/                           # 数据导入脚本
 │   ├── import_regulations.py      # 调控关系导入
@@ -31,18 +43,26 @@ Human LncRNA Atlas 是一个跨物种 LncRNA（长非编码 RNA）调控关系�
 │   │   │   ├── routers/           # API 路由
 │   │   │   ├── schemas/           # Pydantic 数据模型
 │   │   │   └── middleware/        # 中间件（日志、限流）
+│   │   ├── tests/                 # 后端测试
 │   │   └── main.py                # FastAPI 入口
 │   └── web/                       # React 前端
-│       └── src/
-│           ├── api/               # API 客户端
-│           ├── components/        # 通用组件
-│           ├── hooks/             # 自定义 Hooks
-│           ├── pages/             # 页面组件
-│           ├── i18n/              # 国际化（中/英）
-│           └── types/             # TypeScript 类型
-├── *_batch_*.txt                  # 源数据文件
-└── resultAllLongTarget/           # LongTarget 计算结果
+│       ├── src/
+│       │   ├── api/               # API 客户端
+│       │   ├── components/        # 通用组件
+│       │   ├── hooks/             # 自定义 Hooks
+│       │   ├── pages/             # 页面组件
+│       │   ├── i18n/              # 国际化（中/英）
+│       │   └── types/             # TypeScript 类型
+│       └── e2e/                   # E2E 测试 (Playwright)
+├── schema/                        # 数据库 Schema 和迁移
+├── scripts/                       # 运维脚本
+└── tests/                         # 集成测试
 ```
+
+**本地运行目录额外包含**（不上传 GitHub）：
+- `*_batch_*.txt` - 源数据文件
+- `resultAllLongTarget/` - LongTarget 计算结果
+- `allMergedTranscriptSeq/` - 序列文件
 
 ---
 
