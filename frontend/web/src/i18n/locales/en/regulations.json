@@ -63,6 +63,12 @@
     "copy": "Copy",
     "copied": "{{label}} sequence copied",
     "copyFailed": "Failed to copy sequence",
+    "download": "Download FASTA",
+    "downloadLncrna": "Download LncRNA Sequence",
+    "downloadDna": "Download DNA Sequence",
+    "downloadBoth": "Download All Sequences",
+    "downloaded": "Sequence downloaded",
+    "downloadFailed": "Download failed",
     "length": "Length",
     "notAvailable": "Sequence not available",
     "noData": "No data available"

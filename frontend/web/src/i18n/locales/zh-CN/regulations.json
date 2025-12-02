@@ -63,6 +63,12 @@
     "copy": "复制",
     "copied": "{{label}} 序列已复制",
     "copyFailed": "复制序列失败",
+    "download": "下载 FASTA",
+    "downloadLncrna": "下载 LncRNA 序列",
+    "downloadDna": "下载 DNA 序列",
+    "downloadBoth": "下载全部序列",
+    "downloaded": "序列已下载",
+    "downloadFailed": "下载失败",
     "length": "长度",
     "notAvailable": "序列不可用",
     "noData": "暂无数据"
