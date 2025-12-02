@@ -364,7 +364,7 @@ cd frontend/web && npm run test:e2e
 - [ ] 简化日志/metrics 为可视化看板（基础日志已有，需 Prometheus 集成）
 
 ### 文档与运维
-- [ ] 完善一键启动脚本（缺少 start.sh/stop.sh）
+- [x] 完善一键启动脚本 ✅ (2025-12-02 完成：scripts/start.sh + stop.sh)
 - [x] 记录常见查询示例与数据字典 ✅ (2025-12-02 验收：DATABASE_DESIGN_FINAL.md + API_GUIDE.md)
 
 ---
