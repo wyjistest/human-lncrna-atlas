@@ -1,7 +1,6 @@
 import { apiClient } from './client'
 import type { components } from '@/types'
 
-type TraitDetail = components['schemas']['TraitDetail']
 type TraitGeneAssociationDetail = components['schemas']['TraitGeneAssociationDetail']
 type PaginatedTraitAssociationResponse = components['schemas']['PaginatedResponse_TraitGeneAssociationDetail_']
 type PaginatedGeneResponse = components['schemas']['PaginatedResponse_TraitGeneAssociationDetail_']

@@ -257,6 +257,71 @@ GROUP BY s.species_id, s.species_code
 
 ## 更新日志
 
+### 2025-12-02 分页索引优化与前端缓存
+
+#### 🔧 后端分页稳定性修复
+
+修复分页查询缺少 ORDER BY 导致结果不稳定的问题：
+
+| 文件 | 位置 | 修复说明 |
+|------|------|----------|
+| `genes.py` | 第107行 | 添加 `order_by(Gene.gene_id)` |
+| `diseases.py` | 第93行 | 添加 `order_by(Trait.trait_id, Ontology.ontology_id)` |
+| `diseases.py` | 第243行 | 添加 `order_by(TraitGeneAssociation.association_id)` |
+
+#### 📊 数据库索引优化
+
+新增3个覆盖索引，优化分页排序查询性能：
+
+| 索引名 | 表 | 定义 | 大小 |
+|--------|-----|------|------|
+| `idx_reg_ba_id` | regulations | `(binding_affinity DESC, regulation_id)` | 24 MB |
+| `idx_reg_species_ba_id` | regulations | `(species_id, binding_affinity DESC, regulation_id)` | 31 MB |
+| `idx_tga_trait_assoc` | trait_gene_associations | `(trait_id, association_id)` | 1.5 MB |
+
+**索引效果验证**:
+```sql
+EXPLAIN SELECT * FROM regulations ORDER BY binding_affinity DESC LIMIT 100;
+→ Index Scan using idx_reg_ba_id on regulations  ✅
+```
+
+#### ⚡ 前端缓存优化
+
+**React Query 全局配置** (`src/main.tsx`):
+```typescript
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,  // 5分钟内数据视为新鲜
+      gcTime: 10 * 60 * 1000,    // 10分钟后垃圾回收
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+```
+
+**相邻页预加载**:
+- 新增 `usePrefetchGenes` Hook (`src/hooks/useGenes.ts`)
+- 新增 `usePrefetchRegulations` Hook (`src/hooks/useRegulations.ts`)
+- Genes 页面和 Regulations 页面添加自动预加载逻辑
+
+#### 🐛 TypeScript 类型修复
+
+修复 Cytoscape EventObject 类型缺失问题：
+
+| 文件 | 修复说明 |
+|------|----------|
+| `src/types/cytoscape-ext.d.ts` | 添加 `EventObject` 接口定义，包含事件属性和方法 |
+
+**修改前错误**:
+```
+error TS2694: Namespace '"cytoscape"' has no exported member 'EventObject'
+```
+
+**修改后**: 构建成功 ✅
+
+---
+
 ### 2025-12-01 测试框架与 Redis 缓存
 
 #### 🧪 E2E 测试框架
@@ -439,8 +504,8 @@ cd frontend/web && npm run test:e2e
 - [ ] 检查大分页滚动性能
 
 ### 性能与缓存
-- [ ] 为高频查询添加 Redis 缓存
-- [ ] 确认分页排序字段覆盖索引
+- [x] 为高频查询添加 Redis 缓存 ✅ (2025-12-01 完成)
+- [x] 确认分页排序字段覆盖索引 ✅ (2025-12-02 完成)
 
 ### 回归与监控
 - [x] 补前端 E2E 或 API 合同测试 ✅ (2025-12-01 完成)
