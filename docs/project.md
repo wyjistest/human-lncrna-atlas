@@ -20,7 +20,25 @@ Human LncRNA Atlas 是一个跨物种 LncRNA（长非编码 RNA）调控关系�
 | `/data/wenyujianData/human-lncrna-atlas-github/` | GitHub 仓库 | 用于版本控制和代码托管，不含数据文件 |
 | `/data/wenyujianData/humanLncAtlas/` | 本地运行 | 包含完整数据文件、LongTarget 结果等大文件 |
 
-> **注意**：开发时在 `humanLncAtlas` 目录进行，完成后将代码同步到 `human-lncrna-atlas-github` 目录提交。
+### 开发工作流程
+
+```bash
+# 1. 在 humanLncAtlas 目录进行开发和测试
+cd /data/wenyujianData/humanLncAtlas/frontend/backend
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+
+# 2. 开发完成后，同步修改的文件到 GitHub 目录
+cp -r humanLncAtlas/frontend/backend/app/* human-lncrna-atlas-github/frontend/backend/app/
+cp -r humanLncAtlas/frontend/web/src/* human-lncrna-atlas-github/frontend/web/src/
+cp humanLncAtlas/docs/project.md human-lncrna-atlas-github/docs/
+# ... 根据实际修改的文件同步
+
+# 3. 切换到 GitHub 目录提交
+cd /data/wenyujianData/human-lncrna-atlas-github
+git add -A && git commit -m "feat/fix/docs: 描述" && git push
+```
+
+> **Commit 类型规范**：`feat`(新功能) / `fix`(修复) / `docs`(文档) / `refactor`(重构) / `perf`(性能)
 
 ---
 
