@@ -10,6 +10,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // 生产环境移除 console.log 和 debugger
+  esbuild: {
+    drop: ['console', 'debugger'],
+  },
   build: {
     minify: 'esbuild',  // 使用 esbuild（更快）
     rollupOptions: {
