@@ -1,0 +1,19 @@
+{
+  "title": "基因组浏览器",
+  "description": "使用基于 IGV.js 的交互式基因组浏览器探索 lncRNA 和调控数据。浏览染色体、查看基因注释并分析调控区域。",
+  "species": "物种",
+  "search": "搜索",
+  "searchPlaceholder": "输入基因名称（如 CATG00000000011.1）",
+  "loading": "正在加载基因组浏览器...",
+  "initError": "基因组浏览器初始化失败",
+  "searchError": "无法导航到指定位置",
+  "noResults": "未找到匹配的基因",
+  "noConfig": "配置不可用",
+  "noConfigDesc": "该物种的基因组浏览器配置不可用。请尝试其他物种或联系支持人员。",
+  "geneLoadMode": "基因聚焦视图",
+  "geneLoadModeDesc": "输入 lncRNA 基因名称，将自动定位到该基因的基因组位置并显示其相关调控关系。只会加载与该基因相关的数据。",
+  "load": "加载",
+  "quickLoad": "快速加载",
+  "currentGene": "当前基因",
+  "enterGeneName": "请输入基因名称"
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Genome Browser",
+  "description": "Explore lncRNA and regulatory data in an interactive genome browser powered by IGV.js. Navigate through chromosomes, view gene annotations, and analyze regulatory regions.",
+  "species": "Species",
+  "search": "Search",
+  "searchPlaceholder": "Enter gene name (e.g., CATG00000000011.1)",
+  "loading": "Loading genome browser...",
+  "initError": "Failed to initialize genome browser",
+  "searchError": "Failed to navigate to the specified location",
+  "noResults": "No matching genes found",
+  "noConfig": "Configuration not available",
+  "noConfigDesc": "The genome browser configuration for this species is not available. Please try another species or contact support.",
+  "geneLoadMode": "Gene-focused View",
+  "geneLoadModeDesc": "Enter a lncRNA gene name to load its genomic location and associated regulatory relationships. Only data related to this gene will be displayed.",
+  "load": "Load",
+  "quickLoad": "Quick load",
+  "currentGene": "Current gene",
+  "enterGeneName": "Please enter a gene name"
+}
