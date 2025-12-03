@@ -44,7 +44,8 @@
     "start": "起始",
     "end": "终止",
     "ba": "BA",
-    "peaks": "Peaks"
+    "peaks": "Peaks",
+    "action": "操作"
   },
   "pagination": {
     "total": "共 {{count}} 条"

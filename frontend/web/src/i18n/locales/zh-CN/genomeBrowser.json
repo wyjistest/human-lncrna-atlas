@@ -19,5 +19,12 @@
   "quickLoad": "快速加载",
   "currentGene": "当前基因",
   "currentSpecies": "当前物种",
-  "enterGeneName": "请输入基因名称"
+  "enterGeneName": "请输入基因名称",
+  "viewInIGV": "在 IGV 中查看",
+  "export": "导出",
+  "exportSVG": "导出 SVG",
+  "exportPNG": "导出 PNG",
+  "exportSuccess": "导出成功",
+  "exportFailed": "导出失败",
+  "exportNotReady": "浏览器尚未准备就绪"
 }

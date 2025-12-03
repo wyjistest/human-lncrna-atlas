@@ -7,7 +7,8 @@
  *
  * URL Parameters:
  * - gene: Gene name to load (e.g., CATG00000000011.1) - takes precedence
- * - species: Species ID (1-4, default: 1 for Human) - used when gene not specified
+ * - locus: Genomic locus to navigate to (e.g., chr1:1000000-2000000)
+ * - species: Species ID (1-4, default: 1 for Human)
  *
  * Two viewing modes:
  * 1. Species browsing mode: Select a species to load its full genome
@@ -15,10 +16,11 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio } from 'antd'
-import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined } from '@ant-design/icons'
+import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio, Dropdown } from 'antd'
+import type { MenuProps } from 'antd'
+import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import GenomeBrowser from '@/components/GenomeBrowser'
+import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
 
 const { Title, Paragraph, Text } = Typography
 const { Search } = Input
@@ -33,12 +35,19 @@ export default function GenomeBrowserPage() {
   // Get initial values from URL params
   const urlGene = searchParams.get('gene')
   const urlSpecies = searchParams.get('species')
+  const urlLocus = searchParams.get('locus')
 
   // Determine initial mode based on URL params
   const getInitialMode = (): ViewMode => {
     if (urlGene) return 'gene'
+    if (urlLocus) return 'species' // Locus mode uses species browsing
     if (urlSpecies) return 'species'
     return 'gene' // Default to gene mode for backward compatibility
+  }
+
+  // Get initial locus from URL
+  const getInitialLocus = (): string | undefined => {
+    return urlLocus || undefined
   }
 
   const getInitialSpecies = (): number => {
@@ -59,8 +68,10 @@ export default function GenomeBrowserPage() {
     getInitialMode() === 'gene' ? getInitialGene() : undefined
   )
   const [searchInput, setSearchInput] = useState<string>(getInitialGene())
-  const [currentLocus, setCurrentLocus] = useState<string | undefined>(undefined)
+  const [currentLocus, setCurrentLocus] = useState<string | undefined>(getInitialLocus())
   const browserRef = useRef<HTMLDivElement>(null)
+  const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
+  const [isExporting, setIsExporting] = useState(false)
 
   // Species options
   const speciesOptions = [
@@ -129,6 +140,122 @@ export default function GenomeBrowserPage() {
     setCurrentLocus(locus)
   }, [])
 
+  // Handle browser ready callback
+  const handleBrowserReady = useCallback((handle: GenomeBrowserHandle) => {
+    browserHandleRef.current = handle
+  }, [])
+
+  // Generate filename for exports
+  const getExportFilename = useCallback((extension: string) => {
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
+    const locusStr = currentLocus ? `-${currentLocus.replace(/[:\s]/g, '_')}` : ''
+    return `igv-export${locusStr}-${timestamp}.${extension}`
+  }, [currentLocus])
+
+  // Export to SVG
+  const handleExportSVG = useCallback(() => {
+    if (!browserHandleRef.current) {
+      message.warning(t('exportNotReady'))
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const svg = browserHandleRef.current.toSVG()
+      if (!svg) {
+        message.error(t('exportFailed'))
+        return
+      }
+
+      const blob = new Blob([svg], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = getExportFilename('svg')
+      a.click()
+      URL.revokeObjectURL(url)
+      message.success(t('exportSuccess'))
+    } catch (err) {
+      console.error('SVG export failed:', err)
+      message.error(t('exportFailed'))
+    } finally {
+      setIsExporting(false)
+    }
+  }, [t, getExportFilename])
+
+  // Export to PNG (SVG -> Canvas -> PNG)
+  const handleExportPNG = useCallback(() => {
+    if (!browserHandleRef.current) {
+      message.warning(t('exportNotReady'))
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const svg = browserHandleRef.current.toSVG()
+      if (!svg) {
+        message.error(t('exportFailed'))
+        setIsExporting(false)
+        return
+      }
+
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        // Use a higher resolution for better quality
+        const scale = 2
+        canvas.width = img.width * scale
+        canvas.height = img.height * scale
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.scale(scale, scale)
+          ctx.drawImage(img, 0, 0)
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = getExportFilename('png')
+              a.click()
+              URL.revokeObjectURL(url)
+              message.success(t('exportSuccess'))
+            } else {
+              message.error(t('exportFailed'))
+            }
+            setIsExporting(false)
+          }, 'image/png')
+        } else {
+          message.error(t('exportFailed'))
+          setIsExporting(false)
+        }
+      }
+      img.onerror = () => {
+        message.error(t('exportFailed'))
+        setIsExporting(false)
+      }
+      // Encode SVG properly for data URI
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)))
+    } catch (err) {
+      console.error('PNG export failed:', err)
+      message.error(t('exportFailed'))
+      setIsExporting(false)
+    }
+  }, [t, getExportFilename])
+
+  // Export menu items
+  const exportMenuItems: MenuProps['items'] = [
+    {
+      key: 'svg',
+      label: t('exportSVG'),
+      onClick: handleExportSVG,
+    },
+    {
+      key: 'png',
+      label: t('exportPNG'),
+      onClick: handleExportPNG,
+    },
+  ]
+
   // Quick load examples
   const exampleGenes = [
     'CATG00000000011.1',
@@ -182,6 +309,13 @@ export default function GenomeBrowserPage() {
                 style={{ width: 140 }}
               />
             </Space>
+
+            {/* Export Button */}
+            <Dropdown menu={{ items: exportMenuItems }} disabled={isExporting}>
+              <Button icon={<DownloadOutlined />} loading={isExporting}>
+                {t('export')}
+              </Button>
+            </Dropdown>
           </Space>
 
           {/* Mode-specific Alert */}
@@ -267,6 +401,7 @@ export default function GenomeBrowserPage() {
             geneName={viewMode === 'gene' ? geneName : undefined}
             locus={currentLocus}
             onLocusChange={handleLocusChange}
+            onBrowserReady={handleBrowserReady}
             height={600}
           />
         </div>

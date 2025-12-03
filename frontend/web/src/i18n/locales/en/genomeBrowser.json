@@ -19,5 +19,12 @@
   "quickLoad": "Quick load",
   "currentGene": "Current gene",
   "currentSpecies": "Current species",
-  "enterGeneName": "Please enter a gene name"
+  "enterGeneName": "Please enter a gene name",
+  "viewInIGV": "View in IGV",
+  "export": "Export",
+  "exportSVG": "Export SVG",
+  "exportPNG": "Export PNG",
+  "exportSuccess": "Export successful",
+  "exportFailed": "Export failed",
+  "exportNotReady": "Browser not ready yet"
 }

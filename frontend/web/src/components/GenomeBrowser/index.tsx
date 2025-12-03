@@ -35,6 +35,14 @@ const loadIGV = async (): Promise<IGVModule> => {
   return igvModule
 }
 
+/** Handle type for accessing GenomeBrowser methods */
+export interface GenomeBrowserHandle {
+  /** Get SVG representation of current view */
+  toSVG: () => string | undefined
+  /** Navigate to a specific locus */
+  navigateToLocus: (locus: string) => Promise<void>
+}
+
 interface GenomeBrowserProps {
   /** Species ID (used when geneName is not provided) */
   speciesId?: number
@@ -45,6 +53,8 @@ interface GenomeBrowserProps {
   /** Locus to navigate to (for external navigation) */
   locus?: string
   onLocusChange?: (locus: string) => void
+  /** Callback when browser is ready, provides handle for browser operations */
+  onBrowserReady?: (handle: GenomeBrowserHandle) => void
   height?: number | string
 }
 
@@ -54,6 +64,7 @@ const GenomeBrowser = memo(({
   padding = 50000,
   locus,
   onLocusChange,
+  onBrowserReady,
   height = 500
 }: GenomeBrowserProps) => {
   const { t } = useTranslation('genomeBrowser')
@@ -104,6 +115,12 @@ const GenomeBrowser = memo(({
   useEffect(() => {
     onLocusChangeRef.current = onLocusChange
   }, [onLocusChange])
+
+  // Store onBrowserReady in ref
+  const onBrowserReadyRef = useRef(onBrowserReady)
+  useEffect(() => {
+    onBrowserReadyRef.current = onBrowserReady
+  }, [onBrowserReady])
 
   // Store initial locus in ref (only used during initialization)
   const initialLocusRef = useRef(locus)
@@ -193,6 +210,26 @@ const GenomeBrowser = memo(({
             onLocusChangeRef.current(currentLoci[0])
           }
         })
+
+        // Notify parent that browser is ready with handle
+        if (onBrowserReadyRef.current) {
+          const handle: GenomeBrowserHandle = {
+            toSVG: () => {
+              try {
+                return browserRef.current?.toSVG?.()
+              } catch (e) {
+                console.warn('Failed to generate SVG:', e)
+                return undefined
+              }
+            },
+            navigateToLocus: async (targetLocus: string) => {
+              if (browserRef.current) {
+                await browserRef.current.search(targetLocus)
+              }
+            }
+          }
+          onBrowserReadyRef.current(handle)
+        }
 
         setIgvError(null)
       } catch (err) {

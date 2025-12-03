@@ -44,7 +44,8 @@
     "start": "Start",
     "end": "End",
     "ba": "BA",
-    "peaks": "Peaks"
+    "peaks": "Peaks",
+    "action": "Action"
   },
   "pagination": {
     "total": "{{count}} records in total"

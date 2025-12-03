@@ -9,7 +9,7 @@ import { useGeneDetail, useGeneRegulations, useGeneDiseases } from '@/hooks/useG
 import { useTranslation } from 'react-i18next'
 import { Card, Descriptions, Button, Tag, Divider, Table, Result, Collapse, Spin } from 'antd'
 import type { TableProps } from 'antd'
-import { ArrowLeftOutlined, LinkOutlined, EyeOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, LinkOutlined, EyeOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import { SequenceViewer } from '@/components/SequenceViewer'
@@ -21,6 +21,7 @@ export default function GeneDetail() {
   const { t } = useTranslation('genes')
   const { t: tCommon } = useTranslation('common')
   const { t: tReg } = useTranslation('regulations')
+  const { t: tGB } = useTranslation('genomeBrowser')
 
   // 分页状态
   const [regulationPage, setRegulationPage] = useState(1)
@@ -209,15 +210,32 @@ export default function GeneDetail() {
     },
   ]
 
+  // Navigate to IGV genome browser with gene name
+  const handleViewInIGV = () => {
+    if (gene.gene_name) {
+      navigate(`/genome-browser?gene=${encodeURIComponent(gene.gene_name)}`)
+    }
+  }
+
   return (
     <div style={{ padding: 24 }}>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/genes')}
-        style={{ marginBottom: 16 }}
-      >
-        {tCommon('action.back')}
-      </Button>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/genes')}
+        >
+          {tCommon('action.back')}
+        </Button>
+        {gene.gene_name && (
+          <Button
+            type="primary"
+            icon={<ExperimentOutlined />}
+            onClick={handleViewInIGV}
+          >
+            {tGB('viewInIGV')}
+          </Button>
+        )}
+      </div>
 
       <Card title={`${t('detail.title')}: ${gene.gene_name || gene.gene_id}`}>
         {/* 基本信息 */}

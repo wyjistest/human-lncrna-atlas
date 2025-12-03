@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Table, Button, Dropdown, Space, message, Modal, Progress } from 'antd'
-import { DownloadOutlined } from '@ant-design/icons'
+import { DownloadOutlined, ExperimentOutlined } from '@ant-design/icons'
 import type { TableProps, MenuProps } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { useRegulations, usePrefetchRegulations } from '@/hooks/useRegulations'
@@ -16,8 +17,10 @@ import type { components } from '@/types'
 type RegulationListItem = components['schemas']['RegulationListItem']
 
 export default function Regulations() {
+  const navigate = useNavigate()
   const { t, i18n } = useTranslation('regulations')
   const { t: tc } = useTranslation('common')
+  const { t: tGB } = useTranslation('genomeBrowser')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(100)
   const [filters, setFilters] = useState<FilterState>({})
@@ -215,6 +218,20 @@ export default function Regulations() {
     }
   ], [t, handleExport])
 
+  // Navigate to IGV genome browser with locus
+  const handleViewInIGV = useCallback((record: RegulationListItem) => {
+    const { lncrna_gene_name, target_chromosome, target_start, target_end, species_id } = record
+
+    // Build URL with locus parameter for precise location
+    if (target_chromosome && target_start && target_end) {
+      const locus = `${target_chromosome}:${target_start}-${target_end}`
+      navigate(`/genome-browser?locus=${encodeURIComponent(locus)}&species=${species_id}`)
+    } else if (lncrna_gene_name) {
+      // Fallback to gene name if no locus info
+      navigate(`/genome-browser?gene=${encodeURIComponent(lncrna_gene_name)}&species=${species_id}`)
+    }
+  }, [navigate])
+
   const columns: TableProps<RegulationListItem>['columns'] = useMemo(() => [
     { title: t('columns.id'), dataIndex: 'regulation_id', width: 100 },
     { title: t('columns.lncrna'), dataIndex: 'lncrna_gene_name', width: 150 },
@@ -225,7 +242,24 @@ export default function Regulations() {
     { title: t('columns.end'), dataIndex: 'target_end', width: 120 },
     { title: t('columns.ba'), dataIndex: 'binding_affinity', width: 100 },
     { title: t('columns.peaks'), dataIndex: 'num_peaks', width: 80 },
-  ], [t, i18n.language])
+    {
+      title: t('columns.action'),
+      key: 'action',
+      width: 80,
+      fixed: 'right' as const,
+      render: (_: unknown, record: RegulationListItem) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<ExperimentOutlined />}
+          onClick={() => handleViewInIGV(record)}
+          title={tGB('viewInIGV')}
+        >
+          IGV
+        </Button>
+      ),
+    },
+  ], [t, i18n.language, handleViewInIGV, tGB])
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
