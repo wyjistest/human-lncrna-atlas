@@ -79,12 +79,11 @@ const GenomeBrowser = memo(({
       // If geneName is provided, use gene-specific API
       if (geneName) {
         const res = await genomeApi.getIGVConfigForGene(geneName, padding)
-        return res.data.data
+        return res.data
       }
       // Otherwise use species-wide API
       const res = await genomeApi.getIGVConfig(speciesId)
-      // API returns {success: true, data: IGVConfig}, extract the inner data
-      return res.data.data
+      return res.data
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 2,
@@ -156,10 +155,16 @@ const GenomeBrowser = memo(({
 
         // Use genome ID for built-in genomes, otherwise use reference
         if (config.genome) {
-          // @ts-expect-error - IGV.js accepts genome string
           options.genome = config.genome
-        } else if (config.reference) {
-          options.reference = config.reference
+        } else if (config.reference && config.reference.fastaURL) {
+          // Only set reference if fastaURL is a valid string (required by IGV.js)
+          options.reference = {
+            id: config.reference.id,
+            name: config.reference.name,
+            fastaURL: config.reference.fastaURL,
+            indexURL: config.reference.indexURL ?? undefined,
+            cytobandURL: config.reference.cytobandURL ?? undefined,
+          }
         }
 
         // Process track URLs: convert relative paths to absolute backend URLs
