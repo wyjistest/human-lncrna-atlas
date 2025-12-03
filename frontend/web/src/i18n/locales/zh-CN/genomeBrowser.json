@@ -12,8 +12,12 @@
   "noConfigDesc": "该物种的基因组浏览器配置不可用。请尝试其他物种或联系支持人员。",
   "geneLoadMode": "基因聚焦视图",
   "geneLoadModeDesc": "输入 lncRNA 基因名称，将自动定位到该基因的基因组位置并显示其相关调控关系。只会加载与该基因相关的数据。",
+  "geneFocusMode": "基因模式",
+  "speciesBrowseMode": "物种模式",
+  "speciesBrowseModeDesc": "浏览选定物种的完整基因组。可以自由导航到任意染色体位置，查看全局基因组数据。",
   "load": "加载",
   "quickLoad": "快速加载",
   "currentGene": "当前基因",
+  "currentSpecies": "当前物种",
   "enterGeneName": "请输入基因名称"
 }

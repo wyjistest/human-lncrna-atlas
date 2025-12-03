@@ -563,3 +563,99 @@ def get_regulations_count(
         },
         "message": f"Found {count} regulations in the specified region",
     }
+
+
+@router.get("/search")
+def search_genes_for_igv(
+    q: str = Query(..., min_length=1, description="搜索关键词（基因名或 Ensembl ID）"),
+    species_id: Optional[int] = Query(None, description="物种 ID 过滤"),
+    limit: int = Query(20, ge=1, le=100, description="返回结果数量限制"),
+    db: Session = Depends(get_db),
+):
+    """
+    IGV 基因搜索 API
+
+    用于物种模式下的基因搜索，返回可在 IGV 中定位的基因列表。
+    搜索结果包含基因名、位置信息，可直接用于 IGV 定位。
+
+    Args:
+        q: 搜索关键词（支持部分匹配）
+        species_id: 可选，限制搜索范围到指定物种
+        limit: 返回结果数量限制，默认 20
+
+    Returns:
+        匹配的基因列表，包含定位所需的完整信息
+    """
+    import re
+
+    def escape_like_pattern(value: str) -> str:
+        """转义 LIKE 模式中的特殊字符"""
+        return re.sub(r'([%_\\])', r'\\\1', value)
+
+    # 构建查询
+    query = (
+        db.query(
+            Gene.gene_id,
+            Gene.gene_name,
+            Gene.gene_ensembl_id,
+            Gene.chromosome,
+            Gene.gene_start,
+            Gene.gene_end,
+            Gene.species_id,
+            Species.display_name.label("species_name"),
+        )
+        .join(Species, Gene.species_id == Species.species_id)
+        .filter(Gene.chromosome.isnot(None))
+        .filter(Gene.gene_start.isnot(None))
+        .filter(Gene.gene_end.isnot(None))
+    )
+
+    # 物种过滤
+    if species_id:
+        species = db.query(Species).filter(Species.species_id == species_id).first()
+        if not species:
+            raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+        query = query.filter(Gene.species_id == species_id)
+
+    # 搜索过滤
+    escaped = escape_like_pattern(q)
+    search_pattern = f"%{escaped}%"
+    query = query.filter(
+        (Gene.gene_name.ilike(search_pattern, escape='\\')) |
+        (Gene.gene_ensembl_id.ilike(search_pattern, escape='\\'))
+    )
+
+    # 排序：精确匹配优先，然后按基因名排序
+    # 先按是否精确匹配排序，再按基因名排序
+    query = query.order_by(
+        # 精确匹配优先
+        (Gene.gene_name != q).asc(),
+        Gene.gene_name.asc(),
+    )
+
+    # 限制结果数量
+    results = query.limit(limit).all()
+
+    # 构建响应
+    genes = []
+    for r in results:
+        # 构建 IGV locus 字符串
+        locus = f"{r.chromosome}:{r.gene_start}-{r.gene_end}"
+        genes.append({
+            "gene_id": r.gene_id,
+            "gene_name": r.gene_name,
+            "gene_ensembl_id": r.gene_ensembl_id,
+            "chromosome": r.chromosome,
+            "gene_start": r.gene_start,
+            "gene_end": r.gene_end,
+            "species_id": r.species_id,
+            "species_name": r.species_name,
+            "locus": locus,
+        })
+
+    return {
+        "success": True,
+        "data": genes,
+        "total": len(genes),
+        "message": f"Found {len(genes)} genes matching '{q}'" + (f" for species {species_id}" if species_id else ""),
+    }

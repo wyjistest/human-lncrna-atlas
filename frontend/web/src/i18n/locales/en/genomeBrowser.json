@@ -12,8 +12,12 @@
   "noConfigDesc": "The genome browser configuration for this species is not available. Please try another species or contact support.",
   "geneLoadMode": "Gene-focused View",
   "geneLoadModeDesc": "Enter a lncRNA gene name to load its genomic location and associated regulatory relationships. Only data related to this gene will be displayed.",
+  "geneFocusMode": "Gene Mode",
+  "speciesBrowseMode": "Species Mode",
+  "speciesBrowseModeDesc": "Browse the complete genome of the selected species. Navigate freely to any chromosome location and view genome-wide data.",
   "load": "Load",
   "quickLoad": "Quick load",
   "currentGene": "Current gene",
+  "currentSpecies": "Current species",
   "enterGeneName": "Please enter a gene name"
 }
