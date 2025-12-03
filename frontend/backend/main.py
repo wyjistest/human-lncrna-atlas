@@ -4,8 +4,10 @@ Human LncRNA Atlas - FastAPI Backend
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+import os
 from collections import deque
 import time
 import logging
@@ -15,7 +17,7 @@ from app.core.database import init_db, close_db
 from app.core.logging_config import setup_logging
 from app.middleware.logging import LoggingMiddleware, MetricsMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
-from app.routers import genes, regulations, diseases, stats, network, admin
+from app.routers import genes, regulations, diseases, stats, network, admin, igv
 from app.schemas.common import HealthResponse
 
 # 初始化日志
@@ -201,6 +203,13 @@ app.include_router(diseases.router, prefix=settings.API_V1_PREFIX)
 app.include_router(stats.router, prefix=settings.API_V1_PREFIX)
 app.include_router(network.router, prefix=settings.API_V1_PREFIX)
 app.include_router(admin.router, prefix=settings.API_V1_PREFIX)
+app.include_router(igv.router, prefix=settings.API_V1_PREFIX)
+
+# 挂载静态文件服务（用于 IGV.js 基因组文件）
+GENOMES_DIR = os.environ.get("GENOMES_DIR", "/data/wenyujianData/humanLncAtlas/genomes")
+if os.path.exists(GENOMES_DIR):
+    app.mount("/genomes", StaticFiles(directory=GENOMES_DIR), name="genomes")
+    logger.info(f"📁 静态文件服务已挂载: /genomes -> {GENOMES_DIR}")
 
 
 if __name__ == "__main__":

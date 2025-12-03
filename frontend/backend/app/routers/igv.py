@@ -122,10 +122,13 @@ def get_igv_config(
             format="bigbed",
             url="/genomes/fantom_cat_transcripts_bed12.bb",
             indexURL=None,
-            displayMode="SQUISHED",
+            displayMode="EXPANDED",  # EXPANDED 模式显示基因名标签
             color="#4A90D9",  # 蓝色系
-            height=100,  # 增加高度以更好展示外显子结构
+            height=150,  # 增加高度以更好展示外显子结构和标签
             visibilityWindow=None,  # bigBed 自动处理可见窗口
+            labelFields="name",  # 使用 BED12 的 name 字段（第4列）作为标签
+            defaultLabelFields="name",  # 默认显示 name 字段
+            expandedRowHeight=25,  # 展开模式下每行高度
         )
         tracks.append(fantom_transcripts_track)
 
@@ -454,10 +457,13 @@ def get_igv_config_for_gene(
             format="bigbed",
             url="/genomes/fantom_cat_transcripts_bed12.bb",
             indexURL=None,
-            displayMode="SQUISHED",
+            displayMode="EXPANDED",  # EXPANDED 模式显示基因名标签
             color="#4A90D9",
-            height=100,  # 增加高度以更好展示外显子结构
+            height=150,  # 增加高度以更好展示外显子结构和标签
             visibilityWindow=None,  # bigBed 自动处理可见窗口
+            labelFields="name",  # 使用 BED12 的 name 字段（第4列）作为标签
+            defaultLabelFields="name",  # 默认显示 name 字段
+            expandedRowHeight=25,  # 展开模式下每行高度
         )
         tracks.append(fantom_transcripts_track)
 

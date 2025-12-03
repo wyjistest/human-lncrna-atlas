@@ -41,9 +41,11 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
     # Store transcript info and exons
     transcripts = {}  # transcript_id -> {chrom, strand, gene_id, score}
     exons = defaultdict(list)  # transcript_id -> [(start, end), ...]
+    gene_names = {}  # gene_id -> gene_name (从 gene 行获取)
 
     print(f"Reading GTF file: {gtf_file}")
     line_count = 0
+    gene_count = 0
     transcript_count = 0
     exon_count = 0
 
@@ -64,8 +66,18 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
             start, end = int(start), int(end)
 
             attrs = parse_gtf_attributes(attributes)
-            transcript_id = attrs.get('transcript_id')
 
+            # gene 行没有 transcript_id，需要单独处理
+            if feature == 'gene':
+                gene_count += 1
+                # 从 gene 行提取 gene_id -> gene_name 映射
+                gene_id = attrs.get('gene_id', '')
+                gene_name = attrs.get('gene_name', '')
+                if gene_id and gene_name and gene_name != '__na':
+                    gene_names[gene_id] = gene_name
+                continue
+
+            transcript_id = attrs.get('transcript_id')
             if not transcript_id:
                 continue
 
@@ -73,6 +85,8 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
                 transcript_count += 1
                 # Store transcript metadata
                 gene_id = attrs.get('gene_id', '')
+                # 从 gene_names 字典查找对应的 gene_name
+                gene_name = gene_names.get(gene_id, '')
                 tie_score = attrs.get('TIEScore', '0')
                 coding_status = attrs.get('coding_status', 'nonCoding')
                 gene_class = attrs.get('geneClass', '')
@@ -86,6 +100,7 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
                     'chrom': chrom,
                     'strand': strand,
                     'gene_id': gene_id,
+                    'gene_name': gene_name,  # 存储基因名
                     'score': int(min(1000, score_val * 10)),  # Scale to 0-1000
                     'start': start,
                     'end': end,
@@ -99,9 +114,11 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
                 exons[transcript_id].append((start - 1, end))
 
     print(f"Parsed {line_count:,} lines")
+    print(f"Found {gene_count:,} genes")
     print(f"Found {transcript_count:,} transcripts")
     print(f"Found {exon_count:,} exons")
     print(f"Transcripts with exon info: {len(transcripts):,}")
+    print(f"Genes with friendly names: {len([v for v in gene_names.values() if v]):,}")
 
     # Write BED12 output
     bed_records = []
@@ -143,9 +160,14 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
         block_sizes = ','.join(str(e[1] - e[0]) for e in exon_list)
         block_starts = ','.join(str(e[0] - chrom_start) for e in exon_list)
 
-        # Name: 只显示 gene_id (更简洁)
+        # Name: 优先使用 gene_name（如 TSPAN6），否则使用 gene_id
         # IGV.js 会在 track 上直接显示这个名字
-        name = gene_id
+        gene_name = info.get('gene_name', '')
+        # 如果 gene_name 存在且不等于 gene_id（即有更友好的名称），则使用 gene_name
+        if gene_name and gene_name != gene_id and gene_name != '__na':
+            name = gene_name
+        else:
+            name = gene_id
 
         bed_records.append((
             chrom, chrom_start, chrom_end, name, score, strand,

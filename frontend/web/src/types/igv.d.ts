@@ -97,6 +97,15 @@ declare module 'igv' {
      */
     labelFields?: string
     /**
+     * Default label field to display (for bigBed/bigGenePred).
+     * Specifies which field to show as the primary label.
+     */
+    defaultLabelFields?: string
+    /**
+     * Field name to use for feature name (for custom formats).
+     */
+    nameField?: string
+    /**
      * URL template for feature info links. Use $$ as placeholder for feature name.
      * Example: "https://www.ncbi.nlm.nih.gov/gene/?term=$$"
      */

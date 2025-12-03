@@ -14,6 +14,12 @@ export interface IGVTrackConfig {
   color?: string
   height?: number
   visibilityWindow?: number
+  // 标签显示相关配置
+  labelFields?: string
+  defaultLabelFields?: string
+  nameField?: string
+  expandedRowHeight?: number
+  squishedRowHeight?: number
 }
 
 export interface IGVConfig {
