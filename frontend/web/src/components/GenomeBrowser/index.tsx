@@ -90,11 +90,13 @@ const GenomeBrowser = memo(({
       // If geneName is provided, use gene-specific API
       if (geneName) {
         const res = await genomeApi.getIGVConfigForGene(geneName, padding)
-        return res.data
+        // API response format: { success: true, data: IGVConfig, message: string }
+        // res.data is axios response data, res.data.data is the actual IGVConfig
+        return res.data.data
       }
       // Otherwise use species-wide API
       const res = await genomeApi.getIGVConfig(speciesId)
-      return res.data
+      return res.data.data
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 2,

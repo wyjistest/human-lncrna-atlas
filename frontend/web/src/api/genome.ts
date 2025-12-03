@@ -4,6 +4,16 @@
  */
 import { apiClient } from './client'
 
+/**
+ * Standard API response wrapper
+ * All API responses follow this format: { success: boolean, data: T, message: string }
+ */
+export interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message: string
+}
+
 export interface IGVTrackConfig {
   name: string
   type: string
@@ -51,18 +61,20 @@ export const genomeApi = {
   /**
    * Get IGV configuration for a specific species
    * @param speciesId - Species ID (1: Human, 2: Chimpanzee, 3: Macaque, 4: Marmoset)
+   * @returns API response with IGVConfig wrapped in { success, data, message }
    */
   getIGVConfig: (speciesId: number) =>
-    apiClient.get<IGVConfig>(`/api/v1/igv/config/${speciesId}`),
+    apiClient.get<ApiResponse<IGVConfig>>(`/api/v1/igv/config/${speciesId}`),
 
   /**
    * Get IGV configuration for a specific gene
    * Auto-locates to the gene position and loads only its regulations
    * @param geneName - Gene name (e.g., CATG00000000011.1)
    * @param padding - Padding around gene (default 50kb)
+   * @returns API response with IGVConfig wrapped in { success, data, message }
    */
   getIGVConfigForGene: (geneName: string, padding?: number) =>
-    apiClient.get<IGVConfig>(`/api/v1/igv/config/gene/${encodeURIComponent(geneName)}`, {
+    apiClient.get<ApiResponse<IGVConfig>>(`/api/v1/igv/config/gene/${encodeURIComponent(geneName)}`, {
       params: padding !== undefined ? { padding } : undefined
     }),
 
