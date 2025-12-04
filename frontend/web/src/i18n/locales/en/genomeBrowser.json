@@ -31,5 +31,13 @@
   "exportFailed": "Export failed",
   "exportNotReady": "Browser not ready yet",
   "remoteGenomeNote": "Remote Genome",
-  "remoteGenomeNoteDesc": "This genome is loaded from UCSC servers. Initial loading may take a moment depending on your network connection."
+  "remoteGenomeNoteDesc": "This genome is loaded from UCSC servers. Initial loading may take a moment depending on your network connection.",
+  "trackControls": "Track Controls",
+  "trackLoaded": "Track {{name}} loaded",
+  "trackLoadFailed": "Failed to load track {{name}}",
+  "trackRemoved": "Track {{name}} removed",
+  "tracks": {
+    "repeatMasker": "RepeatMasker Repeats",
+    "repeatMaskerDesc": "Display repeat elements in the genome (LINE, SINE, LTR, etc.)"
+  }
 }

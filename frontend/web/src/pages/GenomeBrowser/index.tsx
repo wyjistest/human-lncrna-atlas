@@ -13,15 +13,18 @@
  * Two viewing modes:
  * 1. Species browsing mode: Select a species to load its full genome
  * 2. Gene search mode: Enter a gene name to auto-locate (maintains current functionality)
+ *
+ * Phase 2.1: Added track controls for RepeatMasker layer
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio, Dropdown } from 'antd'
+import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio, Dropdown, Switch, Collapse } from 'antd'
 import type { MenuProps } from 'antd'
-import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, DownloadOutlined } from '@ant-design/icons'
+import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, DownloadOutlined, SettingOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
 import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
+import { getRepeatMaskerTrackConfig } from '@/api/features'
 
 const { Title, Paragraph, Text } = Typography
 const { Search } = Input
@@ -73,6 +76,57 @@ export default function GenomeBrowserPage() {
   const browserRef = useRef<HTMLDivElement>(null)
   const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+
+  // Track controls state (Phase 2.1)
+  const [enabledTracks, setEnabledTracks] = useState<Record<string, boolean>>({
+    repeatmasker: false
+  })
+  const [loadingTracks, setLoadingTracks] = useState<Record<string, boolean>>({})
+
+  // Load RepeatMasker track
+  const loadRepeatMaskerTrack = useCallback(async () => {
+    if (!browserHandleRef.current) {
+      message.warning(t('exportNotReady'))
+      return
+    }
+
+    setLoadingTracks(prev => ({ ...prev, repeatmasker: true }))
+    try {
+      const response = await getRepeatMaskerTrackConfig(speciesId)
+      if (response.data?.data) {
+        await browserHandleRef.current.loadTrack(response.data.data as any)
+        message.success(t('trackLoaded', { name: 'RepeatMasker' }))
+      }
+    } catch (error) {
+      console.error('Failed to load RepeatMasker track:', error)
+      message.error(t('trackLoadFailed', { name: 'RepeatMasker' }))
+      // Revert the toggle
+      setEnabledTracks(prev => ({ ...prev, repeatmasker: false }))
+    } finally {
+      setLoadingTracks(prev => ({ ...prev, repeatmasker: false }))
+    }
+  }, [speciesId, t])
+
+  // Remove RepeatMasker track
+  const removeRepeatMaskerTrack = useCallback(() => {
+    if (browserHandleRef.current) {
+      browserHandleRef.current.removeTrack('RepeatMasker')
+      message.info(t('trackRemoved', { name: 'RepeatMasker' }))
+    }
+  }, [t])
+
+  // Handle track toggle
+  const handleTrackToggle = useCallback(async (trackId: string, enabled: boolean) => {
+    setEnabledTracks(prev => ({ ...prev, [trackId]: enabled }))
+
+    if (trackId === 'repeatmasker') {
+      if (enabled) {
+        await loadRepeatMaskerTrack()
+      } else {
+        removeRepeatMaskerTrack()
+      }
+    }
+  }, [loadRepeatMaskerTrack, removeRepeatMaskerTrack])
 
   // Species options
   const speciesOptions = [
@@ -432,6 +486,37 @@ export default function GenomeBrowserPage() {
           onSpeciesChange={handleSpeciesChange}
           onSearch={handleToolbarSearch}
           disabled={false}
+        />
+
+        {/* Track Controls (Phase 2.1) */}
+        <Collapse
+          size="small"
+          style={{ marginBottom: 16 }}
+          items={[
+            {
+              key: 'trackControls',
+              label: (
+                <Space>
+                  <SettingOutlined />
+                  <span>{t('trackControls')}</span>
+                </Space>
+              ),
+              children: (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space align="center">
+                    <Switch
+                      checked={enabledTracks.repeatmasker}
+                      onChange={(checked) => handleTrackToggle('repeatmasker', checked)}
+                      loading={loadingTracks.repeatmasker}
+                    />
+                    <span style={{ fontWeight: 500 }}>{t('tracks.repeatMasker')}</span>
+                    <Text type="secondary">{t('tracks.repeatMaskerDesc')}</Text>
+                  </Space>
+                  {/* Future tracks can be added here */}
+                </Space>
+              ),
+            },
+          ]}
         />
 
         {/* Genome Browser */}

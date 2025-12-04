@@ -1,0 +1,7 @@
+{
+  "can_define_interfaces": true,
+  "understand_tech_choices": true,
+  "identified_risks": true,
+  "know_validation_plan": true,
+  "notes": "已定位后端路由与网络/监控端点、前端 React Query 使用、ETL 导入脚本；可据此做审查。"
+}

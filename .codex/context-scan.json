@@ -1,0 +1,38 @@
+{
+  "locations": {
+    "backend": "frontend/backend/app (routers/core/models/schemas) with entry frontend/backend/main.py; DB file lncrna_atlas.db present",
+    "frontend": "frontend/web/src (api, pages, components, hooks, config, types)",
+    "etl": "etl/*.py with templates and examples",
+    "tests": {
+      "backend": "frontend/backend/tests (api smoke/contracts/performance)",
+      "frontend": "frontend/web/src/components/__tests__, playwright e2e in frontend/web/e2e"
+    }
+  },
+  "current_implementation": {
+    "backend": "FastAPI routers for genes/regulations/diseases/network/stats/admin using SQLAlchemy ORM and Pydantic v2 schemas; DB session from app.core.database; escape_like_pattern used for LIKE searches; pagination via PaginatedResponse; joins CoreGene/Species/Regulation etc.",
+    "frontend": "React 18 + TS + Vite + Ant Design + TanStack Query; API client under src/api with hooks in src/hooks; pages for Genes/Regulations/Network/Diseases/GeneDetail; i18n in src/i18n; tests via Vitest/Playwright.",
+    "etl": "Scripts import_regulations.py/import_sequences.py/import_table15.py/import_ortholog_data.py using pandas/sqlalchemy to load CSV/templates; templates directory for SQL or mapping; examples contains sample CSV.",
+    "similar_cases": [
+      "Backend tests test_api_contracts.py validate response schemas for main endpoints",
+      "Frontend components/tests for shared UI under src/components/__tests__"
+    ]
+  },
+  "tech_stack": {
+    "backend": "FastAPI, SQLAlchemy 2.0 ORM, Pydantic v2, PostgreSQL (prod) with SQLite sample db, Redis optional",
+    "frontend": "React, TypeScript, Vite, Ant Design, TanStack Query, React Router, i18next, ECharts, Cytoscape.js",
+    "etl": "Python pandas/sqlalchemy; CLI scripts",
+    "tests": "Pytest, Vitest, Playwright"
+  },
+  "tests_and_verification": {
+    "backend": "pytest tests/test_api_contracts.py etc.",
+    "frontend": "npm run test:run (Vitest) and npm run test:e2e (Playwright)",
+    "sql_smoke": "tests/smoke_test.sql under root"
+  },
+  "observation_report": [
+    "Backend DB file lncrna_atlas.db exists in repo; verify if used or for demo.",
+    "Need to confirm request validation and SQLAlchemy query safety (LIKE escapes present in genes).",
+    "Front-end hooks and API client should be checked for proper error handling and type safety.",
+    "ETL scripts likely depend on CSV schemas; need to review boundary conditions and exceptions.",
+    "Security/performance review pending deeper inspection."
+  ]
+}

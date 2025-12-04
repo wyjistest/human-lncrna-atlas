@@ -1,18 +1,39 @@
 /**
- * Gene 详情页
- * 展示单个基因的完整信息，包括调控关系和疾病关联详情
+ * Gene Detail Page
+ * Displays complete gene information with tabs for core data and genomic features
+ *
+ * Phase 2.1: Added Tabs structure with Genomic Features tab including RepeatMasker
  */
 
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useGeneDetail, useGeneRegulations, useGeneDiseases } from '@/hooks/useGenes'
 import { useTranslation } from 'react-i18next'
-import { Card, Descriptions, Button, Tag, Divider, Table, Result, Collapse, Spin } from 'antd'
-import type { TableProps } from 'antd'
-import { ArrowLeftOutlined, LinkOutlined, EyeOutlined, ExperimentOutlined } from '@ant-design/icons'
+import {
+  Card,
+  Descriptions,
+  Button,
+  Tag,
+  Divider,
+  Table,
+  Result,
+  Collapse,
+  Spin,
+  Tabs
+} from 'antd'
+import type { TableProps, TabsProps } from 'antd'
+import {
+  ArrowLeftOutlined,
+  LinkOutlined,
+  EyeOutlined,
+  ExperimentOutlined,
+  DatabaseOutlined,
+  AppstoreOutlined
+} from '@ant-design/icons'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import { SequenceViewer } from '@/components/SequenceViewer'
+import { RepeatMaskerTable } from '@/components/RepeatMaskerTable'
 import { createSpeciesTranslator } from '@/utils/species'
 
 export default function GeneDetail() {
@@ -23,19 +44,22 @@ export default function GeneDetail() {
   const { t: tReg } = useTranslation('regulations')
   const { t: tGB } = useTranslation('genomeBrowser')
 
-  // 分页状态
+  // Pagination state for regulations
   const [regulationPage, setRegulationPage] = useState(1)
   const [regulationPageSize, setRegulationPageSize] = useState(10)
 
-  // 序列查看器状态
+  // Sequence viewer state
   const [sequenceViewerOpen, setSequenceViewerOpen] = useState(false)
   const [selectedRegulationId, setSelectedRegulationId] = useState<number | null>(null)
 
-  // 转换为 number，处理 NaN 情况
+  // Active tab state
+  const [activeTab, setActiveTab] = useState('core')
+
+  // Convert to number, handle NaN
   const geneIdNum = geneId ? parseInt(geneId, 10) : 0
   const isValidId = !isNaN(geneIdNum) && geneIdNum > 0
 
-  // 数据查询
+  // Data queries
   const { data: gene, isLoading, error } = useGeneDetail(isValidId ? geneIdNum : 0)
   const { data: regulations, isLoading: regulationsLoading } = useGeneRegulations(
     isValidId ? geneIdNum : 0,
@@ -60,7 +84,7 @@ export default function GeneDetail() {
 
   const cleanId = cleanEnsemblId(gene.gene_ensembl_id)
 
-  // 调控关系表格列
+  // Regulation columns
   const regulationColumns: TableProps<any>['columns'] = [
     {
       title: t('detail.targetGene'),
@@ -116,7 +140,7 @@ export default function GeneDetail() {
     },
   ]
 
-  // 疾病关联表格列
+  // Disease columns
   const diseaseColumns: TableProps<any>['columns'] = [
     {
       title: t('detail.traitName'),
@@ -148,7 +172,7 @@ export default function GeneDetail() {
     },
   ]
 
-  // Collapse 面板项
+  // Collapse items for regulations and diseases
   const collapseItems = [
     {
       key: 'regulations',
@@ -176,7 +200,7 @@ export default function GeneDetail() {
             onChange: (page, pageSize) => {
               if (pageSize !== regulationPageSize) {
                 setRegulationPageSize(pageSize)
-                setRegulationPage(1) // 切换页大小时重置到第一页
+                setRegulationPage(1)
               } else {
                 setRegulationPage(page)
               }
@@ -217,8 +241,68 @@ export default function GeneDetail() {
     }
   }
 
+  // Core Data Tab Content
+  const CoreDataContent = () => (
+    <>
+      {/* Statistics - Collapsible panels */}
+      <h4 style={{ marginBottom: 16 }}>{t('detail.statistics')}</h4>
+      <Collapse items={collapseItems} defaultActiveKey={['regulations']} />
+
+      <Divider />
+
+      {/* Orthologs */}
+      {gene.orthologs && gene.orthologs.length > 0 && (
+        <>
+          <h4>{t('detail.orthologs')}</h4>
+          <Table
+            dataSource={gene.orthologs}
+            rowKey="gene_id"
+            size="small"
+            pagination={false}
+            columns={[
+              { title: t('columns.species'), dataIndex: 'species_name', render: translateSpecies },
+              { title: t('columns.geneName'), dataIndex: 'gene_name' },
+              { title: 'Ensembl ID', dataIndex: 'gene_ensembl_id' },
+              { title: t('columns.chromosome'), dataIndex: 'chromosome' },
+            ]}
+          />
+        </>
+      )}
+    </>
+  )
+
+  // Genomic Features Tab Content
+  const GenomicFeaturesContent = () => (
+    <RepeatMaskerTable geneId={geneIdNum} />
+  )
+
+  // Tab items configuration
+  const tabItems: TabsProps['items'] = [
+    {
+      key: 'core',
+      label: (
+        <span>
+          <DatabaseOutlined />
+          {t('detail.tabs.core')}
+        </span>
+      ),
+      children: <CoreDataContent />
+    },
+    {
+      key: 'genomic',
+      label: (
+        <span>
+          <AppstoreOutlined />
+          {t('detail.tabs.genomicFeatures')}
+        </span>
+      ),
+      children: <GenomicFeaturesContent />
+    }
+  ]
+
   return (
     <div style={{ padding: 24 }}>
+      {/* Header buttons */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <Button
           icon={<ArrowLeftOutlined />}
@@ -238,7 +322,7 @@ export default function GeneDetail() {
       </div>
 
       <Card title={`${t('detail.title')}: ${gene.gene_name || gene.gene_id}`}>
-        {/* 基本信息 */}
+        {/* Basic Information */}
         <Descriptions title={t('detail.basicInfo')} column={2} bordered size="small">
           <Descriptions.Item label="Gene ID">{gene.gene_id}</Descriptions.Item>
           <Descriptions.Item label="Core ID">{gene.core_id}</Descriptions.Item>
@@ -272,33 +356,17 @@ export default function GeneDetail() {
 
         <Divider />
 
-        {/* 统计信息 - 可展开详情 */}
-        <h4 style={{ marginBottom: 16 }}>{t('detail.statistics')}</h4>
-        <Collapse items={collapseItems} defaultActiveKey={['regulations']} />
-
-        <Divider />
-
-        {/* 直系同源基因 */}
-        {gene.orthologs && gene.orthologs.length > 0 && (
-          <>
-            <h4>{t('detail.orthologs')}</h4>
-            <Table
-              dataSource={gene.orthologs}
-              rowKey="gene_id"
-              size="small"
-              pagination={false}
-              columns={[
-                { title: t('columns.species'), dataIndex: 'species_name', render: translateSpecies },
-                { title: t('columns.geneName'), dataIndex: 'gene_name' },
-                { title: 'Ensembl ID', dataIndex: 'gene_ensembl_id' },
-                { title: t('columns.chromosome'), dataIndex: 'chromosome' },
-              ]}
-            />
-          </>
-        )}
+        {/* Tabs for Core Data and Genomic Features */}
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
+          type="card"
+          size="large"
+        />
       </Card>
 
-      {/* 序列查看器 */}
+      {/* Sequence Viewer Modal */}
       <SequenceViewer
         regulationId={selectedRegulationId}
         open={sequenceViewerOpen}

@@ -16,3 +16,6 @@ export * from './network'
 
 // 导出监控相关类型
 export * from './monitoring'
+
+// 导出基因组特征类型 (Phase 2.1 - RepeatMasker)
+export * from './features'

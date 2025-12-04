@@ -47,6 +47,30 @@
     "fdr": "FDR",
     "literature": "文献支持",
     "bestAvgBA": "最佳平均BA",
-    "numPeaks": "峰数"
+    "numPeaks": "峰数",
+    "tabs": {
+      "core": "核心数据",
+      "genomicFeatures": "基因组特征"
+    },
+    "repeats": {
+      "title": "重复序列元件",
+      "filters": "过滤器",
+      "repeatName": "重复名称",
+      "class": "重复类型",
+      "family": "重复家族",
+      "chromosome": "染色体",
+      "start": "起始位置",
+      "end": "终止位置",
+      "divergence": "分化程度",
+      "divergenceTooltip": "与共识序列的百分比差异，数值越低表示越年轻/保守",
+      "strand": "链",
+      "totalCount": "总数",
+      "avgDivergence": "平均分化",
+      "classDistribution": "类型分布",
+      "repeatClass": "重复类型",
+      "noRepeats": "该基因区域未发现重复序列",
+      "exportSuccess": "BED 文件导出成功",
+      "exportBED": "导出 BED"
+    }
   }
 }

@@ -1,0 +1,8 @@
+[
+  {"priority": "high", "question": "FastAPI 路由参数验证是否充分，SQLAlchemy 查询是否存在 SQL 注入或未转义/无界分页问题？"},
+  {"priority": "high", "question": "数据库查询是否存在 N+1、缺少排序稳定性或可能扫描大表的性能隐患？"},
+  {"priority": "high", "question": "React API hooks/组件的错误处理、加载状态、类型是否与后端契约一致？"},
+  {"priority": "high", "question": "前端是否存在 XSS/危险 HTML 注入，API 参数是否被过滤/编码？"},
+  {"priority": "high", "question": "ETL 脚本对空值、重复数据、事务回滚和异常是否处理充分？"},
+  {"priority": "medium", "question": "测试覆盖是否覆盖关键路径，是否有性能/合约回归测试？"}
+]

@@ -1,0 +1,16 @@
+{
+  "question": "ETL 导入脚本的健壮性与安全性是否达标？",
+  "why": "ETL 直接写数据库且处理大文件，硬编码和资源管理问题会导致敏感信息泄露或数据不一致。",
+  "findings": [
+    {
+      "path": "etl/import_sequences.py:15-29",
+      "observation": "数据库主机/用户/密码以及源数据绝对路径被硬编码在脚本中，密码默认为空但仍暴露真实用户名和内部路径。",
+      "risk": "凭据泄露与环境耦合，无法通过配置覆盖；部署到其他环境会直接失败。应改为必需的命令行参数或环境变量，并移除硬编码路径。"
+    },
+    {
+      "path": "etl/import_sequences.py:58-116",
+      "observation": "get_gene_id_map/get_regulation_map 等函数打开 cursor 但从未关闭；insert_sequences 也不关闭 cursor 且每批立即 commit。",
+      "risk": "长跑导入会泄漏游标/锁，且中途异常时部分提交无法回滚，易产生不一致。应使用 context manager 或显式关闭，并将批量插入放入事务。"
+    }
+  ]
+}

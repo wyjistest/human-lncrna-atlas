@@ -10,6 +10,8 @@ from .models import (
     TraitGeneAssociation,
     ImportBatch,
     Sequence,
+    FeatureTrack,
+    GenomicFeature,
 )
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     "TraitGeneAssociation",
     "ImportBatch",
     "Sequence",
+    "FeatureTrack",
+    "GenomicFeature",
 ]

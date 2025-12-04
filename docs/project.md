@@ -105,6 +105,8 @@ human-lncrna-atlas-github/         # GitHub 仓库目录
 | `trait_gene_associations` | 性状-基因关联表 | 67,763 |
 | `ontologies` | 本体/功能分类表 | - |
 | `import_batches` | 导入批次表 | - |
+| `feature_tracks` | 扩展层轨道配置表 | 1 |
+| `genomic_features` | 基因组特征表（分区） | 5,481,341 |
 
 ### 物种数据分布
 
@@ -147,6 +149,10 @@ species (1) ──< genes (N) ──< regulations (N) ──< sequences (1)
 | `/api/v1/diseases` | GET | 疾病/性状列表 |
 | `/api/v1/network/gene/{id}` | GET | 基因网络数据 |
 | `/api/v1/admin/metrics` | GET | 系统监控指标（CPU/内存/告警/百分位） |
+| `/api/v1/features/tracks` | GET | 扩展层轨道列表 |
+| `/api/v1/features/genes/{id}/repeats` | GET | 基因区域 RepeatMasker |
+| `/api/v1/features/repeats/{species}/classes` | GET | 重复类型列表 |
+| `/api/v1/igv/config/repeatmasker/{species}` | GET | RepeatMasker IGV 轨道配置 |
 
 ### 启动命令
 
@@ -175,7 +181,7 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 |------|------|------|
 | Home | `/` | 首页概览 |
 | Genes | `/genes` | 基因列表 |
-| GeneDetail | `/genes/:id` | 基因详情（含调控关系和序列） |
+| GeneDetail | `/genes/:id` | 基因详情（Tabs: Core Data / Genomic Features） |
 | Regulations | `/regulations` | 调控关系列表 |
 | Diseases | `/diseases` | 疾病关联 |
 | Network | `/network` | 网络可视化 |
@@ -189,6 +195,8 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 | `SequenceViewer` | `components/SequenceViewer.tsx` | 序列查看器（Modal） |
 | `LoadingState` | `components/LoadingState.tsx` | 加载状态 |
 | `ErrorState` | `components/ErrorState.tsx` | 错误状态 |
+| `RepeatMaskerTable` | `components/RepeatMaskerTable/` | RepeatMasker 数据表格 |
+| `GenomeBrowser` | `components/GenomeBrowser/` | IGV.js 基因组浏览器 |
 
 ### 启动命令
 
@@ -231,6 +239,18 @@ python3 import_sequences.py
 ```bash
 python3 import_table15.py
 ```
+
+### 4. RepeatMasker 导入 (Phase 2.1)
+```bash
+# 下载 UCSC RepeatMasker 数据
+wget https://hgdownload.gi.ucsc.edu/goldenPath/hg19/database/rmsk.txt.gz
+gunzip rmsk.txt.gz
+
+# 导入数据（约 4 分钟）
+python3 import_ucsc_rmsk.py rmsk.txt --batch-size 50000
+```
+
+数据来源：UCSC Genome Browser hg19 RepeatMasker (5,481,341 条)
 
 ---
 
@@ -301,6 +321,7 @@ GROUP BY s.species_id, s.species_code
 
 | 日期 | 主要内容 | 文件 |
 |------|----------|------|
+| 2025-12-05 | **Phase 2.1 RepeatMasker 扩展层**、548 万条数据导入 | [2025-12-05.md](changelog/2025-12-05.md) |
 | 2025-12-03 | **IGV.js 基因组浏览器集成**、FANTOM CAT 基因轨道 | [2025-12-03.md](changelog/2025-12-03.md) |
 | 2025-12-02 | **监控仪表板**、分页索引优化、前端缓存 | [2025-12-02.md](changelog/2025-12-02.md) |
 | 2025-12-01 | E2E 测试框架、Redis 缓存、代码审查 | [2025-12-01.md](changelog/2025-12-01.md) |

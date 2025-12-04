@@ -31,6 +31,20 @@ from .monitoring import (
     ResponseTimeMetrics,
     HealthMetrics,
 )
+from .features import (
+    FeatureTrackBase,
+    FeatureTrackCreate,
+    FeatureTrackResponse,
+    GenomicFeatureBase,
+    GenomicFeatureCreate,
+    GenomicFeatureResponse,
+    RepeatMaskerAttributes,
+    RepeatMaskerFeature,
+    RepeatMaskerResponse,
+    RepeatStats,
+    GeneRepeatSummary,
+    FeatureTrackStats,
+)
 
 __all__ = [
     "PaginationParams",
@@ -55,4 +69,17 @@ __all__ = [
     "ErrorMetrics",
     "ResponseTimeMetrics",
     "HealthMetrics",
+    # Features
+    "FeatureTrackBase",
+    "FeatureTrackCreate",
+    "FeatureTrackResponse",
+    "GenomicFeatureBase",
+    "GenomicFeatureCreate",
+    "GenomicFeatureResponse",
+    "RepeatMaskerAttributes",
+    "RepeatMaskerFeature",
+    "RepeatMaskerResponse",
+    "RepeatStats",
+    "GeneRepeatSummary",
+    "FeatureTrackStats",
 ]

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, aliased
 from sqlalchemy import and_
 
 from app.core.database import get_db
-from app.models import Regulation, Gene, Species
+from app.models import Regulation, Gene, Species, GenomicFeature, FeatureTrack
 from app.schemas.igv import (
     GenomeReference,
     IGVTrack,
@@ -1252,3 +1252,293 @@ def autocomplete_genes(
         success=True,
         data=data,
     )
+
+
+# =============================================================================
+# RepeatMasker IGV Track Endpoints
+# =============================================================================
+
+def get_repeatmasker_track_id(db: Session) -> Optional[int]:
+    """Get the track_id for RepeatMasker annotations"""
+    track = db.query(FeatureTrack).filter(
+        FeatureTrack.track_name == 'repeatmasker_repeats'
+    ).first()
+    return track.track_id if track else None
+
+
+def generate_repeatmasker_bed_stream(
+    db: Session,
+    species_id: int,
+    chr_filter: Optional[str] = None,
+    start_filter: Optional[int] = None,
+    end_filter: Optional[int] = None,
+) -> Generator[str, None, None]:
+    """
+    Generate RepeatMasker BED format data stream
+
+    BED6 format: chr, start, end, name, score, strand
+    - name: repeat_name (e.g., AluSx, L1M2)
+    - score: divergence scaled to 0-1000 (lower divergence = higher score)
+    - strand: +/-/.
+    """
+    track_id = get_repeatmasker_track_id(db)
+    if not track_id:
+        return
+
+    # Build query
+    query = (
+        db.query(GenomicFeature)
+        .filter(GenomicFeature.track_id == track_id)
+        .filter(GenomicFeature.species_id == species_id)
+    )
+
+    # Region filter
+    if chr_filter:
+        query = query.filter(GenomicFeature.chromosome == chr_filter)
+
+        if start_filter is not None and end_filter is not None:
+            query = query.filter(
+                and_(
+                    GenomicFeature.feature_start < end_filter,
+                    GenomicFeature.feature_end > start_filter,
+                )
+            )
+
+    # Order by chromosome and position
+    query = query.order_by(GenomicFeature.chromosome, GenomicFeature.feature_start)
+
+    # Stream data in batches
+    batch_size = 10000
+    offset = 0
+
+    while True:
+        batch = query.offset(offset).limit(batch_size).all()
+        if not batch:
+            break
+
+        for feature in batch:
+            # BED coordinates are 0-based, half-open
+            chr_name = feature.chromosome
+            start = feature.feature_start
+            end = feature.feature_end
+
+            # Feature name
+            name = feature.feature_name or "repeat"
+
+            # Score: convert divergence to 0-1000 scale
+            # Lower divergence = more conserved = higher score
+            attrs = feature.attributes or {}
+            divergence = attrs.get('divergence', 50)
+            # Score = 1000 - (divergence * 20), clamped to 0-1000
+            score = max(0, min(1000, int(1000 - float(divergence) * 20)))
+
+            # Strand
+            strand = feature.strand or '.'
+
+            yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
+
+        offset += batch_size
+
+        if len(batch) < batch_size:
+            break
+
+
+@router.get("/tracks/repeatmasker/{species_id}.bed")
+def get_repeatmasker_bed(
+    species_id: int,
+    chr: Optional[str] = Query(None, description="Chromosome filter, e.g., chr1"),
+    start: Optional[int] = Query(None, ge=0, description="Start position (0-based)"),
+    end: Optional[int] = Query(None, ge=0, description="End position"),
+    db: Session = Depends(get_db),
+):
+    """
+    Stream RepeatMasker annotations as BED format for IGV.js
+
+    BED6 format: chr, start, end, name, score, strand
+    - name: repeat element name (e.g., AluSx, L1M2)
+    - score: conservation score (lower divergence = higher score)
+    - strand: +/-/.
+
+    Supports region queries for efficient loading.
+
+    Args:
+        species_id: Species ID
+        chr: Optional chromosome filter
+        start: Optional start position
+        end: Optional end position
+
+    Returns:
+        StreamingResponse with BED format data
+    """
+    # Validate species
+    species = db.query(Species).filter(Species.species_id == species_id).first()
+    if not species:
+        raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+
+    # Validate RepeatMasker track exists
+    track_id = get_repeatmasker_track_id(db)
+    if not track_id:
+        raise HTTPException(
+            status_code=404,
+            detail="RepeatMasker track not found. Please ensure the database schema is initialized."
+        )
+
+    # Parameter validation
+    if (start is not None or end is not None) and chr is None:
+        raise HTTPException(
+            status_code=400,
+            detail="chr parameter is required when using start/end filters"
+        )
+
+    if start is not None and end is not None and start >= end:
+        raise HTTPException(
+            status_code=400,
+            detail="start must be less than end"
+        )
+
+    logger.info(f"RepeatMasker BED export: species={species_id}, chr={chr}, start={start}, end={end}")
+
+    # Generate BED stream
+    bed_stream = generate_repeatmasker_bed_stream(
+        db=db,
+        species_id=species_id,
+        chr_filter=chr,
+        start_filter=start,
+        end_filter=end,
+    )
+
+    # Build filename
+    filename = f"repeatmasker_species{species_id}"
+    if chr:
+        filename += f"_{chr}"
+        if start is not None and end is not None:
+            filename += f"_{start}-{end}"
+    filename += ".bed"
+
+    return StreamingResponse(
+        bed_stream,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "text/plain; charset=utf-8",
+        },
+    )
+
+
+@router.get("/tracks/repeatmasker/{species_id}/count")
+def get_repeatmasker_count(
+    species_id: int,
+    chr: Optional[str] = Query(None, description="Chromosome filter"),
+    start: Optional[int] = Query(None, ge=0, description="Start position"),
+    end: Optional[int] = Query(None, ge=0, description="End position"),
+    db: Session = Depends(get_db),
+):
+    """
+    Get the count of RepeatMasker features in a region
+
+    Used by frontend to determine loading strategy.
+
+    Args:
+        species_id: Species ID
+        chr: Optional chromosome filter
+        start: Optional start position
+        end: Optional end position
+
+    Returns:
+        Feature count in the specified region
+    """
+    # Validate species
+    species = db.query(Species).filter(Species.species_id == species_id).first()
+    if not species:
+        raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+
+    track_id = get_repeatmasker_track_id(db)
+    if not track_id:
+        return {
+            "success": True,
+            "data": {
+                "species_id": species_id,
+                "species_name": species.display_name,
+                "count": 0,
+                "message": "RepeatMasker track not found"
+            }
+        }
+
+    # Build query
+    query = (
+        db.query(GenomicFeature)
+        .filter(GenomicFeature.track_id == track_id)
+        .filter(GenomicFeature.species_id == species_id)
+    )
+
+    # Region filter
+    if chr:
+        query = query.filter(GenomicFeature.chromosome == chr)
+
+        if start is not None and end is not None:
+            query = query.filter(
+                and_(
+                    GenomicFeature.feature_start < end,
+                    GenomicFeature.feature_end > start,
+                )
+            )
+
+    count = query.count()
+
+    return {
+        "success": True,
+        "data": {
+            "species_id": species_id,
+            "species_name": species.display_name,
+            "chr": chr,
+            "start": start,
+            "end": end,
+            "count": count,
+        },
+        "message": f"Found {count} RepeatMasker features in the specified region",
+    }
+
+
+@router.get("/config/repeatmasker/{species_id}")
+def get_repeatmasker_igv_config(
+    species_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get IGV.js track configuration for RepeatMasker
+
+    Returns a track configuration object that can be added to IGV.js.
+
+    Args:
+        species_id: Species ID
+
+    Returns:
+        IGV.js track configuration
+    """
+    # Validate species
+    species = db.query(Species).filter(Species.species_id == species_id).first()
+    if not species:
+        raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+
+    track_id = get_repeatmasker_track_id(db)
+    if not track_id:
+        raise HTTPException(
+            status_code=404,
+            detail="RepeatMasker track not found. Please ensure the database schema is initialized."
+        )
+
+    return {
+        "success": True,
+        "data": {
+            "name": "RepeatMasker",
+            "type": "annotation",
+            "format": "bed",
+            "url": f"/api/v1/igv/tracks/repeatmasker/{species_id}.bed",
+            "displayMode": "SQUISHED",
+            "color": "#E67E22",
+            "height": 50,
+            "visibilityWindow": 1000000,  # 1Mb - only load for small regions
+            "description": f"RepeatMasker annotations for {species.display_name}",
+        },
+        "message": f"RepeatMasker IGV track configuration for {species.display_name}"
+    }

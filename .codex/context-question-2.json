@@ -1,0 +1,16 @@
+{
+  "question": "前端 API 调用与状态管理是否存在重复请求或无效请求导致性能/体验问题？",
+  "why": "React Query 依赖对象引用和启用条件，配置不当会触发过量请求或在组件关闭后继续请求。",
+  "findings": [
+    {
+      "path": "frontend/web/src/pages/Regulations/index.tsx:34-68",
+      "observation": "apiParams 在每次渲染重新创建且直接放入 useEffect 依赖，导致每次渲染都触发预取逻辑（即使参数未变），可能频繁请求相邻页。",
+      "risk": "重复网络请求与缓存抖动，尤其在输入筛选时会产生额外压力。建议用 useMemo 固定参数对象或在依赖数组中展开原子值。"
+    },
+    {
+      "path": "frontend/web/src/hooks/useRegulations.ts:36-45",
+      "observation": "useRegulationDetail 仅依赖 regulationId 启用，SequenceViewer 关闭后仍保持 id，Hook 继续轮询/重试后台接口。",
+      "risk": "在弹窗关闭或切换行后仍会发起无用请求，占用带宽与接口配额。建议将 enabled 条件加入 open 状态，或在关闭时清空 id。"
+    }
+  ]
+}

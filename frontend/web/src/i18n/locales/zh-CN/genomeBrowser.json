@@ -31,5 +31,13 @@
   "exportFailed": "导出失败",
   "exportNotReady": "浏览器尚未准备就绪",
   "remoteGenomeNote": "远程基因组",
-  "remoteGenomeNoteDesc": "该基因组从 UCSC 服务器加载，首次加载可能需要几秒钟，具体取决于您的网络连接速度。"
+  "remoteGenomeNoteDesc": "该基因组从 UCSC 服务器加载，首次加载可能需要几秒钟，具体取决于您的网络连接速度。",
+  "trackControls": "轨道控制",
+  "trackLoaded": "轨道 {{name}} 已加载",
+  "trackLoadFailed": "轨道 {{name}} 加载失败",
+  "trackRemoved": "轨道 {{name}} 已移除",
+  "tracks": {
+    "repeatMasker": "RepeatMasker 重复序列",
+    "repeatMaskerDesc": "显示基因组中的重复序列元件（LINE、SINE、LTR 等）"
+  }
 }

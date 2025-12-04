@@ -1,0 +1,26 @@
+{
+  "question": "FastAPI 路由的安全性与性能边界是否充足？（特别是网络/监控端点）",
+  "why": "网络数据量大且无鉴权的监控端点可能造成 OOM/信息泄露，是后端最风险区域。",
+  "findings": [
+    {
+      "path": "frontend/backend/app/routers/admin.py:42-48",
+      "observation": "Admin 监控路由对外开放且无任何鉴权/速率限制复用，直接暴露数据库/系统指标和告警信息。",
+      "risk": "信息泄露、被利用做流量探测；可被恶意轮询耗尽资源。建议至少加鉴权或移除对外暴露。"
+    },
+    {
+      "path": "frontend/backend/app/routers/network.py:50-159",
+      "observation": "疾病网络端点先拉取所有关联 core_id 到列表，再无排序地截断节点（limit）并对截断列表做子查询，仍可能在构建 gene_ids 前把大量 ID 拉入内存；边查询只按 max_edges 截断但未限制初始 IN 列表。",
+      "risk": "大疾病/ontology 时内存和查询时间暴涨，结果还不稳定（无排序导致返回子集不确定）。建议先按重要度排序+分页或用子查询+limit/order 保证可控。"
+    },
+    {
+      "path": "frontend/backend/app/routers/network.py:249-389",
+      "observation": "gene 网络端点第一层调控关系无任何 limit/分页，直接 `query_1st.all()`，高连接度 lncRNA 可一次性返回上万条记录；二层虽然 limit=200，但仍依赖第一层全量。",
+      "risk": "容易触发慢查询/响应体过大导致超时或前端卡死。应增加上限参数（如 max_edges/max_nodes）并复用。"
+    },
+    {
+      "path": "frontend/backend/app/routers/network.py:411-479",
+      "observation": "跨物种比较端点对每个同源基因都全量查询所有调控关系，无分页/限制。",
+      "risk": "高连接度基因跨物种时一次扫描全库导致超时。需增加限制或统计式查询。"
+    }
+  ]
+}

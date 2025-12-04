@@ -47,6 +47,30 @@
     "fdr": "FDR",
     "literature": "Literature",
     "bestAvgBA": "Best Avg BA",
-    "numPeaks": "Peaks"
+    "numPeaks": "Peaks",
+    "tabs": {
+      "core": "Core Data",
+      "genomicFeatures": "Genomic Features"
+    },
+    "repeats": {
+      "title": "Repeat Elements",
+      "filters": "Filters",
+      "repeatName": "Repeat Name",
+      "class": "Class",
+      "family": "Family",
+      "chromosome": "Chromosome",
+      "start": "Start",
+      "end": "End",
+      "divergence": "Divergence",
+      "divergenceTooltip": "Percentage difference from consensus sequence. Lower values indicate younger/more conserved elements",
+      "strand": "Strand",
+      "totalCount": "Total Count",
+      "avgDivergence": "Avg Divergence",
+      "classDistribution": "Class Distribution",
+      "repeatClass": "Repeat Class",
+      "noRepeats": "No repeat elements found in this gene region",
+      "exportSuccess": "BED file export successful",
+      "exportBED": "Export BED"
+    }
   }
 }

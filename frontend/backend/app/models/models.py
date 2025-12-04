@@ -20,7 +20,9 @@ from sqlalchemy import (
     Text,
     CheckConstraint,
     UniqueConstraint,
+    Index,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -257,4 +259,56 @@ class TraitGeneAssociation(Base):
         UniqueConstraint(
             "core_id", "trait_id", "ontology_id", name="trait_gene_associations_core_id_trait_id_ontology_id_key"
         ),
+    )
+
+
+class FeatureTrack(Base):
+    """Feature Track Registry (RepeatMasker, Conservation, etc.)"""
+
+    __tablename__ = "feature_tracks"
+
+    track_id = Column(Integer, primary_key=True, autoincrement=True)
+    track_name = Column(String(100), unique=True, nullable=False, index=True)
+    track_category = Column(String(50), nullable=False)  # 'repeat', 'epigenetic', 'conservation'
+    display_name = Column(String(200), nullable=False)
+    display_color = Column(String(20))
+    attribute_schema = Column(JSONB)  # JSON Schema for attribute validation
+    source_database = Column(String(100))
+    version = Column(String(50))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utc_now)
+
+    # Relationships
+    features = relationship("GenomicFeature", back_populates="track")
+
+
+class GenomicFeature(Base):
+    """Genomic Features (RepeatMasker annotations, etc.) - Partitioned by species_id"""
+
+    __tablename__ = "genomic_features"
+
+    feature_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    track_id = Column(Integer, ForeignKey("feature_tracks.track_id"), nullable=False)
+    species_id = Column(Integer, ForeignKey("species.species_id"), primary_key=True, nullable=False)
+    chromosome = Column(String(20), nullable=False)
+    feature_start = Column(BigInteger, nullable=False)
+    feature_end = Column(BigInteger, nullable=False)
+    feature_name = Column(String(200))
+    strand = Column(String(1))  # '+', '-', '.'
+    score = Column(Numeric(12, 6))
+    attributes = Column(JSONB)  # Flexible storage: {'repeat_class': 'LINE', 'repeat_family': 'L1', 'divergence': 12.3}
+    batch_id = Column(Integer, ForeignKey("import_batches.batch_id"))
+    created_at = Column(DateTime, default=utc_now)
+
+    # Relationships
+    track = relationship("FeatureTrack", back_populates="features")
+    species = relationship("Species")
+    batch = relationship("ImportBatch")
+
+    __table_args__ = (
+        Index("idx_gf_location", "chromosome", "feature_start", "feature_end"),
+        CheckConstraint("feature_start >= 0", name="genomic_features_feature_start_check"),
+        CheckConstraint("feature_end > feature_start", name="genomic_features_check"),
+        CheckConstraint("strand IN ('+', '-', '.')", name="genomic_features_strand_check"),
+        {"postgresql_partition_by": "LIST (species_id)"},
     )
