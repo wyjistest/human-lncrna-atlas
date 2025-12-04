@@ -3,17 +3,17 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // 生产环境移除 console.log 和 debugger
-  esbuild: {
+  // 仅生产环境移除 console.log 和 debugger
+  esbuild: mode === 'production' ? {
     drop: ['console', 'debugger'],
-  },
+  } : {},
   build: {
     minify: 'esbuild',  // 使用 esbuild（更快）
     rollupOptions: {
@@ -29,4 +29,4 @@ export default defineConfig({
     },
     chunkSizeWarningLimit: 600,
   },
-})
+}))

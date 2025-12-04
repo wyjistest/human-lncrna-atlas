@@ -323,7 +323,7 @@ export default function GenomeBrowserPage() {
             <Alert
               type="info"
               showIcon
-              message={t('geneLoadMode')}
+              title={t('geneLoadMode')}
               description={t('geneLoadModeDesc')}
               style={{ marginTop: 8 }}
             />
@@ -331,8 +331,19 @@ export default function GenomeBrowserPage() {
             <Alert
               type="success"
               showIcon
-              message={t('speciesBrowseMode')}
+              title={t('speciesBrowseMode')}
               description={t('speciesBrowseModeDesc')}
+              style={{ marginTop: 8 }}
+            />
+          )}
+
+          {/* Remote genome loading note for non-Human species */}
+          {speciesId !== 1 && viewMode === 'species' && (
+            <Alert
+              type="warning"
+              showIcon
+              title={t('remoteGenomeNote')}
+              description={t('remoteGenomeNoteDesc')}
               style={{ marginTop: 8 }}
             />
           )}
@@ -402,7 +413,7 @@ export default function GenomeBrowserPage() {
             locus={currentLocus}
             onLocusChange={handleLocusChange}
             onBrowserReady={handleBrowserReady}
-            height={600}
+            height={750}
           />
         </div>
       </Card>

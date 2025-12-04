@@ -58,6 +58,7 @@ interface GenomeBrowserProps {
   height?: number | string
 }
 
+
 const GenomeBrowser = memo(({
   speciesId = 1,
   geneName,
@@ -162,8 +163,21 @@ const GenomeBrowser = memo(({
         // Support two modes:
         // 1. genome: use built-in genome ID (e.g., "hg19")
         // 2. reference: use custom genome configuration
+
+        // Helper to validate genomic locus format (e.g., "chr1:1000-2000")
+        const isValidLocus = (l: string | undefined): boolean => {
+          if (!l || l === 'all') return false
+          // Check if it looks like a valid genomic coordinate: chr + optional coords
+          return /^chr[\dXYMT]+/.test(l)
+        }
+
+        // Use config.locus as default, only override if a valid locus prop is provided
+        const effectiveLocus = isValidLocus(initialLocusRef.current)
+          ? initialLocusRef.current!
+          : config.locus
+
         const options: IGVBrowserOptions = {
-          locus: initialLocusRef.current || config.locus,
+          locus: effectiveLocus,
           tracks: config.tracks as IGVTrackConfig[],
           showNavigation: true,
           showRuler: true,
@@ -175,14 +189,30 @@ const GenomeBrowser = memo(({
         // Use genome ID for built-in genomes, otherwise use reference
         if (config.genome) {
           options.genome = config.genome
-        } else if (config.reference && config.reference.fastaURL) {
-          // Only set reference if fastaURL is a valid string (required by IGV.js)
+        } else if (config.reference) {
+          // Build reference object - prefer twoBitURL over fastaURL for remote genomes
           options.reference = {
             id: config.reference.id,
             name: config.reference.name,
-            fastaURL: config.reference.fastaURL,
-            indexURL: config.reference.indexURL ?? undefined,
-            cytobandURL: config.reference.cytobandURL ?? undefined,
+          }
+
+          // Use twoBitURL if available (preferred for remote genomes - more efficient)
+          if (config.reference.twoBitURL) {
+            options.reference.twoBitURL = config.reference.twoBitURL
+          } else if (config.reference.fastaURL) {
+            // Fall back to fastaURL if twoBitURL not available
+            options.reference.fastaURL = config.reference.fastaURL
+            options.reference.indexURL = config.reference.indexURL ?? undefined
+          }
+
+          // Add cytoband if available (for chromosome ideogram visualization)
+          if (config.reference.cytobandURL) {
+            options.reference.cytobandURL = config.reference.cytobandURL
+          }
+
+          // Add chromosome sizes if available
+          if (config.reference.chromSizesURL) {
+            options.reference.chromSizesURL = config.reference.chromSizesURL
           }
         }
 
@@ -205,11 +235,46 @@ const GenomeBrowser = memo(({
         const browser = await igv.createBrowser(containerRef.current!, options)
         browserRef.current = browser
 
+        // For built-in genomes (like hg19), IGV.js may default to "all" view
+        // Need to wait for genome to fully load before navigation works reliably
+        // Helper function to navigate with retry
+        const navigateToLocus = async (targetLocus: string, retries = 3): Promise<void> => {
+          for (let i = 0; i < retries; i++) {
+            try {
+              await browser.search(targetLocus)
+              const currentLoci = browser.currentLoci()
+
+              // Check if navigation was successful (not showing "all")
+              if (currentLoci && currentLoci[0] !== 'all') {
+                return
+              }
+
+              // If still showing "all", wait and retry
+              await new Promise(resolve => setTimeout(resolve, 500))
+            } catch {
+              if (i < retries - 1) {
+                await new Promise(resolve => setTimeout(resolve, 500))
+              }
+            }
+          }
+        }
+
+        if (effectiveLocus && effectiveLocus !== 'all') {
+          // Small delay to ensure genome is loaded for built-in genomes
+          await new Promise(resolve => setTimeout(resolve, 100))
+          await navigateToLocus(effectiveLocus)
+        }
+
         // Listen for locus changes
+        // Filter out "all" which IGV.js uses for whole-genome view
         browser.on('locuschange', () => {
           const currentLoci = browser.currentLoci()
           if (currentLoci && currentLoci.length > 0 && onLocusChangeRef.current) {
-            onLocusChangeRef.current(currentLoci[0])
+            const locus = currentLoci[0]
+            // Don't propagate "all" - it's the whole-genome view, not a useful coordinate
+            if (locus && locus !== 'all') {
+              onLocusChangeRef.current(locus)
+            }
           }
         })
 
@@ -346,11 +411,11 @@ const GenomeBrowser = memo(({
     <div
       ref={containerRef}
       style={{
-        height,
+        minHeight: height,
         width: '100%',
         border: '1px solid #d9d9d9',
         borderRadius: 8,
-        overflow: 'hidden',
+        overflow: 'auto',  // Allow scrolling if content exceeds height
         backgroundColor: '#fff'
       }}
     />

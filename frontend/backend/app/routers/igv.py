@@ -25,38 +25,50 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/igv", tags=["igv"])
 
 # 基因组参考配置
-# 使用 IGV.js 内置基因组 ID，会自动从 IGV 服务器加载
 # 版本与项目数据一致: hg19, panTro5, rheMac10, calJac3
+#
+# 配置策略:
+# - Human (hg19): 使用 IGV.js 内置基因组 ID，自动从 IGV 服务器加载
+# - 其他灵长类: 使用 UCSC 2bit 格式，支持 HTTP Range 请求实现快速随机访问
+#
+# 2bit 格式优势 (相比 .fa.gz):
+# - 支持 byte-range 请求，只下载需要的序列片段
+# - 不需要全文件下载，加载速度快
+# - IGV.js 原生支持 UCSC 2bit 格式
+#
 # 注意：IGV.js 内置支持的基因组列表见 https://igv.org/genomes/genomes.json
 GENOME_REFERENCES = {
     1: {  # Human (hg19/GRCh37) - IGV.js 内置支持
         "id": "hg19",
         "name": "Human (GRCh37/hg19)",
-        # 使用内置基因组 ID，无需指定 fastaURL
-        "fastaURL": None,
+        "fastaURL": None,  # Use built-in genome
         "indexURL": None,
         "cytobandURL": None,
+        "twoBitURL": None,  # Not needed for built-in genome
     },
-    2: {  # Chimp (panTro5) - 需要自定义 URL
+    2: {  # Chimp (panTro5) - Use 2bit format for better performance
         "id": "panTro5",
         "name": "Chimpanzee (Pan_tro_2.1.4/panTro5)",
-        "fastaURL": "https://hgdownload.soe.ucsc.edu/goldenPath/panTro5/bigZips/panTro5.fa.gz",
-        "indexURL": "https://hgdownload.soe.ucsc.edu/goldenPath/panTro5/bigZips/panTro5.fa.gz.fai",
-        "cytobandURL": None,
+        "fastaURL": None,  # Don't use FASTA, use 2bit instead
+        "indexURL": None,
+        "cytobandURL": "https://hgdownload.soe.ucsc.edu/goldenPath/panTro5/database/cytoBand.txt.gz",
+        "twoBitURL": "https://hgdownload.soe.ucsc.edu/goldenPath/panTro5/bigZips/panTro5.2bit",
     },
-    3: {  # Macaque (rheMac10)
+    3: {  # Macaque (rheMac10) - Use 2bit format for better performance
         "id": "rheMac10",
         "name": "Rhesus Macaque (Mmul_10/rheMac10)",
-        "fastaURL": "https://hgdownload.soe.ucsc.edu/goldenPath/rheMac10/bigZips/rheMac10.fa.gz",
-        "indexURL": "https://hgdownload.soe.ucsc.edu/goldenPath/rheMac10/bigZips/rheMac10.fa.gz.fai",
-        "cytobandURL": None,
+        "fastaURL": None,  # Don't use FASTA, use 2bit instead
+        "indexURL": None,
+        "cytobandURL": "https://hgdownload.soe.ucsc.edu/goldenPath/rheMac10/database/cytoBand.txt.gz",
+        "twoBitURL": "https://hgdownload.soe.ucsc.edu/goldenPath/rheMac10/bigZips/rheMac10.2bit",
     },
-    4: {  # Marmoset (calJac3)
+    4: {  # Marmoset (calJac3) - Use 2bit format for better performance
         "id": "calJac3",
         "name": "Marmoset (Callithrix_jacchus-3.2/calJac3)",
-        "fastaURL": "https://hgdownload.soe.ucsc.edu/goldenPath/calJac3/bigZips/calJac3.fa.gz",
-        "indexURL": "https://hgdownload.soe.ucsc.edu/goldenPath/calJac3/bigZips/calJac3.fa.gz.fai",
-        "cytobandURL": None,
+        "fastaURL": None,  # Don't use FASTA, use 2bit instead
+        "indexURL": None,
+        "cytobandURL": None,  # calJac3 does not have cytoBand data in UCSC
+        "twoBitURL": "https://hgdownload.soe.ucsc.edu/goldenPath/calJac3/bigZips/calJac3.2bit",
     },
 }
 
@@ -132,36 +144,33 @@ def get_igv_config(
         )
         tracks.append(fantom_transcripts_track)
 
-    # 调控关系 BED 轨道
-    regulations_track = IGVTrack(
-        name=f"lncRNA-Target Regulations ({species.display_name})",
-        type="annotation",
-        format="bed",
-        url=f"/api/v1/igv/tracks/regulations/{species_id}.bed",
-        indexURL=None,
-        displayMode="EXPANDED",
-        color="#FF6B6B",  # 红色系，突出调控关系
-        height=150,
-    )
-    tracks.append(regulations_track)
+    # 注意：Species Mode 不加载 BED/BEDPE 轨道
+    # 原因：全物种数据量约 50 万条记录，无索引的 BED 文件会导致 IGV.js 卡死
+    # 用户应该使用 Gene Mode 来查看具体基因的调控关系
+    #
+    # 如果需要全局浏览调控关系，可以：
+    # 1. 将 BED 转换为 BigBed 格式（支持索引）
+    # 2. 使用服务端区域过滤
+    # 3. 实现 track hub 动态加载
 
     # 构建 IGV 配置
-    # 如果 fastaURL 为 None，使用 IGV.js 内置基因组 ID
-    # 否则使用自定义 reference 配置
-    if reference.fastaURL is None:
+    # 配置策略:
+    # 1. 内置基因组 (Human/hg19): fastaURL 和 twoBitURL 都为 None，使用 genome ID
+    # 2. 自定义基因组 (其他灵长类): 使用 twoBitURL 或 fastaURL
+    if reference.fastaURL is None and reference.twoBitURL is None:
         # 使用内置基因组 ID (如 hg19)
         config = IGVConfig(
             genome=reference.id,  # 如 "hg19"
             reference=None,
-            locus="chr1:1-10000000",
+            locus="chr1:1-1000000",  # 1Mb 初始视图，加载更快
             tracks=tracks,
         )
     else:
-        # 使用自定义参考基因组
+        # 使用自定义参考基因组 (优先使用 twoBitURL)
         config = IGVConfig(
             genome=None,
             reference=reference,
-            locus="chr1:1-10000000",
+            locus="chr1:1-1000000",  # 1Mb 初始视图，加载更快
             tracks=tracks,
         )
 
@@ -202,8 +211,10 @@ def list_available_genomes(db: Session = Depends(get_db)):
                 reference=GenomeReference(
                     id="unknown",
                     name="Not Available",
-                    fastaURL="",
-                    indexURL="",
+                    fastaURL=None,
+                    indexURL=None,
+                    cytobandURL=None,
+                    twoBitURL=None,
                 ),
                 available=False,
             ))
@@ -310,6 +321,137 @@ def generate_bed_stream(
             break
 
 
+def generate_bedpe_stream(
+    db: Session,
+    species_id: int,
+    chr_filter: Optional[str] = None,
+    start_filter: Optional[int] = None,
+    end_filter: Optional[int] = None,
+    lncrna_filter: Optional[str] = None,
+) -> Generator[str, None, None]:
+    """
+    生成 BEDPE 格式数据流用于 IGV.js 交互轨道
+
+    BEDPE 格式: chr1, start1, end1, chr2, start2, end2, name, score
+    - Endpoint 1 (chr1/start1/end1): lncRNA 基因位置 (通过 lncrna_gene_id JOIN genes 表)
+    - Endpoint 2 (chr2/start2/end2): 结合位点位置 (best_peak_chr, best_peak_start, best_peak_end)
+    - name: lncRNA_name|target_name
+    - score: binding_affinity (scaled to 0-1000 for BEDPE format)
+
+    注意：BEDPE 坐标是 0-based, half-open [start, end)
+    """
+    LncRNAGene = aliased(Gene, name="lncrna_gene")
+    TargetGene = aliased(Gene, name="target_gene")
+
+    # 构建基础查询
+    # Endpoint 1: lncRNA 基因位置
+    # Endpoint 2: 结合位点位置
+    query = (
+        db.query(
+            # Endpoint 1: lncRNA gene location
+            LncRNAGene.chromosome.label("chr1"),
+            LncRNAGene.gene_start.label("start1"),
+            LncRNAGene.gene_end.label("end1"),
+            # Endpoint 2: binding site
+            Regulation.best_peak_chr.label("chr2"),
+            Regulation.best_peak_start.label("start2"),
+            Regulation.best_peak_end.label("end2"),
+            # Metadata
+            LncRNAGene.gene_name.label("lncrna_name"),
+            TargetGene.gene_name.label("target_name"),
+            Regulation.binding_affinity,
+        )
+        .join(LncRNAGene, Regulation.lncrna_gene_id == LncRNAGene.gene_id)
+        .join(TargetGene, Regulation.target_gene_id == TargetGene.gene_id)
+        .filter(Regulation.species_id == species_id)
+        # 跳过 lncRNA 基因没有坐标的记录
+        .filter(LncRNAGene.chromosome.isnot(None))
+        .filter(LncRNAGene.gene_start.isnot(None))
+        .filter(LncRNAGene.gene_end.isnot(None))
+        # 跳过 best_peak_chr 为空的记录
+        .filter(Regulation.best_peak_chr.isnot(None))
+        .filter(Regulation.best_peak_start.isnot(None))
+        .filter(Regulation.best_peak_end.isnot(None))
+    )
+
+    # lncRNA 过滤（按基因名或 Ensembl ID）
+    if lncrna_filter:
+        query = query.filter(
+            (LncRNAGene.gene_name == lncrna_filter) |
+            (LncRNAGene.gene_ensembl_id == lncrna_filter)
+        )
+
+    # 区域过滤 - 检查两个 endpoint 是否与指定区域重叠
+    if chr_filter:
+        # 区域过滤：至少一个 endpoint 在指定区域内
+        chr_filter_condition = (
+            (LncRNAGene.chromosome == chr_filter) |
+            (Regulation.best_peak_chr == chr_filter)
+        )
+        query = query.filter(chr_filter_condition)
+
+        if start_filter is not None and end_filter is not None:
+            # 区域查询：查找任一 endpoint 与指定区域重叠的记录
+            # 重叠条件: region.start < endpoint.end AND region.end > endpoint.start
+            region_overlap_condition = (
+                # Endpoint 1 (lncRNA gene) overlaps with region
+                (
+                    (LncRNAGene.chromosome == chr_filter) &
+                    (LncRNAGene.gene_start < end_filter) &
+                    (LncRNAGene.gene_end > start_filter)
+                ) |
+                # Endpoint 2 (binding site) overlaps with region
+                (
+                    (Regulation.best_peak_chr == chr_filter) &
+                    (Regulation.best_peak_start < end_filter) &
+                    (Regulation.best_peak_end > start_filter)
+                )
+            )
+            query = query.filter(region_overlap_condition)
+
+    # 按 lncRNA 染色体和起始位置排序
+    query = query.order_by(LncRNAGene.chromosome, LncRNAGene.gene_start)
+
+    # 流式处理，分批获取
+    batch_size = 10000
+    offset = 0
+
+    while True:
+        batch = query.offset(offset).limit(batch_size).all()
+        if not batch:
+            break
+
+        for row in batch:
+            # Endpoint 1: lncRNA gene location
+            chr1 = row.chr1
+            start1 = row.start1
+            end1 = row.end1
+
+            # Endpoint 2: binding site location
+            chr2 = row.chr2
+            start2 = row.start2
+            end2 = row.end2
+
+            # 构建 name 字段 (使用 | 分隔符)
+            lncrna = row.lncrna_name or "unknown_lncRNA"
+            target = row.target_name or "unknown_target"
+            name = f"{lncrna}|{target}"
+
+            # 转换 binding_affinity 到 BEDPE score (0-1000)
+            # 原始值范围假设是 0-100，需要放大 10 倍
+            ba = float(row.binding_affinity) if row.binding_affinity else 0
+            score = min(1000, max(0, int(ba * 10)))
+
+            # 输出 BEDPE 8列格式行
+            yield f"{chr1}\t{start1}\t{end1}\t{chr2}\t{start2}\t{end2}\t{name}\t{score}\n"
+
+        offset += batch_size
+
+        # 如果返回的记录少于批次大小，说明已经到末尾
+        if len(batch) < batch_size:
+            break
+
+
 @router.get("/tracks/regulations/{species_id}.bed")
 def get_regulations_bed(
     species_id: int,
@@ -381,6 +523,88 @@ def get_regulations_bed(
 
     return StreamingResponse(
         bed_stream,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": "text/plain; charset=utf-8",
+        },
+    )
+
+
+@router.get("/tracks/interactions/{species_id}.bedpe")
+def get_interactions_bedpe(
+    species_id: int,
+    chr: Optional[str] = Query(None, description="染色体过滤，如 chr1"),
+    start: Optional[int] = Query(None, ge=0, description="起始位置 (0-based)"),
+    end: Optional[int] = Query(None, ge=0, description="结束位置"),
+    lncrna: Optional[str] = Query(None, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
+    db: Session = Depends(get_db),
+):
+    """
+    流式导出 lncRNA-Target 交互为 BEDPE 格式
+
+    BEDPE 格式用于 IGV.js 的 interact 轨道，显示 lncRNA 与其结合位点之间的弧线连接。
+
+    BEDPE 8列格式: chr1, start1, end1, chr2, start2, end2, name, score
+    - Endpoint 1 (chr1/start1/end1): lncRNA 基因位置
+    - Endpoint 2 (chr2/start2/end2): 结合位点位置 (best_peak)
+    - name: lncRNA_name|target_name
+    - score: binding_affinity (0-1000)
+
+    支持区域查询和 lncRNA 过滤，优化 IGV 加载性能
+
+    Args:
+        species_id: 物种 ID
+        chr: 可选，染色体过滤（匹配任一 endpoint）
+        start: 可选，起始位置
+        end: 可选，结束位置
+        lncrna: 可选，lncRNA 基因名过滤（只返回该 lncRNA 的交互）
+
+    Returns:
+        StreamingResponse with BEDPE format data
+    """
+    # 验证物种存在
+    species = db.query(Species).filter(Species.species_id == species_id).first()
+    if not species:
+        raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+
+    # 参数验证
+    if (start is not None or end is not None) and chr is None:
+        raise HTTPException(
+            status_code=400,
+            detail="chr parameter is required when using start/end filters"
+        )
+
+    if start is not None and end is not None and start >= end:
+        raise HTTPException(
+            status_code=400,
+            detail="start must be less than end"
+        )
+
+    logger.info(f"BEDPE export requested: species={species_id}, chr={chr}, start={start}, end={end}, lncrna={lncrna}")
+
+    # 生成 BEDPE 数据流
+    bedpe_stream = generate_bedpe_stream(
+        db=db,
+        species_id=species_id,
+        chr_filter=chr,
+        start_filter=start,
+        end_filter=end,
+        lncrna_filter=lncrna,
+    )
+
+    # 设置响应头
+    filename = f"interactions_species{species_id}"
+    if lncrna:
+        filename = f"interactions_{lncrna}"
+    if chr:
+        filename += f"_{chr}"
+        if start is not None and end is not None:
+            filename += f"_{start}-{end}"
+    filename += ".bedpe"
+
+    return StreamingResponse(
+        bedpe_stream,
         media_type="text/plain",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
@@ -480,8 +704,26 @@ def get_igv_config_for_gene(
     )
     tracks.append(regulations_track)
 
+    # 该基因相关的交互轨道（按 lncRNA 过滤，BEDPE 格式显示弧线连接）
+    interactions_track = IGVTrack(
+        name=f"Interactions: {gene_name}",
+        type="interact",  # IGV.js uses "interact" not "interaction"
+        format="bedpe",
+        url=f"/api/v1/igv/tracks/interactions/{species.species_id}.bedpe?lncrna={gene_name}",
+        indexURL=None,
+        displayMode="EXPANDED",
+        color="#8B5CF6",  # Purple color for interactions
+        height=120,
+        visibilityWindow=5000000,  # 5Mb window
+    )
+    tracks.append(interactions_track)
+
     # 构建 IGV 配置
-    if reference.fastaURL is None:
+    # 配置策略:
+    # 1. 内置基因组 (Human/hg19): fastaURL 和 twoBitURL 都为 None，使用 genome ID
+    # 2. 自定义基因组 (其他灵长类): 使用 twoBitURL 或 fastaURL
+    if reference.fastaURL is None and reference.twoBitURL is None:
+        # 使用内置基因组 ID (如 hg19)
         config = IGVConfig(
             genome=reference.id,
             reference=None,
@@ -489,6 +731,7 @@ def get_igv_config_for_gene(
             tracks=tracks,
         )
     else:
+        # 使用自定义参考基因组 (优先使用 twoBitURL)
         config = IGVConfig(
             genome=None,
             reference=reference,

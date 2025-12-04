@@ -30,6 +30,22 @@ export interface IGVTrackConfig {
   nameField?: string
   expandedRowHeight?: number
   squishedRowHeight?: number
+
+  // Interaction track specific options
+  /** Arc type for interaction tracks: 'proportional' scales arc height by distance, 'nested' stacks arcs */
+  arcType?: 'proportional' | 'nested'
+  /** Arc orientation: 'UP' draws arcs above, 'DOWN' draws below, boolean for auto */
+  arcOrientation?: 'UP' | 'DOWN' | boolean
+  /** Alpha transparency for arcs (0-1 or string like "0.05") */
+  alpha?: number | string
+  /** Use logarithmic scale for arc heights */
+  logScale?: boolean
+  /** Show blocks at arc endpoints */
+  showBlocks?: boolean
+  /** Maximum value for scaling */
+  max?: number
+  /** Use score field for coloring/sizing */
+  useScore?: boolean
 }
 
 export interface IGVConfig {
@@ -42,6 +58,8 @@ export interface IGVConfig {
     fastaURL?: string | null
     indexURL?: string | null
     cytobandURL?: string | null
+    twoBitURL?: string | null      // New: 2bit format URL (preferred for remote genomes)
+    chromSizesURL?: string | null  // Optional: chromosome sizes file URL
   } | null
   locus: string
   tracks: IGVTrackConfig[]

@@ -26,5 +26,7 @@
   "exportPNG": "Export PNG",
   "exportSuccess": "Export successful",
   "exportFailed": "Export failed",
-  "exportNotReady": "Browser not ready yet"
+  "exportNotReady": "Browser not ready yet",
+  "remoteGenomeNote": "Remote Genome",
+  "remoteGenomeNoteDesc": "This genome is loaded from UCSC servers. Initial loading may take a moment depending on your network connection."
 }

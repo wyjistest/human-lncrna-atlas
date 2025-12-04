@@ -26,5 +26,7 @@
   "exportPNG": "导出 PNG",
   "exportSuccess": "导出成功",
   "exportFailed": "导出失败",
-  "exportNotReady": "浏览器尚未准备就绪"
+  "exportNotReady": "浏览器尚未准备就绪",
+  "remoteGenomeNote": "远程基因组",
+  "remoteGenomeNoteDesc": "该基因组从 UCSC 服务器加载，首次加载可能需要几秒钟，具体取决于您的网络连接速度。"
 }

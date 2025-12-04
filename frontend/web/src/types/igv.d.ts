@@ -8,9 +8,11 @@ declare module 'igv' {
     reference?: {
       id: string
       name?: string
-      fastaURL: string
+      fastaURL?: string       // Optional now - not required if twoBitURL is provided
       indexURL?: string
       cytobandURL?: string
+      twoBitURL?: string      // New: 2bit format URL (preferred for remote genomes)
+      chromSizesURL?: string  // Optional: chromosome sizes file URL
     }
     locus?: string
     tracks?: IGVTrackConfig[]
@@ -23,7 +25,7 @@ declare module 'igv' {
 
   export interface IGVTrackConfig {
     /** Track type - determines how features are rendered */
-    type: 'annotation' | 'wig' | 'alignment' | 'variant' | 'seg' | 'interaction' | 'bed'
+    type: 'annotation' | 'wig' | 'alignment' | 'variant' | 'seg' | 'interact' | 'interaction' | 'bed'
     /** Display name for the track */
     name: string
     /** URL to the track data file */
@@ -38,7 +40,7 @@ declare module 'igv' {
      * - 'bam', 'cram' for alignment files
      * - 'vcf' for variant files
      */
-    format?: 'bed' | 'gff3' | 'gtf' | 'bigbed' | 'bb' | 'bigwig' | 'bw' | 'bam' | 'cram' | 'vcf' | string
+    format?: 'bed' | 'gff3' | 'gtf' | 'bigbed' | 'bb' | 'bigwig' | 'bw' | 'bam' | 'cram' | 'vcf' | 'bedpe' | 'interact' | string
     /** How features are displayed vertically */
     displayMode?: 'EXPANDED' | 'COLLAPSED' | 'SQUISHED'
     /** Track color (CSS color string or RGB values like "0,82,41") */
@@ -110,6 +112,22 @@ declare module 'igv' {
      * Example: "https://www.ncbi.nlm.nih.gov/gene/?term=$$"
      */
     infoURL?: string
+
+    // Interaction track specific options
+    /** Arc type for interaction tracks: 'proportional' scales arc height by distance, 'nested' stacks arcs */
+    arcType?: 'proportional' | 'nested'
+    /** Arc orientation: 'UP' draws arcs above, 'DOWN' draws below, boolean for auto */
+    arcOrientation?: 'UP' | 'DOWN' | boolean
+    /** Alpha transparency for arcs (0-1 or string like "0.05") */
+    alpha?: number | string
+    /** Use logarithmic scale for arc heights */
+    logScale?: boolean
+    /** Show blocks at arc endpoints */
+    showBlocks?: boolean
+    /** Maximum value for scaling */
+    max?: number
+    /** Use score field for coloring/sizing */
+    useScore?: boolean
   }
 
   export interface IGVBrowser {
