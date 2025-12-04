@@ -3,6 +3,26 @@
  * @see https://github.com/igvteam/igv.js
  */
 declare module 'igv' {
+  /**
+   * Search configuration for IGV browser
+   * Enables gene name searching in the native IGV search box
+   * @see https://github.com/igvteam/igv.js/wiki/Browser-Configuration-Options#search
+   */
+  export interface IGVSearchConfig {
+    /** URL for search requests. Use $FEATURE$ as placeholder for the search term */
+    url: string
+    /** Field name in response containing the chromosome (default: 'chromosome') */
+    chromosomeField?: string
+    /** Field name in response containing the start position (default: 'start') */
+    startField?: string
+    /** Field name in response containing the end position (default: 'end') */
+    endField?: string
+    /** Function to format search results (optional) */
+    resultsField?: string
+    /** Coordinate system: 0 or 1 (default: 0) */
+    coords?: 0 | 1
+  }
+
   export interface IGVBrowserOptions {
     genome?: string
     reference?: {
@@ -21,26 +41,32 @@ declare module 'igv' {
     showCenterGuide?: boolean
     showCursorTrackingGuide?: boolean
     showControls?: boolean
+    /**
+     * Search configuration for gene/feature lookup
+     * Enables searching by gene name in addition to coordinates
+     */
+    search?: IGVSearchConfig
   }
 
   export interface IGVTrackConfig {
     /** Track type - determines how features are rendered */
-    type: 'annotation' | 'wig' | 'alignment' | 'variant' | 'seg' | 'interact' | 'interaction' | 'bed'
+    type: 'annotation' | 'wig' | 'alignment' | 'variant' | 'seg' | 'interact' | 'interaction' | 'bed' | 'gene' | string
     /** Display name for the track */
     name: string
     /** URL to the track data file */
-    url: string
+    url?: string
     /** URL to index file (e.g., .tbi for tabix, .bai for BAM) */
     indexURL?: string
     /**
      * File format. Common values:
      * - 'bed', 'gff3', 'gtf' for text annotation files
      * - 'bigbed' or 'bb' for bigBed binary format (indexed, no visibilityWindow needed)
+     * - 'biggenepred' for bigGenePred format (gene structure with exons/introns)
      * - 'bigwig' or 'bw' for bigWig binary format
      * - 'bam', 'cram' for alignment files
      * - 'vcf' for variant files
      */
-    format?: 'bed' | 'gff3' | 'gtf' | 'bigbed' | 'bb' | 'bigwig' | 'bw' | 'bam' | 'cram' | 'vcf' | 'bedpe' | 'interact' | string
+    format?: 'bed' | 'gff3' | 'gtf' | 'bigbed' | 'bb' | 'biggenepred' | 'bigwig' | 'bw' | 'bam' | 'cram' | 'vcf' | 'bedpe' | 'interact' | string
     /** How features are displayed vertically */
     displayMode?: 'EXPANDED' | 'COLLAPSED' | 'SQUISHED'
     /** Track color (CSS color string or RGB values like "0,82,41") */
@@ -131,11 +157,22 @@ declare module 'igv' {
   }
 
   export interface IGVBrowser {
+    /** Search by gene name or locus */
     search(locus: string): Promise<void>
+    /** Navigate to a specific genomic locus (more reliable for coordinates) */
+    goto(locus: string): Promise<void>
     loadTrack(config: IGVTrackConfig): Promise<void>
     removeTrackByName(name: string): void
+    /** Get all track views */
+    trackViews: Array<{ track: { name: string; type: string } }>
+    /** Find track by name */
+    findTrackByName(name: string): { track: IGVTrackConfig } | undefined
     toSVG(): string
     dispose?(): void
+    /**
+     * Subscribe to browser events
+     * Common events: 'locuschange', 'trackclick', 'trackremoved', 'trackorderchanged'
+     */
     on(event: string, handler: (...args: unknown[]) => void): void
     off(event: string, handler?: (...args: unknown[]) => void): void
     currentLoci(): string[]

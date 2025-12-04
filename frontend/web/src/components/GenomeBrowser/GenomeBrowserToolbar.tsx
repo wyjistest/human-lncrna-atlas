@@ -1,13 +1,18 @@
 /**
  * GenomeBrowser Toolbar Component
- * Provides species selection and gene search functionality
+ * Provides species selection and gene search with autocomplete functionality
+ *
+ * Features:
+ * - Gene name autocomplete using /api/v1/igv/autocomplete API
+ * - Debounced search (300ms) to avoid excessive API calls
+ * - Displays gene name + chromosome position in dropdown
+ * - Navigates IGV to selected gene position on selection
  */
-import { memo, useState, useEffect, useMemo, useRef } from 'react'
+import { memo, useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Space, Select, Button, AutoComplete, Spin } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from '@tanstack/react-query'
-import { genomeApi, type GenomeSearchResult } from '@/api/genome'
+import { genomeApi, type GeneAutocompleteItem } from '@/api/genome'
 import debounce from 'lodash/debounce'
 
 interface GenomeBrowserToolbarProps {
@@ -20,7 +25,7 @@ interface GenomeBrowserToolbarProps {
 interface AutoCompleteOption {
   value: string
   label: React.ReactNode
-  gene: GenomeSearchResult
+  gene: GeneAutocompleteItem
 }
 
 const GenomeBrowserToolbar = memo(({
@@ -33,8 +38,11 @@ const GenomeBrowserToolbar = memo(({
   const { t: tCommon } = useTranslation('common')
 
   const [searchValue, setSearchValue] = useState('')
-  const [searchQuery, setSearchQuery] = useState('')
   const [options, setOptions] = useState<AutoCompleteOption[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+
+  // Store the selected gene for display
+  const selectedGeneRef = useRef<GeneAutocompleteItem | null>(null)
 
   // Species options with translations
   const speciesOptions = [
@@ -44,59 +52,74 @@ const GenomeBrowserToolbar = memo(({
     { label: tCommon('species.marmoset'), value: 4 },
   ]
 
-  // Search query for gene autocomplete
-  const { data: searchResults, isLoading: isSearching } = useQuery({
-    queryKey: ['genome-search', speciesId, searchQuery],
-    queryFn: async () => {
-      if (!searchQuery || searchQuery.length < 2) return []
-      const res = await genomeApi.searchGene(speciesId, searchQuery)
-      return res.data
-    },
-    enabled: searchQuery.length >= 2,
-    staleTime: 30000,
-  })
-
-  // Update autocomplete options when search results change
-  useEffect(() => {
-    if (searchResults && searchResults.length > 0) {
-      const newOptions: AutoCompleteOption[] = searchResults.map((gene) => ({
-        value: `${gene.chromosome}:${gene.gene_start}-${gene.gene_end}`,
-        label: (
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ fontWeight: 500 }}>{gene.gene_name}</span>
-            <span style={{ color: '#888', fontSize: 12 }}>
-              {gene.chromosome}:{gene.gene_start.toLocaleString()}-{gene.gene_end.toLocaleString()}
-            </span>
-          </div>
-        ),
-        gene,
-      }))
-      setOptions(newOptions)
-    } else {
+  // Fetch autocomplete results from API
+  const fetchAutocomplete = useCallback(async (query: string) => {
+    if (!query || query.length < 2) {
       setOptions([])
+      return
     }
-  }, [searchResults])
 
-  // Debounced search query update using useMemo + useRef pattern
-  const debouncedSetSearchQueryRef = useRef(
-    debounce((value: string) => {
-      setSearchQuery(value)
-    }, 300)
+    setIsSearching(true)
+    try {
+      const response = await genomeApi.autocompleteGene(query, speciesId, 10)
+      const results = response.data?.data || []
+
+      if (results.length > 0) {
+        const newOptions: AutoCompleteOption[] = results.map((gene) => ({
+          value: `${gene.chromosome}:${gene.start}-${gene.end}`,
+          label: (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 500 }}>{gene.gene_name}</span>
+              <span style={{ color: '#888', fontSize: 12, marginLeft: 12 }}>
+                {gene.chromosome}:{gene.start.toLocaleString()}-{gene.end.toLocaleString()}
+              </span>
+            </div>
+          ),
+          gene,
+        }))
+        setOptions(newOptions)
+      } else {
+        setOptions([])
+      }
+    } catch (error) {
+      console.error('Autocomplete search failed:', error)
+      setOptions([])
+    } finally {
+      setIsSearching(false)
+    }
+  }, [speciesId])
+
+  // Debounced search function (300ms delay)
+  const debouncedFetch = useMemo(
+    () => debounce(fetchAutocomplete, 300),
+    [fetchAutocomplete]
   )
 
-  // Memoize the debounced function to avoid recreating on every render
-  const debouncedSetSearchQuery = useMemo(
-    () => debouncedSetSearchQueryRef.current,
-    []
-  )
+  // Cleanup debounced function on unmount
+  useEffect(() => {
+    return () => {
+      debouncedFetch.cancel()
+    }
+  }, [debouncedFetch])
+
+  // Clear options when species changes
+  useEffect(() => {
+    setOptions([])
+    setSearchValue('')
+    selectedGeneRef.current = null
+  }, [speciesId])
 
   const handleSearchChange = (value: string) => {
     setSearchValue(value)
-    debouncedSetSearchQuery(value)
+    selectedGeneRef.current = null
+    debouncedFetch(value)
   }
 
   const handleSelect = (value: string, option: AutoCompleteOption) => {
+    // Store the selected gene and display its name
+    selectedGeneRef.current = option.gene
     setSearchValue(option.gene.gene_name)
+    // Navigate to the selected locus
     onSearch(value)
   }
 
@@ -105,11 +128,18 @@ const GenomeBrowserToolbar = memo(({
       // Check if it looks like a locus (chr:start-end) or a gene name
       const locusPattern = /^(chr)?[\dXYxy]+:\d+-\d+$/
       if (locusPattern.test(searchValue.trim())) {
+        // Direct locus input, navigate directly
         onSearch(searchValue.trim())
       } else if (options.length > 0) {
-        // Use first result if available
+        // Use first result from autocomplete
         const firstOption = options[0]
+        selectedGeneRef.current = firstOption.gene
+        setSearchValue(firstOption.gene.gene_name)
         onSearch(firstOption.value)
+      } else if (selectedGeneRef.current) {
+        // Use previously selected gene
+        const gene = selectedGeneRef.current
+        onSearch(`${gene.chromosome}:${gene.start}-${gene.end}`)
       } else {
         // Just try to search with the value as-is (IGV will handle it)
         onSearch(searchValue.trim())
@@ -142,17 +172,27 @@ const GenomeBrowserToolbar = memo(({
           onChange={handleSearchChange}
           onSelect={handleSelect}
           options={options}
-          style={{ width: 300 }}
-          placeholder={t('searchPlaceholder')}
+          style={{ width: 320 }}
+          placeholder={t('autocompleteSearchPlaceholder') || 'Search gene (e.g., hla-, brca1)'}
           disabled={disabled}
           onKeyDown={handleKeyPress}
           notFoundContent={
             isSearching ? (
-              <Spin size="small" />
-            ) : searchQuery.length >= 2 ? (
-              <span style={{ color: '#999' }}>{t('noResults')}</span>
+              <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                <Spin size="small" />
+                <span style={{ marginLeft: 8, color: '#999' }}>{t('searching') || 'Searching...'}</span>
+              </div>
+            ) : searchValue.length >= 2 ? (
+              <span style={{ color: '#999', padding: '8px 12px', display: 'block' }}>
+                {t('noResults') || 'No matching genes found'}
+              </span>
+            ) : searchValue.length > 0 ? (
+              <span style={{ color: '#999', padding: '8px 12px', display: 'block' }}>
+                {t('typeMoreChars') || 'Type at least 2 characters'}
+              </span>
             ) : null
           }
+          popupMatchSelectWidth={400}
         />
         <Button
           type="primary"

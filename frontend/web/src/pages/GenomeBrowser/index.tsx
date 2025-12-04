@@ -21,6 +21,7 @@ import type { MenuProps } from 'antd'
 import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
+import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
 
 const { Title, Paragraph, Text } = Typography
 const { Search } = Input
@@ -81,7 +82,7 @@ export default function GenomeBrowserPage() {
     { label: tCommon('species.marmoset'), value: 4 },
   ]
 
-  // Sync URL params when mode/species/gene changes
+  // Sync URL params when mode/species/gene/locus changes
   useEffect(() => {
     const newParams = new URLSearchParams()
 
@@ -89,10 +90,14 @@ export default function GenomeBrowserPage() {
       newParams.set('gene', geneName)
     } else if (viewMode === 'species') {
       newParams.set('species', speciesId.toString())
+      // Preserve locus parameter for navigation from Regulation page
+      if (currentLocus) {
+        newParams.set('locus', currentLocus)
+      }
     }
 
     setSearchParams(newParams, { replace: true })
-  }, [viewMode, speciesId, geneName, setSearchParams])
+  }, [viewMode, speciesId, geneName, currentLocus, setSearchParams])
 
   // Handle view mode change
   const handleViewModeChange = useCallback((mode: ViewMode) => {
@@ -144,6 +149,23 @@ export default function GenomeBrowserPage() {
   const handleBrowserReady = useCallback((handle: GenomeBrowserHandle) => {
     browserHandleRef.current = handle
   }, [])
+
+  // Handle toolbar search - navigate IGV to the selected locus
+  const handleToolbarSearch = useCallback((locus: string) => {
+    if (browserHandleRef.current) {
+      browserHandleRef.current.navigateToLocus(locus)
+        .then(() => {
+          message.success(`Navigated to ${locus}`)
+          setCurrentLocus(locus)
+        })
+        .catch((err) => {
+          console.error('Navigation failed:', err)
+          message.error(t('searchError') || 'Navigation failed')
+        })
+    } else {
+      message.warning('Browser is loading, please wait...')
+    }
+  }, [t])
 
   // Generate filename for exports
   const getExportFilename = useCallback((extension: string) => {
@@ -281,7 +303,7 @@ export default function GenomeBrowserPage() {
         }}
       >
         {/* View Mode Selector */}
-        <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
+        <Space orientation="vertical" style={{ width: '100%', marginBottom: 16 }}>
           <Space wrap align="center" size="large">
             <Radio.Group
               value={viewMode}
@@ -352,7 +374,7 @@ export default function GenomeBrowserPage() {
         <Divider style={{ margin: '12px 0' }} />
 
         {/* Gene Search Input */}
-        <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
+        <Space orientation="vertical" style={{ width: '100%', marginBottom: 16 }}>
           <Space wrap>
             <Search
               placeholder={t('searchPlaceholder') || "Enter gene name (e.g., CATG00000000011.1)"}
@@ -403,6 +425,14 @@ export default function GenomeBrowserPage() {
         </Space>
 
         <Divider style={{ margin: '12px 0' }} />
+
+        {/* Gene Search Toolbar with AutoComplete */}
+        <GenomeBrowserToolbar
+          speciesId={speciesId}
+          onSpeciesChange={handleSpeciesChange}
+          onSearch={handleToolbarSearch}
+          disabled={false}
+        />
 
         {/* Genome Browser */}
         <div ref={browserRef}>

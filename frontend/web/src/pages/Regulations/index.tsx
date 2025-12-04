@@ -218,16 +218,13 @@ export default function Regulations() {
     }
   ], [t, handleExport])
 
-  // Navigate to IGV genome browser with locus
+  // Navigate to IGV genome browser with gene name
+  // Use gene mode to load regulation/interaction tracks for the lncRNA
   const handleViewInIGV = useCallback((record: RegulationListItem) => {
-    const { lncrna_gene_name, target_chromosome, target_start, target_end, species_id } = record
+    const { lncrna_gene_name, species_id } = record
 
-    // Build URL with locus parameter for precise location
-    if (target_chromosome && target_start && target_end) {
-      const locus = `${target_chromosome}:${target_start}-${target_end}`
-      navigate(`/genome-browser?locus=${encodeURIComponent(locus)}&species=${species_id}`)
-    } else if (lncrna_gene_name) {
-      // Fallback to gene name if no locus info
+    if (lncrna_gene_name) {
+      // Use gene parameter to load gene-specific IGV config with regulation/interaction tracks
       navigate(`/genome-browser?gene=${encodeURIComponent(lncrna_gene_name)}&species=${species_id}`)
     }
   }, [navigate])

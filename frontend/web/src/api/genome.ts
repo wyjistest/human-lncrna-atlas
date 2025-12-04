@@ -22,14 +22,38 @@ export interface IGVTrackConfig {
   indexURL?: string
   displayMode?: string
   color?: string
+  /** Alternative color for negative strand features (used with colorByStrand) */
+  altColor?: string
   height?: number
   visibilityWindow?: number
-  // 标签显示相关配置
+
+  // Label and display configuration
+  /** Label fields to display for features (for bigBed/bigGenePred) */
   labelFields?: string
+  /** Default label field to display */
   defaultLabelFields?: string
+  /** Field name to use for feature name */
   nameField?: string
+  /** Row height in EXPANDED display mode */
   expandedRowHeight?: number
+  /** Row height in SQUISHED display mode */
   squishedRowHeight?: number
+
+  // Track behavior options
+  /** Track order (lower numbers appear first) */
+  order?: number
+  /** Whether the track can be removed by the user */
+  removable?: boolean
+  /** Whether features in this track are searchable */
+  searchable?: boolean
+  /** Description shown in track menu */
+  description?: string
+  /** Whether to use item RGB colors from the file (for bigBed 9+) */
+  itemRgb?: boolean
+  /** Color features by strand */
+  colorByStrand?: string
+  /** URL template for feature info links. Use $$ as placeholder for feature name */
+  infoURL?: string
 
   // Interaction track specific options
   /** Arc type for interaction tracks: 'proportional' scales arc height by distance, 'nested' stacks arcs */
@@ -75,6 +99,21 @@ export interface GenomeSearchResult {
   strand: string
 }
 
+/** Autocomplete result item from /api/v1/igv/autocomplete */
+export interface GeneAutocompleteItem {
+  gene_name: string
+  chromosome: string
+  start: number
+  end: number
+  species_id: number
+}
+
+/** Autocomplete API response */
+export interface GeneAutocompleteResponse {
+  success: boolean
+  data: GeneAutocompleteItem[]
+}
+
 export const genomeApi = {
   /**
    * Get IGV configuration for a specific species
@@ -104,5 +143,17 @@ export const genomeApi = {
   searchGene: (speciesId: number, query: string) =>
     apiClient.get<GenomeSearchResult[]>('/api/v1/igv/search', {
       params: { species_id: speciesId, query }
+    }),
+
+  /**
+   * Autocomplete gene search
+   * Returns matching genes for autocomplete suggestions
+   * @param query - Partial gene name to search (e.g., "hla-")
+   * @param speciesId - Species ID (1: Human, 2: Chimpanzee, 3: Macaque, 4: Marmoset)
+   * @param limit - Maximum number of results (default 10)
+   */
+  autocompleteGene: (query: string, speciesId: number, limit: number = 10) =>
+    apiClient.get<GeneAutocompleteResponse>('/api/v1/igv/autocomplete', {
+      params: { q: query, species_id: speciesId, limit }
     }),
 }

@@ -18,6 +18,10 @@ from app.schemas.igv import (
     IGVConfig,
     IGVConfigResponse,
     SpeciesGenomeInfo,
+    IGVSearchResult,
+    IGVSearchConfig,
+    GeneAutocompleteItem,
+    GeneAutocompleteResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,6 +82,26 @@ SPECIES_NAMES = {
     2: "Chimpanzee",
     3: "Rhesus Macaque",
     4: "Marmoset",
+}
+
+# 基因注释轨道配置
+# 每个物种的基因注释 BigBed 文件路径
+GENE_ANNOTATION_TRACKS = {
+    2: {  # Chimpanzee (panTro5)
+        "name": "Ensembl Genes (Pan_tro_3.0)",
+        "url": "/genomes/panTro5_genes.bb",
+        "description": "Gene annotations from Ensembl release 97",
+    },
+    3: {  # Macaque (rheMac10)
+        "name": "Ensembl Genes (Mmul_10)",
+        "url": "/genomes/rheMac10_genes.bb",
+        "description": "Gene annotations from Ensembl release 98",
+    },
+    4: {  # Marmoset (calJac3)
+        "name": "Ensembl Genes (C_jacchus3.2.1)",
+        "url": "/genomes/calJac3_genes.bb",
+        "description": "Gene annotations from Ensembl release 78",
+    },
 }
 
 
@@ -144,6 +168,26 @@ def get_igv_config(
         )
         tracks.append(fantom_transcripts_track)
 
+    # 基因注释轨道 (非人类灵长类物种)
+    # 使用从 Ensembl GTF 转换的 BigBed 格式，包含完整的外显子结构
+    if species_id in GENE_ANNOTATION_TRACKS:
+        gene_track_config = GENE_ANNOTATION_TRACKS[species_id]
+        gene_annotation_track = IGVTrack(
+            name=gene_track_config["name"],
+            type="annotation",
+            format="bigbed",
+            url=gene_track_config["url"],
+            indexURL=None,
+            displayMode="EXPANDED",  # EXPANDED 模式显示基因结构
+            color="#2E7D32",  # 绿色系，区分于其他轨道
+            height=150,  # 增加高度以更好展示外显子结构
+            visibilityWindow=None,  # bigBed 自动处理可见窗口
+            labelFields="name",  # 使用转录本 ID 作为标签
+            defaultLabelFields="name",
+            expandedRowHeight=25,  # 展开模式下每行高度
+        )
+        tracks.append(gene_annotation_track)
+
     # 注意：Species Mode 不加载 BED/BEDPE 轨道
     # 原因：全物种数据量约 50 万条记录，无索引的 BED 文件会导致 IGV.js 卡死
     # 用户应该使用 Gene Mode 来查看具体基因的调控关系
@@ -152,6 +196,15 @@ def get_igv_config(
     # 1. 将 BED 转换为 BigBed 格式（支持索引）
     # 2. 使用服务端区域过滤
     # 3. 实现 track hub 动态加载
+
+    # 构建搜索配置
+    # 使用新的 /api/v1/igv/locus 端点，支持基因名和染色体坐标搜索
+    search_config = IGVSearchConfig(
+        url=f"/api/v1/igv/locus?q=$FEATURE$&species_id={species_id}",
+        chromosomeField="chromosome",
+        startField="start",
+        endField="end",
+    )
 
     # 构建 IGV 配置
     # 配置策略:
@@ -164,6 +217,7 @@ def get_igv_config(
             reference=None,
             locus="chr1:1-1000000",  # 1Mb 初始视图，加载更快
             tracks=tracks,
+            search=search_config,
         )
     else:
         # 使用自定义参考基因组 (优先使用 twoBitURL)
@@ -172,6 +226,7 @@ def get_igv_config(
             reference=reference,
             locus="chr1:1-1000000",  # 1Mb 初始视图，加载更快
             tracks=tracks,
+            search=search_config,
         )
 
     return IGVConfigResponse(
@@ -669,7 +724,7 @@ def get_igv_config_for_gene(
     end = gene.gene_end + padding
     locus = f"{gene.chromosome}:{start}-{end}"
 
-    # ��建轨道列表
+    # 构建轨道列表
     tracks = []
 
     # FANTOM CAT transcripts 轨道 (仅 Human)
@@ -690,6 +745,26 @@ def get_igv_config_for_gene(
             expandedRowHeight=25,  # 展开模式下每行高度
         )
         tracks.append(fantom_transcripts_track)
+
+    # 基因注释轨道 (非人类灵长类物种)
+    # 使用从 Ensembl GTF 转换的 BigBed 格式
+    if species.species_id in GENE_ANNOTATION_TRACKS:
+        gene_track_config = GENE_ANNOTATION_TRACKS[species.species_id]
+        gene_annotation_track = IGVTrack(
+            name=gene_track_config["name"],
+            type="annotation",
+            format="bigbed",
+            url=gene_track_config["url"],
+            indexURL=None,
+            displayMode="EXPANDED",
+            color="#2E7D32",  # 绿色系
+            height=150,
+            visibilityWindow=None,
+            labelFields="name",
+            defaultLabelFields="name",
+            expandedRowHeight=25,
+        )
+        tracks.append(gene_annotation_track)
 
     # 该基因相关的调控关系轨道（按 lncRNA 过滤）
     regulations_track = IGVTrack(
@@ -718,6 +793,15 @@ def get_igv_config_for_gene(
     )
     tracks.append(interactions_track)
 
+    # 构建搜索配置
+    # Gene Mode 也支持基因搜索，使用相同的搜索 API
+    search_config = IGVSearchConfig(
+        url=f"/api/v1/igv/locus?q=$FEATURE$&species_id={species.species_id}",
+        chromosomeField="chromosome",
+        startField="start",
+        endField="end",
+    )
+
     # 构建 IGV 配置
     # 配置策略:
     # 1. 内置基因组 (Human/hg19): fastaURL 和 twoBitURL 都为 None，使用 genome ID
@@ -729,6 +813,7 @@ def get_igv_config_for_gene(
             reference=None,
             locus=locus,
             tracks=tracks,
+            search=search_config,
         )
     else:
         # 使用自定义参考基因组 (优先使用 twoBitURL)
@@ -737,6 +822,7 @@ def get_igv_config_for_gene(
             reference=reference,
             locus=locus,
             tracks=tracks,
+            search=search_config,
         )
 
     return IGVConfigResponse(
@@ -902,3 +988,267 @@ def search_genes_for_igv(
         "total": len(genes),
         "message": f"Found {len(genes)} genes matching '{q}'" + (f" for species {species_id}" if species_id else ""),
     }
+
+
+@router.get("/locus")
+def search_locus_for_igv(
+    q: str = Query(..., min_length=1, description="搜索关键词（基因名、Ensembl ID 或染色体坐标）"),
+    species_id: Optional[int] = Query(None, description="物种 ID 过滤"),
+    db: Session = Depends(get_db),
+):
+    """
+    IGV.js 兼容的位置搜索 API
+
+    用于 IGV.js 的内置搜索功能，返回单个搜索结果。
+    支持：
+    1. 基因名搜索（如 CATG00000000034.1）
+    2. Ensembl ID 搜索（如 ENSG00000000001）
+    3. 染色体坐标搜索（如 chr10:71915113-71916198）
+
+    IGV.js search 配置：
+    ```json
+    {
+        "search": {
+            "url": "/api/v1/igv/locus?q=$FEATURE$&species_id=1",
+            "chromosomeField": "chromosome",
+            "startField": "start",
+            "endField": "end"
+        }
+    }
+    ```
+
+    Args:
+        q: 搜索关键词
+        species_id: 可选，限制搜索范围到指定物种
+
+    Returns:
+        IGVSearchResult: IGV.js 期望的搜索结果格式
+    """
+    import re
+
+    logger.info(f"IGV locus search: q={q}, species_id={species_id}")
+
+    # 1. 首先尝试解析染色体坐标格式
+    # 支持格式: chr1:100-200, chr1:100,000-200,000, chrX:1000-2000
+    locus_pattern = r'^(chr[0-9XYM]+):([0-9,]+)-([0-9,]+)$'
+    locus_match = re.match(locus_pattern, q, re.IGNORECASE)
+
+    if locus_match:
+        chromosome = locus_match.group(1)
+        # 移除逗号分隔符（如 1,000,000 -> 1000000）
+        start = int(locus_match.group(2).replace(',', ''))
+        end = int(locus_match.group(3).replace(',', ''))
+
+        logger.info(f"Parsed locus: {chromosome}:{start}-{end}")
+
+        return IGVSearchResult(
+            chromosome=chromosome,
+            start=start,
+            end=end,
+            gene=None,
+        )
+
+    # 2. 尝试基因名/Ensembl ID 搜索
+    def escape_like_pattern(value: str) -> str:
+        """转义 LIKE 模式中的特殊字符"""
+        return re.sub(r'([%_\\])', r'\\\1', value)
+
+    # 构建基因查询
+    query = (
+        db.query(
+            Gene.gene_name,
+            Gene.gene_ensembl_id,
+            Gene.chromosome,
+            Gene.gene_start,
+            Gene.gene_end,
+        )
+        .filter(Gene.chromosome.isnot(None))
+        .filter(Gene.gene_start.isnot(None))
+        .filter(Gene.gene_end.isnot(None))
+    )
+
+    # 物种过滤
+    if species_id:
+        species = db.query(Species).filter(Species.species_id == species_id).first()
+        if not species:
+            raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+        query = query.filter(Gene.species_id == species_id)
+
+    # 首先尝试精确匹配
+    exact_result = query.filter(
+        (Gene.gene_name == q) | (Gene.gene_ensembl_id == q)
+    ).first()
+
+    if exact_result:
+        logger.info(f"Found exact match: {exact_result.gene_name}")
+        return IGVSearchResult(
+            chromosome=exact_result.chromosome,
+            start=exact_result.gene_start,
+            end=exact_result.gene_end,
+            gene=exact_result.gene_name or exact_result.gene_ensembl_id,
+        )
+
+    # 尝试模糊匹配（前缀匹配优先）
+    escaped = escape_like_pattern(q)
+    prefix_pattern = f"{escaped}%"
+
+    prefix_result = query.filter(
+        (Gene.gene_name.ilike(prefix_pattern, escape='\\')) |
+        (Gene.gene_ensembl_id.ilike(prefix_pattern, escape='\\'))
+    ).order_by(Gene.gene_name.asc()).first()
+
+    if prefix_result:
+        logger.info(f"Found prefix match: {prefix_result.gene_name}")
+        return IGVSearchResult(
+            chromosome=prefix_result.chromosome,
+            start=prefix_result.gene_start,
+            end=prefix_result.gene_end,
+            gene=prefix_result.gene_name or prefix_result.gene_ensembl_id,
+        )
+
+    # 尝试包含匹配
+    contains_pattern = f"%{escaped}%"
+    contains_result = query.filter(
+        (Gene.gene_name.ilike(contains_pattern, escape='\\')) |
+        (Gene.gene_ensembl_id.ilike(contains_pattern, escape='\\'))
+    ).order_by(Gene.gene_name.asc()).first()
+
+    if contains_result:
+        logger.info(f"Found contains match: {contains_result.gene_name}")
+        return IGVSearchResult(
+            chromosome=contains_result.chromosome,
+            start=contains_result.gene_start,
+            end=contains_result.gene_end,
+            gene=contains_result.gene_name or contains_result.gene_ensembl_id,
+        )
+
+    # 未找到任何匹配
+    logger.warning(f"No match found for: {q}")
+    raise HTTPException(
+        status_code=404,
+        detail=f"No gene or locus found matching '{q}'"
+    )
+
+
+@router.get("/autocomplete", response_model=GeneAutocompleteResponse)
+def autocomplete_genes(
+    q: str = Query(..., min_length=1, description="搜索关键词（基因名前缀）"),
+    species_id: Optional[int] = Query(None, description="物种 ID 过滤"),
+    limit: int = Query(10, ge=1, le=50, description="返回结果数量限制"),
+    db: Session = Depends(get_db),
+):
+    """
+    基因自动补全搜索 API
+
+    用于 IGV 搜索框的下拉列表，当用户输入 "hla-" 时返回所有匹配的基因供选择。
+
+    搜索逻辑：
+    1. 优先前缀匹配（LIKE 'keyword%'）
+    2. 如果前缀匹配结果不足，补充包含匹配（LIKE '%keyword%'）
+    3. 大小写不敏感
+    4. 精确匹配的结果排在最前
+
+    Args:
+        q: 搜索关键词（支持部分匹配）
+        species_id: 可选，限制搜索范围到指定物种
+        limit: 返回结果数量限制，默认 10，最大 50
+
+    Returns:
+        匹配的基因列表，包含基因名、染色体、位置、物种信息
+    """
+    import re
+
+    def escape_like_pattern(value: str) -> str:
+        """转义 LIKE 模式中的特殊字符"""
+        return re.sub(r'([%_\\])', r'\\\1', value)
+
+    logger.info(f"Gene autocomplete: q={q}, species_id={species_id}, limit={limit}")
+
+    # 构建基础查询
+    base_query = (
+        db.query(
+            Gene.gene_name,
+            Gene.chromosome,
+            Gene.gene_start,
+            Gene.gene_end,
+            Gene.species_id,
+        )
+        .filter(Gene.chromosome.isnot(None))
+        .filter(Gene.gene_start.isnot(None))
+        .filter(Gene.gene_end.isnot(None))
+        .filter(Gene.gene_name.isnot(None))
+    )
+
+    # 物种过滤
+    if species_id:
+        species = db.query(Species).filter(Species.species_id == species_id).first()
+        if not species:
+            raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+        base_query = base_query.filter(Gene.species_id == species_id)
+
+    # 转义搜索关键词
+    escaped = escape_like_pattern(q)
+
+    # 收集结果（使用集合去重）
+    results = []
+    seen_genes = set()
+
+    # 1. 精确匹配优先
+    exact_results = base_query.filter(
+        Gene.gene_name.ilike(escaped, escape='\\')
+    ).limit(limit).all()
+
+    for r in exact_results:
+        key = (r.gene_name, r.species_id)
+        if key not in seen_genes:
+            seen_genes.add(key)
+            results.append(r)
+
+    # 2. 前缀匹配
+    if len(results) < limit:
+        prefix_pattern = f"{escaped}%"
+        prefix_results = base_query.filter(
+            Gene.gene_name.ilike(prefix_pattern, escape='\\')
+        ).order_by(Gene.gene_name.asc()).limit(limit).all()
+
+        for r in prefix_results:
+            if len(results) >= limit:
+                break
+            key = (r.gene_name, r.species_id)
+            if key not in seen_genes:
+                seen_genes.add(key)
+                results.append(r)
+
+    # 3. 包含匹配作为后备
+    if len(results) < limit:
+        contains_pattern = f"%{escaped}%"
+        contains_results = base_query.filter(
+            Gene.gene_name.ilike(contains_pattern, escape='\\')
+        ).order_by(Gene.gene_name.asc()).limit(limit * 2).all()
+
+        for r in contains_results:
+            if len(results) >= limit:
+                break
+            key = (r.gene_name, r.species_id)
+            if key not in seen_genes:
+                seen_genes.add(key)
+                results.append(r)
+
+    # 构建响应
+    data = [
+        GeneAutocompleteItem(
+            gene_name=r.gene_name,
+            chromosome=r.chromosome,
+            start=r.gene_start,
+            end=r.gene_end,
+            species_id=r.species_id,
+        )
+        for r in results
+    ]
+
+    logger.info(f"Autocomplete found {len(data)} results for '{q}'")
+
+    return GeneAutocompleteResponse(
+        success=True,
+        data=data,
+    )

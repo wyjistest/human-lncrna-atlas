@@ -41,6 +41,12 @@ export interface GenomeBrowserHandle {
   toSVG: () => string | undefined
   /** Navigate to a specific locus */
   navigateToLocus: (locus: string) => Promise<void>
+  /** Load a new track dynamically */
+  loadTrack: (config: import('@/api/genome').IGVTrackConfig) => Promise<void>
+  /** Remove a track by name */
+  removeTrack: (name: string) => void
+  /** Get list of current track names */
+  getTrackNames: () => string[]
 }
 
 interface GenomeBrowserProps {
@@ -125,8 +131,15 @@ const GenomeBrowser = memo(({
     onBrowserReadyRef.current = onBrowserReady
   }, [onBrowserReady])
 
-  // Store initial locus in ref (only used during initialization)
+  // Store initial locus in ref (used during initialization and updated when locus prop changes)
   const initialLocusRef = useRef(locus)
+
+  // Update initialLocusRef when locus prop changes (for navigation from Regulation page)
+  useEffect(() => {
+    if (locus) {
+      initialLocusRef.current = locus
+    }
+  }, [locus])
 
   // Store t function in ref
   const tRef = useRef(t)
@@ -176,6 +189,9 @@ const GenomeBrowser = memo(({
           ? initialLocusRef.current!
           : config.locus
 
+        // Helper function to convert relative paths to absolute backend URLs
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
         const options: IGVBrowserOptions = {
           locus: effectiveLocus,
           tracks: config.tracks as IGVTrackConfig[],
@@ -184,6 +200,18 @@ const GenomeBrowser = memo(({
           showCenterGuide: true,
           showCursorTrackingGuide: true,
           showControls: true,
+          // Enable gene search in IGV's native search box
+          // This allows users to search by gene name (e.g., CATG00000000034.1) or coordinates (e.g., chr10:71915113-71916198)
+          search: {
+            url: `${API_BASE_URL}/api/v1/igv/locus?q=$FEATURE$`,
+            chromosomeField: 'chromosome',
+            startField: 'start',
+            endField: 'end',
+          },
+        }
+        const toAbsoluteURL = (url: string | null | undefined): string | undefined => {
+          if (!url) return undefined
+          return url.startsWith('/') ? `${API_BASE_URL}${url}` : url
         }
 
         // Use genome ID for built-in genomes, otherwise use reference
@@ -197,37 +225,31 @@ const GenomeBrowser = memo(({
           }
 
           // Use twoBitURL if available (preferred for remote genomes - more efficient)
+          // IMPORTANT: Convert relative paths to absolute URLs pointing to backend
           if (config.reference.twoBitURL) {
-            options.reference.twoBitURL = config.reference.twoBitURL
+            options.reference.twoBitURL = toAbsoluteURL(config.reference.twoBitURL)
           } else if (config.reference.fastaURL) {
             // Fall back to fastaURL if twoBitURL not available
-            options.reference.fastaURL = config.reference.fastaURL
-            options.reference.indexURL = config.reference.indexURL ?? undefined
+            options.reference.fastaURL = toAbsoluteURL(config.reference.fastaURL)
+            options.reference.indexURL = toAbsoluteURL(config.reference.indexURL)
           }
 
           // Add cytoband if available (for chromosome ideogram visualization)
           if (config.reference.cytobandURL) {
-            options.reference.cytobandURL = config.reference.cytobandURL
+            options.reference.cytobandURL = toAbsoluteURL(config.reference.cytobandURL)
           }
 
           // Add chromosome sizes if available
           if (config.reference.chromSizesURL) {
-            options.reference.chromSizesURL = config.reference.chromSizesURL
+            options.reference.chromSizesURL = toAbsoluteURL(config.reference.chromSizesURL)
           }
         }
-
         // Process track URLs: convert relative paths to absolute backend URLs
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
         if (options.tracks) {
           options.tracks = options.tracks.map(track => ({
             ...track,
-            // Convert relative paths to absolute URLs pointing to backend
-            url: track.url?.startsWith('/')
-              ? `${API_BASE_URL}${track.url}`
-              : track.url,
-            indexURL: track.indexURL?.startsWith('/')
-              ? `${API_BASE_URL}${track.indexURL}`
-              : track.indexURL,
+            url: toAbsoluteURL(track.url),
+            indexURL: toAbsoluteURL(track.indexURL),
           }))
         }
 
@@ -290,9 +312,49 @@ const GenomeBrowser = memo(({
               }
             },
             navigateToLocus: async (targetLocus: string) => {
-              if (browserRef.current) {
-                await browserRef.current.search(targetLocus)
+              // Use browserRef.current which always points to the latest instance
+              const currentBrowser = browserRef.current
+              if (!currentBrowser) {
+                console.warn('No browser instance available')
+                return
               }
+
+              try {
+                // Use init=true to force view update
+                await currentBrowser.search(targetLocus, true)
+                // Force repaint
+                window.dispatchEvent(new Event('resize'))
+                if (typeof currentBrowser.updateViews === 'function') {
+                  currentBrowser.updateViews()
+                }
+              } catch (err) {
+                console.error('IGV navigation failed:', err)
+                throw err
+              }
+            },
+            loadTrack: async (trackConfig) => {
+              if (browserRef.current) {
+                // Convert relative URLs to absolute backend URLs
+                const processedConfig = {
+                  ...trackConfig,
+                  url: toAbsoluteURL(trackConfig.url),
+                  indexURL: toAbsoluteURL(trackConfig.indexURL),
+                }
+                await browserRef.current.loadTrack(processedConfig as IGVTrackConfig)
+              }
+            },
+            removeTrack: (name: string) => {
+              if (browserRef.current) {
+                browserRef.current.removeTrackByName(name)
+              }
+            },
+            getTrackNames: () => {
+              if (browserRef.current?.trackViews) {
+                return browserRef.current.trackViews
+                  .map(tv => tv.track?.name)
+                  .filter((name): name is string => !!name)
+              }
+              return []
             }
           }
           onBrowserReadyRef.current(handle)
@@ -322,13 +384,15 @@ const GenomeBrowser = memo(({
   }, [isIGVLoaded, config, speciesId, geneName, padding])
 
   // Handle external locus changes (navigation)
-  useEffect(() => {
-    if (browserRef.current && locus) {
-      browserRef.current.search(locus).catch((err) => {
-        console.warn('IGV search failed:', err)
-      })
-    }
-  }, [locus])
+  // Disabled to avoid conflicts with navigateToLocus
+  // useEffect(() => {
+  //   if (browserRef.current && locus) {
+  //     console.log('useEffect[locus] triggered, navigating to:', locus)
+  //     browserRef.current.search(locus, true).catch((err) => {
+  //       console.warn('IGV search failed:', err)
+  //     })
+  //   }
+  // }, [locus])
 
   // Public method to navigate to a locus
   const navigateToLocus = useCallback(async (targetLocus: string) => {
