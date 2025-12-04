@@ -51,16 +51,16 @@ GENOME_REFERENCES = {
         "name": "Chimpanzee (Pan_tro_2.1.4/panTro5)",
         "fastaURL": None,  # Don't use FASTA, use 2bit instead
         "indexURL": None,
-        "cytobandURL": "https://hgdownload.soe.ucsc.edu/goldenPath/panTro5/database/cytoBand.txt.gz",
-        "twoBitURL": "https://hgdownload.soe.ucsc.edu/goldenPath/panTro5/bigZips/panTro5.2bit",
+        "cytobandURL": "/genomes/cytoBand.panTro5.txt.gz",  # Local path
+        "twoBitURL": "/genomes/panTro5.2bit",  # Local path
     },
     3: {  # Macaque (rheMac10) - Use 2bit format for better performance
         "id": "rheMac10",
         "name": "Rhesus Macaque (Mmul_10/rheMac10)",
         "fastaURL": None,  # Don't use FASTA, use 2bit instead
         "indexURL": None,
-        "cytobandURL": "https://hgdownload.soe.ucsc.edu/goldenPath/rheMac10/database/cytoBand.txt.gz",
-        "twoBitURL": "https://hgdownload.soe.ucsc.edu/goldenPath/rheMac10/bigZips/rheMac10.2bit",
+        "cytobandURL": "/genomes/cytoBand.rheMac10.txt.gz",  # Local path
+        "twoBitURL": "/genomes/rheMac10.2bit",  # Local path
     },
     4: {  # Marmoset (calJac3) - Use 2bit format for better performance
         "id": "calJac3",
@@ -68,7 +68,7 @@ GENOME_REFERENCES = {
         "fastaURL": None,  # Don't use FASTA, use 2bit instead
         "indexURL": None,
         "cytobandURL": None,  # calJac3 does not have cytoBand data in UCSC
-        "twoBitURL": "https://hgdownload.soe.ucsc.edu/goldenPath/calJac3/bigZips/calJac3.2bit",
+        "twoBitURL": "/genomes/calJac3.2bit",  # Local path
     },
 }
 
