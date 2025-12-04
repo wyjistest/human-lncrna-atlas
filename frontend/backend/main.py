@@ -8,9 +8,17 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
+import mimetypes
 from collections import deque
 import time
 import logging
+
+# 注册基因组文件的 MIME 类型，避免被当作 text/plain 处理
+mimetypes.add_type("application/octet-stream", ".2bit")
+mimetypes.add_type("application/octet-stream", ".bb")
+mimetypes.add_type("application/octet-stream", ".bigbed")
+mimetypes.add_type("application/octet-stream", ".bw")
+mimetypes.add_type("application/octet-stream", ".bigwig")
 
 from app.core.config import settings
 from app.core.database import init_db, close_db
