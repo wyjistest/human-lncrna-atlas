@@ -1502,6 +1502,11 @@ def get_repeatmasker_count(
 @router.get("/config/repeatmasker/{species_id}")
 def get_repeatmasker_igv_config(
     species_id: int,
+    display_mode: str = Query(
+        "SQUISHED",
+        description="Display mode: SQUISHED (default, single color), EXPANDED (colored by repeat class), or COLLAPSED",
+        regex="^(SQUISHED|EXPANDED|COLLAPSED)$"
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -1509,8 +1514,14 @@ def get_repeatmasker_igv_config(
 
     Returns a track configuration object that can be added to IGV.js.
 
+    Display modes:
+    - SQUISHED (default): Compact view with single color, uses BED6 bigBed
+    - EXPANDED: Full view with colors by repeat class (UCSC-style), uses BED9 bigBed with itemRGB
+    - COLLAPSED: Most compact view, single line
+
     Args:
         species_id: Species ID
+        display_mode: Display mode (SQUISHED, EXPANDED, COLLAPSED)
 
     Returns:
         IGV.js track configuration
@@ -1527,18 +1538,189 @@ def get_repeatmasker_igv_config(
             detail="RepeatMasker track not found. Please ensure the database schema is initialized."
         )
 
+    # Select bigBed file based on display mode
+    # EXPANDED mode uses BED9 format with itemRGB for colored display by repeat_class
+    # SQUISHED/COLLAPSED modes use BED6 format with single color
+    if display_mode == "EXPANDED":
+        bigbed_url = "/genomes/repeatmasker_human_bed9.bb"
+        use_item_rgb = True
+        track_height = 300  # Larger height for UCSC full-like display
+        track_color = None  # Use itemRGB colors
+        description_suffix = "colored by repeat class (UCSC Full mode)"
+        # UCSC Full mode settings
+        expanded_row_height = 10  # Smaller rows to fit more elements
+        max_rows = 1000  # Allow more rows
+    else:
+        bigbed_url = "/genomes/repeatmasker_human.bb"
+        use_item_rgb = False
+        track_height = 50 if display_mode == "SQUISHED" else 30
+        track_color = "#E67E22"  # Orange
+        description_suffix = "single color mode"
+        expanded_row_height = None
+        max_rows = None
+
+    # Build track configuration
+    track_config = {
+        "name": "RepeatMasker",
+        "type": "annotation",
+        "format": "bigbed",
+        "url": bigbed_url,
+        "displayMode": display_mode,
+        "height": track_height,
+        "autoHeight": True if display_mode == "EXPANDED" else False,  # Auto-expand height
+        "minHeight": 50,
+        "maxHeight": 500 if display_mode == "EXPANDED" else 100,
+        "visibilityWindow": -1,  # Always show features regardless of zoom
+        "description": f"RepeatMasker annotations for {species.display_name} ({description_suffix})",
+    }
+
+    # Add EXPANDED mode specific settings
+    if expanded_row_height:
+        track_config["expandedRowHeight"] = expanded_row_height
+    if max_rows:
+        track_config["maxRows"] = max_rows
+
+    # Add color configuration
+    if use_item_rgb:
+        # Enable itemRGB parsing for BED9 format
+        # IGV.js uses the RGB values from column 9 (itemRgb field)
+        track_config["useItemRgb"] = True
+    else:
+        track_config["color"] = track_color
+
+    return {
+        "success": True,
+        "data": track_config,
+        "message": f"RepeatMasker IGV track configuration for {species.display_name} (mode: {display_mode})"
+    }
+
+
+@router.get("/config/repeatmasker-classes/{species_id}")
+def get_repeatmasker_class_tracks(
+    species_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get IGV.js track configurations for RepeatMasker grouped by repeat class
+
+    Returns 7 separate track configurations, one for each major repeat class:
+    - SINE (red)
+    - LINE (blue)
+    - LTR (green)
+    - DNA (purple)
+    - Simple_repeat (black)
+    - Low_complexity (gray)
+    - Other (dark gray)
+
+    This enables UCSC Genome Browser "full" mode style display where each
+    repeat class is shown in a separate track with its own color.
+
+    Args:
+        species_id: Species ID (currently only Human/1 is supported)
+
+    Returns:
+        List of IGV.js track configurations, one per repeat class
+    """
+    # Validate species
+    species = db.query(Species).filter(Species.species_id == species_id).first()
+    if not species:
+        raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+
+    # Currently only Human (species_id=1) is supported
+    if species_id != 1:
+        raise HTTPException(
+            status_code=400,
+            detail=f"RepeatMasker class tracks are currently only available for Human (species_id=1)"
+        )
+
+    track_id = get_repeatmasker_track_id(db)
+    if not track_id:
+        raise HTTPException(
+            status_code=404,
+            detail="RepeatMasker track not found. Please ensure the database schema is initialized."
+        )
+
+    # Define repeat class configurations
+    # Colors match UCSC Genome Browser standard colors
+    repeat_class_configs = [
+        {
+            "id": "repeatmasker_SINE",
+            "name": "SINE Repeats",
+            "url": "/genomes/repeatmasker_SINE.bb",
+            "color": "#FF0000",  # Red
+            "description": "Short Interspersed Nuclear Elements (SINEs) including Alu elements",
+        },
+        {
+            "id": "repeatmasker_LINE",
+            "name": "LINE Repeats",
+            "url": "/genomes/repeatmasker_LINE.bb",
+            "color": "#0000CC",  # Blue
+            "description": "Long Interspersed Nuclear Elements (LINEs) including L1 elements",
+        },
+        {
+            "id": "repeatmasker_LTR",
+            "name": "LTR Repeats",
+            "url": "/genomes/repeatmasker_LTR.bb",
+            "color": "#00CC00",  # Green
+            "description": "Long Terminal Repeat (LTR) retrotransposons",
+        },
+        {
+            "id": "repeatmasker_DNA",
+            "name": "DNA Repeats",
+            "url": "/genomes/repeatmasker_DNA.bb",
+            "color": "#CC00CC",  # Purple/Magenta
+            "description": "DNA transposons",
+        },
+        {
+            "id": "repeatmasker_Simple",
+            "name": "Simple Repeats",
+            "url": "/genomes/repeatmasker_Simple.bb",
+            "color": "#000000",  # Black
+            "description": "Simple tandem repeats (microsatellites)",
+        },
+        {
+            "id": "repeatmasker_LowComplexity",
+            "name": "Low Complexity",
+            "url": "/genomes/repeatmasker_LowComplexity.bb",
+            "color": "#666666",  # Gray
+            "description": "Low complexity regions",
+        },
+        {
+            "id": "repeatmasker_Other",
+            "name": "Other Repeats",
+            "url": "/genomes/repeatmasker_Other.bb",
+            "color": "#888888",  # Dark gray
+            "description": "Other repeat classes (RNA, Satellite, etc.)",
+        },
+    ]
+
+    # Build track configurations
+    tracks = []
+    for config in repeat_class_configs:
+        track = {
+            "id": config["id"],
+            "name": config["name"],
+            "type": "annotation",
+            "format": "bigbed",
+            "url": config["url"],
+            "displayMode": "SQUISHED",  # Compact view by default
+            "color": config["color"],
+            "height": 50,
+            "autoHeight": False,
+            "minHeight": 30,
+            "maxHeight": 200,
+            "visibilityWindow": -1,  # Always show features
+            "description": config["description"],
+            "useItemRgb": True,  # Use colors from BED9 itemRgb field
+        }
+        tracks.append(track)
+
     return {
         "success": True,
         "data": {
-            "name": "RepeatMasker",
-            "type": "annotation",
-            "format": "bigbed",  # Changed from "bed" to "bigbed"
-            "url": f"/genomes/repeatmasker_human.bb",  # Static bigBed file
-            "displayMode": "SQUISHED",
-            "color": "#E67E22",
-            "height": 50,
-            # No visibilityWindow needed - bigBed handles on-demand loading
-            "description": f"RepeatMasker annotations for {species.display_name} (indexed bigBed format)",
+            "tracks": tracks,
+            "species_id": species_id,
+            "species_name": species.display_name,
         },
-        "message": f"RepeatMasker IGV track configuration for {species.display_name}"
+        "message": f"RepeatMasker class-grouped tracks for {species.display_name} (7 tracks)"
     }

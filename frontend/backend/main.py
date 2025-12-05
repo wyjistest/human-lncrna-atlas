@@ -25,7 +25,7 @@ from app.core.database import init_db, close_db
 from app.core.logging_config import setup_logging
 from app.middleware.logging import LoggingMiddleware, MetricsMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
-from app.routers import genes, regulations, diseases, stats, network, admin, igv, features
+from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, conservation
 from app.schemas.common import HealthResponse
 
 # 初始化日志
@@ -213,101 +213,68 @@ app.include_router(network.router, prefix=settings.API_V1_PREFIX)
 app.include_router(admin.router, prefix=settings.API_V1_PREFIX)
 app.include_router(igv.router, prefix=settings.API_V1_PREFIX)
 app.include_router(features.router, prefix=settings.API_V1_PREFIX)
+app.include_router(conservation.router, prefix=settings.API_V1_PREFIX)
 
 # 挂载静态文件服务（用于 IGV.js 基因组文件）
-# 注意：StaticFiles 是独立的 ASGI 子应用，不经过主应用的 CORS 中间件
-# 因此需要使用自定义路由来提供带 CORS 头的静态文件服务
+# 使用独立的 FastAPI 子应用，完全绕过主应用的中间件（解决 BaseHTTPMiddleware 兼容性问题）
 GENOMES_DIR = os.environ.get("GENOMES_DIR", "/data/wenyujianData/humanLncAtlas/genomes")
 
 if os.path.exists(GENOMES_DIR):
-    from fastapi.responses import FileResponse
-    from fastapi import HTTPException, Response
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    from starlette.middleware import Middleware
+    from starlette.middleware.cors import CORSMiddleware as StarletteCORS
 
-    @app.get("/genomes/{file_path:path}", tags=["static"])
-    async def serve_genome_file(file_path: str, request: Request):
-        """
-        提供基因组静态文件服务（支持 CORS 和 Range 请求）
+    # 创建独立的静态文件子应用，带 CORS 支持
+    static_app = StaticFiles(directory=GENOMES_DIR)
 
-        IGV.js 需要通过 Range 请求来按需加载大型基因组文件
-        """
-        full_path = os.path.join(GENOMES_DIR, file_path)
+    # 包装 StaticFiles 以添加 CORS 头
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
-        # 安全检查：防止路径遍历攻击
-        real_path = os.path.realpath(full_path)
-        if not real_path.startswith(os.path.realpath(GENOMES_DIR)):
-            raise HTTPException(status_code=403, detail="Access denied")
+    class CORSStaticFiles:
+        """带 CORS 支持的静态文件服务"""
+        def __init__(self, app: ASGIApp, allow_origins: list):
+            self.app = app
+            self.allow_origins = allow_origins
 
-        if not os.path.exists(full_path) or not os.path.isfile(full_path):
-            raise HTTPException(status_code=404, detail="File not found")
+        async def __call__(self, scope: Scope, receive: Receive, send: Send):
+            if scope["type"] == "http":
+                # 获取 Origin 头
+                headers = dict(scope.get("headers", []))
+                origin = headers.get(b"origin", b"").decode()
 
-        # 获取文件信息
-        file_size = os.path.getsize(full_path)
+                # 检查是否是预检请求
+                if scope["method"] == "OPTIONS":
+                    response_headers = [
+                        (b"access-control-allow-origin", origin.encode() if origin else b"*"),
+                        (b"access-control-allow-methods", b"GET, HEAD, OPTIONS"),
+                        (b"access-control-allow-headers", b"Range, Content-Type"),
+                        (b"access-control-max-age", b"86400"),
+                        (b"content-length", b"0"),
+                    ]
+                    await send({"type": "http.response.start", "status": 204, "headers": response_headers})
+                    await send({"type": "http.response.body", "body": b""})
+                    return
 
-        # 设置 CORS 头
-        cors_headers = {
-            "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-            "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-            "Access-Control-Allow-Headers": "Range, Content-Type",
-            "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges",
-        }
+                # 包装 send 函数以添加 CORS 头
+                async def send_with_cors(message):
+                    if message["type"] == "http.response.start":
+                        headers = list(message.get("headers", []))
+                        # 添加 CORS 头
+                        headers.append((b"access-control-allow-origin", origin.encode() if origin else b"*"))
+                        headers.append((b"access-control-allow-methods", b"GET, HEAD, OPTIONS"))
+                        headers.append((b"access-control-allow-headers", b"Range, Content-Type"))
+                        headers.append((b"access-control-expose-headers", b"Content-Length, Content-Range, Accept-Ranges"))
+                        message = {**message, "headers": headers}
+                    await send(message)
 
-        # 处理 Range 请求（IGV.js 需要）
-        range_header = request.headers.get("Range")
-        if range_header:
-            try:
-                # 解析 Range: bytes=start-end
-                range_spec = range_header.replace("bytes=", "")
-                start_str, end_str = range_spec.split("-")
-                start = int(start_str) if start_str else 0
-                end = int(end_str) if end_str else file_size - 1
+                await self.app(scope, receive, send_with_cors)
+            else:
+                await self.app(scope, receive, send)
 
-                # 确保范围有效
-                if start >= file_size:
-                    raise HTTPException(status_code=416, detail="Range not satisfiable")
-                end = min(end, file_size - 1)
-                content_length = end - start + 1
-
-                # 读取指定范围的数据
-                with open(full_path, "rb") as f:
-                    f.seek(start)
-                    data = f.read(content_length)
-
-                return Response(
-                    content=data,
-                    status_code=206,
-                    media_type="application/octet-stream",
-                    headers={
-                        **cors_headers,
-                        "Content-Range": f"bytes {start}-{end}/{file_size}",
-                        "Content-Length": str(content_length),
-                        "Accept-Ranges": "bytes",
-                    }
-                )
-            except ValueError:
-                pass  # 无效的 Range 头，返回完整文件
-
-        # 返回完整文件
-        return FileResponse(
-            full_path,
-            media_type="application/octet-stream",
-            headers={
-                **cors_headers,
-                "Accept-Ranges": "bytes",
-            }
-        )
-
-    @app.options("/genomes/{file_path:path}", tags=["static"])
-    async def genome_file_options(file_path: str, request: Request):
-        """处理 CORS 预检请求"""
-        return Response(
-            status_code=204,
-            headers={
-                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-                "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-                "Access-Control-Allow-Headers": "Range, Content-Type",
-                "Access-Control-Max-Age": "86400",
-            }
-        )
+    # 挂载带 CORS 的静态文件服务
+    cors_static_app = CORSStaticFiles(static_app, settings.CORS_ORIGINS)
+    app.mount("/genomes", cors_static_app)
 
     logger.info(f"📁 基因组文件服务已启用: /genomes -> {GENOMES_DIR}")
 

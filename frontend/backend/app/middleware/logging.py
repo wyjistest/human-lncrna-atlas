@@ -30,6 +30,7 @@ def normalize_path(path: str) -> Optional[str]:
         "/static",
         "/health",
         "/internal",
+        "/genomes",  # 静态文件服务，绕过中间件
     ]
     if any(path.startswith(p) for p in skip_prefixes):
         return None
@@ -64,6 +65,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件"""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # 跳过静态文件路径（避免 BaseHTTPMiddleware 与流式响应的兼容性问题）
+        if request.url.path.startswith("/genomes"):
+            return await call_next(request)
+
         # 记录请求开始
         start_time = time.time()
 
@@ -104,6 +109,10 @@ class MetricsMiddleware(BaseHTTPMiddleware):
     """性能指标中间件 - Phase 2 增强版"""
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        # 跳过静态文件路径（避免 BaseHTTPMiddleware 与流式响应的兼容性问题）
+        if request.url.path.startswith("/genomes"):
+            return await call_next(request)
+
         start_time = time.time()
 
         # 获取app.state中的指标数据

@@ -39,5 +39,39 @@
   "tracks": {
     "repeatMasker": "RepeatMasker 重复序列",
     "repeatMaskerDesc": "显示基因组中的重复序列元件（LINE、SINE、LTR 等）"
+  },
+  "repeatMaskerDisplayMode": {
+    "label": "显示模式",
+    "squished": "紧凑",
+    "expanded": "展开",
+    "collapsed": "折叠",
+    "squishedDesc": "紧凑视图，每行显示多个重复序列",
+    "expandedDesc": "每个重复序列单独一行显示",
+    "collapsedDesc": "所有重复序列堆叠在一起"
+  },
+  "repeatClasses": {
+    "title": "RepeatMasker 重复序列",
+    "selectAll": "全选",
+    "deselectAll": "全不选",
+    "SINE": "SINE 重复序列",
+    "LINE": "LINE 重复序列",
+    "LTR": "LTR 重复序列",
+    "DNA": "DNA 重复序列",
+    "Simple": "简单重复序列",
+    "LowComplexity": "低复杂度",
+    "Other": "其他重复序列"
+  },
+  "repeatMaskerLegend": {
+    "title": "重复序列类型",
+    "classes": {
+      "SINE": "SINE（短散布元件）",
+      "LINE": "LINE（长散布元件）",
+      "LTR": "LTR（长末端重复）",
+      "DNA": "DNA 转座子",
+      "Simple_repeat": "简单重复",
+      "Low_complexity": "低复杂度",
+      "Satellite": "卫星序列",
+      "Other": "其他"
+    }
   }
 }

@@ -39,5 +39,39 @@
   "tracks": {
     "repeatMasker": "RepeatMasker Repeats",
     "repeatMaskerDesc": "Display repeat elements in the genome (LINE, SINE, LTR, etc.)"
+  },
+  "repeatMaskerDisplayMode": {
+    "label": "Display Mode",
+    "squished": "Squished",
+    "expanded": "Expanded",
+    "collapsed": "Collapsed",
+    "squishedDesc": "Compact view, multiple repeats per row",
+    "expandedDesc": "Each repeat on its own row",
+    "collapsedDesc": "All repeats stacked together"
+  },
+  "repeatClasses": {
+    "title": "RepeatMasker Repeats",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "SINE": "SINE Repeats",
+    "LINE": "LINE Repeats",
+    "LTR": "LTR Repeats",
+    "DNA": "DNA Repeats",
+    "Simple": "Simple Repeats",
+    "LowComplexity": "Low Complexity",
+    "Other": "Other Repeats"
+  },
+  "repeatMaskerLegend": {
+    "title": "Repeat Classes",
+    "classes": {
+      "SINE": "SINE (Short Interspersed)",
+      "LINE": "LINE (Long Interspersed)",
+      "LTR": "LTR (Long Terminal Repeat)",
+      "DNA": "DNA Transposons",
+      "Simple_repeat": "Simple Repeats",
+      "Low_complexity": "Low Complexity",
+      "Satellite": "Satellite",
+      "Other": "Other"
+    }
   }
 }

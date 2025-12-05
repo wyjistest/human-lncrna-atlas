@@ -24,8 +24,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         # 获取客户端IP
         client_ip = request.client.host if request.client else "unknown"
 
-        # 跳过健康检查和文档
+        # 跳过健康检查、文档和静态文件
         if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json"]:
+            return await call_next(request)
+
+        # 跳过静态文件路径（避免 BaseHTTPMiddleware 与流式响应的兼容性问题）
+        if request.url.path.startswith("/genomes"):
             return await call_next(request)
 
         async with self._lock:

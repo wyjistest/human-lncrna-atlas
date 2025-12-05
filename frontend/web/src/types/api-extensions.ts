@@ -16,6 +16,22 @@ export type RegulationDetail = components['schemas']['RegulationDetail']
 export type Trait = components['schemas']['TraitDetail']
 export type OverviewStats = components['schemas']['OverviewStats']
 
+// Base type alias for GeneDetail (required for interface extension)
+type GeneDetailBase = components['schemas']['GeneDetail']
+
+/**
+ * 扩展的 GeneDetail 类型 (用于基因详情页面)
+ * 基于 OpenAPI 的 GeneDetail，添加后端新增的 conservation 字段
+ *
+ * Phase 2.2: Conservation feature
+ */
+export interface GeneDetailExtended extends GeneDetailBase {
+  /** Conservation label string, e.g., "1111" or "1000" (H-C-M-M format) */
+  conservation_label?: string
+  /** Number of species where the gene is conserved (1-4) */
+  conservation_count?: number
+}
+
 // 分页响应类型
 export type PaginatedResponse<T> = {
   items: T[]

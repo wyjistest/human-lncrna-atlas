@@ -24,7 +24,9 @@ import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, Downlo
 import { useTranslation } from 'react-i18next'
 import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
 import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
-import { getRepeatMaskerTrackConfig } from '@/api/features'
+import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
+import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/features'
+import type { IGVTrackConfig } from '@/api/genome'
 
 const { Title, Paragraph, Text } = Typography
 const { Search } = Input
@@ -77,56 +79,114 @@ export default function GenomeBrowserPage() {
   const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
   const [isExporting, setIsExporting] = useState(false)
 
-  // Track controls state (Phase 2.1)
-  const [enabledTracks, setEnabledTracks] = useState<Record<string, boolean>>({
-    repeatmasker: false
+  // Track controls state - RepeatMasker class-based tracks
+  const [enabledRepeatClasses, setEnabledRepeatClasses] = useState<Record<string, boolean>>({
+    SINE: false,
+    LINE: false,
+    LTR: false,
+    DNA: false,
+    Simple: false,
+    LowComplexity: false,
+    Other: false,
   })
-  const [loadingTracks, setLoadingTracks] = useState<Record<string, boolean>>({})
+  const [loadingRepeatClasses, setLoadingRepeatClasses] = useState<Record<string, boolean>>({})
+  const [repeatClassTracks, setRepeatClassTracks] = useState<RepeatMaskerClassTrack[]>([])
 
-  // Load RepeatMasker track
-  const loadRepeatMaskerTrack = useCallback(async () => {
+  // Color configuration for repeat classes
+  const REPEAT_CLASS_COLORS: Record<string, string> = {
+    SINE: '#FF0000',
+    LINE: '#0000CC',
+    LTR: '#00CC00',
+    DNA: '#CC00CC',
+    Simple: '#000000',
+    LowComplexity: '#666666',
+    Other: '#888888',
+  }
+
+  // Fetch available repeat class tracks when species changes
+  useEffect(() => {
+    const fetchRepeatClassTracks = async () => {
+      try {
+        const response = await getRepeatMaskerClassTracks(speciesId)
+        // API returns { tracks: [...], species_id, species_name }
+        if (response.data?.data?.tracks) {
+          setRepeatClassTracks(response.data.data.tracks)
+        }
+      } catch (error) {
+        console.error('Failed to fetch repeat class tracks:', error)
+      }
+    }
+    fetchRepeatClassTracks()
+  }, [speciesId])
+
+  // Load a specific repeat class track
+  const loadRepeatClassTrack = useCallback(async (repeatClass: string) => {
     if (!browserHandleRef.current) {
       message.warning(t('exportNotReady'))
       return
     }
 
-    setLoadingTracks(prev => ({ ...prev, repeatmasker: true }))
+    const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
+    if (!track) {
+      message.error(t('trackLoadFailed', { name: repeatClass }))
+      return
+    }
+
+    setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: true }))
     try {
-      const response = await getRepeatMaskerTrackConfig(speciesId)
-      if (response.data?.data) {
-        await browserHandleRef.current.loadTrack(response.data.data as any)
-        message.success(t('trackLoaded', { name: 'RepeatMasker' }))
-      }
+      // Load the track - RepeatMaskerClassTrack is compatible with IGVTrackConfig
+      await browserHandleRef.current.loadTrack(track as unknown as IGVTrackConfig)
+      message.success(t('trackLoaded', { name: t(`repeatClasses.${repeatClass}`) }))
     } catch (error) {
-      console.error('Failed to load RepeatMasker track:', error)
-      message.error(t('trackLoadFailed', { name: 'RepeatMasker' }))
+      console.error(`Failed to load ${repeatClass} track:`, error)
+      message.error(t('trackLoadFailed', { name: repeatClass }))
       // Revert the toggle
-      setEnabledTracks(prev => ({ ...prev, repeatmasker: false }))
+      setEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
     } finally {
-      setLoadingTracks(prev => ({ ...prev, repeatmasker: false }))
+      setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
     }
-  }, [speciesId, t])
+  }, [repeatClassTracks, t])
 
-  // Remove RepeatMasker track
-  const removeRepeatMaskerTrack = useCallback(() => {
+  // Remove a specific repeat class track
+  const removeRepeatClassTrack = useCallback((repeatClass: string) => {
     if (browserHandleRef.current) {
-      browserHandleRef.current.removeTrack('RepeatMasker')
-      message.info(t('trackRemoved', { name: 'RepeatMasker' }))
-    }
-  }, [t])
-
-  // Handle track toggle
-  const handleTrackToggle = useCallback(async (trackId: string, enabled: boolean) => {
-    setEnabledTracks(prev => ({ ...prev, [trackId]: enabled }))
-
-    if (trackId === 'repeatmasker') {
-      if (enabled) {
-        await loadRepeatMaskerTrack()
-      } else {
-        removeRepeatMaskerTrack()
+      const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
+      if (track) {
+        browserHandleRef.current.removeTrack(track.id)
+        message.info(t('trackRemoved', { name: t(`repeatClasses.${repeatClass}`) }))
       }
     }
-  }, [loadRepeatMaskerTrack, removeRepeatMaskerTrack])
+  }, [repeatClassTracks, t])
+
+  // Handle repeat class toggle
+  const handleRepeatClassToggle = useCallback(async (repeatClass: string, enabled: boolean) => {
+    setEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: enabled }))
+
+    if (enabled) {
+      await loadRepeatClassTrack(repeatClass)
+    } else {
+      removeRepeatClassTrack(repeatClass)
+    }
+  }, [loadRepeatClassTrack, removeRepeatClassTrack])
+
+  // Handle select all / deselect all
+  const handleSelectAll = useCallback(() => {
+    const allClasses = Object.keys(enabledRepeatClasses)
+    allClasses.forEach(repeatClass => {
+      if (!enabledRepeatClasses[repeatClass]) {
+        handleRepeatClassToggle(repeatClass, true)
+      }
+    })
+  }, [enabledRepeatClasses, handleRepeatClassToggle])
+
+  const handleDeselectAll = useCallback(() => {
+    const allClasses = Object.keys(enabledRepeatClasses)
+    allClasses.forEach(repeatClass => {
+      if (enabledRepeatClasses[repeatClass]) {
+        handleRepeatClassToggle(repeatClass, false)
+      }
+    })
+  }, [enabledRepeatClasses, handleRepeatClassToggle])
 
   // Species options
   const speciesOptions = [
@@ -488,7 +548,7 @@ export default function GenomeBrowserPage() {
           disabled={false}
         />
 
-        {/* Track Controls (Phase 2.1) */}
+        {/* Track Controls - RepeatMasker Class-based Tracks */}
         <Collapse
           size="small"
           style={{ marginBottom: 16 }}
@@ -503,15 +563,51 @@ export default function GenomeBrowserPage() {
               ),
               children: (
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <Space align="center">
-                    <Switch
-                      checked={enabledTracks.repeatmasker}
-                      onChange={(checked) => handleTrackToggle('repeatmasker', checked)}
-                      loading={loadingTracks.repeatmasker}
-                    />
-                    <span style={{ fontWeight: 500 }}>{t('tracks.repeatMasker')}</span>
-                    <Text type="secondary">{t('tracks.repeatMaskerDesc')}</Text>
-                  </Space>
+                  {/* RepeatMasker Grouped Tracks */}
+                  <Collapse
+                    size="small"
+                    items={[
+                      {
+                        key: 'repeatMasker',
+                        label: <span style={{ fontWeight: 500 }}>{t('repeatClasses.title')}</span>,
+                        children: (
+                          <Space direction="vertical" style={{ width: '100%' }}>
+                            {/* Select All / Deselect All Buttons */}
+                            <Space>
+                              <Button size="small" onClick={handleSelectAll}>
+                                {t('repeatClasses.selectAll')}
+                              </Button>
+                              <Button size="small" onClick={handleDeselectAll}>
+                                {t('repeatClasses.deselectAll')}
+                              </Button>
+                            </Space>
+
+                            {/* Individual Repeat Class Toggles */}
+                            {Object.keys(enabledRepeatClasses).map((repeatClass) => (
+                              <Space key={repeatClass} align="center" style={{ width: '100%' }}>
+                                <div
+                                  style={{
+                                    width: 16,
+                                    height: 16,
+                                    backgroundColor: REPEAT_CLASS_COLORS[repeatClass],
+                                    borderRadius: 2,
+                                    border: '1px solid #d9d9d9',
+                                  }}
+                                />
+                                <Switch
+                                  checked={enabledRepeatClasses[repeatClass]}
+                                  onChange={(checked) => handleRepeatClassToggle(repeatClass, checked)}
+                                  loading={loadingRepeatClasses[repeatClass]}
+                                  size="small"
+                                />
+                                <span>{t(`repeatClasses.${repeatClass}`)}</span>
+                              </Space>
+                            ))}
+                          </Space>
+                        ),
+                      },
+                    ]}
+                  />
                   {/* Future tracks can be added here */}
                 </Space>
               ),
@@ -520,7 +616,7 @@ export default function GenomeBrowserPage() {
         />
 
         {/* Genome Browser */}
-        <div ref={browserRef}>
+        <div ref={browserRef} style={{ position: 'relative' }}>
           <GenomeBrowser
             key={viewMode === 'gene' ? `gene-${geneName}` : `species-${speciesId}`}
             speciesId={speciesId}
@@ -530,6 +626,15 @@ export default function GenomeBrowserPage() {
             onBrowserReady={handleBrowserReady}
             height={750}
           />
+          {/* RepeatMasker Legend - Show when any repeat class track is enabled */}
+          {Object.values(enabledRepeatClasses).some(enabled => enabled) && (
+            <RepeatMaskerLegend
+              position="top-right"
+              compact={false}
+              defaultCollapsed={false}
+              style={{ top: 60, right: 16 }}
+            />
+          )}
         </div>
       </Card>
     </div>

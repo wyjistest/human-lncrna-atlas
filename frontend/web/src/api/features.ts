@@ -58,17 +58,77 @@ export const featuresApi = {
 }
 
 /**
+ * RepeatMasker display modes
+ * - SQUISHED: Compact display (default)
+ * - EXPANDED: Each repeat on its own row
+ * - COLLAPSED: All repeats stacked
+ */
+export type RepeatMaskerDisplayMode = 'SQUISHED' | 'EXPANDED' | 'COLLAPSED'
+
+/**
+ * RepeatMasker track configuration response
+ */
+export interface RepeatMaskerTrackConfig {
+  name: string
+  type: string
+  format: string
+  url: string
+  displayMode?: RepeatMaskerDisplayMode
+  color?: string
+  height?: number
+  visibilityWindow?: number
+  /** Color table for different repeat classes (UCSC Full mode) */
+  colorTable?: Record<string, string>
+  /** Whether to use itemRgb from the BED file */
+  itemRgb?: boolean
+}
+
+/**
  * Get RepeatMasker IGV track configuration
  * @param speciesId - Species ID
+ * @param displayMode - Display mode (SQUISHED, EXPANDED, COLLAPSED)
  */
-export const getRepeatMaskerTrackConfig = (speciesId: number) =>
-  apiClient.get<ApiResponse<{
-    name: string
-    type: string
-    format: string
-    url: string
-    displayMode?: string
-    color?: string
-    height?: number
-    visibilityWindow?: number
-  }>>(`/api/v1/igv/config/repeatmasker/${speciesId}`)
+export const getRepeatMaskerTrackConfig = (
+  speciesId: number,
+  displayMode?: RepeatMaskerDisplayMode
+) =>
+  apiClient.get<ApiResponse<RepeatMaskerTrackConfig>>(
+    `/api/v1/igv/config/repeatmasker/${speciesId}`,
+    {
+      params: displayMode ? { display_mode: displayMode } : undefined
+    }
+  )
+
+/**
+ * RepeatMasker class track configuration (for grouped display)
+ */
+export interface RepeatMaskerClassTrack {
+  id: string
+  name: string
+  type: string
+  format: string
+  url: string
+  color: string
+  height?: number
+  visibilityWindow?: number
+  displayMode?: string
+}
+
+/**
+ * Response type for RepeatMasker class tracks API
+ */
+export interface RepeatMaskerClassTracksResponse {
+  tracks: RepeatMaskerClassTrack[]
+  species_id: number
+  species_name: string
+}
+
+/**
+ * Get RepeatMasker class-specific track configurations
+ * Returns separate track configs for each repeat class (SINE, LINE, LTR, etc.)
+ * @param speciesId - Species ID
+ */
+export const getRepeatMaskerClassTracks = (speciesId: number) =>
+  apiClient.get<ApiResponse<RepeatMaskerClassTracksResponse>>(
+    `/api/v1/igv/config/repeatmasker-classes/${speciesId}`
+  )
