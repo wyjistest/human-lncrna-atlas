@@ -25,7 +25,7 @@ export const featuresApi = {
    * @param filters - Optional filters for repeat class, family, divergence, pagination
    */
   getGeneRepeats: (geneId: number, filters?: RepeatMaskerFilters) =>
-    apiClient.get<RepeatMaskerResponse>(`/api/v1/genes/${geneId}/repeats`, {
+    apiClient.get<RepeatMaskerResponse>(`/api/v1/features/genes/${geneId}/repeats`, {
       params: filters
     }),
 
@@ -34,7 +34,7 @@ export const featuresApi = {
    * @param geneId - Gene ID
    */
   getGeneRepeatStats: (geneId: number) =>
-    apiClient.get<RepeatStats>(`/api/v1/genes/${geneId}/repeats/stats`),
+    apiClient.get<RepeatStats>(`/api/v1/features/genes/${geneId}/repeats/stats`),
 
   /**
    * Export RepeatMasker data as BED format
@@ -52,7 +52,7 @@ export const featuresApi = {
     if (filters?.max_divergence !== undefined) params.append('max_divergence', String(filters.max_divergence))
 
     const queryString = params.toString()
-    const url = `${API_BASE_URL}/api/v1/genes/${geneId}/repeats/export${queryString ? `?${queryString}` : ''}`
+    const url = `${API_BASE_URL}/api/v1/features/genes/${geneId}/repeats/export${queryString ? `?${queryString}` : ''}`
     window.open(url, '_blank')
   }
 }
