@@ -1532,13 +1532,13 @@ def get_repeatmasker_igv_config(
         "data": {
             "name": "RepeatMasker",
             "type": "annotation",
-            "format": "bed",
-            "url": f"/api/v1/igv/tracks/repeatmasker/{species_id}.bed",
+            "format": "bigbed",  # Changed from "bed" to "bigbed"
+            "url": f"/genomes/repeatmasker_human.bb",  # Static bigBed file
             "displayMode": "SQUISHED",
             "color": "#E67E22",
             "height": 50,
-            "visibilityWindow": 1000000,  # 1Mb - only load for small regions
-            "description": f"RepeatMasker annotations for {species.display_name}",
+            # No visibilityWindow needed - bigBed handles on-demand loading
+            "description": f"RepeatMasker annotations for {species.display_name} (indexed bigBed format)",
         },
         "message": f"RepeatMasker IGV track configuration for {species.display_name}"
     }
