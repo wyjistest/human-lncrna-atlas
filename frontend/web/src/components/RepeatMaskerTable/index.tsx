@@ -303,10 +303,11 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
               }
             >
               <Space wrap size={[8, 8]}>
-                {Object.entries(statsData.class_distribution)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([cls, count]) => (
-                    <Tag
+                {statsData?.class_distribution &&
+                  Object.entries(statsData.class_distribution)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cls, count]) => (
+                      <Tag
                       key={cls}
                       color={getRepeatClassColor(cls)}
                       style={{ margin: 0 }}
