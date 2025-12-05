@@ -1,6 +1,6 @@
 """网络分析API路由"""
 from collections import Counter
-from typing import Optional
+from typing import Optional, Dict, Set
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, or_
@@ -10,6 +10,40 @@ from app.models import Regulation, Gene, CoreGene, TraitGeneAssociation, Trait, 
 from app.schemas.regulation import NetworkData, NetworkNode, NetworkEdge
 
 router = APIRouter(prefix="/network", tags=["network"])
+
+
+def compute_conservation_map(core_ids: list, db: Session) -> Dict[int, tuple]:
+    """
+    Compute conservation data for a list of core_ids
+    Returns: {core_id: (conservation_label, conservation_count)}
+    """
+    if not core_ids:
+        return {}
+
+    # Batch query: get species presence for all core_ids
+    species_presence_query = db.query(Gene.core_id, Gene.species_id).filter(
+        Gene.core_id.in_(core_ids)
+    ).distinct()
+
+    # Build a map: core_id -> set of species_ids
+    species_map: Dict[int, Set[int]] = {}
+    for core_id, species_id in species_presence_query.all():
+        if core_id not in species_map:
+            species_map[core_id] = set()
+        species_map[core_id].add(species_id)
+
+    # Convert to conservation labels
+    result = {}
+    for core_id in core_ids:
+        present_species = species_map.get(core_id, set())
+        conservation_label = "".join(
+            "1" if sid in present_species else "0"
+            for sid in [1, 2, 3, 4]  # Species: 1=human, 2=chimp, 3=macaque, 4=marmoset
+        )
+        conservation_count = len(present_species)
+        result[core_id] = (conservation_label, conservation_count)
+
+    return result
 
 
 @router.get("/available-combinations")
@@ -107,34 +141,17 @@ def get_disease_network(
     edges = []
 
     # Phase 2.2.1: Compute conservation data for all nodes
-    # Get unique core_ids
     core_ids = list(set(gene.core_id for gene, _ in genes))
-
-    # Batch query: get species presence for all core_ids
-    species_presence_query = (
-        db.query(Gene.core_id, Gene.species_id)
-        .filter(Gene.core_id.in_(core_ids))
-        .distinct()
-    )
-
-    # Build a map: core_id -> set of species_ids
-    species_presence_map = {}
-    for core_id, species_id in species_presence_query.all():
-        if core_id not in species_presence_map:
-            species_presence_map[core_id] = set()
-        species_presence_map[core_id].add(species_id)
+    conservation_map = compute_conservation_map(core_ids, db)
 
     # 添加所有关联基因节点
     for gene, core_gene in genes:
         node_id = f"g_{gene.gene_id}"
 
-        # Calculate conservation label and count
-        present_species = species_presence_map.get(gene.core_id, set())
-        conservation_label = "".join(
-            "1" if sid in present_species else "0"
-            for sid in [1, 2, 3, 4]  # Species: 1=human, 2=chimp, 3=macaque, 4=marmoset
+        # Get conservation data for this gene
+        conservation_label, conservation_count = conservation_map.get(
+            gene.core_id, ("0000", 0)
         )
-        conservation_count = len(present_species)
 
         nodes_dict[node_id] = NetworkNode(
             id=node_id,
