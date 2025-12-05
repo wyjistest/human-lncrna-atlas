@@ -4,6 +4,21 @@
     "placeholder": "Search gene name or ID",
     "geneType": "Gene Type"
   },
+  "conservation": {
+    "high": "High",
+    "medium": "Medium",
+    "low": "Low",
+    "unknown": "Unknown",
+    "legend": {
+      "title": "Conservation"
+    },
+    "species": {
+      "human": "Human",
+      "chimpanzee": "Chimpanzee",
+      "macaque": "Macaque",
+      "marmoset": "Marmoset"
+    }
+  },
   "geneTypes": {
     "lncRNA": "lncRNA",
     "proteinCoding": "Protein Coding"
@@ -26,6 +41,7 @@
   "detail": {
     "title": "Gene Detail",
     "basicInfo": "Basic Information",
+    "conservation": "Conservation",
     "statistics": "Statistics",
     "orthologs": "Orthologs",
     "regulations": "Regulations",

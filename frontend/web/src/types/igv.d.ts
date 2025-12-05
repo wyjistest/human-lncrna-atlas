@@ -157,8 +157,12 @@ declare module 'igv' {
   }
 
   export interface IGVBrowser {
-    /** Search by gene name or locus */
-    search(locus: string): Promise<void>
+    /**
+     * Search by gene name or locus
+     * @param locus - Genomic location or gene name to search for
+     * @param init - Force view update/initialization (optional, default: false)
+     */
+    search(locus: string, init?: boolean): Promise<void>
     /** Navigate to a specific genomic locus (more reliable for coordinates) */
     goto(locus: string): Promise<void>
     loadTrack(config: IGVTrackConfig): Promise<void>
@@ -178,6 +182,8 @@ declare module 'igv' {
     currentLoci(): string[]
     zoomIn(): void
     zoomOut(): void
+    /** Force update/repaint of all track views */
+    updateViews?(): void
   }
 
   export function createBrowser(

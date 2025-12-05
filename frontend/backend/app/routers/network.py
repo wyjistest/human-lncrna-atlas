@@ -106,15 +106,44 @@ def get_disease_network(
     nodes_dict = {}
     edges = []
 
+    # Phase 2.2.1: Compute conservation data for all nodes
+    # Get unique core_ids
+    core_ids = list(set(gene.core_id for gene, _ in genes))
+
+    # Batch query: get species presence for all core_ids
+    species_presence_query = (
+        db.query(Gene.core_id, Gene.species_id)
+        .filter(Gene.core_id.in_(core_ids))
+        .distinct()
+    )
+
+    # Build a map: core_id -> set of species_ids
+    species_presence_map = {}
+    for core_id, species_id in species_presence_query.all():
+        if core_id not in species_presence_map:
+            species_presence_map[core_id] = set()
+        species_presence_map[core_id].add(species_id)
+
     # 添加所有关联基因节点
     for gene, core_gene in genes:
         node_id = f"g_{gene.gene_id}"
+
+        # Calculate conservation label and count
+        present_species = species_presence_map.get(gene.core_id, set())
+        conservation_label = "".join(
+            "1" if sid in present_species else "0"
+            for sid in [1, 2, 3, 4]  # Species: 1=human, 2=chimp, 3=macaque, 4=marmoset
+        )
+        conservation_count = len(present_species)
+
         nodes_dict[node_id] = NetworkNode(
             id=node_id,
             label=gene.gene_name or gene.gene_ensembl_id,
             type=core_gene.gene_type,
             gene_id=gene.gene_id,
             core_id=gene.core_id,
+            conservation_label=conservation_label,
+            conservation_count=conservation_count,
         )
 
     # 获取这些基因之间的调控关系（lncRNA -> 靶基因，且两者都在关联基因列表中）

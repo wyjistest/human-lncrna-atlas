@@ -19,6 +19,8 @@ const createCytoscape = cytoscape as unknown as (options: cytoscape.CytoscapeOpt
 import type { GeneDetail } from '@/types/network'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
+import { ConservationLegend } from '@/components/ConservationLegend'
+import { parseConservationLabel, CONSERVATION_COLORS } from '@/types/conservation'
 
 // 注册 cytoscape-svg 插件 - 模块作用域执行一次，添加 SSR 保护
 if (typeof window !== 'undefined') {
@@ -249,15 +251,23 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
     )
 
     const elements = [
-      ...filteredNodes.map((node: any) => ({
-        data: {
-          id: node.id,
-          label: node.label,
-          type: node.type,
-          gene_id: node.gene_id,
-          core_id: node.core_id
+      ...filteredNodes.map((node: any) => {
+        // Calculate conservation category from conservation_label if available
+        const conservationData = parseConservationLabel(
+          node.conservation_label,
+          node.conservation_count
+        )
+        return {
+          data: {
+            id: node.id,
+            label: node.label,
+            type: node.type,
+            gene_id: node.gene_id,
+            core_id: node.core_id,
+            conservation: conservationData.category
+          }
         }
-      })),
+      }),
       ...finalEdges.map((edge: any) => ({
         data: {
           source: edge.source,
@@ -334,6 +344,31 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
             'border-width': 4,
             'border-color': '#faad14',
             'z-index': 999
+          }
+        },
+        // Conservation-based node colors (Tol Bright palette - color-blind safe)
+        {
+          selector: 'node[conservation="high"]',
+          style: {
+            'background-color': CONSERVATION_COLORS.high  // #228833 Green
+          }
+        },
+        {
+          selector: 'node[conservation="medium"]',
+          style: {
+            'background-color': CONSERVATION_COLORS.medium  // #CCBB44 Yellow
+          }
+        },
+        {
+          selector: 'node[conservation="low"]',
+          style: {
+            'background-color': CONSERVATION_COLORS.low  // #EE6677 Red
+          }
+        },
+        {
+          selector: 'node[conservation="unknown"]',
+          style: {
+            'background-color': CONSERVATION_COLORS.unknown  // #BBBBBB Gray
           }
         }
       ],
@@ -844,7 +879,12 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
             {searchResults.length > 5 && <span style={{ color: '#999' }}>...</span>}
           </div>
         )}
-        <div ref={containerRef} style={{ aspectRatio: '1/1', width: '100%' }} />
+        {/* Network container with conservation legend */}
+        <div style={{ position: 'relative', aspectRatio: '1/1', width: '100%' }}>
+          <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+          {/* Conservation legend - positioned top-right */}
+          <ConservationLegend position="top-right" compact />
+        </div>
       </div>
 
       {/* 基因详情抽屉 */}

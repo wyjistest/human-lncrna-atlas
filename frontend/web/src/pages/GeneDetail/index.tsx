@@ -34,6 +34,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import { SequenceViewer } from '@/components/SequenceViewer'
 import { RepeatMaskerTable } from '@/components/RepeatMaskerTable'
+import { ConservationBadge } from '@/components/ConservationBadge'
 import { createSpeciesTranslator } from '@/utils/species'
 
 export default function GeneDetail() {
@@ -341,6 +342,12 @@ export default function GeneDetail() {
           </Descriptions.Item>
           <Descriptions.Item label={t('columns.type')}>
             <Tag color={gene.gene_type === 'lncRNA' ? 'blue' : 'green'}>{gene.gene_type}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label={t('detail.conservation')}>
+            <ConservationBadge
+              conservationLabel={(gene as any).conservation_label}
+              conservationCount={(gene as any).conservation_count}
+            />
           </Descriptions.Item>
           <Descriptions.Item label={t('columns.species')}>
             {translateSpecies(gene.species_name)}

@@ -117,6 +117,15 @@ class NetworkNode(BaseModel):
     type: str = Field(description="节点类型（lncRNA/protein_coding）")
     gene_id: int
     core_id: int
+    # Conservation data (Phase 2.2.1)
+    conservation_label: Optional[str] = Field(
+        default=None,
+        description="4-bit binary conservation pattern: 1=human, 2=chimp, 3=macaque, 4=marmoset"
+    )
+    conservation_count: Optional[int] = Field(
+        default=None,
+        description="Number of species with this gene (1-4)"
+    )
 
 
 class NetworkEdge(BaseModel):

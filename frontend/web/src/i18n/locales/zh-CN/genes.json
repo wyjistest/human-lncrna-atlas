@@ -4,6 +4,21 @@
     "placeholder": "搜索基因名或ID",
     "geneType": "基因类型"
   },
+  "conservation": {
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+    "unknown": "未知",
+    "legend": {
+      "title": "保守性"
+    },
+    "species": {
+      "human": "人类",
+      "chimpanzee": "黑猩猩",
+      "macaque": "猕猴",
+      "marmoset": "狨猴"
+    }
+  },
   "geneTypes": {
     "lncRNA": "lncRNA",
     "proteinCoding": "蛋白编码基因"
@@ -26,6 +41,7 @@
   "detail": {
     "title": "基因详情",
     "basicInfo": "基本信息",
+    "conservation": "保守性",
     "statistics": "统计信息",
     "orthologs": "直系同源基因",
     "regulations": "调控关系",
