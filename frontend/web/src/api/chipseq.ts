@@ -20,15 +20,6 @@ import type {
 } from '@/types/chipseq'
 
 /**
- * API Response Wrapper (consistent with other API modules)
- */
-interface ApiResponse<T> {
-  success: boolean
-  data: T
-  message?: string
-}
-
-/**
  * ChIP-seq API client object
  */
 export const chipseqApi = {

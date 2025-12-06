@@ -17,7 +17,7 @@ import {
   EnvironmentOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import { getMarkConfig, getMarkColor } from '@/config/markConfigs'
+import { getMarkColor } from '@/config/markConfigs'
 import type { MarkType, ChIPSeqSummary } from '@/types/chipseq'
 
 interface StatsCardsProps {
@@ -78,7 +78,6 @@ function PositionTag({
  */
 export function StatsCards({ markType, summary, loading = false }: StatsCardsProps) {
   const { t } = useTranslation('genes')
-  const markConfig = getMarkConfig(markType)
   const markColor = getMarkColor(markType)
 
   if (!summary && !loading) {

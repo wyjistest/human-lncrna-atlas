@@ -11,12 +11,11 @@
  */
 
 import { useMemo, useCallback } from 'react'
-import { Table, Tag, Tooltip, Space, Typography } from 'antd'
-import { LinkOutlined } from '@ant-design/icons'
+import { Table, Tag, Tooltip, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import type { FilterValue, SorterResult } from 'antd/es/table/interface'
-import { getMarkConfig, getMarkColor } from '@/config/markConfigs'
+import { getMarkConfig } from '@/config/markConfigs'
 import type { MarkType, ChIPSeqPeak, ChIPSeqFilters } from '@/types/chipseq'
 
 const { Text } = Typography
@@ -115,7 +114,6 @@ function PositionTag({ position }: { position: string | undefined }) {
  * ```
  */
 export function PeaksTable({
-  markType,
   items,
   total,
   page,

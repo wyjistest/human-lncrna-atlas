@@ -29,7 +29,6 @@ import {
   Alert,
   Row,
   Col,
-  Divider,
 } from 'antd'
 import {
   DownloadOutlined,
@@ -65,7 +64,6 @@ import type {
   MarkType,
   ChIPSeqFilters,
   CompareViewMode,
-  DEFAULT_CHIPSEQ_FILTERS,
 } from '@/types/chipseq'
 
 interface ChIPSeqPeaksTableProps {
@@ -112,7 +110,6 @@ export function ChIPSeqPeaksTable({
   onMarkChange,
 }: ChIPSeqPeaksTableProps) {
   const { t } = useTranslation('genes')
-  const { t: tCommon } = useTranslation('common')
 
   // State
   const [selectedMark, setSelectedMark] = useState<MarkType | undefined>(
