@@ -44,8 +44,8 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
 | `feature_tracks` | 1 | RepeatMasker 轨道配置 |
 | `genomic_features` | 5,481,341 | RepeatMasker 数据（hg19） |
 | `epigenetic_mark_types` | 15 | 组蛋白修饰类型注册表 |
-| `chipseq_experiments` | 4 | ChIP-seq 实验 |
-| `chipseq_peaks` | 1,200 | ChIP-seq peaks（测试数据） |
+| `chipseq_experiments` | 6 | ChIP-seq 实验（ENCODE K562） |
+| `chipseq_peaks` | 422,649 | ChIP-seq peaks（ENCODE 真实数据） |
 | `mark_relationships` | 6 | Mark 关系定义 |
 
 ---
@@ -368,7 +368,7 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
 | **IGV 基因组浏览器** | ✅ 完成 | 100% |
 | **RepeatMasker 扩展层** | ✅ 完成 | 100% |
 | **ChIP-seq 通用架构** | ✅ 完成 | 100% |
-| **ChIP-seq 多 Marks** | ✅ 完成 | 100%（测试数据）<br>0%（ENCODE 真实数据） |
+| **ChIP-seq 多 Marks** | ✅ 完成 | 100%（ENCODE K562 真实数据，6 marks，422K peaks） |
 | **ChIP-seq 对比功能** | ⏳ 规划中 | 0% |
 | **其他组蛋白修饰** | ⏳ 未开始 | 0% |
 | **其他表观数据** | ⏳ 未开始 | 0% |
@@ -380,7 +380,7 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
 2025-12-03: IGV Phase 1 完成
 2025-12-04: IGV 多物种支持
 2025-12-05: RepeatMasker 扩展层 + Conservation
-2025-12-06: ChIP-seq Phase 2.3 + 2.4 完成  ← 当前
+2025-12-06: ChIP-seq Phase 2.3 + 2.4 完成 + ENCODE K562 真实数据导入（422K peaks）  ← 当前
 ```
 
 ---
@@ -861,12 +861,7 @@ docs/
 - **价值**: 充分发挥多 marks 数据的科研价值
 - **工期**: 7 天
 
-**优先级 2: 真实 ENCODE 数据**
-- 下载并导入真实数据（~280,000 peaks）
-- **价值**: 真实生物学数据，可用于发表
-- **工期**: 1 天
-
-**优先级 3: UI/UX 完善**
+**优先级 2: UI/UX 完善**
 - 全面测试 ChIP-seq 功能
 - 修复 Bug，优化体验
 - **价值**: 提升产品质量

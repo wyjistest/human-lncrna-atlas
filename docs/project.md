@@ -415,10 +415,16 @@ cd frontend/web && npm run test:e2e
 
 **预计工期**: 10 个工作日（首个 mark），后续每个 mark 仅需 2 天
 
-### Phase 2.4: 多 Marks 验证（规划中）
-- 导入 H3K4me1, H3K4me3, H3K27ac 数据
-- 验证通用架构的扩展性
-- 预计工期: 5 天
+### Phase 2.4: 多 Marks 验证（✅ 已完成 2025-12-06）
+- ✅ 导入 ENCODE K562 真实数据（6 种 marks，422,649 peaks）
+  - H3K4me1: 125,713 peaks
+  - H3K27me3: 88,069 peaks
+  - H3K27ac: 58,937 peaks
+  - H3K36me3: 54,277 peaks
+  - H3K4me3: 52,422 peaks
+  - H3K9me3: 43,231 peaks
+- ✅ 验证通用架构的扩展性
+- ✅ IGV ChIP-seq 轨道集成
 
 ### Phase 2.5: 高级对比功能（规划中）
 - 实现多 marks 对比 API
