@@ -77,6 +77,10 @@
     "failed": "{{species}} {{format}}导出失败"
   },
 
+  "edge": {
+    "bindingAffinityLabel": "结合亲和力: "
+  },
+
   "batchExport": {
     "button": "批量导出所有物种",
     "buttonWithCount": "批量导出所有物种 ({{count}})",

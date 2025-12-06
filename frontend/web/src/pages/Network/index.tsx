@@ -399,7 +399,7 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
       `
       // 使用安全的 DOM 方法创建内容
       const labelSpan = document.createElement('strong')
-      labelSpan.textContent = 'Binding Affinity: '
+      labelSpan.textContent = t('edge.bindingAffinityLabel')
       const valueSpan = document.createElement('span')
       valueSpan.textContent = ba.toFixed(2)
       tooltipDiv.appendChild(labelSpan)

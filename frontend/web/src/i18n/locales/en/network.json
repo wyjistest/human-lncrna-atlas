@@ -77,6 +77,10 @@
     "failed": "{{species}} {{format}} export failed"
   },
 
+  "edge": {
+    "bindingAffinityLabel": "Binding Affinity: "
+  },
+
   "batchExport": {
     "button": "Batch Export All Species",
     "buttonWithCount": "Batch Export All Species ({{count}})",
