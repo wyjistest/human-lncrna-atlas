@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+"""
+Download ENCODE histone modification ChIP-seq data from UCSC.
+
+This script downloads broadPeak files from the Broad Histone track
+for multiple cell lines and histone marks.
+
+Usage:
+    python3 download_encode_chipseq.py --all --output encode_data/
+    python3 download_encode_chipseq.py --mark H3K27me3 --cell-line GM12878
+"""
+
+import argparse
+import subprocess
+from pathlib import Path
+from typing import List, Dict
+import json
+
+
+# UCSC ENCODE Broad Histone base URL
+BASE_URL = 'http://hgdownload.gi.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/'
+
+# File naming pattern: wgEncodeBroadHistone{CellLine}{Mark}{Replicate}.broadPeak.gz
+# Example: wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz
+
+ENCODE_FILES = {
+    'GM12878': {
+        'H3K27me3': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz',
+            'size_mb': 2.1,
+        },
+        'H3K4me1': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k4me1StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k4me1StdPk.broadPeak.gz',
+            'size_mb': 5.1,
+        },
+        'H3K4me3': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k4me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k4me3StdPk.broadPeak.gz',
+            'size_mb': 1.8,
+        },
+        'H3K27ac': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k27acStdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k27acStdPk.broadPeak.gz',
+            'size_mb': 4.5,
+        },
+    },
+    'H1-hESC': {
+        'H3K27me3': {
+            'file': 'wgEncodeBroadHistoneH1hescH3k27me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k27me3StdPk.broadPeak.gz',
+            'size_mb': 1.5,
+        },
+        'H3K4me1': {
+            'file': 'wgEncodeBroadHistoneH1hescH3k4me1StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k4me1StdPk.broadPeak.gz',
+            'size_mb': 4.2,
+        },
+        'H3K4me3': {
+            'file': 'wgEncodeBroadHistoneH1hescH3k4me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k4me3StdPk.broadPeak.gz',
+            'size_mb': 1.2,
+        },
+        'H3K27ac': {
+            'file': 'wgEncodeBroadHistoneH1hescH3k27acStdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k27acStdPk.broadPeak.gz',
+            'size_mb': 3.8,
+        },
+    },
+    'K562': {
+        'H3K27me3': {
+            'file': 'wgEncodeBroadHistoneK562H3k27me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k27me3StdPk.broadPeak.gz',
+            'size_mb': 2.3,
+        },
+        'H3K4me1': {
+            'file': 'wgEncodeBroadHistoneK562H3k4me1StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k4me1StdPk.broadPeak.gz',
+            'size_mb': 4.8,
+        },
+        'H3K4me3': {
+            'file': 'wgEncodeBroadHistoneK562H3k4me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k4me3StdPk.broadPeak.gz',
+            'size_mb': 1.6,
+        },
+        'H3K27ac': {
+            'file': 'wgEncodeBroadHistoneK562H3k27acStdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k27acStdPk.broadPeak.gz',
+            'size_mb': 4.2,
+        },
+    },
+}
+
+# Metadata for each cell line
+CELL_LINE_METADATA = {
+    'GM12878': {
+        'tissue_type': 'blood',
+        'cell_type': 'B-lymphocyte',
+        'description': 'B-lymphoblastoid cell line',
+    },
+    'H1-hESC': {
+        'tissue_type': 'embryonic_stem_cell',
+        'cell_type': 'embryonic_stem_cell',
+        'description': 'Human embryonic stem cells',
+    },
+    'K562': {
+        'tissue_type': 'blood',
+        'cell_type': 'erythroleukemia',
+        'description': 'Chronic myelogenous leukemia',
+    },
+}
+
+
+def download_file(url: str, output_path: Path, dry_run: bool = False) -> bool:
+    """Download a file using wget"""
+    if dry_run:
+        print(f'  [DRY RUN] Would download: {url}')
+        return True
+
+    print(f'  Downloading: {output_path.name} ...')
+    try:
+        result = subprocess.run(
+            ['wget', '-q', '--show-progress', '-O', str(output_path), url],
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minutes timeout
+        )
+        if result.returncode == 0:
+            print(f'  ✓ Downloaded: {output_path.name}')
+            return True
+        else:
+            print(f'  ✗ Failed: {result.stderr}')
+            return False
+    except Exception as e:
+        print(f'  ✗ Error: {e}')
+        return False
+
+
+def generate_metadata(mark_type: str, cell_line: str, file_info: dict) -> dict:
+    """Generate metadata JSON for an experiment"""
+    cell_info = CELL_LINE_METADATA[cell_line]
+
+    # Extract accession from filename if possible
+    # Format: wgEncodeBroadHistone{CellLine}{Mark}StdPk
+    encode_accession = f'BROAD_{cell_line}_{mark_type}'
+
+    metadata = {
+        'mark_type': mark_type,
+        'encode_accession': encode_accession,
+        'biosample_accession': f'BROAD_BS_{cell_line}',
+        'tissue_type': cell_info['tissue_type'],
+        'cell_type': cell_info['cell_type'],
+        'cell_line': cell_line,
+        'treatment': None,
+        'developmental_stage': 'embryonic' if cell_line == 'H1-hESC' else 'adult',
+        'antibody_target': mark_type,
+        'antibody_source': 'Broad Institute',
+        'replicate_type': 'pooled',
+        'source_database': 'ENCODE_Broad',
+        'peak_type': 'broad',
+        'genome_assembly': 'hg19',
+        'data_source': 'UCSC_ENCODE',
+        'download_url': file_info['url'],
+    }
+
+    return metadata
+
+
+def download_mark_data(mark_type: str, cell_lines: List[str], output_dir: Path, dry_run: bool = False):
+    """Download data for a specific mark type across multiple cell lines"""
+    print(f'\n{"="*60}')
+    print(f'Mark: {mark_type}')
+    print(f'{"="*60}')
+
+    downloaded = []
+
+    for cell_line in cell_lines:
+        if cell_line not in ENCODE_FILES:
+            print(f'  ⚠️  {cell_line} not available')
+            continue
+
+        if mark_type not in ENCODE_FILES[cell_line]:
+            print(f'  ⚠️  {mark_type} not available for {cell_line}')
+            continue
+
+        file_info = ENCODE_FILES[cell_line][mark_type]
+
+        print(f'\n  Cell line: {cell_line}')
+        print(f'  File size: ~{file_info["size_mb"]} MB')
+
+        # Download peaks file
+        peaks_filename = file_info['file']
+        peaks_path = output_dir / peaks_filename
+
+        if download_file(file_info['url'], peaks_path, dry_run):
+            # Generate metadata
+            metadata = generate_metadata(mark_type, cell_line, file_info)
+            metadata_path = output_dir / f'{mark_type}_{cell_line}_metadata.json'
+
+            with open(metadata_path, 'w') as f:
+                json.dump(metadata, f, indent=2)
+
+            print(f'  ✓ Metadata: {metadata_path.name}')
+
+            downloaded.append({
+                'mark_type': mark_type,
+                'cell_line': cell_line,
+                'peaks_file': str(peaks_path),
+                'metadata_file': str(metadata_path),
+            })
+
+    return downloaded
+
+
+def generate_batch_import_config(experiments: List[dict], output_dir: Path):
+    """Generate batch import configuration file"""
+    config = {
+        'species': 'human',
+        'experiments': experiments,
+        'options': {
+            'batch_size': 10000,
+            'compute_associations': True,
+            'parallel': 3,
+        }
+    }
+
+    config_file = output_dir / 'encode_batch_import_config.json'
+    with open(config_file, 'w') as f:
+        json.dump(config, f, indent=2)
+
+    print(f'\n{"="*60}')
+    print(f'✓ Batch import config generated')
+    print(f'{"="*60}')
+    print(f'Config file: {config_file}')
+    print(f'Total experiments: {len(experiments)}')
+
+    return config_file
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Download ENCODE histone modification data from UCSC',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Download all Phase 2.4 marks for GM12878
+  python3 download_encode_chipseq.py --all --cell-line GM12878
+
+  # Download H3K27me3 for multiple cell lines
+  python3 download_encode_chipseq.py --mark H3K27me3 --cell-line GM12878 K562 H1-hESC
+
+  # Dry run to see what would be downloaded
+  python3 download_encode_chipseq.py --all --cell-line GM12878 --dry-run
+        """
+    )
+
+    parser.add_argument('--mark', choices=['H3K27me3', 'H3K4me1', 'H3K4me3', 'H3K27ac'],
+                        help='Mark type to download')
+    parser.add_argument('--cell-line', nargs='+', default=['GM12878'],
+                        choices=list(ENCODE_FILES.keys()),
+                        help='Cell lines to download (default: GM12878)')
+    parser.add_argument('--all', action='store_true',
+                        help='Download all Phase 2.4 marks (H3K27me3, H3K4me1, H3K4me3, H3K27ac)')
+    parser.add_argument('--output', default='encode_chipseq_data',
+                        help='Output directory (default: encode_chipseq_data)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Show what would be downloaded without actually downloading')
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print('='*60)
+    print('ENCODE Histone Modification Data Downloader')
+    print('='*60)
+    print(f'Source: UCSC Broad Histone (hg19)')
+    print(f'Output: {output_dir}')
+    print(f'Cell lines: {", ".join(args.cell_line)}')
+    if args.dry_run:
+        print('Mode: DRY RUN (no actual downloads)')
+
+    all_experiments = []
+
+    if args.all:
+        # Download all Phase 2.4 marks
+        marks = ['H3K27me3', 'H3K4me1', 'H3K4me3', 'H3K27ac']
+        for mark in marks:
+            experiments = download_mark_data(mark, args.cell_line, output_dir, args.dry_run)
+            all_experiments.extend(experiments)
+    else:
+        if not args.mark:
+            print('Error: --mark is required when not using --all')
+            return 1
+
+        experiments = download_mark_data(args.mark, args.cell_line, output_dir, args.dry_run)
+        all_experiments.extend(experiments)
+
+    # Generate batch import config
+    if all_experiments and not args.dry_run:
+        config_file = generate_batch_import_config(all_experiments, output_dir)
+        print(f'\n✨ Ready to import!')
+        print(f'   Next: python3 scripts/batch_import_chipseq.py {config_file}')
+    elif args.dry_run:
+        print(f'\n📋 Dry run complete. Run without --dry-run to download.')
+        print(f'   Total files to download: {len(all_experiments)}')
+        total_size = sum(
+            ENCODE_FILES[e['cell_line']][e['mark_type']]['size_mb']
+            for e in all_experiments
+        )
+        print(f'   Estimated total size: ~{total_size:.1f} MB')
+
+
+if __name__ == '__main__':
+    main()
