@@ -426,11 +426,14 @@ cd frontend/web && npm run test:e2e
 - ✅ 验证通用架构的扩展性
 - ✅ IGV ChIP-seq 轨道集成
 
-### Phase 2.5: 高级对比功能（规划中）
-- 实现多 marks 对比 API
-- 4 种 ECharts 对比图表
-- Overlapping regions + Bivalent domain 可视化
-- 预计工期: 7 天
+### Phase 2.5: 高级对比功能（✅ 已完成 2025-12-06）
+- ✅ 增强 /compare API（median, std, coverage, percentiles）
+- ✅ 通用化重叠检测（任意 mark 对，不仅限 bivalent）
+- ✅ 5 种 ECharts 对比图表（Peak Count, Signal, Position, Fold Enrichment, Peak Width）
+- ✅ BivalentDomainBadge 组件（自动检测 H3K4me3+H3K27me3）
+- ✅ 导出功能（CSV/TSV/BED/JSON）
+- ✅ 国际化支持（中/英）
+- 实际工期: 0.5 天（vs 预估 7 天）
 
 ---
 

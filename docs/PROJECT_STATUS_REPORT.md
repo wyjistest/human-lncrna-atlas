@@ -369,7 +369,7 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
 | **RepeatMasker 扩展层** | ✅ 完成 | 100% |
 | **ChIP-seq 通用架构** | ✅ 完成 | 100% |
 | **ChIP-seq 多 Marks** | ✅ 完成 | 100%（ENCODE K562 真实数据，6 marks，422K peaks） |
-| **ChIP-seq 对比功能** | ⏳ 规划中 | 0% |
+| **ChIP-seq 对比功能** | ✅ 完成 | 100%（通用重叠检测 + ECharts 图表） |
 | **其他组蛋白修饰** | ⏳ 未开始 | 0% |
 | **其他表观数据** | ⏳ 未开始 | 0% |
 
@@ -380,7 +380,8 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
 2025-12-03: IGV Phase 1 完成
 2025-12-04: IGV 多物种支持
 2025-12-05: RepeatMasker 扩展层 + Conservation
-2025-12-06: ChIP-seq Phase 2.3 + 2.4 完成 + ENCODE K562 真实数据导入（422K peaks）  ← 当前
+2025-12-06: ChIP-seq Phase 2.3 + 2.4 完成 + ENCODE K562 真实数据导入（422K peaks）
+2025-12-06: Phase 2.5 对比功能完成（通用重叠检测 + Bivalent Domain 可视化）  ← 当前
 ```
 
 ---
