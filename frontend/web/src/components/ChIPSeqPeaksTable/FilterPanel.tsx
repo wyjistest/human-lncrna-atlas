@@ -28,7 +28,9 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n'
 import { getMarkConfig } from '@/config/markConfigs'
+import { getCellTypeOptions } from '@/config/cellTypeConfigs'
 import { RELATIVE_POSITIONS } from '@/types/chipseq'
 import type { MarkType, ChIPSeqFilters } from '@/types/chipseq'
 
@@ -271,10 +273,7 @@ export function FilterPanel({
                 allowClear
                 value={filters.cell_type}
                 onChange={handleCellTypeChange}
-                options={[
-                  { value: 'K562', label: 'K562 (白血病细胞)' },
-                  { value: 'B-lymphocyte', label: 'GM12878 (B淋巴细胞)' },
-                ]}
+                options={getCellTypeOptions(i18n.language)}
               />
             </Space>
           </Col>

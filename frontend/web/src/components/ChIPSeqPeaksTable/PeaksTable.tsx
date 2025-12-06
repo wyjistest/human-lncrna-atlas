@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
 import type { FilterValue, SorterResult } from 'antd/es/table/interface'
 import { getMarkConfig } from '@/config/markConfigs'
+import { getCellTypeColor } from '@/config/cellTypeConfigs'
 import type { MarkType, ChIPSeqPeak, ChIPSeqFilters } from '@/types/chipseq'
 
 const { Text } = Typography
@@ -158,7 +159,11 @@ export function PeaksTable({
       dataIndex: 'cell_type',
       key: 'cell_type',
       width: 150,
-      render: (cellType: string) => cellType || 'N/A',
+      render: (cellType: string) => (
+        <Tag color={getCellTypeColor(cellType)}>
+          {cellType || 'N/A'}
+        </Tag>
+      ),
     })
 
     // Standard columns

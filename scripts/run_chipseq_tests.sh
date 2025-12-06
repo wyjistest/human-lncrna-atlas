@@ -1,0 +1,187 @@
+#!/bin/bash
+#
+# ChIP-seq Test Runner Script
+# Runs both backend API tests and frontend E2E tests for ChIP-seq functionality
+#
+# Usage:
+#   ./run_chipseq_tests.sh           # Run all tests
+#   ./run_chipseq_tests.sh backend   # Run only backend tests
+#   ./run_chipseq_tests.sh e2e       # Run only E2E tests
+#   ./run_chipseq_tests.sh --help    # Show help
+#
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Project directories
+GITHUB_REPO="/data/wenyujianData/human-lncrna-atlas-github"
+LOCAL_DEV="/data/wenyujianData/humanLncAtlas"
+BACKEND_DIR="${GITHUB_REPO}/frontend/backend"
+FRONTEND_DIR="${LOCAL_DEV}/frontend/web"
+
+# Functions
+print_header() {
+    echo -e "\n${BLUE}============================================================${NC}"
+    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}============================================================${NC}\n"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+show_help() {
+    echo "ChIP-seq Test Runner"
+    echo ""
+    echo "Usage: $0 [command]"
+    echo ""
+    echo "Commands:"
+    echo "  backend    Run backend API tests only"
+    echo "  e2e        Run frontend E2E tests only"
+    echo "  all        Run all tests (default)"
+    echo "  --help     Show this help message"
+    echo ""
+    echo "Prerequisites:"
+    echo "  - Backend server running on http://localhost:8000"
+    echo "  - Frontend dev server running on http://localhost:5173 (for E2E)"
+    echo "  - Python with pytest installed"
+    echo "  - Node.js with Playwright installed"
+}
+
+check_backend_server() {
+    print_header "Checking Backend Server"
+
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/stats/overview | grep -q "200"; then
+        print_success "Backend server is running at http://localhost:8000"
+        return 0
+    else
+        print_warning "Backend server may not be running at http://localhost:8000"
+        print_warning "API tests may fail if server is not available"
+        return 1
+    fi
+}
+
+check_frontend_server() {
+    print_header "Checking Frontend Server"
+
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200"; then
+        print_success "Frontend server is running at http://localhost:5173"
+        return 0
+    else
+        print_warning "Frontend server may not be running at http://localhost:5173"
+        print_warning "E2E tests may fail if server is not available"
+        return 1
+    fi
+}
+
+run_backend_tests() {
+    print_header "Running Backend ChIP-seq API Tests"
+
+    cd "${BACKEND_DIR}"
+
+    echo "Test directory: ${BACKEND_DIR}/tests"
+    echo "Test file: test_chipseq_api.py"
+    echo ""
+
+    # Run pytest with verbose output
+    python -m pytest tests/test_chipseq_api.py -v --tb=short 2>&1
+
+    BACKEND_EXIT_CODE=$?
+
+    if [ $BACKEND_EXIT_CODE -eq 0 ]; then
+        print_success "Backend tests passed!"
+    else
+        print_error "Backend tests failed with exit code $BACKEND_EXIT_CODE"
+    fi
+
+    return $BACKEND_EXIT_CODE
+}
+
+run_e2e_tests() {
+    print_header "Running Frontend E2E ChIP-seq Tests"
+
+    cd "${FRONTEND_DIR}"
+
+    echo "Test directory: ${FRONTEND_DIR}/e2e"
+    echo "Test file: chipseq-flow.spec.ts"
+    echo ""
+
+    # Run Playwright tests with HTML reporter
+    npx playwright test e2e/chipseq-flow.spec.ts --reporter=html 2>&1
+
+    E2E_EXIT_CODE=$?
+
+    if [ $E2E_EXIT_CODE -eq 0 ]; then
+        print_success "E2E tests passed!"
+    else
+        print_error "E2E tests failed with exit code $E2E_EXIT_CODE"
+    fi
+
+    echo ""
+    echo "HTML report available at: ${FRONTEND_DIR}/playwright-report/index.html"
+
+    return $E2E_EXIT_CODE
+}
+
+run_all_tests() {
+    OVERALL_EXIT_CODE=0
+
+    # Check servers
+    check_backend_server || true
+    check_frontend_server || true
+
+    # Run backend tests
+    run_backend_tests || OVERALL_EXIT_CODE=1
+
+    # Run E2E tests
+    run_e2e_tests || OVERALL_EXIT_CODE=1
+
+    # Summary
+    print_header "Test Summary"
+
+    if [ $OVERALL_EXIT_CODE -eq 0 ]; then
+        print_success "All tests passed!"
+    else
+        print_error "Some tests failed. Please check the output above."
+    fi
+
+    return $OVERALL_EXIT_CODE
+}
+
+# Main script
+case "${1:-all}" in
+    backend)
+        check_backend_server || true
+        run_backend_tests
+        ;;
+    e2e)
+        check_frontend_server || true
+        run_e2e_tests
+        ;;
+    all)
+        run_all_tests
+        ;;
+    --help|-h)
+        show_help
+        exit 0
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        show_help
+        exit 1
+        ;;
+esac

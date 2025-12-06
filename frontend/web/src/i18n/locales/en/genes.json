@@ -189,6 +189,12 @@
         "enhancer": "Enhancer Marks",
         "elongation": "Elongation Marks",
         "other": "Other Marks"
+      },
+      "cellTypes": {
+        "K562": "K562 (Leukemia)",
+        "GM12878": "GM12878 (B-lymphocyte)",
+        "HepG2": "HepG2 (Hepatocellular carcinoma)",
+        "H1-hESC": "H1-hESC (Embryonic stem cell)"
       }
     }
   }
