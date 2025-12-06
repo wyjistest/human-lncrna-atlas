@@ -171,6 +171,8 @@ const GenomeBrowser = memo(({
             console.warn('Error removing previous IGV browser:', e)
           }
           browserRef.current = null
+          // Clear loaded ChIP-seq marks since the browser is being reinitialized
+          loadedChipseqMarksRef.current.clear()
         }
 
         // Clear container safely by removing all child nodes
@@ -426,7 +428,11 @@ const GenomeBrowser = memo(({
 
     // Add tracks that are newly selected
     const marksToAdd = [...currentMarks].filter(mark => !loadedMarks.has(mark))
-    marksToAdd.forEach(async (mark, index) => {
+    marksToAdd.forEach((mark, index) => {
+      // IMPORTANT: Add to loadedMarks BEFORE async loadTrack to prevent race condition
+      // If useEffect re-runs before loadTrack completes, we don't want duplicate loads
+      loadedMarks.add(mark)
+
       // For region-based loading, we use a simple URL with visibilityWindow
       // IGV.js will automatically fetch data when zoomed in
       // The backend supports region filtering via chromosome/start/end params
@@ -445,12 +451,12 @@ const GenomeBrowser = memo(({
         // visibilityWindow: only show features when zoomed in to 5Mb or less
         visibilityWindow: 5000000,
       }
-      try {
-        await browser.loadTrack(trackConfig)
-        loadedMarks.add(mark)
-      } catch (e) {
+
+      browser.loadTrack(trackConfig).catch((e) => {
         console.warn(`Failed to load track for ${mark}:`, e)
-      }
+        // Remove from loadedMarks on failure so user can retry
+        loadedMarks.delete(mark)
+      })
     })
   }, [showChIPSeq, chipseqMarks, speciesId])
 
