@@ -27,7 +27,7 @@ import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrow
 import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
 import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
 import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/features'
-import { genomeApi, type IGVTrackConfig, type ChIPSeqMarkInfo } from '@/api/genome'
+import { genomeApi, type IGVTrackConfig } from '@/api/genome'
 import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 
@@ -655,7 +655,6 @@ export default function GenomeBrowserPage() {
                                   <Alert
                                     type="error"
                                     message={t('chipseq.loadMarksFailed')}
-                                    size="small"
                                   />
                                 ) : (
                                   <>
@@ -705,7 +704,7 @@ export default function GenomeBrowserPage() {
                                               })),
                                             }
                                           })
-                                          .filter(Boolean)
+                                          .filter((group): group is NonNullable<typeof group> => group !== null)
                                       })()}
                                       maxTagCount={3}
                                       allowClear

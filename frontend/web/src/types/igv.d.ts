@@ -58,6 +58,23 @@ declare module 'igv' {
     /** URL to index file (e.g., .tbi for tabix, .bai for BAM) */
     indexURL?: string
     /**
+     * Source type for the track data.
+     * - 'file': (default) Load from a static file
+     * - 'service': Load from a web service with URL templates ($CHR$, $START$, $END$)
+     *
+     * When sourceType is 'service', the URL can contain template variables:
+     * - $CHR$ - chromosome name (e.g., "chr1")
+     * - $START$ - region start position
+     * - $END$ - region end position
+     * - $LOCUS$ - full locus string (e.g., "chr1:1000-2000")
+     *
+     * IGV.js will replace these variables with actual viewport coordinates,
+     * enabling on-demand/region-based loading instead of loading all data at once.
+     *
+     * @see https://github.com/igvteam/igv.js/wiki/Tracks-2.0
+     */
+    sourceType?: 'file' | 'service'
+    /**
      * File format. Common values:
      * - 'bed', 'gff3', 'gtf' for text annotation files
      * - 'bigbed' or 'bb' for bigBed binary format (indexed, no visibilityWindow needed)
@@ -167,6 +184,8 @@ declare module 'igv' {
     goto(locus: string): Promise<void>
     loadTrack(config: IGVTrackConfig): Promise<void>
     removeTrackByName(name: string): void
+    /** Remove a track by its track object */
+    removeTrack(track: unknown): void
     /** Get all track views */
     trackViews: Array<{ track: { name: string; type: string } }>
     /** Find track by name */

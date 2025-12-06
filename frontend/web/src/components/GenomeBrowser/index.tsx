@@ -11,7 +11,7 @@ import { useRef, useEffect, useState, useCallback, memo } from 'react'
 import { message, Alert } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { genomeApi, type IGVConfig, type IGVTrackConfig as GenomeIGVTrackConfig } from '@/api/genome'
+import { genomeApi, type IGVConfig } from '@/api/genome'
 import { getMarkColor } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 import { LoadingState } from '@/components/LoadingState'
@@ -430,13 +430,13 @@ const GenomeBrowser = memo(({
       // For region-based loading, we use a simple URL with visibilityWindow
       // IGV.js will automatically fetch data when zoomed in
       // The backend supports region filtering via chromosome/start/end params
-      const trackConfig = {
+      const trackConfig: IGVTrackConfig = {
         name: `ChIP-seq: ${mark}`,
         type: 'annotation',
         format: 'bed',
         // Simple URL - IGV.js will load all data but visibilityWindow limits display
         url: `${API_BASE_URL}/api/v1/igv/tracks/chipseq/${speciesId}.bed?mark_type=${encodeURIComponent(mark)}`,
-        displayMode: 'EXPANDED',
+        displayMode: 'EXPANDED' as const,
         color: getMarkColor(mark as MarkType),
         height: 80,
         order: 1000 + index,
@@ -444,8 +444,6 @@ const GenomeBrowser = memo(({
         searchable: false,
         // visibilityWindow: only show features when zoomed in to 5Mb or less
         visibilityWindow: 5000000,
-        // indexed: false means IGV.js will load all data (backend can still limit)
-        indexed: false,
       }
       try {
         await browser.loadTrack(trackConfig)
