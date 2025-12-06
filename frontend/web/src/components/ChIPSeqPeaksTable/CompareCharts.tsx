@@ -1,22 +1,26 @@
 /**
  * CompareCharts Component
- * Phase 2.2 - ECharts visualizations for multi-mark comparison
+ * Phase 2.2/2.5 - ECharts visualizations for multi-mark comparison
  *
  * Charts included:
  * - Bar chart: Peak counts comparison across marks
  * - Signal distribution: Line chart showing signal value distributions
  * - Position distribution: Stacked bar chart for position breakdown
+ * - Overlap statistics: Heatmap/matrix showing overlap between marks (Phase 2.5)
+ * - Peak width distribution: Box plot showing peak width percentiles (Phase 2.5)
  */
 
 import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { Row, Col, Card, Empty } from 'antd'
+import { Row, Col, Card, Empty, Statistic, Space, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getMarkColor, getMarkConfig } from '@/config/markConfigs'
-import type { MarkType, ChIPSeqCompareResponse, MarkComparisonData } from '@/types/chipseq'
+import type { MarkType, ChIPSeqCompareResponse, MarkComparisonData, OverlapRegion } from '@/types/chipseq'
+
+const { Text } = Typography
 
 interface CompareChartsProps {
   /** Comparison data from API */
@@ -411,6 +415,327 @@ function FoldEnrichmentChart({
 }
 
 /**
+ * Overlap Statistics Display
+ * Shows overlap region counts between mark pairs
+ */
+function OverlapStatsCard({
+  overlapRegions,
+  marks,
+}: {
+  overlapRegions?: OverlapRegion[]
+  marks: MarkType[]
+}) {
+  const { t } = useTranslation('genes')
+
+  if (!overlapRegions || overlapRegions.length === 0) {
+    return null
+  }
+
+  // Filter only overlaps between selected marks
+  const relevantOverlaps = overlapRegions.filter(
+    (r) => marks.includes(r.mark1) && marks.includes(r.mark2)
+  )
+
+  if (relevantOverlaps.length === 0) {
+    return null
+  }
+
+  return (
+    <Card
+      size="small"
+      title={t('detail.chipseq.charts.overlapStats', 'Overlap Statistics')}
+    >
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {relevantOverlaps.map((overlap, idx) => (
+          <div
+            key={idx}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '8px 12px',
+              backgroundColor: '#fafafa',
+              borderRadius: 4,
+            }}
+          >
+            <Space>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 12,
+                  height: 12,
+                  borderRadius: 2,
+                  backgroundColor: getMarkColor(overlap.mark1),
+                }}
+              />
+              <Text>{getMarkConfig(overlap.mark1).shortName}</Text>
+              <Text type="secondary">&</Text>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 12,
+                  height: 12,
+                  borderRadius: 2,
+                  backgroundColor: getMarkColor(overlap.mark2),
+                }}
+              />
+              <Text>{getMarkConfig(overlap.mark2).shortName}</Text>
+            </Space>
+            <Space size="large">
+              <Statistic
+                title={t('detail.chipseq.bivalent.regionCount', 'Regions')}
+                value={overlap.region_count}
+                valueStyle={{ fontSize: 16 }}
+              />
+              <Statistic
+                title={t('detail.chipseq.bivalent.totalBp', 'Coverage')}
+                value={overlap.total_bp}
+                suffix="bp"
+                valueStyle={{ fontSize: 16 }}
+              />
+            </Space>
+          </div>
+        ))}
+      </Space>
+    </Card>
+  )
+}
+
+/**
+ * Peak Width Distribution Chart
+ * Box plot showing peak width percentiles (p25, p50, p75) for each mark
+ */
+function PeakWidthDistributionChart({
+  data,
+  marks,
+}: {
+  data: MarkComparisonData[]
+  marks: MarkType[]
+}) {
+  const { t } = useTranslation('genes')
+
+  // Check if any mark has peak width percentiles data
+  const hasData = data.some((d) => d.summary.peak_width_percentiles)
+
+  const option: ECOption = useMemo(() => {
+    const sortedData = [...data].sort(
+      (a, b) => marks.indexOf(a.mark_type) - marks.indexOf(b.mark_type)
+    )
+
+    // Filter only marks with percentile data
+    const marksWithData = sortedData.filter((d) => d.summary.peak_width_percentiles)
+
+    if (marksWithData.length === 0) {
+      return {}
+    }
+
+    // Prepare boxplot data: [min, Q1, median, Q3, max]
+    // Since we only have p25, p50, p75, we'll estimate min/max
+    const boxplotData = marksWithData.map((d) => {
+      const percentiles = d.summary.peak_width_percentiles!
+      const iqr = percentiles.p75 - percentiles.p25
+      const estimatedMin = Math.max(0, percentiles.p25 - 1.5 * iqr)
+      const estimatedMax = percentiles.p75 + 1.5 * iqr
+
+      return {
+        value: [estimatedMin, percentiles.p25, percentiles.p50, percentiles.p75, estimatedMax],
+        itemStyle: { color: getMarkColor(d.mark_type), borderColor: getMarkColor(d.mark_type) },
+      }
+    })
+
+    return {
+      title: {
+        text: t('detail.chipseq.charts.peakWidthDistribution', 'Peak Width Distribution'),
+        left: 'center',
+        top: 10,
+        textStyle: { fontSize: 14, fontWeight: 'bold' },
+      },
+      toolbox: getChartToolbox(
+        t('detail.chipseq.charts.peakWidthDistribution', 'Peak Width'),
+        t('export.saveImage', 'Save as Image')
+      ),
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          const [min, q1, median, q3, max] = params.data.value
+          return [
+            `<strong>${params.name}</strong>`,
+            `Max: ${max.toFixed(0)} bp`,
+            `Q3 (75%): ${q3.toFixed(0)} bp`,
+            `Median: ${median.toFixed(0)} bp`,
+            `Q1 (25%): ${q1.toFixed(0)} bp`,
+            `Min: ${min.toFixed(0)} bp`,
+          ].join('<br/>')
+        },
+      },
+      grid: {
+        left: '15%',
+        right: '10%',
+        bottom: '15%',
+        top: '20%',
+      },
+      xAxis: {
+        type: 'category',
+        data: marksWithData.map((d) => getMarkConfig(d.mark_type).shortName),
+        axisLabel: { rotate: 0, fontSize: 11 },
+      },
+      yAxis: {
+        type: 'value',
+        name: t('detail.chipseq.charts.peakWidthBp', 'Peak Width (bp)'),
+        nameLocation: 'middle',
+        nameGap: 50,
+      },
+      series: [
+        {
+          name: 'Peak Width',
+          type: 'boxplot',
+          data: boxplotData,
+        },
+      ],
+    }
+  }, [data, marks, t])
+
+  if (!hasData) {
+    return null
+  }
+
+  return (
+    <ReactECharts
+      echarts={echarts}
+      option={option}
+      style={{ height: 350 }}
+      notMerge
+      lazyUpdate
+    />
+  )
+}
+
+/**
+ * Overlap Heatmap Chart
+ * Matrix visualization showing overlap intensity between mark pairs
+ */
+function OverlapHeatmapChart({
+  overlapRegions,
+  marks,
+}: {
+  overlapRegions?: OverlapRegion[]
+  marks: MarkType[]
+}) {
+  const { t } = useTranslation('genes')
+
+  const option: ECOption = useMemo(() => {
+    if (!overlapRegions || overlapRegions.length === 0 || marks.length < 2) {
+      return {}
+    }
+
+    // Create matrix data for heatmap
+    const markLabels = marks.map((m) => getMarkConfig(m).shortName)
+    const heatmapData: Array<[number, number, number]> = []
+    const maxValue = Math.max(...overlapRegions.map((r) => r.region_count), 1)
+
+    // Build the heatmap matrix
+    marks.forEach((mark1, i) => {
+      marks.forEach((mark2, j) => {
+        if (i === j) {
+          // Diagonal - self overlap (full count)
+          heatmapData.push([i, j, -1]) // -1 indicates self
+        } else {
+          const overlap = overlapRegions.find(
+            (r) =>
+              (r.mark1 === mark1 && r.mark2 === mark2) ||
+              (r.mark1 === mark2 && r.mark2 === mark1)
+          )
+          heatmapData.push([i, j, overlap ? overlap.region_count : 0])
+        }
+      })
+    })
+
+    return {
+      title: {
+        text: t('detail.chipseq.charts.overlapHeatmap', 'Mark Overlap Heatmap'),
+        left: 'center',
+        top: 10,
+        textStyle: { fontSize: 14, fontWeight: 'bold' },
+      },
+      toolbox: getChartToolbox(
+        t('detail.chipseq.charts.overlapHeatmap', 'Overlap Heatmap'),
+        t('export.saveImage', 'Save as Image')
+      ),
+      tooltip: {
+        position: 'top',
+        formatter: (params: any) => {
+          const [x, y, value] = params.data
+          if (value === -1) {
+            return `${markLabels[x]}: Self`
+          }
+          return `${markLabels[x]} & ${markLabels[y]}: ${value} regions`
+        },
+      },
+      grid: {
+        left: '15%',
+        right: '15%',
+        bottom: '15%',
+        top: '20%',
+      },
+      xAxis: {
+        type: 'category',
+        data: markLabels,
+        splitArea: { show: true },
+        axisLabel: { fontSize: 11 },
+      },
+      yAxis: {
+        type: 'category',
+        data: markLabels,
+        splitArea: { show: true },
+        axisLabel: { fontSize: 11 },
+      },
+      visualMap: {
+        min: 0,
+        max: maxValue,
+        calculable: true,
+        orient: 'horizontal',
+        left: 'center',
+        bottom: '0%',
+        inRange: {
+          color: ['#f0f5ff', '#1890ff', '#003a8c'],
+        },
+      },
+      series: [
+        {
+          name: 'Overlap',
+          type: 'heatmap',
+          data: heatmapData.filter((d) => d[2] !== -1), // Exclude self
+          label: {
+            show: true,
+            formatter: (params: any) => params.data[2].toString(),
+          },
+          emphasis: {
+            itemStyle: {
+              shadowBlur: 10,
+              shadowColor: 'rgba(0, 0, 0, 0.5)',
+            },
+          },
+        },
+      ],
+    }
+  }, [overlapRegions, marks, t])
+
+  if (!overlapRegions || overlapRegions.length === 0 || marks.length < 2) {
+    return null
+  }
+
+  return (
+    <ReactECharts
+      echarts={echarts}
+      option={option}
+      style={{ height: 350 }}
+      notMerge
+      lazyUpdate
+    />
+  )
+}
+
+/**
  * CompareCharts Component
  *
  * Container for all comparison charts.
@@ -442,8 +767,26 @@ export function CompareCharts({
     )
   }
 
+  // Check if we have overlap data
+  const hasOverlapData = compareData.overlap_regions && compareData.overlap_regions.length > 0
+
+  // Check if we have peak width percentiles data
+  const hasPeakWidthData = compareData.marks.some(
+    (m) => m.summary.peak_width_percentiles
+  )
+
   return (
     <Row gutter={[16, 16]}>
+      {/* Overlap Statistics Card (Phase 2.5) */}
+      {hasOverlapData && (
+        <Col xs={24}>
+          <OverlapStatsCard
+            overlapRegions={compareData.overlap_regions}
+            marks={selectedMarks}
+          />
+        </Col>
+      )}
+
       {/* Peak Count Chart */}
       <Col xs={24} lg={12}>
         <Card size="small" loading={loading}>
@@ -474,6 +817,30 @@ export function CompareCharts({
           />
         </Card>
       </Col>
+
+      {/* Peak Width Distribution Chart (Phase 2.5) */}
+      {hasPeakWidthData && (
+        <Col xs={24} lg={12}>
+          <Card size="small" loading={loading}>
+            <PeakWidthDistributionChart
+              data={compareData.marks}
+              marks={selectedMarks}
+            />
+          </Card>
+        </Col>
+      )}
+
+      {/* Overlap Heatmap Chart (Phase 2.5) */}
+      {hasOverlapData && selectedMarks.length >= 2 && (
+        <Col xs={24} lg={12}>
+          <Card size="small" loading={loading}>
+            <OverlapHeatmapChart
+              overlapRegions={compareData.overlap_regions}
+              marks={selectedMarks}
+            />
+          </Card>
+        </Col>
+      )}
     </Row>
   )
 }

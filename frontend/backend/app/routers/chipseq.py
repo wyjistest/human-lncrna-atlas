@@ -3,10 +3,15 @@ ChIP-seq Epigenetic Marks API Router
 Provides unified endpoints for multiple histone modifications
 """
 import logging
-from typing import Optional, List
+import statistics
+from typing import Optional, List, Dict, Any, Tuple
 from math import ceil
+from itertools import combinations
+import io
+import csv
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, case, cast, Float, text
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -18,6 +23,7 @@ from app.schemas.chipseq import (
     MarkType,
     MarkCategory,
     OverlapType,
+    ExportFormat,
     # Mark schemas
     EpigeneticMarkTypeResponse,
     MarkRelationshipResponse,
@@ -37,6 +43,9 @@ from app.schemas.chipseq import (
     # Comparison schemas
     ChIPSeqComparisonResponse,
     MarkComparisonEntry,
+    PeakWidthPercentiles,
+    OverlapRegion,
+    OverlapStatistics,
     # Stats schemas
     ChIPSeqMarkStats,
     ChIPSeqGlobalStats,
@@ -715,7 +724,142 @@ def get_gene_chipseq_summary(
 
 
 # =============================================================================
-# Multi-Mark Comparison Endpoint
+# Helper Functions for Comparison Statistics (Phase 2.5)
+# =============================================================================
+
+def calculate_percentiles(values: List[float], percentiles: List[float]) -> Dict[str, float]:
+    """Calculate percentiles for a list of values"""
+    if not values:
+        return {f"p{int(p*100)}": None for p in percentiles}
+
+    sorted_values = sorted(values)
+    n = len(sorted_values)
+    result = {}
+
+    for p in percentiles:
+        key = f"p{int(p*100)}"
+        if n == 1:
+            result[key] = sorted_values[0]
+        else:
+            idx = p * (n - 1)
+            lower_idx = int(idx)
+            upper_idx = min(lower_idx + 1, n - 1)
+            weight = idx - lower_idx
+            result[key] = sorted_values[lower_idx] * (1 - weight) + sorted_values[upper_idx] * weight
+
+    return result
+
+
+def find_pairwise_overlaps(
+    peaks_1: List[Dict],
+    peaks_2: List[Dict],
+    mark_1: str,
+    mark_2: str,
+    chromosome: str,
+) -> List[OverlapRegion]:
+    """
+    Find overlapping regions between two sets of peaks.
+    Uses a simple interval intersection algorithm.
+    """
+    overlaps = []
+
+    # Sort peaks by start position for efficiency
+    sorted_peaks_1 = sorted(peaks_1, key=lambda p: p["peak_start"])
+    sorted_peaks_2 = sorted(peaks_2, key=lambda p: p["peak_start"])
+
+    # Determine overlap type based on mark pair
+    is_bivalent = (
+        (mark_1 == "H3K4me3" and mark_2 == "H3K27me3") or
+        (mark_1 == "H3K27me3" and mark_2 == "H3K4me3")
+    )
+    overlap_type = "bivalent" if is_bivalent else None
+
+    for p1 in sorted_peaks_1:
+        for p2 in sorted_peaks_2:
+            # Early termination: if p2 starts after p1 ends, no more overlaps possible
+            if p2["peak_start"] >= p1["peak_end"]:
+                break
+
+            # Check overlap
+            if p1["peak_start"] < p2["peak_end"] and p1["peak_end"] > p2["peak_start"]:
+                overlap_start = max(p1["peak_start"], p2["peak_start"])
+                overlap_end = min(p1["peak_end"], p2["peak_end"])
+
+                overlaps.append(OverlapRegion(
+                    chromosome=chromosome,
+                    start=overlap_start,
+                    end=overlap_end,
+                    length=overlap_end - overlap_start,
+                    mark_1=mark_1,
+                    mark_2=mark_2,
+                    mark_1_peak_id=p1["peak_id"],
+                    mark_2_peak_id=p2["peak_id"],
+                    overlap_type=overlap_type,
+                ))
+
+    return overlaps
+
+
+def compute_mark_statistics(peaks: List[Dict], region_start: int, region_end: int) -> Dict[str, Any]:
+    """
+    Compute enhanced statistics for a mark's peaks.
+
+    Returns:
+        Dictionary with avg, median, std of fold_enrichment,
+        total_coverage_bp, and peak_width_percentiles.
+    """
+    if not peaks:
+        return {
+            "avg_fold_enrichment": None,
+            "median_fold_enrichment": None,
+            "std_fold_enrichment": None,
+            "total_coverage_bp": 0,
+            "peak_width_percentiles": None,
+        }
+
+    # Fold enrichment statistics
+    fe_values = [p["fold_enrichment"] for p in peaks if p["fold_enrichment"] is not None]
+    avg_fe = statistics.mean(fe_values) if fe_values else None
+    median_fe = statistics.median(fe_values) if fe_values else None
+    std_fe = statistics.stdev(fe_values) if len(fe_values) > 1 else None
+
+    # Total coverage (accounting for potential overlaps between peaks of same mark)
+    # Use interval merging to avoid double-counting
+    intervals = sorted([(p["peak_start"], p["peak_end"]) for p in peaks])
+    merged = []
+    for start, end in intervals:
+        # Clip to region boundaries
+        start = max(start, region_start)
+        end = min(end, region_end)
+        if start >= end:
+            continue
+
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+
+    total_coverage_bp = sum(end - start for start, end in merged)
+
+    # Peak width percentiles
+    peak_widths = [p["peak_end"] - p["peak_start"] for p in peaks]
+    width_percentiles = calculate_percentiles(peak_widths, [0.25, 0.50, 0.75])
+
+    return {
+        "avg_fold_enrichment": avg_fe,
+        "median_fold_enrichment": median_fe,
+        "std_fold_enrichment": std_fe,
+        "total_coverage_bp": total_coverage_bp,
+        "peak_width_percentiles": PeakWidthPercentiles(
+            p25=width_percentiles.get("p25"),
+            p50=width_percentiles.get("p50"),
+            p75=width_percentiles.get("p75"),
+        ),
+    }
+
+
+# =============================================================================
+# Multi-Mark Comparison Endpoint (Enhanced Phase 2.5)
 # =============================================================================
 
 @router.get("/genes/{gene_id}/compare", response_model=ChIPSeqComparisonResponse)
@@ -727,18 +871,32 @@ def compare_gene_marks(
     ),
     flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
+    include_all_overlaps: bool = Query(
+        True,
+        description="Include all pairwise overlaps (not just bivalent)"
+    ),
     db: Session = Depends(get_db),
 ):
     """
-    Compare multiple ChIP-seq marks for a gene
+    Compare multiple ChIP-seq marks for a gene (Enhanced Phase 2.5)
 
-    Returns peaks for each specified mark and identifies overlapping regions.
-    Useful for bivalent domain analysis and mark co-occurrence studies.
+    Returns peaks for each specified mark with enhanced statistics:
+    - median_fold_enrichment, std_fold_enrichment
+    - total_coverage_bp (total base pairs covered)
+    - peak_width_percentiles (p25, p50, p75)
+
+    Also includes generalized overlap detection for any mark pair,
+    not just H3K4me3 + H3K27me3 bivalent domains.
 
     **Example:**
     ```
     GET /features/chipseq/genes/12345/compare?marks=H3K27me3,H3K4me3,H3K27ac
     ```
+
+    **New in Phase 2.5:**
+    - Enhanced statistics per mark
+    - Generalized pairwise overlap detection
+    - Overlap statistics summary
     """
     # 1. Parse marks
     mark_list = [m.strip() for m in marks.split(",") if m.strip()]
@@ -756,7 +914,7 @@ def compare_gene_marks(
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
-    # 3. Query peaks for each mark
+    # 3. Query peaks for each mark with peak_width
     query = text("""
         SELECT
             p.peak_id,
@@ -768,7 +926,8 @@ def compare_gene_marks(
             p.peak_end,
             p.summit_position,
             p.fold_enrichment,
-            p.qvalue
+            p.qvalue,
+            COALESCE(p.peak_width, p.peak_end - p.peak_start) as peak_width
         FROM chipseq_peaks p
         JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
@@ -792,7 +951,7 @@ def compare_gene_marks(
     }).fetchall()
 
     # 4. Group by mark
-    marks_data = {}
+    marks_data: Dict[str, Dict[str, Any]] = {}
     for row in rows:
         mark_name = row[1]
         if mark_name not in marks_data:
@@ -811,51 +970,76 @@ def compare_gene_marks(
             "fold_enrichment": float(row[8]) if row[8] else None,
             "qvalue": float(row[9]) if row[9] else None,
             "mark_type": mark_name,
+            "peak_width": row[10],
         })
 
-    # 5. Build comparison entries
+    # 5. Build comparison entries with enhanced statistics
     mark_entries = []
     for mark_name, data in marks_data.items():
         peaks = data["peaks"]
-        avg_fe = None
-        if peaks:
-            fe_values = [p["fold_enrichment"] for p in peaks if p["fold_enrichment"]]
-            if fe_values:
-                avg_fe = sum(fe_values) / len(fe_values)
+
+        # Compute enhanced statistics
+        stats = compute_mark_statistics(peaks, region_start, region_end)
 
         mark_entries.append(MarkComparisonEntry(
             mark_type=mark_name,
             mark_category=data["mark_category"],
             display_color=data["display_color"],
-            peaks=[ChIPSeqPeakCompact(**p) for p in peaks],
+            peaks=[ChIPSeqPeakCompact(**{k: v for k, v in p.items() if k != "peak_width"}) for p in peaks],
             peak_count=len(peaks),
-            avg_fold_enrichment=avg_fe,
+            avg_fold_enrichment=stats["avg_fold_enrichment"],
+            median_fold_enrichment=stats["median_fold_enrichment"],
+            std_fold_enrichment=stats["std_fold_enrichment"],
+            total_coverage_bp=stats["total_coverage_bp"],
+            peak_width_percentiles=stats["peak_width_percentiles"],
         ))
 
-    # 6. Find overlapping regions (simplified interval intersection)
-    overlapping_regions = []
-    if "H3K4me3" in marks_data and "H3K27me3" in marks_data:
-        # Simple bivalent detection: find overlapping peaks
-        h3k4me3_peaks = marks_data["H3K4me3"]["peaks"]
-        h3k27me3_peaks = marks_data["H3K27me3"]["peaks"]
+    # 6. Find all pairwise overlapping regions (generalized algorithm)
+    all_overlaps: List[OverlapRegion] = []
+    overlap_stats: List[OverlapStatistics] = []
+    bivalent_regions: List[Dict[str, Any]] = []
 
-        bivalent_regions = []
-        for p1 in h3k4me3_peaks:
-            for p2 in h3k27me3_peaks:
-                # Check overlap
-                if p1["peak_start"] < p2["peak_end"] and p1["peak_end"] > p2["peak_start"]:
-                    overlap_start = max(p1["peak_start"], p2["peak_start"])
-                    overlap_end = min(p1["peak_end"], p2["peak_end"])
-                    bivalent_regions.append({
-                        "chromosome": gene.chromosome,
-                        "start": overlap_start,
-                        "end": overlap_end,
-                        "length": overlap_end - overlap_start,
-                        "h3k4me3_peak_id": p1["peak_id"],
-                        "h3k27me3_peak_id": p2["peak_id"],
-                    })
-    else:
-        bivalent_regions = None
+    mark_names = list(marks_data.keys())
+
+    if include_all_overlaps and len(mark_names) >= 2:
+        for mark_1, mark_2 in combinations(mark_names, 2):
+            overlaps = find_pairwise_overlaps(
+                marks_data[mark_1]["peaks"],
+                marks_data[mark_2]["peaks"],
+                mark_1,
+                mark_2,
+                gene.chromosome,
+            )
+
+            all_overlaps.extend(overlaps)
+
+            # Compute overlap statistics for this pair
+            if overlaps:
+                total_bp = sum(o.length for o in overlaps)
+                is_bivalent = (
+                    (mark_1 == "H3K4me3" and mark_2 == "H3K27me3") or
+                    (mark_1 == "H3K27me3" and mark_2 == "H3K4me3")
+                )
+
+                overlap_stats.append(OverlapStatistics(
+                    mark_pair=f"{mark_1}:{mark_2}",
+                    overlap_count=len(overlaps),
+                    total_overlap_bp=total_bp,
+                    avg_overlap_length=total_bp / len(overlaps),
+                    is_bivalent=is_bivalent,
+                ))
+
+                # Build legacy bivalent_regions for backward compatibility
+                if is_bivalent:
+                    for o in overlaps:
+                        bivalent_regions.append({
+                            "chromosome": o.chromosome,
+                            "start": o.start,
+                            "end": o.end,
+                            "length": o.length,
+                            "h3k4me3_peak_id": o.mark_1_peak_id if o.mark_1 == "H3K4me3" else o.mark_2_peak_id,
+                            "h3k27me3_peak_id": o.mark_1_peak_id if o.mark_1 == "H3K27me3" else o.mark_2_peak_id,
+                        })
 
     return ChIPSeqComparisonResponse(
         gene_id=gene_id,
@@ -864,8 +1048,10 @@ def compare_gene_marks(
         region_start=region_start,
         region_end=region_end,
         marks=mark_entries,
-        overlapping_regions=overlapping_regions if overlapping_regions else None,
-        bivalent_regions=bivalent_regions,
+        all_overlaps=all_overlaps if all_overlaps else None,
+        overlap_statistics=overlap_stats if overlap_stats else None,
+        overlapping_regions=None,  # Deprecated
+        bivalent_regions=bivalent_regions if bivalent_regions else None,
     )
 
 
@@ -1097,4 +1283,355 @@ def get_global_stats(
         marks_available=sorted(marks_available),
         species_available=sorted(species_available),
         stats_by_mark=stats_by_mark,
+    )
+
+
+# =============================================================================
+# Export Endpoints (Phase 2.5)
+# =============================================================================
+
+@router.get("/genes/{gene_id}/compare/export")
+def export_comparison(
+    gene_id: int,
+    marks: str = Query(
+        ...,
+        description="Comma-separated list of marks to compare"
+    ),
+    format: ExportFormat = Query(
+        ExportFormat.csv,
+        description="Export format (csv, tsv, json)"
+    ),
+    flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
+    include_overlaps: bool = Query(True, description="Include overlap data"),
+    db: Session = Depends(get_db),
+):
+    """
+    Export comparison data in CSV, TSV, or JSON format (Phase 2.5)
+
+    Downloads the comparison results for further analysis in external tools.
+
+    **Example:**
+    ```
+    GET /features/chipseq/genes/12345/compare/export?marks=H3K27me3,H3K4me3&format=csv
+    ```
+    """
+    # Get comparison data (reuse existing logic)
+    mark_list = [m.strip() for m in marks.split(",") if m.strip()]
+    if len(mark_list) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="At least 2 marks are required for comparison"
+        )
+
+    gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
+    if not gene:
+        raise HTTPException(status_code=404, detail="Gene not found")
+
+    region_start = max(0, gene.gene_start - flanking)
+    region_end = gene.gene_end + flanking
+
+    # Query peaks
+    query = text("""
+        SELECT
+            p.peak_id,
+            m.mark_name,
+            m.mark_category,
+            p.chromosome,
+            p.peak_start,
+            p.peak_end,
+            p.summit_position,
+            p.fold_enrichment,
+            p.qvalue,
+            COALESCE(p.peak_width, p.peak_end - p.peak_start) as peak_width
+        FROM chipseq_peaks p
+        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+        WHERE p.species_id = :species_id
+          AND p.chromosome = :chromosome
+          AND p.peak_start < :region_end
+          AND p.peak_end > :region_start
+          AND e.is_active = TRUE
+          AND m.mark_name = ANY(:mark_list)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+        ORDER BY m.mark_name, p.peak_start
+    """)
+
+    rows = db.execute(query, {
+        "species_id": gene.species_id,
+        "chromosome": gene.chromosome,
+        "region_start": region_start,
+        "region_end": region_end,
+        "mark_list": mark_list,
+        "max_qvalue": max_qvalue,
+    }).fetchall()
+
+    # Prepare data for export
+    peaks_data = []
+    marks_data = {}
+
+    for row in rows:
+        peak_dict = {
+            "peak_id": row[0],
+            "mark_type": row[1],
+            "mark_category": row[2],
+            "chromosome": row[3],
+            "peak_start": row[4],
+            "peak_end": row[5],
+            "summit_position": row[6],
+            "fold_enrichment": float(row[7]) if row[7] else None,
+            "qvalue": float(row[8]) if row[8] else None,
+            "peak_width": row[9],
+        }
+        peaks_data.append(peak_dict)
+
+        mark_name = row[1]
+        if mark_name not in marks_data:
+            marks_data[mark_name] = []
+        marks_data[mark_name].append(peak_dict)
+
+    # Calculate overlaps if requested
+    overlaps_data = []
+    if include_overlaps and len(marks_data) >= 2:
+        mark_names = list(marks_data.keys())
+        for mark_1, mark_2 in combinations(mark_names, 2):
+            for p1 in marks_data[mark_1]:
+                for p2 in marks_data[mark_2]:
+                    if p1["peak_start"] < p2["peak_end"] and p1["peak_end"] > p2["peak_start"]:
+                        overlap_start = max(p1["peak_start"], p2["peak_start"])
+                        overlap_end = min(p1["peak_end"], p2["peak_end"])
+                        overlaps_data.append({
+                            "chromosome": gene.chromosome,
+                            "start": overlap_start,
+                            "end": overlap_end,
+                            "length": overlap_end - overlap_start,
+                            "mark_1": mark_1,
+                            "mark_2": mark_2,
+                            "mark_1_peak_id": p1["peak_id"],
+                            "mark_2_peak_id": p2["peak_id"],
+                        })
+
+    # Generate output based on format
+    if format == ExportFormat.json:
+        import json
+        output = json.dumps({
+            "gene_id": gene_id,
+            "gene_name": gene.gene_name,
+            "chromosome": gene.chromosome,
+            "region_start": region_start,
+            "region_end": region_end,
+            "peaks": peaks_data,
+            "overlaps": overlaps_data if include_overlaps else None,
+        }, indent=2)
+        media_type = "application/json"
+        filename = f"chipseq_compare_{gene_id}.json"
+    else:
+        # CSV or TSV
+        delimiter = "\t" if format == ExportFormat.tsv else ","
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=delimiter)
+
+        # Write peaks header and data
+        writer.writerow([
+            "peak_id", "mark_type", "mark_category", "chromosome",
+            "peak_start", "peak_end", "summit_position",
+            "fold_enrichment", "qvalue", "peak_width"
+        ])
+        for peak in peaks_data:
+            writer.writerow([
+                peak["peak_id"], peak["mark_type"], peak["mark_category"],
+                peak["chromosome"], peak["peak_start"], peak["peak_end"],
+                peak["summit_position"], peak["fold_enrichment"],
+                peak["qvalue"], peak["peak_width"]
+            ])
+
+        # Write overlaps section if requested
+        if include_overlaps and overlaps_data:
+            writer.writerow([])  # Empty row separator
+            writer.writerow(["# Overlapping Regions"])
+            writer.writerow([
+                "chromosome", "start", "end", "length",
+                "mark_1", "mark_2", "mark_1_peak_id", "mark_2_peak_id"
+            ])
+            for overlap in overlaps_data:
+                writer.writerow([
+                    overlap["chromosome"], overlap["start"], overlap["end"],
+                    overlap["length"], overlap["mark_1"], overlap["mark_2"],
+                    overlap["mark_1_peak_id"], overlap["mark_2_peak_id"]
+                ])
+
+        output = output.getvalue()
+        media_type = "text/csv" if format == ExportFormat.csv else "text/tab-separated-values"
+        ext = "csv" if format == ExportFormat.csv else "tsv"
+        filename = f"chipseq_compare_{gene_id}.{ext}"
+
+    return StreamingResponse(
+        io.BytesIO(output.encode("utf-8")),
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@router.get("/genes/{gene_id}/overlaps/export")
+def export_overlaps_bed(
+    gene_id: int,
+    marks: str = Query(
+        ...,
+        description="Comma-separated list of marks to compare"
+    ),
+    format: ExportFormat = Query(
+        ExportFormat.bed,
+        description="Export format (bed, csv, tsv)"
+    ),
+    flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
+    mark_pair: Optional[str] = Query(
+        None,
+        description="Filter by specific mark pair (e.g., 'H3K4me3:H3K27me3')"
+    ),
+    min_overlap_bp: int = Query(0, ge=0, description="Minimum overlap length"),
+    db: Session = Depends(get_db),
+):
+    """
+    Export overlap regions in BED format (Phase 2.5)
+
+    Downloads overlapping regions for use in genome browsers or downstream analysis.
+    BED format: chromosome, start, end, name, score, strand
+
+    **Example:**
+    ```
+    GET /features/chipseq/genes/12345/overlaps/export?marks=H3K27me3,H3K4me3&format=bed
+    ```
+    """
+    mark_list = [m.strip() for m in marks.split(",") if m.strip()]
+    if len(mark_list) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="At least 2 marks are required for overlap detection"
+        )
+
+    gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
+    if not gene:
+        raise HTTPException(status_code=404, detail="Gene not found")
+
+    region_start = max(0, gene.gene_start - flanking)
+    region_end = gene.gene_end + flanking
+
+    # Query peaks
+    query = text("""
+        SELECT
+            p.peak_id,
+            m.mark_name,
+            p.chromosome,
+            p.peak_start,
+            p.peak_end
+        FROM chipseq_peaks p
+        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+        WHERE p.species_id = :species_id
+          AND p.chromosome = :chromosome
+          AND p.peak_start < :region_end
+          AND p.peak_end > :region_start
+          AND e.is_active = TRUE
+          AND m.mark_name = ANY(:mark_list)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+        ORDER BY m.mark_name, p.peak_start
+    """)
+
+    rows = db.execute(query, {
+        "species_id": gene.species_id,
+        "chromosome": gene.chromosome,
+        "region_start": region_start,
+        "region_end": region_end,
+        "mark_list": mark_list,
+        "max_qvalue": max_qvalue,
+    }).fetchall()
+
+    # Group by mark
+    marks_data = {}
+    for row in rows:
+        mark_name = row[1]
+        if mark_name not in marks_data:
+            marks_data[mark_name] = []
+        marks_data[mark_name].append({
+            "peak_id": row[0],
+            "peak_start": row[3],
+            "peak_end": row[4],
+        })
+
+    # Find overlaps
+    overlaps = []
+    mark_names = list(marks_data.keys())
+
+    # Parse mark_pair filter if provided
+    filter_marks = None
+    if mark_pair:
+        filter_marks = set(mark_pair.split(":"))
+
+    for mark_1, mark_2 in combinations(mark_names, 2):
+        # Apply mark pair filter
+        if filter_marks and {mark_1, mark_2} != filter_marks:
+            continue
+
+        for p1 in marks_data[mark_1]:
+            for p2 in marks_data[mark_2]:
+                if p1["peak_start"] < p2["peak_end"] and p1["peak_end"] > p2["peak_start"]:
+                    overlap_start = max(p1["peak_start"], p2["peak_start"])
+                    overlap_end = min(p1["peak_end"], p2["peak_end"])
+                    overlap_length = overlap_end - overlap_start
+
+                    if overlap_length >= min_overlap_bp:
+                        overlaps.append({
+                            "chromosome": gene.chromosome,
+                            "start": overlap_start,
+                            "end": overlap_end,
+                            "name": f"{mark_1}_{mark_2}_overlap",
+                            "score": min(1000, int(overlap_length)),  # BED score 0-1000
+                            "strand": ".",
+                            "mark_1": mark_1,
+                            "mark_2": mark_2,
+                            "length": overlap_length,
+                        })
+
+    # Sort by position
+    overlaps.sort(key=lambda x: (x["chromosome"], x["start"]))
+
+    # Generate output
+    if format == ExportFormat.bed:
+        output = io.StringIO()
+        # BED header (optional track line)
+        output.write(f"track name=\"ChIP-seq_Overlaps_{gene_id}\" description=\"Overlapping regions for gene {gene.gene_name}\"\n")
+        for o in overlaps:
+            output.write(f"{o['chromosome']}\t{o['start']}\t{o['end']}\t{o['name']}\t{o['score']}\t{o['strand']}\n")
+        media_type = "text/plain"
+        filename = f"chipseq_overlaps_{gene_id}.bed"
+    elif format == ExportFormat.json:
+        import json
+        output = io.StringIO()
+        output.write(json.dumps({
+            "gene_id": gene_id,
+            "gene_name": gene.gene_name,
+            "overlaps": overlaps,
+        }, indent=2))
+        media_type = "application/json"
+        filename = f"chipseq_overlaps_{gene_id}.json"
+    else:
+        # CSV or TSV
+        delimiter = "\t" if format == ExportFormat.tsv else ","
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=delimiter)
+        writer.writerow(["chromosome", "start", "end", "name", "length", "mark_1", "mark_2"])
+        for o in overlaps:
+            writer.writerow([
+                o["chromosome"], o["start"], o["end"], o["name"],
+                o["length"], o["mark_1"], o["mark_2"]
+            ])
+        media_type = "text/csv" if format == ExportFormat.csv else "text/tab-separated-values"
+        ext = "csv" if format == ExportFormat.csv else "tsv"
+        filename = f"chipseq_overlaps_{gene_id}.{ext}"
+
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode("utf-8")),
+        media_type=media_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )

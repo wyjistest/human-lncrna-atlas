@@ -145,7 +145,22 @@
         "peakCounts": "各修饰峰值数量",
         "signalComparison": "信号对比",
         "positionDistribution": "位置分布",
-        "foldEnrichment": "平均富集倍数"
+        "foldEnrichment": "平均富集倍数",
+        "overlapStats": "重叠统计",
+        "overlapHeatmap": "修饰重叠热图",
+        "peakWidthDistribution": "峰值宽度分布",
+        "peakWidthBp": "峰值宽度 (bp)"
+      },
+      "bivalent": {
+        "title": "双价染色质域",
+        "badge": "双价",
+        "detected": "检测到双价域",
+        "description": "该基因区域同时含有 H3K4me3（激活性）和 H3K27me3（抑制性）组蛋白修饰。",
+        "significance": "双价域是干细胞中待激活基因的特征，常见于发育相关和肿瘤相关基因。",
+        "alertDescription": "H3K4me3 和 H3K27me3 修饰在该基因区域共存，表明存在双价染色质状态。",
+        "overlapStats": "重叠统计",
+        "regionCount": "区域数",
+        "totalBp": "覆盖长度"
       },
       "marks": {
         "H3K27me3": "H3K27me3 (抑制性)",

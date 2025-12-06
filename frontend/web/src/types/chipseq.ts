@@ -147,6 +147,18 @@ export interface ChIPSeqResponse {
 }
 
 /**
+ * Peak width percentile statistics
+ */
+export interface PeakWidthPercentiles {
+  /** 25th percentile */
+  p25: number
+  /** 50th percentile (median) */
+  p50: number
+  /** 75th percentile */
+  p75: number
+}
+
+/**
  * Summary statistics for ChIP-seq data
  */
 export interface ChIPSeqSummary {
@@ -172,6 +184,16 @@ export interface ChIPSeqSummary {
   position_distribution: Record<string, number>
   /** Signal distribution histogram */
   signal_distribution?: Array<{ range: string; count: number }>
+  /** Whether this gene has bivalent domain (H3K4me3 + H3K27me3) */
+  has_bivalent_domain?: boolean
+  /** Median fold enrichment */
+  median_fold_enrichment?: number
+  /** Standard deviation of fold enrichment */
+  std_fold_enrichment?: number
+  /** Total coverage in base pairs */
+  total_coverage_bp?: number
+  /** Peak width distribution percentiles */
+  peak_width_percentiles?: PeakWidthPercentiles
 }
 
 /**
@@ -187,15 +209,53 @@ export interface MarkComparisonData {
 }
 
 /**
+ * Overlap region between two marks
+ */
+export interface OverlapRegion {
+  /** First mark type */
+  mark1: MarkType
+  /** Second mark type */
+  mark2: MarkType
+  /** Number of overlapping regions */
+  region_count: number
+  /** Total base pairs in overlap */
+  total_bp: number
+}
+
+/**
+ * Overlapping region with domain classification
+ */
+export interface OverlappingRegionDetail {
+  /** Chromosome */
+  chromosome: string
+  /** Start position */
+  start: number
+  /** End position */
+  end: number
+  /** Marks present in this region */
+  marks: MarkType[]
+  /** Domain type classification */
+  domain_type: 'bivalent' | 'active' | 'repressed'
+}
+
+/**
  * Response for mark comparison API
  */
 export interface ChIPSeqCompareResponse {
   /** Gene ID */
   gene_id: number
+  /** Gene name (optional) */
+  gene_name?: string
   /** Comparison data for each mark */
   marks: MarkComparisonData[]
   /** Overlap statistics between marks */
   overlap_stats?: Record<string, number>
+  /** Overlap regions between mark pairs */
+  overlap_regions?: OverlapRegion[]
+  /** Detailed overlapping regions with domain classification */
+  overlapping_regions?: OverlappingRegionDetail[]
+  /** Whether bivalent domain is detected (H3K4me3 + H3K27me3) */
+  has_bivalent_domain?: boolean
 }
 
 /**

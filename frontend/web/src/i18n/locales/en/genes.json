@@ -145,7 +145,22 @@
         "peakCounts": "Peak Counts by Mark",
         "signalComparison": "Signal Comparison",
         "positionDistribution": "Position Distribution",
-        "foldEnrichment": "Avg Fold Enrichment"
+        "foldEnrichment": "Avg Fold Enrichment",
+        "overlapStats": "Overlap Statistics",
+        "overlapHeatmap": "Mark Overlap Heatmap",
+        "peakWidthDistribution": "Peak Width Distribution",
+        "peakWidthBp": "Peak Width (bp)"
+      },
+      "bivalent": {
+        "title": "Bivalent Chromatin Domain",
+        "badge": "Bivalent",
+        "detected": "Bivalent Domain Detected",
+        "description": "This gene region contains both H3K4me3 (activating) and H3K27me3 (repressive) histone marks simultaneously.",
+        "significance": "Bivalent domains are characteristic of poised genes in stem cells and are frequently observed in developmental and cancer-related genes.",
+        "alertDescription": "H3K4me3 and H3K27me3 marks co-occur in this gene region, indicating a bivalent chromatin state.",
+        "overlapStats": "Overlap Statistics",
+        "regionCount": "Regions",
+        "totalBp": "Total Coverage"
       },
       "marks": {
         "H3K27me3": "H3K27me3 (Repressive)",

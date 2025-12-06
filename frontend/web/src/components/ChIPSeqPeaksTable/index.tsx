@@ -46,6 +46,7 @@ import { StatsCards } from './StatsCards'
 import { FilterPanel } from './FilterPanel'
 import { PeaksTable } from './PeaksTable'
 import { CompareCharts } from './CompareCharts'
+import { BivalentDomainBadge } from './BivalentDomainBadge'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 
@@ -351,6 +352,11 @@ export function ChIPSeqPeaksTable({
     )
   }
 
+  // Check if bivalent marks (H3K4me3 + H3K27me3) are both selected
+  const hasBivalentMarksSelected =
+    selectedMarksForCompare.includes('H3K4me3') &&
+    selectedMarksForCompare.includes('H3K27me3')
+
   // Render comparison view
   const renderCompareView = () => {
     if (selectedMarksForCompare.length === 0) {
@@ -379,11 +385,23 @@ export function ChIPSeqPeaksTable({
     switch (viewMode) {
       case 'stats':
         return (
-          <CompareCharts
-            compareData={compareData}
-            selectedMarks={selectedMarksForCompare}
-            loading={compareLoading}
-          />
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {/* Bivalent Domain Badge (Phase 2.5) */}
+            {hasBivalentMarksSelected && (
+              <BivalentDomainBadge
+                hasBivalentDomain={compareData?.has_bivalent_domain}
+                compareData={compareData}
+                selectedMarks={selectedMarksForCompare}
+                displayMode="alert"
+                showDetails
+              />
+            )}
+            <CompareCharts
+              compareData={compareData}
+              selectedMarks={selectedMarksForCompare}
+              loading={compareLoading}
+            />
+          </Space>
         )
 
       case 'parallel':
@@ -436,29 +454,52 @@ export function ChIPSeqPeaksTable({
         ) || []
 
         return (
-          <Card
-            title={t('detail.chipseq.mergedPeaks', 'Merged Peaks')}
-            extra={
-              <Button
-                icon={<DownloadOutlined />}
-                onClick={handleExport}
-                disabled={allPeaks.length === 0}
-              >
-                {t('detail.chipseq.exportCSV', 'Export CSV')}
-              </Button>
-            }
-          >
-            <PeaksTable
-              markType={selectedMarksForCompare[0]}
-              items={allPeaks}
-              total={allPeaks.length}
-              page={1}
-              pageSize={allPeaks.length}
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              showMarkColumn
-            />
-          </Card>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {/* Bivalent Domain Badge (Phase 2.5) - inline mode for merged view */}
+            {hasBivalentMarksSelected && compareData?.has_bivalent_domain && (
+              <BivalentDomainBadge
+                hasBivalentDomain={compareData?.has_bivalent_domain}
+                compareData={compareData}
+                selectedMarks={selectedMarksForCompare}
+                displayMode="alert"
+                showDetails={false}
+              />
+            )}
+            <Card
+              title={
+                <Space>
+                  <span>{t('detail.chipseq.mergedPeaks', 'Merged Peaks')}</span>
+                  {/* Show inline badge next to title if bivalent */}
+                  {hasBivalentMarksSelected && compareData?.has_bivalent_domain && (
+                    <BivalentDomainBadge
+                      hasBivalentDomain={compareData?.has_bivalent_domain}
+                      displayMode="badge"
+                    />
+                  )}
+                </Space>
+              }
+              extra={
+                <Button
+                  icon={<DownloadOutlined />}
+                  onClick={handleExport}
+                  disabled={allPeaks.length === 0}
+                >
+                  {t('detail.chipseq.exportCSV', 'Export CSV')}
+                </Button>
+              }
+            >
+              <PeaksTable
+                markType={selectedMarksForCompare[0]}
+                items={allPeaks}
+                total={allPeaks.length}
+                page={1}
+                pageSize={allPeaks.length}
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                showMarkColumn
+              />
+            </Card>
+          </Space>
         )
     }
   }

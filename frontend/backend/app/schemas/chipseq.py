@@ -405,18 +405,58 @@ class GeneChIPSeqSummary(BaseModel):
 # Comparison Schemas
 # =============================================================================
 
+class PeakWidthPercentiles(BaseModel):
+    """Peak width percentile distribution"""
+    p25: Optional[float] = Field(None, description="25th percentile of peak widths")
+    p50: Optional[float] = Field(None, description="50th percentile (median) of peak widths")
+    p75: Optional[float] = Field(None, description="75th percentile of peak widths")
+
+
 class MarkComparisonEntry(BaseModel):
-    """Single mark entry in comparison"""
+    """Single mark entry in comparison with enhanced statistics"""
     mark_type: str
     mark_category: str
     display_color: str
     peaks: List[ChIPSeqPeakCompact]
     peak_count: int
-    avg_fold_enrichment: Optional[float] = None
+
+    # Basic statistics
+    avg_fold_enrichment: Optional[float] = Field(None, description="Mean fold enrichment")
+
+    # Enhanced statistics (Phase 2.5)
+    median_fold_enrichment: Optional[float] = Field(None, description="Median fold enrichment")
+    std_fold_enrichment: Optional[float] = Field(None, description="Standard deviation of fold enrichment")
+    total_coverage_bp: Optional[int] = Field(None, description="Total base pairs covered by all peaks")
+    peak_width_percentiles: Optional[PeakWidthPercentiles] = Field(
+        None,
+        description="Peak width distribution (p25, p50, p75)"
+    )
+
+
+class OverlapRegion(BaseModel):
+    """Overlap region between two marks"""
+    chromosome: str
+    start: int
+    end: int
+    length: int = Field(..., description="Overlap length in bp")
+    mark_1: str = Field(..., description="First mark name")
+    mark_2: str = Field(..., description="Second mark name")
+    mark_1_peak_id: int = Field(..., description="Peak ID from first mark")
+    mark_2_peak_id: int = Field(..., description="Peak ID from second mark")
+    overlap_type: Optional[str] = Field(None, description="Type of overlap (e.g., bivalent, antagonistic)")
+
+
+class OverlapStatistics(BaseModel):
+    """Summary statistics for mark overlaps"""
+    mark_pair: str = Field(..., description="Mark pair (e.g., 'H3K4me3:H3K27me3')")
+    overlap_count: int = Field(..., description="Number of overlapping regions")
+    total_overlap_bp: int = Field(..., description="Total base pairs in overlaps")
+    avg_overlap_length: Optional[float] = Field(None, description="Average overlap length")
+    is_bivalent: bool = Field(False, description="Whether this is a bivalent pair")
 
 
 class ChIPSeqComparisonResponse(BaseModel):
-    """Response for comparing multiple marks"""
+    """Response for comparing multiple marks with enhanced overlap analysis"""
     gene_id: int
     gene_name: str
     chromosome: str
@@ -426,16 +466,24 @@ class ChIPSeqComparisonResponse(BaseModel):
     # Marks being compared
     marks: List[MarkComparisonEntry]
 
-    # Overlap analysis
-    overlapping_regions: Optional[List[Dict[str, Any]]] = Field(
+    # Generalized overlap analysis (Phase 2.5)
+    all_overlaps: Optional[List[OverlapRegion]] = Field(
         None,
-        description="Regions where multiple marks overlap"
+        description="All pairwise overlapping regions between marks"
+    )
+    overlap_statistics: Optional[List[OverlapStatistics]] = Field(
+        None,
+        description="Summary statistics for each mark pair overlap"
     )
 
-    # Bivalent analysis
+    # Legacy fields for backward compatibility
+    overlapping_regions: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description="[Deprecated] Use all_overlaps instead"
+    )
     bivalent_regions: Optional[List[Dict[str, Any]]] = Field(
         None,
-        description="Regions with H3K4me3 + H3K27me3 co-occurrence"
+        description="Regions with H3K4me3 + H3K27me3 co-occurrence (bivalent domains)"
     )
 
 
@@ -544,3 +592,31 @@ class AvailableMarksResponse(BaseModel):
     marks: List[EpigeneticMarkTypeResponse]
     total_experiments: int
     total_peaks: int
+
+
+# =============================================================================
+# Export Schemas (Phase 2.5)
+# =============================================================================
+
+class ExportFormat(str, Enum):
+    """Supported export formats"""
+    csv = "csv"
+    tsv = "tsv"
+    bed = "bed"
+    json = "json"
+
+
+class ComparisonExportRequest(BaseModel):
+    """Request parameters for comparison export"""
+    marks: List[str] = Field(..., description="Mark types to include")
+    include_overlaps: bool = Field(True, description="Include overlap regions")
+    include_statistics: bool = Field(True, description="Include statistics")
+
+
+class OverlapExportRequest(BaseModel):
+    """Request parameters for overlap export"""
+    mark_pair: Optional[str] = Field(
+        None,
+        description="Specific mark pair to export (e.g., 'H3K4me3:H3K27me3'). If None, export all."
+    )
+    min_overlap_bp: int = Field(0, ge=0, description="Minimum overlap length to include")

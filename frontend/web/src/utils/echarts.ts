@@ -2,13 +2,20 @@
  * ECharts 按需导入配置（基于 ECharts 6）
  *
  * 仅导入需要的组件，减少 bundle 大小
- * 当前导入：PieChart, BarChart（约 280KB gzip）
+ * 当前导入：PieChart, BarChart, LineChart, GaugeChart, BoxplotChart, HeatmapChart
  */
 
 import * as echarts from 'echarts/core'
 
 // 图表类型
-import { PieChart, BarChart, LineChart, GaugeChart } from 'echarts/charts'
+import {
+  PieChart,
+  BarChart,
+  LineChart,
+  GaugeChart,
+  BoxplotChart,
+  HeatmapChart,
+} from 'echarts/charts'
 
 // 组件
 import {
@@ -16,7 +23,8 @@ import {
   TooltipComponent,
   LegendComponent,
   GridComponent,
-  ToolboxComponent
+  ToolboxComponent,
+  VisualMapComponent,
 } from 'echarts/components'
 
 // 渲染器
@@ -27,7 +35,9 @@ import type {
   PieSeriesOption,
   BarSeriesOption,
   LineSeriesOption,
-  GaugeSeriesOption
+  GaugeSeriesOption,
+  BoxplotSeriesOption,
+  HeatmapSeriesOption,
 } from 'echarts/charts'
 
 import type {
@@ -35,7 +45,8 @@ import type {
   TooltipComponentOption,
   LegendComponentOption,
   GridComponentOption,
-  ToolboxComponentOption
+  ToolboxComponentOption,
+  VisualMapComponentOption,
 } from 'echarts/components'
 
 // 组合选项类型
@@ -44,11 +55,14 @@ export type ECOption = echarts.ComposeOption<
   | BarSeriesOption
   | LineSeriesOption
   | GaugeSeriesOption
+  | BoxplotSeriesOption
+  | HeatmapSeriesOption
   | TitleComponentOption
   | TooltipComponentOption
   | LegendComponentOption
   | GridComponentOption
   | ToolboxComponentOption
+  | VisualMapComponentOption
 >
 
 // 注册组件
@@ -57,12 +71,15 @@ echarts.use([
   BarChart,
   LineChart,
   GaugeChart,
+  BoxplotChart,
+  HeatmapChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,
   GridComponent,
   ToolboxComponent,
-  CanvasRenderer
+  VisualMapComponent,
+  CanvasRenderer,
 ])
 
 export default echarts
