@@ -1,0 +1,36 @@
+{
+    "input_file": "/path/to/H3K27me3_peaks.narrowPeak.gz",
+    "mark_type": "H3K27me3",
+    "species_code": "human",
+    "experiment_name": "ENCODE_H1hESC_H3K27me3_rep1",
+
+    "cell_type": "H1-hESC",
+    "tissue_type": null,
+    "cell_line": "H1",
+    "treatment": null,
+
+    "source_database": "ENCODE",
+    "source_accession": "ENCSR000AKP",
+    "data_url": "https://www.encodeproject.org/files/ENCFF001XXX/",
+
+    "peak_caller": "MACS2",
+    "peak_caller_version": "2.2.7.1",
+    "pipeline_version": "ENCODE3",
+    "reference_genome": "GRCh38",
+
+    "total_reads": 50000000,
+    "mapped_reads": 45000000,
+    "duplicate_rate": 0.15,
+    "frip_score": 0.25,
+
+    "file_format": "narrowPeak",
+    "min_qvalue": 0.05,
+    "min_fold_enrichment": 2.0,
+    "batch_size": 10000,
+
+    "mark_specific_config": {
+        "notes": "Primary H3K27me3 ChIP-seq from H1-hESC",
+        "antibody": "Millipore 07-449",
+        "antibody_lot": "12345"
+    }
+}

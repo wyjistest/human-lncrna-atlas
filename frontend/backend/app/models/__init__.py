@@ -12,6 +12,12 @@ from .models import (
     Sequence,
     FeatureTrack,
     GenomicFeature,
+    # ChIP-seq models
+    EpigeneticMarkType,
+    MarkRelationship,
+    ChIPSeqExperiment,
+    ChIPSeqPeak,
+    GenePeakAssociation,
 )
 
 __all__ = [
@@ -26,4 +32,10 @@ __all__ = [
     "Sequence",
     "FeatureTrack",
     "GenomicFeature",
+    # ChIP-seq models
+    "EpigeneticMarkType",
+    "MarkRelationship",
+    "ChIPSeqExperiment",
+    "ChIPSeqPeak",
+    "GenePeakAssociation",
 ]

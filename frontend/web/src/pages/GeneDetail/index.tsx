@@ -3,6 +3,7 @@
  * Displays complete gene information with tabs for core data and genomic features
  *
  * Phase 2.1: Added Tabs structure with Genomic Features tab including RepeatMasker
+ * Phase 2.2: Added ChIP-seq Peaks sub-tab with multi-mark support
  */
 
 import { useState } from 'react'
@@ -28,12 +29,14 @@ import {
   EyeOutlined,
   ExperimentOutlined,
   DatabaseOutlined,
-  AppstoreOutlined
+  AppstoreOutlined,
+  AreaChartOutlined
 } from '@ant-design/icons'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import { SequenceViewer } from '@/components/SequenceViewer'
 import { RepeatMaskerTable } from '@/components/RepeatMaskerTable'
+import { ChIPSeqPeaksTable } from '@/components/ChIPSeqPeaksTable'
 import { ConservationBadge } from '@/components/ConservationBadge'
 import { createSpeciesTranslator } from '@/utils/species'
 
@@ -55,6 +58,7 @@ export default function GeneDetail() {
 
   // Active tab state
   const [activeTab, setActiveTab] = useState('core')
+  const [genomicSubTab, setGenomicSubTab] = useState('repeats')
 
   // Convert to number, handle NaN
   const geneIdNum = geneId ? parseInt(geneId, 10) : 0
@@ -272,10 +276,40 @@ export default function GeneDetail() {
     </>
   )
 
-  // Genomic Features Tab Content
-  const GenomicFeaturesContent = () => (
-    <RepeatMaskerTable geneId={geneIdNum} />
-  )
+  // Genomic Features Tab Content - with sub-tabs for RepeatMasker and ChIP-seq
+  const GenomicFeaturesContent = () => {
+    const genomicSubTabs: TabsProps['items'] = [
+      {
+        key: 'repeats',
+        label: (
+          <span>
+            <AppstoreOutlined />
+            {t('detail.repeats.title')}
+          </span>
+        ),
+        children: <RepeatMaskerTable geneId={geneIdNum} />
+      },
+      {
+        key: 'chipseq',
+        label: (
+          <span>
+            <AreaChartOutlined />
+            {t('detail.chipseq.title')}
+          </span>
+        ),
+        children: <ChIPSeqPeaksTable geneId={geneIdNum} enableComparison />
+      }
+    ]
+
+    return (
+      <Tabs
+        activeKey={genomicSubTab}
+        onChange={setGenomicSubTab}
+        items={genomicSubTabs}
+        size="small"
+      />
+    )
+  }
 
   // Tab items configuration
   const tabItems: TabsProps['items'] = [

@@ -393,6 +393,41 @@ cd frontend/web && npm run test:e2e
 
 ---
 
+## 下一步规划
+
+### Phase 2.3: ChIP-seq Epigenetic Marks（架构设计完成）⭐
+
+**状态**: 架构设计完成，所有代码和文档已交付，等待实施
+
+**核心特性**:
+- ✅ 通用架构设计，支持 **15+ 种组蛋白修饰** (H3K27me3, H3K4me1, H3K4me3, H3K27ac 等)
+- ✅ 配置驱动 UI，新增 mark 仅需 2 天（vs 单一设计的 10 天）
+- ✅ 前后端完整代码生成（21+ 个文件，~240 KB）
+- ✅ Bivalent domain 识别（H3K27me3 + H3K4me3 重叠区域）
+- ✅ 多 marks 对比功能
+
+**交付文档**:
+- `PHASE_2.3_CHIPSEQ_ARCHITECTURE.md` - 完整架构设计（41 KB）
+- `PHASE_2.3_IMPLEMENTATION_CHECKLIST.md` - 逐步实施指南（18 KB）
+- `QUICKSTART_CHIPSEQ.md` - 快速开始指南（11 KB）
+- `PHASE_2.3_DELIVERY_SUMMARY.md` - 交付总结（20 KB）
+- `PHASE_2.3_ARCHITECTURE_VISUAL.md` - 可视化架构图
+
+**预计工期**: 10 个工作日（首个 mark），后续每个 mark 仅需 2 天
+
+### Phase 2.4: 多 Marks 验证（规划中）
+- 导入 H3K4me1, H3K4me3, H3K27ac 数据
+- 验证通用架构的扩展性
+- 预计工期: 5 天
+
+### Phase 2.5: 高级对比功能（规划中）
+- 实现多 marks 对比 API
+- 4 种 ECharts 对比图表
+- Overlapping regions + Bivalent domain 可视化
+- 预计工期: 7 天
+
+---
+
 ## 联系信息
 
 项目路径: `/data/wenyujianData/humanLncAtlas`

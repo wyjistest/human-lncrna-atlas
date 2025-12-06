@@ -312,3 +312,217 @@ class GenomicFeature(Base):
         CheckConstraint("strand IN ('+', '-', '.')", name="genomic_features_strand_check"),
         {"postgresql_partition_by": "LIST (species_id)"},
     )
+
+
+# =============================================================================
+# ChIP-seq Epigenetic Marks Models
+# =============================================================================
+
+class EpigeneticMarkType(Base):
+    """Reference table for histone modification types"""
+
+    __tablename__ = "epigenetic_mark_types"
+
+    mark_type_id = Column(Integer, primary_key=True, autoincrement=True)
+    mark_name = Column(String(50), unique=True, nullable=False, index=True)
+    mark_category = Column(String(30), nullable=False)  # 'repressive', 'activating', 'bivalent_component'
+    display_name = Column(String(100), nullable=False)
+    display_color = Column(String(20), default='#666666')
+    description = Column(Text)
+    typical_signal_range = Column(JSONB)
+    biological_function = Column(Text)
+    associated_state = Column(String(100))
+    is_active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=100)
+    created_at = Column(DateTime, default=utc_now)
+
+    # Relationships
+    experiments = relationship("ChIPSeqExperiment", back_populates="mark_type")
+
+    __table_args__ = (
+        CheckConstraint(
+            "mark_category IN ('repressive', 'activating', 'bivalent_component', 'structural', 'other')",
+            name="chk_mark_category"
+        ),
+    )
+
+
+class MarkRelationship(Base):
+    """Relationships between different epigenetic marks"""
+
+    __tablename__ = "mark_relationships"
+
+    relationship_id = Column(Integer, primary_key=True, autoincrement=True)
+    mark_type_id_1 = Column(Integer, ForeignKey("epigenetic_mark_types.mark_type_id"), nullable=False)
+    mark_type_id_2 = Column(Integer, ForeignKey("epigenetic_mark_types.mark_type_id"), nullable=False)
+    relationship_type = Column(String(50), nullable=False)  # 'bivalent_pair', 'antagonistic', 'synergistic'
+    description = Column(Text)
+    biological_significance = Column(Text)
+    created_at = Column(DateTime, default=utc_now)
+
+    # Relationships
+    mark_1 = relationship("EpigeneticMarkType", foreign_keys=[mark_type_id_1])
+    mark_2 = relationship("EpigeneticMarkType", foreign_keys=[mark_type_id_2])
+
+    __table_args__ = (
+        CheckConstraint(
+            "relationship_type IN ('bivalent_pair', 'antagonistic', 'synergistic', 'co_occurring', 'mutually_exclusive')",
+            name="chk_relationship_type"
+        ),
+        UniqueConstraint("mark_type_id_1", "mark_type_id_2", name="unique_mark_pair"),
+        CheckConstraint("mark_type_id_1 < mark_type_id_2", name="chk_different_marks"),
+    )
+
+
+class ChIPSeqExperiment(Base):
+    """ChIP-seq experiment metadata"""
+
+    __tablename__ = "chipseq_experiments"
+
+    experiment_id = Column(Integer, primary_key=True, autoincrement=True)
+    experiment_name = Column(String(200), nullable=False)
+    species_id = Column(Integer, ForeignKey("species.species_id"), nullable=False)
+    mark_type_id = Column(Integer, ForeignKey("epigenetic_mark_types.mark_type_id"), nullable=False)
+
+    # Sample/Cell information
+    cell_type = Column(String(200))
+    tissue_type = Column(String(200))
+    cell_line = Column(String(200))
+    treatment = Column(String(200))
+
+    # Data source information
+    source_database = Column(String(100))
+    source_accession = Column(String(100))
+    data_url = Column(Text)
+
+    # Processing information
+    pipeline_version = Column(String(50))
+    peak_caller = Column(String(50))
+    peak_caller_version = Column(String(50))
+    reference_genome = Column(String(50))
+
+    # Quality metrics
+    total_reads = Column(BigInteger)
+    mapped_reads = Column(BigInteger)
+    duplicate_rate = Column(Numeric(5, 4))
+    frip_score = Column(Numeric(5, 4))
+
+    # Signal thresholds
+    signal_threshold = Column(JSONB)
+    mark_specific_config = Column(JSONB)
+
+    # Metadata
+    import_batch_id = Column(Integer, ForeignKey("import_batches.batch_id"))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=utc_now)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now)
+
+    # Relationships
+    species = relationship("Species")
+    mark_type = relationship("EpigeneticMarkType", back_populates="experiments")
+    batch = relationship("ImportBatch")
+    peaks = relationship("ChIPSeqPeak", back_populates="experiment")
+
+    __table_args__ = (
+        UniqueConstraint("experiment_name", "species_id", name="unique_experiment_name_species"),
+        Index("idx_chipseq_exp_species", "species_id"),
+        Index("idx_chipseq_exp_mark_type", "mark_type_id"),
+        Index("idx_chipseq_exp_species_mark", "species_id", "mark_type_id"),
+    )
+
+
+class ChIPSeqPeak(Base):
+    """ChIP-seq peak calls - Partitioned by species_id"""
+
+    __tablename__ = "chipseq_peaks"
+
+    peak_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    experiment_id = Column(Integer, ForeignKey("chipseq_experiments.experiment_id"), nullable=False)
+    species_id = Column(Integer, ForeignKey("species.species_id"), primary_key=True, nullable=False)
+
+    # Genomic location
+    chromosome = Column(String(20), nullable=False)
+    peak_start = Column(BigInteger, nullable=False)
+    peak_end = Column(BigInteger, nullable=False)
+    summit_position = Column(BigInteger)
+
+    # Peak identification
+    peak_name = Column(String(200))
+    strand = Column(String(1), default='.')
+
+    # Signal strength metrics
+    fold_enrichment = Column(Numeric(10, 4))
+    log2_fold_enrichment = Column(Numeric(8, 4))
+    pvalue = Column(Numeric(15, 10))
+    neg_log10_pvalue = Column(Numeric(10, 4))
+    qvalue = Column(Numeric(15, 10))
+    neg_log10_qvalue = Column(Numeric(10, 4))
+    signal_value = Column(Numeric(10, 4))
+
+    # Peak quality
+    score = Column(Integer)
+
+    # Additional attributes
+    attributes = Column(JSONB, default={})
+
+    # Metadata
+    created_at = Column(DateTime, default=utc_now)
+
+    # Relationships
+    experiment = relationship("ChIPSeqExperiment", back_populates="peaks")
+    species = relationship("Species")
+
+    __table_args__ = (
+        Index("idx_chipseq_peaks_location", "species_id", "chromosome", "peak_start", "peak_end"),
+        Index("idx_chipseq_peaks_exp_location", "experiment_id", "chromosome", "peak_start", "peak_end"),
+        Index("idx_chipseq_peaks_signal", "experiment_id", "fold_enrichment"),
+        CheckConstraint("peak_start >= 0", name="chk_peak_start"),
+        CheckConstraint("peak_end > peak_start", name="chk_peak_coordinates"),
+        CheckConstraint("strand IN ('+', '-', '.')", name="chk_peak_strand"),
+        {"postgresql_partition_by": "LIST (species_id)"},
+    )
+
+    @property
+    def peak_width(self) -> int:
+        """Calculate peak width"""
+        return self.peak_end - self.peak_start
+
+
+class GenePeakAssociation(Base):
+    """Pre-computed gene-peak relationships for faster queries"""
+
+    __tablename__ = "gene_peak_associations"
+
+    association_id = Column(BigInteger, primary_key=True, autoincrement=True)
+    gene_id = Column(Integer, ForeignKey("genes.gene_id"), nullable=False)
+    peak_id = Column(BigInteger, nullable=False)
+    species_id = Column(Integer, ForeignKey("species.species_id"), nullable=False)
+    experiment_id = Column(Integer, ForeignKey("chipseq_experiments.experiment_id"), nullable=False)
+
+    # Relationship type
+    overlap_type = Column(String(30), nullable=False)  # 'promoter', 'gene_body', 'upstream', etc.
+    distance_to_tss = Column(Integer)
+    overlap_bp = Column(Integer)
+    overlap_percentage = Column(Numeric(5, 2))
+
+    # Cached peak info
+    peak_fold_enrichment = Column(Numeric(10, 4))
+    peak_qvalue = Column(Numeric(15, 10))
+
+    created_at = Column(DateTime, default=utc_now)
+
+    # Relationships
+    gene = relationship("Gene")
+    species = relationship("Species")
+    experiment = relationship("ChIPSeqExperiment")
+
+    __table_args__ = (
+        Index("idx_gene_peak_assoc_gene", "gene_id"),
+        Index("idx_gene_peak_assoc_exp", "experiment_id"),
+        Index("idx_gene_peak_assoc_gene_exp", "gene_id", "experiment_id"),
+        UniqueConstraint("gene_id", "peak_id", "species_id", name="unique_gene_peak"),
+        CheckConstraint(
+            "overlap_type IN ('promoter', 'gene_body', 'tss', 'tes', 'upstream', 'downstream', 'intergenic', 'overlapping')",
+            name="chk_overlap_type"
+        ),
+    )
