@@ -132,6 +132,9 @@
       "minSignal": "Min Signal Value",
       "flanking": "Flanking Region",
       "flankingTooltip": "Distance from gene boundaries to search for peaks",
+      "cellType": "Cell Type",
+      "cellTypeFilter": "Filter by Cell Type",
+      "allCellTypes": "All Cell Types",
       "positions": {
         "promoter": "Promoter",
         "upstream": "Upstream",

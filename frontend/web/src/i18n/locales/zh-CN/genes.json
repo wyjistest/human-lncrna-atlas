@@ -132,6 +132,9 @@
       "minSignal": "最小信号值",
       "flanking": "侧翼区域",
       "flankingTooltip": "从基因边界搜索峰值的距离",
+      "cellType": "细胞类型",
+      "cellTypeFilter": "按细胞类型筛选",
+      "allCellTypes": "所有细胞类型",
       "positions": {
         "promoter": "启动子",
         "upstream": "上游",

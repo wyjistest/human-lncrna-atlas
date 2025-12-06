@@ -136,6 +136,18 @@ export function FilterPanel({
     [filters, onFiltersChange]
   )
 
+  // Handle cell type change
+  const handleCellTypeChange = useCallback(
+    (value: string | undefined) => {
+      onFiltersChange({
+        ...filters,
+        cell_type: value,
+        page: 1,
+      })
+    },
+    [filters, onFiltersChange]
+  )
+
   if (collapsed) {
     return null
   }
@@ -239,6 +251,29 @@ export function FilterPanel({
                   { value: 25000, label: '25 kb' },
                   { value: 50000, label: '50 kb' },
                   { value: 100000, label: '100 kb' },
+                ]}
+              />
+            </Space>
+          </Col>
+        </Row>
+
+        {/* Second Row: Cell Type Filter */}
+        <Row gutter={[16, 16]} align="middle">
+          {/* Cell Type Filter */}
+          <Col xs={24} sm={12} md={8}>
+            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+              <span style={{ fontWeight: 500 }}>
+                {t('detail.chipseq.cellType', 'Cell Type')}:
+              </span>
+              <Select
+                style={{ width: '100%' }}
+                placeholder={t('detail.chipseq.allCellTypes', 'All Cell Types')}
+                allowClear
+                value={filters.cell_type}
+                onChange={handleCellTypeChange}
+                options={[
+                  { value: 'K562', label: 'K562 (白血病细胞)' },
+                  { value: 'B-lymphocyte', label: 'GM12878 (B淋巴细胞)' },
                 ]}
               />
             </Space>

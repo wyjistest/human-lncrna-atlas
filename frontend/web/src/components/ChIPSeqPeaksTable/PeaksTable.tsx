@@ -152,6 +152,15 @@ export function PeaksTable({
       })
     }
 
+    // Cell Type column
+    baseColumns.push({
+      title: t('detail.chipseq.cellType', 'Cell Type'),
+      dataIndex: 'cell_type',
+      key: 'cell_type',
+      width: 150,
+      render: (cellType: string) => cellType || 'N/A',
+    })
+
     // Standard columns
     baseColumns.push(
       {
