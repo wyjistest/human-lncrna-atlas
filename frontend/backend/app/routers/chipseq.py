@@ -554,7 +554,7 @@ def get_gene_chipseq(
           AND (:mark_category IS NULL OR m.mark_category = :mark_category)
           AND (:experiment_id IS NULL OR e.experiment_id = :experiment_id)
           AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
-          AND (:max_qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
         ORDER BY m.sort_order, m.mark_name, p.fold_enrichment DESC
     """)
 
@@ -660,7 +660,7 @@ def get_gene_chipseq_summary(
           AND p.peak_start < :region_end
           AND p.peak_end > :region_start
           AND e.is_active = TRUE
-          AND (:max_qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
         GROUP BY m.mark_name, m.mark_category
         ORDER BY m.mark_category, m.mark_name
     """)
@@ -778,7 +778,7 @@ def compare_gene_marks(
           AND p.peak_end > :region_start
           AND e.is_active = TRUE
           AND m.mark_name = ANY(:mark_list)
-          AND (:max_qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
         ORDER BY m.mark_name, p.peak_start
     """)
 
@@ -914,7 +914,7 @@ def get_peaks_by_region(
           AND e.is_active = TRUE
           AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
           AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
-          AND (:max_qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
     """)
 
     total = db.execute(count_query, {
