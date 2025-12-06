@@ -18,15 +18,18 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio, Dropdown, Switch, Collapse } from 'antd'
+import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio, Dropdown, Switch, Collapse, Tag, Spin } from 'antd'
 import type { MenuProps } from 'antd'
-import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, DownloadOutlined, SettingOutlined } from '@ant-design/icons'
+import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, DownloadOutlined, SettingOutlined, BgColorsOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
 import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
 import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
 import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
 import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/features'
-import type { IGVTrackConfig } from '@/api/genome'
+import { genomeApi, type IGVTrackConfig, type ChIPSeqMarkInfo } from '@/api/genome'
+import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
+import type { MarkType } from '@/types/chipseq'
 
 const { Title, Paragraph, Text } = Typography
 const { Search } = Input
@@ -92,6 +95,10 @@ export default function GenomeBrowserPage() {
   const [loadingRepeatClasses, setLoadingRepeatClasses] = useState<Record<string, boolean>>({})
   const [repeatClassTracks, setRepeatClassTracks] = useState<RepeatMaskerClassTrack[]>([])
 
+  // ChIP-seq state
+  const [showChIPSeq, setShowChIPSeq] = useState(false)
+  const [selectedChIPSeqMarks, setSelectedChIPSeqMarks] = useState<string[]>([])
+
   // Color configuration for repeat classes
   const REPEAT_CLASS_COLORS: Record<string, string> = {
     SINE: '#FF0000',
@@ -118,6 +125,52 @@ export default function GenomeBrowserPage() {
     }
     fetchRepeatClassTracks()
   }, [speciesId])
+
+  // Fetch available ChIP-seq marks for the selected species
+  const {
+    data: availableChIPSeqMarks,
+    isLoading: isLoadingChIPSeqMarks,
+    error: chipseqMarksError
+  } = useQuery({
+    queryKey: ['chipseq-marks', speciesId],
+    queryFn: async () => {
+      const response = await genomeApi.getChIPSeqMarks(speciesId)
+      return response.data.data.marks
+    },
+    enabled: showChIPSeq, // Only fetch when ChIP-seq toggle is enabled
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+
+  // Validate selected marks when available marks change
+  // This ensures any previously selected marks that are no longer available get cleared
+  useEffect(() => {
+    if (availableChIPSeqMarks && selectedChIPSeqMarks.length > 0) {
+      const availableMarkTypes = new Set(availableChIPSeqMarks.map(m => m.mark_name))
+      const validMarks = selectedChIPSeqMarks.filter(mark => availableMarkTypes.has(mark))
+
+      // Only update if there are invalid marks
+      if (validMarks.length !== selectedChIPSeqMarks.length) {
+        setSelectedChIPSeqMarks(validMarks)
+        if (validMarks.length < selectedChIPSeqMarks.length) {
+          message.warning(t('chipseq.someMarksUnavailable') || 'Some selected marks are not available for this species')
+        }
+      }
+    }
+  }, [availableChIPSeqMarks, t]) // Note: selectedChIPSeqMarks intentionally not in deps to avoid infinite loop
+
+  // Handle ChIP-seq toggle
+  const handleChIPSeqToggle = useCallback((checked: boolean) => {
+    setShowChIPSeq(checked)
+    if (!checked) {
+      // Clear selected marks when disabling ChIP-seq
+      setSelectedChIPSeqMarks([])
+    }
+  }, [])
+
+  // Handle ChIP-seq mark selection change
+  const handleChIPSeqMarksChange = useCallback((marks: string[]) => {
+    setSelectedChIPSeqMarks(marks)
+  }, [])
 
   // Load a specific repeat class track
   const loadRepeatClassTrack = useCallback(async (repeatClass: string) => {
@@ -563,6 +616,129 @@ export default function GenomeBrowserPage() {
               ),
               children: (
                 <Space direction="vertical" style={{ width: '100%' }}>
+                  {/* ChIP-seq Tracks */}
+                  <Collapse
+                    size="small"
+                    items={[
+                      {
+                        key: 'chipseq',
+                        label: (
+                          <Space>
+                            <BgColorsOutlined />
+                            <span style={{ fontWeight: 500 }}>{t('chipseq.title')}</span>
+                            {selectedChIPSeqMarks.length > 0 && (
+                              <Tag color="blue">{selectedChIPSeqMarks.length}</Tag>
+                            )}
+                          </Space>
+                        ),
+                        children: (
+                          <Space direction="vertical" style={{ width: '100%' }}>
+                            {/* ChIP-seq Toggle */}
+                            <Space align="center">
+                              <Switch
+                                checked={showChIPSeq}
+                                onChange={handleChIPSeqToggle}
+                                size="small"
+                              />
+                              <span>{t('chipseq.enableTracks')}</span>
+                            </Space>
+
+                            {/* ChIP-seq Mark Selector */}
+                            {showChIPSeq && (
+                              <>
+                                {isLoadingChIPSeqMarks ? (
+                                  <Space>
+                                    <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
+                                    <span>{t('chipseq.loadingMarks')}</span>
+                                  </Space>
+                                ) : chipseqMarksError ? (
+                                  <Alert
+                                    type="error"
+                                    message={t('chipseq.loadMarksFailed')}
+                                    size="small"
+                                  />
+                                ) : (
+                                  <>
+                                    <Text type="secondary" style={{ fontSize: 12 }}>
+                                      {t('chipseq.selectMarksHint')}
+                                    </Text>
+                                    <Select
+                                      mode="multiple"
+                                      placeholder={t('chipseq.selectPlaceholder')}
+                                      style={{ width: '100%' }}
+                                      value={selectedChIPSeqMarks}
+                                      onChange={handleChIPSeqMarksChange}
+                                      options={(() => {
+                                        // Only show marks that exist in the database (from API)
+                                        const availableMarkTypes = new Set(
+                                          availableChIPSeqMarks?.map(m => m.mark_name) || []
+                                        )
+
+                                        // Filter grouped marks to only include available ones
+                                        return getMarksGroupedByCategory()
+                                          .map(group => {
+                                            const filteredMarks = group.marks.filter(mark =>
+                                              availableMarkTypes.has(mark.value)
+                                            )
+
+                                            // Skip empty categories
+                                            if (filteredMarks.length === 0) return null
+
+                                            return {
+                                              label: group.categoryName,
+                                              options: filteredMarks.map(mark => ({
+                                                label: (
+                                                  <Space>
+                                                    <div
+                                                      style={{
+                                                        width: 12,
+                                                        height: 12,
+                                                        backgroundColor: mark.color,
+                                                        borderRadius: 2,
+                                                        display: 'inline-block',
+                                                      }}
+                                                    />
+                                                    <span>{mark.label}</span>
+                                                  </Space>
+                                                ),
+                                                value: mark.value,
+                                              })),
+                                            }
+                                          })
+                                          .filter(Boolean)
+                                      })()}
+                                      maxTagCount={3}
+                                      allowClear
+                                    />
+                                    {/* Show selected marks preview */}
+                                    {selectedChIPSeqMarks.length > 0 && (
+                                      <Space wrap style={{ marginTop: 8 }}>
+                                        {selectedChIPSeqMarks.map(mark => (
+                                          <Tag
+                                            key={mark}
+                                            color={getMarkColor(mark as MarkType)}
+                                            closable
+                                            onClose={() => {
+                                              setSelectedChIPSeqMarks(prev =>
+                                                prev.filter(m => m !== mark)
+                                              )
+                                            }}
+                                          >
+                                            {MARK_CONFIGS[mark as MarkType]?.shortName || mark}
+                                          </Tag>
+                                        ))}
+                                      </Space>
+                                    )}
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </Space>
+                        ),
+                      },
+                    ]}
+                  />
+
                   {/* RepeatMasker Grouped Tracks */}
                   <Collapse
                     size="small"
@@ -608,7 +784,6 @@ export default function GenomeBrowserPage() {
                       },
                     ]}
                   />
-                  {/* Future tracks can be added here */}
                 </Space>
               ),
             },
@@ -625,6 +800,8 @@ export default function GenomeBrowserPage() {
             onLocusChange={handleLocusChange}
             onBrowserReady={handleBrowserReady}
             height={750}
+            showChIPSeq={showChIPSeq}
+            chipseqMarks={selectedChIPSeqMarks}
           />
           {/* RepeatMasker Legend - Show when any repeat class track is enabled */}
           {Object.values(enabledRepeatClasses).some(enabled => enabled) && (

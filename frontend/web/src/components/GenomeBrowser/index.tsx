@@ -11,7 +11,9 @@ import { useRef, useEffect, useState, useCallback, memo } from 'react'
 import { message, Alert } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { genomeApi, type IGVConfig } from '@/api/genome'
+import { genomeApi, type IGVConfig, type IGVTrackConfig as GenomeIGVTrackConfig } from '@/api/genome'
+import { getMarkColor } from '@/config/markConfigs'
+import type { MarkType } from '@/types/chipseq'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import type { IGVBrowser, IGVBrowserOptions, IGVTrackConfig } from 'igv'
@@ -62,6 +64,10 @@ interface GenomeBrowserProps {
   /** Callback when browser is ready, provides handle for browser operations */
   onBrowserReady?: (handle: GenomeBrowserHandle) => void
   height?: number | string
+  /** ChIP-seq marks to display as tracks (e.g., ['H3K27me3', 'H3K4me3']) */
+  chipseqMarks?: string[]
+  /** Whether to show ChIP-seq tracks */
+  showChIPSeq?: boolean
 }
 
 
@@ -72,7 +78,9 @@ const GenomeBrowser = memo(({
   locus,
   onLocusChange,
   onBrowserReady,
-  height = 500
+  height = 500,
+  chipseqMarks = [],
+  showChIPSeq = false
 }: GenomeBrowserProps) => {
   const { t } = useTranslation('genomeBrowser')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -253,6 +261,9 @@ const GenomeBrowser = memo(({
           }))
         }
 
+        // Note: ChIP-seq tracks are dynamically managed in a separate useEffect
+        // to avoid reinitializing the entire browser when marks change
+
         // Create new browser instance
         const browser = await igv.createBrowser(containerRef.current!, options)
         browserRef.current = browser
@@ -382,6 +393,68 @@ const GenomeBrowser = memo(({
       }
     }
   }, [isIGVLoaded, config, speciesId, geneName, padding])
+
+  // Track ChIP-seq marks that are currently loaded
+  const loadedChipseqMarksRef = useRef<Set<string>>(new Set())
+
+  // Dynamically manage ChIP-seq tracks without reinitializing browser
+  useEffect(() => {
+    if (!browserRef.current) return
+
+    const browser = browserRef.current
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const currentMarks = new Set(showChIPSeq ? chipseqMarks : [])
+    const loadedMarks = loadedChipseqMarksRef.current
+
+    // Remove tracks that are no longer selected
+    const marksToRemove = [...loadedMarks].filter(mark => !currentMarks.has(mark))
+    marksToRemove.forEach(mark => {
+      const trackName = `ChIP-seq: ${mark}`
+      try {
+        // IGV.js removeTrackByName API
+        const trackToRemove = browser.trackViews?.find(
+          (tv: { track?: { name?: string } }) => tv.track?.name === trackName
+        )
+        if (trackToRemove) {
+          browser.removeTrack(trackToRemove.track)
+        }
+        loadedMarks.delete(mark)
+      } catch (e) {
+        console.warn(`Failed to remove track ${trackName}:`, e)
+      }
+    })
+
+    // Add tracks that are newly selected
+    const marksToAdd = [...currentMarks].filter(mark => !loadedMarks.has(mark))
+    marksToAdd.forEach(async (mark, index) => {
+      // For region-based loading, we use a simple URL with visibilityWindow
+      // IGV.js will automatically fetch data when zoomed in
+      // The backend supports region filtering via chromosome/start/end params
+      const trackConfig = {
+        name: `ChIP-seq: ${mark}`,
+        type: 'annotation',
+        format: 'bed',
+        // Simple URL - IGV.js will load all data but visibilityWindow limits display
+        url: `${API_BASE_URL}/api/v1/igv/tracks/chipseq/${speciesId}.bed?mark_type=${encodeURIComponent(mark)}`,
+        displayMode: 'EXPANDED',
+        color: getMarkColor(mark as MarkType),
+        height: 80,
+        order: 1000 + index,
+        removable: true,
+        searchable: false,
+        // visibilityWindow: only show features when zoomed in to 5Mb or less
+        visibilityWindow: 5000000,
+        // indexed: false means IGV.js will load all data (backend can still limit)
+        indexed: false,
+      }
+      try {
+        await browser.loadTrack(trackConfig)
+        loadedMarks.add(mark)
+      } catch (e) {
+        console.warn(`Failed to load track for ${mark}:`, e)
+      }
+    })
+  }, [showChIPSeq, chipseqMarks, speciesId])
 
   // Handle external locus changes (navigation)
   // Disabled to avoid conflicts with navigateToLocus

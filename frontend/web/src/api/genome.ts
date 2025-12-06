@@ -114,6 +114,23 @@ export interface GeneAutocompleteResponse {
   data: GeneAutocompleteItem[]
 }
 
+/** ChIP-seq mark info for available marks API */
+export interface ChIPSeqMarkInfo {
+  mark_name: string
+  display_name: string
+  mark_category: string
+  display_color: string
+  description: string | null
+  experiment_count: number
+  peak_count: number
+}
+
+/** Response from /api/v1/igv/chipseq/marks/{speciesId} */
+export interface ChIPSeqMarksResponse {
+  species_id: number
+  marks: ChIPSeqMarkInfo[]
+}
+
 export const genomeApi = {
   /**
    * Get IGV configuration for a specific species
@@ -155,5 +172,24 @@ export const genomeApi = {
   autocompleteGene: (query: string, speciesId: number, limit: number = 10) =>
     apiClient.get<GeneAutocompleteResponse>('/api/v1/igv/autocomplete', {
       params: { q: query, species_id: speciesId, limit }
+    }),
+
+  /**
+   * Get available ChIP-seq marks for a species
+   * @param speciesId - Species ID (1: Human, 2: Chimpanzee, 3: Macaque, 4: Marmoset)
+   * @returns API response with available marks and their metadata
+   */
+  getChIPSeqMarks: (speciesId: number) =>
+    apiClient.get<ApiResponse<ChIPSeqMarksResponse>>(`/api/v1/igv/chipseq/marks/${speciesId}`),
+
+  /**
+   * Get IGV configuration with ChIP-seq tracks included
+   * @param speciesId - Species ID
+   * @param markTypes - Array of mark types to include (e.g., ['H3K27me3', 'H3K4me3'])
+   * @returns API response with IGVConfig including ChIP-seq tracks
+   */
+  getIGVConfigWithChIPSeq: (speciesId: number, markTypes: string[]) =>
+    apiClient.get<ApiResponse<IGVConfig>>(`/api/v1/igv/config/chipseq/${speciesId}`, {
+      params: { mark_types: markTypes.join(',') }
     }),
 }
