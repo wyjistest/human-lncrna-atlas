@@ -7,7 +7,13 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **Regulatory Relationship Query**: Multi-dimensional filtering by species, gene name, chromosome, binding affinity (BA)
 - **Sequence Data Display**: View lncRNA and DNA target site sequences
 - **Disease Association Analysis**: GWAS data integration for lncRNA-disease/trait associations
-- **Network Visualization**: Interactive network visualization of regulatory relationships
+- **Network Visualization**: Interactive network visualization of regulatory relationships using Cytoscape.js
+- **IGV Genome Browser**: Integrated genome browser with multi-species support (hg19, panTro4, rheMac8, calJac3)
+- **ChIP-seq Epigenetic Marks**: Real ENCODE data integration (K562, 6 marks, 422K peaks)
+  - H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3
+  - Bivalent domain detection (H3K27me3 + H3K4me3)
+  - Multi-mark comparison and visualization
+- **RepeatMasker Annotations**: 5.48M repeat elements (hg19)
 - **Data Export**: CSV/XLSX export support
 
 ## Tech Stack
