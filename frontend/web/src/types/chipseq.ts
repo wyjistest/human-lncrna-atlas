@@ -79,15 +79,15 @@ export interface ChIPSeqPeak {
   /** Peak width in bp */
   peak_width: number
   /** Peak summit position (absolute) */
-  summit_position?: number
+  summit_position?: number | null
   /** Signal value at peak */
-  signal_value: number
+  signal_value: number | null
   /** P-value (-log10) */
-  pvalue: number
+  pvalue: number | null
   /** Q-value (-log10) */
-  qvalue: number
+  qvalue: number | null
   /** Fold enrichment over background */
-  fold_enrichment: number
+  fold_enrichment: number | null
   /** Position relative to gene TSS */
   relative_position?: string
   /** Distance to TSS in bp */
@@ -97,7 +97,7 @@ export interface ChIPSeqPeak {
   /** Cell type / sample source */
   cell_type?: string
   /** Experiment ID reference */
-  experiment_id?: string
+  experiment_id?: string | number
 }
 
 /**

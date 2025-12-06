@@ -12,7 +12,6 @@
 import { apiClient } from './client'
 import type {
   MarkType,
-  ChIPSeqResponse,
   ChIPSeqFilters,
   ChIPSeqSummary,
   RawChIPSeqCompareResponse,
