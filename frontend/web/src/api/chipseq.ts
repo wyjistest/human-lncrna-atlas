@@ -15,8 +15,9 @@ import type {
   ChIPSeqResponse,
   ChIPSeqFilters,
   ChIPSeqSummary,
-  ChIPSeqCompareResponse,
+  RawChIPSeqCompareResponse,
   AvailableMarksResponse,
+  GeneChIPSeqRawResponse,
 } from '@/types/chipseq'
 
 /**
@@ -33,12 +34,12 @@ export const chipseqApi = {
     }),
 
   /**
-   * Get ChIP-seq peaks for a gene
+   * Get ChIP-seq peaks for a gene (raw backend response)
    * @param geneId - Gene ID
    * @param filters - Query filters including mark_type, pagination, and filtering options
    */
   getGenePeaks: (geneId: number, filters?: ChIPSeqFilters) =>
-    apiClient.get<ChIPSeqResponse>(`/api/v1/features/chipseq/genes/${geneId}`, {
+    apiClient.get<GeneChIPSeqRawResponse>(`/api/v1/features/chipseq/genes/${geneId}`, {
       params: {
         mark_type: filters?.mark_type,
         min_fold_enrichment: filters?.min_fold_enrichment,
@@ -73,7 +74,7 @@ export const chipseqApi = {
    * @param flanking - Flanking region in bp (optional)
    */
   compareMarks: (geneId: number, marks: MarkType[], flanking?: number) =>
-    apiClient.get<ChIPSeqCompareResponse>(`/api/v1/features/chipseq/genes/${geneId}/compare`, {
+    apiClient.get<RawChIPSeqCompareResponse>(`/api/v1/features/chipseq/genes/${geneId}/compare`, {
       params: {
         marks: marks.join(','),
         flanking,

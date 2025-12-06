@@ -44,7 +44,8 @@ interface PeaksTableProps {
 /**
  * Format scientific notation for p-values/q-values
  */
-function formatScientific(value: number): string {
+function formatScientific(value: number | null | undefined): string {
+  if (value === null || value === undefined) return 'N/A'
   if (value === 0) return '0'
   if (value < 0.001) {
     return value.toExponential(2)
@@ -55,7 +56,8 @@ function formatScientific(value: number): string {
 /**
  * Get color based on q-value significance
  */
-function getQValueColor(qvalue: number): string {
+function getQValueColor(qvalue: number | null | undefined): string {
+  if (qvalue === null || qvalue === undefined) return '#888888' // Unknown
   if (qvalue <= 0.001) return '#52c41a' // Highly significant
   if (qvalue <= 0.01) return '#73d13d'
   if (qvalue <= 0.05) return '#faad14' // Significant
@@ -65,7 +67,8 @@ function getQValueColor(qvalue: number): string {
 /**
  * Get color based on fold enrichment
  */
-function getFoldEnrichmentColor(fe: number): string {
+function getFoldEnrichmentColor(fe: number | null | undefined): string {
+  if (fe === null || fe === undefined) return '#888888' // Unknown
   if (fe >= 10) return '#1890ff'
   if (fe >= 5) return '#52c41a'
   if (fe >= 2) return '#faad14'

@@ -147,6 +147,44 @@ export interface ChIPSeqResponse {
 }
 
 /**
+ * Raw backend response for gene ChIP-seq data
+ * This is the actual structure returned by /api/v1/features/chipseq/genes/{gene_id}
+ */
+export interface GeneChIPSeqRawResponse {
+  gene_id: number
+  gene_name: string
+  chromosome: string
+  gene_start: number
+  gene_end: number
+  strand: string
+  region_start: number
+  region_end: number
+  /** Peaks grouped by mark type */
+  marks: Record<string, GenePeakAssociation[]>
+  total_peaks: number
+  marks_present: string[]
+}
+
+/**
+ * Peak association data from backend
+ */
+export interface GenePeakAssociation {
+  peak_id: number
+  chromosome: string
+  peak_start: number
+  peak_end: number
+  summit_position: number | null
+  overlap_type: string
+  distance_to_tss: number
+  overlap_bp: number
+  fold_enrichment: number | null
+  qvalue: number | null
+  mark_type: MarkType
+  mark_category: string
+  experiment_id: number
+}
+
+/**
  * Peak width percentile statistics
  */
 export interface PeakWidthPercentiles {
@@ -236,6 +274,56 @@ export interface OverlappingRegionDetail {
   marks: MarkType[]
   /** Domain type classification */
   domain_type: 'bivalent' | 'active' | 'repressed'
+}
+
+/**
+ * Raw mark data from backend compare API
+ */
+export interface RawCompareMarkData {
+  mark_type: MarkType
+  mark_category: string
+  display_color: string
+  peaks: Array<{
+    peak_id: number
+    chromosome: string
+    peak_start: number
+    peak_end: number
+    summit_position: number | null
+    fold_enrichment: number | null
+    qvalue: number | null
+    mark_type: MarkType
+  }>
+  peak_count: number
+  avg_fold_enrichment: number | null
+  median_fold_enrichment: number | null
+  std_fold_enrichment: number | null
+  total_coverage_bp: number | null
+  peak_width_percentiles: PeakWidthPercentiles | null
+}
+
+/**
+ * Raw response from compare API
+ */
+export interface RawChIPSeqCompareResponse {
+  gene_id: number
+  gene_name: string
+  chromosome: string
+  region_start: number
+  region_end: number
+  marks: RawCompareMarkData[]
+  all_overlaps: Array<{
+    chromosome: string
+    start: number
+    end: number
+    marks: MarkType[]
+  }>
+  overlap_statistics: Record<string, number>
+  overlapping_regions: OverlappingRegionDetail[]
+  bivalent_regions: Array<{
+    chromosome: string
+    start: number
+    end: number
+  }>
 }
 
 /**

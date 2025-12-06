@@ -2,13 +2,13 @@
 
 > **生成日期**: 2025-12-06
 > **报告类型**: 完整项目状态（已完成 + 未完成）
-> **项目阶段**: Phase 2.4 已完成
+> **项目阶段**: Phase 2.5 已完成
 
 ---
 
 ## 执行摘要
 
-Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化平台，整合了 4 个灵长类物种的数据。截至 2025-12-06，项目已完成核心功能、IGV 基因组浏览器集成、RepeatMasker 扩展层，以及**通用 ChIP-seq Epigenetic Marks 架构**（Phase 2.3 + 2.4）。
+Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化平台，整合了 4 个灵长类物种的数据。截至 2025-12-06，项目已完成核心功能、IGV 基因组浏览器集成、RepeatMasker 扩展层，以及**通用 ChIP-seq Epigenetic Marks 架构**（Phase 2.3 + 2.4 + 2.5），包括多 Marks 对比功能和 Bivalent Domain 检测。
 
 ### 核心指标
 
@@ -251,37 +251,40 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
 
 ---
 
-## 🚧 未完成的功能
+### Phase 2.5: 多 Marks 对比功能（2025-12-06 完成）⭐
 
-### Phase 2.5: ChIP-seq 对比功能（规划中）
+#### 后端 API
+- ✅ 对比端点：`/chipseq/genes/{id}/compare?marks=X,Y,Z`
+  - 返回多 marks 的 peaks 数据
+  - 包含 overlap_statistics 和 bivalent_regions
+- ✅ Overlapping regions 计算
+  - 自动识别多 marks 的重叠区域
+  - Bivalent domain 检测（H3K27me3 + H3K4me3）
 
-#### 后端 API（未实现）
-- ⏳ 增强对比端点：`/chipseq/genes/{id}/compare?marks=X,Y,Z`
-  - 当前：基本实现
-  - 需要：优化多 marks 聚合性能
-- ⏳ Overlapping regions 计算
-  - 识别多个 marks 的重叠区域
-  - Bivalent domain 详细分析
-- ⏳ 热图数据端点：`/chipseq/genes/{id}/heatmap`
-  - 多样本 × 基因组区域矩阵
-
-#### 前端可视化（未实现）
-- ⏳ 多 marks 对比视图
-  - Tab 切换：[Merged] [Parallel] [Statistics]
-  - 并行对比（左右分栏显示 2 个 marks）
-- ⏳ ECharts 对比图表（4 种）
+#### 前端可视化
+- ✅ 多 marks 对比视图（3 种模式）
+  - 合并视图（Merged）：所有 peaks 合并显示，带 mark 标签
+  - 并行对比（Parallel）：左右分栏显示 2 个 marks
+  - 统计对比（Statistics）：ECharts 图表对比
+- ✅ ECharts 对比图表（4 种）
   - Peak Count Chart（柱状图）
   - Signal Comparison Chart（对比柱状图）
   - Fold Enrichment Chart（渐变柱状图）
   - Position Distribution Chart（堆叠柱状图）
-- ⏳ Overlapping Regions 可视化
-  - Bivalent domain 高亮显示
-  - Venn 图（可选）
+- ✅ Bivalent Domain 可视化
+  - 检测到双价域时显示紫色警告条
+  - 合并视图标题旁显示"双价"徽章
 
-#### 预计工期
-- 后端 API：3 天
-- 前端可视化：4 天
-- **总计**：7 天
+#### Bug Fixes（2025-12-06）
+- ✅ **数据结构转换**：修复后端返回 `peaks` 但前端期望 `top_peaks` 的问题
+  - 新增 `RawChIPSeqCompareResponse` 和 `RawCompareMarkData` 类型
+  - 在 `useChIPSeqCompare` hook 中添加数据转换层
+- ✅ **空值处理**：修复 `formatScientific`、`getQValueColor`、`getFoldEnrichmentColor` 函数的 null/undefined 处理
+- ✅ **分页数据检查**：修复 `peaksData.total === 0` 无法处理 undefined 的问题
+
+---
+
+## 🚧 未完成的功能
 
 ---
 

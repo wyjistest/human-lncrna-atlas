@@ -293,7 +293,7 @@ export function ChIPSeqPeaksTable({
       return <ErrorState error={peaksError} onRetry={() => refetchPeaks()} />
     }
 
-    if (!peaksData || peaksData.total === 0) {
+    if (!peaksData || !peaksData.total) {
       return (
         <Empty
           description={t('detail.chipseq.noPeaks', 'No peaks found for this gene')}
