@@ -8,13 +8,20 @@ Phase 3.0 Enhancements:
 - New /heatmap endpoint for visualization matrices
 - Redis caching for expensive aggregation queries
 - Rate limiting for API protection
+
+Phase 3.1 Enhancements:
+- Batch export endpoint (/export) with BED6 and CSV formats
+- Streaming response for large datasets (up to 100K rows)
+- Rate limiting (5/minute) for export operations
 """
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
-from typing import Optional, List, Tuple, Literal
+from typing import Optional, List, Tuple, Literal, Generator
 import logging
+import csv
+from io import StringIO
 
 from app.core.database import get_db
 from app.core.cache import cache, cached
@@ -48,6 +55,29 @@ from app.schemas.lncrna_chipseq_overlap import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Export Constants
+# =============================================================================
+
+# Batch size for streaming export (rows per chunk)
+EXPORT_BATCH_SIZE = 1000
+
+# Maximum rows to export (prevent abuse)
+MAX_EXPORT_ROWS = 100000
+
+# Default chromosome when no selective filter provided (performance optimization)
+DEFAULT_EXPORT_CHROMOSOME = 'chr22'
+
+# CSV export columns (in order)
+CSV_EXPORT_COLUMNS = [
+    'overlap_id', 'chromosome', 'overlap_start', 'overlap_end', 'overlap_length',
+    'lncrna_gene_id', 'lncrna_name', 'target_gene_id', 'target_gene_name',
+    'mark_type', 'mark_category', 'cell_type',
+    'binding_affinity', 'peak_fold_enrichment', 'peak_qvalue',
+    'lncrna_binding_start', 'lncrna_binding_end', 'peak_start', 'peak_end'
+]
 
 
 # =============================================================================
@@ -814,3 +844,416 @@ def get_overlap_heatmap(
     except Exception as e:
         logger.error(f"Error generating heatmap data: {e}")
         raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+
+
+# =============================================================================
+# Export Helper Functions
+# =============================================================================
+
+def format_bed_row(row: dict) -> str:
+    """
+    Format a single overlap row as BED6 format line.
+
+    BED6 format: chrom, chromStart, chromEnd, name, score, strand
+    - chrom: chromosome name (e.g., chr22)
+    - chromStart: 0-based start position (overlap_start)
+    - chromEnd: 0-based end position (overlap_end)
+    - name: {lncrna_name}_{target_gene_name}_{mark_type}
+    - score: binding_affinity * 10, clamped to 0-1000
+    - strand: '.' (unknown/unstranded)
+
+    Args:
+        row: Dictionary containing overlap data
+
+    Returns:
+        BED6 formatted line with newline
+    """
+    chrom = row.get('chromosome', 'chr?')
+    start = row.get('overlap_start', 0)
+    end = row.get('overlap_end', 0)
+
+    # Build name: lncrna_target_mark
+    lncrna = row.get('lncrna_name', 'unknown')
+    target = row.get('target_gene_name', 'unknown')
+    mark = row.get('mark_type', 'unknown')
+    name = f"{lncrna}_{target}_{mark}"
+
+    # Convert binding_affinity (0-100 scale) to BED score (0-1000)
+    binding_affinity = float(row.get('binding_affinity', 0))
+    score = min(1000, max(0, int(binding_affinity * 10)))
+
+    # Strand is unknown for ChIP-seq peaks
+    strand = '.'
+
+    return f"{chrom}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
+
+
+def format_csv_row(row: dict) -> str:
+    """
+    Format a single overlap row as CSV line.
+
+    Uses CSV_EXPORT_COLUMNS order (19 columns total).
+
+    Args:
+        row: Dictionary containing overlap data
+
+    Returns:
+        CSV formatted line with newline
+    """
+    # Extract values in column order
+    values = []
+    for col in CSV_EXPORT_COLUMNS:
+        value = row.get(col)
+        # Convert None to empty string
+        if value is None:
+            values.append('')
+        else:
+            values.append(str(value))
+
+    # Use StringIO and csv.writer for proper CSV escaping
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(values)
+    return output.getvalue()
+
+
+def generate_overlap_export(
+    db: Session,
+    format: Literal['bed', 'csv'],
+    lncrna_gene_id: Optional[int] = None,
+    target_gene_id: Optional[int] = None,
+    mark_type: Optional[str] = None,
+    cell_type: Optional[str] = None,
+    chromosome: Optional[str] = None,
+    min_overlap_length: Optional[int] = None,
+    min_binding_affinity: Optional[float] = None,
+    min_peak_strength: Optional[float] = None,
+    max_qvalue: Optional[float] = 0.05,
+    max_rows: int = MAX_EXPORT_ROWS
+) -> Generator[str, None, None]:
+    """
+    Generate streaming export of lncRNA-ChIP-seq overlaps in BED or CSV format.
+
+    Yields data in batches to support large result sets without memory issues.
+
+    Args:
+        db: Database session
+        format: Export format ('bed' or 'csv')
+        All filter parameters: Same as main query endpoint
+        max_rows: Maximum rows to export (default: 100,000)
+
+    Yields:
+        Formatted lines (BED6 or CSV) as strings
+    """
+
+    # Performance optimization: Apply default chromosome if no selective filter
+    has_selective_filter = any([
+        lncrna_gene_id,
+        target_gene_id,
+        chromosome,
+        min_binding_affinity and min_binding_affinity > 0,
+    ])
+
+    effective_chromosome = chromosome or (DEFAULT_EXPORT_CHROMOSOME if not has_selective_filter else None)
+
+    if not has_selective_filter:
+        logger.info(f"Export: No selective filter provided, applying default chromosome='{DEFAULT_EXPORT_CHROMOSOME}'")
+
+    # Yield header
+    if format == 'bed':
+        # BED track header (optional but recommended)
+        yield f'track name="lncRNA-ChIPseq-Overlap" description="lncRNA binding sites overlapping with ChIP-seq peaks" useScore=1\n'
+    elif format == 'csv':
+        # CSV header row
+        yield format_csv_row({col: col for col in CSV_EXPORT_COLUMNS})
+
+    # Parse comma-separated filters
+    mark_types_array = parse_comma_separated(mark_type)
+    cell_types_array = parse_comma_separated(cell_type)
+
+    # Build main query (reuse logic from get_lncrna_chipseq_overlaps_query)
+    data_sql = text("""
+        SELECT
+            CONCAT('reg_', r.regulation_id, '_peak_', p.peak_id) AS overlap_id,
+            r.regulation_id,
+            r.lncrna_gene_id,
+            lnc.gene_name AS lncrna_name,
+            r.target_gene_id,
+            tgt.gene_name AS target_gene_name,
+            m.mark_name AS mark_type,
+            m.mark_category,
+            e.cell_type,
+            r.best_peak_chr AS chromosome,
+            r.best_peak_start AS lncrna_binding_start,
+            r.best_peak_end AS lncrna_binding_end,
+            p.peak_start,
+            p.peak_end,
+            GREATEST(r.best_peak_start, p.peak_start) AS overlap_start,
+            LEAST(r.best_peak_end, p.peak_end) AS overlap_end,
+            LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start) AS overlap_length,
+            r.binding_affinity,
+            p.fold_enrichment AS peak_fold_enrichment,
+            p.qvalue AS peak_qvalue
+        FROM regulations r
+        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
+        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
+        JOIN chipseq_peaks_human p ON
+            r.species_id = p.species_id
+            AND r.best_peak_chr = p.chromosome
+            AND r.best_peak_start < p.peak_end
+            AND r.best_peak_end > p.peak_start
+        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+        WHERE
+            r.species_id = 1
+            AND e.is_active = TRUE
+            AND (:lncrna_gene_id IS NULL OR r.lncrna_gene_id = :lncrna_gene_id)
+            AND (:target_gene_id IS NULL OR r.target_gene_id = :target_gene_id)
+            AND (:chromosome IS NULL OR r.best_peak_chr = :chromosome)
+            AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
+            AND (:cell_types IS NULL OR e.cell_type = ANY(:cell_types))
+            AND (:min_binding_affinity IS NULL OR r.binding_affinity >= :min_binding_affinity)
+            AND (:min_peak_strength IS NULL OR p.fold_enrichment >= :min_peak_strength)
+            AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+            AND (:min_overlap_length IS NULL OR
+                 (LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start)) >= :min_overlap_length)
+        ORDER BY r.best_peak_chr, overlap_start
+        LIMIT :max_rows
+    """)
+
+    params = {
+        "lncrna_gene_id": lncrna_gene_id,
+        "target_gene_id": target_gene_id,
+        "chromosome": effective_chromosome,
+        "mark_types": mark_types_array,
+        "cell_types": cell_types_array,
+        "min_binding_affinity": min_binding_affinity,
+        "min_peak_strength": min_peak_strength,
+        "max_qvalue": max_qvalue,
+        "min_overlap_length": min_overlap_length,
+        "max_rows": max_rows
+    }
+
+    # Stream data in batches
+    batch_size = EXPORT_BATCH_SIZE
+    offset = 0
+    rows_exported = 0
+
+    try:
+        while rows_exported < max_rows:
+            # Fetch batch
+            batch_sql = text(str(data_sql).replace('LIMIT :max_rows', f'LIMIT {batch_size} OFFSET {offset}'))
+            batch = db.execute(batch_sql, params).fetchall()
+
+            if not batch:
+                break
+
+            # Format and yield each row
+            for row in batch:
+                if rows_exported >= max_rows:
+                    break
+
+                # Convert row to dictionary
+                row_dict = {
+                    'overlap_id': row.overlap_id,
+                    'regulation_id': row.regulation_id,
+                    'lncrna_gene_id': row.lncrna_gene_id,
+                    'lncrna_name': row.lncrna_name,
+                    'target_gene_id': row.target_gene_id,
+                    'target_gene_name': row.target_gene_name,
+                    'mark_type': row.mark_type,
+                    'mark_category': row.mark_category,
+                    'cell_type': row.cell_type,
+                    'chromosome': row.chromosome,
+                    'lncrna_binding_start': row.lncrna_binding_start,
+                    'lncrna_binding_end': row.lncrna_binding_end,
+                    'peak_start': row.peak_start,
+                    'peak_end': row.peak_end,
+                    'overlap_start': row.overlap_start,
+                    'overlap_end': row.overlap_end,
+                    'overlap_length': row.overlap_length,
+                    'binding_affinity': row.binding_affinity,
+                    'peak_fold_enrichment': row.peak_fold_enrichment,
+                    'peak_qvalue': row.peak_qvalue
+                }
+
+                # Format based on output format
+                if format == 'bed':
+                    yield format_bed_row(row_dict)
+                elif format == 'csv':
+                    yield format_csv_row(row_dict)
+
+                rows_exported += 1
+
+            offset += batch_size
+
+            # Stop if we got fewer rows than batch size (end of data)
+            if len(batch) < batch_size:
+                break
+
+    except Exception as e:
+        logger.error(f"Error during export generation: {e}")
+        raise
+
+
+# =============================================================================
+# Export Endpoint
+# =============================================================================
+
+@router.get("/export")
+@rate_limit("5/minute")  # Rate limit: 5 requests per minute per IP
+def export_lncrna_chipseq_overlaps(
+    request: Request,  # Required for rate limiting
+    format: Literal['bed', 'csv'] = Query('bed', description="Export format: 'bed' (BED6) or 'csv'"),
+    lncrna_gene_id: Optional[int] = Query(None, description="Filter by specific lncRNA gene ID"),
+    target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
+    mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated (e.g., 'H3K27me3,H3K4me3')"),
+    cell_type: Optional[str] = Query(None, description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878')"),
+    chromosome: Optional[str] = Query(None, description="Filter by chromosome (e.g., 'chr1')"),
+    min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
+    min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity score"),
+    min_peak_strength: Optional[float] = Query(None, ge=0, description="Minimum peak fold enrichment"),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value (FDR) for peaks"),
+    max_rows: int = Query(MAX_EXPORT_ROWS, ge=1, le=MAX_EXPORT_ROWS, description=f"Maximum rows to export (max: {MAX_EXPORT_ROWS})"),
+    db: Session = Depends(get_db)
+):
+    """
+    Export lncRNA-ChIP-seq overlaps in BED6 or CSV format.
+
+    ## Overview
+
+    This endpoint exports overlap data between lncRNA binding sites and ChIP-seq peaks
+    in standard genomic file formats for downstream analysis and visualization.
+
+    **Supported Formats:**
+    - **BED6**: Standard genomic interval format (6 columns: chr, start, end, name, score, strand)
+    - **CSV**: Full data export with all 19 columns from OverlapResult schema
+
+    ## Performance & Limits
+
+    - **Rate Limit**: 5 requests per minute per IP
+    - **Max Rows**: 100,000 per export (configurable via max_rows parameter)
+    - **Streaming**: Large exports are streamed in batches (1000 rows/batch) to minimize memory usage
+    - **Default Filter**: If no selective filters are provided (lncrna_gene_id, target_gene_id,
+      chromosome, or min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent timeout
+
+    ## BED6 Format
+
+    Standard BED format with 6 tab-separated columns:
+
+    1. **chrom**: Chromosome (e.g., chr22)
+    2. **chromStart**: Overlap start position (0-based)
+    3. **chromEnd**: Overlap end position (0-based, exclusive)
+    4. **name**: Feature name format: `{lncrna_name}_{target_gene_name}_{mark_type}`
+    5. **score**: Binding affinity scaled to 0-1000 (binding_affinity * 10)
+    6. **strand**: Always '.' (ChIP-seq peaks are unstranded)
+
+    **Example BED6 output:**
+    ```
+    track name="lncRNA-ChIPseq-Overlap" description="lncRNA binding sites overlapping with ChIP-seq peaks" useScore=1
+    chr22   10518945   10519856   ENSG00000224116_ENSG00000100316   850   .
+    chr22   10520010   10520455   ENSG00000224116_ENSG00000100316   850   .
+    ```
+
+    ## CSV Format
+
+    Full data export with 19 columns (all fields from OverlapResult schema):
+
+    - Identifiers: overlap_id
+    - Coordinates: chromosome, overlap_start, overlap_end, overlap_length
+    - Genes: lncrna_gene_id, lncrna_name, target_gene_id, target_gene_name
+    - ChIP-seq: mark_type, mark_category, cell_type
+    - Metrics: binding_affinity, peak_fold_enrichment, peak_qvalue
+    - Binding site: lncrna_binding_start, lncrna_binding_end
+    - Peak: peak_start, peak_end
+
+    ## Parameters
+
+    All filters from the main query endpoint are supported:
+    - **format**: Export format ('bed' or 'csv'), default: 'bed'
+    - **lncrna_gene_id**: Filter by lncRNA gene ID
+    - **target_gene_id**: Filter by target gene ID
+    - **mark_type**: Filter by epigenetic mark(s), comma-separated
+    - **cell_type**: Filter by cell type(s), comma-separated
+    - **chromosome**: Filter by chromosome
+    - **min_overlap_length**: Minimum overlap length in bp
+    - **min_binding_affinity**: Minimum binding affinity score
+    - **min_peak_strength**: Minimum peak fold enrichment
+    - **max_qvalue**: Maximum Q-value (FDR), default: 0.05
+    - **max_rows**: Maximum rows to export, default: 100,000
+
+    ## Examples
+
+    ```bash
+    # Export chr22 overlaps as BED6
+    curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=bed&chromosome=chr22" -o overlaps_chr22.bed
+
+    # Export H3K27me3 overlaps as CSV
+    curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=csv&mark_type=H3K27me3&chromosome=chr22" -o overlaps_H3K27me3.csv
+
+    # Export high-affinity overlaps (limit to 10,000 rows)
+    curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=csv&min_binding_affinity=80&max_rows=10000" -o overlaps_high_affinity.csv
+    ```
+
+    ## Returns
+
+    StreamingResponse with appropriate Content-Type and Content-Disposition headers for file download.
+    """
+
+    # Validate format
+    if format not in ['bed', 'csv']:
+        raise HTTPException(status_code=400, detail="format must be 'bed' or 'csv'")
+
+    logger.info(
+        f"Export requested: format={format}, chromosome={chromosome}, "
+        f"mark_type={mark_type}, cell_type={cell_type}, max_rows={max_rows}"
+    )
+
+    # Generate export stream
+    export_stream = generate_overlap_export(
+        db=db,
+        format=format,
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        mark_type=mark_type,
+        cell_type=cell_type,
+        chromosome=chromosome,
+        min_overlap_length=min_overlap_length,
+        min_binding_affinity=min_binding_affinity,
+        min_peak_strength=min_peak_strength,
+        max_qvalue=max_qvalue,
+        max_rows=max_rows
+    )
+
+    # Build filename
+    filename_parts = ["lncrna_chipseq_overlap"]
+
+    if chromosome:
+        filename_parts.append(chromosome)
+    if mark_type:
+        # Clean up comma-separated values for filename
+        mark_clean = mark_type.replace(',', '_')
+        filename_parts.append(mark_clean)
+    if cell_type:
+        cell_clean = cell_type.replace(',', '_')
+        filename_parts.append(cell_clean)
+
+    filename = "_".join(filename_parts)
+
+    # Add extension
+    if format == 'bed':
+        filename += ".bed"
+        media_type = "text/plain"
+    else:  # csv
+        filename += ".csv"
+        media_type = "text/csv"
+
+    # Return streaming response
+    return StreamingResponse(
+        export_stream,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": f"{media_type}; charset=utf-8",
+        }
+    )

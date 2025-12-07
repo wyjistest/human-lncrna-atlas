@@ -23,7 +23,7 @@
  * - GET /api/v1/lncrna-chipseq-overlap/export (Phase 2)
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   Space,
   Card,
@@ -35,6 +35,9 @@ import {
   Row,
   Col,
   Tabs,
+  Dropdown,
+  Modal,
+  Tooltip,
 } from 'antd'
 import {
   DownloadOutlined,
@@ -43,6 +46,9 @@ import {
   BarChartOutlined,
   HeatMapOutlined,
   PieChartOutlined,
+  FileTextOutlined,
+  FileExcelOutlined,
+  DownOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 
@@ -60,6 +66,9 @@ import {
   useLncRNAChIPSeqOverlaps,
   useLncRNAChIPSeqOverlapSummary,
 } from '@/hooks/useLncRNAChIPSeqOverlap'
+
+// API
+import { lncRNAChIPSeqOverlapApi } from '@/api/lncRNAChIPSeqOverlapApi'
 
 // Types
 import type { OverlapFilters } from '@/types/lncRNAChIPSeqOverlap'
@@ -183,15 +192,50 @@ export function LncRNAChIPSeqOverlapTable({
     message.success(tCommon('message.filtersReset', 'Filters reset'))
   }, [lncrnaGeneId, targetGeneId, initialMarkTypes, initialCellTypes, initialChromosome, defaultPageSize, tCommon])
 
-  // Export data (Phase 2)
+  // Count active filters
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (filters.mark_type) count++
+    if (filters.cell_type) count++
+    if (filters.chromosome) count++
+    if (filters.min_overlap_length) count++
+    if (filters.min_binding_affinity) count++
+    return count
+  }, [filters])
+
+  // Perform export - internal function
+  const performExport = useCallback(
+    (format: 'bed' | 'csv') => {
+      message.loading({ content: t('export.starting'), key: 'export', duration: 2 })
+
+      try {
+        lncRNAChIPSeqOverlapApi.exportOverlaps(filters, format)
+        message.success({ content: t('export.success'), key: 'export', duration: 3 })
+      } catch (error) {
+        message.error({ content: t('export.error.failed'), key: 'export' })
+      }
+    },
+    [filters, t]
+  )
+
+  // Export data handler with large data warning
   const handleExport = useCallback(
     (format: 'bed' | 'csv') => {
-      message.info(t('message.exportStarting', `Exporting to ${format.toUpperCase()}...`))
-      // Export logic will be implemented in Phase 2
-      // For now, just show a message
-      message.warning(t('message.exportNotImplemented', 'Export functionality coming in Phase 2'))
+      // Check for large export warning (no chromosome filter)
+      if (!filters.chromosome && overlapData && overlapData.total > 50000) {
+        Modal.confirm({
+          title: t('export.largeDataWarning.title'),
+          content: t('export.largeDataWarning.noChromosomeWarning'),
+          okText: t('export.largeDataWarning.proceed'),
+          cancelText: t('export.largeDataWarning.cancel'),
+          onOk: () => performExport(format),
+        })
+        return
+      }
+
+      performExport(format)
     },
-    [t]
+    [filters, overlapData, t, performExport]
   )
 
   // Loading state - only show full page loading on initial load
@@ -278,20 +322,36 @@ export function LncRNAChIPSeqOverlapTable({
           </Space>
 
           {enableExport && overlapData && overlapData.total > 0 && (
-            <Space>
-              <Button
-                icon={<DownloadOutlined />}
+            <Tooltip
+              title={
+                activeFilterCount > 0
+                  ? t('export.tooltipWithFilters', { count: activeFilterCount })
+                  : t('export.tooltip')
+              }
+            >
+              <Dropdown.Button
+                icon={<DownOutlined />}
+                menu={{
+                  items: [
+                    {
+                      key: 'bed',
+                      label: t('export.bed'),
+                      icon: <FileTextOutlined />,
+                    },
+                    {
+                      key: 'csv',
+                      label: t('export.csv'),
+                      icon: <FileExcelOutlined />,
+                    },
+                  ],
+                  onClick: ({ key }) => handleExport(key as 'bed' | 'csv'),
+                }}
                 onClick={() => handleExport('bed')}
               >
-                {t('action.exportBED', 'Export BED')}
-              </Button>
-              <Button
-                icon={<DownloadOutlined />}
-                onClick={() => handleExport('csv')}
-              >
-                {t('action.exportCSV', 'Export CSV')}
-              </Button>
-            </Space>
+                <DownloadOutlined />
+                {t('export.button')}
+              </Dropdown.Button>
+            </Tooltip>
           )}
         </Space>
       </Card>

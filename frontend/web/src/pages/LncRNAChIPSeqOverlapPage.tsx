@@ -62,7 +62,7 @@ export default function LncRNAChIPSeqOverlapPage() {
 
       {/* 主组件 */}
       <Card>
-        <LncRNAChIPSeqOverlapTable />
+        <LncRNAChIPSeqOverlapTable enableExport={true} />
       </Card>
     </div>
   )

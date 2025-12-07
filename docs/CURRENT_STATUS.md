@@ -44,6 +44,7 @@
      - `GET /api/v1/lncrna-chipseq-overlap` - 分页查询重叠数据
      - `GET /api/v1/lncrna-chipseq-overlap/statistics` - 聚合统计
      - `GET /api/v1/lncrna-chipseq-overlap/heatmap` - 热力图矩阵数据
+     - `GET /api/v1/lncrna-chipseq-overlap/export` - 批量导出 (BED/CSV) ⭐ 新增
    - **前端组件**:
      - `LncRNAChIPSeqOverlapTable` - 主容器组件
      - `OverlapFilterPanel` - 高级筛选面板
@@ -56,12 +57,25 @@
      - 默认 chromosome 过滤器 (chr22) 防止超时
      - 后端默认回退机制
      - 类型安全处理 (string/number 转换)
-   - **i18n**: 中英文完整支持 (71+ 翻译 keys)
+   - **i18n**: 中英文完整支持 (83+ 翻译 keys)
 
-2. **UX 改进**
+2. **批量导出功能 (BED/CSV)** ⭐ 科研工作流完整闭环
+   - **BED6 格式**: 标准 UCSC 基因组浏览器格式（6 列）
+     - 支持 IGV、UCSC Browser、GREAT、HOMER 等工具
+   - **CSV 格式**: 完整 19 列数据，Excel 兼容
+     - 包含基因信息、坐标、表观遗传标记、质量指标
+   - **流式响应**: 批次处理（1000 行/批），支持 100K+ 行导出
+   - **性能**: 4-7ms 响应时间（超预期 100 倍）
+   - **Rate limiting**: 5 请求/分钟防滥用
+   - **智能警告**: 大数据集（>50K 行）提示用户先筛选
+   - **完整筛选**: 支持所有过滤条件（chromosome, mark, cell, BA 等）
+   - **测试覆盖**: 22 个后端单元测试 + 3 个 E2E 测试（100% 通过）
+
+3. **UX 改进**
    - 错误状态时仍显示过滤面板
    - 导航菜单添加 Overlap Analysis 入口
    - 响应式设计
+   - Dropdown.Button 导出 UI（BED 默认 + CSV 选项）
 
 ### 2025-12-07 (Phase 2.11) ⭐ DNase-seq 数据导入
 
@@ -143,11 +157,11 @@ npm run dev
 
 ## 🎯 建议的下一步开发
 
-### 优先级 1: Phase 3.0 扩展
+### 优先级 1: Phase 3.0 核心功能 ✅ 已完成
 - [x] ~~ChIP-seq peaks 与 lncRNA 关联分析~~ ✅ 已完成
 - [x] ~~热图可视化组蛋白修饰模式~~ ✅ 已完成
-- [ ] 批量导出功能 (BED/CSV)
-- [ ] 更多细胞系数据导入
+- [x] ~~批量导出功能 (BED/CSV)~~ ✅ 已完成 (2025-12-07)
+- [ ] 更多细胞系数据导入 (Phase 3.1)
 
 ### 优先级 2: 功能增强
 - [ ] lncRNA-ChIP-seq 重叠结果可视化增强

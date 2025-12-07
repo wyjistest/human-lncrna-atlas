@@ -75,9 +75,22 @@
     }
   },
   "export": {
-    "csv": "导出 CSV",
+    "button": "导出",
     "bed": "导出 BED",
+    "csv": "导出 CSV",
     "tooltip": "导出当前筛选结果",
+    "tooltipWithFilters": "导出当前结果（已激活 {{count}} 个筛选条件）",
+    "starting": "正在准备导出...",
+    "success": "导出已开始 - 请检查您的下载",
+    "largeDataWarning": {
+      "title": "大数据导出警告",
+      "noChromosomeWarning": "未设置染色体筛选条件。此导出可能非常大（超过 10 万行）。建议先按染色体筛选。",
+      "proceed": "仍要导出",
+      "cancel": "取消"
+    },
+    "error": {
+      "failed": "导出失败，请重试。"
+    },
     "saveImage": "保存为图片"
   },
   "loading": {

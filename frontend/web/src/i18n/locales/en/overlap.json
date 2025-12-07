@@ -75,9 +75,22 @@
     }
   },
   "export": {
-    "csv": "Export CSV",
+    "button": "Export",
     "bed": "Export BED",
+    "csv": "Export CSV",
     "tooltip": "Export current filtered results",
+    "tooltipWithFilters": "Export current results ({{count}} filters active)",
+    "starting": "Preparing export...",
+    "success": "Export started - check your downloads",
+    "largeDataWarning": {
+      "title": "Large Export Warning",
+      "noChromosomeWarning": "No chromosome filter is set. This export may be very large (100K+ rows). Consider filtering by chromosome first.",
+      "proceed": "Export Anyway",
+      "cancel": "Cancel"
+    },
+    "error": {
+      "failed": "Export failed. Please try again."
+    },
     "saveImage": "Save as Image"
   },
   "loading": {

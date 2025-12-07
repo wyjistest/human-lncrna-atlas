@@ -78,10 +78,44 @@ export const lncRNAChIPSeqOverlapApi = {
     }),
 
   /**
-   * Export overlaps to BED format (Phase 2)
+   * Export overlaps in specified format (BED or CSV)
+   * Opens a new tab/window for direct download
    *
    * @param filters - Query filters
-   * @returns BED file content as text
+   * @param format - Export format ('bed' or 'csv')
+   */
+  exportOverlaps: (filters: OverlapFilters, format: 'bed' | 'csv') => {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+    const params = new URLSearchParams()
+
+    // Apply all filters
+    if (filters.lncrna_gene_id) params.append('lncrna_gene_id', String(filters.lncrna_gene_id))
+    if (filters.target_gene_id) params.append('target_gene_id', String(filters.target_gene_id))
+    if (filters.mark_type) params.append('mark_type', filters.mark_type)
+    if (filters.cell_type) params.append('cell_type', filters.cell_type)
+    if (filters.chromosome) params.append('chromosome', filters.chromosome)
+    if (filters.min_overlap_length !== undefined) {
+      params.append('min_overlap_length', String(filters.min_overlap_length))
+    }
+    if (filters.min_binding_affinity !== undefined) {
+      params.append('min_binding_affinity', String(filters.min_binding_affinity))
+    }
+    if (filters.min_peak_strength !== undefined) {
+      params.append('min_peak_strength', String(filters.min_peak_strength))
+    }
+    if (filters.max_qvalue !== undefined) {
+      params.append('max_qvalue', String(filters.max_qvalue))
+    }
+
+    params.append('format', format)
+
+    const url = `${API_BASE_URL}/api/v1/lncrna-chipseq-overlap/export?${params.toString()}`
+    window.open(url, '_blank')
+  },
+
+  /**
+   * Export overlaps to BED format (Phase 2)
+   * @deprecated Use exportOverlaps() instead
    */
   exportToBED: (filters: OverlapFilters) =>
     apiClient.get<string>('/api/v1/lncrna-chipseq-overlap/export', {
@@ -94,9 +128,7 @@ export const lncRNAChIPSeqOverlapApi = {
 
   /**
    * Export overlaps to CSV format (Phase 2)
-   *
-   * @param filters - Query filters
-   * @returns CSV file content as text
+   * @deprecated Use exportOverlaps() instead
    */
   exportToCSV: (filters: OverlapFilters) =>
     apiClient.get<string>('/api/v1/lncrna-chipseq-overlap/export', {
