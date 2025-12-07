@@ -194,39 +194,52 @@ export function useChIPSeqCompare(
       const rawData: RawChIPSeqCompareResponse = response.data
 
       // Transform raw backend response to frontend expected format
-      const transformedMarks: MarkComparisonData[] = rawData.marks.map((m) => ({
-        mark_type: m.mark_type,
-        summary: {
+      // Note: signal_value is not returned by the compare API, so we use fold_enrichment as a proxy
+      const transformedMarks: MarkComparisonData[] = rawData.marks.map((m) => {
+        // Calculate max fold enrichment from peaks if available
+        const peakFoldEnrichments = (m.peaks || [])
+          .map((p) => p.fold_enrichment)
+          .filter((fe): fe is number => fe !== null && fe !== undefined)
+        const maxFoldEnrichment = peakFoldEnrichments.length > 0
+          ? Math.max(...peakFoldEnrichments)
+          : 0
+
+        return {
           mark_type: m.mark_type,
-          total_peaks: m.peak_count,
-          avg_signal: 0, // Not provided by backend
-          max_signal: 0, // Not provided by backend
-          avg_fold_enrichment: m.avg_fold_enrichment ?? 0,
-          promoter_peaks: 0, // Not provided by backend
-          gene_body_peaks: 0, // Not provided by backend
-          upstream_peaks: 0, // Not provided by backend
-          downstream_peaks: 0, // Not provided by backend
-          position_distribution: {},
-          median_fold_enrichment: m.median_fold_enrichment ?? undefined,
-          std_fold_enrichment: m.std_fold_enrichment ?? undefined,
-          total_coverage_bp: m.total_coverage_bp ?? undefined,
-          peak_width_percentiles: m.peak_width_percentiles ?? undefined,
-        },
-        top_peaks: (m.peaks || []).map((peak) => ({
-          peak_id: peak.peak_id,
-          gene_id: rawData.gene_id,
-          mark_type: peak.mark_type,
-          chromosome: peak.chromosome,
-          peak_start: peak.peak_start,
-          peak_end: peak.peak_end,
-          peak_width: peak.peak_end - peak.peak_start,
-          summit_position: peak.summit_position ?? undefined,
-          signal_value: 0, // Not provided by backend
-          pvalue: 0, // Not provided by backend
-          qvalue: peak.qvalue ?? 0,
-          fold_enrichment: peak.fold_enrichment ?? 0,
-        })),
-      }))
+          summary: {
+            mark_type: m.mark_type,
+            total_peaks: m.peak_count,
+            // Use fold_enrichment as proxy for signal metrics since signal_value is not provided
+            avg_signal: m.avg_fold_enrichment ?? 0,
+            max_signal: maxFoldEnrichment,
+            avg_fold_enrichment: m.avg_fold_enrichment ?? 0,
+            promoter_peaks: 0, // Not provided by backend
+            gene_body_peaks: 0, // Not provided by backend
+            upstream_peaks: 0, // Not provided by backend
+            downstream_peaks: 0, // Not provided by backend
+            position_distribution: {},
+            median_fold_enrichment: m.median_fold_enrichment ?? undefined,
+            std_fold_enrichment: m.std_fold_enrichment ?? undefined,
+            total_coverage_bp: m.total_coverage_bp ?? undefined,
+            peak_width_percentiles: m.peak_width_percentiles ?? undefined,
+          },
+          top_peaks: (m.peaks || []).map((peak) => ({
+            peak_id: peak.peak_id,
+            gene_id: rawData.gene_id,
+            mark_type: peak.mark_type,
+            chromosome: peak.chromosome,
+            peak_start: peak.peak_start,
+            peak_end: peak.peak_end,
+            peak_width: peak.peak_end - peak.peak_start,
+            summit_position: peak.summit_position ?? undefined,
+            // signal_value not provided by compare API, use fold_enrichment as proxy
+            signal_value: peak.fold_enrichment ?? null,
+            pvalue: null, // Not provided by backend
+            qvalue: peak.qvalue ?? 0,
+            fold_enrichment: peak.fold_enrichment ?? 0,
+          })),
+        }
+      })
 
       return {
         gene_id: rawData.gene_id,

@@ -1,6 +1,10 @@
 """
 ChIP-seq Epigenetic Marks API Router
 Provides unified endpoints for multiple histone modifications
+
+Phase 2.5 Enhancements:
+- Redis caching for expensive comparison endpoints
+- Rate limiting for API protection
 """
 import logging
 import statistics
@@ -11,14 +15,34 @@ from itertools import combinations
 import io
 import csv
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, or_, case, cast, Float, text
 from sqlalchemy.dialects.postgresql import ARRAY
 
 from app.core.database import get_db
+from app.core.cache import cache, cached
 from app.models import Gene, Species
+
+# ============================================================================
+# Rate Limiting Setup (slowapi)
+# ============================================================================
+try:
+    from slowapi import Limiter
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    SLOWAPI_AVAILABLE = True
+except ImportError:
+    SLOWAPI_AVAILABLE = False
+    Limiter = None
+
+# Initialize limiter if slowapi is available
+if SLOWAPI_AVAILABLE:
+    limiter = Limiter(key_func=get_remote_address)
+else:
+    limiter = None
+
 from app.schemas.chipseq import (
     # Enums
     MarkType,
@@ -69,6 +93,52 @@ router = APIRouter(prefix="/features/chipseq", tags=["chipseq"])
 
 # Default flanking region for gene queries (10kb)
 DEFAULT_FLANKING_REGION = 10000
+
+
+# =============================================================================
+# Rate Limiting Decorator Helper
+# =============================================================================
+
+def rate_limit(limit_string: str):
+    """
+    Rate limiting decorator that gracefully handles missing slowapi.
+
+    Args:
+        limit_string: Rate limit string (e.g., "30/minute", "5/minute")
+
+    Usage:
+        @rate_limit("30/minute")
+        def my_endpoint(request: Request, ...):
+            ...
+    """
+    def decorator(func):
+        if SLOWAPI_AVAILABLE and limiter:
+            # Apply slowapi rate limiting
+            return limiter.limit(limit_string)(func)
+        else:
+            # No rate limiting - return function as-is
+            return func
+    return decorator
+
+
+# =============================================================================
+# Rate Limit Exception Handler (for router-level handling)
+# =============================================================================
+
+async def rate_limit_exceeded_handler(request: Request, exc):
+    """Custom handler for rate limit exceeded errors"""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "success": False,
+            "error": {
+                "code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many requests. Please try again later.",
+                "detail": str(exc.detail) if hasattr(exc, 'detail') else "Rate limit exceeded",
+                "retry_after": getattr(exc, 'retry_after', 60)
+            }
+        }
+    )
 
 
 # =============================================================================
@@ -633,7 +703,10 @@ def get_gene_chipseq(
 
 
 @router.get("/genes/{gene_id}/summary", response_model=GeneChIPSeqSummary)
+@rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
+@cached("chipseq:summary", ttl=cache.TTL_LIST)  # Cache: 5 minutes (TTL_LIST=300)
 def get_gene_chipseq_summary(
+    request: Request,  # Required for rate limiting
     gene_id: int,
     flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
@@ -644,6 +717,9 @@ def get_gene_chipseq_summary(
 
     Returns aggregated statistics for all mark types with peaks in the gene region.
     Includes bivalent domain detection.
+
+    **Caching:** Results are cached for 5 minutes.
+    **Rate Limit:** 60 requests per minute per IP.
     """
     # 1. Query gene
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
@@ -874,7 +950,10 @@ def compute_mark_statistics(peaks: List[Dict], region_start: int, region_end: in
 # =============================================================================
 
 @router.get("/genes/{gene_id}/compare", response_model=ChIPSeqComparisonResponse)
+@rate_limit("30/minute")  # Rate limit: 30 requests per minute per IP (expensive query)
+@cached("chipseq:compare", ttl=cache.TTL_DETAIL)  # Cache: 10 minutes (TTL_DETAIL=600)
 def compare_gene_marks(
+    request: Request,  # Required for rate limiting
     gene_id: int,
     marks: str = Query(
         ...,
@@ -903,6 +982,9 @@ def compare_gene_marks(
     ```
     GET /features/chipseq/genes/12345/compare?marks=H3K27me3,H3K4me3,H3K27ac
     ```
+
+    **Caching:** Results are cached for 10 minutes.
+    **Rate Limit:** 30 requests per minute per IP.
 
     **New in Phase 2.5:**
     - Enhanced statistics per mark
@@ -1207,7 +1289,10 @@ def find_common_peaks(cell_lines_data: Dict[str, Dict], chromosome: str) -> int:
 
 
 @router.get("/genes/{gene_id}/compare-cell-lines", response_model=CellLineComparisonResponse)
+@rate_limit("30/minute")  # Rate limit: 30 requests per minute per IP (expensive query)
+@cached("chipseq:compare-cell-lines", ttl=cache.TTL_DETAIL)  # Cache: 10 minutes (TTL_DETAIL=600)
 def compare_gene_cell_lines(
+    request: Request,  # Required for rate limiting
     gene_id: int,
     mark_type: str = Query(
         ...,
@@ -1239,6 +1324,9 @@ def compare_gene_cell_lines(
     ```
     GET /features/chipseq/genes/17276/compare-cell-lines?mark_type=H3K27me3&cell_types=K562,HepG2,H1-hESC
     ```
+
+    **Caching:** Results are cached for 10 minutes.
+    **Rate Limit:** 30 requests per minute per IP.
 
     **Returns:**
     - Peak data for each cell line
@@ -1433,7 +1521,10 @@ def compare_gene_cell_lines(
 # =============================================================================
 
 @router.get("/genes/{gene_id}/heatmap-matrix", response_model=HeatmapMatrixResponse)
+@rate_limit("30/minute")  # Rate limit: 30 requests per minute per IP (expensive query)
+@cached("chipseq:heatmap-matrix", ttl=cache.TTL_DETAIL)  # Cache: 10 minutes (TTL_DETAIL=600)
 def get_gene_heatmap_matrix(
+    request: Request,  # Required for rate limiting
     gene_id: int,
     marks: str = Query(
         ...,
@@ -1460,6 +1551,9 @@ def get_gene_heatmap_matrix(
 
     Returns a 2D matrix optimized for ECharts heatmap visualization.
     Matrix values can be fold enrichment, signal, peak count, or coverage.
+
+    **Caching:** Results are cached for 10 minutes.
+    **Rate Limit:** 30 requests per minute per IP.
 
     **Parameters:**
     - `marks`: Comma-separated list of marks (1-8 items)
@@ -1632,7 +1726,9 @@ def get_gene_heatmap_matrix(
 
 
 @router.post("/genes/batch-heatmap-matrix", response_model=BatchHeatmapMatrixResponse)
+@rate_limit("10/minute")  # Rate limit: 10 requests per minute per IP (batch is resource-intensive)
 def get_batch_gene_heatmap_matrix(
+    http_request: Request,  # Required for rate limiting (renamed to avoid conflict with body param)
     request: BatchHeatmapMatrixRequest,
     db: Session = Depends(get_db),
 ):
@@ -1641,6 +1737,8 @@ def get_batch_gene_heatmap_matrix(
 
     This endpoint efficiently retrieves ChIP-seq heatmap matrices for multiple genes,
     allowing comparison of epigenetic patterns across genes.
+
+    **Rate Limit:** 10 requests per minute per IP (batch endpoints are resource-intensive).
 
     **Parameters:**
     - `gene_ids`: List of gene IDs (1-100 genes)
@@ -2106,7 +2204,9 @@ def get_global_stats(
 # =============================================================================
 
 @router.get("/genes/{gene_id}/compare/export")
+@rate_limit("5/minute")  # Rate limit: 5 requests per minute per IP (export is resource-intensive)
 def export_comparison(
+    request: Request,  # Required for rate limiting
     gene_id: int,
     marks: str = Query(
         ...,
@@ -2125,6 +2225,8 @@ def export_comparison(
     Export comparison data in CSV, TSV, or JSON format (Phase 2.5)
 
     Downloads the comparison results for further analysis in external tools.
+
+    **Rate Limit:** 5 requests per minute per IP (export endpoints are resource-intensive).
 
     **Example:**
     ```

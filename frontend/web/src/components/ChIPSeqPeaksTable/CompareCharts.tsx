@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { Row, Col, Card, Empty, Statistic, Space, Typography } from 'antd'
+import { Row, Col, Card, Empty, Statistic, Space, Typography, Alert } from 'antd'
 import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
@@ -127,8 +127,10 @@ function PeakCountChart({
 }
 
 /**
- * Average Signal Comparison Chart
- * Bar chart comparing average signal values
+ * Signal/Enrichment Comparison Chart
+ * Bar chart comparing fold enrichment values (avg and max)
+ * Note: Uses fold_enrichment as proxy for signal values since the compare API
+ * doesn't return signal_value directly
  */
 function SignalComparisonChart({
   data,
@@ -139,6 +141,11 @@ function SignalComparisonChart({
 }) {
   const { t } = useTranslation('genes')
 
+  // Check if we have actual data to display
+  const hasData = data.some(
+    (d) => d.summary.avg_signal > 0 || d.summary.max_signal > 0
+  )
+
   const option: ECOption = useMemo(() => {
     const sortedData = [...data].sort(
       (a, b) => marks.indexOf(a.mark_type) - marks.indexOf(b.mark_type)
@@ -146,25 +153,38 @@ function SignalComparisonChart({
 
     return {
       title: {
-        text: t('detail.chipseq.charts.signalComparison', 'Signal Comparison'),
+        text: t('detail.chipseq.charts.enrichmentComparison', 'Enrichment Comparison'),
+        subtext: t('detail.chipseq.charts.enrichmentSubtitle', 'Fold enrichment over background'),
         left: 'center',
-        top: 10,
+        top: 5,
         textStyle: { fontSize: 14, fontWeight: 'bold' },
+        subtextStyle: { fontSize: 11, color: '#888' },
       },
       toolbox: getChartToolbox(
-        t('detail.chipseq.charts.signalComparison', 'Signal Comparison'),
+        t('detail.chipseq.charts.enrichmentComparison', 'Enrichment Comparison'),
         t('export.saveImage', 'Save as Image')
       ),
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
+        formatter: (params: any) => {
+          if (!Array.isArray(params) || params.length === 0) return ''
+          const markName = params[0].name
+          const avgVal = params[0]?.value ?? 0
+          const maxVal = params[1]?.value ?? 0
+          return [
+            `<strong>${markName}</strong>`,
+            `${t('detail.chipseq.avgFoldEnrichment', 'Avg Fold Enrichment')}: ${avgVal.toFixed(2)}x`,
+            `${t('detail.chipseq.maxFoldEnrichment', 'Max Fold Enrichment')}: ${maxVal.toFixed(2)}x`,
+          ].join('<br/>')
+        },
       },
       legend: {
         data: [
-          t('detail.chipseq.avgSignal', 'Avg Signal'),
-          t('detail.chipseq.maxSignal', 'Max Signal'),
+          t('detail.chipseq.avgFoldEnrichment', 'Avg Enrichment'),
+          t('detail.chipseq.maxFoldEnrichment', 'Max Enrichment'),
         ],
-        top: 35,
+        top: 40,
       },
       xAxis: {
         type: 'category',
@@ -173,31 +193,40 @@ function SignalComparisonChart({
       },
       yAxis: {
         type: 'value',
-        name: t('detail.chipseq.signalValue', 'Signal Value'),
+        name: t('detail.chipseq.foldEnrichment', 'Fold Enrichment'),
         nameLocation: 'middle',
         nameGap: 50,
+        axisLabel: {
+          formatter: '{value}x',
+        },
       },
       grid: {
         left: '12%',
         right: '8%',
         bottom: '15%',
-        top: '25%',
+        top: '28%',
       },
       series: [
         {
-          name: t('detail.chipseq.avgSignal', 'Avg Signal'),
+          name: t('detail.chipseq.avgFoldEnrichment', 'Avg Enrichment'),
           type: 'bar',
           data: sortedData.map((d) => ({
-            value: d.summary.avg_signal,
+            value: d.summary.avg_signal, // This is actually avg_fold_enrichment
             itemStyle: { color: getMarkColor(d.mark_type) },
           })),
           barMaxWidth: 40,
+          label: {
+            show: true,
+            position: 'top',
+            formatter: (params: any) => `${params.value.toFixed(1)}x`,
+            fontSize: 9,
+          },
         },
         {
-          name: t('detail.chipseq.maxSignal', 'Max Signal'),
+          name: t('detail.chipseq.maxFoldEnrichment', 'Max Enrichment'),
           type: 'bar',
           data: sortedData.map((d) => ({
-            value: d.summary.max_signal,
+            value: d.summary.max_signal, // This is actually max_fold_enrichment
             itemStyle: {
               color: getMarkColor(d.mark_type),
               opacity: 0.5,
@@ -208,6 +237,20 @@ function SignalComparisonChart({
       ],
     }
   }, [data, marks, t])
+
+  // Show empty state if no data
+  if (!hasData) {
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description={t(
+          'detail.chipseq.noEnrichmentData',
+          'Enrichment data not available'
+        )}
+        style={{ padding: 48 }}
+      />
+    )
+  }
 
   return (
     <ReactECharts

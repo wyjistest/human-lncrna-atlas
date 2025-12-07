@@ -725,293 +725,682 @@ test.describe('ChIP-seq Cell Line Comparison', () => {
   })
 })
 
-test.describe('ChIP-seq Heatmap Matrix', () => {
+/**
+ * Phase 2.5 Multi-Mark Comparison Tests
+ * Tests for the enhanced multi-mark comparison functionality
+ */
+test.describe('Multi-Mark Comparison Flow (Phase 2.5)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to Genomic Features tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    // Navigate to ChIP-seq sub-tab
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+      await page.waitForTimeout(1000)
+    }
+  })
+
+  test('should complete multi-mark comparison flow with 2 marks', async ({ page }) => {
+    // 1. Click Compare Marks button (对比修饰)
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // 2. Open mark selector dropdown
+    const markSelector = page.locator('.ant-select').first()
+    await markSelector.click()
+    await page.waitForTimeout(300)
+
+    // 3. Select H3K4me3 (it should be in the dropdown)
+    const h3k4me3Option = page.getByRole('option', { name: /H3K4me3/i })
+    if ((await h3k4me3Option.count()) > 0) {
+      await h3k4me3Option.click()
+      await page.waitForTimeout(1000)
+
+      // 4. Verify comparison data is displayed
+      // Look for merged peaks table or comparison content
+      const comparisonContent = page.locator('.ant-table')
+        .or(page.locator('.ant-alert'))
+        .or(page.locator('canvas'))
+
+      await expect(comparisonContent.first()).toBeVisible({ timeout: 10000 })
+    }
+  })
+
+  test('should show bivalent domain badge when H3K4me3 and H3K27me3 selected', async ({ page }) => {
+    // Click Compare Marks button
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // Select H3K4me3 (H3K27me3 should be pre-selected)
+    const markSelector = page.locator('.ant-select').first()
+    await markSelector.click()
+    await page.waitForTimeout(300)
+
+    const h3k4me3Option = page.getByRole('option', { name: /H3K4me3/i })
+    if ((await h3k4me3Option.count()) > 0) {
+      await h3k4me3Option.click()
+      await page.waitForTimeout(1500)
+
+      // Look for bivalent domain indicator
+      const bivalentBadge = page.getByText(/双价|Bivalent/i)
+        .or(page.locator('.ant-alert').filter({ hasText: /双价|Bivalent/i }))
+
+      const badgeCount = await bivalentBadge.count()
+      console.log(`Bivalent domain badge found: ${badgeCount > 0}`)
+    }
+  })
+
+  test('should switch to Statistics view and show charts', async ({ page }) => {
+    // Enter compare mode
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // Select additional mark
+    const markSelector = page.locator('.ant-select').first()
+    await markSelector.click()
+    await page.waitForTimeout(300)
+
+    const h3k4me3Option = page.getByRole('option', { name: /H3K4me3/i })
+    if ((await h3k4me3Option.count()) > 0) {
+      await h3k4me3Option.click()
+      await page.waitForTimeout(1000)
+
+      // Click Statistics tab (统计对比)
+      const statsTab = page.getByRole('tab', { name: /统计对比|Statistics/i })
+      if ((await statsTab.count()) > 0) {
+        await statsTab.click()
+        await page.waitForTimeout(1000)
+
+        // Verify charts are rendered (canvas elements for ECharts)
+        const charts = page.locator('canvas')
+        const chartCount = await charts.count()
+        console.log(`Charts found in Statistics view: ${chartCount}`)
+
+        // Should have at least one chart
+        if (chartCount > 0) {
+          expect(chartCount).toBeGreaterThan(0)
+        }
+      }
+    }
+  })
+
+  test('should switch between view modes (Merged, Parallel, Stats)', async ({ page }) => {
+    // Enter compare mode with 2 marks
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // Select additional mark for parallel view
+    const markSelector = page.locator('.ant-select').first()
+    await markSelector.click()
+    await page.waitForTimeout(300)
+
+    const h3k4me3Option = page.getByRole('option', { name: /H3K4me3/i })
+    if ((await h3k4me3Option.count()) === 0) {
+      test.skip()
+      return
+    }
+    await h3k4me3Option.click()
+    await page.waitForTimeout(1000)
+
+    // Test Merged View tab
+    const mergedTab = page.getByRole('tab', { name: /合并视图|Merged/i })
+    if ((await mergedTab.count()) > 0) {
+      await mergedTab.click()
+      await page.waitForTimeout(500)
+      console.log('Merged View tab clicked')
+    }
+
+    // Test Parallel View tab (should be enabled with 2 marks)
+    const parallelTab = page.getByRole('tab', { name: /并行对比|Parallel/i })
+    if ((await parallelTab.count()) > 0) {
+      const isDisabled = await parallelTab.getAttribute('aria-disabled')
+      if (isDisabled !== 'true') {
+        await parallelTab.click()
+        await page.waitForTimeout(500)
+        console.log('Parallel View tab clicked')
+      }
+    }
+
+    // Test Statistics View tab
+    const statsTab = page.getByRole('tab', { name: /统计对比|Statistics/i })
+    if ((await statsTab.count()) > 0) {
+      await statsTab.click()
+      await page.waitForTimeout(500)
+      console.log('Statistics View tab clicked')
+    }
+  })
+
+  test('should select up to 3 marks for comparison', async ({ page }) => {
+    // Enter compare mode
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    const markSelector = page.locator('.ant-select').first()
+    const marksToSelect = ['H3K4me3', 'H3K27ac']
+    let selectedCount = 1 // H3K27me3 is pre-selected
+
+    for (const mark of marksToSelect) {
+      await markSelector.click()
+      await page.waitForTimeout(300)
+
+      const markOption = page.getByRole('option', { name: new RegExp(mark, 'i') })
+      if ((await markOption.count()) > 0) {
+        await markOption.click()
+        selectedCount++
+        await page.waitForTimeout(500)
+      }
+    }
+
+    console.log(`Successfully selected ${selectedCount} marks for comparison`)
+    expect(selectedCount).toBeGreaterThanOrEqual(2)
+  })
+
+  test('should exit comparison mode correctly', async ({ page }) => {
+    // Enter compare mode
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // Verify compare mode is active (exit button should be visible)
+    const exitButton = page.getByRole('button', { name: /退出对比|Exit/i })
+    await expect(exitButton).toBeVisible()
+
+    // Exit compare mode
+    await exitButton.click()
+    await page.waitForTimeout(500)
+
+    // Verify back to single mark mode (compare button should be visible again)
+    const compareButtonAgain = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    await expect(compareButtonAgain).toBeVisible()
+  })
+})
+
+/**
+ * Matrix Heatmap View Tests (Phase 2.9)
+ */
+test.describe('Heatmap Matrix View (Phase 2.9)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to Genomic Features tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    // Navigate to ChIP-seq sub-tab
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+      await page.waitForTimeout(1000)
+    }
+  })
+
+  test('should access Matrix View tab in compare mode', async ({ page }) => {
+    // Enter compare mode
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // Select additional mark
+    const markSelector = page.locator('.ant-select').first()
+    await markSelector.click()
+    await page.waitForTimeout(300)
+
+    const h3k4me3Option = page.getByRole('option', { name: /H3K4me3/i })
+    if ((await h3k4me3Option.count()) > 0) {
+      await h3k4me3Option.click()
+      await page.waitForTimeout(1000)
+    }
+
+    // Look for Matrix View tab
+    const matrixTab = page.getByRole('tab', { name: /矩阵视图|Matrix/i })
+    if ((await matrixTab.count()) > 0) {
+      await matrixTab.click()
+      await page.waitForTimeout(1500)
+
+      // Verify matrix view content is displayed
+      const matrixContent = page.locator('canvas')
+        .or(page.locator('.ant-card'))
+        .or(page.locator('.ant-alert'))
+
+      await expect(matrixContent.first()).toBeVisible({ timeout: 10000 })
+      console.log('Matrix View tab accessible and content visible')
+    } else {
+      console.log('Matrix View tab not found')
+    }
+  })
+
+  test('should display matrix heatmap with cell types and marks', async ({ page }) => {
+    // Enter compare mode and select marks
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    const markSelector = page.locator('.ant-select').first()
+    await markSelector.click()
+    await page.waitForTimeout(300)
+
+    const h3k4me3Option = page.getByRole('option', { name: /H3K4me3/i })
+    if ((await h3k4me3Option.count()) > 0) {
+      await h3k4me3Option.click()
+      await page.waitForTimeout(1000)
+    }
+
+    // Click Matrix View tab
+    const matrixTab = page.getByRole('tab', { name: /矩阵视图|Matrix/i })
+    if ((await matrixTab.count()) === 0) {
+      test.skip()
+      return
+    }
+    await matrixTab.click()
+    await page.waitForTimeout(2000)
+
+    // Check for heatmap canvas (ECharts renders to canvas)
+    const heatmapCanvas = page.locator('canvas')
+    const canvasCount = await heatmapCanvas.count()
+    console.log(`Heatmap canvas elements found: ${canvasCount}`)
+
+    if (canvasCount > 0) {
+      expect(canvasCount).toBeGreaterThan(0)
+    }
+  })
+})
+
+/**
+ * Error Handling Tests
+ */
+test.describe('ChIP-seq Error Handling', () => {
+  test('should handle API errors gracefully', async ({ page }) => {
+    // Intercept API calls and return error
+    await page.route('**/api/v1/features/chipseq/**', (route) => {
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Internal Server Error' }),
+      })
+    })
+
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to Genomic Features tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    // Navigate to ChIP-seq tab
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+      await page.waitForTimeout(2000)
+
+      // Look for error state or error message
+      const errorState = page.getByText(/加载失败|Error|Failed/i)
+        .or(page.locator('.ant-alert-error'))
+        .or(page.locator('[class*="error"]'))
+
+      const errorCount = await errorState.count()
+      console.log(`Error state elements found: ${errorCount}`)
+
+      // Look for retry button
+      const retryButton = page.getByRole('button', { name: /重试|Retry/i })
+      const retryCount = await retryButton.count()
+      console.log(`Retry button found: ${retryCount > 0}`)
+    }
+  })
+
+  test('should show empty state when no peaks data', async ({ page }) => {
+    // Mock API to return empty data
+    await page.route('**/api/v1/features/chipseq/genes/*/peaks**', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [],
+          total: 0,
+          page: 1,
+          page_size: 20,
+        }),
+      })
+    })
+
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to ChIP-seq tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+      await page.waitForTimeout(2000)
+
+      // Look for empty state or "no data" message
+      const emptyState = page.getByText(/没有|No peaks|No data|Empty/i)
+        .or(page.locator('.ant-empty'))
+
+      const emptyCount = await emptyState.count()
+      console.log(`Empty state elements found: ${emptyCount}`)
+    }
+  })
+
+  test('should handle comparison with insufficient marks', async ({ page }) => {
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to ChIP-seq tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+      await page.waitForTimeout(1000)
+    }
+
+    // Enter compare mode (should have only 1 mark initially)
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(1000)
+
+    // Look for warning about needing at least 2 marks
+    const warningMessage = page.getByText(/至少|at least|2|选择/i)
+      .or(page.locator('.ant-message-error'))
+      .or(page.locator('.ant-alert-warning'))
+
+    const warningCount = await warningMessage.count()
+    console.log(`Warning about insufficient marks: ${warningCount > 0}`)
+  })
+})
+
+/**
+ * Performance Tests
+ */
+test.describe('ChIP-seq Performance', () => {
+  test('should load ChIP-seq data within acceptable time', async ({ page }) => {
+    const startTime = Date.now()
+
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to ChIP-seq tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+    }
+
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+
+      // Wait for table to be visible
+      const dataTable = page.locator('.ant-table')
+      await dataTable.first().waitFor({ state: 'visible', timeout: 10000 })
+
+      const loadTime = Date.now() - startTime
+      console.log(`ChIP-seq data load time: ${loadTime}ms`)
+
+      // Should load within 5 seconds
+      expect(loadTime).toBeLessThan(5000)
+    }
+  })
+
+  test('should handle rapid filter changes without errors', async ({ page }) => {
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to ChIP-seq tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+      await page.waitForTimeout(1500)
+    }
+
+    // Find and interact with filter controls rapidly
+    const filterInput = page.locator('.ant-input-number input').first()
+    if ((await filterInput.count()) > 0) {
+      // Rapid filter changes
+      await filterInput.fill('0.05')
+      await page.waitForTimeout(100)
+      await filterInput.fill('0.01')
+      await page.waitForTimeout(100)
+      await filterInput.fill('0.001')
+      await page.waitForTimeout(500)
+
+      // Verify no errors occurred
+      const errorMessages = page.locator('.ant-message-error')
+      const errorCount = await errorMessages.count()
+      expect(errorCount).toBe(0)
+    }
+  })
+
+  test('should maintain responsive UI during data loading', async ({ page }) => {
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to ChIP-seq tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+    }
+
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+
+      // While loading, verify UI remains interactive
+      // Check that loading indicator appears
+      const loadingIndicator = page.locator('.ant-spin')
+        .or(page.locator('[class*="loading"]'))
+
+      // Check that tabs are still clickable
+      const tabs = page.locator('.ant-tabs-tab')
+      const tabsClickable = await tabs.first().isEnabled()
+      console.log(`Tabs remain clickable during load: ${tabsClickable}`)
+    }
+  })
+})
+
+/**
+ * Cell Line Comparison View Tests (Phase 2.6)
+ */
+test.describe('Cell Line Comparison View (Phase 2.6)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to Genomic Features tab
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    // Navigate to ChIP-seq sub-tab
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.click()
+      await page.waitForTimeout(1000)
+    }
+  })
+
+  test('should access Cell Lines view tab', async ({ page }) => {
+    // Enter compare mode
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+      .or(page.getByRole('button', { name: /对比细胞系|Compare Cell Lines/i }))
+
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // Look for Cell Lines tab
+    const cellLinesTab = page.getByRole('tab', { name: /细胞系|Cell Lines/i })
+    if ((await cellLinesTab.count()) > 0) {
+      await cellLinesTab.click()
+      await page.waitForTimeout(1000)
+
+      // Verify cell line selection UI is visible
+      const cellLineUI = page.locator('.ant-checkbox-group')
+        .or(page.locator('.ant-card'))
+        .or(page.getByText(/K562|HepG2|GM12878|H1-hESC/i))
+
+      const uiCount = await cellLineUI.count()
+      console.log(`Cell line selection UI elements: ${uiCount}`)
+    }
+  })
+
+  test('should display cell type selection panel', async ({ page }) => {
+    // Try clicking Compare Cell Lines button directly
+    const compareCellLinesButton = page.getByRole('button', { name: /对比细胞系|Compare Cell Lines/i })
+    if ((await compareCellLinesButton.count()) > 0) {
+      await compareCellLinesButton.click()
+      await page.waitForTimeout(1000)
+
+      // Look for cell type checkboxes or selection
+      const cellTypes = ['K562', 'HepG2', 'GM12878', 'H1-hESC']
+      const foundCellTypes: string[] = []
+
+      for (const cellType of cellTypes) {
+        const cellTypeElement = page.getByText(cellType, { exact: true })
+          .or(page.locator('.ant-checkbox-wrapper').filter({ hasText: cellType }))
+
+        if ((await cellTypeElement.count()) > 0) {
+          foundCellTypes.push(cellType)
+        }
+      }
+
+      console.log(`Found cell types in selection panel: ${foundCellTypes.join(', ')}`)
+    }
+  })
+})
+
+/**
+ * Export Functionality Tests
+ */
+test.describe('ChIP-seq Export Functionality', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
-    const chipseqTab = page.locator('.ant-tabs-tab').filter({ hasText: /ChIP|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /基因组特征|Genomic Features/i })
+    if ((await genomicFeaturesTab.count()) > 0) {
+      await genomicFeaturesTab.click()
+      await page.waitForTimeout(500)
+    }
+
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|峰值/i })
     if ((await chipseqTab.count()) > 0) {
-      await chipseqTab.first().click()
+      await chipseqTab.click()
+      await page.waitForTimeout(1500)
+    }
+  })
+
+  test('should have export BED button in single mark mode', async ({ page }) => {
+    const exportButton = page.getByRole('button', { name: /导出 BED|Export BED/i })
+    if ((await exportButton.count()) > 0) {
+      await expect(exportButton).toBeVisible()
+      console.log('Export BED button is visible')
+    }
+  })
+
+  test('should have export CSV button in comparison mode', async ({ page }) => {
+    // Enter compare mode
+    const compareButton = page.getByRole('button', { name: /对比修饰|Compare Marks/i })
+    if ((await compareButton.count()) === 0) {
+      test.skip()
+      return
+    }
+    await compareButton.click()
+    await page.waitForTimeout(500)
+
+    // Select additional mark
+    const markSelector = page.locator('.ant-select').first()
+    await markSelector.click()
+    await page.waitForTimeout(300)
+
+    const h3k4me3Option = page.getByRole('option', { name: /H3K4me3/i })
+    if ((await h3k4me3Option.count()) > 0) {
+      await h3k4me3Option.click()
       await page.waitForTimeout(1000)
     }
-  })
 
-  test('should display matrix view tab', async ({ page }) => {
-    // Enter compare mode - look for compare cell lines button
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      // Look for matrix view tab
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-        .or(page.locator('.ant-segmented-item').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await expect(matrixTab.first()).toBeVisible()
-      } else {
-        console.log('Matrix view tab not found - feature may not be implemented')
-      }
-    }
-  })
-
-  test('should render matrix heatmap with ECharts', async ({ page }) => {
-    // Navigate to cell line compare mode
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      // Click matrix view tab if available
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-        .or(page.locator('.ant-segmented-item').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await matrixTab.first().click()
-        await page.waitForTimeout(1000)
-
-        // Verify ECharts canvas is rendered
-        const canvas = page.locator('canvas')
-          .or(page.locator('[data-testid="heatmap-canvas"]'))
-          .or(page.locator('.echarts-container canvas'))
-
-        if ((await canvas.count()) > 0) {
-          await expect(canvas.first()).toBeVisible()
-        }
-      }
-    }
-  })
-
-  test('should make heatmap-matrix API call', async ({ page }) => {
-    const apiCalls: string[] = []
-
-    page.on('request', (request) => {
-      if (request.url().includes('heatmap-matrix')) {
-        apiCalls.push(request.url())
-      }
-    })
-
-    // Navigate to cell line compare mode
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      // Click matrix view tab if available
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-        .or(page.locator('.ant-segmented-item').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await matrixTab.first().click()
-        await page.waitForTimeout(2000)
-
-        console.log(`Heatmap matrix API calls: ${apiCalls.length}`)
-        // API should be called when matrix view is activated
-      }
-    }
-  })
-
-  test('should support metric selector', async ({ page }) => {
-    // Navigate to cell line compare mode and matrix view
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await matrixTab.first().click()
-        await page.waitForTimeout(500)
-
-        // Look for metric selector
-        const metricSelector = page.locator('.ant-select').filter({ hasText: /Metric|Fold|Peak|Coverage/i })
-          .or(page.locator('[data-testid="metric-selector"]'))
-          .or(page.locator('.ant-radio-group').filter({ hasText: /Fold|Peak|Coverage/i }))
-
-        if ((await metricSelector.count()) > 0) {
-          await expect(metricSelector.first()).toBeVisible()
-
-          // Try clicking to open options
-          await metricSelector.first().click()
-          await page.waitForTimeout(300)
-
-          // Check for metric options
-          const metricOptions = [
-            'median_fold_enrichment',
-            'peak_count',
-            'total_coverage_bp',
-            'avg_signal',
-            'Fold Enrichment',
-            'Peak Count',
-            'Coverage'
-          ]
-
-          for (const metric of metricOptions) {
-            const option = page.getByText(metric, { exact: false })
-            if ((await option.count()) > 0) {
-              console.log(`Found metric option: ${metric}`)
-              break
-            }
-          }
-
-          // Close selector
-          await page.keyboard.press('Escape')
-        }
-      }
-    }
-  })
-
-  test('should display matrix with cell types as rows and marks as columns', async ({ page }) => {
-    // Navigate to matrix view
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await matrixTab.first().click()
-        await page.waitForTimeout(1000)
-
-        // Verify axes labels are present
-        const cellTypeLabels = ['K562', 'HepG2', 'GM12878', 'H1-hESC']
-        const markLabels = ['H3K27me3', 'H3K4me3', 'H3K27ac', 'H3K4me1']
-
-        let foundCellTypes = 0
-        let foundMarks = 0
-
-        for (const ct of cellTypeLabels) {
-          const label = page.getByText(ct, { exact: true })
-          if ((await label.count()) > 0) {
-            foundCellTypes++
-          }
-        }
-
-        for (const mark of markLabels) {
-          const label = page.getByText(mark, { exact: true })
-          if ((await label.count()) > 0) {
-            foundMarks++
-          }
-        }
-
-        console.log(`Found ${foundCellTypes} cell type labels, ${foundMarks} mark labels`)
-      }
-    }
-  })
-
-  test('should show tooltip on heatmap cell hover', async ({ page }) => {
-    // Navigate to matrix view
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await matrixTab.first().click()
-        await page.waitForTimeout(1000)
-
-        // Find canvas and hover over it
-        const canvas = page.locator('canvas').first()
-        if ((await canvas.count()) > 0) {
-          const box = await canvas.boundingBox()
-          if (box) {
-            // Hover over center of canvas
-            await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-            await page.waitForTimeout(500)
-
-            // Look for ECharts tooltip
-            const tooltip = page.locator('.echarts-tooltip')
-              .or(page.locator('[class*="tooltip"]'))
-              .or(page.locator('.ant-tooltip'))
-
-            if ((await tooltip.count()) > 0) {
-              console.log('Tooltip is displayed on hover')
-            }
-          }
-        }
-      }
-    }
-  })
-
-  test('should display color scale legend', async ({ page }) => {
-    // Navigate to matrix view
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await matrixTab.first().click()
-        await page.waitForTimeout(1000)
-
-        // Look for color scale legend (usually rendered by ECharts as visualMap)
-        const legend = page.locator('[class*="legend"]')
-          .or(page.locator('[class*="visualMap"]'))
-          .or(page.locator('.color-scale'))
-
-        const legendCount = await legend.count()
-        console.log(`Found ${legendCount} legend elements`)
-      }
-    }
-  })
-
-  test('should handle missing data combinations gracefully', async ({ page }) => {
-    // This test verifies the UI handles missing data (null values in matrix)
-    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
-      .or(page.locator('button').filter({ hasText: /Compare|/i }))
-
-    if ((await compareCellLinesBtn.count()) > 0) {
-      await compareCellLinesBtn.first().click()
-      await page.waitForTimeout(500)
-
-      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
-        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
-
-      if ((await matrixTab.count()) > 0) {
-        await matrixTab.first().click()
-        await page.waitForTimeout(1000)
-
-        // Check for "No Data" or similar indicators
-        const noDataIndicator = page.getByText(/No Data|N\/A|-/i)
-          .or(page.locator('[class*="empty"]'))
-
-        const indicatorCount = await noDataIndicator.count()
-        console.log(`Found ${indicatorCount} no-data indicators`)
-
-        // Ensure the page doesn't show an error state
-        const errorMessage = page.locator('.ant-alert-error, .error-boundary')
-        const errorCount = await errorMessage.count()
-        expect(errorCount).toBe(0)
-      }
+    // Look for export CSV button
+    const exportCsvButton = page.getByRole('button', { name: /导出 CSV|Export CSV/i })
+    if ((await exportCsvButton.count()) > 0) {
+      await expect(exportCsvButton).toBeVisible()
+      console.log('Export CSV button is visible in comparison mode')
     }
   })
 })

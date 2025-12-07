@@ -28,6 +28,18 @@ from app.middleware.rate_limit import RateLimitMiddleware
 from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, conservation, chipseq, lncrna_chipseq_overlap
 from app.schemas.common import HealthResponse
 
+# ============================================================================
+# slowapi Rate Limiting Setup (for per-endpoint rate limiting)
+# ============================================================================
+try:
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from app.routers.chipseq import limiter as chipseq_limiter
+    SLOWAPI_AVAILABLE = True
+except ImportError:
+    SLOWAPI_AVAILABLE = False
+    chipseq_limiter = None
+
 # 初始化日志
 logger = setup_logging(settings.LOG_LEVEL)
 
@@ -91,6 +103,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================================
+# slowapi Rate Limiting Integration (per-endpoint limits for ChIP-seq API)
+# ============================================================================
+if SLOWAPI_AVAILABLE and chipseq_limiter:
+    app.state.limiter = chipseq_limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    logger.info("slowapi rate limiting enabled for ChIP-seq endpoints")
 
 # 保存MetricsMiddleware实例到app.state（用于/metrics端点）
 # 注意：需要在第一个请求后才能获取实例

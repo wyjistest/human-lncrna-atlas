@@ -3,14 +3,14 @@
  * Phase 2.2 - Advanced filter panel for ChIP-seq data
  *
  * Provides filtering options for:
- * - Fold enrichment range
+ * - Fold enrichment range (with debounced auto-apply)
  * - Q-value (FDR) threshold
  * - Signal value minimum
  * - Relative position filter
  * - Flanking region size
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Card,
   Space,
@@ -28,6 +28,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
+import { debounce } from 'lodash'
 import i18n from '@/i18n'
 import { getMarkConfig } from '@/config/markConfigs'
 import { getCellTypeOptions } from '@/config/cellTypeConfigs'
@@ -80,15 +81,43 @@ export function FilterPanel({
     filters.max_fold_enrichment ?? 100,
   ])
 
-  // Apply fold enrichment filter
-  const applyFoldEnrichmentFilter = useCallback(() => {
-    onFiltersChange({
-      ...filters,
-      min_fold_enrichment: foldEnrichmentRange[0] || undefined,
-      max_fold_enrichment: foldEnrichmentRange[1] < 100 ? foldEnrichmentRange[1] : undefined,
-      page: 1, // Reset to first page
-    })
-  }, [filters, foldEnrichmentRange, onFiltersChange])
+  // Create a debounced filter change function
+  // Using useRef to maintain the same debounced function across renders
+  const debouncedFilterChange = useRef(
+    debounce((newFilters: ChIPSeqFilters) => {
+      onFiltersChange(newFilters)
+    }, 500)
+  ).current
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedFilterChange.cancel()
+    }
+  }, [debouncedFilterChange])
+
+  // Auto-apply fold enrichment filter with debounce when slider changes
+  const handleFoldEnrichmentChange = useCallback(
+    (value: [number, number]) => {
+      setFoldEnrichmentRange(value)
+      // Debounced auto-apply
+      debouncedFilterChange({
+        ...filters,
+        min_fold_enrichment: value[0] || undefined,
+        max_fold_enrichment: value[1] < 100 ? value[1] : undefined,
+        page: 1, // Reset to first page
+      })
+    },
+    [filters, debouncedFilterChange]
+  )
+
+  // Sync local state when filters change externally (e.g., reset)
+  useEffect(() => {
+    setFoldEnrichmentRange([
+      filters.min_fold_enrichment ?? 0,
+      filters.max_fold_enrichment ?? 100,
+    ])
+  }, [filters.min_fold_enrichment, filters.max_fold_enrichment])
 
   // Handle q-value change
   const handleQValueChange = useCallback(
@@ -279,7 +308,7 @@ export function FilterPanel({
           </Col>
         </Row>
 
-        {/* Fold Enrichment Slider */}
+        {/* Fold Enrichment Slider - Auto-applies with 500ms debounce */}
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} md={16}>
             <Space direction="vertical" style={{ width: '100%' }} size={4}>
@@ -289,27 +318,22 @@ export function FilterPanel({
                 <Tooltip
                   title={t(
                     'detail.chipseq.foldEnrichmentTooltip',
-                    'Signal enrichment over background'
+                    'Signal enrichment over background. Filter auto-applies after you stop dragging.'
                   )}
                 >
                   <InfoCircleOutlined style={{ marginLeft: 4 }} />
                 </Tooltip>
               </span>
-              <Space style={{ width: '100%' }}>
-                <Slider
-                  range
-                  style={{ width: 300 }}
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={foldEnrichmentRange}
-                  onChange={(val) => setFoldEnrichmentRange(val as [number, number])}
-                  tooltip={{ formatter: (val) => `${val}x` }}
-                />
-                <Button size="small" type="primary" onClick={applyFoldEnrichmentFilter}>
-                  {tCommon('action.apply', 'Apply')}
-                </Button>
-              </Space>
+              <Slider
+                range
+                style={{ width: 350 }}
+                min={0}
+                max={100}
+                step={1}
+                value={foldEnrichmentRange}
+                onChange={handleFoldEnrichmentChange}
+                tooltip={{ formatter: (val) => `${val}x` }}
+              />
             </Space>
           </Col>
         </Row>
