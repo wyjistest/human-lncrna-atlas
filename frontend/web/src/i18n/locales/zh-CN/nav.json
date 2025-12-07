@@ -3,7 +3,9 @@
   "stats": "统计概览",
   "genes": "基因列表",
   "regulations": "调控关系",
+  "overlap": "lncRNA-ChIP-seq 重叠",
   "diseases": "疾病关联",
   "network": "网络可视化",
+  "genomeBrowser": "基因组浏览器",
   "siteTitle": "Human LncRNA Atlas"
 }

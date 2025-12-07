@@ -1,5 +1,6 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { ConfigProvider } from 'antd'
+import { ConfigProvider, Spin } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import { useTranslation } from 'react-i18next'
@@ -13,6 +14,17 @@ import Regulations from './pages/Regulations'
 import Diseases from './pages/Diseases'
 import Network from './pages/Network'
 import Monitoring from './pages/Admin/Monitoring'
+import LncRNAChIPSeqOverlapPage from './pages/LncRNAChIPSeqOverlapPage'
+
+// Lazy load GenomeBrowser (large IGV.js bundle)
+const GenomeBrowser = lazy(() => import('./pages/GenomeBrowser'))
+
+// Loading fallback for lazy loaded routes
+const LazyLoadFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+    <Spin size="large" />
+  </div>
+)
 
 function App() {
   const { i18n } = useTranslation()
@@ -32,6 +44,12 @@ function App() {
             <Route path="regulations" element={<Regulations />} />
             <Route path="diseases" element={<Diseases />} />
             <Route path="network" element={<Network />} />
+            <Route path="genome-browser" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <GenomeBrowser />
+              </Suspense>
+            } />
+            <Route path="lncrna-chipseq-overlap" element={<LncRNAChIPSeqOverlapPage />} />
             <Route path="admin/monitoring" element={<Monitoring />} />
           </Route>
         </Routes>

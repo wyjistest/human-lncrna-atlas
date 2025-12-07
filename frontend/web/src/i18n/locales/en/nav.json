@@ -3,7 +3,9 @@
   "stats": "Statistics",
   "genes": "Gene List",
   "regulations": "Regulations",
+  "overlap": "lncRNA-ChIP-seq Overlap",
   "diseases": "Diseases",
   "network": "Network",
+  "genomeBrowser": "Genome Browser",
   "siteTitle": "Human LncRNA Atlas"
 }

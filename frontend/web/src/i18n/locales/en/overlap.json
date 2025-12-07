@@ -1,0 +1,69 @@
+{
+  "breadcrumb": {
+    "regulations": "Regulations",
+    "overlap": "lncRNA-ChIP-seq Overlap"
+  },
+  "page": {
+    "title": "lncRNA-ChIP-seq Overlap Analysis",
+    "description": "Analyze the genomic overlap between lncRNA binding sites and ChIP-seq peaks. This reveals which epigenetic marks are enriched at lncRNA target regions."
+  },
+  "menu": {
+    "overlap": "lncRNA-ChIP-seq Overlap"
+  },
+  "filters": {
+    "title": "Advanced Filters",
+    "reset": "Reset",
+    "markType": "Mark Type",
+    "selectMarks": "Select marks",
+    "cellType": "Cell Type",
+    "selectCellTypes": "Select cell types",
+    "chromosome": "Chromosome",
+    "selectChromosome": "Select chromosome",
+    "minOverlapLength": "Min Overlap Length",
+    "overlapLengthTooltip": "Minimum length of genomic overlap region (base pairs)",
+    "minBindingAffinity": "Min Binding Affinity",
+    "minPeakStrength": "Min Peak Strength",
+    "maxQValue": "Max Q-value (FDR)",
+    "qvalueTooltip": "False Discovery Rate threshold, lower is more stringent"
+  },
+  "table": {
+    "lncRNA": "lncRNA",
+    "targetGene": "Target Gene",
+    "mark": "Mark",
+    "cellType": "Cell Type",
+    "chromosome": "Chromosome",
+    "overlapStart": "Overlap Start",
+    "overlapLength": "Overlap Length",
+    "bindingAffinity": "Binding Affinity",
+    "peakStrength": "Peak Strength",
+    "qvalue": "Q-value",
+    "actions": "Actions"
+  },
+  "stats": {
+    "totalOverlaps": "Total Overlaps",
+    "uniqueLncRNAs": "Unique lncRNAs",
+    "uniqueTargetGenes": "Target Genes",
+    "avgOverlapLength": "Avg Overlap Length",
+    "avgBindingAffinity": "Avg Binding Affinity",
+    "avgPeakStrength": "Avg Peak Strength"
+  },
+  "export": {
+    "csv": "Export CSV",
+    "bed": "Export BED",
+    "tooltip": "Export current filtered results"
+  },
+  "loading": {
+    "data": "Loading data...",
+    "statistics": "Calculating statistics..."
+  },
+  "empty": {
+    "title": "No Data",
+    "description": "Try adjusting the filters to see more results",
+    "reset": "Reset Filters"
+  },
+  "error": {
+    "title": "Loading Failed",
+    "description": "Unable to load overlap data. Please try again later.",
+    "retry": "Retry"
+  }
+}

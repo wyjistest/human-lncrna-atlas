@@ -1,0 +1,69 @@
+{
+  "breadcrumb": {
+    "regulations": "调控关系",
+    "overlap": "lncRNA-ChIP-seq 重叠分析"
+  },
+  "page": {
+    "title": "lncRNA-ChIP-seq 重叠分析",
+    "description": "分析 lncRNA 结合位点与 ChIP-seq peaks 的基因组重叠。揭示哪些表观遗传标记富集在 lncRNA 靶位点区域。"
+  },
+  "menu": {
+    "overlap": "lncRNA-ChIP-seq 重叠"
+  },
+  "filters": {
+    "title": "高级筛选",
+    "reset": "重置",
+    "markType": "Mark 类型",
+    "selectMarks": "选择 marks",
+    "cellType": "细胞系",
+    "selectCellTypes": "选择细胞系",
+    "chromosome": "染色体",
+    "selectChromosome": "选择染色体",
+    "minOverlapLength": "最小重叠长度",
+    "overlapLengthTooltip": "基因组重叠区域的最小长度（碱基对）",
+    "minBindingAffinity": "最小结合亲和力",
+    "minPeakStrength": "最小 Peak 强度",
+    "maxQValue": "最大 Q-value (FDR)",
+    "qvalueTooltip": "错误发现率阈值，越小越严格"
+  },
+  "table": {
+    "lncRNA": "lncRNA",
+    "targetGene": "靶基因",
+    "mark": "Mark",
+    "cellType": "细胞系",
+    "chromosome": "染色体",
+    "overlapStart": "重叠起始",
+    "overlapLength": "重叠长度",
+    "bindingAffinity": "结合亲和力",
+    "peakStrength": "Peak 强度",
+    "qvalue": "Q-value",
+    "actions": "操作"
+  },
+  "stats": {
+    "totalOverlaps": "总重叠数",
+    "uniqueLncRNAs": "涉及 lncRNA",
+    "uniqueTargetGenes": "涉及靶基因",
+    "avgOverlapLength": "平均重叠长度",
+    "avgBindingAffinity": "平均结合亲和力",
+    "avgPeakStrength": "平均 Peak 强度"
+  },
+  "export": {
+    "csv": "导出 CSV",
+    "bed": "导出 BED",
+    "tooltip": "导出当前筛选结果"
+  },
+  "loading": {
+    "data": "加载数据中...",
+    "statistics": "计算统计中..."
+  },
+  "empty": {
+    "title": "暂无数据",
+    "description": "尝试调整筛选条件以查看更多结果",
+    "reset": "重置筛选"
+  },
+  "error": {
+    "title": "加载失败",
+    "description": "无法加载重叠数据，请稍后重试",
+    "retry": "重试"
+  }
+}
