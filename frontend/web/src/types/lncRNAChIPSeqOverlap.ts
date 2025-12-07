@@ -161,6 +161,7 @@ export const CELL_TYPE_OPTIONS = [
   'HeLa-S3',   // Cervical cancer
   'A549',      // Lung carcinoma
   'MCF-7',     // Breast cancer
+  'HMEC',      // Human mammary epithelial cells
 ] as const
 
 /**

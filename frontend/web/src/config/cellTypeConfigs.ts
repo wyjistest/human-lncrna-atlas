@@ -59,6 +59,24 @@ export const CELL_TYPE_CONFIGS: Record<string, CellTypeConfig> = {
     category: 'stem',
     description: 'Human embryonic stem cell line',
     descriptionZh: '人胚胎干细胞系'
+  },
+  'MCF-7': {
+    value: 'MCF-7',
+    label: 'MCF-7 (Breast cancer)',
+    labelZh: 'MCF-7 (乳腺癌细胞)',
+    color: '#FF69B4',
+    category: 'cancer',
+    description: 'Breast adenocarcinoma cell line',
+    descriptionZh: '乳腺腺癌细胞系'
+  },
+  'HMEC': {
+    value: 'HMEC',
+    label: 'HMEC (Mammary epithelial)',
+    labelZh: 'HMEC (乳腺上皮细胞)',
+    color: '#DEB887',
+    category: 'normal',
+    description: 'Human mammary epithelial cells',
+    descriptionZh: '人类乳腺上皮细胞'
   }
 }
 

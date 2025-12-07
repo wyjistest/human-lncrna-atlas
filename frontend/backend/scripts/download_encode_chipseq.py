@@ -17,8 +17,11 @@ from typing import List, Dict
 import json
 
 
-# UCSC ENCODE Broad Histone base URL
-BASE_URL = 'http://hgdownload.gi.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/'
+# UCSC ENCODE Histone base URLs
+BASE_URL_BROAD = 'http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/'
+BASE_URL_UW = 'http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwHistone/'
+# Legacy URL (kept for backward compatibility)
+BASE_URL = BASE_URL_BROAD
 
 # File naming pattern: wgEncodeBroadHistone{CellLine}{Mark}{Replicate}.broadPeak.gz
 # Example: wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz
@@ -90,6 +93,47 @@ ENCODE_FILES = {
             'size_mb': 4.2,
         },
     },
+    # MCF-7: Breast adenocarcinoma cell line (UW Histone track - limited data)
+    'MCF-7': {
+        'H3K4me3': {
+            'file': 'wgEncodeUwHistoneMcf7H3k4me3StdHotspotsRep1.broadPeak.gz',
+            'url': BASE_URL_UW + 'wgEncodeUwHistoneMcf7H3k4me3StdHotspotsRep1.broadPeak.gz',
+            'size_mb': 0.5,
+        },
+    },
+    # HMEC: Human mammary epithelial cells (Broad Histone track - full data)
+    'HMEC': {
+        'H3K4me1': {
+            'file': 'wgEncodeBroadHistoneHmecH3k4me1StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k4me1StdPk.broadPeak.gz',
+            'size_mb': 5.0,
+        },
+        'H3K4me3': {
+            'file': 'wgEncodeBroadHistoneHmecH3k4me3StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k4me3StdPk.broadPeak.gz',
+            'size_mb': 1.5,
+        },
+        'H3K9me3': {
+            'file': 'wgEncodeBroadHistoneHmecH3k09me3Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k09me3Pk.broadPeak.gz',
+            'size_mb': 2.0,
+        },
+        'H3K27me3': {
+            'file': 'wgEncodeBroadHistoneHmecH3k27me3StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k27me3StdPk.broadPeak.gz',
+            'size_mb': 2.5,
+        },
+        'H3K27ac': {
+            'file': 'wgEncodeBroadHistoneHmecH3k27acStdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k27acStdPk.broadPeak.gz',
+            'size_mb': 4.0,
+        },
+        'H3K36me3': {
+            'file': 'wgEncodeBroadHistoneHmecH3k36me3StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k36me3StdPk.broadPeak.gz',
+            'size_mb': 3.0,
+        },
+    },
 }
 
 # Metadata for each cell line
@@ -98,16 +142,31 @@ CELL_LINE_METADATA = {
         'tissue_type': 'blood',
         'cell_type': 'B-lymphocyte',
         'description': 'B-lymphoblastoid cell line',
+        'category': 'normal',
     },
     'H1-hESC': {
         'tissue_type': 'embryonic_stem_cell',
         'cell_type': 'embryonic_stem_cell',
         'description': 'Human embryonic stem cells',
+        'category': 'stem_cell',
     },
     'K562': {
         'tissue_type': 'blood',
         'cell_type': 'erythroleukemia',
         'description': 'Chronic myelogenous leukemia',
+        'category': 'cancer',
+    },
+    'MCF-7': {
+        'tissue_type': 'breast',
+        'cell_type': 'breast_adenocarcinoma',
+        'description': 'Breast adenocarcinoma cell line',
+        'category': 'cancer',
+    },
+    'HMEC': {
+        'tissue_type': 'breast',
+        'cell_type': 'mammary_epithelial',
+        'description': 'Human mammary epithelial cells',
+        'category': 'normal',
     },
 }
 
@@ -141,27 +200,37 @@ def generate_metadata(mark_type: str, cell_line: str, file_info: dict) -> dict:
     """Generate metadata JSON for an experiment"""
     cell_info = CELL_LINE_METADATA[cell_line]
 
-    # Extract accession from filename if possible
-    # Format: wgEncodeBroadHistone{CellLine}{Mark}StdPk
-    encode_accession = f'BROAD_{cell_line}_{mark_type}'
+    # Determine data source based on URL
+    url = file_info['url']
+    if 'UwHistone' in url or 'wgEncodeUw' in url:
+        source_database = 'ENCODE_UW'
+        antibody_source = 'University of Washington'
+        encode_accession = f'UW_{cell_line}_{mark_type}'
+        biosample_accession = f'UW_BS_{cell_line}'
+    else:
+        source_database = 'ENCODE_Broad'
+        antibody_source = 'Broad Institute'
+        encode_accession = f'BROAD_{cell_line}_{mark_type}'
+        biosample_accession = f'BROAD_BS_{cell_line}'
 
     metadata = {
         'mark_type': mark_type,
         'encode_accession': encode_accession,
-        'biosample_accession': f'BROAD_BS_{cell_line}',
+        'biosample_accession': biosample_accession,
         'tissue_type': cell_info['tissue_type'],
         'cell_type': cell_info['cell_type'],
         'cell_line': cell_line,
+        'category': cell_info.get('category', 'unknown'),
         'treatment': None,
         'developmental_stage': 'embryonic' if cell_line == 'H1-hESC' else 'adult',
         'antibody_target': mark_type,
-        'antibody_source': 'Broad Institute',
+        'antibody_source': antibody_source,
         'replicate_type': 'pooled',
-        'source_database': 'ENCODE_Broad',
+        'source_database': source_database,
         'peak_type': 'broad',
         'genome_assembly': 'hg19',
         'data_source': 'UCSC_ENCODE',
-        'download_url': file_info['url'],
+        'download_url': url,
     }
 
     return metadata
@@ -255,13 +324,13 @@ Examples:
         """
     )
 
-    parser.add_argument('--mark', choices=['H3K27me3', 'H3K4me1', 'H3K4me3', 'H3K27ac'],
+    parser.add_argument('--mark', choices=['H3K27me3', 'H3K4me1', 'H3K4me3', 'H3K27ac', 'H3K9me3', 'H3K36me3'],
                         help='Mark type to download')
     parser.add_argument('--cell-line', nargs='+', default=['GM12878'],
                         choices=list(ENCODE_FILES.keys()),
                         help='Cell lines to download (default: GM12878)')
     parser.add_argument('--all', action='store_true',
-                        help='Download all Phase 2.4 marks (H3K27me3, H3K4me1, H3K4me3, H3K27ac)')
+                        help='Download all available marks for selected cell lines')
     parser.add_argument('--output', default='encode_chipseq_data',
                         help='Output directory (default: encode_chipseq_data)')
     parser.add_argument('--dry-run', action='store_true',
@@ -288,9 +357,14 @@ def main():
     all_experiments = []
 
     if args.all:
-        # Download all Phase 2.4 marks
-        marks = ['H3K27me3', 'H3K4me1', 'H3K4me3', 'H3K27ac']
-        for mark in marks:
+        # Collect all available marks across selected cell lines
+        available_marks = set()
+        for cell_line in args.cell_line:
+            if cell_line in ENCODE_FILES:
+                available_marks.update(ENCODE_FILES[cell_line].keys())
+
+        # Download all available marks
+        for mark in sorted(available_marks):
             experiments = download_mark_data(mark, args.cell_line, output_dir, args.dry_run)
             all_experiments.extend(experiments)
     else:
