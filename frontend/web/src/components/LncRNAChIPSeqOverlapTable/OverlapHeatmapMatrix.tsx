@@ -36,11 +36,10 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
-import { getMarkColor, getMarkConfig, MARK_CONFIGS } from '@/config/markConfigs'
-import { getCellTypeColor, getCellTypeLabel } from '@/config/cellTypeConfigs'
+import { MARK_CONFIGS } from '@/config/markConfigs'
+import { getCellTypeLabel } from '@/config/cellTypeConfigs'
 import { useOverlapHeatmap } from '@/hooks/useLncRNAChIPSeqOverlap'
 import type {
-  OverlapHeatmapData,
   OverlapHeatmapMetric,
   OverlapHeatmapXAxis,
   OverlapHeatmapYAxis,

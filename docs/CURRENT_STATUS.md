@@ -1,7 +1,7 @@
 # Human LncRNA Atlas - 当前进度报告
 
 > 最后更新: 2025-12-07
-> 当前版本: Phase 3.0 Phase 2
+> 当前版本: Phase 3.0 (lncRNA-ChIP-seq Overlap Analysis)
 
 ## 📊 数据库统计
 
@@ -35,32 +35,33 @@
 
 ## ✅ 最近完成的功能
 
-### 2025-12-07 (Phase 3.0 Phase 2) ⭐ lncRNA-ChIP-seq Overlap 可视化
+### 2025-12-07 (Phase 3.0) ⭐ lncRNA-ChIP-seq Overlap 分析功能
 
-1. **后端 API 增强**
-   - `/api/v1/lncrna-chipseq-overlap/statistics` 增强
-     - 新增 `by_mark_type`: 按 mark 类型分组统计
-     - 新增 `by_cell_type`: 按细胞系分组统计
-   - `/api/v1/lncrna-chipseq-overlap/heatmap` 新端点
-     - 支持 x_axis: mark_type | cell_type
-     - 支持 y_axis: lncrna | target_gene
-     - 支持 metric: count | avg_binding_affinity | total_overlap_length
-     - 支持 top_n 限制 (1-100)
-   - Rate limiting + Redis 缓存
+1. **lncRNA-ChIP-seq Overlap 分析页面** ⭐ 核心新功能
+   - 路由: `/lncrna-chipseq-overlap`
+   - 分析 lncRNA 结合位点与 ChIP-seq peaks 的基因组重叠
+   - **后端 API**:
+     - `GET /api/v1/lncrna-chipseq-overlap` - 分页查询重叠数据
+     - `GET /api/v1/lncrna-chipseq-overlap/statistics` - 聚合统计
+     - `GET /api/v1/lncrna-chipseq-overlap/heatmap` - 热力图矩阵数据
+   - **前端组件**:
+     - `LncRNAChIPSeqOverlapTable` - 主容器组件
+     - `OverlapFilterPanel` - 高级筛选面板
+     - `OverlapTable` - 数据表格
+     - `OverlapStatsCards` - 统计卡片
+     - `OverlapMarkDistChart` - Mark 类型分布图
+     - `OverlapCellTypeChart` - 细胞类型饼图
+     - `OverlapHeatmapMatrix` - 热力图矩阵
+   - **性能优化**:
+     - 默认 chromosome 过滤器 (chr22) 防止超时
+     - 后端默认回退机制
+     - 类型安全处理 (string/number 转换)
+   - **i18n**: 中英文完整支持 (71+ 翻译 keys)
 
-2. **前端可视化组件**
-   - `OverlapMarkDistChart.tsx`: ECharts 柱状图 - Mark 分布
-   - `OverlapCellTypeChart.tsx`: ECharts 饼图 - 细胞系分布
-   - `OverlapHeatmapMatrix.tsx`: ECharts 热图矩阵
-   - 支持指标切换、轴维度选择、Top N 筛选
-   - 完整 i18n 国际化
-
-3. **E2E 测试**
-   - `lncrna-chipseq-overlap-charts.spec.ts`: 22 个测试用例
-   - 覆盖: P0 渲染、P1 交互、P2 性能
-
-4. **数据库优化**
-   - 新增索引: `idx_regulations_best_peak_coords`
+2. **UX 改进**
+   - 错误状态时仍显示过滤面板
+   - 导航菜单添加 Overlap Analysis 入口
+   - 响应式设计
 
 ### 2025-12-07 (Phase 2.11) ⭐ DNase-seq 数据导入
 
@@ -142,22 +143,21 @@ npm run dev
 
 ## 🎯 建议的下一步开发
 
-### 优先级 1: 数据扩展
-- [x] 添加更多细胞系 (HepG2, H1-hESC 等) ✅
-- [x] 导入 ENCODE DNase-seq 数据 ✅
-- [ ] 整合 ATAC-seq 数据
+### 优先级 1: Phase 3.0 扩展
+- [x] ~~ChIP-seq peaks 与 lncRNA 关联分析~~ ✅ 已完成
+- [x] ~~热图可视化组蛋白修饰模式~~ ✅ 已完成
+- [ ] 批量导出功能 (BED/CSV)
+- [ ] 更多细胞系数据导入
 
 ### 优先级 2: 功能增强
-- [x] ChIP-seq peaks 与 lncRNA 关联分析 ✅ (Phase 3.0)
-- [x] 热图可视化组蛋白修饰模式 ✅ (Phase 3.0 Phase 2)
-- [ ] 批量导出功能
-- [ ] IGV 集成 overlap 数据
+- [ ] lncRNA-ChIP-seq 重叠结果可视化增强
+- [ ] 基因组浏览器集成重叠轨道
+- [ ] 跨物种重叠比较
 
 ### 优先级 3: 性能优化
-- [ ] 大数据量分页查询优化 (overlap 统计查询需优化)
+- [ ] chr1 等大染色体查询优化
 - [ ] Redis 缓存策略优化
 - [ ] 前端虚拟滚动
-- [ ] 创建物化视图加速 overlap 统计
 
 ## 📞 联系方式
 

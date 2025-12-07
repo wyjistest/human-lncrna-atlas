@@ -1,0 +1,48 @@
+{
+  "title": "Database Statistics Overview",
+  "exportReport": "Export Report",
+  "cards": {
+    "totalGenes": "Total Genes",
+    "lncRNA": "lncRNA",
+    "regulations": "Regulations",
+    "diseaseAssociations": "Disease Associations"
+  },
+  "sections": {
+    "distribution": "Data Distribution",
+    "topRankings": "Top 10 Rankings",
+    "baRange": "BA Range Statistics"
+  },
+  "charts": {
+    "speciesDistribution": "Species Distribution",
+    "baDistribution": "Binding Affinity Distribution",
+    "topLncRNA": "Top 10 lncRNA (by regulation count)"
+  },
+  "baStats": {
+    "min": "Min BA",
+    "max": "Max BA",
+    "avg": "Avg BA",
+    "totalCount": "Total Records"
+  },
+  "loading": "Loading detailed statistics...",
+  "loadError": {
+    "title": "Failed to load detailed statistics",
+    "desc": "Chart data loading failed. Please refresh the page."
+  },
+  "export": {
+    "pdf": "Export PDF Report",
+    "pdfTitle": "Human LncRNA Atlas Statistics Report",
+    "pdfFilename": "lncrna-atlas-stats-report",
+    "saveImage": "Save as image",
+    "success": "PDF report exported",
+    "failed": "PDF export failed",
+    "notReady": "Report content not ready"
+  },
+  "table": {
+    "rank": "Rank",
+    "species": "Species",
+    "count": "Count",
+    "regulationCount": "Regulation Count",
+    "baRange": "BA Range",
+    "lncrna": "lncRNA"
+  }
+}

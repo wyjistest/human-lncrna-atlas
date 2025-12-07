@@ -276,6 +276,12 @@ def get_lncrna_chipseq_overlaps(
     This endpoint identifies genomic regions where lncRNA binding sites overlap with ChIP-seq peaks,
     enabling analysis of lncRNA-mediated epigenetic regulation mechanisms.
 
+    ## Performance Note
+    For performance optimization, if no selective filters are provided (lncrna_gene_id, target_gene_id,
+    chromosome, or min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent
+    timeout on the full spatial join of 2.2M peaks x 800K regulations.
+    The response includes `default_filter_applied` and `effective_chromosome` fields to indicate this.
+
     ## Parameters
     - **lncrna_gene_id**: Optional, filter by specific lncRNA gene ID
     - **target_gene_id**: Optional, filter by specific target gene ID
@@ -293,6 +299,8 @@ def get_lncrna_chipseq_overlaps(
 
     ## Response
     Returns paginated list of overlaps with genomic coordinates, signal metrics, and gene information.
+    Includes `default_filter_applied` (bool) and `effective_chromosome` (str) to indicate if default
+    chromosome filter was applied.
 
     ## Example
     ```
@@ -300,13 +308,32 @@ def get_lncrna_chipseq_overlaps(
     ```
     """
 
-    # Build filters object
+    # Performance optimization: Check if any selective filter is provided
+    # If not, default to chr22 to prevent timeout on full spatial join
+    # chr22 chosen as it's small enough for fast response (~9s) while having meaningful data (~87K overlaps)
+    DEFAULT_CHROMOSOME = 'chr22'
+
+    has_selective_filter = any([
+        lncrna_gene_id,
+        target_gene_id,
+        chromosome,
+        min_binding_affinity and min_binding_affinity > 0,
+    ])
+
+    # Apply default chromosome if no selective filter is provided
+    effective_chromosome = chromosome or (DEFAULT_CHROMOSOME if not has_selective_filter else None)
+    default_filter_applied = (effective_chromosome == DEFAULT_CHROMOSOME and not chromosome)
+
+    if default_filter_applied:
+        logger.info(f"No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
+
+    # Build filters object with effective chromosome
     filters = OverlapFilters(
         lncrna_gene_id=lncrna_gene_id,
         target_gene_id=target_gene_id,
         mark_type=mark_type,
         cell_type=cell_type,
-        chromosome=chromosome,
+        chromosome=effective_chromosome,
         min_overlap_length=min_overlap_length,
         min_binding_affinity=min_binding_affinity,
         min_peak_strength=min_peak_strength,
@@ -323,13 +350,15 @@ def get_lncrna_chipseq_overlaps(
     # Calculate total pages
     total_pages = OverlapResponse.calculate_total_pages(total, page_size)
 
-    # Build response
+    # Build response with default filter information
     return OverlapResponse(
         total=total,
         page=page,
         page_size=page_size,
         total_pages=total_pages,
-        items=[OverlapResult(**item) for item in items]
+        items=[OverlapResult(**item) for item in items],
+        default_filter_applied=default_filter_applied,
+        effective_chromosome=effective_chromosome
     )
 
 
@@ -356,9 +385,32 @@ def get_overlap_statistics(
     - **by_mark_type**: Breakdown of overlaps by epigenetic mark type
     - **by_cell_type**: Breakdown of overlaps by cell type
 
+    ## Performance Note
+    For performance optimization, if no selective filters are provided (lncrna_gene_id, target_gene_id,
+    chromosome, or min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent timeout.
+    The response includes `default_filter_applied` and `effective_chromosome` fields to indicate this.
+
     **Caching:** Results are cached for 5 minutes.
     **Rate Limit:** 60 requests per minute per IP.
     """
+
+    # Performance optimization: Check if any selective filter is provided
+    # chr22 chosen as it's small enough for fast response (~9s) while having meaningful data (~87K overlaps)
+    DEFAULT_CHROMOSOME = 'chr22'
+
+    has_selective_filter = any([
+        lncrna_gene_id,
+        target_gene_id,
+        chromosome,
+        min_binding_affinity and min_binding_affinity > 0,
+    ])
+
+    # Apply default chromosome if no selective filter is provided
+    effective_chromosome = chromosome or (DEFAULT_CHROMOSOME if not has_selective_filter else None)
+    default_filter_applied = (effective_chromosome == DEFAULT_CHROMOSOME and not chromosome)
+
+    if default_filter_applied:
+        logger.info(f"Statistics: No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
 
     # Parse comma-separated filters
     mark_types_array = parse_comma_separated(mark_type)
@@ -438,7 +490,7 @@ def get_overlap_statistics(
     params = {
         "lncrna_gene_id": lncrna_gene_id,
         "target_gene_id": target_gene_id,
-        "chromosome": chromosome,
+        "chromosome": effective_chromosome,
         "mark_types": mark_types_array,
         "cell_types": cell_types_array,
         "min_binding_affinity": min_binding_affinity,
@@ -459,7 +511,9 @@ def get_overlap_statistics(
                 avg_binding_affinity=0.0,
                 avg_peak_strength=0.0,
                 by_mark_type=[],
-                by_cell_type=[]
+                by_cell_type=[],
+                default_filter_applied=default_filter_applied,
+                effective_chromosome=effective_chromosome
             )
 
         # Execute by_mark_type query
@@ -492,7 +546,9 @@ def get_overlap_statistics(
             avg_binding_affinity=float(result.avg_binding_affinity) if result.avg_binding_affinity else 0.0,
             avg_peak_strength=float(result.avg_peak_strength) if result.avg_peak_strength else 0.0,
             by_mark_type=by_mark_type,
-            by_cell_type=by_cell_type
+            by_cell_type=by_cell_type,
+            default_filter_applied=default_filter_applied,
+            effective_chromosome=effective_chromosome
         )
 
     except Exception as e:
@@ -577,7 +633,28 @@ def get_overlap_heatmap(
     ```
     GET /api/v1/lncrna-chipseq-overlap/heatmap?x_axis=mark_type&y_axis=lncrna&metric=count&top_n=30
     ```
+
+    ## Performance Note
+    For performance optimization, if no chromosome or min_binding_affinity filter is provided,
+    the query defaults to chromosome='chr22' to prevent timeout on the full spatial join.
+    The response includes `default_filter_applied` and `effective_chromosome` fields to indicate this.
     """
+
+    # Performance optimization: Check if any selective filter is provided
+    # chr22 chosen as it's small enough for fast response (~9s) while having meaningful data (~87K overlaps)
+    DEFAULT_CHROMOSOME = 'chr22'
+
+    has_selective_filter = any([
+        chromosome,
+        min_binding_affinity and min_binding_affinity > 0,
+    ])
+
+    # Apply default chromosome if no selective filter is provided
+    effective_chromosome = chromosome or (DEFAULT_CHROMOSOME if not has_selective_filter else None)
+    default_filter_applied = (effective_chromosome == DEFAULT_CHROMOSOME and not chromosome)
+
+    if default_filter_applied:
+        logger.info(f"Heatmap: No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
 
     # Map x_axis to SQL column/expression
     x_axis_map = {
@@ -612,7 +689,7 @@ def get_overlap_heatmap(
     """
 
     params = {
-        "chromosome": chromosome,
+        "chromosome": effective_chromosome,
         "min_binding_affinity": min_binding_affinity,
         "max_qvalue": max_qvalue,
         "top_n": top_n
@@ -644,7 +721,9 @@ def get_overlap_heatmap(
                 data=[],
                 metric=metric,
                 total_combinations=0,
-                valid_combinations=0
+                valid_combinations=0,
+                default_filter_applied=default_filter_applied,
+                effective_chromosome=effective_chromosome
             )
 
         # Step 2: Get top N Y-axis values (by total count across all X values)
@@ -676,7 +755,9 @@ def get_overlap_heatmap(
                 data=[],
                 metric=metric,
                 total_combinations=0,
-                valid_combinations=0
+                valid_combinations=0,
+                default_filter_applied=default_filter_applied,
+                effective_chromosome=effective_chromosome
             )
 
         # Step 3: Get heatmap data for all X-Y combinations
@@ -725,7 +806,9 @@ def get_overlap_heatmap(
             data=data,
             metric=metric,
             total_combinations=total_combinations,
-            valid_combinations=valid_combinations
+            valid_combinations=valid_combinations,
+            default_filter_applied=default_filter_applied,
+            effective_chromosome=effective_chromosome
         )
 
     except Exception as e:

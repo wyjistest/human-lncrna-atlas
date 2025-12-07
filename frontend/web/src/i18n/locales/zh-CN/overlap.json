@@ -47,10 +47,38 @@
     "avgBindingAffinity": "平均结合亲和力",
     "avgPeakStrength": "平均 Peak 强度"
   },
+  "charts": {
+    "markDistribution": "Mark 类型分布",
+    "cellTypeDistribution": "细胞类型分布",
+    "overlapCount": "重叠数量",
+    "avgStrength": "平均强度",
+    "percentage": "百分比",
+    "noMarkData": "暂无 Mark 类型分布数据",
+    "noCellTypeData": "暂无细胞类型分布数据",
+    "heatmap": {
+      "title": "lncRNA-ChIP-seq 重叠矩阵",
+      "metricCount": "重叠数量",
+      "metricBindingAffinity": "平均结合亲和力",
+      "metricOverlapLength": "总重叠长度",
+      "axisMarkType": "Mark 类型",
+      "axisCellType": "细胞类型",
+      "axisLncrna": "lncRNA",
+      "axisTargetGene": "靶基因",
+      "xAxisLabel": "X 轴（列）",
+      "yAxisLabel": "Y 轴（行）",
+      "topNLabel": "显示前 N 项",
+      "metricLabel": "指标",
+      "totalCombinations": "总组合数",
+      "validCombinations": "有效组合数",
+      "error": "热图数据加载失败",
+      "noData": "暂无热图数据"
+    }
+  },
   "export": {
     "csv": "导出 CSV",
     "bed": "导出 BED",
-    "tooltip": "导出当前筛选结果"
+    "tooltip": "导出当前筛选结果",
+    "saveImage": "保存为图片"
   },
   "loading": {
     "data": "加载数据中...",

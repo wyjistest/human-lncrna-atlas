@@ -47,10 +47,38 @@
     "avgBindingAffinity": "Avg Binding Affinity",
     "avgPeakStrength": "Avg Peak Strength"
   },
+  "charts": {
+    "markDistribution": "Overlap Distribution by Mark Type",
+    "cellTypeDistribution": "Overlap Distribution by Cell Type",
+    "overlapCount": "Overlap Count",
+    "avgStrength": "Avg Strength",
+    "percentage": "Percentage",
+    "noMarkData": "No mark distribution data available",
+    "noCellTypeData": "No cell type distribution data available",
+    "heatmap": {
+      "title": "lncRNA-ChIP-seq Overlap Matrix",
+      "metricCount": "Overlap Count",
+      "metricBindingAffinity": "Avg Binding Affinity",
+      "metricOverlapLength": "Total Overlap Length",
+      "axisMarkType": "Mark Type",
+      "axisCellType": "Cell Type",
+      "axisLncrna": "lncRNA",
+      "axisTargetGene": "Target Gene",
+      "xAxisLabel": "X-Axis (Columns)",
+      "yAxisLabel": "Y-Axis (Rows)",
+      "topNLabel": "Top N Items",
+      "metricLabel": "Metric",
+      "totalCombinations": "Total Combinations",
+      "validCombinations": "Valid Combinations",
+      "error": "Failed to load heatmap data",
+      "noData": "No heatmap data available"
+    }
+  },
   "export": {
     "csv": "Export CSV",
     "bed": "Export BED",
-    "tooltip": "Export current filtered results"
+    "tooltip": "Export current filtered results",
+    "saveImage": "Save as Image"
   },
   "loading": {
     "data": "Loading data...",

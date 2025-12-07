@@ -45,7 +45,7 @@ export default function LncRNAChIPSeqOverlapPage() {
       />
 
       {/* 页面标题和说明 */}
-      <Space direction="vertical" size="large" style={{ width: '100%', marginBottom: 24 }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%', marginBottom: 24 }}>
         <div>
           <Title level={2}>
             {t('page.title', 'lncRNA-ChIP-seq Overlap Analysis')}

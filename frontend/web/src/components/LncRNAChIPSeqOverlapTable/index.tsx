@@ -34,7 +34,6 @@ import {
   Switch,
   Row,
   Col,
-  Collapse,
   Tabs,
 } from 'antd'
 import {
@@ -55,7 +54,6 @@ import { OverlapMarkDistChart } from './OverlapMarkDistChart'
 import { OverlapCellTypeChart } from './OverlapCellTypeChart'
 import { OverlapHeatmapMatrix } from './OverlapHeatmapMatrix'
 import { LoadingState } from '@/components/LoadingState'
-import { ErrorState } from '@/components/ErrorState'
 
 // Hooks
 import {
@@ -75,6 +73,8 @@ interface LncRNAChIPSeqOverlapTableProps {
   initialMarkTypes?: string
   /** Optional: Initial cell types (comma-separated) */
   initialCellTypes?: string
+  /** Optional: Initial chromosome filter (defaults to 'chr22' - smaller dataset, loads faster ~4s vs chr1's ~48s) */
+  initialChromosome?: string
   /** Default page size */
   defaultPageSize?: number
   /** Enable statistics cards (Phase 2 feature) */
@@ -117,6 +117,7 @@ export function LncRNAChIPSeqOverlapTable({
   targetGeneId,
   initialMarkTypes,
   initialCellTypes,
+  initialChromosome = 'chr22',  // Changed from chr1 - chr22 loads much faster (~4s vs ~48s)
   defaultPageSize = 20,
   enableStats = false,
   enableExport = false,
@@ -131,12 +132,13 @@ export function LncRNAChIPSeqOverlapTable({
   const [showVisualization, setShowVisualization] = useState(enableVisualization)
   const [activeTab, setActiveTab] = useState<string>('table')
 
-  // Filter state
+  // Filter state - Default chromosome to 'chr22' (smaller dataset, loads in ~4s vs chr1's ~48s)
   const [filters, setFilters] = useState<OverlapFilters>(() => ({
     lncrna_gene_id: lncrnaGeneId,
     target_gene_id: targetGeneId,
     mark_type: initialMarkTypes,
     cell_type: initialCellTypes,
+    chromosome: initialChromosome,
     page: 1,
     page_size: defaultPageSize,
   }))
@@ -167,18 +169,19 @@ export function LncRNAChIPSeqOverlapTable({
     []
   )
 
-  // Reset all filters
+  // Reset all filters - Keep chromosome default to prevent timeout
   const handleResetFilters = useCallback(() => {
     setFilters({
       lncrna_gene_id: lncrnaGeneId,
       target_gene_id: targetGeneId,
       mark_type: initialMarkTypes,
       cell_type: initialCellTypes,
+      chromosome: initialChromosome,
       page: 1,
       page_size: defaultPageSize,
     })
     message.success(tCommon('message.filtersReset', 'Filters reset'))
-  }, [lncrnaGeneId, targetGeneId, initialMarkTypes, initialCellTypes, defaultPageSize, tCommon])
+  }, [lncrnaGeneId, targetGeneId, initialMarkTypes, initialCellTypes, initialChromosome, defaultPageSize, tCommon])
 
   // Export data (Phase 2)
   const handleExport = useCallback(
@@ -191,48 +194,41 @@ export function LncRNAChIPSeqOverlapTable({
     [t]
   )
 
-  // Loading state
-  if (dataLoading && !overlapData) {
+  // Loading state - only show full page loading on initial load
+  if (dataLoading && !overlapData && !dataError) {
     return <LoadingState />
   }
 
-  // Error state
-  if (dataError) {
-    return (
-      <ErrorState
-        error={dataError}
-        onRetry={refetchData}
-      />
-    )
-  }
-
-  // No data state
-  if (overlapData && overlapData.total === 0) {
-    return (
-      <Card>
-        <Empty
-          description={
-            <Space direction="vertical">
-              <span>{t('empty.noOverlaps', 'No overlaps found')}</span>
-              <span style={{ fontSize: 12, color: '#999' }}>
-                {t('empty.tryAdjustFilters', 'Try adjusting your filters')}
-              </span>
-            </Space>
-          }
-        />
-        {Object.keys(filters).length > 2 && (
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <Button onClick={handleResetFilters} icon={<ReloadOutlined />}>
-              {tCommon('action.resetFilters', 'Reset Filters')}
-            </Button>
-          </div>
-        )}
-      </Card>
-    )
-  }
+  // Determine if we should show the table or empty state
+  const hasData = overlapData && overlapData.total > 0
+  const showEmptyState = !dataError && overlapData && overlapData.total === 0
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      {/* Error Alert - Show at top but allow filter panel to remain visible */}
+      {dataError && (
+        <Alert
+          type="error"
+          message={t('error.title', 'Loading Failed')}
+          description={
+            <Space direction="vertical" size="small">
+              <span>{dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
+              <span style={{ fontSize: 12, color: '#999' }}>
+                {t('error.tryAdjustFilters', 'Try adjusting filters or retry the request')}
+              </span>
+            </Space>
+          }
+          action={
+            <Button size="small" onClick={() => refetchData()} loading={dataLoading}>
+              {tCommon('action.retry', 'Retry')}
+            </Button>
+          }
+          showIcon
+          closable
+          style={{ marginBottom: 0 }}
+        />
+      )}
+
       {/* Header with controls */}
       <Card size="small">
         <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
@@ -409,7 +405,7 @@ export function LncRNAChIPSeqOverlapTable({
         title={
           <Space>
             {t('table.title', 'lncRNA-ChIP-seq Overlaps')}
-            {overlapData && (
+            {hasData && (
               <span style={{ fontWeight: 'normal', color: '#999' }}>
                 ({overlapData.total.toLocaleString()})
               </span>
@@ -417,7 +413,8 @@ export function LncRNAChIPSeqOverlapTable({
           </Space>
         }
       >
-        {overlapData && (
+        {/* Show table when we have data */}
+        {hasData && (
           <OverlapTable
             items={overlapData.items}
             total={overlapData.total}
@@ -426,6 +423,39 @@ export function LncRNAChIPSeqOverlapTable({
             loading={dataLoading}
             filters={filters}
             onFiltersChange={handleFiltersChange}
+          />
+        )}
+
+        {/* Empty state - no data found with current filters */}
+        {showEmptyState && (
+          <Empty
+            description={
+              <Space direction="vertical">
+                <span>{t('empty.noOverlaps', 'No overlaps found')}</span>
+                <span style={{ fontSize: 12, color: '#999' }}>
+                  {t('empty.tryAdjustFilters', 'Try adjusting your filters')}
+                </span>
+              </Space>
+            }
+          >
+            <Button onClick={handleResetFilters} icon={<ReloadOutlined />}>
+              {tCommon('action.resetFilters', 'Reset Filters')}
+            </Button>
+          </Empty>
+        )}
+
+        {/* Error state - show message with suggestion to adjust filters */}
+        {dataError && !hasData && (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <Space direction="vertical">
+                <span>{t('error.noDataDueToError', 'Unable to load data')}</span>
+                <span style={{ fontSize: 12, color: '#999' }}>
+                  {t('error.adjustFiltersAbove', 'Adjust filters above and retry')}
+                </span>
+              </Space>
+            }
           />
         )}
       </Card>

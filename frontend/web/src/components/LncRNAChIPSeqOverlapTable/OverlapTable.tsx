@@ -188,20 +188,22 @@ export function OverlapTable({
         title: t('table.location', 'Location'),
         key: 'location',
         width: 180,
-        render: (_, record: OverlapResult) => (
-          <Space direction="vertical" size={0}>
-            <Text style={{ fontSize: 12 }}>
-              {formatCoordinates(
-                record.chromosome,
-                record.overlap_start,
-                record.overlap_end
-              )}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 11 }}>
-              {record.overlap_length.toLocaleString()} bp
-            </Text>
-          </Space>
-        ),
+        render: (_, record: OverlapResult) => {
+          // Handle string/number type mismatch from backend
+          const overlapStart = typeof record.overlap_start === 'string' ? parseInt(record.overlap_start, 10) : record.overlap_start
+          const overlapEnd = typeof record.overlap_end === 'string' ? parseInt(record.overlap_end, 10) : record.overlap_end
+          const overlapLength = typeof record.overlap_length === 'string' ? parseInt(record.overlap_length, 10) : record.overlap_length
+          return (
+            <Space direction="vertical" size={0}>
+              <Text style={{ fontSize: 12 }}>
+                {formatCoordinates(record.chromosome, overlapStart, overlapEnd)}
+              </Text>
+              <Text type="secondary" style={{ fontSize: 11 }}>
+                {overlapLength.toLocaleString()} bp
+              </Text>
+            </Space>
+          )
+        },
       },
 
       // Binding Affinity
@@ -221,11 +223,14 @@ export function OverlapTable({
               ? 'ascend'
               : 'descend'
             : null,
-        render: (score: number) => (
-          <Text strong style={{ color: getBindingAffinityColor(score) }}>
-            {score.toFixed(1)}
-          </Text>
-        ),
+        render: (score: number | string | null) => {
+          const numScore = typeof score === 'string' ? parseFloat(score) : (score ?? 0)
+          return (
+            <Text strong style={{ color: getBindingAffinityColor(numScore) }}>
+              {numScore.toFixed(1)}
+            </Text>
+          )
+        },
       },
 
       // Peak Strength
@@ -245,11 +250,14 @@ export function OverlapTable({
               ? 'ascend'
               : 'descend'
             : null,
-        render: (fe: number) => (
-          <Text strong style={{ color: getPeakStrengthColor(fe) }}>
-            {fe.toFixed(2)}x
-          </Text>
-        ),
+        render: (fe: number | string | null) => {
+          const numFe = typeof fe === 'string' ? parseFloat(fe) : (fe ?? 0)
+          return (
+            <Text strong style={{ color: getPeakStrengthColor(numFe) }}>
+              {numFe.toFixed(2)}x
+            </Text>
+          )
+        },
       },
 
       // Q-value (FDR)
@@ -269,11 +277,15 @@ export function OverlapTable({
               ? 'ascend'
               : 'descend'
             : null,
-        render: (qvalue: number | null) => (
-          <Text style={{ color: getQValueColor(qvalue), fontSize: 12 }}>
-            {formatQValue(qvalue)}
-          </Text>
-        ),
+        render: (qvalue: number | string | null) => {
+          // Handle string/number type mismatch from backend
+          const numQvalue = qvalue === null ? null : (typeof qvalue === 'string' ? parseFloat(qvalue) : qvalue)
+          return (
+            <Text style={{ color: getQValueColor(numQvalue), fontSize: 12 }}>
+              {formatQValue(numQvalue)}
+            </Text>
+          )
+        },
       },
 
       // Overlap Length
@@ -289,9 +301,11 @@ export function OverlapTable({
               ? 'ascend'
               : 'descend'
             : null,
-        render: (length: number) => (
-          <Text>{length.toLocaleString()}</Text>
-        ),
+        render: (length: number | string) => {
+          // Handle string/number type mismatch from backend
+          const numLength = typeof length === 'string' ? parseInt(length, 10) : length
+          return <Text>{numLength.toLocaleString()}</Text>
+        },
       },
     ],
     [t, filters.sort_by, filters.sort_order]

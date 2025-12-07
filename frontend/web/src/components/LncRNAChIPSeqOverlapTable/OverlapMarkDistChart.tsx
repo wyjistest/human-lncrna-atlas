@@ -21,7 +21,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
-import { getMarkColor, getMarkConfig, MARK_CONFIGS } from '@/config/markConfigs'
+import { getMarkColor, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 
 interface MarkDistData {

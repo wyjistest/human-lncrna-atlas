@@ -1,0 +1,48 @@
+{
+  "title": "数据库统计概览",
+  "exportReport": "导出报告",
+  "cards": {
+    "totalGenes": "总基因数",
+    "lncRNA": "lncRNA",
+    "regulations": "调控关系",
+    "diseaseAssociations": "疾病关联"
+  },
+  "sections": {
+    "distribution": "数据分布",
+    "topRankings": "Top 10 榜单",
+    "baRange": "BA 范围统计"
+  },
+  "charts": {
+    "speciesDistribution": "物种分布",
+    "baDistribution": "Binding Affinity 分布",
+    "topLncRNA": "Top 10 lncRNA（按调控数量）"
+  },
+  "baStats": {
+    "min": "最小 BA",
+    "max": "最大 BA",
+    "avg": "平均 BA",
+    "totalCount": "有效记录数"
+  },
+  "loading": "加载详细统计数据...",
+  "loadError": {
+    "title": "无法加载详细统计数据",
+    "desc": "图表数据加载失败，请刷新页面重试"
+  },
+  "export": {
+    "pdf": "导出 PDF 报告",
+    "pdfTitle": "Human LncRNA Atlas 统计报告",
+    "pdfFilename": "lncrna-atlas-统计报告",
+    "saveImage": "保存为图片",
+    "success": "PDF 报告已导出",
+    "failed": "PDF 导出失败",
+    "notReady": "报告内容未加载完成"
+  },
+  "table": {
+    "rank": "排名",
+    "species": "物种",
+    "count": "调控数",
+    "regulationCount": "调控关系数",
+    "baRange": "BA 区间",
+    "lncrna": "lncRNA"
+  }
+}

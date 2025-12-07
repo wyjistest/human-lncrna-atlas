@@ -74,6 +74,14 @@ class OverlapResponse(BaseModel):
     page_size: int = Field(..., description="Items per page")
     total_pages: int = Field(..., description="Total number of pages")
     items: List[OverlapResult] = Field(default=[], description="List of overlap results")
+    default_filter_applied: bool = Field(
+        default=False,
+        description="True if default chromosome filter (chr1) was applied for performance optimization"
+    )
+    effective_chromosome: Optional[str] = Field(
+        default=None,
+        description="The chromosome filter actually used in the query (may differ from requested if default was applied)"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -112,6 +120,14 @@ class OverlapStatistics(BaseModel):
     avg_peak_strength: float = Field(..., description="Average peak fold enrichment")
     by_mark_type: List[MarkTypeStats] = Field(default=[], description="Statistics breakdown by mark type")
     by_cell_type: List[CellTypeStats] = Field(default=[], description="Statistics breakdown by cell type")
+    default_filter_applied: bool = Field(
+        default=False,
+        description="True if default chromosome filter (chr1) was applied for performance optimization"
+    )
+    effective_chromosome: Optional[str] = Field(
+        default=None,
+        description="The chromosome filter actually used in the query (may differ from requested if default was applied)"
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -137,5 +153,13 @@ class OverlapHeatmapResponse(BaseModel):
     metric: str = Field(..., description="Metric used for values (count, avg_binding_affinity, total_overlap_length)")
     total_combinations: int = Field(..., description="Total possible X*Y combinations")
     valid_combinations: int = Field(..., description="Number of combinations with data")
+    default_filter_applied: bool = Field(
+        default=False,
+        description="True if default chromosome filter (chr1) was applied for performance optimization"
+    )
+    effective_chromosome: Optional[str] = Field(
+        default=None,
+        description="The chromosome filter actually used in the query (may differ from requested if default was applied)"
+    )
 
     model_config = ConfigDict(from_attributes=True)
