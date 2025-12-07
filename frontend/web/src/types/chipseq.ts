@@ -399,3 +399,79 @@ export const DEFAULT_CHIPSEQ_FILTERS: ChIPSeqFilters = {
   sort_by: 'fold_enrichment',
   sort_order: 'desc',
 }
+
+// ============================================
+// CELL LINE COMPARISON TYPES (Phase 2.6)
+// ============================================
+
+/**
+ * Entry for a single cell line in cell line comparison
+ */
+export interface CellLineComparisonEntry {
+  /** Cell type identifier (e.g., 'K562', 'GM12878') */
+  cell_type: string
+  /** Optional cell line name */
+  cell_line?: string
+  /** Peaks for this cell line */
+  peaks: ChIPSeqPeak[]
+  /** Total number of peaks */
+  total_peaks: number
+  /** Average signal value */
+  avg_signal?: number
+  /** Median fold enrichment */
+  median_fold_enrichment?: number
+  /** Standard deviation of fold enrichment */
+  std_fold_enrichment?: number
+  /** Total coverage in base pairs */
+  total_coverage_bp: number
+  /** Peak width percentile distribution */
+  peak_width_percentiles?: PeakWidthPercentiles
+}
+
+/**
+ * Overlap region between two cell lines for the same mark
+ */
+export interface CellLineOverlapRegion {
+  /** Chromosome */
+  chromosome: string
+  /** Start position */
+  start: number
+  /** End position */
+  end: number
+  /** Length of overlap region */
+  length: number
+  /** First cell type */
+  cell_type_1: string
+  /** Second cell type */
+  cell_type_2: string
+  /** Peak ID from first cell type */
+  peak_id_1: number
+  /** Peak ID from second cell type */
+  peak_id_2: number
+}
+
+/**
+ * Response from cell line comparison API
+ */
+export interface CellLineComparisonResponse {
+  /** Gene ID */
+  gene_id: number
+  /** Gene name */
+  gene_name: string
+  /** Chromosome */
+  chromosome: string
+  /** Region start position */
+  region_start: number
+  /** Region end position */
+  region_end: number
+  /** Mark type being compared */
+  mark_type: string
+  /** Data for each cell line */
+  cell_lines: CellLineComparisonEntry[]
+  /** Overlap regions between cell lines */
+  overlap_regions?: CellLineOverlapRegion[]
+  /** Total number of cell lines in comparison */
+  total_cell_lines: number
+  /** Number of peaks common across all cell lines */
+  common_peaks: number
+}

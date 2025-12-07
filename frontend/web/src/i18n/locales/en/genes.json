@@ -195,6 +195,34 @@
         "GM12878": "GM12878 (B-lymphocyte)",
         "HepG2": "HepG2 (Hepatocellular carcinoma)",
         "H1-hESC": "H1-hESC (Embryonic stem cell)"
+      },
+      "compareCellLines": "Compare Cell Lines",
+      "compareCellLinesHint": "Select 2 or more cell lines to compare the same histone mark across different cell types",
+      "currentMark": "Current Mark",
+      "compareButton": "Compare",
+      "selectedCellLines": "selected",
+      "selectMoreCellLines": "Select at least one more cell line to enable comparison",
+      "cellLinesView": "Cell Lines",
+      "exitCellLineCompare": "Exit Cell Line Compare",
+      "selectMarkFirst": "Select a mark first",
+      "selectMarkFirstDescription": "Please select a histone mark to compare across cell lines.",
+      "cellLineComparisonTitle": "Cell Line Comparison for {{mark}}",
+      "cellLineCompare": {
+        "foldEnrichment": "Fold Enrichment",
+        "avgSignal": "Avg Signal",
+        "peakCount": "Peak Count",
+        "coverage": "Coverage",
+        "heatmapTitle": "Cell Line Comparison: {{mark}}",
+        "barChartTitle": "{{metric}} by Cell Line",
+        "noData": "No cell line comparison data available",
+        "totalCellLines": "Cell Lines",
+        "commonPeaks": "Common Peaks",
+        "region": "Region",
+        "geneName": "Gene",
+        "detailsTitle": "Cell Line Details",
+        "noResults": "No comparison data available for the selected cell lines",
+        "getStarted": "Get Started",
+        "getStartedDescription": "Select 2 or more cell lines from the panel above and click Compare to see how the same histone mark behaves across different cell types."
       }
     }
   }

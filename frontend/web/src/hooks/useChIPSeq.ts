@@ -24,6 +24,7 @@ import type {
   ChIPSeqPeak,
   RawChIPSeqCompareResponse,
   MarkComparisonData,
+  CellLineComparisonResponse,
 } from '@/types/chipseq'
 
 /**
@@ -403,4 +404,42 @@ export function useChIPSeqData(
       summaryQuery.refetch()
     },
   }
+}
+
+/**
+ * Hook to fetch cell line comparison data
+ * Compares the same mark across multiple cell lines
+ *
+ * @param geneId - Gene ID
+ * @param markType - Mark type to compare
+ * @param cellTypes - Array of cell types to compare
+ * @param flanking - Flanking region in bp
+ * @param options - Additional query options
+ *
+ * @example
+ * ```tsx
+ * const { data, isLoading } = useChIPSeqCellLineCompare(
+ *   123,
+ *   'H3K27me3',
+ *   ['K562', 'GM12878', 'HepG2']
+ * )
+ * ```
+ */
+export function useChIPSeqCellLineCompare(
+  geneId: number,
+  markType: MarkType | undefined,
+  cellTypes: string[],
+  flanking: number = 10000,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: chipseqQueryKeys.compareCellLines(geneId, markType || 'H3K27me3', cellTypes),
+    queryFn: async (): Promise<CellLineComparisonResponse> => {
+      if (!markType) throw new Error('Mark type is required')
+      const response = await chipseqApi.compareCellLines(geneId, markType, cellTypes, flanking)
+      return response.data
+    },
+    enabled: !!markType && cellTypes.length >= 2 && (options?.enabled ?? true),
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  })
 }

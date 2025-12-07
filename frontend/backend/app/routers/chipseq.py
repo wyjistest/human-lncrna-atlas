@@ -46,6 +46,11 @@ from app.schemas.chipseq import (
     PeakWidthPercentiles,
     OverlapRegion,
     OverlapStatistics,
+    # Cell line comparison schemas
+    CellLineComparisonEntry,
+    CellLineOverlapRegion,
+    CellLineOverlapStatistics,
+    CellLineComparisonResponse,
     # Stats schemas
     ChIPSeqMarkStats,
     ChIPSeqGlobalStats,
@@ -1052,6 +1057,368 @@ def compare_gene_marks(
         overlap_statistics=overlap_stats if overlap_stats else None,
         overlapping_regions=None,  # Deprecated
         bivalent_regions=bivalent_regions if bivalent_regions else None,
+    )
+
+
+# =============================================================================
+# Cross Cell-Line Comparison (Fixed Mark, Compare Cell Types)
+# =============================================================================
+
+def find_cell_line_overlaps(
+    peaks_1: List[Dict],
+    peaks_2: List[Dict],
+    cell_type_1: str,
+    cell_type_2: str,
+    chromosome: str,
+) -> List[CellLineOverlapRegion]:
+    """
+    Find overlapping regions between two sets of peaks from different cell lines.
+    Uses a simple interval intersection algorithm.
+    """
+    overlaps = []
+
+    # Sort peaks by start position for efficiency
+    sorted_peaks_1 = sorted(peaks_1, key=lambda p: p["peak_start"])
+    sorted_peaks_2 = sorted(peaks_2, key=lambda p: p["peak_start"])
+
+    for p1 in sorted_peaks_1:
+        for p2 in sorted_peaks_2:
+            # Early termination: if p2 starts after p1 ends, no more overlaps possible
+            if p2["peak_start"] >= p1["peak_end"]:
+                break
+
+            # Check overlap
+            if p1["peak_start"] < p2["peak_end"] and p1["peak_end"] > p2["peak_start"]:
+                overlap_start = max(p1["peak_start"], p2["peak_start"])
+                overlap_end = min(p1["peak_end"], p2["peak_end"])
+
+                overlaps.append(CellLineOverlapRegion(
+                    chromosome=chromosome,
+                    start=overlap_start,
+                    end=overlap_end,
+                    length=overlap_end - overlap_start,
+                    cell_type_1=cell_type_1,
+                    cell_type_2=cell_type_2,
+                    peak_id_1=p1["peak_id"],
+                    peak_id_2=p2["peak_id"],
+                ))
+
+    return overlaps
+
+
+def compute_jaccard_index(peaks_1: List[Dict], peaks_2: List[Dict]) -> Optional[float]:
+    """
+    Compute Jaccard similarity index between two sets of peaks.
+    Jaccard = Intersection / Union (based on base pairs)
+    """
+    if not peaks_1 or not peaks_2:
+        return None
+
+    # Merge intervals for set 1
+    intervals_1 = sorted([(p["peak_start"], p["peak_end"]) for p in peaks_1])
+    merged_1 = []
+    for start, end in intervals_1:
+        if merged_1 and start <= merged_1[-1][1]:
+            merged_1[-1] = (merged_1[-1][0], max(merged_1[-1][1], end))
+        else:
+            merged_1.append((start, end))
+
+    # Merge intervals for set 2
+    intervals_2 = sorted([(p["peak_start"], p["peak_end"]) for p in peaks_2])
+    merged_2 = []
+    for start, end in intervals_2:
+        if merged_2 and start <= merged_2[-1][1]:
+            merged_2[-1] = (merged_2[-1][0], max(merged_2[-1][1], end))
+        else:
+            merged_2.append((start, end))
+
+    # Compute union and intersection
+    # Union: merge both sets together
+    all_intervals = sorted(merged_1 + merged_2)
+    union_merged = []
+    for start, end in all_intervals:
+        if union_merged and start <= union_merged[-1][1]:
+            union_merged[-1] = (union_merged[-1][0], max(union_merged[-1][1], end))
+        else:
+            union_merged.append((start, end))
+    union_bp = sum(end - start for start, end in union_merged)
+
+    # Intersection: find overlapping regions between the two merged sets
+    intersection_bp = 0
+    i, j = 0, 0
+    while i < len(merged_1) and j < len(merged_2):
+        start1, end1 = merged_1[i]
+        start2, end2 = merged_2[j]
+
+        # Check for overlap
+        if start1 < end2 and start2 < end1:
+            intersection_bp += min(end1, end2) - max(start1, start2)
+
+        # Move pointer for the interval that ends first
+        if end1 <= end2:
+            i += 1
+        else:
+            j += 1
+
+    if union_bp == 0:
+        return None
+
+    return intersection_bp / union_bp
+
+
+def find_common_peaks(cell_lines_data: Dict[str, Dict], chromosome: str) -> int:
+    """
+    Find peaks that overlap with at least one peak in every cell line.
+    Returns count of such peaks from the first cell line.
+    """
+    if len(cell_lines_data) < 2:
+        return 0
+
+    cell_types = list(cell_lines_data.keys())
+    first_cell_type = cell_types[0]
+    first_peaks = cell_lines_data[first_cell_type]["peaks"]
+
+    common_count = 0
+    for peak in first_peaks:
+        # Check if this peak overlaps with at least one peak in every other cell line
+        overlaps_all = True
+        for cell_type in cell_types[1:]:
+            other_peaks = cell_lines_data[cell_type]["peaks"]
+            has_overlap = False
+            for other_peak in other_peaks:
+                if (peak["peak_start"] < other_peak["peak_end"] and
+                    peak["peak_end"] > other_peak["peak_start"]):
+                    has_overlap = True
+                    break
+            if not has_overlap:
+                overlaps_all = False
+                break
+
+        if overlaps_all:
+            common_count += 1
+
+    return common_count
+
+
+@router.get("/genes/{gene_id}/compare-cell-lines", response_model=CellLineComparisonResponse)
+def compare_gene_cell_lines(
+    gene_id: int,
+    mark_type: str = Query(
+        ...,
+        description="Mark type to compare across cell lines (e.g., H3K27me3)"
+    ),
+    cell_types: str = Query(
+        ...,
+        description="Comma-separated cell types to compare (e.g., K562,HepG2,H1-hESC)"
+    ),
+    flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
+    include_overlaps: bool = Query(
+        True,
+        description="Include pairwise overlap analysis between cell lines"
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Compare same ChIP-seq mark across multiple cell lines for a gene.
+
+    This endpoint provides a new dimension of analysis: instead of comparing
+    multiple marks in one cell type, it compares the same mark across different
+    cell types (e.g., K562, GM12878, HepG2, H1-hESC).
+
+    Returns peaks and statistics for each cell line, plus overlap analysis
+    to identify conserved or cell-type-specific regulatory regions.
+
+    **Example:**
+    ```
+    GET /features/chipseq/genes/17276/compare-cell-lines?mark_type=H3K27me3&cell_types=K562,HepG2,H1-hESC
+    ```
+
+    **Returns:**
+    - Peak data for each cell line
+    - Statistics (median fold enrichment, coverage, etc.)
+    - Pairwise overlap regions between cell lines
+    - Jaccard similarity index for each cell line pair
+    - Count of peaks present in all cell lines
+
+    **Use cases:**
+    - Identify cell-type-specific regulatory elements
+    - Find conserved epigenetic marks across cell types
+    - Compare chromatin states between differentiated and stem cells
+    """
+    # 1. Parse and validate cell types
+    cell_type_list = [c.strip() for c in cell_types.split(",") if c.strip()]
+    if len(cell_type_list) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="At least 2 cell types are required for comparison"
+        )
+
+    # 2. Query gene
+    gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
+    if not gene:
+        raise HTTPException(status_code=404, detail=f"Gene {gene_id} not found")
+
+    region_start = max(0, gene.gene_start - flanking)
+    region_end = gene.gene_end + flanking
+
+    # 3. Query peaks for each cell type
+    query = text("""
+        SELECT
+            e.cell_type,
+            e.cell_line,
+            p.peak_id,
+            p.chromosome,
+            p.peak_start,
+            p.peak_end,
+            p.summit_position,
+            p.fold_enrichment,
+            p.qvalue,
+            p.signal_value,
+            COALESCE(p.peak_width, p.peak_end - p.peak_start) as peak_width,
+            m.mark_name
+        FROM chipseq_peaks p
+        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+        WHERE p.species_id = :species_id
+          AND p.chromosome = :chromosome
+          AND p.peak_start < :region_end
+          AND p.peak_end > :region_start
+          AND e.is_active = TRUE
+          AND m.mark_name = :mark_type
+          AND e.cell_type = ANY(:cell_types)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+        ORDER BY e.cell_type, p.peak_start
+    """)
+
+    rows = db.execute(query, {
+        "species_id": gene.species_id,
+        "chromosome": gene.chromosome,
+        "region_start": region_start,
+        "region_end": region_end,
+        "mark_type": mark_type,
+        "cell_types": cell_type_list,
+        "max_qvalue": max_qvalue,
+    }).fetchall()
+
+    # 4. Group peaks by cell type
+    cell_lines_data: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        cell_type = row[0]
+        if cell_type not in cell_lines_data:
+            cell_lines_data[cell_type] = {
+                "cell_type": cell_type,
+                "cell_line": row[1],
+                "peaks": [],
+            }
+
+        cell_lines_data[cell_type]["peaks"].append({
+            "peak_id": row[2],
+            "chromosome": row[3],
+            "peak_start": row[4],
+            "peak_end": row[5],
+            "summit_position": row[6],
+            "fold_enrichment": float(row[7]) if row[7] else None,
+            "qvalue": float(row[8]) if row[8] else None,
+            "signal_value": float(row[9]) if row[9] else None,
+            "peak_width": row[10],
+            "mark_type": row[11],
+        })
+
+    # 5. Calculate statistics for each cell line and build response entries
+    result_cell_lines = []
+    for cell_type, data in cell_lines_data.items():
+        peaks = data["peaks"]
+
+        # Compute statistics using the existing helper
+        stats = compute_mark_statistics(peaks, region_start, region_end)
+
+        # Calculate average signal
+        signal_values = [p["signal_value"] for p in peaks if p["signal_value"] is not None]
+        avg_signal = statistics.mean(signal_values) if signal_values else None
+
+        # Convert peaks to compact format for response
+        compact_peaks = [
+            ChIPSeqPeakCompact(
+                peak_id=p["peak_id"],
+                chromosome=p["chromosome"],
+                peak_start=p["peak_start"],
+                peak_end=p["peak_end"],
+                summit_position=p["summit_position"],
+                fold_enrichment=p["fold_enrichment"],
+                qvalue=p["qvalue"],
+                mark_type=p["mark_type"],
+            )
+            for p in peaks
+        ]
+
+        result_cell_lines.append(CellLineComparisonEntry(
+            cell_type=cell_type,
+            cell_line=data["cell_line"],
+            peaks=compact_peaks,
+            total_peaks=len(peaks),
+            avg_signal=avg_signal,
+            median_fold_enrichment=stats["median_fold_enrichment"],
+            std_fold_enrichment=stats["std_fold_enrichment"],
+            total_coverage_bp=stats["total_coverage_bp"],
+            peak_width_percentiles=stats["peak_width_percentiles"],
+        ))
+
+    # 6. Find overlaps between cell lines (if requested)
+    overlap_regions: List[CellLineOverlapRegion] = []
+    overlap_stats: List[CellLineOverlapStatistics] = []
+
+    if include_overlaps and len(cell_lines_data) >= 2:
+        cell_type_names = list(cell_lines_data.keys())
+
+        for cell_1, cell_2 in combinations(cell_type_names, 2):
+            overlaps = find_cell_line_overlaps(
+                cell_lines_data[cell_1]["peaks"],
+                cell_lines_data[cell_2]["peaks"],
+                cell_1,
+                cell_2,
+                gene.chromosome,
+            )
+
+            overlap_regions.extend(overlaps)
+
+            # Compute overlap statistics for this pair
+            total_bp = sum(o.length for o in overlaps)
+            jaccard = compute_jaccard_index(
+                cell_lines_data[cell_1]["peaks"],
+                cell_lines_data[cell_2]["peaks"],
+            )
+
+            overlap_stats.append(CellLineOverlapStatistics(
+                cell_pair=f"{cell_1}:{cell_2}",
+                overlap_count=len(overlaps),
+                total_overlap_bp=total_bp,
+                avg_overlap_length=total_bp / len(overlaps) if overlaps else None,
+                jaccard_index=round(jaccard, 4) if jaccard is not None else None,
+            ))
+
+    # 7. Find common peaks (present in all cell lines)
+    common_peaks_count = find_common_peaks(cell_lines_data, gene.chromosome)
+
+    # 8. Identify missing cell lines (requested but no data found)
+    found_cell_types = set(cell_lines_data.keys())
+    requested_cell_types = set(cell_type_list)
+    missing_cell_lines = list(requested_cell_types - found_cell_types)
+
+    return CellLineComparisonResponse(
+        gene_id=gene.gene_id,
+        gene_name=gene.gene_name or "Unknown",
+        gene_ensembl_id=gene.gene_ensembl_id,
+        chromosome=gene.chromosome,
+        region_start=region_start,
+        region_end=region_end,
+        mark_type=mark_type,
+        cell_lines=result_cell_lines,
+        overlap_regions=overlap_regions if overlap_regions else None,
+        overlap_statistics=overlap_stats if overlap_stats else None,
+        total_cell_lines=len(result_cell_lines),
+        common_peaks=common_peaks_count,
+        missing_cell_lines=missing_cell_lines if missing_cell_lines else None,
     )
 
 

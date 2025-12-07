@@ -1,7 +1,7 @@
 # Human LncRNA Atlas - 当前进度报告
 
 > 最后更新: 2025-12-07
-> 当前版本: Phase 2.7
+> 当前版本: Phase 2.8
 
 ## 📊 数据库统计
 
@@ -22,6 +22,25 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2025-12-07 (Phase 2.8)
+
+1. **跨细胞系对比分析功能** ⭐ 新功能
+   - 后端 API: `/genes/{gene_id}/compare-cell-lines`
+   - 支持同一 Mark 在多细胞系间对比（如 H3K27me3 在 K562 vs HepG2）
+   - Jaccard 相似性指数计算
+   - 共有 peaks 检测（在所有细胞系中都存在的调控元件）
+   - 详见: `docs/PHASE_2.8_CELL_LINE_COMPARISON.md`
+
+2. **前端细胞系对比 UI**
+   - CellLineComparePanel: 细胞系选择面板（按 Cancer/Normal/Stem 分组）
+   - CellLineHeatmap: ECharts 热图可视化
+   - 多指标切换: Fold Enrichment / Signal / Peak Count / Coverage
+   - 详细统计卡片展示每个细胞系的 median, std, percentiles
+
+3. **测试覆盖增强**
+   - 新增 18 个测试用例（9 API + 9 验证测试）
+   - 总测试数: 53 → 71
 
 ### 2025-12-07 (Phase 2.7)
 

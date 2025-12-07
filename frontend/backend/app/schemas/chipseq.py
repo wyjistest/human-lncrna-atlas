@@ -620,3 +620,91 @@ class OverlapExportRequest(BaseModel):
         description="Specific mark pair to export (e.g., 'H3K4me3:H3K27me3'). If None, export all."
     )
     min_overlap_bp: int = Field(0, ge=0, description="Minimum overlap length to include")
+
+
+# =============================================================================
+# Cell Line Comparison Schemas (Cross Cell-Line Analysis)
+# =============================================================================
+
+class CellLineComparisonEntry(BaseModel):
+    """Single cell line data in comparison for a specific mark"""
+    cell_type: str = Field(..., description="Cell type identifier (e.g., K562, HepG2)")
+    cell_line: Optional[str] = Field(None, description="Specific cell line name if available")
+    peaks: List[ChIPSeqPeakCompact] = Field(..., description="Peaks from this cell line")
+
+    # Statistics
+    total_peaks: int = Field(..., description="Total number of peaks")
+    avg_signal: Optional[float] = Field(None, description="Average signal value")
+    median_fold_enrichment: Optional[float] = Field(None, description="Median fold enrichment")
+    std_fold_enrichment: Optional[float] = Field(None, description="Standard deviation of fold enrichment")
+    total_coverage_bp: int = Field(..., description="Total base pairs covered by peaks")
+    peak_width_percentiles: Optional[PeakWidthPercentiles] = Field(
+        None,
+        description="Peak width distribution (p25, p50, p75)"
+    )
+
+
+class CellLineOverlapRegion(BaseModel):
+    """Overlap between two cell lines for the same mark"""
+    chromosome: str = Field(..., description="Chromosome name")
+    start: int = Field(..., description="Overlap start position")
+    end: int = Field(..., description="Overlap end position")
+    length: int = Field(..., description="Overlap length in bp")
+    cell_type_1: str = Field(..., description="First cell type")
+    cell_type_2: str = Field(..., description="Second cell type")
+    peak_id_1: int = Field(..., description="Peak ID from first cell type")
+    peak_id_2: int = Field(..., description="Peak ID from second cell type")
+
+
+class CellLineOverlapStatistics(BaseModel):
+    """Summary statistics for cell line overlaps"""
+    cell_pair: str = Field(..., description="Cell type pair (e.g., 'K562:HepG2')")
+    overlap_count: int = Field(..., description="Number of overlapping regions")
+    total_overlap_bp: int = Field(..., description="Total base pairs in overlaps")
+    avg_overlap_length: Optional[float] = Field(None, description="Average overlap length")
+    jaccard_index: Optional[float] = Field(
+        None,
+        ge=0,
+        le=1,
+        description="Jaccard similarity index between peak sets"
+    )
+
+
+class CellLineComparisonResponse(BaseModel):
+    """Response for comparing same mark across multiple cell lines"""
+    gene_id: int = Field(..., description="Gene ID")
+    gene_name: str = Field(..., description="Gene symbol or name")
+    gene_ensembl_id: str = Field(..., description="Ensembl gene ID")
+    chromosome: str = Field(..., description="Chromosome")
+    region_start: int = Field(..., description="Query region start (gene - flanking)")
+    region_end: int = Field(..., description="Query region end (gene + flanking)")
+    mark_type: str = Field(..., description="Single mark being compared across cell lines")
+
+    # Cell line data
+    cell_lines: List[CellLineComparisonEntry] = Field(
+        ...,
+        description="Peak data for each cell line"
+    )
+
+    # Overlap analysis
+    overlap_regions: Optional[List[CellLineOverlapRegion]] = Field(
+        None,
+        description="All pairwise overlapping regions between cell lines"
+    )
+    overlap_statistics: Optional[List[CellLineOverlapStatistics]] = Field(
+        None,
+        description="Summary statistics for each cell line pair"
+    )
+
+    # Summary
+    total_cell_lines: int = Field(..., description="Number of cell lines with data")
+    common_peaks: int = Field(
+        ...,
+        description="Peaks present in all cell lines (based on overlap)"
+    )
+
+    # Missing cell lines (requested but no data found)
+    missing_cell_lines: Optional[List[str]] = Field(
+        None,
+        description="Cell types requested but not found in data"
+    )

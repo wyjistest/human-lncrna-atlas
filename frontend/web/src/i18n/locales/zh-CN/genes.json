@@ -195,6 +195,34 @@
         "GM12878": "GM12878 (B淋巴细胞)",
         "HepG2": "HepG2 (肝癌细胞)",
         "H1-hESC": "H1-hESC (人胚胎干细胞)"
+      },
+      "compareCellLines": "对比细胞系",
+      "compareCellLinesHint": "选择2个或更多细胞系来比较同一组蛋白修饰在不同细胞类型中的表现",
+      "currentMark": "当前修饰",
+      "compareButton": "对比",
+      "selectedCellLines": "已选",
+      "selectMoreCellLines": "请再选择至少一个细胞系以启用对比",
+      "cellLinesView": "细胞系",
+      "exitCellLineCompare": "退出细胞系对比",
+      "selectMarkFirst": "请先选择修饰",
+      "selectMarkFirstDescription": "请先选择一个组蛋白修饰以便在不同细胞系间进行对比。",
+      "cellLineComparisonTitle": "{{mark}} 的细胞系对比",
+      "cellLineCompare": {
+        "foldEnrichment": "富集倍数",
+        "avgSignal": "平均信号",
+        "peakCount": "峰值数量",
+        "coverage": "覆盖度",
+        "heatmapTitle": "细胞系对比: {{mark}}",
+        "barChartTitle": "各细胞系 {{metric}}",
+        "noData": "无可用的细胞系对比数据",
+        "totalCellLines": "细胞系数",
+        "commonPeaks": "共有峰值",
+        "region": "区域",
+        "geneName": "基因",
+        "detailsTitle": "细胞系详情",
+        "noResults": "所选细胞系无可用对比数据",
+        "getStarted": "开始使用",
+        "getStartedDescription": "从上方面板选择2个或更多细胞系，然后点击对比按钮查看同一组蛋白修饰在不同细胞类型中的表现。"
       }
     }
   }

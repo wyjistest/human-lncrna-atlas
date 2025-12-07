@@ -17,6 +17,7 @@ import type {
   RawChIPSeqCompareResponse,
   AvailableMarksResponse,
   GeneChIPSeqRawResponse,
+  CellLineComparisonResponse,
 } from '@/types/chipseq'
 
 /**
@@ -125,6 +126,30 @@ export const chipseqApi = {
     const url = `${API_BASE_URL}/api/v1/features/chipseq/genes/${geneId}/compare/export?${params.toString()}`
     window.open(url, '_blank')
   },
+
+  /**
+   * Compare same mark across multiple cell lines
+   * @param geneId - Gene ID
+   * @param markType - Single mark type to compare
+   * @param cellTypes - Array of cell types to compare
+   * @param flanking - Flanking region in bp (optional)
+   */
+  compareCellLines: (
+    geneId: number,
+    markType: MarkType,
+    cellTypes: string[],
+    flanking?: number
+  ) =>
+    apiClient.get<CellLineComparisonResponse>(
+      `/api/v1/features/chipseq/genes/${geneId}/compare-cell-lines`,
+      {
+        params: {
+          mark_type: markType,
+          cell_types: cellTypes.join(','),
+          flanking,
+        },
+      }
+    ),
 }
 
 /**
@@ -154,4 +179,8 @@ export const chipseqQueryKeys = {
   /** Comparison data for multiple marks */
   compare: (geneId: number, marks: MarkType[]) =>
     [...chipseqQueryKeys.gene(geneId), 'compare', marks.sort().join(',')] as const,
+
+  /** Cell line comparison data for a single mark across multiple cell types */
+  compareCellLines: (geneId: number, markType: MarkType, cellTypes: string[]) =>
+    [...chipseqQueryKeys.gene(geneId), 'compare-cell-lines', markType, cellTypes.sort().join(',')] as const,
 }

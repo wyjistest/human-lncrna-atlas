@@ -9,6 +9,7 @@
  * - Advanced filtering panel
  * - Sortable, paginated data table
  * - Multi-mark comparison mode with charts
+ * - Cell line comparison mode (Phase 2.6)
  * - Export functionality (BED, CSV)
  *
  * View Modes:
@@ -16,6 +17,7 @@
  * - Merged: Combined table with multiple marks
  * - Parallel: Side-by-side comparison (2 marks)
  * - Stats: Statistical comparison charts
+ * - Cell Lines: Compare same mark across cell lines (Phase 2.6)
  */
 
 import { useState, useMemo, useCallback } from 'react'
@@ -36,6 +38,7 @@ import {
   TableOutlined,
   SwapOutlined,
   ExperimentOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { TabsProps } from 'antd'
@@ -47,6 +50,7 @@ import { FilterPanel } from './FilterPanel'
 import { PeaksTable } from './PeaksTable'
 import { CompareCharts } from './CompareCharts'
 import { BivalentDomainBadge } from './BivalentDomainBadge'
+import { CellLineCompareView } from './CellLineCompareView'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 
@@ -66,6 +70,9 @@ import type {
   ChIPSeqFilters,
   CompareViewMode,
 } from '@/types/chipseq'
+
+/** Extended view mode to include cell line comparison */
+type ExtendedViewMode = CompareViewMode | 'cellLines'
 
 interface ChIPSeqPeaksTableProps {
   /** Gene ID to display peaks for */
@@ -118,7 +125,8 @@ export function ChIPSeqPeaksTable({
   )
   const [selectedMarksForCompare, setSelectedMarksForCompare] = useState<MarkType[]>([])
   const [compareMode, setCompareMode] = useState(false)
-  const [viewMode, setViewMode] = useState<CompareViewMode>('merged')
+  const [cellLineCompareMode, setCellLineCompareMode] = useState(false)
+  const [viewMode, setViewMode] = useState<ExtendedViewMode>('merged')
 
   // Filters state with defaults from mark config
   const [filters, setFilters] = useState<ChIPSeqFilters>(() => {
@@ -210,9 +218,19 @@ export function ChIPSeqPeaksTable({
     if (!compareMode) {
       // Entering compare mode - pre-select current mark
       setSelectedMarksForCompare(selectedMark ? [selectedMark] : [])
+      setCellLineCompareMode(false)
     }
     setCompareMode(!compareMode)
   }, [compareMode, selectedMark])
+
+  // Toggle cell line comparison mode
+  const handleToggleCellLineCompareMode = useCallback(() => {
+    if (!cellLineCompareMode) {
+      // Entering cell line compare mode
+      setCompareMode(false)
+    }
+    setCellLineCompareMode(!cellLineCompareMode)
+  }, [cellLineCompareMode])
 
   // Handle export
   const handleExport = useCallback(() => {
@@ -268,6 +286,15 @@ export function ChIPSeqPeaksTable({
           <span>
             <BarChartOutlined />
             {t('detail.chipseq.statsView', 'Statistics')}
+          </span>
+        ),
+      },
+      {
+        key: 'cellLines',
+        label: (
+          <span>
+            <TeamOutlined />
+            {t('detail.chipseq.cellLinesView', 'Cell Lines')}
           </span>
         ),
       },
@@ -359,6 +386,31 @@ export function ChIPSeqPeaksTable({
 
   // Render comparison view
   const renderCompareView = () => {
+    // Handle cell line comparison view
+    if (viewMode === 'cellLines') {
+      if (!selectedMark) {
+        return (
+          <Alert
+            type="warning"
+            message={t('detail.chipseq.selectMarkFirst', 'Select a mark first')}
+            description={t(
+              'detail.chipseq.selectMarkFirstDescription',
+              'Please select a histone mark to compare across cell lines.'
+            )}
+            showIcon
+          />
+        )
+      }
+
+      return (
+        <CellLineCompareView
+          geneId={geneId}
+          currentMarkType={selectedMark}
+          flanking={filters.flanking}
+        />
+      )
+    }
+
     if (selectedMarksForCompare.length === 0) {
       return (
         <Alert
@@ -542,32 +594,43 @@ export function ChIPSeqPeaksTable({
           </Col>
           <Col xs={24} md={8} style={{ textAlign: 'right' }}>
             {enableComparison && (
-              <Button
-                type={compareMode ? 'primary' : 'default'}
-                icon={<ExperimentOutlined />}
-                onClick={handleToggleCompareMode}
-              >
-                {compareMode
-                  ? t('detail.chipseq.exitCompare', 'Exit Comparison')
-                  : t('detail.chipseq.compareMarks', 'Compare Marks')}
-              </Button>
+              <Space>
+                <Button
+                  type={cellLineCompareMode ? 'primary' : 'default'}
+                  icon={<TeamOutlined />}
+                  onClick={handleToggleCellLineCompareMode}
+                >
+                  {cellLineCompareMode
+                    ? t('detail.chipseq.exitCellLineCompare', 'Exit Cell Line Compare')
+                    : t('detail.chipseq.compareCellLines', 'Compare Cell Lines')}
+                </Button>
+                <Button
+                  type={compareMode ? 'primary' : 'default'}
+                  icon={<ExperimentOutlined />}
+                  onClick={handleToggleCompareMode}
+                >
+                  {compareMode
+                    ? t('detail.chipseq.exitCompare', 'Exit Comparison')
+                    : t('detail.chipseq.compareMarks', 'Compare Marks')}
+                </Button>
+              </Space>
             )}
           </Col>
         </Row>
       </Card>
 
       {/* Compare mode tabs */}
-      {compareMode && selectedMarksForCompare.length > 0 && (
+      {(compareMode || cellLineCompareMode) && (
         <Tabs
           activeKey={viewMode}
-          onChange={(key) => setViewMode(key as CompareViewMode)}
+          onChange={(key) => setViewMode(key as ExtendedViewMode)}
           items={compareViewTabs}
           type="card"
         />
       )}
 
       {/* Main content */}
-      {compareMode ? renderCompareView() : renderSingleMarkView()}
+      {compareMode || cellLineCompareMode ? renderCompareView() : renderSingleMarkView()}
     </Space>
   )
 }
