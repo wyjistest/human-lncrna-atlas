@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { Row, Col, Card, Empty, Statistic, Space, Typography, Alert } from 'antd'
+import { Row, Col, Card, Empty, Statistic, Space, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'

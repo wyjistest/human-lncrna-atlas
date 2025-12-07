@@ -98,13 +98,17 @@ export function FilterPanel({
 
   // Auto-apply fold enrichment filter with debounce when slider changes
   const handleFoldEnrichmentChange = useCallback(
-    (value: [number, number]) => {
-      setFoldEnrichmentRange(value)
+    (value: number | number[]) => {
+      // Handle both single value and range (Ant Design Slider types)
+      const range: [number, number] = Array.isArray(value)
+        ? [value[0] ?? 0, value[1] ?? 100]
+        : [0, value]
+      setFoldEnrichmentRange(range)
       // Debounced auto-apply
       debouncedFilterChange({
         ...filters,
-        min_fold_enrichment: value[0] || undefined,
-        max_fold_enrichment: value[1] < 100 ? value[1] : undefined,
+        min_fold_enrichment: range[0] || undefined,
+        max_fold_enrichment: range[1] < 100 ? range[1] : undefined,
         page: 1, // Reset to first page
       })
     },
