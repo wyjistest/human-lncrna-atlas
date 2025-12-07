@@ -28,11 +28,13 @@ export type MarkType =
   | 'H3K4ac'     // Active chromatin
   | 'H3K14ac'    // Active chromatin
   | 'H3K18ac'    // Active chromatin
+  // Open Chromatin
+  | 'DNase-HS'   // DNase I Hypersensitive Sites
 
 /**
  * Mark category for grouping and styling
  */
-export type MarkCategory = 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other'
+export type MarkCategory = 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other' | 'open_chromatin'
 
 /**
  * Configuration interface for each mark type

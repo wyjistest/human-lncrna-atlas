@@ -73,5 +73,41 @@
       "Satellite": "Satellite",
       "Other": "Other"
     }
+  },
+  "chipseq": {
+    "title": "Epigenomic Tracks",
+    "enableTracks": "Enable Epigenomic Tracks",
+    "loadingMarks": "Loading available marks...",
+    "loadMarksFailed": "Failed to load epigenomic marks",
+    "selectMarksHint": "Select histone modifications or open chromatin assays to display as tracks",
+    "selectPlaceholder": "Select epigenomic marks",
+    "noMarksAvailable": "No epigenomic marks available for this species",
+    "categories": {
+      "repressive": "Repressive Marks",
+      "activating": "Activating Marks",
+      "enhancer": "Enhancer Marks",
+      "elongation": "Elongation Marks",
+      "open_chromatin": "Open Chromatin",
+      "other": "Other Marks"
+    },
+    "marks": {
+      "H3K27me3": "H3K27me3 (Repressive)",
+      "H3K9me3": "H3K9me3 (Heterochromatin)",
+      "H3K9me2": "H3K9me2 (Silencing)",
+      "H3K4me3": "H3K4me3 (Active Promoter)",
+      "H3K4me2": "H3K4me2 (Promoter)",
+      "H3K4me1": "H3K4me1 (Enhancer)",
+      "H3K27ac": "H3K27ac (Active Enhancer)",
+      "H3K9ac": "H3K9ac (Active Chromatin)",
+      "H3K36me3": "H3K36me3 (Elongation)",
+      "H3K79me2": "H3K79me2 (Elongation)",
+      "H2AZ": "H2A.Z (Regulatory)",
+      "H2BK120ub": "H2BK120ub (Ubiquitination)",
+      "H4K20me1": "H4K20me1 (Cell Cycle)",
+      "H3K4ac": "H3K4ac (Active)",
+      "H3K14ac": "H3K14ac (Active)",
+      "H3K18ac": "H3K18ac (Active)",
+      "DNase-HS": "DNase-HS (Open Chromatin)"
+    }
   }
 }

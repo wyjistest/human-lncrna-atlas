@@ -73,5 +73,41 @@
       "Satellite": "卫星序列",
       "Other": "其他"
     }
+  },
+  "chipseq": {
+    "title": "表观基因组轨道",
+    "enableTracks": "启用表观基因组轨道",
+    "loadingMarks": "正在加载可用标记...",
+    "loadMarksFailed": "加载表观基因组标记失败",
+    "selectMarksHint": "选择组蛋白修饰或开放染色质检测作为轨道显示",
+    "selectPlaceholder": "选择表观基因组标记",
+    "noMarksAvailable": "该物种没有可用的表观基因组标记",
+    "categories": {
+      "repressive": "抑制性标记",
+      "activating": "激活性标记",
+      "enhancer": "增强子标记",
+      "elongation": "延伸标记",
+      "open_chromatin": "开放染色质",
+      "other": "其他标记"
+    },
+    "marks": {
+      "H3K27me3": "H3K27me3（抑制性）",
+      "H3K9me3": "H3K9me3（异染色质）",
+      "H3K9me2": "H3K9me2（沉默）",
+      "H3K4me3": "H3K4me3（活性启动子）",
+      "H3K4me2": "H3K4me2（启动子）",
+      "H3K4me1": "H3K4me1（增强子）",
+      "H3K27ac": "H3K27ac（活性增强子）",
+      "H3K9ac": "H3K9ac（活性染色质）",
+      "H3K36me3": "H3K36me3（延伸）",
+      "H3K79me2": "H3K79me2（延伸）",
+      "H2AZ": "H2A.Z（调控）",
+      "H2BK120ub": "H2BK120ub（泛素化）",
+      "H4K20me1": "H4K20me1（细胞周期）",
+      "H3K4ac": "H3K4ac（活性）",
+      "H3K14ac": "H3K14ac（活性）",
+      "H3K18ac": "H3K18ac（活性）",
+      "DNase-HS": "DNase-HS（开放染色质）"
+    }
   }
 }

@@ -1,21 +1,31 @@
 # Human LncRNA Atlas - 当前进度报告
 
 > 最后更新: 2025-12-07
-> 当前版本: Phase 2.10
+> 当前版本: Phase 2.11
 
 ## 📊 数据库统计
 
-### ChIP-seq 数据
+### Epigenomic Data (ChIP-seq + DNase-seq)
 
-| 细胞系 | 类型 | Histone Marks | 实验数 | Peaks 数量 |
-|--------|------|---------------|--------|------------|
-| K562 | 白血病细胞 | H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3 | 6 | 422,649 |
-| H1-hESC | 人胚胎干细胞 | H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3 | 6 | 327,622 |
-| HepG2 | 肝癌细胞 | H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3 | 5 | 305,506 |
-| GM12878 | B淋巴细胞 | H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3 | 6 | 360,575 |
-| **总计** | - | - | **23** | **1,416,352** |
+| Mark 类型 | 分类 | 细胞系数 | 实验数 | Peaks 数量 |
+|-----------|------|----------|--------|------------|
+| **DNase-HS** | Open Chromatin | 4 | 4 | **837,366** |
+| H3K4me1 | Activating | 4 | 4 | 437,820 |
+| H3K27ac | Activating | 4 | 4 | 234,121 |
+| H3K9me3 | Repressive | 3 | 3 | 203,868 |
+| H3K27me3 | Repressive | 4 | 4 | 203,428 |
+| H3K4me3 | Activating | 4 | 4 | 171,585 |
+| H3K36me3 | Activating | 4 | 4 | 165,530 |
+| **总计** | - | **4** | **27** | **2,253,718** |
 
-**数据覆盖率**: 23/24 (95.8%) - 仅缺 HepG2 × H3K9me3
+### 细胞系覆盖
+
+| 细胞系 | 类型 | ChIP-seq Marks | DNase-seq | 总 Peaks |
+|--------|------|----------------|-----------|----------|
+| K562 | 白血病细胞 | 6 marks | ✅ | ~625k |
+| GM12878 | B淋巴细胞 | 6 marks | ✅ | ~544k |
+| HepG2 | 肝癌细胞 | 5 marks | ✅ | ~498k |
+| H1-hESC | 人胚胎干细胞 | 6 marks | ✅ | ~586k |
 
 ### 核心数据
 
@@ -25,88 +35,25 @@
 
 ## ✅ 最近完成的功能
 
-### 2025-12-07 (Phase 2.10)
+### 2025-12-07 (Phase 2.11) ⭐ DNase-seq 数据导入
 
-1. **批量基因热图功能** ⭐ 新功能
-   - 后端 API: `POST /genes/batch-heatmap-matrix`
-   - 支持批量查询多个基因（1-100 个）的热图矩阵
-   - React Query useQueries 并行数据获取
-   - 大矩阵可视化（基因 × 细胞系 × Marks）
-   - 性能优秀：3 基因仅需 15ms
-   - 详见: `docs/PHASE_2.10_BATCH_GENE_HEATMAP.md`
+1. **ENCODE DNase-seq 数据导入** ⭐ 新数据类型
+   - 新增 mark 类型: `DNase-HS` (Open Chromatin)
+   - 导入 4 个细胞系的 Uniform DNase I HS 数据
+   - K562: 202,266 peaks
+   - GM12878: 183,953 peaks
+   - HepG2: 192,959 peaks
+   - H1-hESC: 258,188 peaks
+   - **总计新增: 837,366 peaks**
+   - 数据源: UCSC ENCODE Uniform DNaseI HS (hg19)
+   - 完全复用现有 ChIP-seq 导入架构
 
-2. **测试覆盖**
-   - 新增 21 个测试用例（9 API + 12 E2E）
-   - 总测试数: 91 → 112
-
-### 2025-12-07 (Phase 2.9)
-
-1. **热图矩阵可视化功能** ⭐ 新功能
-   - 后端 API: `/genes/{gene_id}/heatmap-matrix`
-   - 支持多细胞系 × 多 Marks 二维矩阵对比（如 4 细胞系 × 6 marks = 24 组合）
-   - ECharts 矩阵热图可视化（4 种指标切换）
-   - 自动识别和标记缺失数据组合
-   - 性能优秀：4×6 矩阵仅需 ~30ms
-   - 详见: `docs/PHASE_2.9_HEATMAP_MATRIX.md`
-
-2. **ChIP-seq 数据补充** ⭐ 数据完整性提升
-   - 从 UCSC ENCODE Broad Histone (hg19) 补充 5 个数据集
-   - 新增 H3K36me3 和 H3K9me3 marks 数据
-   - H1-hESC: 4/6 → **6/6 (100% 完整)**
-   - HepG2: 4/6 → **5/6 (83%)**
-   - GM12878: 新增 H3K36me3, H3K9me3
-   - 总 Peaks: 1.14M → **1.42M (+23.7%)**
-   - 覆盖率: 75% → **95.8%**
-   - 详见: `docs/DATA_SUPPLEMENT_REPORT.md`
-
-3. **测试覆盖增强**
-   - 新增 20 个测试用例（12 API + 8 性能）
-   - 总测试数: 71 → 91
-   - 性能测试覆盖：2×2, 4×4, 4×6 矩阵
-
-### 2025-12-07 (Phase 2.8)
-
-1. **跨细胞系对比分析功能** ⭐ 新功能
-   - 后端 API: `/genes/{gene_id}/compare-cell-lines`
-   - 支持同一 Mark 在多细胞系间对比（如 H3K27me3 在 K562 vs HepG2）
-   - Jaccard 相似性指数计算
-   - 共有 peaks 检测（在所有细胞系中都存在的调控元件）
-   - 详见: `docs/PHASE_2.8_CELL_LINE_COMPARISON.md`
-
-2. **前端细胞系对比 UI**
-   - CellLineComparePanel: 细胞系选择面板（按 Cancer/Normal/Stem 分组）
-   - CellLineHeatmap: ECharts 热图可视化
-   - 多指标切换: Fold Enrichment / Signal / Peak Count / Coverage
-   - 详细统计卡片展示每个细胞系的 median, std, percentiles
-
-3. **测试覆盖增强**
-   - 新增 18 个测试用例（9 API + 9 验证测试）
-   - 总测试数: 53 → 71
-
-### 2025-12-07 (Phase 2.7)
-
-1. **HepG2 和 H1-hESC 细胞系数据导入**
-   - 从 ENCODE Project 下载并导入
-   - HepG2: 4种 histone marks, 263,840 peaks
-   - H1-hESC: 4种 histone marks, 205,228 peaks
-   - 数据总量从 675K 增长到 1.14M peaks
-
-2. **前端 FilterPanel 配置化改造**
-   - 创建 `cellTypeConfigs.ts` 统一管理细胞系配置
-   - FilterPanel 改为配置驱动，支持动态扩展
-   - PeaksTable cell_type 列改用带颜色的 Tag 显示
-   - 颜色编码: K562(红), GM12878(蓝), HepG2(绿), H1-hESC(紫)
-
-3. **ChIP-seq 测试覆盖补充**
-   - 后端 API 测试: 25 个测试用例 (`test_chipseq_api.py`)
-   - 前端 E2E 测试: 24 个测试用例 (`chipseq-flow.spec.ts`)
-   - 覆盖细胞系筛选、Mark 选择、数据导出等功能
-
-### 2025-12-07 (早期)
+### 2025-12-07 (Earlier)
 
 1. **GM12878 细胞系数据导入**
    - 从 UCSC ENCODE Broad Histone 下载并导入
    - 4种 histone marks, 252,745 peaks
+   - 详见: `docs/GM12878_IMPORT_REPORT.md`
 
 2. **前端多细胞系支持**
    - FilterPanel 添加细胞类型下拉筛选
@@ -129,7 +76,6 @@
 - **前端**: React + TypeScript + Ant Design
 - **基因组浏览器**: IGV.js
 - **数据源**: ENCODE, UCSC Genome Browser
-- **测试**: pytest + Playwright
 
 ## 🚀 快速启动
 
@@ -142,10 +88,6 @@ uvicorn main:app --reload --port 8000
 # 前端
 cd /data/wenyujianData/humanLncAtlas/frontend/web
 npm run dev
-
-# 运行测试
-cd /data/wenyujianData/human-lncrna-atlas-github
-./scripts/run_chipseq_tests.sh
 ```
 
 ## 📁 关键目录
@@ -158,42 +100,30 @@ cd /data/wenyujianData/human-lncrna-atlas-github
 ├── human-lncrna-atlas-github/  # GitHub 仓库
 └── encode_data/             # ENCODE 下载数据
     ├── k562/               # K562 细胞系 BED 文件
-    ├── gm12878/            # GM12878 细胞系 BED 文件
-    ├── hepg2/              # HepG2 细胞系 BED 文件
-    ├── h1hesc/             # H1-hESC 细胞系 BED 文件
-    └── configs/            # 导入配置文件
+    └── gm12878/            # GM12878 细胞系 BED 文件
 ```
 
-## 📝 新增/修改文件
+## 📝 最近 Git 提交
 
-### 前端
-| 文件 | 说明 |
-|------|------|
-| `src/config/cellTypeConfigs.ts` | 细胞系配置 (颜色、标签、分类) |
-| `src/components/ChIPSeqPeaksTable/FilterPanel.tsx` | 配置驱动的细胞系选择 |
-| `src/components/ChIPSeqPeaksTable/PeaksTable.tsx` | 带颜色 Tag 的 cell_type 列 |
-| `src/i18n/locales/*/genes.json` | 新增细胞系翻译 |
-| `e2e/chipseq-flow.spec.ts` | E2E 测试 |
-
-### 后端
-| 文件 | 说明 |
-|------|------|
-| `tests/test_chipseq_api.py` | API 合同测试 |
-| `/encode_data/configs/*.json` | ENCODE 导入配置 |
+| Commit | 描述 |
+|--------|------|
+| 90bd8ad | chore: sync ChIP-seq multi-cell-line UI updates |
+| 9ea3a0f | feat: add cell type filter for multi-cell-line ChIP-seq support |
+| 113f3f8 | fix: complete Network page i18n - translate Edge tooltip |
+| 85f4bdf | fix: resolve ChIP-seq TypeScript type errors for null values |
+| a78b6cc | docs: update project status - ENCODE data is real, not mock |
 
 ## 🎯 建议的下一步开发
 
 ### 优先级 1: 数据扩展
-- [x] ~~添加更多细胞系 (HepG2, H1-hESC 等)~~ ✅ 已完成
+- [ ] 添加更多细胞系 (HepG2, H1-hESC 等)
 - [ ] 导入 ENCODE DNase-seq 数据
 - [ ] 整合 ATAC-seq 数据
-- [ ] 添加更多细胞系 (A549, MCF-7 等)
 
 ### 优先级 2: 功能增强
 - [ ] ChIP-seq peaks 与 lncRNA 关联分析
 - [ ] 热图可视化组蛋白修饰模式
 - [ ] 批量导出功能
-- [ ] 跨细胞系对比分析
 
 ### 优先级 3: 性能优化
 - [ ] 大数据量分页查询优化

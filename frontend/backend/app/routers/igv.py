@@ -45,10 +45,28 @@ CHIPSEQ_MARK_COLORS = {
     "H3K79me2": "#1ABC9C",  # Teal - Transcription elongation
     "H2AZ": "#8E44AD",      # Dark purple - Variant histone
     "H3K56ac": "#2980B9",   # Dark blue - Transcription/repair
+    "DNase-HS": "#FF6B35",  # Orange-red - Open chromatin (DNase-seq)
 }
 
 # Default color for unknown mark types
 DEFAULT_CHIPSEQ_COLOR = "#7F8C8D"  # Gray
+
+
+def get_track_name_prefix(mark_name: str, mark_category: Optional[str] = None) -> str:
+    """
+    Get the appropriate track name prefix based on mark type/category.
+
+    - DNase-HS → "Open Chromatin"
+    - ATAC-seq (future) → "Open Chromatin"
+    - Others → "ChIP-seq"
+    """
+    # Open chromatin assays
+    if mark_name in ("DNase-HS", "ATAC-seq"):
+        return "Open Chromatin"
+    if mark_category == "other" and "DNase" in mark_name:
+        return "Open Chromatin"
+    # Default to ChIP-seq for histone modifications
+    return "ChIP-seq"
 
 # =============================================================================
 # Genome Reference Configuration
@@ -880,12 +898,13 @@ def get_igv_config_for_gene(
         # Get unique marks
         available_marks = mark_query.distinct().order_by(EpigeneticMarkType.mark_name).all()
 
-        # Add ChIP-seq tracks for each mark type
+        # Add ChIP-seq/Open Chromatin tracks for each mark type
         for mark in available_marks:
             color = get_chipseq_mark_color(mark.mark_name, mark.display_color)
+            track_prefix = get_track_name_prefix(mark.mark_name, mark.mark_category)
 
             chipseq_track = IGVTrack(
-                name=f"ChIP-seq: {mark.display_name or mark.mark_name}",
+                name=f"{track_prefix}: {mark.display_name or mark.mark_name}",
                 type="annotation",
                 format="bed",
                 url=f"/api/v1/igv/tracks/chipseq/{species.species_id}.bed?mark_type={mark.mark_name}",
@@ -2349,12 +2368,13 @@ def get_igv_chipseq_config(
         )
         tracks.append(gene_annotation_track)
 
-    # Add ChIP-seq tracks for each mark type
+    # Add ChIP-seq/Open Chromatin tracks for each mark type
     for mark in available_marks:
         color = get_chipseq_mark_color(mark.mark_name, mark.display_color)
+        track_prefix = get_track_name_prefix(mark.mark_name, mark.mark_category)
 
         chipseq_track = IGVTrack(
-            name=f"ChIP-seq: {mark.display_name or mark.mark_name}",
+            name=f"{track_prefix}: {mark.display_name or mark.mark_name}",
             type="annotation",
             format="bed",
             url=f"/api/v1/igv/tracks/chipseq/{species_id}.bed?mark_type={mark.mark_name}",

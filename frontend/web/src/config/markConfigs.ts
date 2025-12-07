@@ -300,6 +300,26 @@ export const MARK_CONFIGS: Record<MarkType, MarkConfig> = {
       flanking: 10000,
     },
   },
+
+  // ============================================
+  // OPEN CHROMATIN MARKS
+  // ============================================
+  'DNase-HS': {
+    displayName: 'DNase-HS (Open Chromatin)',
+    shortName: 'DNase',
+    color: '#FF6B35',
+    secondaryColor: '#FFE5D9',
+    category: 'open_chromatin',
+    description: 'DNase I Hypersensitive Sites - marks open/accessible chromatin regions',
+    icon: 'unlock',
+    isCommon: true,
+    sortOrder: 17,
+    defaultFilters: {
+      min_fold_enrichment: 10,
+      max_qvalue: 0.01,
+      flanking: 5000,
+    },
+  },
 }
 
 /**
@@ -340,6 +360,12 @@ export const CATEGORY_CONFIGS: Record<MarkCategory, {
     color: '#95A5A6',
     description: 'Other histone modifications and variants',
     icon: 'tag',
+  },
+  open_chromatin: {
+    displayName: 'Open Chromatin',
+    color: '#FF6B35',
+    description: 'Regions of accessible chromatin (DNase-seq, ATAC-seq)',
+    icon: 'unlock',
   },
 }
 
@@ -394,7 +420,7 @@ export function getMarksGroupedByCategory(): Array<{
   categoryName: string
   marks: Array<{ value: MarkType; label: string; color: string }>
 }> {
-  const categories: MarkCategory[] = ['repressive', 'activating', 'enhancer', 'elongation', 'other']
+  const categories: MarkCategory[] = ['repressive', 'activating', 'enhancer', 'elongation', 'open_chromatin', 'other']
 
   return categories.map((category) => ({
     category,
