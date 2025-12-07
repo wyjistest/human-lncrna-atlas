@@ -792,3 +792,119 @@ class HeatmapMatrixResponse(BaseModel):
         ...,
         description="Number of combinations with valid data"
     )
+
+
+# =============================================================================
+# Batch Heatmap Matrix Schemas (Multi-Gene Query)
+# =============================================================================
+
+class BatchHeatmapMatrixRequest(BaseModel):
+    """
+    Request schema for batch heatmap matrix query across multiple genes.
+    Optimized for comparing the same marks and cell types across multiple genes.
+    """
+    gene_ids: List[int] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="List of gene IDs (1-100 genes)"
+    )
+    marks: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=8,
+        description="Histone modification marks (1-8 marks)"
+    )
+    cell_types: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=10,
+        description="Cell types (1-10 cell types)"
+    )
+    metric: str = Field(
+        "median_fold_enrichment",
+        description="Matrix metric: median_fold_enrichment, peak_count, total_coverage_bp, avg_signal",
+        pattern="^(median_fold_enrichment|peak_count|total_coverage_bp|avg_signal)$"
+    )
+    flanking: int = Field(
+        10000,
+        ge=0,
+        le=100000,
+        description="Flanking region in base pairs"
+    )
+    max_qvalue: Optional[float] = Field(
+        0.05,
+        ge=0,
+        le=1,
+        description="Maximum q-value threshold for peak filtering"
+    )
+    include_details: bool = Field(
+        False,
+        description="Include detailed statistics for each combination"
+    )
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "gene_ids": [17276, 17277, 17278],
+            "marks": ["H3K27me3", "H3K4me3", "H3K27ac"],
+            "cell_types": ["K562", "HepG2", "GM12878"],
+            "metric": "median_fold_enrichment",
+            "flanking": 10000,
+            "max_qvalue": 0.05,
+            "include_details": False
+        }
+    })
+
+
+class BatchHeatmapMatrixResponse(BaseModel):
+    """
+    Response schema for batch heatmap matrix queries.
+    Returns heatmap matrices for multiple genes with summary statistics.
+    """
+    genes: List[HeatmapMatrixResponse] = Field(
+        ...,
+        description="List of heatmap matrices, one per gene"
+    )
+    total_genes: int = Field(
+        ...,
+        description="Total number of requested genes"
+    )
+    successful_genes: int = Field(
+        ...,
+        description="Number of genes with valid data"
+    )
+    failed_genes: List[int] = Field(
+        ...,
+        description="List of gene IDs that failed or were not found"
+    )
+    query_time_ms: Optional[int] = Field(
+        None,
+        description="Query execution time in milliseconds"
+    )
+
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "genes": [
+                {
+                    "gene_id": 17276,
+                    "gene_name": "LINCPROM",
+                    "gene_ensembl_id": "ENSG00000000001",
+                    "chromosome": "chr1",
+                    "region_start": 10000,
+                    "region_end": 20000,
+                    "cell_types": ["K562", "HepG2"],
+                    "marks": ["H3K27me3", "H3K4me3"],
+                    "metric": "median_fold_enrichment",
+                    "matrix": [[1.5, 2.1], [0.8, 3.2]],
+                    "details": None,
+                    "missing_combinations": None,
+                    "total_combinations": 4,
+                    "valid_combinations": 4
+                }
+            ],
+            "total_genes": 3,
+            "successful_genes": 3,
+            "failed_genes": [],
+            "query_time_ms": 245
+        }
+    })
