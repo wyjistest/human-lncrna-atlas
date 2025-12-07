@@ -1,7 +1,7 @@
 # Human LncRNA Atlas - 当前进度报告
 
 > 最后更新: 2025-12-07
-> 当前版本: Phase 3.0 (lncRNA-ChIP-seq Overlap Analysis)
+> 当前版本: Phase 3.2 (MCF-7 + HMEC Breast Cell Lines)
 
 ## 📊 数据库统计
 
@@ -10,19 +10,21 @@
 | Mark 类型 | 分类 | 细胞系数 | 实验数 | Peaks 数量 |
 |-----------|------|----------|--------|------------|
 | **DNase-HS** | Open Chromatin | 4 | 4 | **837,366** |
-| H3K4me1 | Activating | 5 | 5 | **573,177** |
-| H3K4me3 | Activating | 5 | 5 | **281,672** |
-| H3K9me3 | Repressive | 4 | 4 | **274,047** |
-| H3K27me3 | Repressive | 5 | 5 | **254,918** |
-| H3K27ac | Activating | 5 | 5 | **284,986** |
-| H3K36me3 | Activating | 5 | 5 | **208,003** |
-| **总计** | - | **5** | **33** | **2,714,169** |
+| H3K4me1 | Activating | 6 | 6 | **727,149** |
+| H3K4me3 | Activating | 7 | 7 | **426,705** |
+| H3K9me3 | Repressive | 5 | 5 | **323,375** |
+| H3K27me3 | Repressive | 6 | 6 | **295,044** |
+| H3K27ac | Activating | 6 | 6 | **352,975** |
+| H3K36me3 | Activating | 6 | 6 | **241,345** |
+| **总计** | - | **7** | **40** | **3,203,959** |
 
 ### 细胞系覆盖
 
 | 细胞系 | 组织 | ChIP-seq Marks | DNase-seq | 总 Peaks |
 |--------|------|----------------|-----------|----------|
-| **A549** | 肺腺癌细胞 ⭐ 新增 | 6 marks | ⏳ | ~460k |
+| **MCF-7** | 乳腺癌细胞 ⭐ 新增 | 1 mark (H3K4me3) | ⏳ | ~112k |
+| **HMEC** | 正常乳腺上皮 ⭐ 新增 | 6 marks | ⏳ | ~378k |
+| A549 | 肺腺癌细胞 | 6 marks | ⏳ | ~460k |
 | K562 | 白血病细胞 | 6 marks | ✅ | ~625k |
 | H1-hESC | 人胚胎干细胞 | 6 marks | ✅ | ~586k |
 | GM12878 | B淋巴细胞 | 6 marks | ✅ | ~544k |
@@ -35,6 +37,43 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2025-12-07 (Phase 3.2) ⭐ MCF-7 乳腺癌 + HMEC 正常乳腺细胞系
+
+1. **双乳腺细胞系数据导入** ⭐ 癌症 vs 正常对比
+   - **MCF-7** (乳腺腺癌细胞系):
+     - 1 个实验 (H3K4me3)
+     - 111,917 peaks
+     - 数据源: ENCODE UW Histone
+     - 颜色: #FF69B4 (Hot Pink)
+   - **HMEC** (人类乳腺上皮细胞):
+     - 6 个实验 (全部核心 marks)
+     - 377,873 peaks
+     - 数据源: ENCODE Broad Histone
+     - 颜色: #DEB887 (Burlywood)
+   - **总计新增: 489,790 peaks** (+18%)
+
+2. **数据库全局统计更新**
+   - 细胞系数: 5 → 7 (+MCF-7, +HMEC)
+   - 实验总数: 33 → 40 (+7)
+   - 总 Peaks: 2,714,169 → 3,203,959 (+489,790)
+   - 组织多样性: 血液、肝脏、干细胞、肺、乳腺（癌症+正常）
+
+3. **前端配置更新**
+   - `cellTypeConfigs.ts`: 添加 MCF-7 + HMEC 配置
+   - 完整双语支持 (中/英)
+   - 配置驱动架构验证（零代码修改后端逻辑）
+
+4. **E2E 测试覆盖**
+   - 新增 `mcf7-hmec-validation.spec.ts` (18 个测试用例)
+   - P0 核心功能、P1 数据准确性、P2 回归测试
+
+5. **多 Agent 协同开发**
+   - Backend API Developer: 脚本更新、数据下载导入
+   - Frontend Architect: 配置更新、颜色方案
+   - Playwright Test Expert: E2E 测试创建验证
+   - Sequential Thinking: 8 步可行性分析
+   - MCP 工具: Augment (代码索引), WebSearch (数据源验证)
 
 ### 2025-12-07 (Phase 3.0) ⭐ lncRNA-ChIP-seq Overlap 分析功能
 
