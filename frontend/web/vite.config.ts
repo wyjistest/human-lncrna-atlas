@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => ({
           'query-vendor': ['@tanstack/react-query'],
           'echarts-vendor': ['echarts'],
           'cytoscape-vendor': ['cytoscape', 'cytoscape-svg'],
+          'igv-vendor': ['igv'],
         },
       },
     },
