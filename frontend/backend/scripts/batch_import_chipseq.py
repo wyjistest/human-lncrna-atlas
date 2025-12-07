@@ -70,6 +70,8 @@ def import_single_experiment(exp_config: dict, options: dict) -> dict:
         '--species', 'human',
         '--experiment-name', experiment_name,
         '--batch-size', str(options.get('batch_size', 10000)),
+        '--db-name', 'lncrna_production',
+        '--db-user', 'amax',
     ]
 
     # Add metadata fields as command arguments

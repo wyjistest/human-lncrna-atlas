@@ -59,6 +59,15 @@ export const CELL_TYPE_CONFIGS: Record<string, CellTypeConfig> = {
     category: 'stem',
     description: 'Human embryonic stem cell line',
     descriptionZh: '人胚胎干细胞系'
+  },
+  'A549': {
+    value: 'A549',
+    label: 'A549 (Lung cancer)',
+    labelZh: 'A549 (肺癌细胞)',
+    color: '#17A2B8',
+    category: 'cancer',
+    description: 'Lung adenocarcinoma cell line',
+    descriptionZh: '肺腺癌细胞系'
   }
 }
 
