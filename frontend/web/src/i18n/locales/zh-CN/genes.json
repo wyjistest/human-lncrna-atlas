@@ -223,6 +223,17 @@
         "noResults": "所选细胞系无可用对比数据",
         "getStarted": "开始使用",
         "getStartedDescription": "从上方面板选择2个或更多细胞系，然后点击对比按钮查看同一组蛋白修饰在不同细胞类型中的表现。"
+      },
+      "matrixHeatmap": "组蛋白修饰矩阵",
+      "matrixView": "矩阵视图",
+      "matrixTotalCombinations": "总组合数",
+      "matrixValidCombinations": "有效组合数",
+      "matrixNoData": "无矩阵数据",
+      "matrixNoDataDescription": "热图矩阵数据正在加载或该基因暂无可用数据。",
+      "missingCombinations": "缺失数据",
+      "marksCount": "修饰数",
+      "cellTypes": {
+        "legend": "细胞类型"
       }
     }
   }

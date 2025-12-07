@@ -18,6 +18,8 @@ import type {
   AvailableMarksResponse,
   GeneChIPSeqRawResponse,
   CellLineComparisonResponse,
+  HeatmapMatrixResponse,
+  HeatmapMetricType,
 } from '@/types/chipseq'
 
 /**
@@ -150,6 +152,34 @@ export const chipseqApi = {
         },
       }
     ),
+
+  /**
+   * Get heatmap matrix data for multiple marks and cell types
+   * Returns a 2D matrix: rows = cell types, columns = marks
+   * @param geneId - Gene ID
+   * @param marks - Array of mark types (X-axis)
+   * @param cellTypes - Array of cell types (Y-axis)
+   * @param metric - Metric to use for matrix values
+   * @param flanking - Flanking region in bp (optional)
+   */
+  getHeatmapMatrix: (
+    geneId: number,
+    marks: MarkType[],
+    cellTypes: string[],
+    metric: HeatmapMetricType,
+    flanking?: number
+  ) =>
+    apiClient.get<HeatmapMatrixResponse>(
+      `/api/v1/features/chipseq/genes/${geneId}/heatmap-matrix`,
+      {
+        params: {
+          marks: marks.join(','),
+          cell_types: cellTypes.join(','),
+          metric,
+          flanking,
+        },
+      }
+    ),
 }
 
 /**
@@ -183,4 +213,8 @@ export const chipseqQueryKeys = {
   /** Cell line comparison data for a single mark across multiple cell types */
   compareCellLines: (geneId: number, markType: MarkType, cellTypes: string[]) =>
     [...chipseqQueryKeys.gene(geneId), 'compare-cell-lines', markType, cellTypes.sort().join(',')] as const,
+
+  /** Heatmap matrix data for multiple marks and cell types */
+  heatmapMatrix: (geneId: number, marks: MarkType[], cellTypes: string[], metric: HeatmapMetricType) =>
+    [...chipseqQueryKeys.gene(geneId), 'heatmap-matrix', marks.sort().join(','), cellTypes.sort().join(','), metric] as const,
 }

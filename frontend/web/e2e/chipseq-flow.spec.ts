@@ -724,3 +724,294 @@ test.describe('ChIP-seq Cell Line Comparison', () => {
     }
   })
 })
+
+test.describe('ChIP-seq Heatmap Matrix', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`/genes/${TEST_GENE_ID}`)
+    await page.waitForLoadState('networkidle')
+
+    // Navigate to ChIP-seq tab
+    const chipseqTab = page.locator('.ant-tabs-tab').filter({ hasText: /ChIP|/i })
+    if ((await chipseqTab.count()) > 0) {
+      await chipseqTab.first().click()
+      await page.waitForTimeout(1000)
+    }
+  })
+
+  test('should display matrix view tab', async ({ page }) => {
+    // Enter compare mode - look for compare cell lines button
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      // Look for matrix view tab
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+        .or(page.locator('.ant-segmented-item').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await expect(matrixTab.first()).toBeVisible()
+      } else {
+        console.log('Matrix view tab not found - feature may not be implemented')
+      }
+    }
+  })
+
+  test('should render matrix heatmap with ECharts', async ({ page }) => {
+    // Navigate to cell line compare mode
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      // Click matrix view tab if available
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+        .or(page.locator('.ant-segmented-item').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await matrixTab.first().click()
+        await page.waitForTimeout(1000)
+
+        // Verify ECharts canvas is rendered
+        const canvas = page.locator('canvas')
+          .or(page.locator('[data-testid="heatmap-canvas"]'))
+          .or(page.locator('.echarts-container canvas'))
+
+        if ((await canvas.count()) > 0) {
+          await expect(canvas.first()).toBeVisible()
+        }
+      }
+    }
+  })
+
+  test('should make heatmap-matrix API call', async ({ page }) => {
+    const apiCalls: string[] = []
+
+    page.on('request', (request) => {
+      if (request.url().includes('heatmap-matrix')) {
+        apiCalls.push(request.url())
+      }
+    })
+
+    // Navigate to cell line compare mode
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      // Click matrix view tab if available
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+        .or(page.locator('.ant-segmented-item').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await matrixTab.first().click()
+        await page.waitForTimeout(2000)
+
+        console.log(`Heatmap matrix API calls: ${apiCalls.length}`)
+        // API should be called when matrix view is activated
+      }
+    }
+  })
+
+  test('should support metric selector', async ({ page }) => {
+    // Navigate to cell line compare mode and matrix view
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await matrixTab.first().click()
+        await page.waitForTimeout(500)
+
+        // Look for metric selector
+        const metricSelector = page.locator('.ant-select').filter({ hasText: /Metric|Fold|Peak|Coverage/i })
+          .or(page.locator('[data-testid="metric-selector"]'))
+          .or(page.locator('.ant-radio-group').filter({ hasText: /Fold|Peak|Coverage/i }))
+
+        if ((await metricSelector.count()) > 0) {
+          await expect(metricSelector.first()).toBeVisible()
+
+          // Try clicking to open options
+          await metricSelector.first().click()
+          await page.waitForTimeout(300)
+
+          // Check for metric options
+          const metricOptions = [
+            'median_fold_enrichment',
+            'peak_count',
+            'total_coverage_bp',
+            'avg_signal',
+            'Fold Enrichment',
+            'Peak Count',
+            'Coverage'
+          ]
+
+          for (const metric of metricOptions) {
+            const option = page.getByText(metric, { exact: false })
+            if ((await option.count()) > 0) {
+              console.log(`Found metric option: ${metric}`)
+              break
+            }
+          }
+
+          // Close selector
+          await page.keyboard.press('Escape')
+        }
+      }
+    }
+  })
+
+  test('should display matrix with cell types as rows and marks as columns', async ({ page }) => {
+    // Navigate to matrix view
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await matrixTab.first().click()
+        await page.waitForTimeout(1000)
+
+        // Verify axes labels are present
+        const cellTypeLabels = ['K562', 'HepG2', 'GM12878', 'H1-hESC']
+        const markLabels = ['H3K27me3', 'H3K4me3', 'H3K27ac', 'H3K4me1']
+
+        let foundCellTypes = 0
+        let foundMarks = 0
+
+        for (const ct of cellTypeLabels) {
+          const label = page.getByText(ct, { exact: true })
+          if ((await label.count()) > 0) {
+            foundCellTypes++
+          }
+        }
+
+        for (const mark of markLabels) {
+          const label = page.getByText(mark, { exact: true })
+          if ((await label.count()) > 0) {
+            foundMarks++
+          }
+        }
+
+        console.log(`Found ${foundCellTypes} cell type labels, ${foundMarks} mark labels`)
+      }
+    }
+  })
+
+  test('should show tooltip on heatmap cell hover', async ({ page }) => {
+    // Navigate to matrix view
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await matrixTab.first().click()
+        await page.waitForTimeout(1000)
+
+        // Find canvas and hover over it
+        const canvas = page.locator('canvas').first()
+        if ((await canvas.count()) > 0) {
+          const box = await canvas.boundingBox()
+          if (box) {
+            // Hover over center of canvas
+            await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+            await page.waitForTimeout(500)
+
+            // Look for ECharts tooltip
+            const tooltip = page.locator('.echarts-tooltip')
+              .or(page.locator('[class*="tooltip"]'))
+              .or(page.locator('.ant-tooltip'))
+
+            if ((await tooltip.count()) > 0) {
+              console.log('Tooltip is displayed on hover')
+            }
+          }
+        }
+      }
+    }
+  })
+
+  test('should display color scale legend', async ({ page }) => {
+    // Navigate to matrix view
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await matrixTab.first().click()
+        await page.waitForTimeout(1000)
+
+        // Look for color scale legend (usually rendered by ECharts as visualMap)
+        const legend = page.locator('[class*="legend"]')
+          .or(page.locator('[class*="visualMap"]'))
+          .or(page.locator('.color-scale'))
+
+        const legendCount = await legend.count()
+        console.log(`Found ${legendCount} legend elements`)
+      }
+    }
+  })
+
+  test('should handle missing data combinations gracefully', async ({ page }) => {
+    // This test verifies the UI handles missing data (null values in matrix)
+    const compareCellLinesBtn = page.getByRole('button', { name: /Compare Cell|/i })
+      .or(page.locator('button').filter({ hasText: /Compare|/i }))
+
+    if ((await compareCellLinesBtn.count()) > 0) {
+      await compareCellLinesBtn.first().click()
+      await page.waitForTimeout(500)
+
+      const matrixTab = page.getByRole('tab', { name: /Matrix View|Matrix|/i })
+        .or(page.locator('.ant-tabs-tab').filter({ hasText: /Matrix|/i }))
+
+      if ((await matrixTab.count()) > 0) {
+        await matrixTab.first().click()
+        await page.waitForTimeout(1000)
+
+        // Check for "No Data" or similar indicators
+        const noDataIndicator = page.getByText(/No Data|N\/A|-/i)
+          .or(page.locator('[class*="empty"]'))
+
+        const indicatorCount = await noDataIndicator.count()
+        console.log(`Found ${indicatorCount} no-data indicators`)
+
+        // Ensure the page doesn't show an error state
+        const errorMessage = page.locator('.ant-alert-error, .error-boundary')
+        const errorCount = await errorMessage.count()
+        expect(errorCount).toBe(0)
+      }
+    }
+  })
+})

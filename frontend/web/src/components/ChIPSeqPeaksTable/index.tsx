@@ -10,6 +10,7 @@
  * - Sortable, paginated data table
  * - Multi-mark comparison mode with charts
  * - Cell line comparison mode (Phase 2.6)
+ * - Matrix heatmap view (Phase 2.9)
  * - Export functionality (BED, CSV)
  *
  * View Modes:
@@ -18,6 +19,7 @@
  * - Parallel: Side-by-side comparison (2 marks)
  * - Stats: Statistical comparison charts
  * - Cell Lines: Compare same mark across cell lines (Phase 2.6)
+ * - Matrix: Heatmap matrix of cell types x marks (Phase 2.9)
  */
 
 import { useState, useMemo, useCallback } from 'react'
@@ -39,6 +41,7 @@ import {
   SwapOutlined,
   ExperimentOutlined,
   TeamOutlined,
+  HeatMapOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { TabsProps } from 'antd'
@@ -51,6 +54,7 @@ import { PeaksTable } from './PeaksTable'
 import { CompareCharts } from './CompareCharts'
 import { BivalentDomainBadge } from './BivalentDomainBadge'
 import { CellLineCompareView } from './CellLineCompareView'
+import { CellLineHeatmapMatrix } from './CellLineHeatmapMatrix'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 
@@ -60,19 +64,22 @@ import {
   useChIPSeqSummary,
   useChIPSeqCompare,
   usePrefetchChIPSeqPeaks,
+  useChIPSeqHeatmapMatrix,
 } from '@/hooks/useChIPSeq'
 
 // Config & Types
-import { getMarkConfig, getCommonMarks } from '@/config/markConfigs'
+import { getMarkConfig, getCommonMarks, getAllMarkTypes } from '@/config/markConfigs'
 import { chipseqApi } from '@/api/chipseq'
+import { CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import type {
   MarkType,
   ChIPSeqFilters,
   CompareViewMode,
+  HeatmapMetricType,
 } from '@/types/chipseq'
 
-/** Extended view mode to include cell line comparison */
-type ExtendedViewMode = CompareViewMode | 'cellLines'
+/** Extended view mode to include cell line comparison and matrix */
+type ExtendedViewMode = CompareViewMode | 'cellLines' | 'matrix'
 
 interface ChIPSeqPeaksTableProps {
   /** Gene ID to display peaks for */
@@ -128,6 +135,15 @@ export function ChIPSeqPeaksTable({
   const [cellLineCompareMode, setCellLineCompareMode] = useState(false)
   const [viewMode, setViewMode] = useState<ExtendedViewMode>('merged')
 
+  // Matrix view state (Phase 2.9)
+  const [matrixMetric, setMatrixMetric] = useState<HeatmapMetricType>('median_fold_enrichment')
+
+  // Get all available cell types for matrix view
+  const allCellTypes = useMemo(() => Object.keys(CELL_TYPE_CONFIGS), [])
+
+  // Get common marks for matrix view (default selection)
+  const commonMarksForMatrix = useMemo(() => getCommonMarks().slice(0, 6), [])
+
   // Filters state with defaults from mark config
   const [filters, setFilters] = useState<ChIPSeqFilters>(() => {
     const markConfig = selectedMark ? getMarkConfig(selectedMark) : null
@@ -167,6 +183,22 @@ export function ChIPSeqPeaksTable({
   } = useChIPSeqCompare(geneId, selectedMarksForCompare, filters.flanking, {
     enabled: compareMode && selectedMarksForCompare.length > 0,
   })
+
+  // Heatmap matrix data (Phase 2.9)
+  const {
+    data: matrixData,
+    isLoading: matrixLoading,
+    error: matrixError,
+  } = useChIPSeqHeatmapMatrix(
+    geneId,
+    commonMarksForMatrix,
+    allCellTypes,
+    matrixMetric,
+    filters.flanking ?? defaultFlanking,
+    {
+      enabled: viewMode === 'matrix' && (compareMode || cellLineCompareMode),
+    }
+  )
 
   // Handle mark selection change
   const handleMarkChange = useCallback(
@@ -298,6 +330,15 @@ export function ChIPSeqPeaksTable({
           </span>
         ),
       },
+      {
+        key: 'matrix',
+        label: (
+          <span>
+            <HeatMapOutlined />
+            {t('detail.chipseq.matrixView', 'Matrix View')}
+          </span>
+        ),
+      },
     ],
     [t, selectedMarksForCompare.length]
   )
@@ -386,6 +427,46 @@ export function ChIPSeqPeaksTable({
 
   // Render comparison view
   const renderCompareView = () => {
+    // Handle matrix view (Phase 2.9)
+    if (viewMode === 'matrix') {
+      if (matrixLoading) {
+        return <LoadingState />
+      }
+
+      if (matrixError) {
+        return <ErrorState error={matrixError} />
+      }
+
+      if (!matrixData) {
+        return (
+          <Alert
+            type="info"
+            message={t('detail.chipseq.matrixNoData', 'No matrix data available')}
+            description={t(
+              'detail.chipseq.matrixNoDataDescription',
+              'The heatmap matrix data is loading or unavailable for this gene.'
+            )}
+            showIcon
+          />
+        )
+      }
+
+      return (
+        <CellLineHeatmapMatrix
+          data={matrixData}
+          metric={matrixMetric}
+          onMetricChange={setMatrixMetric}
+          onCellClick={(params) => {
+            // Optional: Handle cell click for drill-down navigation
+            message.info(
+              `${params.cellType} / ${params.mark}: ${params.value !== null ? params.value.toFixed(2) : 'N/A'}`
+            )
+          }}
+          loading={matrixLoading}
+        />
+      )
+    }
+
     // Handle cell line comparison view
     if (viewMode === 'cellLines') {
       if (!selectedMark) {

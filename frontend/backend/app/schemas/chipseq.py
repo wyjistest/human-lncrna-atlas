@@ -708,3 +708,87 @@ class CellLineComparisonResponse(BaseModel):
         None,
         description="Cell types requested but not found in data"
     )
+
+
+# =============================================================================
+# Heatmap Matrix Schemas (Multi-Cell-Line x Multi-Mark Analysis)
+# =============================================================================
+
+class CellMarkStats(BaseModel):
+    """Statistics for a single cell_type x mark combination"""
+    median_fold_enrichment: Optional[float] = Field(
+        None,
+        description="Median fold enrichment value"
+    )
+    peak_count: int = Field(
+        0,
+        description="Number of peaks"
+    )
+    total_coverage_bp: int = Field(
+        0,
+        description="Total base pairs covered by peaks"
+    )
+    avg_signal: Optional[float] = Field(
+        None,
+        description="Average signal value"
+    )
+    std_fold_enrichment: Optional[float] = Field(
+        None,
+        description="Standard deviation of fold enrichment"
+    )
+
+
+class HeatmapMatrixResponse(BaseModel):
+    """
+    Response for heatmap matrix - multiple cell lines x multiple marks.
+    Optimized for ECharts heatmap visualization.
+    """
+    # Gene information
+    gene_id: int = Field(..., description="Gene ID")
+    gene_name: str = Field(..., description="Gene symbol or name")
+    gene_ensembl_id: str = Field(..., description="Ensembl gene ID")
+    chromosome: str = Field(..., description="Chromosome")
+    region_start: int = Field(..., description="Query region start (gene - flanking)")
+    region_end: int = Field(..., description="Query region end (gene + flanking)")
+
+    # Matrix dimensions
+    cell_types: List[str] = Field(
+        ...,
+        description="Y-axis: ordered list of cell types"
+    )
+    marks: List[str] = Field(
+        ...,
+        description="X-axis: ordered list of marks"
+    )
+    metric: str = Field(
+        ...,
+        description="Metric used for matrix values (e.g., median_fold_enrichment)"
+    )
+
+    # Core matrix data
+    # matrix[y][x] = cell_types[y] x marks[x] metric value
+    # None indicates no data for that combination
+    matrix: List[List[Optional[float]]] = Field(
+        ...,
+        description="2D matrix, matrix[cell_type_index][mark_index]"
+    )
+
+    # Optional: detailed statistics for rich tooltips
+    details: Optional[Dict[str, Dict[str, CellMarkStats]]] = Field(
+        None,
+        description="Detailed stats: details[cell_type][mark]"
+    )
+
+    # Metadata
+    missing_combinations: Optional[List[Dict[str, str]]] = Field(
+        None,
+        description="List of missing cell_type-mark combinations"
+    )
+    total_combinations: int = Field(
+        ...,
+        description="Total number of cell_type x mark combinations"
+    )
+    valid_combinations: int = Field(
+        ...,
+        description="Number of combinations with valid data"
+    )

@@ -475,3 +475,63 @@ export interface CellLineComparisonResponse {
   /** Number of peaks common across all cell lines */
   common_peaks: number
 }
+
+// ============================================
+// HEATMAP MATRIX TYPES (Phase 2.9)
+// ============================================
+
+/**
+ * Statistics for a single cell type + mark combination in heatmap matrix
+ */
+export interface CellMarkStats {
+  /** Median fold enrichment value */
+  median_fold_enrichment?: number
+  /** Number of peaks */
+  peak_count: number
+  /** Total coverage in base pairs */
+  total_coverage_bp: number
+  /** Average signal value */
+  avg_signal?: number
+  /** Standard deviation of fold enrichment */
+  std_fold_enrichment?: number
+}
+
+/**
+ * Metric types available for heatmap matrix visualization
+ */
+export type HeatmapMetricType = 'median_fold_enrichment' | 'peak_count' | 'total_coverage_bp' | 'avg_signal'
+
+/**
+ * Response from heatmap matrix API
+ * Returns a 2D matrix: rows = cell types, columns = marks
+ */
+export interface HeatmapMatrixResponse {
+  /** Gene ID */
+  gene_id: number
+  /** Gene name */
+  gene_name: string
+  /** Ensembl ID */
+  gene_ensembl_id: string
+  /** Chromosome */
+  chromosome: string
+  /** Region start position */
+  region_start: number
+  /** Region end position */
+  region_end: number
+  /** List of cell types (Y-axis labels) */
+  cell_types: string[]
+  /** List of marks (X-axis labels) */
+  marks: string[]
+  /** Selected metric for the matrix values */
+  metric: HeatmapMetricType
+  /** 2D matrix of values: matrix[cellTypeIndex][markIndex] */
+  matrix: Array<Array<number | null>>
+  /** Detailed statistics for each cell type + mark combination */
+  details?: Record<string, Record<string, CellMarkStats>>
+  /** Combinations that have no data */
+  missing_combinations?: Array<{ cell_type: string; mark: string }>
+  /** Total possible combinations */
+  total_combinations: number
+  /** Number of combinations with valid data */
+  valid_combinations: number
+}

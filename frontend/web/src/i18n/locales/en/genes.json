@@ -223,6 +223,17 @@
         "noResults": "No comparison data available for the selected cell lines",
         "getStarted": "Get Started",
         "getStartedDescription": "Select 2 or more cell lines from the panel above and click Compare to see how the same histone mark behaves across different cell types."
+      },
+      "matrixHeatmap": "Histone Marks Matrix",
+      "matrixView": "Matrix View",
+      "matrixTotalCombinations": "Total Combinations",
+      "matrixValidCombinations": "Valid Combinations",
+      "matrixNoData": "No matrix data available",
+      "matrixNoDataDescription": "The heatmap matrix data is loading or unavailable for this gene.",
+      "missingCombinations": "Missing data",
+      "marksCount": "Marks",
+      "cellTypes": {
+        "legend": "Cell Types"
       }
     }
   }

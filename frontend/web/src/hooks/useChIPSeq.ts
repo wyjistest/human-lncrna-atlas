@@ -25,6 +25,8 @@ import type {
   RawChIPSeqCompareResponse,
   MarkComparisonData,
   CellLineComparisonResponse,
+  HeatmapMatrixResponse,
+  HeatmapMetricType,
 } from '@/types/chipseq'
 
 /**
@@ -440,6 +442,46 @@ export function useChIPSeqCellLineCompare(
       return response.data
     },
     enabled: !!markType && cellTypes.length >= 2 && (options?.enabled ?? true),
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  })
+}
+
+/**
+ * Hook to fetch heatmap matrix data for multiple marks and cell types
+ * Returns a 2D matrix visualization data: rows = cell types, columns = marks
+ *
+ * @param geneId - Gene ID
+ * @param marks - Array of mark types to include (X-axis)
+ * @param cellTypes - Array of cell types to include (Y-axis)
+ * @param metric - Metric to use for matrix values
+ * @param flanking - Flanking region in bp
+ * @param options - Additional query options
+ *
+ * @example
+ * ```tsx
+ * const { data, isLoading } = useChIPSeqHeatmapMatrix(
+ *   123,
+ *   ['H3K27me3', 'H3K4me3', 'H3K27ac'],
+ *   ['K562', 'GM12878', 'HepG2'],
+ *   'median_fold_enrichment'
+ * )
+ * ```
+ */
+export function useChIPSeqHeatmapMatrix(
+  geneId: number,
+  marks: MarkType[],
+  cellTypes: string[],
+  metric: HeatmapMetricType,
+  flanking: number = 10000,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: chipseqQueryKeys.heatmapMatrix(geneId, marks, cellTypes, metric),
+    queryFn: async (): Promise<HeatmapMatrixResponse> => {
+      const response = await chipseqApi.getHeatmapMatrix(geneId, marks, cellTypes, metric, flanking)
+      return response.data
+    },
+    enabled: marks.length >= 1 && cellTypes.length >= 1 && (options?.enabled ?? true),
     staleTime: 30 * 60 * 1000, // 30 minutes
   })
 }

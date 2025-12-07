@@ -452,6 +452,298 @@ class TestChIPSeqCellTypeSupport:
         assert response.status_code in [200, 404, 422]
 
 
+class TestHeatmapMatrix:
+    """Tests for heatmap matrix endpoint"""
+
+    def test_matrix_2x2(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test 2x2 matrix (2 cell types x 2 marks)"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3",
+                "cell_types": "K562,HepG2",
+                "metric": "median_fold_enrichment"
+            }
+        )
+        assert response.status_code in [200, 404], \
+            f"Expected 200 or 404, got {response.status_code}"
+
+        if response.status_code == 200:
+            data = response.json()
+            assert len(data["cell_types"]) == 2, "Should have 2 cell types"
+            assert len(data["marks"]) == 2, "Should have 2 marks"
+            assert len(data["matrix"]) == 2, "Matrix should have 2 rows"
+            assert len(data["matrix"][0]) == 2, "Matrix row should have 2 columns"
+
+    def test_matrix_4x4(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test 4x4 matrix (4 cell types x 4 marks)"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3,H3K27ac,H3K4me1",
+                "cell_types": "K562,HepG2,GM12878,H1-hESC",
+                "metric": "peak_count"
+            }
+        )
+        assert response.status_code in [200, 404], \
+            f"Expected 200 or 404, got {response.status_code}"
+
+        if response.status_code == 200:
+            data = response.json()
+            assert len(data["cell_types"]) == 4, "Should have 4 cell types"
+            assert len(data["marks"]) == 4, "Should have 4 marks"
+            assert len(data["matrix"]) == 4, "Matrix should have 4 rows"
+            for row in data["matrix"]:
+                assert len(row) == 4, "Each matrix row should have 4 columns"
+
+    def test_matrix_with_missing_data(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test matrix handles missing combinations"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3",
+                "cell_types": "K562,HepG2",
+                "metric": "median_fold_enrichment"
+            }
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            # Check missing_combinations field exists
+            assert "missing_combinations" in data, \
+                "Response should contain missing_combinations field"
+            # Verify total_combinations and valid_combinations are present
+            assert "total_combinations" in data
+            assert "valid_combinations" in data
+
+    def test_matrix_response_structure(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Verify complete response structure"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3",
+                "cell_types": "K562,HepG2",
+                "metric": "median_fold_enrichment"
+            }
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            required_fields = [
+                "gene_id", "cell_types", "marks", "matrix",
+                "metric", "total_combinations", "valid_combinations"
+            ]
+            for field in required_fields:
+                assert field in data, f"Missing required field: {field}"
+
+            # Verify gene info fields
+            assert "gene_name" in data
+            assert "chromosome" in data
+            assert "region_start" in data
+            assert "region_end" in data
+
+    def test_matrix_different_metrics(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test different metric types"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        metrics = ["median_fold_enrichment", "peak_count", "total_coverage_bp", "avg_signal"]
+
+        for metric in metrics:
+            response = api_client.get(
+                f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+                params={
+                    "marks": "H3K27me3,H3K4me3",
+                    "cell_types": "K562,HepG2",
+                    "metric": metric
+                }
+            )
+            assert response.status_code in [200, 404], \
+                f"Metric {metric}: Expected 200 or 404, got {response.status_code}"
+
+            if response.status_code == 200:
+                data = response.json()
+                assert data["metric"] == metric, \
+                    f"Response metric should be {metric}"
+
+    def test_matrix_with_details(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test matrix includes detailed statistics when requested"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3",
+                "cell_types": "K562,HepG2",
+                "metric": "median_fold_enrichment",
+                "include_details": "true"
+            }
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            # details should contain nested dict: details[cell_type][mark]
+            if data.get("details"):
+                assert isinstance(data["details"], dict), \
+                    "Details should be a dictionary"
+                # Check detail structure if data exists
+                for cell_type, marks_dict in data["details"].items():
+                    assert isinstance(marks_dict, dict), \
+                        f"Details[{cell_type}] should be a dictionary"
+                    for mark, stats in marks_dict.items():
+                        assert isinstance(stats, dict), \
+                            f"Details[{cell_type}][{mark}] should be a dictionary"
+                        # Check stats fields
+                        possible_stats = [
+                            "median_fold_enrichment", "peak_count",
+                            "total_coverage_bp", "avg_signal"
+                        ]
+                        for stat in possible_stats:
+                            if stat in stats:
+                                # Value can be None or numeric
+                                assert stats[stat] is None or isinstance(stats[stat], (int, float)), \
+                                    f"Stats.{stat} should be numeric or None"
+
+    def test_matrix_parameter_limits_marks(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test marks parameter validation (max 8)"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        # Too many marks (>8)
+        many_marks = ",".join([f"H3K{i}me3" for i in range(10)])
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": many_marks,
+                "cell_types": "K562",
+                "metric": "peak_count"
+            }
+        )
+        # Should return 400 or 422 for validation error
+        assert response.status_code in [400, 422], \
+            f"Too many marks should return 400/422, got {response.status_code}"
+
+    def test_matrix_parameter_limits_cell_types(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test cell_types parameter validation (max 10)"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        # Too many cell types (>10)
+        many_cells = ",".join([f"Cell{i}" for i in range(12)])
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3",
+                "cell_types": many_cells,
+                "metric": "peak_count"
+            }
+        )
+        # Should return 400 or 422 for validation error
+        assert response.status_code in [400, 422], \
+            f"Too many cell types should return 400/422, got {response.status_code}"
+
+    def test_matrix_invalid_gene(self, api_client: httpx.Client):
+        """Test matrix endpoint with invalid gene ID"""
+        response = api_client.get(
+            "/api/v1/features/chipseq/genes/999999999/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3",
+                "cell_types": "K562,HepG2",
+                "metric": "peak_count"
+            }
+        )
+        assert response.status_code == 404, \
+            f"Invalid gene should return 404, got {response.status_code}"
+
+    def test_matrix_invalid_metric(self, api_client: httpx.Client):
+        """Test matrix endpoint with invalid metric"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3",
+                "cell_types": "K562,HepG2",
+                "metric": "invalid_metric_xyz"
+            }
+        )
+        # API may return 422 for validation error or 200 with default/fallback behavior
+        # Either behavior is acceptable as long as it doesn't crash (500)
+        assert response.status_code in [200, 400, 422], \
+            f"Invalid metric should return 200/400/422, got {response.status_code}"
+
+        # If 200, verify the response uses a valid metric (likely the default)
+        if response.status_code == 200:
+            data = response.json()
+            # API might use default metric or return the invalid one
+            valid_metrics = ["median_fold_enrichment", "peak_count", "total_coverage_bp", "avg_signal"]
+            # Just verify no server error occurred
+            assert "matrix" in data or "error" in data
+
+    def test_matrix_with_flanking(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test matrix with custom flanking region"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3,H3K4me3",
+                "cell_types": "K562,HepG2",
+                "metric": "median_fold_enrichment",
+                "flanking": 50000
+            }
+        )
+        assert response.status_code in [200, 404]
+
+    def test_matrix_single_mark_single_cell(self, api_client: httpx.Client, api_assert: APIAssertions):
+        """Test minimal 1x1 matrix"""
+        gene_id = get_valid_gene_id(api_client)
+        if not gene_id:
+            pytest.skip("No valid gene")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/heatmap-matrix",
+            params={
+                "marks": "H3K27me3",
+                "cell_types": "K562",
+                "metric": "peak_count"
+            }
+        )
+        assert response.status_code in [200, 404]
+
+        if response.status_code == 200:
+            data = response.json()
+            assert len(data["cell_types"]) == 1
+            assert len(data["marks"]) == 1
+            assert len(data["matrix"]) == 1
+            assert len(data["matrix"][0]) == 1
+
+
 class TestChIPSeqCellLineComparison:
     """Tests for cell line comparison endpoint"""
 
