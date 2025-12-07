@@ -6,7 +6,7 @@
 
 import { useMemo, useCallback } from 'react'
 import { Select, Button, Space, Input, Tag, Empty, Spin } from 'antd'
-import { CloseOutlined, PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { DefaultOptionType } from 'antd/es/select'
 

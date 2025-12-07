@@ -6,7 +6,7 @@
  * Phase 2.10 - Batch Gene Heatmap Feature
  */
 
-import { useMemo, useRef, useEffect, useState } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsInstance } from 'echarts-for-react'
 import { Card, Row, Col, Space, Tag, Segmented, Empty, Typography, Spin, Alert } from 'antd'
@@ -127,7 +127,6 @@ export function BatchHeatmapMatrix({
   const { t, i18n } = useTranslation('genes')
   const isZh = i18n.language === 'zh-CN'
   const chartRef = useRef<ReactECharts>(null)
-  const [hoveredMark, setHoveredMark] = useState<string | null>(null)
 
   // Validate data
   if (!data || data.length === 0) {
@@ -205,7 +204,6 @@ export function BatchHeatmapMatrix({
     // For each gene, add all cell type rows
     data.forEach((geneData) => {
       // Add gene name as separator/header
-      const geneLabelIndex = yIndex
       labels.push(`${geneData.gene_name}`)
       yIndex++
 
@@ -339,8 +337,7 @@ export function BatchHeatmapMatrix({
         inRange: {
           color: getColorRange(metric),
         },
-        // @ts-ignore
-        formatter: (value: number) => formatMetricValue(value, metric),
+        formatter: ((value: number) => formatMetricValue(value, metric)) as any,
       },
       series: [
         {
@@ -390,7 +387,6 @@ export function BatchHeatmapMatrix({
       if (params.componentType === 'series' && params.seriesType === 'heatmap') {
         const [markIdx, cellIdx, value] = params.data
         const markName = allMarks[markIdx]
-        const yLabel = yLabels[cellIdx]
 
         // Parse gene name and cell type from label
         let geneName = ''
@@ -399,7 +395,6 @@ export function BatchHeatmapMatrix({
         // Find the gene this cell belongs to
         let currentYIdx = 0
         for (const gene of data) {
-          const geneYIdx = currentYIdx
           currentYIdx++ // gene name row
 
           if (cellIdx < currentYIdx) {

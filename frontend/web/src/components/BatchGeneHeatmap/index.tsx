@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react'
-import { Card, Space, Row, Col, Button, Select, Alert, Segmented, message } from 'antd'
+import { Card, Space, Button, Select, Alert, message } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import GeneSelector from './GeneSelector'
