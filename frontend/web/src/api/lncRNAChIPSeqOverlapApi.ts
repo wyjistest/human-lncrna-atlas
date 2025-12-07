@@ -14,7 +14,9 @@ import { apiClient } from './client'
 import type {
   OverlapFilters,
   OverlapResponse,
-  OverlapSummary
+  OverlapSummary,
+  OverlapHeatmapData,
+  OverlapHeatmapParams,
 } from '@/types/lncRNAChIPSeqOverlap'
 
 /**
@@ -104,6 +106,35 @@ export const lncRNAChIPSeqOverlapApi = {
       },
       responseType: 'blob'
     }),
+
+  /**
+   * Get heatmap matrix data for overlap visualization (Phase 3.0 Phase 2)
+   *
+   * @param params - Heatmap parameters including axis dimensions and metric
+   * @returns Heatmap data with labels and values
+   *
+   * @example
+   * ```ts
+   * const response = await lncRNAChIPSeqOverlapApi.getHeatmap({
+   *   x_axis: 'mark_type',
+   *   y_axis: 'lncrna',
+   *   metric: 'count',
+   *   top_n: 50
+   * })
+   * ```
+   */
+  getHeatmap: (params: OverlapHeatmapParams) =>
+    apiClient.get<OverlapHeatmapData>('/api/v1/lncrna-chipseq-overlap/heatmap', {
+      params: {
+        x_axis: params.x_axis,
+        y_axis: params.y_axis,
+        metric: params.metric,
+        top_n: params.top_n,
+        chromosome: params.chromosome,
+        min_binding_affinity: params.min_binding_affinity,
+        max_qvalue: params.max_qvalue,
+      }
+    }),
 }
 
 /**
@@ -121,6 +152,10 @@ export const overlapQueryKeys = {
   /** Summary statistics */
   summary: (filters?: Partial<OverlapFilters>) =>
     [...overlapQueryKeys.all, 'summary', filters] as const,
+
+  /** Heatmap data (Phase 3.0 Phase 2) */
+  heatmap: (params: OverlapHeatmapParams) =>
+    [...overlapQueryKeys.all, 'heatmap', params] as const,
 }
 
 export default lncRNAChIPSeqOverlapApi

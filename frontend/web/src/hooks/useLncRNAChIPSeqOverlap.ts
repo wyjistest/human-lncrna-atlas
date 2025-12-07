@@ -12,7 +12,11 @@ import lncRNAChIPSeqOverlapApi, { overlapQueryKeys } from '@/api/lncRNAChIPSeqOv
 import type {
   OverlapFilters,
   OverlapResponse,
-  OverlapSummary
+  OverlapSummary,
+  OverlapHeatmapData,
+  OverlapHeatmapXAxis,
+  OverlapHeatmapYAxis,
+  OverlapHeatmapMetric,
 } from '@/types/lncRNAChIPSeqOverlap'
 
 /**
@@ -189,6 +193,60 @@ export function useLncRNAChIPSeqOverlapData(
       }
     },
   }
+}
+
+/**
+ * Hook to fetch heatmap data for overlap visualization (Phase 3.0 Phase 2)
+ *
+ * @param xAxis - X-axis dimension (mark_type or cell_type)
+ * @param yAxis - Y-axis dimension (lncrna or target_gene)
+ * @param metric - Metric to display (count, avg_binding_affinity, total_overlap_length)
+ * @param topN - Number of top items to include (default: 50)
+ * @param filters - Optional additional filters
+ * @param options - Additional React Query options
+ * @returns Query result with heatmap data
+ *
+ * @example
+ * ```tsx
+ * const { data, isLoading } = useOverlapHeatmap(
+ *   'mark_type',
+ *   'lncrna',
+ *   'count',
+ *   50,
+ *   { chromosome: 'chr1' }
+ * )
+ * ```
+ */
+export function useOverlapHeatmap(
+  xAxis: OverlapHeatmapXAxis,
+  yAxis: OverlapHeatmapYAxis,
+  metric: OverlapHeatmapMetric,
+  topN: number = 50,
+  filters?: Partial<OverlapFilters>,
+  options?: Omit<UseQueryOptions<OverlapHeatmapData, Error>, 'queryKey' | 'queryFn'>
+) {
+  const params = {
+    x_axis: xAxis,
+    y_axis: yAxis,
+    metric,
+    top_n: topN,
+    chromosome: filters?.chromosome,
+    min_binding_affinity: filters?.min_binding_affinity,
+    max_qvalue: filters?.max_qvalue,
+  }
+
+  return useQuery<OverlapHeatmapData, Error>({
+    queryKey: overlapQueryKeys.heatmap(params),
+    queryFn: async () => {
+      const response = await lncRNAChIPSeqOverlapApi.getHeatmap(params)
+      return response.data
+    },
+    staleTime: 30 * 60 * 1000,  // 30 minutes cache
+    gcTime: 60 * 60 * 1000,     // 1 hour in cache
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    ...options
+  })
 }
 
 /**

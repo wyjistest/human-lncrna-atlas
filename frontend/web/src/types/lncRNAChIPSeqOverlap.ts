@@ -175,3 +175,56 @@ export const CHROMOSOME_OPTIONS = [
 
 export type CellType = typeof CELL_TYPE_OPTIONS[number]
 export type Chromosome = typeof CHROMOSOME_OPTIONS[number]
+
+/**
+ * Heatmap data structure for overlap visualization (Phase 3.0 Phase 2)
+ */
+export interface OverlapHeatmapData {
+  /** X-axis labels (mark types or cell types) */
+  x_labels: string[]
+  /** Y-axis labels (lncRNAs or target genes) */
+  y_labels: string[]
+  /** Heatmap data points */
+  data: Array<{ x: string; y: string; value: number }>
+  /** Current metric being displayed */
+  metric: OverlapHeatmapMetric
+  /** Total possible combinations */
+  total_combinations: number
+  /** Combinations with valid data */
+  valid_combinations: number
+}
+
+/**
+ * Heatmap metric options
+ */
+export type OverlapHeatmapMetric = 'count' | 'avg_binding_affinity' | 'total_overlap_length'
+
+/**
+ * X-axis options for heatmap
+ */
+export type OverlapHeatmapXAxis = 'mark_type' | 'cell_type'
+
+/**
+ * Y-axis options for heatmap
+ */
+export type OverlapHeatmapYAxis = 'lncrna' | 'target_gene'
+
+/**
+ * Heatmap request parameters
+ */
+export interface OverlapHeatmapParams {
+  /** X-axis dimension */
+  x_axis: OverlapHeatmapXAxis
+  /** Y-axis dimension */
+  y_axis: OverlapHeatmapYAxis
+  /** Metric to display */
+  metric: OverlapHeatmapMetric
+  /** Top N items to include */
+  top_n?: number
+  /** Chromosome filter */
+  chromosome?: string
+  /** Minimum binding affinity filter */
+  min_binding_affinity?: number
+  /** Maximum Q-value filter */
+  max_qvalue?: number
+}

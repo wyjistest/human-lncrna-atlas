@@ -1,6 +1,6 @@
 /**
  * LncRNAChIPSeqOverlapTable Main Component
- * Phase 3.0 - Task 1.8
+ * Phase 3.0 - Task 1.8 (Updated Phase 3.0 Phase 2)
  *
  * Main container component for lncRNA-ChIP-seq overlap analysis.
  * Displays overlaps between lncRNA binding sites and ChIP-seq peaks.
@@ -8,6 +8,10 @@
  * Features:
  * - Advanced filtering (mark type, cell type, chromosome, thresholds)
  * - Statistics cards (Phase 2)
+ * - Visualization charts (Phase 3.0 Phase 2)
+ *   - Mark type distribution bar chart
+ *   - Cell type distribution pie chart
+ *   - Overlap heatmap matrix (collapsible)
  * - Sortable, paginated data table
  * - Export functionality (BED, CSV) (Phase 2)
  * - Responsive design
@@ -15,6 +19,7 @@
  * Backend Integration:
  * - GET /api/v1/lncrna-chipseq-overlap (paginated query)
  * - GET /api/v1/lncrna-chipseq-overlap/summary (Phase 2)
+ * - GET /api/v1/lncrna-chipseq-overlap/heatmap (Phase 3.0 Phase 2)
  * - GET /api/v1/lncrna-chipseq-overlap/export (Phase 2)
  */
 
@@ -27,12 +32,18 @@ import {
   Empty,
   Alert,
   Switch,
+  Row,
+  Col,
+  Collapse,
+  Tabs,
 } from 'antd'
 import {
   DownloadOutlined,
   ReloadOutlined,
   FilterOutlined,
   BarChartOutlined,
+  HeatMapOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 
@@ -40,6 +51,9 @@ import { useTranslation } from 'react-i18next'
 import { OverlapFilterPanel } from './OverlapFilterPanel'
 import { OverlapTable } from './OverlapTable'
 import { OverlapStatsCards } from './OverlapStatsCards'
+import { OverlapMarkDistChart } from './OverlapMarkDistChart'
+import { OverlapCellTypeChart } from './OverlapCellTypeChart'
+import { OverlapHeatmapMatrix } from './OverlapHeatmapMatrix'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 
@@ -67,6 +81,8 @@ interface LncRNAChIPSeqOverlapTableProps {
   enableStats?: boolean
   /** Enable export functionality (Phase 2 feature) */
   enableExport?: boolean
+  /** Enable visualization charts (Phase 3.0 Phase 2 feature) */
+  enableVisualization?: boolean
 }
 
 /**
@@ -104,6 +120,7 @@ export function LncRNAChIPSeqOverlapTable({
   defaultPageSize = 20,
   enableStats = false,
   enableExport = false,
+  enableVisualization = false,
 }: LncRNAChIPSeqOverlapTableProps) {
   const { t } = useTranslation('overlap')
   const { t: tCommon } = useTranslation('common')
@@ -111,6 +128,8 @@ export function LncRNAChIPSeqOverlapTable({
   // UI state
   const [showFilters, setShowFilters] = useState(true)
   const [showStats, setShowStats] = useState(enableStats)
+  const [showVisualization, setShowVisualization] = useState(enableVisualization)
+  const [activeTab, setActiveTab] = useState<string>('table')
 
   // Filter state
   const [filters, setFilters] = useState<OverlapFilters>(() => ({
@@ -239,6 +258,20 @@ export function LncRNAChIPSeqOverlapTable({
               </Space>
             )}
 
+            {enableVisualization && (
+              <Space>
+                <PieChartOutlined />
+                <span style={{ fontSize: 13 }}>
+                  {t('action.showVisualization', 'Show Visualization')}:
+                </span>
+                <Switch
+                  checked={showVisualization}
+                  onChange={setShowVisualization}
+                  size="small"
+                />
+              </Space>
+            )}
+
             <Button
               icon={<ReloadOutlined />}
               onClick={() => refetchData()}
@@ -287,6 +320,79 @@ export function LncRNAChIPSeqOverlapTable({
           summary={summaryData}
           loading={summaryLoading}
         />
+      )}
+
+      {/* Visualization Charts (Phase 3.0 Phase 2) */}
+      {showVisualization && enableVisualization && summaryData && (
+        <Card
+          title={
+            <Space>
+              <BarChartOutlined />
+              {t('visualization.title', 'Overlap Visualizations')}
+            </Space>
+          }
+        >
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'charts',
+                label: (
+                  <Space>
+                    <PieChartOutlined />
+                    {t('visualization.distributionCharts', 'Distribution Charts')}
+                  </Space>
+                ),
+                children: (
+                  <Row gutter={[16, 16]}>
+                    {/* Mark Type Distribution Bar Chart */}
+                    <Col xs={24} lg={12}>
+                      <Card size="small" bordered={false}>
+                        <OverlapMarkDistChart
+                          data={summaryData.by_mark_type}
+                          loading={summaryLoading}
+                        />
+                      </Card>
+                    </Col>
+                    {/* Cell Type Distribution Pie Chart */}
+                    <Col xs={24} lg={12}>
+                      <Card size="small" bordered={false}>
+                        <OverlapCellTypeChart
+                          data={summaryData.by_cell_type}
+                          loading={summaryLoading}
+                        />
+                      </Card>
+                    </Col>
+                  </Row>
+                ),
+              },
+              {
+                key: 'heatmap',
+                label: (
+                  <Space>
+                    <HeatMapOutlined />
+                    {t('visualization.heatmap', 'Heatmap Matrix')}
+                  </Space>
+                ),
+                children: (
+                  <OverlapHeatmapMatrix
+                    initialXAxis="mark_type"
+                    initialYAxis="lncrna"
+                    initialMetric="count"
+                    filters={filters}
+                    showControls
+                  />
+                ),
+              },
+              {
+                key: 'table',
+                label: t('visualization.tableView', 'Table View'),
+                children: null, // Table is shown outside tabs
+              },
+            ]}
+          />
+        </Card>
       )}
 
       {/* Filter Panel */}

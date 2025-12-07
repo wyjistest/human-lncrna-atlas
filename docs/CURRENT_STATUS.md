@@ -1,7 +1,7 @@
 # Human LncRNA Atlas - 当前进度报告
 
 > 最后更新: 2025-12-07
-> 当前版本: Phase 2.11
+> 当前版本: Phase 3.0 Phase 2
 
 ## 📊 数据库统计
 
@@ -34,6 +34,33 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2025-12-07 (Phase 3.0 Phase 2) ⭐ lncRNA-ChIP-seq Overlap 可视化
+
+1. **后端 API 增强**
+   - `/api/v1/lncrna-chipseq-overlap/statistics` 增强
+     - 新增 `by_mark_type`: 按 mark 类型分组统计
+     - 新增 `by_cell_type`: 按细胞系分组统计
+   - `/api/v1/lncrna-chipseq-overlap/heatmap` 新端点
+     - 支持 x_axis: mark_type | cell_type
+     - 支持 y_axis: lncrna | target_gene
+     - 支持 metric: count | avg_binding_affinity | total_overlap_length
+     - 支持 top_n 限制 (1-100)
+   - Rate limiting + Redis 缓存
+
+2. **前端可视化组件**
+   - `OverlapMarkDistChart.tsx`: ECharts 柱状图 - Mark 分布
+   - `OverlapCellTypeChart.tsx`: ECharts 饼图 - 细胞系分布
+   - `OverlapHeatmapMatrix.tsx`: ECharts 热图矩阵
+   - 支持指标切换、轴维度选择、Top N 筛选
+   - 完整 i18n 国际化
+
+3. **E2E 测试**
+   - `lncrna-chipseq-overlap-charts.spec.ts`: 22 个测试用例
+   - 覆盖: P0 渲染、P1 交互、P2 性能
+
+4. **数据库优化**
+   - 新增索引: `idx_regulations_best_peak_coords`
 
 ### 2025-12-07 (Phase 2.11) ⭐ DNase-seq 数据导入
 
@@ -116,19 +143,21 @@ npm run dev
 ## 🎯 建议的下一步开发
 
 ### 优先级 1: 数据扩展
-- [ ] 添加更多细胞系 (HepG2, H1-hESC 等)
-- [ ] 导入 ENCODE DNase-seq 数据
+- [x] 添加更多细胞系 (HepG2, H1-hESC 等) ✅
+- [x] 导入 ENCODE DNase-seq 数据 ✅
 - [ ] 整合 ATAC-seq 数据
 
 ### 优先级 2: 功能增强
-- [ ] ChIP-seq peaks 与 lncRNA 关联分析
-- [ ] 热图可视化组蛋白修饰模式
+- [x] ChIP-seq peaks 与 lncRNA 关联分析 ✅ (Phase 3.0)
+- [x] 热图可视化组蛋白修饰模式 ✅ (Phase 3.0 Phase 2)
 - [ ] 批量导出功能
+- [ ] IGV 集成 overlap 数据
 
 ### 优先级 3: 性能优化
-- [ ] 大数据量分页查询优化
+- [ ] 大数据量分页查询优化 (overlap 统计查询需优化)
 - [ ] Redis 缓存策略优化
 - [ ] 前端虚拟滚动
+- [ ] 创建物化视图加速 overlap 统计
 
 ## 📞 联系方式
 

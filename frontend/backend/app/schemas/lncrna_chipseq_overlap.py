@@ -83,6 +83,23 @@ class OverlapResponse(BaseModel):
         return (total + page_size - 1) // page_size if page_size > 0 else 0
 
 
+class MarkTypeStats(BaseModel):
+    """Statistics breakdown by mark type"""
+    mark_type: str = Field(..., description="Epigenetic mark type name")
+    count: int = Field(..., description="Number of overlaps for this mark type")
+    avg_strength: float = Field(..., description="Average binding affinity for this mark type")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CellTypeStats(BaseModel):
+    """Statistics breakdown by cell type"""
+    cell_type: str = Field(..., description="Cell type/line name")
+    count: int = Field(..., description="Number of overlaps for this cell type")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class OverlapStatistics(BaseModel):
     """Summary statistics for overlap analysis"""
 
@@ -93,5 +110,32 @@ class OverlapStatistics(BaseModel):
     avg_overlap_length: float = Field(..., description="Average overlap length in bp")
     avg_binding_affinity: float = Field(..., description="Average binding affinity")
     avg_peak_strength: float = Field(..., description="Average peak fold enrichment")
+    by_mark_type: List[MarkTypeStats] = Field(default=[], description="Statistics breakdown by mark type")
+    by_cell_type: List[CellTypeStats] = Field(default=[], description="Statistics breakdown by cell type")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# Heatmap Schemas
+# ============================================================================
+
+class HeatmapCell(BaseModel):
+    """Single cell in the heatmap matrix"""
+    x: str = Field(..., description="X-axis value (mark_type or cell_type)")
+    y: str = Field(..., description="Y-axis value (lncrna or target gene)")
+    value: float = Field(..., description="Metric value for this cell")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OverlapHeatmapResponse(BaseModel):
+    """Response schema for heatmap endpoint"""
+    x_labels: List[str] = Field(..., description="List of X-axis labels")
+    y_labels: List[str] = Field(..., description="List of Y-axis labels")
+    data: List[HeatmapCell] = Field(..., description="Heatmap cell data")
+    metric: str = Field(..., description="Metric used for values (count, avg_binding_affinity, total_overlap_length)")
+    total_combinations: int = Field(..., description="Total possible X*Y combinations")
+    valid_combinations: int = Field(..., description="Number of combinations with data")
 
     model_config = ConfigDict(from_attributes=True)
