@@ -4,7 +4,6 @@
  * 展示 lncRNA 结合位点与 ChIP-seq peaks 的重叠分析结果
  */
 
-import React from 'react'
 import { Typography, Space, Breadcrumb, Card } from 'antd'
 import { HomeOutlined, ExperimentOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'

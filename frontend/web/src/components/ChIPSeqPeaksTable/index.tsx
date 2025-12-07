@@ -68,7 +68,7 @@ import {
 } from '@/hooks/useChIPSeq'
 
 // Config & Types
-import { getMarkConfig, getCommonMarks, getAllMarkTypes } from '@/config/markConfigs'
+import { getMarkConfig, getCommonMarks } from '@/config/markConfigs'
 import { chipseqApi } from '@/api/chipseq'
 import { CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import type {

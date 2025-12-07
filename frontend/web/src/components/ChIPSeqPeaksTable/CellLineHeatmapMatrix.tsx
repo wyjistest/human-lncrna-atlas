@@ -260,9 +260,7 @@ export function CellLineHeatmapMatrix({
         splitArea: { show: true },
         axisLabel: {
           fontSize: 11,
-          formatter: (value: string, index: number) => {
-            const cellType = data.cell_types[index]
-            const color = getCellTypeColor(cellType)
+          formatter: (value: string, _index: number) => {
             // Return label with color indicator prefix
             return `{dot|●} ${value}`
           },
@@ -286,8 +284,7 @@ export function CellLineHeatmapMatrix({
         inRange: {
           color: getColorRange(metric),
         },
-        // @ts-ignore - ECharts type definition issue with formatter
-        formatter: (value: number) => formatMetricValue(value, metric),
+        formatter: ((value: number) => formatMetricValue(value, metric)) as any,
       },
       series: [
         {
