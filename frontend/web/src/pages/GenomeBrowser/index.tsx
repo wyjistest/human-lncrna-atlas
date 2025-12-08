@@ -665,6 +665,7 @@ export default function GenomeBrowserPage() {
                                       mode="multiple"
                                       placeholder={t('chipseq.selectPlaceholder')}
                                       style={{ width: '100%' }}
+                                      listHeight={400}
                                       value={selectedChIPSeqMarks}
                                       onChange={handleChIPSeqMarksChange}
                                       options={(() => {
@@ -674,7 +675,8 @@ export default function GenomeBrowserPage() {
                                         )
 
                                         // Filter grouped marks to only include available ones
-                                        return getMarksGroupedByCategory()
+                                        const allGroups = getMarksGroupedByCategory()
+                                        const result = allGroups
                                           .map(group => {
                                             const filteredMarks = group.marks.filter(mark =>
                                               availableMarkTypes.has(mark.value)
@@ -705,6 +707,7 @@ export default function GenomeBrowserPage() {
                                             }
                                           })
                                           .filter((group): group is NonNullable<typeof group> => group !== null)
+                                        return result
                                       })()}
                                       maxTagCount={3}
                                       allowClear

@@ -433,23 +433,39 @@ const GenomeBrowser = memo(({
       // If useEffect re-runs before loadTrack completes, we don't want duplicate loads
       loadedMarks.add(mark)
 
-      // For region-based loading, we use a simple URL with visibilityWindow
-      // IGV.js will automatically fetch data when zoomed in
-      // The backend supports region filtering via chromosome/start/end params
-      const trackConfig: IGVTrackConfig = {
-        name: `ChIP-seq: ${mark}`,
-        type: 'annotation',
-        format: 'bed',
-        // Simple URL - IGV.js will load all data but visibilityWindow limits display
-        url: `${API_BASE_URL}/api/v1/igv/tracks/chipseq/${speciesId}.bed?mark_type=${encodeURIComponent(mark)}`,
-        displayMode: 'EXPANDED' as const,
-        color: getMarkColor(mark as MarkType),
-        height: 80,
-        order: 1000 + index,
-        removable: true,
-        searchable: false,
-        // visibilityWindow: only show features when zoomed in to 5Mb or less
-        visibilityWindow: 5000000,
+      // DNase-HS uses pre-built bigBed file for better performance
+      // Other marks use dynamic BED API with region filtering
+      let trackConfig: IGVTrackConfig
+
+      if (mark === 'DNase-HS' && speciesId === 1) {
+        // Use bigBed for DNase-HS (Human) - it handles region filtering automatically
+        trackConfig = {
+          name: `ChIP-seq: ${mark}`,
+          type: 'annotation',
+          format: 'bigbed',
+          url: `${API_BASE_URL}/genomes/dnase_hs_peaks.bb`,
+          displayMode: 'SQUISHED' as const,
+          color: getMarkColor(mark as MarkType),
+          height: 50,
+          order: 1000 + index,
+          removable: true,
+          searchable: false,
+        }
+      } else {
+        // Other marks use BED API
+        trackConfig = {
+          name: `ChIP-seq: ${mark}`,
+          type: 'annotation',
+          format: 'bed',
+          url: `${API_BASE_URL}/api/v1/igv/tracks/chipseq/${speciesId}.bed?mark_type=${encodeURIComponent(mark)}`,
+          displayMode: 'EXPANDED' as const,
+          color: getMarkColor(mark as MarkType),
+          height: 80,
+          order: 1000 + index,
+          removable: true,
+          searchable: false,
+          visibilityWindow: 5000000,
+        }
       }
 
       browser.loadTrack(trackConfig).catch((e) => {
