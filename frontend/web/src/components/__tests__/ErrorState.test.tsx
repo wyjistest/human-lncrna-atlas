@@ -28,20 +28,22 @@ describe('ErrorState', () => {
     expect(screen.getByText('Test error message')).toBeInTheDocument()
   })
 
-  it('renders unknown error message for non-Error types', () => {
+  it('renders string error message directly for string types', () => {
     render(<ErrorState error="string error" />)
-    expect(screen.getByText('Unknown Error')).toBeInTheDocument()
+    // String errors are displayed directly (not as "Unknown Error")
+    expect(screen.getByText('string error')).toBeInTheDocument()
   })
 
   it('renders retry button when onRetry provided', () => {
     const onRetry = vi.fn()
     render(<ErrorState error={new Error('test')} onRetry={onRetry} />)
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    // Button with icon has accessible name that includes icon aria-label
+    expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument()
   })
 
   it('does not render retry button when onRetry not provided', () => {
     render(<ErrorState error={new Error('test')} />)
-    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Retry/i })).not.toBeInTheDocument()
   })
 
   it('calls onRetry when retry button clicked', async () => {
@@ -49,7 +51,7 @@ describe('ErrorState', () => {
     const onRetry = vi.fn()
     render(<ErrorState error={new Error('test')} onRetry={onRetry} />)
 
-    await user.click(screen.getByRole('button', { name: 'Retry' }))
+    await user.click(screen.getByRole('button', { name: /Retry/i }))
     expect(onRetry).toHaveBeenCalledOnce()
   })
 })
