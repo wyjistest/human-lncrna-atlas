@@ -14,8 +14,8 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
   - Bivalent domain detection (H3K27me3 + H3K4me3)
   - Multi-mark comparison and visualization
 - **DNase-seq Open Chromatin**: ENCODE DNase-HS data (1.22M peaks, 76 cell lines)
-  - Pre-indexed bigBed format for optimal IGV.js performance
-  - "Open Chromatin" category in genome browser track selector
+  - Pre-indexed bigBed (`/genomes/dnase_hs_peaks.bb`) for optimal IGV.js region streaming
+  - "Open Chromatin" category in genome browser track selector（ChIP-seq toggle → DNase-HS）
 - **RepeatMasker Annotations**: 5.48M repeat elements (hg19)
 - **Data Export**: CSV/XLSX export support
 

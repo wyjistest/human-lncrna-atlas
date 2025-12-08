@@ -138,13 +138,16 @@ def get_lncrna_chipseq_overlaps_query(
     mark_types_array = parse_comma_separated(filters.mark_type)
     cell_types_array = parse_comma_separated(filters.cell_type)
 
-    # Build sort clause
+    # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
+    # Only allowed values from the map can be used in the SQL query
     sort_field_map = {
         "binding_affinity": "r.binding_affinity",
         "overlap_length": "overlap_length",
         "peak_fold_enrichment": "p.fold_enrichment"
     }
+    # Validate sort_by against whitelist, default to safe value if not found
     sort_field = sort_field_map.get(filters.sort_by, "r.binding_affinity")
+    # Force sort_direction to be only ASC or DESC (no user input passes through)
     sort_direction = "DESC" if filters.sort_order.lower() == "desc" else "ASC"
 
     # Count query
@@ -686,25 +689,30 @@ def get_overlap_heatmap(
     if default_filter_applied:
         logger.info(f"Heatmap: No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
 
-    # Map x_axis to SQL column/expression
+    # SECURITY: All SQL fragment maps use whitelisted values only
+    # User input (x_axis, y_axis, metric) is validated against these maps
+    # This prevents SQL injection by ensuring only predefined SQL fragments are used
+
+    # Map x_axis to SQL column/expression (WHITELIST)
     x_axis_map = {
         'mark_type': ('m.mark_name', 'm.mark_name'),
         'cell_type': ('e.cell_type', 'e.cell_type')
     }
 
-    # Map y_axis to SQL column/expression and gene join
+    # Map y_axis to SQL column/expression and gene join (WHITELIST)
     y_axis_map = {
         'lncrna': ('lnc.gene_name', 'r.lncrna_gene_id', 'JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id'),
         'target_gene': ('tgt.gene_name', 'r.target_gene_id', 'JOIN genes tgt ON r.target_gene_id = tgt.gene_id')
     }
 
-    # Map metric to SQL aggregation
+    # Map metric to SQL aggregation (WHITELIST)
     metric_map = {
         'count': 'COUNT(*)',
         'avg_binding_affinity': 'AVG(r.binding_affinity)',
         'total_overlap_length': 'SUM(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start))'
     }
 
+    # Validate and extract values from whitelists - raises KeyError if invalid
     x_select, x_group = x_axis_map[x_axis]
     y_select, y_group_id, y_join = y_axis_map[y_axis]
     metric_agg = metric_map[metric]

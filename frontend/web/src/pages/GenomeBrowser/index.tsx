@@ -665,6 +665,7 @@ export default function GenomeBrowserPage() {
                                       mode="multiple"
                                       placeholder={t('chipseq.selectPlaceholder')}
                                       style={{ width: '100%' }}
+                                      // 确保 5 个 mark 分类（含 Open Chromatin）下拉完全可见
                                       listHeight={400}
                                       value={selectedChIPSeqMarks}
                                       onChange={handleChIPSeqMarksChange}

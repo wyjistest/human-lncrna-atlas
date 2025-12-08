@@ -7,7 +7,8 @@
  */
 
 import { useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
+import { message } from 'antd'
 import lncRNAChIPSeqOverlapApi, { overlapQueryKeys } from '@/api/lncRNAChIPSeqOverlapApi'
 import type {
   OverlapFilters,
@@ -250,18 +251,27 @@ export function useOverlapHeatmap(
 }
 
 /**
- * Hook to export overlap data
+ * Hook to export overlap data with loading state and error handling
  * Handles file download for BED and CSV formats (Phase 2)
  *
  * @param filters - Query filters for export
  * @param format - Export format ('bed' or 'csv')
  * @returns Export function with loading state
+ *
+ * @example
+ * ```tsx
+ * const { exportData, isExporting } = useExportOverlaps(filters, 'bed')
+ *
+ * <Button onClick={exportData} loading={isExporting}>
+ *   Export to BED
+ * </Button>
+ * ```
  */
 export function useExportOverlaps(
   filters: OverlapFilters,
   format: 'bed' | 'csv' = 'bed'
 ) {
-  const [isExporting, setIsExporting] = React.useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
   const exportData = useCallback(async () => {
     setIsExporting(true)
@@ -282,8 +292,10 @@ export function useExportOverlaps(
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
+      message.success(`Export to ${format.toUpperCase()} successful`)
     } catch (error) {
       console.error('Export failed:', error)
+      message.error(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
       throw error
     } finally {
       setIsExporting(false)
@@ -295,6 +307,3 @@ export function useExportOverlaps(
     isExporting
   }
 }
-
-// React import for useState
-import React from 'react'

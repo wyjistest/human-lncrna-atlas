@@ -151,8 +151,8 @@ class Regulation(Base):
     best_peak_start = Column(BigInteger)
     best_peak_end = Column(BigInteger)
     best_site_ba = Column(Numeric(10, 4))
-    lncrna_start = Column(BigInteger)  # 与 dna_start/end 保持一致，避免大坐标溢出
-    lncrna_end = Column(BigInteger)    # 与 dna_start/end 保持一致，避免大坐标溢出
+    lncrna_start = Column(Integer)  # Matches database schema (integer type)
+    lncrna_end = Column(Integer)    # Matches database schema (integer type)
     dna_start = Column(BigInteger)
     dna_end = Column(BigInteger)
     binding_affinity = Column(Numeric(10, 4))

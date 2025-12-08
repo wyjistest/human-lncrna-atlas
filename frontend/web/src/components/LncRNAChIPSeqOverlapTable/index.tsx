@@ -67,9 +67,6 @@ import {
   useLncRNAChIPSeqOverlapSummary,
 } from '@/hooks/useLncRNAChIPSeqOverlap'
 
-// API
-import { lncRNAChIPSeqOverlapApi } from '@/api/lncRNAChIPSeqOverlapApi'
-
 // Types
 import type { OverlapFilters } from '@/types/lncRNAChIPSeqOverlap'
 
@@ -204,15 +201,59 @@ export function LncRNAChIPSeqOverlapTable({
   }, [filters])
 
   // Perform export - internal function
+  // Note: exportOverlaps opens a new window for download, which has limited error handling
   const performExport = useCallback(
     (format: 'bed' | 'csv') => {
-      message.loading({ content: t('export.starting'), key: 'export', duration: 2 })
+      message.loading({
+        content: t('export.starting', `Starting ${format.toUpperCase()} export...`),
+        key: 'export',
+        duration: 0 // Keep loading until we update it
+      })
 
       try {
-        lncRNAChIPSeqOverlapApi.exportOverlaps(filters, format)
-        message.success({ content: t('export.success'), key: 'export', duration: 3 })
+        // Build the export URL for validation
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+        const params = new URLSearchParams()
+
+        // Validate filters and build URL parameters
+        if (filters.lncrna_gene_id) params.append('lncrna_gene_id', String(filters.lncrna_gene_id))
+        if (filters.target_gene_id) params.append('target_gene_id', String(filters.target_gene_id))
+        if (filters.mark_type) params.append('mark_type', filters.mark_type)
+        if (filters.cell_type) params.append('cell_type', filters.cell_type)
+        if (filters.chromosome) params.append('chromosome', filters.chromosome)
+        if (filters.min_overlap_length !== undefined) params.append('min_overlap_length', String(filters.min_overlap_length))
+        if (filters.min_binding_affinity !== undefined) params.append('min_binding_affinity', String(filters.min_binding_affinity))
+        params.append('format', format)
+
+        const exportUrl = `${API_BASE_URL}/api/v1/lncrna-chipseq-overlap/export?${params.toString()}`
+
+        // Open in new window
+        const newWindow = window.open(exportUrl, '_blank')
+
+        // Check if popup was blocked
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          message.warning({
+            content: t('export.popupBlocked', 'Please allow popups to download the file, or try right-clicking and "Save As"'),
+            key: 'export',
+            duration: 5
+          })
+        } else {
+          // Successful window open - show success message after delay
+          setTimeout(() => {
+            message.success({
+              content: t('export.success', `${format.toUpperCase()} export started - check your downloads`),
+              key: 'export',
+              duration: 3
+            })
+          }, 1000)
+        }
       } catch (error) {
-        message.error({ content: t('export.error.failed'), key: 'export' })
+        console.error('Export failed:', error)
+        message.error({
+          content: t('export.error.failed', `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`),
+          key: 'export',
+          duration: 5
+        })
       }
     },
     [filters, t]
