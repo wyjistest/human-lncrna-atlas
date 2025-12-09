@@ -19,7 +19,7 @@ import { test, expect, type Page } from '@playwright/test'
  * Error states render correctly, Loading states work, Empty states helpful"
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5174'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 // Pages to test
 const TEST_PAGES = [

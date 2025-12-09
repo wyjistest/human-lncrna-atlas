@@ -82,7 +82,7 @@ human-lncrna-atlas-github/
 | species | 4 | 灵长类物种 |
 | regulations | 804,630 | 调控关系 |
 | sequences | 804,630 | 序列数据 |
-| chip_peaks | 3,590,215 | ChIP-seq/DNase peaks |
+| chip_peaks | 4,620,036 | ChIP-seq/DNase peaks |
 | repeat_masker | 5,481,341 | 重复序列注释 |
 
 ## 开发工作流

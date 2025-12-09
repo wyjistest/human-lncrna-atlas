@@ -16,7 +16,7 @@ import { test, expect, type Page } from '@playwright/test'
  * with binding affinity (BA) scores and other metrics.
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5174'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/regulations'
 const API_ENDPOINT = '/api/v1/regulations'
 

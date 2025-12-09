@@ -180,63 +180,6 @@ export const chipseqApi = {
         },
       }
     ),
-
-  /**
-   * Batch heatmap matrix data for multiple genes
-   * Phase 2.10 - Batch Gene Heatmap Feature
-   * Returns aggregated heatmap data for multiple genes in a single request
-   * @param geneIds - Array of gene IDs
-   * @param marks - Array of mark types (X-axis)
-   * @param cellTypes - Array of cell types (Y-axis)
-   * @param metric - Metric to use for matrix values
-   * @param flanking - Flanking region in bp (optional)
-   */
-  getBatchHeatmapMatrix: (
-    geneIds: number[],
-    marks: MarkType[],
-    cellTypes: string[],
-    metric: HeatmapMetricType,
-    flanking?: number
-  ) =>
-    apiClient.get<Array<HeatmapMatrixResponse>>(
-      `/api/v1/features/chipseq/batch/heatmap-matrix`,
-      {
-        params: {
-          gene_ids: geneIds.join(','),
-          marks: marks.join(','),
-          cell_types: cellTypes.join(','),
-          metric,
-          flanking,
-        },
-      }
-    ),
-
-  /**
-   * Batch export heatmap data as CSV
-   * Phase 2.10 - Batch Gene Heatmap Feature
-   * @param geneIds - Array of gene IDs
-   * @param marks - Array of mark types
-   * @param cellTypes - Array of cell types
-   * @param metric - Metric to export
-   */
-  exportBatchHeatmapToCSV: (
-    geneIds: number[],
-    marks: MarkType[],
-    cellTypes: string[],
-    metric: HeatmapMetricType
-  ) => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-    const params = new URLSearchParams()
-
-    params.append('gene_ids', geneIds.join(','))
-    params.append('marks', marks.join(','))
-    params.append('cell_types', cellTypes.join(','))
-    params.append('metric', metric)
-    params.append('format', 'csv')
-
-    const url = `${API_BASE_URL}/api/v1/features/chipseq/batch/heatmap-matrix/export?${params.toString()}`
-    window.open(url, '_blank')
-  },
 }
 
 /**
@@ -274,8 +217,4 @@ export const chipseqQueryKeys = {
   /** Heatmap matrix data for multiple marks and cell types */
   heatmapMatrix: (geneId: number, marks: MarkType[], cellTypes: string[], metric: HeatmapMetricType) =>
     [...chipseqQueryKeys.gene(geneId), 'heatmap-matrix', marks.sort().join(','), cellTypes.sort().join(','), metric] as const,
-
-  /** Batch heatmap matrix data for multiple genes */
-  batchHeatmapMatrix: (geneIds: number[], marks: MarkType[], cellTypes: string[], metric: HeatmapMetricType) =>
-    [...chipseqQueryKeys.all, 'batch-heatmap-matrix', geneIds.sort().join(','), marks.sort().join(','), cellTypes.sort().join(','), metric] as const,
 }

@@ -28,7 +28,7 @@ test.describe('ChIP-seq Data Browsing', () => {
   test('should display ChIP-seq tab on gene detail page', async ({ page }) => {
     // Look for ChIP-seq or Histone related tab
     // The tab might be named differently in Chinese/English
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|Histone|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|Histone|ChIP|表观/i })
       .or(page.locator('.ant-tabs-tab').filter({ hasText: /ChIP|/i }))
 
     // Wait for tabs to be visible
@@ -49,7 +49,7 @@ test.describe('ChIP-seq Data Browsing', () => {
     await page.waitForLoadState('networkidle')
 
     // Find and click ChIP-seq tab
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|Histone|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|Histone|ChIP|表观/i })
       .or(page.locator('.ant-tabs-tab').filter({ hasText: /ChIP|/i }))
 
     const tabCount = await chipseqTab.count()
@@ -399,7 +399,7 @@ test.describe('ChIP-seq Filter Panel', () => {
   })
 
   test('should have reset filters button', async ({ page }) => {
-    const resetButton = page.getByRole('button', { name: /Reset|Clear|/i })
+    const resetButton = page.getByRole('button', { name: /Reset|Clear|重置/i })
       .or(page.locator('button').filter({ hasText: /Reset|Clear|/i }))
 
     if ((await resetButton.count()) > 0) {
@@ -423,7 +423,7 @@ test.describe('ChIP-seq Compare Mode', () => {
 
   test('should have compare mode toggle', async ({ page }) => {
     // Look for compare button or toggle
-    const compareButton = page.getByRole('button', { name: /Compare|/i })
+    const compareButton = page.getByRole('button', { name: /Compare|对比/i })
       .or(page.locator('[data-testid="compare-toggle"]'))
       .or(page.locator('.ant-switch').filter({ hasText: /Compare/i }))
 
@@ -434,7 +434,7 @@ test.describe('ChIP-seq Compare Mode', () => {
 
   test('should enable multi-mark selection in compare mode', async ({ page }) => {
     // Find and click compare button
-    const compareButton = page.getByRole('button', { name: /Compare|/i })
+    const compareButton = page.getByRole('button', { name: /Compare|对比/i })
       .or(page.locator('button').filter({ hasText: /Compare/i }))
 
     if ((await compareButton.count()) > 0) {
@@ -466,7 +466,7 @@ test.describe('ChIP-seq Export', () => {
   })
 
   test('should display export button', async ({ page }) => {
-    const exportButton = page.getByRole('button', { name: /Export|Download|/i })
+    const exportButton = page.getByRole('button', { name: /Export|Download|导出/i })
       .or(page.locator('button').filter({ hasText: /Export|Download|BED|CSV/i }))
 
     if ((await exportButton.count()) > 0) {

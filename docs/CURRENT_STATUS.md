@@ -1,7 +1,7 @@
 # Human LncRNA Atlas - 当前进度报告
 
 > 最后更新: 2025-12-09
-> 当前版本: Phase 5.0 (H3K9ac + H3K4me2 数据导入完成)
+> 当前版本: Phase 4.1 (H3K9ac/H3K4me2 数据扩展 + E2E 测试修复)
 
 ## 📊 数据库统计
 
@@ -9,28 +9,30 @@
 
 | Mark 类型 | 分类 | 细胞系数 | 实验数 | Peaks 数量 |
 |-----------|------|----------|--------|------------|
-| **DNase-HS** | Open Chromatin | **7** | **7** | **1,223,622** |
-| H3K4me1 | Activating | 6 | 6 | **727,149** |
-| H3K4me3 | Activating | 7 | 7 | **426,705** |
-| H3K9me3 | Repressive | 5 | 5 | **323,375** |
-| H3K27me3 | Repressive | 6 | 6 | **295,044** |
-| H3K27ac | Activating | 6 | 6 | **352,975** |
-| H3K36me3 | Activating | 6 | 6 | **241,345** |
-| **H3K4me2** | Activating | **3** | **3** | **223,140** ⭐ NEW |
-| **H3K9ac** | Activating | **3** | **3** | **151,268** ⭐ NEW |
-| **总计** | - | **7** | **57** | **4,322,014** |
+| **DNase-HS** | Open Chromatin | 7 | 7 | 1,223,622 |
+| H3K4me1 | Activating | 6 | 6 | 727,149 |
+| H3K4me3 | Activating | 7 | 7 | 426,705 |
+| **H3K4me2** | Activating | **5** | **5** | **406,645** ⭐ |
+| **H3K9ac** | Activating | **5** | **5** | **265,785** ⭐ |
+| H3K9me3 | Repressive | 5 | 5 | 323,375 |
+| H3K27me3 | Repressive | 6 | 6 | 295,044 |
+| H3K27ac | Activating | 6 | 6 | 352,975 |
+| H3K36me3 | Activating | 6 | 6 | 241,345 |
+| CTCF | Structural | 5 | 5 | 248,106 |
+| H4K20me1 | Activating | 3 | 3 | 109,285 |
+| **总计** | - | **7** | **61** | **4,620,036** |
 
 ### 细胞系覆盖
 
-| 细胞系 | 组织 | ChIP-seq Marks | DNase-seq | H3K9ac | H3K4me2 | 总 Peaks |
-|--------|------|----------------|-----------|--------|---------|----------|
-| **MCF-7** | 乳腺癌细胞 | 1 mark (H3K4me3) | ✅ | - | - | ~239k |
-| **HMEC** | 正常乳腺上皮 | 6 marks | ✅ | - | - | ~518k |
-| **A549** | 肺腺癌细胞 | 6 marks | ✅ | - | - | ~579k |
-| **K562** | 白血病细胞 | 8 marks | ✅ | ✅ 51,821 | ✅ 70,379 | ~949k ⭐ |
-| **H1-hESC** | 人胚胎干细胞 | 8 marks | ✅ | ✅ 58,181 | ✅ 73,086 | ~976k ⭐ |
-| **GM12878** | B淋巴细胞 | 8 marks | ✅ | ✅ 41,266 | ✅ 79,675 | ~849k ⭐ |
-| HepG2 | 肝癌细胞 | 5 marks | ✅ | - | - | ~691k |
+| 细胞系 | 组织 | ChIP-seq Marks | H3K9ac | H3K4me2 | 总 Peaks |
+|--------|------|----------------|--------|---------|----------|
+| **HepG2** | 肝癌细胞 | 7 marks | ✅ 50,044 | ✅ 82,853 | ~824k ⭐ |
+| **A549** | 肺腺癌细胞 | 8 marks | ✅ 64,473 | ✅ 100,652 | ~744k ⭐ |
+| K562 | 白血病细胞 | 8 marks | ✅ 51,821 | ✅ 70,379 | ~949k |
+| H1-hESC | 人胚胎干细胞 | 8 marks | ✅ 58,181 | ✅ 73,086 | ~975k |
+| GM12878 | B淋巴细胞 | 8 marks | ✅ 41,266 | ✅ 79,675 | ~849k |
+| **HMEC** | 正常乳腺上皮 | 6 marks | - | - | ~518k |
+| **MCF-7** | 乳腺癌细胞 | 1 mark | - | - | ~239k |
 
 ### 核心数据
 
@@ -40,39 +42,35 @@
 
 ## ✅ 最近完成的功能
 
-### 2025-12-09 (Phase 5.0) ⭐⭐ H3K9ac + H3K4me2 数据导入
+### 2025-12-09 (Phase 4.1) ⭐ H3K9ac/H3K4me2 数据扩展 + E2E 测试修复
 
-1. **Phase 5 新增两种 Activating Marks** ⭐ 三 Agent 协同实施
-   - **H3K9ac** (活性染色质标记):
-     - GM12878: 41,266 peaks
-     - H1-hESC: 58,181 peaks
-     - K562: 51,821 peaks
-     - **总计: 151,268 peaks**
-   - **H3K4me2** (启动子标记):
-     - GM12878: 79,675 peaks
-     - H1-hESC: 73,086 peaks
-     - K562: 70,379 peaks
-     - **总计: 223,140 peaks**
-   - **Phase 5 新增总计: 374,408 peaks**
+1. **H3K9ac/H3K4me2 数据导入** ⭐ 新增 2 种组蛋白修饰
+   - **HepG2 细胞系**:
+     - H3K9ac: 50,044 peaks (experiment_id: 63)
+     - H3K4me2: 82,853 peaks (experiment_id: 64)
+   - **A549 细胞系**:
+     - H3K9ac: 64,473 peaks (experiment_id: 65)
+     - H3K4me2: 100,652 peaks (experiment_id: 66)
+   - **总计新增: 298,022 peaks**
    - 数据源: UCSC ENCODE Broad Histone (hg19)
+   - ENCODE 文件名特殊处理: `H3k09ac` (带前导零)
 
-2. **数据库更新**
-   - 实验总数: 51 → 57 (+6)
-   - 总 Peaks: 3,947,606 → 4,322,014 (+374,408)
-   - Activating marks: 5 → 7 (+H3K9ac, +H3K4me2)
+2. **E2E 测试修复** ⭐ 通过率 90.4% → 94.4%
+   - **修复 marks API 测试**: 更新期望结构 (`mark_name` vs `mark_type`)
+   - **修复 summary API 测试**: 适配 `mark_summaries[]` 数组结构
+   - **修复端口配置**: 统一使用 5173 作为默认端口
+   - **修复正则表达式**: 20+ 处 `/Something|/i` → `/Something|中文/i`
+   - 测试结果: 152 通过 / 9 失败 / 27 跳过
 
-3. **架构验证** ⭐ 通用架构完美支持
-   - **后端**: 零代码修改，仅数据导入
-   - **前端**: 配置已预定义，零代码修改
-   - **测试**: 参数化测试自动覆盖新 marks
-   - **工作量**: 约 3-4 小时完成全部实施
+3. **前端配置更新**
+   - `cellTypeConfigs.ts`: A549 配置已同步到两个配置文件
+   - 前端构建验证通过
 
-4. **多 Agent 协同开发**
-   - Backend API Developer: 数据下载、导入、验证
-   - Frontend Architect: 配置验证、构建测试
-   - Playwright Test Expert: E2E 测试验证
-   - Sequential Thinking: 6 步可行性分析
-   - MCP 工具: Augment (代码索引), Context7 (文档), WebSearch (数据源)
+4. **多 Agent 协同执行**
+   - Backend Agent: 数据下载、导入、数据库验证
+   - Frontend Agent: 配置同步、构建验证
+   - Test Agent: E2E 测试准备
+   - Sequential Thinking: 8 步问题分析
 
 ### 2025-12-08 (Phase 3.3) ⭐ DNase-seq 全细胞系覆盖
 
@@ -287,26 +285,20 @@ npm run dev
 
 ## 🎯 建议的下一步开发
 
-### 优先级 1: Phase 3.0 - 5.0 核心功能 ✅ 已完成
+### 优先级 1: Phase 3.0 - 3.3 核心功能 ✅ 已完成
 - [x] ~~ChIP-seq peaks 与 lncRNA 关联分析~~ ✅ 已完成
 - [x] ~~热图可视化组蛋白修饰模式~~ ✅ 已完成
 - [x] ~~批量导出功能 (BED/CSV)~~ ✅ 已完成 (2025-12-07)
 - [x] ~~A549 肺癌细胞系数据导入~~ ✅ 已完成 (2025-12-07, Phase 3.1)
 - [x] ~~MCF-7 + HMEC 乳腺细胞系数据~~ ✅ 已完成 (2025-12-07, Phase 3.2)
 - [x] ~~DNase-seq 全细胞系覆盖~~ ✅ 已完成 (2025-12-08, Phase 3.3)
-- [x] ~~H3K9ac + H3K4me2 数据导入~~ ✅ 已完成 (2025-12-09, Phase 5.0)
 
-### 优先级 2: 数据扩展
-- [ ] 更多 Activating marks (H3K79me2, H3K14ac)
-- [ ] 其他细胞系的 H3K9ac/H3K4me2 (HepG2, A549)
-- [ ] ATAC-seq 数据整合
-
-### 优先级 3: 功能增强
+### 优先级 2: 功能增强
 - [ ] lncRNA-ChIP-seq 重叠结果可视化增强
 - [ ] 基因组浏览器集成重叠轨道
 - [ ] 跨物种重叠比较
 
-### 优先级 4: 性能优化
+### 优先级 3: 性能优化
 - [ ] chr1 等大染色体查询优化
 - [ ] Redis 缓存策略优化
 - [ ] 前端虚拟滚动

@@ -69,7 +69,7 @@ export function AlertsBanner({ alerts }: AlertsBannerProps) {
       icon={hasCritical ? <CloseCircleOutlined /> : <ExclamationCircleOutlined />}
       message={`${sortedAlerts.length} Active Alerts`}
       description={
-        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={4} style={{ width: '100%' }}>
           {sortedAlerts.map((alert, index) => (
             <div key={index}>
               <strong style={{ color: alert.type === 'critical' ? '#cf1322' : '#d48806' }}>

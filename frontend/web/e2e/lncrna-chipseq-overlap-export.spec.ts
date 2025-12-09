@@ -7,7 +7,7 @@ import { dirname } from 'path'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const BASE_URL = 'http://localhost:5175'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 const DOWNLOAD_TIMEOUT = 30000
 const DOWNLOAD_DIR = path.join(__dirname, '../test-downloads')

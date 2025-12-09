@@ -29,7 +29,7 @@ export default defineConfig({
   // 全局配置
   use: {
     // 基础 URL
-    baseURL: 'http://localhost:5173',
+    baseURL: process.env.BASE_URL || 'http://localhost:5173',
 
     // 失败时记录 trace
     trace: 'on-first-retry',

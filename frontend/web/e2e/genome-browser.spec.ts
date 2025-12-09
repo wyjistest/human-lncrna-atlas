@@ -22,7 +22,7 @@ import { test, expect, type Page } from '@playwright/test'
  * - species: Species ID (1-4)
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5174'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/genome-browser'
 
 // Helper to wait for IGV to initialize

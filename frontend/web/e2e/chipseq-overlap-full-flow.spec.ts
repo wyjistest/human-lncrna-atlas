@@ -16,7 +16,7 @@ import { test, expect, type Page } from '@playwright/test'
  * "Phase 3.0 Overlap E2E Tests: Full user flow (filter -> browse -> export)"
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5174'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
 

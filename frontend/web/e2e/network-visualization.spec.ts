@@ -19,7 +19,7 @@ import { test, expect, type Page } from '@playwright/test'
  * Route: /network
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5174'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/network'
 
 // Helper to wait for network API

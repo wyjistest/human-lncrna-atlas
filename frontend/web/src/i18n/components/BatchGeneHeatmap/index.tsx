@@ -11,7 +11,6 @@ import { useTranslation } from 'react-i18next'
 import GeneSelector from './GeneSelector'
 import BatchHeatmapMatrix from './BatchHeatmapMatrix'
 import useBatchGeneHeatmap, { useBatchGeneHeatmapStatus } from '@/hooks/useBatchGeneHeatmap'
-import { chipseqApi } from '@/api/chipseq'
 import { getCommonMarks } from '@/config/markConfigs'
 import type { HeatmapMetricType, MarkType } from '@/types/chipseq'
 import { CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
@@ -95,20 +94,15 @@ export function BatchGeneHeatmapViewer({
     [onGenesChange]
   )
 
-  // Export handler
+  // Export handler - batch export API has been removed, show info message
   const handleExport = useCallback(() => {
     if (selectedGenes.length === 0) {
       message.warning(t('batchGeneHeatmap.selectGenesFirst', 'Please select genes first'))
       return
     }
 
-    chipseqApi.exportBatchHeatmapToCSV(
-      selectedGenes.map((g) => g.gene_id),
-      selectedMarks,
-      selectedCellTypes,
-      metric
-    )
-  }, [selectedGenes, selectedMarks, selectedCellTypes, metric, t])
+    message.info(t('batchGeneHeatmap.exportNotAvailable', 'Batch export feature is currently being refactored'))
+  }, [selectedGenes, t])
 
   // Mark options
   const markOptions = useMemo(
