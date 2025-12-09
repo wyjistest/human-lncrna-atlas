@@ -48,6 +48,17 @@ ENCODE_FILES = {
             'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k27acStdPk.broadPeak.gz',
             'size_mb': 4.5,
         },
+        # Phase 5 新增 marks
+        'H3K9ac': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k9acStdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k9acStdPk.broadPeak.gz',
+            'size_mb': 3.0,
+        },
+        'H3K4me2': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k4me2StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k4me2StdPk.broadPeak.gz',
+            'size_mb': 4.0,
+        },
     },
     'H1-hESC': {
         'H3K27me3': {
@@ -69,6 +80,17 @@ ENCODE_FILES = {
             'file': 'wgEncodeBroadHistoneH1hescH3k27acStdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k27acStdPk.broadPeak.gz',
             'size_mb': 3.8,
+        },
+        # Phase 5 新增 marks
+        'H3K9ac': {
+            'file': 'wgEncodeBroadHistoneH1hescH3k9acStdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k9acStdPk.broadPeak.gz',
+            'size_mb': 2.5,
+        },
+        'H3K4me2': {
+            'file': 'wgEncodeBroadHistoneH1hescH3k4me2StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k4me2StdPk.broadPeak.gz',
+            'size_mb': 3.5,
         },
     },
     'K562': {
@@ -92,6 +114,7 @@ ENCODE_FILES = {
             'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k27acStdPk.broadPeak.gz',
             'size_mb': 4.2,
         },
+        # 注意: K562 没有 H3K9ac 和 H3K4me2 数据 (ENCODE Broad Histone)
     },
     # MCF-7: Breast adenocarcinoma cell line (UW Histone track - limited data)
     'MCF-7': {
@@ -324,7 +347,7 @@ Examples:
         """
     )
 
-    parser.add_argument('--mark', choices=['H3K27me3', 'H3K4me1', 'H3K4me3', 'H3K27ac', 'H3K9me3', 'H3K36me3'],
+    parser.add_argument('--mark', choices=['H3K27me3', 'H3K4me1', 'H3K4me3', 'H3K27ac', 'H3K9me3', 'H3K36me3', 'H3K9ac', 'H3K4me2'],
                         help='Mark type to download')
     parser.add_argument('--cell-line', nargs='+', default=['GM12878'],
                         choices=list(ENCODE_FILES.keys()),

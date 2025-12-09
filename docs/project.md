@@ -1,442 +1,279 @@
-# Human LncRNA Atlas 项目文档
+# Human LncRNA Atlas 文档索引
 
-## 项目概述
-
-Human LncRNA Atlas 是一个跨物种 LncRNA（长非编码 RNA）调控关系数据库和可视化平台。该项目整合了人类、黑猩猩、猕猴和狨猴四个灵长类物种的 LncRNA 与蛋白编码基因之间的调控关系数据，并提供疾病关联分析功能。
-
-### 核心功能
-- **调控关系查询**：支持按物种、基因名、染色体、结合亲和力(BA)等多维度筛选
-- **序列数据展示**：展示 LncRNA 和 DNA 靶位点序列
-- **疾病关联分析**：关联 GWAS 数据，展示 LncRNA 与疾病/性状的关联
-- **网络可视化**：调控关系的交互式网络图展示
-- **数据导出**：支持 CSV/XLSX 格式导出
+> **更新日期**: 2025-12-09
+> **当前版本**: Phase 4.0+
+> **维护者**: Claude Code (Opus 4.5)
 
 ---
 
-## 目录说明
+## 快速导航
 
-| 目录 | 用途 | 说明 |
-|------|------|------|
-| `/data/wenyujianData/human-lncrna-atlas-github/` | GitHub 仓库 | 用于版本控制和代码托管，不含数据文件 |
-| `/data/wenyujianData/humanLncAtlas/` | 本地运行 | 包含完整数据文件、LongTarget 结果等大文件 |
-
-### 开发工作流程
-
-```bash
-# 1. 在 humanLncAtlas 目录进行开发和测试
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
-
-# 2. 开发完成后，同步修改的文件到 GitHub 目录
-cp -r humanLncAtlas/frontend/backend/app/* human-lncrna-atlas-github/frontend/backend/app/
-cp -r humanLncAtlas/frontend/web/src/* human-lncrna-atlas-github/frontend/web/src/
-cp humanLncAtlas/docs/project.md human-lncrna-atlas-github/docs/
-# ... 根据实际修改的文件同步
-
-# 3. 切换到 GitHub 目录提交
-cd /data/wenyujianData/human-lncrna-atlas-github
-git add -A && git commit -m "feat/fix/docs: 描述" && git push
-```
-
-> **Commit 类型规范**：`feat`(新功能) / `fix`(修复) / `docs`(文档) / `refactor`(重构) / `perf`(性能)
+| 文档 | 说明 |
+|------|------|
+| [@README.md](../README.md) | 项目概述、快速开始、安装部署 |
+| [@CLAUDE.md](../CLAUDE.md) | 项目记忆、开发规范、工作流程 |
+| [@CHANGELOG.md](../CHANGELOG.md) | 版本变更历史 |
 
 ---
 
-## 项目结构
+## 按主题分类
 
-```
-human-lncrna-atlas-github/         # GitHub 仓库目录
-├── .github/                       # GitHub Actions CI/CD
-├── docs/                          # 项目文档
-├── etl/                           # 数据导入脚本
-│   ├── import_regulations.py      # 调控关系导入
-│   ├── import_sequences.py        # 序列数据导入
-│   ├── import_ortholog_data.py    # 直系同源基因导入
-│   └── import_table15.py          # Table15 疾病数据导入
-├── frontend/
-│   ├── backend/                   # FastAPI 后端
-│   │   ├── app/
-│   │   │   ├── core/              # 配置和数据库连接
-│   │   │   ├── models/            # SQLAlchemy ORM 模型
-│   │   │   ├── routers/           # API 路由
-│   │   │   ├── schemas/           # Pydantic 数据模型
-│   │   │   └── middleware/        # 中间件（日志、限流）
-│   │   ├── tests/                 # 后端测试
-│   │   └── main.py                # FastAPI 入口
-│   └── web/                       # React 前端
-│       ├── src/
-│       │   ├── api/               # API 客户端
-│       │   ├── components/        # 通用组件
-│       │   ├── hooks/             # 自定义 Hooks
-│       │   ├── pages/             # 页面组件
-│       │   ├── i18n/              # 国际化（中/英）
-│       │   └── types/             # TypeScript 类型
-│       └── e2e/                   # E2E 测试 (Playwright)
-├── schema/                        # 数据库 Schema 和迁移
-├── scripts/                       # 运维脚本
-└── tests/                         # 集成测试
-```
+### 项目状态
 
-**本地运行目录额外包含**（不上传 GitHub）：
-- `*_batch_*.txt` - 源数据文件
-- `resultAllLongTarget/` - LongTarget 计算结果
-- `allMergedTranscriptSeq/` - 序列文件
+| 文档 | 说明 | 更新频率 |
+|------|------|----------|
+| [PROJECT_STATUS_REPORT.md](PROJECT_STATUS_REPORT.md) | 完整项目状态报告（已完成 + 未完成） | 每阶段 |
+| [CURRENT_STATUS.md](CURRENT_STATUS.md) | 当前进度摘要、数据库统计 | 每日 |
 
----
+### 架构设计
 
-## 数据库设计
+| 文档 | 说明 |
+|------|------|
+| [DATABASE_DESIGN_FINAL.md](DATABASE_DESIGN_FINAL.md) | 数据库设计、表结构、索引策略 |
+| [VERSION_MIGRATION_STRATEGY.md](VERSION_MIGRATION_STRATEGY.md) | 版本管理、迁移策略 |
+| [PHASE_2.3_CHIPSEQ_ARCHITECTURE.md](PHASE_2.3_CHIPSEQ_ARCHITECTURE.md) | ⭐ ChIP-seq 通用架构设计（推荐阅读） |
+| [PHASE_2.3_ARCHITECTURE_VISUAL.md](PHASE_2.3_ARCHITECTURE_VISUAL.md) | 架构可视化图表 |
 
-### 数据库信息
-- **数据库**: PostgreSQL
-- **数据库名**: `lncrna_production`
-- **用户**: `amax`
-- **主机**: `localhost:5432`
+### 功能模块
 
-### 数据表结构
+| 文档 | 说明 |
+|------|------|
+| [IGV_INTEGRATION_PLAN.md](IGV_INTEGRATION_PLAN.md) | IGV 基因组浏览器集成 |
+| [ENCODE_DATA_GUIDE.md](ENCODE_DATA_GUIDE.md) | ENCODE ChIP-seq 数据下载与导入 |
+| [QUICKSTART_CHIPSEQ.md](QUICKSTART_CHIPSEQ.md) | ChIP-seq 功能快速开始 |
 
-| 表名 | 说明 | 记录数 |
-|------|------|--------|
-| `species` | 物种表 | 4 |
-| `genes` | 基因表（物种特异性） | 17,248 |
-| `core_genes` | 核心基因表（跨物种唯一标识） | 5,484 |
-| `regulations` | 调控关系表 | 804,630 |
-| `sequences` | 序列存储表 | 804,630 |
-| `traits` | 疾病/性状表 | 273 |
-| `trait_gene_associations` | 性状-基因关联表 | 67,763 |
-| `ontologies` | 本体/功能分类表 | - |
-| `import_batches` | 导入批次表 | - |
-| `feature_tracks` | 扩展层轨道配置表 | 1 |
-| `genomic_features` | 基因组特征表（分区） | 5,481,341 |
+### 里程碑报告
 
-### 物种数据分布
+| 文档 | 说明 |
+|------|------|
+| [PHASE_1_MVP_COMPLETION_REPORT.md](PHASE_1_MVP_COMPLETION_REPORT.md) | Phase 1 核心平台完成报告 |
+| [PHASE_2.3_DELIVERY_SUMMARY.md](PHASE_2.3_DELIVERY_SUMMARY.md) | ChIP-seq 架构交付总结 |
+| [PHASE_2.3_2.4_COMPLETION_REPORT.md](PHASE_2.3_2.4_COMPLETION_REPORT.md) | 多 Marks 验证完成报告 |
+| [PHASE_2.3_IMPLEMENTATION_CHECKLIST.md](PHASE_2.3_IMPLEMENTATION_CHECKLIST.md) | 实施检查清单 |
 
-| 物种 | 代码 | 基因数 | 调控关系数 |
-|------|------|--------|-----------|
-| Human | human | ~5,484 | 496,064 |
-| Chimpanzee | chimp | ~6,138 | 156,136 |
-| Macaque | macaque | ~5,406 | 102,430 |
-| Marmoset | marmoset | ~4,805 | 50,000 |
+### 更新日志
 
-### 核心表关系
+| 文档 | 主要内容 |
+|------|----------|
+| [changelog/2025-12-05.md](changelog/2025-12-05.md) | RepeatMasker 扩展层、548 万条数据导入 |
+| [changelog/2025-12-03.md](changelog/2025-12-03.md) | IGV.js 基因组浏览器集成 |
+| [changelog/2025-12-02.md](changelog/2025-12-02.md) | 监控仪表板、分页索引优化 |
+| [changelog/2025-12-01.md](changelog/2025-12-01.md) | E2E 测试框架、Redis 缓存 |
 
-```
-species (1) ──< genes (N) ──< regulations (N) ──< sequences (1)
-                  │
-                  └──> core_genes (1) ──< trait_gene_associations (N) ──> traits
-```
+### 前端开发
+
+| 文档 | 说明 |
+|------|------|
+| [@frontend/web/README.md](../frontend/web/README.md) | 前端开发指南 |
+| [@frontend/TODO_IMPLEMENTATION_PLAN.md](../frontend/TODO_IMPLEMENTATION_PLAN.md) | 前端待办事项（已完成） |
+
+### 后端开发
+
+| 文档 | 说明 |
+|------|------|
+| [@frontend/backend/README.md](../frontend/backend/README.md) | 后端 API 开发指南 |
+| [@frontend/backend/BACKEND_STATUS.md](../frontend/backend/BACKEND_STATUS.md) | 后端状态报告 |
+
+### 部署与运维
+
+| 资源 | 说明 |
+|------|------|
+| [@scripts/start.sh](../scripts/start.sh) | 一键启动脚本 |
+| [@scripts/stop.sh](../scripts/stop.sh) | 一键停止脚本 |
+| [@scripts/run-tests.sh](../scripts/run-tests.sh) | 测试运行脚本 |
+| [@.env.example](../frontend/backend/.env.example) | 环境变量配置示例 |
 
 ---
 
-## 后端 API
+## 技术栈速查
 
-### 技术栈
-- **框架**: FastAPI
+### 后端
+- **框架**: FastAPI + Uvicorn
 - **ORM**: SQLAlchemy 2.0
+- **数据库**: PostgreSQL 15
+- **缓存**: Redis
 - **验证**: Pydantic v2
-- **连接池**: QueuePool (pool_size=5, max_overflow=10)
+- **测试**: pytest + httpx
 
-### 主要端点
-
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/genes` | GET | 基因列表（分页） |
-| `/api/v1/genes/{id}` | GET | 基因详情 |
-| `/api/v1/regulations` | GET | 调控关系列表（多条件筛选） |
-| `/api/v1/regulations/{id}` | GET | 调控详情（含序列） |
-| `/api/v1/regulations/gene/{id}` | GET | 指定基因的调控关系 |
-| `/api/v1/stats/overview` | GET | 统计概览 |
-| `/api/v1/stats/detailed` | GET | 详细统计（图表数据） |
-| `/api/v1/diseases` | GET | 疾病/性状列表 |
-| `/api/v1/network/gene/{id}` | GET | 基因网络数据 |
-| `/api/v1/admin/metrics` | GET | 系统监控指标（CPU/内存/告警/百分位） |
-| `/api/v1/features/tracks` | GET | 扩展层轨道列表 |
-| `/api/v1/features/genes/{id}/repeats` | GET | 基因区域 RepeatMasker |
-| `/api/v1/features/repeats/{species}/classes` | GET | 重复类型列表 |
-| `/api/v1/igv/config/repeatmasker/{species}` | GET | RepeatMasker IGV 轨道配置 |
-
-### 启动命令
-
-```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
----
-
-## 前端
-
-### 技术栈
-- **框架**: React 18 + TypeScript
-- **构建**: Vite
+### 前端
+- **框架**: React 18 + TypeScript + Vite
 - **UI**: Ant Design 5
 - **状态**: TanStack Query (React Query)
 - **路由**: React Router v6
-- **国际化**: i18next（中/英双语）
 - **图表**: ECharts
 - **网络图**: Cytoscape.js
+- **基因组**: IGV.js
+- **国际化**: i18next
+- **测试**: Vitest + Playwright
 
-### 页面结构
+### 数据库
+- **数据库**: PostgreSQL 15
+- **核心表**: 10 张
+- **扩展表**: 7 张（Phase 2+）
+- **数据规模**: 800 万+ 行
+- **存储需求**: ~10 GB
 
-| 页面 | 路径 | 说明 |
-|------|------|------|
-| Home | `/` | 首页概览 |
-| Genes | `/genes` | 基因列表 |
-| GeneDetail | `/genes/:id` | 基因详情（Tabs: Core Data / Genomic Features） |
-| Regulations | `/regulations` | 调控关系列表 |
-| Diseases | `/diseases` | 疾病关联 |
-| Network | `/network` | 网络可视化 |
-| Stats | `/stats` | 统计图表 |
-| Monitoring | `/admin/monitoring` | 系统监控仪表板 |
+---
 
-### 关键组件
+## 数据统计速查
 
-| 组件 | 路径 | 说明 |
-|------|------|------|
-| `SequenceViewer` | `components/SequenceViewer.tsx` | 序列查看器（Modal） |
-| `LoadingState` | `components/LoadingState.tsx` | 加载状态 |
-| `ErrorState` | `components/ErrorState.tsx` | 错误状态 |
-| `RepeatMaskerTable` | `components/RepeatMaskerTable/` | RepeatMasker 数据表格 |
-| `GenomeBrowser` | `components/GenomeBrowser/` | IGV.js 基因组浏览器 |
+### 核心数据
 
-### 启动命令
+| 数据表 | 记录数 | 说明 |
+|--------|--------|------|
+| `species` | 4 | 灵长类物种 |
+| `genes` | 17,248 | 物种特异性基因 |
+| `regulations` | 804,630 | 调控关系 |
+| `chipseq_peaks` | 3,590,215 | ChIP-seq/DNase-seq peaks |
+| `genomic_features` | 5,481,341 | RepeatMasker 注释 |
 
+### 细胞系覆盖
+
+| 细胞系 | 组织 | Marks | 状态 |
+|--------|------|-------|------|
+| K562 | 白血病细胞 | 8 | ⭐ 完整 |
+| GM12878 | B淋巴细胞 | 8 | ⭐ 完整 |
+| H1-hESC | 胚胎干细胞 | 8 | ⭐ 完整 |
+| HepG2 | 肝癌细胞 | 7 | ⭐ 完整 |
+| A549 | 肺腺癌 | 7 | ⭐ 完整 |
+| MCF-7 | 乳腺癌 | 2 | 部分 |
+| HMEC | 正常乳腺 | 7 | ⭐ 完整 |
+
+---
+
+## 常用命令速查
+
+### 启动服务
 ```bash
+# 后端
+cd /data/wenyujianData/humanLncAtlas/backend/app
+source venv/bin/activate
+uvicorn main:app --reload --port 8000
+
+# 前端
 cd /data/wenyujianData/humanLncAtlas/frontend/web
-npm run dev -- --host 0.0.0.0
+npm run dev
 ```
 
-### 访问地址
-- 本地: http://localhost:5173
-- 内网: http://192.168.6.135:5173
-
----
-
-## 数据导入流程
-
-### 1. 调控关系导入
+### 运行测试
 ```bash
-cd /data/wenyujianData/humanLncAtlas/etl
-python3 import_regulations.py
+# 全部测试
+./scripts/run-tests.sh all
+
+# 后端测试
+cd frontend/backend && pytest tests/ -v
+
+# 前端单元测试
+cd frontend/web && npm run test:run
+
+# E2E 测试
+cd frontend/web && npm run test:e2e
 ```
 
-数据源文件：
-- `human_batch_human.txt` - Human 数据 (BA>=50)
-- `chimp_batch_BA50.txt` - Chimpanzee 数据
-- `macaque_batch_BA50.txt` - Macaque 数据
-- `marmoset_batch_BA50.txt` - Marmoset 数据
-
-### 2. 序列数据导入
+### 数据库操作
 ```bash
-python3 import_sequences.py
-```
+# 连接数据库
+psql -U amax -d lncrna_production
 
-关键逻辑：
-- 通过 (lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end) 匹配 regulation
-- 支持基因 ID 版本号灵活匹配（ENSG00000129484.9 → ENSG00000129484）
-- 支持物种后缀处理（CATG00000016469.1_marmoset → CATG00000016469.1）
+# 查看表统计
+psql -U amax -d lncrna_production -c "
+  SELECT schemaname, tablename, n_live_tup
+  FROM pg_stat_user_tables
+  ORDER BY n_live_tup DESC
+"
 
-### 3. 疾病关联导入
-```bash
-python3 import_table15.py
-```
-
-### 4. RepeatMasker 导入 (Phase 2.1)
-```bash
-# 下载 UCSC RepeatMasker 数据
-wget https://hgdownload.gi.ucsc.edu/goldenPath/hg19/database/rmsk.txt.gz
-gunzip rmsk.txt.gz
-
-# 导入数据（约 4 分钟）
-python3 import_ucsc_rmsk.py rmsk.txt --batch-size 50000
-```
-
-数据来源：UCSC Genome Browser hg19 RepeatMasker (5,481,341 条)
-
----
-
-## 配置说明
-
-### 后端配置 (`backend/app/core/config.py`)
-
-```python
-DATABASE_HOST = "localhost"
-DATABASE_PORT = 5432
-DATABASE_USER = "amax"
-DATABASE_PASSWORD = ""
-DATABASE_NAME = "lncrna_production"
-```
-
-### 前端配置 (`web/src/config/constants.ts`)
-
-```typescript
-export const API_BASE_URL = '/api/v1'
-export const EXPORT_LIMITS = {
-  MAX_FRONTEND: 100000,  // 前端导出限制
-  WARNING_THRESHOLD: 10000
-}
-```
-
----
-
-## 常见操作
-
-### 重启后端
-```bash
-pkill -f "uvicorn main:app"
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
-nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
-```
-
-### 重启前端
-```bash
-pkill -f "vite"
-cd /data/wenyujianData/humanLncAtlas/frontend/web
-nohup npm run dev -- --host 0.0.0.0 > /tmp/frontend.log 2>&1 &
-```
-
-### 检查服务状态
-```bash
-ps aux | grep -E "(uvicorn|vite)" | grep -v grep
-```
-
-### 查看数据库统计
-```bash
-PGPASSWORD="" psql -h localhost -U amax -d lncrna_production -c "
-SELECT
-    s.species_code,
-    COUNT(DISTINCT r.regulation_id) as regulations,
-    COUNT(DISTINCT seq.sequence_id) as sequences
-FROM species s
-LEFT JOIN regulations r ON s.species_id = r.species_id
-LEFT JOIN sequences seq ON r.regulation_id = seq.regulation_id
-GROUP BY s.species_id, s.species_code
+# 刷新物化视图
+psql -U amax -d lncrna_production -c "
+  REFRESH MATERIALIZED VIEW mv_chipseq_mark_stats;
+  REFRESH MATERIALIZED VIEW mv_gene_mark_summary;
 "
 ```
 
 ---
 
-## 更新日志
+## API 端点速查
 
-详细更新记录见 `docs/changelog/` 目录：
+### 核心 API
 
-| 日期 | 主要内容 | 文件 |
-|------|----------|------|
-| 2025-12-05 | **Phase 2.1 RepeatMasker 扩展层**、548 万条数据导入 | [2025-12-05.md](changelog/2025-12-05.md) |
-| 2025-12-03 | **IGV.js 基因组浏览器集成**、FANTOM CAT 基因轨道 | [2025-12-03.md](changelog/2025-12-03.md) |
-| 2025-12-02 | **监控仪表板**、分页索引优化、前端缓存 | [2025-12-02.md](changelog/2025-12-02.md) |
-| 2025-12-01 | E2E 测试框架、Redis 缓存、代码审查 | [2025-12-01.md](changelog/2025-12-01.md) |
-| 2024-12-01 | 序列展示、性能优化 | [2024-12-01.md](changelog/2024-12-01.md) |
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/v1/genes` | GET | 基因列表 |
+| `/api/v1/genes/{id}` | GET | 基因详情 |
+| `/api/v1/regulations` | GET | 调控关系 |
+| `/api/v1/diseases` | GET | 疾病关联 |
+| `/api/v1/stats/overview` | GET | 统计概览 |
+| `/api/v1/network/gene/{id}` | GET | 网络数据 |
 
----
+### ChIP-seq API
 
-## 测试
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/v1/features/chipseq/marks` | GET | 可用 marks |
+| `/api/v1/features/chipseq/genes/{id}` | GET | 基因 peaks |
+| `/api/v1/features/chipseq/global-compare` | GET | 全局对比 |
 
-### 测试覆盖
+### IGV API
 
-| 类型 | 框架 | 测试数 | 路径 |
-|------|------|--------|------|
-| 后端 API 合同测试 | pytest + httpx | 14 | `frontend/backend/tests/test_api_contracts.py` |
-| 前端单元测试 | Vitest | 6 | `frontend/web/src/**/*.test.tsx` |
-| 前端 E2E 测试 | Playwright | 14 | `frontend/web/e2e/*.spec.ts` |
-| **总计** | | **34** | |
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/v1/igv/genomes` | GET | 基因组列表 |
+| `/api/v1/igv/tracks/{species}` | GET | 轨道配置 |
 
-### 运行测试
-
-```bash
-# 一键运行所有测试（需要服务已启动）
-./scripts/run-tests.sh all
-
-# 仅运行后端测试
-./scripts/run-tests.sh backend
-
-# 仅运行前端单元测试
-./scripts/run-tests.sh unit
-
-# 仅运行 E2E 测试
-./scripts/run-tests.sh e2e
-
-# 或分别运行
-cd frontend/backend && pytest tests/test_api_contracts.py -v
-cd frontend/web && npm run test:run
-cd frontend/web && npm run test:e2e
-```
-
-### CI/CD
-
-- GitHub Actions 配置: `.github/workflows/test.yml`
-- 触发条件: push/PR 到 main/master/develop 分支
-- 包含: 单元测试、Lint、构建检查
+**完整 API 文档**: http://localhost:8000/docs
 
 ---
 
-## 待办事项
+## 访问地址
 
-### 数据侧
-- [x] 检查 203 条空 DNA 序列是否可从其他来源补充 ✅ (2025-12-02 完成：从 8chimpManualProPromoterSeq 目录补充)
+### 内网访问
+- **前端**: http://192.168.6.135:5173
+- **后端**: http://192.168.6.135:8000
+- **Swagger**: http://192.168.6.135:8000/docs
 
-### 前端体验
-- [x] 为 Network 页和 Regulations 列表加加载/空态/错误提示 ✅ (2025-12-02 验收)
-- [x] 补一个序列查看的复制/下载入口 ✅ (2025-12-02 完成 FASTA 下载)
-- [x] 检查大分页滚动性能 ✅ (2025-12-02 验收：服务端分页 + 预加载)
-
-### 性能与缓存
-- [x] 为高频查询添加 Redis 缓存 ✅ (2025-12-01 完成)
-- [x] 确认分页排序字段覆盖索引 ✅ (2025-12-02 完成)
-
-### 回归与监控
-- [x] 补前端 E2E 或 API 合同测试 ✅ (2025-12-01 完成)
-- [x] 简化日志/metrics 为可视化看板 ✅ (2025-12-02 完成：完整监控仪表板)
-
-### 文档与运维
-- [x] 完善一键启动脚本 ✅ (2025-12-02 完成：scripts/start.sh + stop.sh)
-- [x] 记录常见查询示例与数据字典 ✅ (2025-12-02 验收：DATABASE_DESIGN_FINAL.md + API_GUIDE.md)
+### 外网访问（frp）
+- **前端**: http://45.62.117.191:6003
+- **后端**: http://45.62.117.191:6004
 
 ---
 
-## 下一步规划
+## 文档维护规范
 
-### Phase 2.3: ChIP-seq Epigenetic Marks（架构设计完成）⭐
+### 更新原则
 
-**状态**: 架构设计完成，所有代码和文档已交付，等待实施
+1. **代码同步**: 所有文档必须与代码保持同步
+2. **功能变更**: 重大功能变更必须更新相关文档
+3. **状态更新**: 每个开发阶段结束后更新 PROJECT_STATUS_REPORT.md
+4. **日志记录**: 重要更新添加到 changelog/ 目录
 
-**核心特性**:
-- ✅ 通用架构设计，支持 **15+ 种组蛋白修饰** (H3K27me3, H3K4me1, H3K4me3, H3K27ac 等)
-- ✅ 配置驱动 UI，新增 mark 仅需 2 天（vs 单一设计的 10 天）
-- ✅ 前后端完整代码生成（21+ 个文件，~240 KB）
-- ✅ Bivalent domain 识别（H3K27me3 + H3K4me3 重叠区域）
-- ✅ 多 marks 对比功能
+### 文档分类
 
-**交付文档**:
-- `PHASE_2.3_CHIPSEQ_ARCHITECTURE.md` - 完整架构设计（41 KB）
-- `PHASE_2.3_IMPLEMENTATION_CHECKLIST.md` - 逐步实施指南（18 KB）
-- `QUICKSTART_CHIPSEQ.md` - 快速开始指南（11 KB）
-- `PHASE_2.3_DELIVERY_SUMMARY.md` - 交付总结（20 KB）
-- `PHASE_2.3_ARCHITECTURE_VISUAL.md` - 可视化架构图
+| 类型 | 更新时机 | 负责人 |
+|------|----------|--------|
+| 状态报告 | 每阶段完成 | 开发者 |
+| 架构文档 | 架构变更时 | 架构师/Claude |
+| 更新日志 | 每日/每功能 | 开发者 |
+| API 文档 | Swagger 自动生成 | 自动 |
 
-**预计工期**: 10 个工作日（首个 mark），后续每个 mark 仅需 2 天
+### 命名规范
 
-### Phase 2.4: 多 Marks 验证（✅ 已完成 2025-12-06）
-- ✅ 导入 ENCODE K562 真实数据（6 种 marks，422,649 peaks）
-  - H3K4me1: 125,713 peaks
-  - H3K27me3: 88,069 peaks
-  - H3K27ac: 58,937 peaks
-  - H3K36me3: 54,277 peaks
-  - H3K4me3: 52,422 peaks
-  - H3K9me3: 43,231 peaks
-- ✅ 验证通用架构的扩展性
-- ✅ IGV ChIP-seq 轨道集成
-
-### Phase 2.5: 高级对比功能（✅ 已完成 2025-12-06）
-- ✅ 增强 /compare API（median, std, coverage, percentiles）
-- ✅ 通用化重叠检测（任意 mark 对，不仅限 bivalent）
-- ✅ 5 种 ECharts 对比图表（Peak Count, Signal, Position, Fold Enrichment, Peak Width）
-- ✅ BivalentDomainBadge 组件（自动检测 H3K4me3+H3K27me3）
-- ✅ 导出功能（CSV/TSV/BED/JSON）
-- ✅ 国际化支持（中/英）
-- 实际工期: 0.5 天（vs 预估 7 天）
+- 状态报告: `PROJECT_STATUS_REPORT.md`, `CURRENT_STATUS.md`
+- 阶段文档: `PHASE_X.X_*.md`
+- 更新日志: `changelog/YYYY-MM-DD.md`
+- 指南文档: `*_GUIDE.md`, `QUICKSTART_*.md`
 
 ---
 
-## 联系信息
+## 历史文档（参考）
 
-项目路径: `/data/wenyujianData/humanLncAtlas`
+以下文档为历史版本，仅供参考：
+
+| 文档 | 说明 | 状态 |
+|------|------|------|
+| [changelog/2024-12-01.md](changelog/2024-12-01.md) | 早期版本更新 | 归档 |
+
+---
+
+**Human LncRNA Atlas 项目组**
+- 开发者: wyjistest
+- AI 协助: Claude Code (Opus 4.5)
+- GitHub: https://github.com/wyjistest/human-lncrna-atlas
