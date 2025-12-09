@@ -250,6 +250,23 @@ export const MARK_CONFIGS: Record<MarkType, MarkConfig> = {
     },
   },
 
+  H4K20me3: {
+    displayName: 'H4K20me3 (Heterochromatin)',
+    shortName: 'H4K20me3',
+    color: '#6C3483',
+    secondaryColor: '#D2B4DE',
+    category: 'repressive',
+    description: 'Heterochromatin mark - associated with constitutive heterochromatin and gene silencing',
+    icon: 'lock',
+    isCommon: false,
+    sortOrder: 14,
+    defaultFilters: {
+      min_fold_enrichment: 3,
+      max_qvalue: 0.05,
+      flanking: 10000,
+    },
+  },
+
   H3K4ac: {
     displayName: 'H3K4ac (Active)',
     shortName: 'K4ac',
@@ -301,6 +318,23 @@ export const MARK_CONFIGS: Record<MarkType, MarkConfig> = {
     },
   },
 
+  H3K56ac: {
+    displayName: 'H3K56ac (DNA Repair)',
+    shortName: 'K56ac',
+    color: '#48C9B0',
+    secondaryColor: '#D1F2EB',
+    category: 'activating',
+    description: 'DNA repair and replication mark - associated with chromatin assembly and genome stability',
+    icon: 'tool',
+    isCommon: false,
+    sortOrder: 17,
+    defaultFilters: {
+      min_fold_enrichment: 3,
+      max_qvalue: 0.05,
+      flanking: 10000,
+    },
+  },
+
   // ============================================
   // OPEN CHROMATIN MARKS
   // ============================================
@@ -313,11 +347,31 @@ export const MARK_CONFIGS: Record<MarkType, MarkConfig> = {
     description: 'DNase I Hypersensitive Sites - marks open/accessible chromatin regions',
     icon: 'unlock',
     isCommon: true,
-    sortOrder: 17,
+    sortOrder: 18,
     defaultFilters: {
       min_fold_enrichment: 10,
       max_qvalue: 0.01,
       flanking: 5000,
+    },
+  },
+
+  // ============================================
+  // STRUCTURAL/INSULATOR MARKS
+  // ============================================
+  CTCF: {
+    displayName: 'CTCF (Insulator)',
+    shortName: 'CTCF',
+    color: '#E74C3C',
+    secondaryColor: '#FADBD8',
+    category: 'structural',
+    description: 'CCCTC-binding factor - insulator protein involved in chromatin organization and gene regulation',
+    icon: 'border',
+    isCommon: true,
+    sortOrder: 19,
+    defaultFilters: {
+      min_fold_enrichment: 5,
+      max_qvalue: 0.01,
+      flanking: 10000,
     },
   },
 }
@@ -366,6 +420,12 @@ export const CATEGORY_CONFIGS: Record<MarkCategory, {
     color: '#FF6B35',
     description: 'Regions of accessible chromatin (DNase-seq, ATAC-seq)',
     icon: 'unlock',
+  },
+  structural: {
+    displayName: 'Structural/Insulator',
+    color: '#E74C3C',
+    description: 'Chromatin organization and insulator proteins',
+    icon: 'border',
   },
 }
 
@@ -420,7 +480,7 @@ export function getMarksGroupedByCategory(): Array<{
   categoryName: string
   marks: Array<{ value: MarkType; label: string; color: string }>
 }> {
-  const categories: MarkCategory[] = ['repressive', 'activating', 'enhancer', 'elongation', 'open_chromatin', 'other']
+  const categories: MarkCategory[] = ['repressive', 'activating', 'enhancer', 'elongation', 'open_chromatin', 'structural', 'other']
 
   return categories.map((category) => ({
     category,
