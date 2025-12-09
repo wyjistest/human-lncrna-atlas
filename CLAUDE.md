@@ -131,23 +131,13 @@ git add -A && git commit -m "feat: 描述" && git push
 
 ## 文档索引
 
-### 项目状态
-- @docs/PROJECT_STATUS_REPORT.md - 完整项目状态报告
-- @docs/CURRENT_STATUS.md - 当前进度摘要
-- @CHANGELOG.md - 版本变更历史
+> **注意**: 仅在需要时手动读取这些文档，避免占用上下文
 
-### 开发文档
-- @docs/project.md - 项目概述
-- @frontend/backend/BACKEND_STATUS.md - 后端状态
-- @frontend/TODO_IMPLEMENTATION_PLAN.md - 前端待办
-
-### 技术文档
-- @docs/changelog/2025-12-05.md - RepeatMasker 实现
-- @docs/PHASE_1_MVP_COMPLETION_REPORT.md - MVP 完成报告
-
-### API 文档
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+| 文档 | 路径 | 说明 |
+|------|------|------|
+| 项目状态 | `docs/PROJECT_STATUS_REPORT.md` | 完整状态报告 |
+| 当前进度 | `docs/CURRENT_STATUS.md` | 数据库统计、最近更新 |
+| API 文档 | http://localhost:8000/docs | Swagger UI |
 
 ## 记忆更新规范
 
