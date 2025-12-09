@@ -1,0 +1,93 @@
+{
+  "title": "ChIP-seq 全局组蛋白修饰对比",
+  "subtitle": "跨所有基因和细胞类型比较组蛋白修饰",
+
+  "filters": {
+    "title": "筛选条件",
+    "marks": "选择组蛋白修饰",
+    "marksPlaceholder": "所有修饰类型（点击筛选）",
+    "cellTypes": "选择细胞类型",
+    "cellTypesPlaceholder": "所有细胞类型（点击筛选）",
+    "active": "当前筛选",
+    "more": "更多",
+    "clear": "清除全部"
+  },
+
+  "tabs": {
+    "radar": "雷达图",
+    "bar": "柱状图",
+    "boxplot": "箱线图",
+    "matrix": "细胞矩阵"
+  },
+
+  "stats": {
+    "totalMarks": "修饰类型",
+    "totalPeaks": "总峰数",
+    "totalGenes": "总基因数",
+    "cellTypes": "细胞类型",
+    "avgSignal": "平均信号",
+    "avgEnrichment": "平均富集度"
+  },
+
+  "charts": {
+    "noData": "暂无数据",
+
+    "radar": {
+      "title": "多修饰类型对比",
+      "peakCount": "峰数量",
+      "avgSignal": "平均信号",
+      "coverage": "覆盖度",
+      "cellTypes": "细胞类型数",
+      "geneCount": "基因数量",
+      "foldEnrichment": "富集倍数"
+    },
+
+    "bar": {
+      "title": "修饰类型对比",
+      "metricLabel": "对比指标",
+      "totalPeaks": "总峰数",
+      "geneCount": "基因数量",
+      "cellTypes": "细胞类型",
+      "coverage": "覆盖度",
+      "avgSignal": "平均信号",
+      "avgEnrichment": "平均富集度"
+    },
+
+    "boxplot": {
+      "title": "信号分布（按修饰类型）",
+      "yAxis": "信号值",
+      "seriesName": "信号分布",
+      "outliers": "异常值",
+      "outlier": "异常值",
+      "max": "最大值",
+      "q3": "Q3 (75%)",
+      "median": "中位数",
+      "q1": "Q1 (25%)",
+      "min": "最小值",
+      "sampleSize": "样本量"
+    },
+
+    "matrix": {
+      "title": "细胞类型 × 修饰类型矩阵",
+      "metricLabel": "显示指标",
+      "noData": "暂无矩阵数据",
+      "mark": "修饰类型",
+      "peakCount": "峰数量",
+      "geneCount": "基因数量",
+      "avgSignal": "平均信号",
+      "foldEnrichment": "富集倍数",
+      "coverage": "覆盖度"
+    }
+  },
+
+  "export": {
+    "saveImage": "保存为图片",
+    "exportCSV": "导出 CSV",
+    "exportData": "导出数据"
+  },
+
+  "errors": {
+    "loadFailed": "加载对比数据失败",
+    "noMarksSelected": "请至少选择一个修饰类型进行对比"
+  }
+}

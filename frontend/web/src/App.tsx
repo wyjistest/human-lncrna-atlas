@@ -15,6 +15,7 @@ import Diseases from './pages/Diseases'
 import Network from './pages/Network'
 import Monitoring from './pages/Admin/Monitoring'
 import LncRNAChIPSeqOverlapPage from './pages/LncRNAChIPSeqOverlapPage'
+import ChIPSeqComparePage from './pages/ChIPSeqComparePage'
 
 // Lazy load GenomeBrowser (large IGV.js bundle)
 const GenomeBrowser = lazy(() => import('./pages/GenomeBrowser'))
@@ -50,6 +51,7 @@ function App() {
               </Suspense>
             } />
             <Route path="lncrna-chipseq-overlap" element={<LncRNAChIPSeqOverlapPage />} />
+            <Route path="chipseq-compare" element={<ChIPSeqComparePage />} />
             <Route path="admin/monitoring" element={<Monitoring />} />
           </Route>
         </Routes>

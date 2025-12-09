@@ -2,7 +2,7 @@
  * ECharts 按需导入配置（基于 ECharts 6）
  *
  * 仅导入需要的组件，减少 bundle 大小
- * 当前导入：PieChart, BarChart, LineChart, GaugeChart, BoxplotChart, HeatmapChart
+ * 当前导入：PieChart, BarChart, LineChart, GaugeChart, BoxplotChart, HeatmapChart, RadarChart
  */
 
 import * as echarts from 'echarts/core'
@@ -15,6 +15,8 @@ import {
   GaugeChart,
   BoxplotChart,
   HeatmapChart,
+  RadarChart,
+  ScatterChart,
 } from 'echarts/charts'
 
 // 组件
@@ -25,6 +27,7 @@ import {
   GridComponent,
   ToolboxComponent,
   VisualMapComponent,
+  RadarComponent,
 } from 'echarts/components'
 
 // 渲染器
@@ -38,6 +41,8 @@ import type {
   GaugeSeriesOption,
   BoxplotSeriesOption,
   HeatmapSeriesOption,
+  RadarSeriesOption,
+  ScatterSeriesOption,
 } from 'echarts/charts'
 
 import type {
@@ -47,6 +52,7 @@ import type {
   GridComponentOption,
   ToolboxComponentOption,
   VisualMapComponentOption,
+  RadarComponentOption,
 } from 'echarts/components'
 
 // 组合选项类型
@@ -57,12 +63,15 @@ export type ECOption = echarts.ComposeOption<
   | GaugeSeriesOption
   | BoxplotSeriesOption
   | HeatmapSeriesOption
+  | RadarSeriesOption
+  | ScatterSeriesOption
   | TitleComponentOption
   | TooltipComponentOption
   | LegendComponentOption
   | GridComponentOption
   | ToolboxComponentOption
   | VisualMapComponentOption
+  | RadarComponentOption
 >
 
 // 注册组件
@@ -73,12 +82,15 @@ echarts.use([
   GaugeChart,
   BoxplotChart,
   HeatmapChart,
+  RadarChart,
+  ScatterChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,
   GridComponent,
   ToolboxComponent,
   VisualMapComponent,
+  RadarComponent,
   CanvasRenderer,
 ])
 

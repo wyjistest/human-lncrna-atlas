@@ -4,6 +4,7 @@
   "genes": "Gene List",
   "regulations": "Regulations",
   "overlap": "Overlap Analysis",
+  "chipseqCompare": "ChIP-seq Compare",
   "diseases": "Diseases",
   "network": "Network",
   "genomeBrowser": "Genome Browser",

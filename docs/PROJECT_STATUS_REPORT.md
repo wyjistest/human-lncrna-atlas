@@ -1,8 +1,8 @@
 # Human LncRNA Atlas 项目状态报告
 
-> **生成日期**: 2025-12-09（更新）
+> **生成日期**: 2025-12-09（更新：Phase 2.5 全局对比可视化完成）
 > **报告类型**: 完整项目状态（已完成 + 未完成）
-> **项目阶段**: Phase 4.0 已完成（CTCF + H4K20me1 ENCODE hg19 数据导入）
+> **项目阶段**: Phase 4.0+ 已完成（含全局 ChIP-seq 对比可视化）
 
 ---
 
@@ -18,6 +18,7 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
 - ✅ **lncRNA-ChIP-seq Overlap 分析** - 核心科学功能
 - ✅ **批量导出功能** - BED/CSV 格式支持
 - ✅ **癌症 vs 正常对比** - MCF-7 (乳腺癌) vs HMEC (正常乳腺)
+- ✅ **全局 ChIP-seq 对比可视化** - 新增雷达图、箱线图、热力图、柱状图
 
 ### 核心指标
 
@@ -318,6 +319,52 @@ Human LncRNA Atlas 是一个跨物种 LncRNA 调控关系数据库和可视化�
   - 在 `useChIPSeqCompare` hook 中添加数据转换层
 - ✅ **空值处理**：修复 `formatScientific`、`getQValueColor`、`getFoldEnrichmentColor` 函数的 null/undefined 处理
 - ✅ **分页数据检查**：修复 `peaksData.total === 0` 无法处理 undefined 的问题
+
+---
+
+### Phase 2.5+: 全局 ChIP-seq 对比可视化（2025-12-09 完成）⭐⭐
+
+#### 新增后端 API（3 个端点）
+- ✅ **全局对比 API**：`/api/v1/features/chipseq/global-compare`
+  - 返回所有 marks 的全局统计（peaks、信号强度、覆盖度等）
+  - 支持细胞系和 marks 筛选
+  - Redis 缓存（10分钟 TTL）+ 速率限制（60/min）
+- ✅ **细胞系矩阵 API**：`/api/v1/features/chipseq/cell-line-matrix`
+  - 返回 marks × cell_types 矩阵数据
+  - 支持 3 种指标：peak_count、avg_signal、coverage
+  - 适用于热力图可视化
+- ✅ **信号分布 API**：`/api/v1/features/chipseq/signal-distribution`
+  - 返回箱线图统计数据（min, Q1, median, Q3, max, outliers）
+  - 支持采样大小配置（默认 10,000）
+
+#### 新增前端组件（5 个图表 + 1 个页面）
+- ✅ **RadarCompareChart** - 6 维雷达图
+  - 维度：Peak Count、Avg Signal、Coverage、Cell Types、Gene Count、Fold Enrichment
+  - 多 marks 同时对比
+- ✅ **BoxPlotChart** - 箱线图
+  - 显示各 mark 的信号强度分布
+  - 支持异常值显示
+- ✅ **CellLineMatrixChart** - 热力图
+  - marks × cell_types 矩阵可视化
+  - 5 种指标可切换
+- ✅ **GlobalBarChart** - 多系列柱状图
+  - 4 种指标可切换（peaks、genes、cell_types、coverage）
+  - 渐变颜色配色
+- ✅ **GlobalCompareSection** - 主容器组件
+  - 多选筛选器（marks、cell_types，按类别分组）
+  - Tab 切换 4 种图表类型
+  - 统计摘要卡片
+
+#### 新增页面和路由
+- ✅ **ChIPSeqComparePage** - 新增独立页面 `/chipseq-compare`
+- ✅ **导航菜单** - MainLayout 新增 "ChIP-seq Compare" 菜单项
+- ✅ **国际化** - 完整的中英双语支持（globalCompare.json）
+
+#### E2E 测试覆盖
+- ✅ API 测试：19/24 通过
+- ✅ 页面测试：10/28 通过
+- ✅ 导航测试：18/22 通过
+- ✅ **ChIP-seq 流程测试：40/40 通过**（核心功能 100%）
 
 ---
 
@@ -1056,17 +1103,16 @@ docs/
 
 ### 近期（1-2 周）
 
-**优先级 1: Phase 2.5 对比功能**
-- 多 marks 对比 API
-- ECharts 可视化
-- **价值**: 充分发挥多 marks 数据的科研价值
-- **工期**: 7 天
+**优先级 1: Bivalent Domain 深度分析**
+- H3K4me3 + H3K27me3 共定位分析增强
+- 发育基因自动发现
+- **价值**: 高科研价值，数据已就绪
+- **工期**: 3-5 天
 
-**优先级 2: UI/UX 完善**
-- 全面测试 ChIP-seq 功能
-- 修复 Bug，优化体验
-- **价值**: 提升产品质量
-- **工期**: 2-3 天
+**优先级 2: Super-enhancer 识别**
+- 基于 H3K27ac 聚集检测 super-enhancers
+- **价值**: 癌症研究热点
+- **工期**: 5-7 天
 
 ---
 

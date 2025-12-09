@@ -4,6 +4,7 @@
   "genes": "基因列表",
   "regulations": "调控关系",
   "overlap": "重叠分析",
+  "chipseqCompare": "ChIP-seq对比",
   "diseases": "疾病关联",
   "network": "网络可视化",
   "genomeBrowser": "基因组浏览器",

@@ -23,6 +23,7 @@ import zhRegulations from './locales/zh-CN/regulations.json'
 import zhNetwork from './locales/zh-CN/network.json'
 import zhGenomeBrowser from './locales/zh-CN/genomeBrowser.json'
 import zhOverlap from './locales/zh-CN/overlap.json'
+import zhGlobalCompare from './locales/zh-CN/globalCompare.json'
 
 // English
 import enCommon from './locales/en/common.json'
@@ -35,6 +36,7 @@ import enRegulations from './locales/en/regulations.json'
 import enNetwork from './locales/en/network.json'
 import enGenomeBrowser from './locales/en/genomeBrowser.json'
 import enOverlap from './locales/en/overlap.json'
+import enGlobalCompare from './locales/en/globalCompare.json'
 
 // ============ 资源配置 ============
 
@@ -49,7 +51,8 @@ const resources = {
     regulations: zhRegulations,
     network: zhNetwork,
     genomeBrowser: zhGenomeBrowser,
-    overlap: zhOverlap
+    overlap: zhOverlap,
+    globalCompare: zhGlobalCompare
   },
   en: {
     common: enCommon,
@@ -61,7 +64,8 @@ const resources = {
     regulations: enRegulations,
     network: enNetwork,
     genomeBrowser: enGenomeBrowser,
-    overlap: enOverlap
+    overlap: enOverlap,
+    globalCompare: enGlobalCompare
   }
 }
 
@@ -83,7 +87,7 @@ i18n
     resources,
     fallbackLng: 'zh-CN',
     defaultNS: 'common',
-    ns: ['common', 'nav', 'home', 'stats', 'genes', 'diseases', 'regulations', 'network', 'genomeBrowser', 'overlap'],
+    ns: ['common', 'nav', 'home', 'stats', 'genes', 'diseases', 'regulations', 'network', 'genomeBrowser', 'overlap', 'globalCompare'],
 
     interpolation: {
       escapeValue: false // React 已处理 XSS
