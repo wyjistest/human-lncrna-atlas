@@ -147,6 +147,54 @@ GENE_ANNOTATION_TRACKS = {
     },
 }
 
+# ChIP-seq BigBed 轨道配置 (Human only, species_id=1)
+# Each BigBed file contains all marks for a specific cell type
+# BED9 format with itemRgb for color-coded marks
+CHIPSEQ_BIGBED_TRACKS = {
+    "K562": {
+        "name": "ChIP-seq: K562 (Leukemia)",
+        "url": "/genomes/chipseq_K562.bb",
+        "color": "#E53935",  # Red
+        "description": "All ChIP-seq marks for K562 leukemia cell line",
+    },
+    "GM12878": {
+        "name": "ChIP-seq: GM12878 (B-lymphocyte)",
+        "url": "/genomes/chipseq_GM12878.bb",
+        "color": "#1E88E5",  # Blue
+        "description": "All ChIP-seq marks for GM12878 B-lymphocyte",
+    },
+    "H1-hESC": {
+        "name": "ChIP-seq: H1-hESC (Stem Cell)",
+        "url": "/genomes/chipseq_H1_hESC.bb",
+        "color": "#43A047",  # Green
+        "description": "All ChIP-seq marks for H1-hESC embryonic stem cell",
+    },
+    "HepG2": {
+        "name": "ChIP-seq: HepG2 (Liver Cancer)",
+        "url": "/genomes/chipseq_HepG2.bb",
+        "color": "#FB8C00",  # Orange
+        "description": "All ChIP-seq marks for HepG2 hepatocellular carcinoma",
+    },
+    "A549": {
+        "name": "ChIP-seq: A549 (Lung Cancer)",
+        "url": "/genomes/chipseq_A549.bb",
+        "color": "#8E24AA",  # Purple
+        "description": "All ChIP-seq marks for A549 lung adenocarcinoma",
+    },
+    "MCF-7": {
+        "name": "ChIP-seq: MCF-7 (Breast Cancer)",
+        "url": "/genomes/chipseq_MCF7.bb",
+        "color": "#FF69B4",  # Hot Pink
+        "description": "All ChIP-seq marks for MCF-7 breast adenocarcinoma",
+    },
+    "HMEC": {
+        "name": "ChIP-seq: HMEC (Normal Breast)",
+        "url": "/genomes/chipseq_HMEC.bb",
+        "color": "#DEB887",  # Burlywood
+        "description": "All ChIP-seq marks for HMEC normal mammary epithelial",
+    },
+}
+
 
 def get_genome_reference(species_id: int) -> GenomeReference:
     """获取指定物种的基因组参考配置"""
@@ -898,24 +946,42 @@ def get_igv_config_for_gene(
         # Get unique marks
         available_marks = mark_query.distinct().order_by(EpigeneticMarkType.mark_name).all()
 
-        # Add ChIP-seq/Open Chromatin tracks for each mark type
-        for mark in available_marks:
-            color = get_chipseq_mark_color(mark.mark_name, mark.display_color)
-            track_prefix = get_track_name_prefix(mark.mark_name, mark.mark_category)
+        # Add ChIP-seq BigBed tracks for Human (species_id=1)
+        # Each track contains all marks for a specific cell type
+        if species.species_id == 1:
+            for cell_type, track_config in CHIPSEQ_BIGBED_TRACKS.items():
+                chipseq_track = IGVTrack(
+                    name=track_config["name"],
+                    type="annotation",
+                    format="bigbed",
+                    url=track_config["url"],
+                    indexURL=None,
+                    displayMode="SQUISHED",
+                    color=track_config["color"],
+                    height=50,
+                    visibilityWindow=None,  # BigBed handles its own visibility
+                )
+                tracks.append(chipseq_track)
+                chipseq_marks_added.append(cell_type)
+        else:
+            # For non-human species, fall back to dynamic API
+            for mark in available_marks:
+                color = get_chipseq_mark_color(mark.mark_name, mark.display_color)
+                track_prefix = get_track_name_prefix(mark.mark_name, mark.mark_category)
 
-            chipseq_track = IGVTrack(
-                name=f"{track_prefix}: {mark.display_name or mark.mark_name}",
-                type="annotation",
-                format="bed",
-                url=f"/api/v1/igv/tracks/chipseq/{species.species_id}.bed?mark_type={mark.mark_name}",
-                indexURL=None,
-                displayMode="SQUISHED",  # SQUISHED for ChIP-seq peaks
-                color=color,
-                height=50,
-                visibilityWindow=5000000,  # 5Mb visibility window
-            )
-            tracks.append(chipseq_track)
-            chipseq_marks_added.append(mark.mark_name)
+                chipseq_track = IGVTrack(
+                    name=f"{track_prefix}: {mark.display_name or mark.mark_name}",
+                    type="annotation",
+                    format="bed",
+                    url=f"/api/v1/igv/tracks/chipseq/{species.species_id}.bed?mark_type={mark.mark_name}&chromosome={gene.chromosome}&start={start}&end={end}",
+                    indexURL=None,
+                    displayMode="SQUISHED",
+                    color=color,
+                    height=50,
+                    visibilityWindow=5000000,
+                )
+                tracks.append(chipseq_track)
+                chipseq_marks_added.append(mark.mark_name)
 
     # 构建搜索配置
     # Gene Mode 也支持基因搜索，使用相同的搜索 API
@@ -2368,23 +2434,41 @@ def get_igv_chipseq_config(
         )
         tracks.append(gene_annotation_track)
 
-    # Add ChIP-seq/Open Chromatin tracks for each mark type
-    for mark in available_marks:
-        color = get_chipseq_mark_color(mark.mark_name, mark.display_color)
-        track_prefix = get_track_name_prefix(mark.mark_name, mark.mark_category)
+    # Add ChIP-seq BigBed tracks for Human (species_id=1)
+    # Each track contains all marks for a specific cell type
+    # The BigBed files use BED9 format with itemRgb for mark-specific colors
+    if species_id == 1:
+        for cell_type, track_config in CHIPSEQ_BIGBED_TRACKS.items():
+            chipseq_track = IGVTrack(
+                name=track_config["name"],
+                type="annotation",
+                format="bigbed",
+                url=track_config["url"],
+                indexURL=None,
+                displayMode="SQUISHED",
+                color=track_config["color"],
+                height=50,
+                visibilityWindow=None,  # BigBed handles its own visibility
+            )
+            tracks.append(chipseq_track)
+    else:
+        # For non-human species, fall back to dynamic API (if marks available)
+        for mark in available_marks:
+            color = get_chipseq_mark_color(mark.mark_name, mark.display_color)
+            track_prefix = get_track_name_prefix(mark.mark_name, mark.mark_category)
 
-        chipseq_track = IGVTrack(
-            name=f"{track_prefix}: {mark.display_name or mark.mark_name}",
-            type="annotation",
-            format="bed",
-            url=f"/api/v1/igv/tracks/chipseq/{species_id}.bed?mark_type={mark.mark_name}",
-            indexURL=None,
-            displayMode="SQUISHED",  # SQUISHED for ChIP-seq peaks
-            color=color,
-            height=50,
-            visibilityWindow=5000000,  # 5Mb visibility window
-        )
-        tracks.append(chipseq_track)
+            chipseq_track = IGVTrack(
+                name=f"{track_prefix}: {mark.display_name or mark.mark_name}",
+                type="annotation",
+                format="bed",
+                url=f"/api/v1/igv/tracks/chipseq/{species_id}.bed?mark_type={mark.mark_name}",
+                indexURL=None,
+                displayMode="SQUISHED",
+                color=color,
+                height=50,
+                visibilityWindow=5000000,
+            )
+            tracks.append(chipseq_track)
 
     # Build search config
     search_config = IGVSearchConfig(

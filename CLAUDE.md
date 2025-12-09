@@ -2,7 +2,7 @@
 
 ## 元信息
 - **更新日期**: 2025-12-09
-- **当前版本**: Phase 4.0+
+- **当前版本**: Phase 4.1+
 - **项目状态**: 生产就绪，可用于科研分析
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
