@@ -76,11 +76,15 @@ class OverlapResponse(BaseModel):
     items: List[OverlapResult] = Field(default=[], description="List of overlap results")
     default_filter_applied: bool = Field(
         default=False,
-        description="True if default chromosome filter (chr1) was applied for performance optimization"
+        description="True if default chromosome filter (chr22) was applied for performance optimization"
     )
     effective_chromosome: Optional[str] = Field(
         default=None,
         description="The chromosome filter actually used in the query (may differ from requested if default was applied)"
+    )
+    using_materialized_view: bool = Field(
+        default=False,
+        description="True if the optimized materialized view was used for this query (faster for large chromosomes)"
     )
 
     model_config = ConfigDict(from_attributes=True)

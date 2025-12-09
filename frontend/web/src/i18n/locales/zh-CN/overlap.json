@@ -18,7 +18,8 @@
     "cellType": "细胞系",
     "selectCellTypes": "选择细胞系",
     "chromosome": "染色体",
-    "selectChromosome": "选择染色体",
+    "selectChromosome": "全部染色体",
+    "allChromosomes": "全部染色体",
     "minOverlapLength": "最小重叠长度",
     "overlapLengthTooltip": "基因组重叠区域的最小长度（碱基对）",
     "minBindingAffinity": "最小结合亲和力",
@@ -95,7 +96,16 @@
   },
   "loading": {
     "data": "加载数据中...",
-    "statistics": "计算统计中..."
+    "statistics": "计算统计中...",
+    "allChromosomes": "正在加载全部染色体数据...",
+    "allChromosomesTip": "此查询涵盖所有染色体。如需更快的查询速度，可选择特定染色体进行筛选。"
+  },
+  "info": {
+    "allChromosomesQuery": "全染色体查询",
+    "allChromosomesDesc": "当前正在查看全部染色体的数据。如需更快的查询和导出速度，建议在筛选面板中选择特定染色体。",
+    "filteredView": "筛选视图",
+    "filteredByLncRNA": "按 lncRNA 筛选",
+    "filteredByTarget": "按靶基因筛选"
   },
   "empty": {
     "title": "暂无数据",

@@ -28,6 +28,10 @@
     "success": "Success",
     "failed": "Failed"
   },
+  "loading": {
+    "elapsed": "Elapsed",
+    "estimated": "Est."
+  },
   "error": {
     "unknown": "Unknown error",
     "loadFailed": "Failed to load",

@@ -13,6 +13,12 @@ Phase 3.1 Enhancements:
 - Batch export endpoint (/export) with BED6 and CSV formats
 - Streaming response for large datasets (up to 100K rows)
 - Rate limiting (5/minute) for export operations
+
+Phase 3.2 Enhancements (2025-12-09):
+- Materialized view support for large chromosome queries (chr1, etc.)
+- Auto-detection of materialized view availability
+- Fallback to original query when materialized view is not available
+- Removed DEFAULT_CHROMOSOME restriction when using materialized view
 """
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -68,7 +74,15 @@ EXPORT_BATCH_SIZE = 1000
 MAX_EXPORT_ROWS = 100000
 
 # Default chromosome when no selective filter provided (performance optimization)
+# NOTE: This is only used when materialized view is NOT available
 DEFAULT_EXPORT_CHROMOSOME = 'chr22'
+DEFAULT_QUERY_CHROMOSOME = 'chr22'
+
+# Materialized view name
+MV_LNCRNA_CHIPSEQ_OVERLAPS = 'mv_lncrna_chipseq_overlaps'
+
+# Cache for materialized view availability check (avoid repeated DB queries)
+_mv_available_cache = {'checked': False, 'available': False}
 
 # CSV export columns (in order)
 CSV_EXPORT_COLUMNS = [
@@ -117,6 +131,211 @@ def parse_comma_separated(value: Optional[str]) -> Optional[List[str]]:
     if not value:
         return None
     return [item.strip() for item in value.split(',') if item.strip()]
+
+
+def check_materialized_view_exists(db: Session) -> bool:
+    """
+    Check if the materialized view mv_lncrna_chipseq_overlaps exists and is populated.
+
+    Uses caching to avoid repeated database queries within the same application lifecycle.
+
+    Args:
+        db: Database session
+
+    Returns:
+        True if materialized view exists and is populated, False otherwise
+    """
+    global _mv_available_cache
+
+    # Return cached result if already checked
+    if _mv_available_cache['checked']:
+        return _mv_available_cache['available']
+
+    try:
+        # Check if materialized view exists and is populated
+        check_sql = text("""
+            SELECT
+                c.relname,
+                c.relispopulated
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE c.relkind = 'm'  -- materialized view
+              AND n.nspname = 'public'
+              AND c.relname = :mv_name
+        """)
+
+        result = db.execute(check_sql, {"mv_name": MV_LNCRNA_CHIPSEQ_OVERLAPS}).fetchone()
+
+        if result and result.relispopulated:
+            _mv_available_cache['checked'] = True
+            _mv_available_cache['available'] = True
+            logger.info(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' is available and populated")
+            return True
+        else:
+            _mv_available_cache['checked'] = True
+            _mv_available_cache['available'] = False
+            if result:
+                logger.warning(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' exists but is not populated")
+            else:
+                logger.info(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' does not exist")
+            return False
+
+    except Exception as e:
+        logger.error(f"Error checking materialized view: {e}")
+        _mv_available_cache['checked'] = True
+        _mv_available_cache['available'] = False
+        return False
+
+
+def reset_mv_cache():
+    """Reset the materialized view availability cache. Call this after creating/dropping the MV."""
+    global _mv_available_cache
+    _mv_available_cache = {'checked': False, 'available': False}
+    logger.info("Materialized view cache reset")
+
+
+def get_lncrna_chipseq_overlaps_from_mv(
+    db: Session,
+    filters: OverlapFilters
+) -> Tuple[List[dict], int]:
+    """
+    Query lncRNA-ChIP-seq overlaps from the materialized view.
+
+    This is significantly faster than the base table join, especially for
+    large chromosomes like chr1.
+
+    Args:
+        db: Database session
+        filters: Query filters
+
+    Returns:
+        Tuple of (results list, total count)
+    """
+
+    # Parse comma-separated filters
+    mark_types_array = parse_comma_separated(filters.mark_type)
+    cell_types_array = parse_comma_separated(filters.cell_type)
+
+    # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
+    sort_field_map = {
+        "binding_affinity": "binding_affinity",
+        "overlap_length": "overlap_length",
+        "peak_fold_enrichment": "fold_enrichment"
+    }
+    sort_field = sort_field_map.get(filters.sort_by, "binding_affinity")
+    sort_direction = "DESC" if filters.sort_order.lower() == "desc" else "ASC"
+
+    # Count query using materialized view
+    count_sql = text("""
+        SELECT COUNT(*) AS total
+        FROM mv_lncrna_chipseq_overlaps
+        WHERE
+            (:lncrna_gene_id IS NULL OR lncrna_gene_id = :lncrna_gene_id)
+            AND (:target_gene_id IS NULL OR target_gene_id = :target_gene_id)
+            AND (:chromosome IS NULL OR chromosome = :chromosome)
+            AND (:mark_types IS NULL OR mark_name = ANY(:mark_types))
+            AND (:cell_types IS NULL OR cell_type = ANY(:cell_types))
+            AND (:min_binding_affinity IS NULL OR binding_affinity >= :min_binding_affinity)
+            AND (:min_peak_strength IS NULL OR fold_enrichment >= :min_peak_strength)
+            AND (:max_qvalue IS NULL OR qvalue IS NULL OR qvalue <= :max_qvalue)
+            AND (:min_overlap_length IS NULL OR overlap_length >= :min_overlap_length)
+    """)
+
+    # Main data query using materialized view
+    data_sql = text(f"""
+        SELECT
+            overlap_id,
+            regulation_id,
+            lncrna_gene_id,
+            lncrna_name,
+            target_gene_id,
+            target_gene_name,
+            mark_name AS mark_type,
+            mark_category,
+            cell_type,
+            chromosome,
+            lncrna_binding_start,
+            lncrna_binding_end,
+            peak_start,
+            peak_end,
+            overlap_start,
+            overlap_end,
+            overlap_length,
+            binding_affinity,
+            fold_enrichment AS peak_fold_enrichment,
+            qvalue AS peak_qvalue
+        FROM mv_lncrna_chipseq_overlaps
+        WHERE
+            (:lncrna_gene_id IS NULL OR lncrna_gene_id = :lncrna_gene_id)
+            AND (:target_gene_id IS NULL OR target_gene_id = :target_gene_id)
+            AND (:chromosome IS NULL OR chromosome = :chromosome)
+            AND (:mark_types IS NULL OR mark_name = ANY(:mark_types))
+            AND (:cell_types IS NULL OR cell_type = ANY(:cell_types))
+            AND (:min_binding_affinity IS NULL OR binding_affinity >= :min_binding_affinity)
+            AND (:min_peak_strength IS NULL OR fold_enrichment >= :min_peak_strength)
+            AND (:max_qvalue IS NULL OR qvalue IS NULL OR qvalue <= :max_qvalue)
+            AND (:min_overlap_length IS NULL OR overlap_length >= :min_overlap_length)
+        ORDER BY {sort_field} {sort_direction}
+        LIMIT :page_size OFFSET :offset
+    """)
+
+    # Calculate offset
+    offset = (filters.page - 1) * filters.page_size
+
+    # Query parameters
+    params = {
+        "lncrna_gene_id": filters.lncrna_gene_id,
+        "target_gene_id": filters.target_gene_id,
+        "chromosome": filters.chromosome,
+        "mark_types": mark_types_array,
+        "cell_types": cell_types_array,
+        "min_binding_affinity": filters.min_binding_affinity,
+        "min_peak_strength": filters.min_peak_strength,
+        "max_qvalue": filters.max_qvalue,
+        "min_overlap_length": filters.min_overlap_length,
+        "page_size": filters.page_size,
+        "offset": offset
+    }
+
+    try:
+        # Get total count
+        count_result = db.execute(count_sql, params).fetchone()
+        total = count_result[0] if count_result else 0
+
+        # Get data
+        results = db.execute(data_sql, params).fetchall()
+
+        # Convert to dictionary list
+        items = []
+        for row in results:
+            items.append({
+                "overlap_id": row.overlap_id,
+                "regulation_id": row.regulation_id,
+                "lncrna_gene_id": row.lncrna_gene_id,
+                "lncrna_name": row.lncrna_name,
+                "target_gene_id": row.target_gene_id,
+                "target_gene_name": row.target_gene_name,
+                "mark_type": row.mark_type,
+                "mark_category": row.mark_category,
+                "cell_type": row.cell_type,
+                "chromosome": row.chromosome,
+                "lncrna_binding_start": row.lncrna_binding_start,
+                "lncrna_binding_end": row.lncrna_binding_end,
+                "peak_start": row.peak_start,
+                "peak_end": row.peak_end,
+                "overlap_start": row.overlap_start,
+                "overlap_end": row.overlap_end,
+                "overlap_length": row.overlap_length,
+                "binding_affinity": row.binding_affinity,
+                "peak_fold_enrichment": row.peak_fold_enrichment,
+                "peak_qvalue": row.peak_qvalue
+            })
+
+        return items, total
+
+    except Exception as e:
+        logger.error(f"Error querying materialized view: {e}")
+        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
 
 
 def get_lncrna_chipseq_overlaps_query(
@@ -310,10 +529,19 @@ def get_lncrna_chipseq_overlaps(
     enabling analysis of lncRNA-mediated epigenetic regulation mechanisms.
 
     ## Performance Note
-    For performance optimization, if no selective filters are provided (lncrna_gene_id, target_gene_id,
-    chromosome, or min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent
-    timeout on the full spatial join of 2.2M peaks x 800K regulations.
-    The response includes `default_filter_applied` and `effective_chromosome` fields to indicate this.
+    **With Materialized View (recommended):**
+    When the materialized view `mv_lncrna_chipseq_overlaps` is available, queries are fast for all
+    chromosomes including chr1. No default chromosome filter is applied.
+
+    **Without Materialized View (fallback):**
+    If no selective filters are provided (lncrna_gene_id, target_gene_id, chromosome, or
+    min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent timeout on
+    the full spatial join of 4.6M peaks x 800K regulations.
+
+    The response includes:
+    - `default_filter_applied`: True if default chromosome filter was applied
+    - `effective_chromosome`: The chromosome filter actually used
+    - `using_materialized_view`: True if the optimized materialized view was used
 
     ## Parameters
     - **lncrna_gene_id**: Optional, filter by specific lncRNA gene ID
@@ -341,24 +569,29 @@ def get_lncrna_chipseq_overlaps(
     ```
     """
 
-    # Performance optimization: Check if any selective filter is provided
-    # If not, default to chr22 to prevent timeout on full spatial join
-    # chr22 chosen as it's small enough for fast response (~9s) while having meaningful data (~87K overlaps)
-    DEFAULT_CHROMOSOME = 'chr22'
+    # Check if materialized view is available for optimized queries
+    use_materialized_view = check_materialized_view_exists(db)
 
-    has_selective_filter = any([
-        lncrna_gene_id,
-        target_gene_id,
-        chromosome,
-        min_binding_affinity and min_binding_affinity > 0,
-    ])
+    # Initialize response metadata
+    default_filter_applied = False
+    effective_chromosome = chromosome
 
-    # Apply default chromosome if no selective filter is provided
-    effective_chromosome = chromosome or (DEFAULT_CHROMOSOME if not has_selective_filter else None)
-    default_filter_applied = (effective_chromosome == DEFAULT_CHROMOSOME and not chromosome)
+    if use_materialized_view:
+        # Materialized view is available - no need for default chromosome restriction
+        logger.debug("Using materialized view for overlap query")
+    else:
+        # Fallback: Apply default chromosome filter for performance
+        has_selective_filter = any([
+            lncrna_gene_id,
+            target_gene_id,
+            chromosome,
+            min_binding_affinity and min_binding_affinity > 0,
+        ])
 
-    if default_filter_applied:
-        logger.info(f"No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
+        if not has_selective_filter:
+            effective_chromosome = DEFAULT_QUERY_CHROMOSOME
+            default_filter_applied = True
+            logger.info(f"No selective filter provided and MV not available, applying default chromosome='{DEFAULT_QUERY_CHROMOSOME}'")
 
     # Build filters object with effective chromosome
     filters = OverlapFilters(
@@ -377,13 +610,16 @@ def get_lncrna_chipseq_overlaps(
         sort_order=sort_order
     )
 
-    # Execute query
-    items, total = get_lncrna_chipseq_overlaps_query(db, filters)
+    # Execute query using appropriate method
+    if use_materialized_view:
+        items, total = get_lncrna_chipseq_overlaps_from_mv(db, filters)
+    else:
+        items, total = get_lncrna_chipseq_overlaps_query(db, filters)
 
     # Calculate total pages
     total_pages = OverlapResponse.calculate_total_pages(total, page_size)
 
-    # Build response with default filter information
+    # Build response with metadata
     return OverlapResponse(
         total=total,
         page=page,
@@ -391,7 +627,8 @@ def get_lncrna_chipseq_overlaps(
         total_pages=total_pages,
         items=[OverlapResult(**item) for item in items],
         default_filter_applied=default_filter_applied,
-        effective_chromosome=effective_chromosome
+        effective_chromosome=effective_chromosome,
+        using_materialized_view=use_materialized_view
     )
 
 

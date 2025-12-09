@@ -18,13 +18,27 @@
     "cellType": "Cell Type",
     "selectCellTypes": "Select cell types",
     "chromosome": "Chromosome",
-    "selectChromosome": "Select chromosome",
+    "selectChromosome": "All chromosomes",
+    "allChromosomes": "All chromosomes",
     "minOverlapLength": "Min Overlap Length",
     "overlapLengthTooltip": "Minimum length of genomic overlap region (base pairs)",
     "minBindingAffinity": "Min Binding Affinity",
     "minPeakStrength": "Min Peak Strength",
     "maxQValue": "Max Q-value (FDR)",
     "qvalueTooltip": "False Discovery Rate threshold, lower is more stringent"
+  },
+  "loading": {
+    "data": "Loading data...",
+    "statistics": "Calculating statistics...",
+    "allChromosomes": "Loading data from all chromosomes...",
+    "allChromosomesTip": "This query covers all chromosomes. Consider filtering by chromosome for faster results."
+  },
+  "info": {
+    "allChromosomesQuery": "Querying All Chromosomes",
+    "allChromosomesDesc": "You are viewing data from all chromosomes. For faster queries and exports, consider selecting a specific chromosome from the filter panel.",
+    "filteredView": "Filtered View",
+    "filteredByLncRNA": "Filtered by lncRNA",
+    "filteredByTarget": "Filtered by target gene"
   },
   "table": {
     "lncRNA": "lncRNA",
@@ -92,10 +106,6 @@
       "failed": "Export failed. Please try again."
     },
     "saveImage": "Save as Image"
-  },
-  "loading": {
-    "data": "Loading data...",
-    "statistics": "Calculating statistics..."
   },
   "empty": {
     "title": "No Data",

@@ -49,6 +49,7 @@ import {
   FileTextOutlined,
   FileExcelOutlined,
   DownOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 
@@ -79,7 +80,7 @@ interface LncRNAChIPSeqOverlapTableProps {
   initialMarkTypes?: string
   /** Optional: Initial cell types (comma-separated) */
   initialCellTypes?: string
-  /** Optional: Initial chromosome filter (defaults to 'chr22' - smaller dataset, loads faster ~4s vs chr1's ~48s) */
+  /** Optional: Initial chromosome filter (undefined = all chromosomes, requires materialized view optimization) */
   initialChromosome?: string
   /** Default page size */
   defaultPageSize?: number
@@ -123,7 +124,7 @@ export function LncRNAChIPSeqOverlapTable({
   targetGeneId,
   initialMarkTypes,
   initialCellTypes,
-  initialChromosome = 'chr22',  // Changed from chr1 - chr22 loads much faster (~4s vs ~48s)
+  initialChromosome,  // No default - allows querying all chromosomes (requires backend materialized view)
   defaultPageSize = 20,
   enableStats = false,
   enableExport = false,
@@ -138,7 +139,7 @@ export function LncRNAChIPSeqOverlapTable({
   const [showVisualization, setShowVisualization] = useState(enableVisualization)
   const [activeTab, setActiveTab] = useState<string>('table')
 
-  // Filter state - Default chromosome to 'chr22' (smaller dataset, loads in ~4s vs chr1's ~48s)
+  // Filter state - No default chromosome (backend uses materialized view for all-chromosome queries)
   const [filters, setFilters] = useState<OverlapFilters>(() => ({
     lncrna_gene_id: lncrnaGeneId,
     target_gene_id: targetGeneId,
@@ -175,7 +176,7 @@ export function LncRNAChIPSeqOverlapTable({
     []
   )
 
-  // Reset all filters - Keep chromosome default to prevent timeout
+  // Reset all filters - No chromosome default (backend handles via materialized view)
   const handleResetFilters = useCallback(() => {
     setFilters({
       lncrna_gene_id: lncrnaGeneId,
@@ -279,9 +280,25 @@ export function LncRNAChIPSeqOverlapTable({
     [filters, overlapData, t, performExport]
   )
 
-  // Loading state - only show full page loading on initial load
+  // Check if querying all chromosomes (potentially large query)
+  const isAllChromosomeQuery = !filters.chromosome
+
+  // Loading state - show enhanced loading for all-chromosome queries
   if (dataLoading && !overlapData && !dataError) {
-    return <LoadingState />
+    return (
+      <LoadingState
+        message={isAllChromosomeQuery
+          ? t('loading.allChromosomes', 'Loading data from all chromosomes...')
+          : t('loading.data', 'Loading data...')
+        }
+        tip={isAllChromosomeQuery
+          ? t('loading.allChromosomesTip', 'This query covers all chromosomes and may take longer. Consider filtering by chromosome for faster results.')
+          : undefined
+        }
+        showProgress={isAllChromosomeQuery}
+        estimatedTime={isAllChromosomeQuery ? 15 : undefined}
+      />
+    )
   }
 
   // Determine if we should show the table or empty state
@@ -490,6 +507,22 @@ export function LncRNAChIPSeqOverlapTable({
             ]}
           />
         </Card>
+      )}
+
+      {/* All Chromosomes Info Alert */}
+      {isAllChromosomeQuery && !dataLoading && hasData && (
+        <Alert
+          type="info"
+          icon={<InfoCircleOutlined />}
+          message={t('info.allChromosomesQuery', 'Querying All Chromosomes')}
+          description={t(
+            'info.allChromosomesDesc',
+            'You are viewing data from all chromosomes. For faster queries and exports, consider selecting a specific chromosome from the filter panel.'
+          )}
+          showIcon
+          closable
+          style={{ marginBottom: 0 }}
+        />
       )}
 
       {/* Filter Panel */}

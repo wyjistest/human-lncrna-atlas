@@ -28,6 +28,10 @@
     "success": "操作成功",
     "failed": "操作失败"
   },
+  "loading": {
+    "elapsed": "已用时间",
+    "estimated": "预计"
+  },
   "error": {
     "unknown": "未知错误",
     "loadFailed": "加载失败",

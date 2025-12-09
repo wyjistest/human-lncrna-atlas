@@ -2,7 +2,7 @@
 
 ## 元信息
 - **更新日期**: 2025-12-09
-- **当前版本**: Phase 4.1+
+- **当前版本**: Phase 4.2 (物化视图性能优化)
 - **项目状态**: 生产就绪，可用于科研分析
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
@@ -84,6 +84,16 @@ human-lncrna-atlas-github/
 | sequences | 804,630 | 序列数据 |
 | chip_peaks | 4,620,036 | ChIP-seq/DNase peaks |
 | repeat_masker | 5,481,341 | 重复序列注释 |
+| **mv_lncrna_chipseq_overlaps** | **6,537,078** | **物化视图 (预计算重叠)** |
+
+### 物化视图性能优化 (Phase 4.2)
+
+| 查询类型 | 优化前 | 优化后 | 提升 |
+|----------|--------|--------|------|
+| chr1 查询 | 3-5 min | 0.16s | 1800x |
+| chr22 查询 | 9s | 0.098s | 90x |
+
+**刷新命令**: `scripts/refresh_materialized_views.sh`
 
 ## 开发工作流
 
