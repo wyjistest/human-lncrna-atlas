@@ -292,7 +292,7 @@ export function CellLineHeatmapMatrix({
           type: 'heatmap',
           data: heatmapData,
           label: {
-            show: data.marks.length <= 8 && data.cell_types.length <= 10,
+            show: data.marks.length <= 12 && data.cell_types.length <= 10,
             formatter: (params: any) => {
               const value = params.data[2]
               if (value === null || value === undefined) return '-'

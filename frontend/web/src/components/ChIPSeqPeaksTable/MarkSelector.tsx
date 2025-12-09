@@ -19,6 +19,7 @@ import {
   ArrowRightOutlined,
   TagOutlined,
   UnlockOutlined,
+  BorderOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import {
@@ -68,6 +69,7 @@ function getCategoryIcon(category: MarkCategory) {
     repressive: <StopOutlined />,
     activating: <CheckCircleOutlined />,
     open_chromatin: <UnlockOutlined />,
+    structural: <BorderOutlined />,
     enhancer: <StarOutlined />,
     elongation: <ArrowRightOutlined />,
     other: <TagOutlined />,

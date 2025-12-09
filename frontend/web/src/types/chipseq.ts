@@ -25,16 +25,20 @@ export type MarkType =
   | 'H2AZ'       // Histone variant - regulatory regions
   | 'H2BK120ub'  // Ubiquitination mark
   | 'H4K20me1'   // Cell cycle regulation
+  | 'H4K20me3'   // Heterochromatin/repressive mark
   | 'H3K4ac'     // Active chromatin
   | 'H3K14ac'    // Active chromatin
   | 'H3K18ac'    // Active chromatin
+  | 'H3K56ac'    // DNA repair/active mark
   // Open Chromatin
   | 'DNase-HS'   // DNase I Hypersensitive Sites
+  // Structural/Insulator
+  | 'CTCF'       // Insulator binding protein
 
 /**
  * Mark category for grouping and styling
  */
-export type MarkCategory = 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other' | 'open_chromatin'
+export type MarkCategory = 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other' | 'open_chromatin' | 'structural'
 
 /**
  * Configuration interface for each mark type

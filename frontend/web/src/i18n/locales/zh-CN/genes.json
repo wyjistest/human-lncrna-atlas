@@ -179,15 +179,21 @@
         "H2AZ": "H2A.Z (调控区)",
         "H2BK120ub": "H2BK120ub (泛素化)",
         "H4K20me1": "H4K20me1 (细胞周期)",
+        "H4K20me3": "H4K20me3 (异染色质)",
         "H3K4ac": "H3K4ac (活性)",
         "H3K14ac": "H3K14ac (活性)",
-        "H3K18ac": "H3K18ac (活性)"
+        "H3K18ac": "H3K18ac (活性)",
+        "H3K56ac": "H3K56ac (DNA修复)",
+        "DNase-HS": "DNase-HS (开放染色质)",
+        "CTCF": "CTCF (绝缘子)"
       },
       "categories": {
         "repressive": "抑制性修饰",
         "activating": "激活性修饰",
         "enhancer": "增强子修饰",
         "elongation": "延伸修饰",
+        "open_chromatin": "开放染色质",
+        "structural": "结构性/绝缘子",
         "other": "其他修饰"
       },
       "cellTypes": {

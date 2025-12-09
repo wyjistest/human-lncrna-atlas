@@ -179,15 +179,21 @@
         "H2AZ": "H2A.Z (Regulatory)",
         "H2BK120ub": "H2BK120ub (Ubiquitination)",
         "H4K20me1": "H4K20me1 (Cell Cycle)",
+        "H4K20me3": "H4K20me3 (Heterochromatin)",
         "H3K4ac": "H3K4ac (Active)",
         "H3K14ac": "H3K14ac (Active)",
-        "H3K18ac": "H3K18ac (Active)"
+        "H3K18ac": "H3K18ac (Active)",
+        "H3K56ac": "H3K56ac (DNA Repair)",
+        "DNase-HS": "DNase-HS (Open Chromatin)",
+        "CTCF": "CTCF (Insulator)"
       },
       "categories": {
         "repressive": "Repressive Marks",
         "activating": "Activating Marks",
         "enhancer": "Enhancer Marks",
         "elongation": "Elongation Marks",
+        "open_chromatin": "Open Chromatin",
+        "structural": "Structural/Insulator",
         "other": "Other Marks"
       },
       "cellTypes": {
