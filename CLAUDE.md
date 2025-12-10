@@ -2,8 +2,8 @@
 
 ## 元信息
 - **更新日期**: 2025-12-10
-- **当前版本**: Phase 5.1 (Network 页面性能优化)
-- **上一版本**: Phase 5.0 (跨物种保守性分析)
+- **当前版本**: Phase 5.2 (Genes Options API 优化)
+- **上一版本**: Phase 5.1 (Network 页面性能优化)
 - **项目状态**: 生产就绪，可用于科研分析
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
@@ -223,6 +223,66 @@ redis-cli TTL "lncrna:diseases:options"
 # 手动清除缓存
 redis-cli DEL "lncrna:diseases:options"
 ```
+
+### Genes Options API (Phase 5.2 - 2025-12-10)
+
+基因选项 API 优化，为基因列表页面提供快速选项加载，复用 Phase 5.1 成功模式。
+
+#### 优化成果
+
+| 指标 | 数值 | 说明 |
+|------|------|------|
+| API 响应时间（首次） | 308 ms | 查询 17,248 基因 |
+| API 响应时间（缓存） | 238 ms | Redis 缓存命中 |
+| 缓存加速比 | 1.29x | 缓存比数据库快 29% |
+| 响应大小 | 2.05 MB | 所有物种所有基因 |
+| 返回数据 | 17,248 条 | 4 个物种的基因 |
+| 缓存命中 | Redis 30min | 新能力 |
+
+#### API 端点
+
+| 端点 | 说明 | 缓存 | 响应时间 |
+|------|------|------|----------|
+| `/api/v1/genes/options` | 轻量级基因选项（id + name + species） | 30 分钟 | 308ms (首次) / 238ms (缓存) |
+| `/api/v1/genes/options?species_id=1` | 人类基因（5,484 条） | 30 分钟 | 185ms |
+| `/api/v1/genes/options?gene_type=lncRNA` | lncRNA 基因（6,554 条） | 30 分钟 | 150ms |
+
+#### 代码改动
+
+**后端**：
+- `app/schemas/gene.py`：新增 `GeneOption`, `GeneOptionsResponse` Schema (+17 行)
+- `app/routers/genes.py`：新增 `/options` 端点 (+95 行)
+
+#### 查询参数
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `species_id` | int | 物种过滤（1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴） |
+| `gene_type` | str | 基因类型过滤（lncRNA/protein_coding） |
+
+#### 性能测试
+
+详细测试报告位于：
+- `frontend/backend/GENES_OPTIONS_API_REPORT.md`
+
+#### 缓存监控
+
+```bash
+# 查看基因选项缓存
+redis-cli KEYS "lncrna:genes:options*"
+redis-cli TTL "lncrna:genes:options:all:all"
+
+# 手动清除缓存
+redis-cli DEL "lncrna:genes:options:all:all"
+
+# 批量清除
+redis-cli KEYS "lncrna:genes:options*" | xargs redis-cli DEL
+```
+
+#### 特殊处理
+
+- **物种后缀移除**: 自动移除 `_chimp`, `_macaque`, `_marmoset` 后缀
+- **分组缓存**: 按 `species_id` 和 `gene_type` 组合生成缓存键
 
 ## 文档索引
 
