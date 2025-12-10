@@ -2,7 +2,8 @@
 
 ## 元信息
 - **更新日期**: 2025-12-10
-- **当前版本**: Phase 5.0 (跨物种保守性分析)
+- **当前版本**: Phase 5.1 (Network 页面性能优化)
+- **上一版本**: Phase 5.0 (跨物种保守性分析)
 - **项目状态**: 生产就绪，可用于科研分析
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
@@ -173,6 +174,55 @@ git add -A && git commit -m "feat: 描述" && git push
 | 1 物种 | 39 | 10,431 | 1.98% |
 
 **前端页面**: `/conservation` - 支持热图、表格、筛选、导出
+
+### Network 页面性能优化 (Phase 5.1 - 2025-12-10)
+
+疾病选项 API 优化，通过三 Agent 协同完成（Backend + Frontend + Playwright）。
+
+#### 优化成果
+
+| 指标 | 优化前 | 优化后 | 提升幅度 |
+|------|--------|--------|----------|
+| API 响应时间 | 4951 ms | 7-50 ms | **99% ↓ (550x)** |
+| 响应大小 | 240 KB | ~20 KB | **92% ↓** |
+| 返回数据 | 500 条（含重复） | 273 条（去重） | 数据精简 |
+| 前端处理 | O(n²) 去重 | O(n) 过滤 | 算法优化 |
+| 缓存命中 | 0% | Redis 30min | 新能力 |
+
+#### API 端点
+
+| 端点 | 说明 | 缓存 | 响应时间 |
+|------|------|------|----------|
+| `/api/v1/diseases/options` | 轻量级疾病选项（仅 id + name） | 30 分钟 | 7-50ms |
+
+#### 代码改动
+
+**后端**：
+- `app/routers/diseases.py`：新增 `/options` 端点 (+44 行)
+- `app/schemas/disease.py`：新增 `DiseaseOption` Schema (+7 行)
+- `app/middleware/logging.py`：增强慢查询日志 (+6 行)
+
+**前端**：
+- `src/api/diseases.ts`：新增 `getOptions()` 方法 (+25 行)
+- `src/pages/Network/index.tsx`：优化查询和 UI (+51 行, -29 行)
+
+#### 性能测试
+
+详细测试报告位于：
+- `frontend/web/PHASE2_TEST_ANALYSIS.md`
+- `frontend/web/TEST_FIX_GUIDE.md`
+- `frontend/web/performance-baseline-summary.txt`
+
+#### 缓存监控
+
+```bash
+# 查看疾病选项缓存
+redis-cli KEYS "lncrna:diseases:options*"
+redis-cli TTL "lncrna:diseases:options"
+
+# 手动清除缓存
+redis-cli DEL "lncrna:diseases:options"
+```
 
 ## 文档索引
 
