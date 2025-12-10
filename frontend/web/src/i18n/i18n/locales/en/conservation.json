@@ -1,0 +1,60 @@
+{
+  "title": "Cross-Species Conservation Analysis",
+  "description": "Analyze conserved lncRNA regulatory relationships across primate species. Compare Human, Chimpanzee, Macaque, and Marmoset to identify evolutionarily conserved regulations.",
+  "breadcrumb": {
+    "conservation": "Conservation"
+  },
+  "species": {
+    "human": "Human",
+    "chimpanzee": "Chimpanzee",
+    "macaque": "Macaque",
+    "marmoset": "Marmoset"
+  },
+  "speciesSelector": {
+    "title": "Select Species for Comparison",
+    "hint": "Select 2-4 species to analyze conservation patterns",
+    "selected": "Selected",
+    "validationError": "Please select between 2 and 4 species"
+  },
+  "stats": {
+    "totalConserved": "Total Conserved",
+    "totalConservedHelp": "Regulations found in 2+ species",
+    "fourSpecies": "4 Species",
+    "threeSpecies": "3 Species",
+    "twoSpecies": "2 Species"
+  },
+  "matrix": {
+    "title": "Conservation Matrix",
+    "sharedRegulations": "Shared Regulations",
+    "high": "High",
+    "low": "Low",
+    "noData": "No data available. Please select species."
+  },
+  "filters": {
+    "title": "Filters",
+    "lncrnaName": "LncRNA Name",
+    "lncrnaPlaceholder": "e.g., MALAT1",
+    "targetName": "Target Gene",
+    "targetPlaceholder": "e.g., TP53",
+    "minConservation": "Min. Conservation",
+    "minBA": "Min. Binding Affinity",
+    "species": "species"
+  },
+  "table": {
+    "title": "Conserved Regulations",
+    "coreId": "Core ID",
+    "lncrna": "LncRNA",
+    "target": "Target Gene",
+    "conservedIn": "Conserved In",
+    "conservationLevel": "Level",
+    "avgBA": "Avg. BA",
+    "total": "Total {{count}} records",
+    "export": "Export CSV"
+  },
+  "export": {
+    "selectSpeciesFirst": "Please select at least 2 species",
+    "preparing": "Preparing export...",
+    "success": "Export successful",
+    "failed": "Export failed"
+  }
+}

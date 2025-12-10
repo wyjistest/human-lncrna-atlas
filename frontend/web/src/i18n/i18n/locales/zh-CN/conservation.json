@@ -1,0 +1,60 @@
+{
+  "title": "跨物种保守性分析",
+  "description": "分析灵长类物种间保守的 lncRNA 调控关系。比较人类、黑猩猩、猕猴和狨猴，识别进化保守的调控关系。",
+  "breadcrumb": {
+    "conservation": "保守性分析"
+  },
+  "species": {
+    "human": "人类",
+    "chimpanzee": "黑猩猩",
+    "macaque": "猕猴",
+    "marmoset": "狨猴"
+  },
+  "speciesSelector": {
+    "title": "选择比较物种",
+    "hint": "选择 2-4 个物种进行保守性分析",
+    "selected": "已选择",
+    "validationError": "请选择 2 到 4 个物种"
+  },
+  "stats": {
+    "totalConserved": "总保守数",
+    "totalConservedHelp": "在 2 个以上物种中发现的调控关系",
+    "fourSpecies": "4 物种保守",
+    "threeSpecies": "3 物种保守",
+    "twoSpecies": "2 物种保守"
+  },
+  "matrix": {
+    "title": "保守性矩阵",
+    "sharedRegulations": "共享调控关系",
+    "high": "高",
+    "low": "低",
+    "noData": "暂无数据，请选择物种。"
+  },
+  "filters": {
+    "title": "筛选条件",
+    "lncrnaName": "LncRNA 名称",
+    "lncrnaPlaceholder": "例如：MALAT1",
+    "targetName": "靶基因",
+    "targetPlaceholder": "例如：TP53",
+    "minConservation": "最小保守数",
+    "minBA": "最小结合亲和力",
+    "species": "个物种"
+  },
+  "table": {
+    "title": "保守调控关系",
+    "coreId": "核心 ID",
+    "lncrna": "LncRNA",
+    "target": "靶基因",
+    "conservedIn": "保守物种",
+    "conservationLevel": "保守级别",
+    "avgBA": "平均 BA",
+    "total": "共 {{count}} 条记录",
+    "export": "导出 CSV"
+  },
+  "export": {
+    "selectSpeciesFirst": "请至少选择 2 个物种",
+    "preparing": "正在准备导出...",
+    "success": "导出成功",
+    "failed": "导出失败"
+  }
+}

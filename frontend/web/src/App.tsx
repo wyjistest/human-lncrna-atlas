@@ -13,6 +13,7 @@ import GeneDetail from './pages/GeneDetail'
 import Regulations from './pages/Regulations'
 import Diseases from './pages/Diseases'
 import Network from './pages/Network'
+import Conservation from './pages/Conservation'
 import Monitoring from './pages/Admin/Monitoring'
 import LncRNAChIPSeqOverlapPage from './pages/LncRNAChIPSeqOverlapPage'
 import ChIPSeqComparePage from './pages/ChIPSeqComparePage'
@@ -45,6 +46,7 @@ function App() {
             <Route path="regulations" element={<Regulations />} />
             <Route path="diseases" element={<Diseases />} />
             <Route path="network" element={<Network />} />
+            <Route path="conservation" element={<Conservation />} />
             <Route path="genome-browser" element={
               <Suspense fallback={<LazyLoadFallback />}>
                 <GenomeBrowser />

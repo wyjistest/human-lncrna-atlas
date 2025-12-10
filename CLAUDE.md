@@ -2,7 +2,7 @@
 
 ## 元信息
 - **更新日期**: 2025-12-10
-- **当前版本**: Phase 4.3 (启动修复 + 多数据库方言支持)
+- **当前版本**: Phase 5.0 (跨物种保守性分析)
 - **项目状态**: 生产就绪，可用于科研分析
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
@@ -151,6 +151,28 @@ git add -A && git commit -m "feat: 描述" && git push
 | 其他 | QueuePool | ❌ 不支持 | 通用配置 |
 
 **注意**: `with_timeout()` 上下文管理器在非 PostgreSQL 数据库中为 no-op（优雅降级）。
+
+### Conservation API (Phase 5.0)
+
+跨物种保守性分析功能，通过 `core_id` 机制实现跨物种基因映射。
+
+| API 端点 | 方法 | 说明 |
+|----------|------|------|
+| `/api/v1/conservation/overview` | GET | 保守性统计概览 |
+| `/api/v1/conservation/matrix` | GET | 物种间保守性矩阵（热图数据） |
+| `/api/v1/conservation/regulations` | GET | 保守调控关系列表（分页） |
+| `/api/v1/conservation/venn` | GET | Venn 图数据 |
+| `/api/v1/conservation/lncrna/{core_id}` | GET | 单个 lncRNA 保守性详情 |
+
+**保守性统计**：
+| 物种数 | LncRNA 数 | 调控关系 | 占比 |
+|--------|-----------|----------|------|
+| 4 物种 | 1,001 | 437,478 | 50.84% |
+| 3 物种 | 653 | 246,860 | 33.16% |
+| 2 物种 | 276 | 109,861 | 14.02% |
+| 1 物种 | 39 | 10,431 | 1.98% |
+
+**前端页面**: `/conservation` - 支持热图、表格、筛选、导出
 
 ## 文档索引
 
