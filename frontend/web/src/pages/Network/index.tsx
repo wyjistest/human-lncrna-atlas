@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, memo, useMemo } from 'react'
-import { Button, Space, Select, message, Drawer, Descriptions, Tag, Input, Dropdown, Slider, Radio, Collapse, Modal, Checkbox } from 'antd'
+import { Button, Space, Select, message, Drawer, Descriptions, Tag, Input, Dropdown, Slider, Radio, Collapse, Modal, Checkbox, Alert } from 'antd'
 import { SearchOutlined, DownloadOutlined, FileImageOutlined, FileTextOutlined, FilterOutlined } from '@ant-design/icons'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { apiClient } from '@/api/client'
+import { diseasesApi } from '@/api/diseases'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import cytoscape from 'cytoscape'
@@ -1021,16 +1022,16 @@ export default function Network() {
     }
   })
 
-  // 获取疾病列表
-  // 注意：限制page_size以避免一次性加载过多数据
-  // TODO: 如果疾病数量超过500，考虑创建专门的 /api/v1/diseases/options 端点只返回 id 和 name
-  const { data: diseasesData } = useQuery({
-    queryKey: ['diseases-list'],
-    queryFn: async () => {
-      const res = await apiClient.get('/api/v1/diseases', { params: { page: 1, page_size: 500 } })
-      return res.data
-    },
-    staleTime: 5 * 60 * 1000, // 5分钟内使用缓存，减少重复请求
+  // 获取疾病选项列表（轻量级 API）
+  const {
+    data: diseaseOptions,
+    isLoading: diseaseOptionsLoading,
+    isError: diseaseOptionsError,
+    refetch: refetchDiseaseOptions
+  } = useQuery({
+    queryKey: ['disease-options'],
+    queryFn: diseasesApi.getOptions,
+    staleTime: 10 * 60 * 1000, // 10分钟缓存，选项不常变化
   })
 
   // 根据选中的物种和有数据的组合过滤疾病和Ontology
@@ -1041,28 +1042,31 @@ export default function Network() {
 
   const availableTraitIds = new Set((availableForSelectedSpecies ?? []).map((c: any) => c.trait_id))
 
-  // 使用 Map 去重，O(n) 复杂度替代 reduce+find 的 O(n²)
+  // 后端已去重，直接过滤可用的疾病即可（O(n) 复杂度）
   const traits = useMemo(() => {
-    const seen = new Map<number, { trait_id: number; trait_name: string }>()
-    diseasesData?.items
-      ?.filter((d: any) => availableTraitIds.has(d.trait_id))
-      .forEach((d: any) => {
-        if (!seen.has(d.trait_id)) {
-          seen.set(d.trait_id, { trait_id: d.trait_id, trait_name: d.trait_name })
+    if (!diseaseOptions?.traits) return []
+    return diseaseOptions.traits.filter(t => availableTraitIds.has(t.trait_id))
+  }, [diseaseOptions?.traits, availableTraitIds])
+
+  // Ontology 仍然需要从完整数据获取，因为需要 ontology_name
+  // 这里暂时保持从 availableCombinations 推断
+  const ontologies = useMemo(() => {
+    if (!availableForSelectedSpecies || !traitId) return []
+    const ontologyMap = new Map<number, string>()
+
+    availableForSelectedSpecies
+      .filter((c: any) => c.trait_id === traitId)
+      .forEach((c: any) => {
+        if (!ontologyMap.has(c.ontology_id)) {
+          ontologyMap.set(c.ontology_id, c.ontology_name || `Ontology ${c.ontology_id}`)
         }
       })
-    return Array.from(seen.values())
-  }, [diseasesData?.items, availableTraitIds])
 
-  const availableOntologyIds = new Set(
-    (availableForSelectedSpecies ?? [])
-      .filter((c: any) => c.trait_id === traitId)
-      .map((c: any) => c.ontology_id)
-  )
-
-  const ontologies = diseasesData?.items
-    ?.filter((d: any) => d.trait_id === traitId && availableOntologyIds.has(d.ontology_id))
-    .map((d: any) => ({ ontology_id: d.ontology_id, ontology_name: d.ontology_name }))
+    return Array.from(ontologyMap.entries()).map(([id, name]) => ({
+      ontology_id: id,
+      ontology_name: name
+    }))
+  }, [availableForSelectedSpecies, traitId])
 
   // 使用 useQueries 并行查询多个物种
   const networkQueries = useQueries({
@@ -1508,6 +1512,8 @@ export default function Network() {
           }}
           style={{ width: 250 }}
           showSearch
+          loading={diseaseOptionsLoading}
+          disabled={diseaseOptionsLoading || diseaseOptionsError}
           filterOption={(input, option) => {
             const label = typeof option?.label === 'string' ? option.label : ''
             return label.toLowerCase().includes(input.toLowerCase())
@@ -1545,6 +1551,22 @@ export default function Network() {
           </Button>
         )}
       </Space>
+
+      {diseaseOptionsError && (
+        <Alert
+          type="warning"
+          message={t('disease.loadError') || 'Failed to load disease options'}
+          description={t('disease.loadErrorDesc') || 'Please try refreshing the page'}
+          action={
+            <Button size="small" onClick={() => refetchDiseaseOptions()}>
+              {t('disease.retry') || 'Retry'}
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+          showIcon
+          closable
+        />
+      )}
 
       {queryTrigger > 0 && (
         <div style={{
