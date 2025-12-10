@@ -33,6 +33,8 @@
     "Need to confirm request validation and SQLAlchemy query safety (LIKE escapes present in genes).",
     "Front-end hooks and API client should be checked for proper error handling and type safety.",
     "ETL scripts likely depend on CSV schemas; need to review boundary conditions and exceptions.",
-    "Security/performance review pending deeper inspection."
+    "Security/performance review pending deeper inspection.",
+    "main.py imports app.routers.conservation but the module is missing, causing ModuleNotFoundError on startup.",
+    "Augment/auggie codebase-retrieval unavailable per user; review performed via manual scans."
   ]
 }

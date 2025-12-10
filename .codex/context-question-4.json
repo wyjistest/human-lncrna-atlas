@@ -1,0 +1,4 @@
+[
+  {"priority": "high", "question": "main.py 导入 app.routers.conservation 但仓库无该模块，启动将抛出 ModuleNotFoundError；应移除或补齐路由。"},
+  {"priority": "medium", "question": "是否存在其他路由/模型导入缺失或数据库方言不兼容（例如 PostgreSQL 专用 string_agg 在非 PG 环境失败）？"}
+]
