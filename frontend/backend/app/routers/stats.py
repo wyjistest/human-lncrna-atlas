@@ -127,8 +127,16 @@ def get_top_genes(
     db: Session = Depends(get_db),
 ):
     """
-    获取Top基因（按调控关系数量排序）
+    获取Top基因（按调控关系数量排序，缓存 1 小时）
     """
+    # 构建缓存键（包含参数）
+    cache_key = cache._make_key(f"stats:top-genes:{limit}:{gene_type or 'all'}")
+
+    # 尝试从缓存获取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return [TopGene(**item) for item in cached]
+
     query = (
         db.query(
             Gene.gene_id,
@@ -155,9 +163,9 @@ def get_top_genes(
 
     query = query.order_by(desc("regulation_count")).limit(limit)
 
-    results = query.all()
+    results_raw = query.all()
 
-    return [
+    results = [
         TopGene(
             gene_id=row.gene_id,
             core_id=row.core_id,
@@ -166,8 +174,13 @@ def get_top_genes(
             regulation_count=row.regulation_count or 0,
             species_name=row.species_name,
         )
-        for row in results
+        for row in results_raw
     ]
+
+    # 写入缓存（1 小时）
+    cache.set(cache_key, [g.model_dump() for g in results], CacheService.TTL_STATS)
+
+    return results
 
 
 @router.get("/top-diseases", response_model=List[TopDisease])
@@ -176,8 +189,16 @@ def get_top_diseases(
     db: Session = Depends(get_db),
 ):
     """
-    获取Top疾病（按关联基因数量排序）
+    获取Top疾病（按关联基因数量排序，缓存 1 小时）
     """
+    # 缓存键
+    cache_key = cache._make_key(f"stats:top-diseases:{limit}")
+
+    # 尝试从缓存获取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return [TopDisease(**item) for item in cached]
+
     query = (
         db.query(
             Trait.trait_id,
@@ -199,9 +220,9 @@ def get_top_diseases(
         .limit(limit)
     )
 
-    results = query.all()
+    results_raw = query.all()
 
-    return [
+    results = [
         TopDisease(
             trait_id=row.trait_id,
             trait_name=row.trait_name,
@@ -209,8 +230,13 @@ def get_top_diseases(
             gene_count=row.gene_count or 0,
             lncrna_count=row.lncrna_count or 0,
         )
-        for row in results
+        for row in results_raw
     ]
+
+    # 写入缓存（1 小时）
+    cache.set(cache_key, [d.model_dump() for d in results], CacheService.TTL_STATS)
+
+    return results
 
 
 @router.get("/conserved-regulations", response_model=List[ConservedRegulation])
@@ -220,9 +246,17 @@ def get_conserved_regulations(
     db: Session = Depends(get_db),
 ):
     """
-    获取保守调控关系（在多个物种中保守的lncRNA-target对）
+    获取保守调控关系（在多个物种中保守的lncRNA-target对，缓存 1 小时）
     优化版：使用批量查询避免N+1问题
     """
+    # 缓存键
+    cache_key = cache._make_key(f"stats:conserved:{min_species}:{limit}")
+
+    # 尝试从缓存获取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return [ConservedRegulation(**item) for item in cached]
+
     # 使用别名区分lncRNA和target基因
     LncRNAGene = aliased(Gene, name="lncrna_gene")
     TargetGene = aliased(Gene, name="target_gene")
@@ -250,10 +284,10 @@ def get_conserved_regulations(
         .limit(limit)
     )
 
-    results = query.all()
+    results_raw = query.all()
 
     # 构建结果列表（无需额外查询）
-    conserved_list = [
+    results = [
         ConservedRegulation(
             lncrna_core_id=row.lncrna_core_id,
             lncrna_name=row.lncrna_name,
@@ -263,10 +297,13 @@ def get_conserved_regulations(
             species_list=row.species_names.split(',') if row.species_names else [],
             avg_binding_affinity=float(row.avg_ba) if row.avg_ba else None,
         )
-        for row in results
+        for row in results_raw
     ]
 
-    return conserved_list
+    # 写入缓存（1 小时）
+    cache.set(cache_key, [r.model_dump() for r in results], CacheService.TTL_STATS)
+
+    return results
 
 
 @router.get("/ba-range", response_model=BARange)
@@ -308,9 +345,17 @@ def get_detailed_stats(
     db: Session = Depends(get_db),
 ):
     """
-    获取详细统计信息
+    获取详细统计信息（包含多维度数据，缓存 1 小时）
     包含物种分布、BA分布直方图、Top lncRNA
     """
+    # 缓存键
+    cache_key = cache._make_key(f"stats:detailed:{buckets}:{top_limit}")
+
+    # 尝试从缓存获取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return DetailedStats(**cached)
+
     # 1. BA范围
     ba_result = db.query(
         func.min(Regulation.binding_affinity).label("min_ba"),
@@ -416,12 +461,17 @@ def get_detailed_stats(
         for row in top_lncrnas_query.all()
     ]
 
-    return DetailedStats(
+    result = DetailedStats(
         species_distribution=species_distribution,
         ba_distribution=ba_distribution,
         top_lncrnas=top_lncrnas,
         ba_range=ba_range,
     )
+
+    # 写入缓存（1 小时）
+    cache.set(cache_key, result.model_dump(), CacheService.TTL_STATS)
+
+    return result
 
 
 @router.get("/cache-status")
