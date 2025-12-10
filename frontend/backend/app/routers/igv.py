@@ -6,9 +6,9 @@ import logging
 from typing import Optional, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, PlainTextResponse
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 
 from app.core.database import get_db
 from app.models import Regulation, Gene, Species, GenomicFeature, FeatureTrack, ChIPSeqExperiment, ChIPSeqPeak, EpigeneticMarkType
@@ -2504,3 +2504,186 @@ def get_igv_chipseq_config(
         data=config,
         message=f"IGV ChIP-seq configuration for {species.display_name} with marks: {', '.join(mark_names)}"
     )
+
+
+# =============================================================================
+# lncRNA-ChIP-seq Overlap Track Endpoint
+# =============================================================================
+
+@router.get("/overlap-track")
+def get_overlap_track(
+    chr: str = Query(..., description="Chromosome (e.g., 'chr1')"),
+    start: int = Query(..., ge=0, description="Start position (0-based)"),
+    end: int = Query(..., ge=0, description="End position (0-based, exclusive)"),
+    mark_type: Optional[str] = Query(None, description="Filter by mark type (e.g., 'H3K27me3')"),
+    cell_line: Optional[str] = Query(None, description="Filter by cell line (e.g., 'K562')"),
+    min_ba: Optional[float] = Query(None, ge=0, le=100, description="Minimum binding affinity"),
+    db: Session = Depends(get_db)
+):
+    """
+    Return lncRNA-ChIP-seq overlap data in BED6 format for IGV.js
+
+    This endpoint provides overlap regions between lncRNA binding sites and ChIP-seq peaks,
+    formatted as BED6 for dynamic loading in IGV.js genome browser.
+
+    ## BED6 Format
+    6 columns (tab-separated):
+    1. chromosome - Chromosome name (e.g., chr1)
+    2. chromStart - Overlap start position (0-based)
+    3. chromEnd - Overlap end position (0-based, exclusive)
+    4. name - Feature name: `{lncrna_name}-{mark_type}`
+    5. score - Binding affinity scaled to 0-1000 (BA * 10)
+    6. strand - Always '+' (lncRNA-ChIP-seq overlaps are unstranded)
+
+    ## Query Parameters
+    - **chr** (required): Chromosome to query (e.g., 'chr1')
+    - **start** (required): Start position (0-based)
+    - **end** (required): End position (0-based, exclusive)
+    - **mark_type** (optional): Filter by epigenetic mark type
+    - **cell_line** (optional): Filter by cell line
+    - **min_ba** (optional): Minimum binding affinity threshold (0-100)
+
+    ## Error Handling
+    - 400: Invalid region (>10Mb) or invalid parameters
+    - 404: Chromosome not found
+    - 500: Database query error
+
+    ## Performance
+    - Max region size: 10Mb (prevents timeout)
+    - Query limit: 10,000 records per request
+    - Target response time: < 2s
+
+    ## Example Usage
+    ```
+    GET /api/v1/igv/overlap-track?chr=chr1&start=1000000&end=2000000&mark_type=H3K27me3
+    ```
+
+    Returns:
+    ```
+    chr1	1000120	1001050	MALAT1-H3K27me3	850	+
+    chr1	1002300	1003100	NEAT1-H3K4me3	750	+
+    ```
+    """
+    MAX_REGION_SIZE = 10_000_000  # 10Mb
+    MAX_RECORDS = 10_000
+
+    # Validate region size
+    region_size = end - start
+    if region_size <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid region: start ({start}) must be less than end ({end})"
+        )
+    if region_size > MAX_REGION_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Region too large ({region_size:,} bp). Maximum allowed: {MAX_REGION_SIZE:,} bp"
+        )
+
+    # Validate chromosome format
+    if not chr.startswith('chr'):
+        chr = f'chr{chr}'
+
+    logger.info(f"Overlap track request: {chr}:{start}-{end}, mark={mark_type}, cell_line={cell_line}, min_ba={min_ba}")
+
+    try:
+        # Check if materialized view exists (same logic as overlap router)
+        from app.routers.lncrna_chipseq_overlap import check_materialized_view_exists
+
+        use_mv = check_materialized_view_exists(db)
+
+        if use_mv:
+            # Query from materialized view (faster)
+            query_sql = text("""
+                SELECT
+                    chromosome,
+                    overlap_start,
+                    overlap_end,
+                    CONCAT(lncrna_name, '-', mark_name) as name,
+                    CAST(LEAST(1000, GREATEST(0, binding_affinity * 10)) AS INTEGER) as score,
+                    '+' as strand
+                FROM mv_lncrna_chipseq_overlaps
+                WHERE chromosome = :chr
+                  AND overlap_start >= :start
+                  AND overlap_end <= :end
+                  AND (:mark_type IS NULL OR mark_name = :mark_type)
+                  AND (:cell_line IS NULL OR cell_type = :cell_line)
+                  AND (:min_ba IS NULL OR binding_affinity >= :min_ba)
+                ORDER BY overlap_start
+                LIMIT :max_records
+            """)
+        else:
+            # Fallback: query from base tables
+            query_sql = text("""
+                SELECT
+                    r.best_peak_chr as chromosome,
+                    GREATEST(r.best_peak_start, p.peak_start) as overlap_start,
+                    LEAST(r.best_peak_end, p.peak_end) as overlap_end,
+                    CONCAT(lnc.gene_name, '-', m.mark_name) as name,
+                    CAST(LEAST(1000, GREATEST(0, r.binding_affinity * 10)) AS INTEGER) as score,
+                    '+' as strand
+                FROM regulations r
+                JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
+                JOIN chipseq_peaks_human p ON
+                    r.species_id = p.species_id
+                    AND r.best_peak_chr = p.chromosome
+                    AND r.best_peak_start < p.peak_end
+                    AND r.best_peak_end > p.peak_start
+                JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+                JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+                WHERE r.species_id = 1
+                  AND e.is_active = TRUE
+                  AND r.best_peak_chr = :chr
+                  AND GREATEST(r.best_peak_start, p.peak_start) >= :start
+                  AND LEAST(r.best_peak_end, p.peak_end) <= :end
+                  AND (:mark_type IS NULL OR m.mark_name = :mark_type)
+                  AND (:cell_line IS NULL OR e.cell_type = :cell_line)
+                  AND (:min_ba IS NULL OR r.binding_affinity >= :min_ba)
+                ORDER BY overlap_start
+                LIMIT :max_records
+            """)
+
+        # Execute query
+        params = {
+            "chr": chr,
+            "start": start,
+            "end": end,
+            "mark_type": mark_type,
+            "cell_line": cell_line,
+            "min_ba": min_ba,
+            "max_records": MAX_RECORDS
+        }
+
+        results = db.execute(query_sql, params).fetchall()
+
+        # Format as BED6
+        bed_lines = []
+        for row in results:
+            # BED6 format: chr, start, end, name, score, strand
+            bed_line = f"{row.chromosome}\t{row.overlap_start}\t{row.overlap_end}\t{row.name}\t{row.score}\t{row.strand}"
+            bed_lines.append(bed_line)
+
+        # Join lines with newline
+        bed_content = "\n".join(bed_lines)
+        if bed_content:
+            bed_content += "\n"  # Add trailing newline
+
+        logger.info(f"Returning {len(bed_lines)} overlap records for {chr}:{start}-{end}")
+
+        # Return as plain text with appropriate headers
+        filename = f"overlap_{chr}_{start}_{end}.bed"
+        return PlainTextResponse(
+            content=bed_content,
+            media_type="text/plain",
+            headers={
+                "Content-Disposition": f"inline; filename={filename}",
+                "Content-Type": "text/plain; charset=utf-8"
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error generating overlap track: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate overlap track: {str(e)}"
+        )

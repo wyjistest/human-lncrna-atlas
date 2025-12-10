@@ -107,14 +107,35 @@
     },
     "saveImage": "Save as Image"
   },
+  "action": {
+    "showFilters": "Show Filters",
+    "hideFilters": "Hide Filters",
+    "showStats": "Show Statistics",
+    "showVisualization": "Show Visualization",
+    "showIGV": "Show IGV Browser",
+    "refresh": "Refresh"
+  },
+  "igv": {
+    "title": "Genome Browser",
+    "clickHint": "Click table row to navigate",
+    "browserNotReady": "IGV browser is not ready",
+    "navigateSuccess": "Navigated to {{lncrna}}",
+    "navigateError": "Failed to navigate IGV"
+  },
   "empty": {
     "title": "No Data",
     "description": "Try adjusting the filters to see more results",
-    "reset": "Reset Filters"
+    "reset": "Reset Filters",
+    "noOverlaps": "No overlaps found",
+    "tryAdjustFilters": "Try adjusting your filters"
   },
   "error": {
     "title": "Loading Failed",
     "description": "Unable to load overlap data. Please try again later.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "unknown": "An unknown error occurred",
+    "tryAdjustFilters": "Try adjusting filters or retry the request",
+    "noDataDueToError": "Unable to load data",
+    "adjustFiltersAbove": "Adjust filters above and retry"
   }
 }

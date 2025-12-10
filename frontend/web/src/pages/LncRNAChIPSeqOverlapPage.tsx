@@ -60,9 +60,12 @@ export default function LncRNAChIPSeqOverlapPage() {
         </div>
       </Space>
 
-      {/* 主组件 */}
+      {/* 主组件 - 启用 IGV 浏览器集成 */}
       <Card>
-        <LncRNAChIPSeqOverlapTable enableExport={true} />
+        <LncRNAChIPSeqOverlapTable
+          enableExport={true}
+          enableIGV={true}
+        />
       </Card>
     </div>
   )

@@ -13,6 +13,10 @@
  *   - Cell type distribution pie chart
  *   - Overlap heatmap matrix (collapsible)
  * - Sortable, paginated data table
+ * - IGV Genome Browser integration (Phase 3.4)
+ *   - Split layout (table top, IGV bottom)
+ *   - Click table row to navigate IGV
+ *   - Dynamic overlap track loading
  * - Export functionality (BED, CSV) (Phase 2)
  * - Responsive design
  *
@@ -23,7 +27,7 @@
  * - GET /api/v1/lncrna-chipseq-overlap/export (Phase 2)
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import {
   Space,
   Card,
@@ -61,6 +65,7 @@ import { OverlapMarkDistChart } from './OverlapMarkDistChart'
 import { OverlapCellTypeChart } from './OverlapCellTypeChart'
 import { OverlapHeatmapMatrix } from './OverlapHeatmapMatrix'
 import { LoadingState } from '@/components/LoadingState'
+import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
 
 // Hooks
 import {
@@ -69,7 +74,7 @@ import {
 } from '@/hooks/useLncRNAChIPSeqOverlap'
 
 // Types
-import type { OverlapFilters } from '@/types/lncRNAChIPSeqOverlap'
+import type { OverlapFilters, OverlapResult } from '@/types/lncRNAChIPSeqOverlap'
 
 interface LncRNAChIPSeqOverlapTableProps {
   /** Optional: Pre-filter by lncRNA gene ID */
@@ -90,6 +95,8 @@ interface LncRNAChIPSeqOverlapTableProps {
   enableExport?: boolean
   /** Enable visualization charts (Phase 3.0 Phase 2 feature) */
   enableVisualization?: boolean
+  /** Enable IGV genome browser integration (Phase 3.4 feature) */
+  enableIGV?: boolean
 }
 
 /**
@@ -129,6 +136,7 @@ export function LncRNAChIPSeqOverlapTable({
   enableStats = false,
   enableExport = false,
   enableVisualization = false,
+  enableIGV = false,
 }: LncRNAChIPSeqOverlapTableProps) {
   const { t } = useTranslation('overlap')
   const { t: tCommon } = useTranslation('common')
@@ -137,7 +145,11 @@ export function LncRNAChIPSeqOverlapTable({
   const [showFilters, setShowFilters] = useState(true)
   const [showStats, setShowStats] = useState(enableStats)
   const [showVisualization, setShowVisualization] = useState(enableVisualization)
+  const [showIGV, setShowIGV] = useState(enableIGV)
   const [activeTab, setActiveTab] = useState<string>('table')
+
+  // IGV browser handle reference
+  const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
 
   // Filter state - No default chromosome (backend uses materialized view for all-chromosome queries)
   const [filters, setFilters] = useState<OverlapFilters>(() => ({
@@ -200,6 +212,35 @@ export function LncRNAChIPSeqOverlapTable({
     if (filters.min_binding_affinity) count++
     return count
   }, [filters])
+
+  // Handle table row click to navigate IGV
+  const handleRowClick = useCallback((record: OverlapResult) => {
+    if (!browserHandleRef.current) {
+      message.warning(t('igv.browserNotReady', 'IGV browser is not ready'))
+      return
+    }
+
+    // Calculate locus with padding (50kb on each side)
+    const padding = 50000
+    const start = Math.max(0, record.overlap_start - padding)
+    const end = record.overlap_end + padding
+    const locus = `${record.chromosome}:${start}-${end}`
+
+    // Navigate IGV
+    browserHandleRef.current.navigateToLocus(locus)
+      .then(() => {
+        message.success(
+          t('igv.navigateSuccess', {
+            lncrna: record.lncrna_name || `Gene ${record.lncrna_gene_id}`,
+            defaultValue: `Navigated to ${record.lncrna_name}`
+          })
+        )
+      })
+      .catch((error) => {
+        console.error('IGV navigation failed:', error)
+        message.error(t('igv.navigateError', 'Failed to navigate IGV'))
+      })
+  }, [t])
 
   // Perform export - internal function
   // Note: exportOverlaps opens a new window for download, which has limited error handling
@@ -305,7 +346,15 @@ export function LncRNAChIPSeqOverlapTable({
   const hasData = overlapData && overlapData.total > 0
   const showEmptyState = !dataError && overlapData && overlapData.total === 0
 
+  // Main layout container style
+  const containerStyle: React.CSSProperties = enableIGV && showIGV
+    ? { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden' }
+    : {}
+
   return (
+    <div style={containerStyle}>
+      {/* Top Section: Table and Filters (when IGV enabled and shown) */}
+      <div style={enableIGV && showIGV ? { flex: '0 0 50%', overflow: 'auto', borderBottom: '2px solid #e8e8e8', padding: '16px' } : {}}>
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
       {/* Error Alert - Show at top but allow filter panel to remain visible */}
       {dataError && (
@@ -341,6 +390,20 @@ export function LncRNAChIPSeqOverlapTable({
             >
               {showFilters ? t('action.hideFilters', 'Hide Filters') : t('action.showFilters', 'Show Filters')}
             </Button>
+
+            {enableIGV && (
+              <Space>
+                <HeatMapOutlined />
+                <span style={{ fontSize: 13 }}>
+                  {t('action.showIGV', 'Show IGV Browser')}:
+                </span>
+                <Switch
+                  checked={showIGV}
+                  onChange={setShowIGV}
+                  size="small"
+                />
+              </Space>
+            )}
 
             {enableStats && (
               <Space>
@@ -557,6 +620,7 @@ export function LncRNAChIPSeqOverlapTable({
             loading={dataLoading}
             filters={filters}
             onFiltersChange={handleFiltersChange}
+            onRowClick={enableIGV && showIGV ? handleRowClick : undefined}
           />
         )}
 
@@ -619,6 +683,35 @@ export function LncRNAChIPSeqOverlapTable({
         />
       )}
     </Space>
+      </div>
+
+      {/* Bottom Section: IGV Genome Browser (when enabled and shown) */}
+      {enableIGV && showIGV && (
+        <div style={{ flex: '1 1 50%', padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <Card
+            title={
+              <Space>
+                <HeatMapOutlined />
+                {t('igv.title', 'Genome Browser')}
+                <span style={{ fontWeight: 'normal', color: '#999', fontSize: 13 }}>
+                  ({t('igv.clickHint', 'Click table row to navigate')})
+                </span>
+              </Space>
+            }
+            style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+            bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px' }}
+          >
+            <GenomeBrowser
+              speciesId={1}
+              onBrowserReady={(handle) => {
+                browserHandleRef.current = handle
+              }}
+              height="100%"
+            />
+          </Card>
+        </div>
+      )}
+    </div>
   )
 }
 

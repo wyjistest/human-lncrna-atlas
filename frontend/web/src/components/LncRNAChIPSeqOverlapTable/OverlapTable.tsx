@@ -41,6 +41,8 @@ interface OverlapTableProps {
   filters: OverlapFilters
   /** Filter change handler */
   onFiltersChange: (filters: Partial<OverlapFilters>) => void
+  /** Optional: Row click handler (for IGV integration) */
+  onRowClick?: (record: OverlapResult) => void
 }
 
 /**
@@ -116,6 +118,7 @@ export function OverlapTable({
   loading = false,
   filters,
   onFiltersChange,
+  onRowClick,
 }: OverlapTableProps) {
   const { t } = useTranslation('overlap')
 
@@ -369,6 +372,10 @@ export function OverlapTable({
         position: ['bottomCenter'],
       }}
       onChange={handleTableChange}
+      onRow={(record) => ({
+        onClick: () => onRowClick?.(record),
+        style: onRowClick ? { cursor: 'pointer' } : {}
+      })}
       scroll={{ x: 1200 }}
       size="small"
     />
