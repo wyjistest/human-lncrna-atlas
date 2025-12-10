@@ -27,7 +27,7 @@
  * - GET /api/v1/lncrna-chipseq-overlap/export (Phase 2)
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   Space,
   Card,
@@ -42,6 +42,7 @@ import {
   Dropdown,
   Modal,
   Tooltip,
+  Spin,
 } from 'antd'
 import {
   DownloadOutlined,
@@ -54,6 +55,8 @@ import {
   FileExcelOutlined,
   DownOutlined,
   InfoCircleOutlined,
+  EyeOutlined,
+  SyncOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 
@@ -151,7 +154,15 @@ export function LncRNAChIPSeqOverlapTable({
   // IGV browser handle reference
   const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
 
+  // Overlap track state
+  const [autoSyncTrack, setAutoSyncTrack] = useState(false)
+  const [trackLoading, setTrackLoading] = useState(false)
+
+  // API base URL for track loading
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+
   // Filter state - No default chromosome (backend uses materialized view for all-chromosome queries)
+  // NOTE: This must be defined BEFORE loadOverlapTrack which depends on filters
   const [filters, setFilters] = useState<OverlapFilters>(() => ({
     lncrna_gene_id: lncrnaGeneId,
     target_gene_id: targetGeneId,
@@ -161,6 +172,78 @@ export function LncRNAChIPSeqOverlapTable({
     page: 1,
     page_size: defaultPageSize,
   }))
+
+  // Load Overlap Track into IGV browser
+  // NOTE: This callback must be defined AFTER filters state
+  const loadOverlapTrack = useCallback(async () => {
+    if (!browserHandleRef.current) {
+      message.warning(t('igv.browserNotReady', 'IGV browser is not ready'))
+      return
+    }
+
+    setTrackLoading(true)
+    message.loading({
+      content: t('igv.trackLoading', 'Loading track...'),
+      key: 'overlapTrack',
+      duration: 0,
+    })
+
+    try {
+      // Remove existing overlap track first
+      browserHandleRef.current.removeTrack('Overlap Track')
+
+      // Build URL parameters from current filters
+      const params = new URLSearchParams()
+      if (filters.chromosome) params.append('chr', filters.chromosome)
+      if (filters.mark_type) params.append('mark_type', filters.mark_type)
+      if (filters.cell_type) params.append('cell_line', filters.cell_type)
+      if (filters.min_overlap_length !== undefined) {
+        params.append('min_overlap_length', String(filters.min_overlap_length))
+      }
+      if (filters.min_binding_affinity !== undefined) {
+        params.append('min_binding_affinity', String(filters.min_binding_affinity))
+      }
+
+      // Load new track with dynamic URL
+      await browserHandleRef.current.loadTrack({
+        name: 'Overlap Track',
+        type: 'annotation',
+        format: 'bed',
+        url: `${API_BASE_URL}/api/v1/igv/overlap-track?${params.toString()}`,
+        displayMode: 'EXPANDED',
+        color: '#722ed1',  // Purple color for overlap track
+        height: 60,
+        removable: true,
+        visibilityWindow: 5000000,  // 5MB window for BED format
+      })
+
+      message.success({
+        content: t('igv.trackLoaded', 'Track loaded'),
+        key: 'overlapTrack',
+        duration: 2,
+      })
+    } catch (error) {
+      console.error('Failed to load overlap track:', error)
+      message.error({
+        content: t('igv.trackLoadError', 'Failed to load track'),
+        key: 'overlapTrack',
+        duration: 3,
+      })
+    } finally {
+      setTrackLoading(false)
+    }
+  }, [filters, API_BASE_URL, t])
+
+  // Auto-sync track when filters change (if enabled)
+  useEffect(() => {
+    if (autoSyncTrack && showIGV && browserHandleRef.current) {
+      // Debounce the auto-sync to avoid rapid re-loads
+      const timer = setTimeout(() => {
+        loadOverlapTrack()
+      }, 500)
+      return () => clearTimeout(timer)
+    }
+  }, [autoSyncTrack, showIGV, filters.chromosome, filters.mark_type, filters.cell_type, loadOverlapTrack])
 
   // Data fetching
   const {
@@ -402,6 +485,33 @@ export function LncRNAChIPSeqOverlapTable({
                   onChange={setShowIGV}
                   size="small"
                 />
+              </Space>
+            )}
+
+            {/* Overlap Track Controls - Only show when IGV is enabled and visible */}
+            {enableIGV && showIGV && (
+              <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
+                <Tooltip title={t('igv.loadOverlapTrackTip', 'Display overlap data in IGV')}>
+                  <Button
+                    icon={trackLoading ? <Spin size="small" /> : <EyeOutlined />}
+                    onClick={loadOverlapTrack}
+                    disabled={trackLoading}
+                    size="small"
+                  >
+                    {t('igv.loadOverlapTrack', 'Load Overlap Track')}
+                  </Button>
+                </Tooltip>
+                <Space size="small">
+                  <SyncOutlined spin={autoSyncTrack && trackLoading} />
+                  <span style={{ fontSize: 12 }}>{t('igv.autoSync', 'Auto Sync')}:</span>
+                  <Switch
+                    checked={autoSyncTrack}
+                    onChange={setAutoSyncTrack}
+                    size="small"
+                    checkedChildren={t('igv.autoSync', 'Auto')}
+                    unCheckedChildren={t('igv.manual', 'Manual')}
+                  />
+                </Space>
               </Space>
             )}
 

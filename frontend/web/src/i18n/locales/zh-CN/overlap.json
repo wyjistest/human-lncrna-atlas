@@ -120,7 +120,14 @@
     "clickHint": "点击表格行以跳转",
     "browserNotReady": "IGV 浏览器尚未就绪",
     "navigateSuccess": "已跳转到 {{lncrna}}",
-    "navigateError": "IGV 跳转失败"
+    "navigateError": "IGV 跳转失败",
+    "loadOverlapTrack": "加载 Overlap 轨道",
+    "loadOverlapTrackTip": "在 IGV 浏览器中显示 overlap 数据轨道",
+    "trackLoading": "正在加载轨道...",
+    "trackLoaded": "轨道加载完成",
+    "trackLoadError": "轨道加载失败",
+    "autoSync": "自动同步",
+    "manual": "手动"
   },
   "empty": {
     "title": "暂无数据",

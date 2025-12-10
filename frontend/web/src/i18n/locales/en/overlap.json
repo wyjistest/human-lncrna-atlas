@@ -120,7 +120,14 @@
     "clickHint": "Click table row to navigate",
     "browserNotReady": "IGV browser is not ready",
     "navigateSuccess": "Navigated to {{lncrna}}",
-    "navigateError": "Failed to navigate IGV"
+    "navigateError": "Failed to navigate IGV",
+    "loadOverlapTrack": "Load Overlap Track",
+    "loadOverlapTrackTip": "Display overlap data as a track in IGV browser",
+    "trackLoading": "Loading track...",
+    "trackLoaded": "Track loaded successfully",
+    "trackLoadError": "Failed to load track",
+    "autoSync": "Auto Sync",
+    "manual": "Manual"
   },
   "empty": {
     "title": "No Data",

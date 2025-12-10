@@ -2512,7 +2512,8 @@ def get_igv_chipseq_config(
 
 @router.get("/overlap-track")
 def get_overlap_track(
-    chr: str = Query(..., description="Chromosome (e.g., 'chr1')"),
+    chr: Optional[str] = Query(None, description="Chromosome (e.g., 'chr1'). IGV.js uses this parameter name."),
+    chromosome: Optional[str] = Query(None, description="Chromosome alias (e.g., 'chr1'). Alternative parameter name."),
     start: int = Query(..., ge=0, description="Start position (0-based)"),
     end: int = Query(..., ge=0, description="End position (0-based, exclusive)"),
     mark_type: Optional[str] = Query(None, description="Filter by mark type (e.g., 'H3K27me3')"),
@@ -2536,7 +2537,7 @@ def get_overlap_track(
     6. strand - Always '+' (lncRNA-ChIP-seq overlaps are unstranded)
 
     ## Query Parameters
-    - **chr** (required): Chromosome to query (e.g., 'chr1')
+    - **chr** or **chromosome** (required): Chromosome to query (e.g., 'chr1'). IGV.js uses 'chr', but 'chromosome' is also accepted.
     - **start** (required): Start position (0-based)
     - **end** (required): End position (0-based, exclusive)
     - **mark_type** (optional): Filter by epigenetic mark type
@@ -2567,6 +2568,15 @@ def get_overlap_track(
     MAX_REGION_SIZE = 10_000_000  # 10Mb
     MAX_RECORDS = 10_000
 
+    # Support both 'chr' and 'chromosome' parameter names for IGV.js compatibility
+    # IGV.js URL template uses ${chr}, ${start}, ${end}
+    chrom = chr or chromosome
+    if not chrom:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required parameter: 'chr' or 'chromosome' must be provided"
+        )
+
     # Validate region size
     region_size = end - start
     if region_size <= 0:
@@ -2581,10 +2591,10 @@ def get_overlap_track(
         )
 
     # Validate chromosome format
-    if not chr.startswith('chr'):
-        chr = f'chr{chr}'
+    if not chrom.startswith('chr'):
+        chrom = f'chr{chrom}'
 
-    logger.info(f"Overlap track request: {chr}:{start}-{end}, mark={mark_type}, cell_line={cell_line}, min_ba={min_ba}")
+    logger.info(f"Overlap track request: {chrom}:{start}-{end}, mark={mark_type}, cell_line={cell_line}, min_ba={min_ba}")
 
     try:
         # Check if materialized view exists (same logic as overlap router)
@@ -2645,7 +2655,7 @@ def get_overlap_track(
 
         # Execute query
         params = {
-            "chr": chr,
+            "chr": chrom,
             "start": start,
             "end": end,
             "mark_type": mark_type,
@@ -2668,10 +2678,10 @@ def get_overlap_track(
         if bed_content:
             bed_content += "\n"  # Add trailing newline
 
-        logger.info(f"Returning {len(bed_lines)} overlap records for {chr}:{start}-{end}")
+        logger.info(f"Returning {len(bed_lines)} overlap records for {chrom}:{start}-{end}")
 
         # Return as plain text with appropriate headers
-        filename = f"overlap_{chr}_{start}_{end}.bed"
+        filename = f"overlap_{chrom}_{start}_{end}.bed"
         return PlainTextResponse(
             content=bed_content,
             media_type="text/plain",
