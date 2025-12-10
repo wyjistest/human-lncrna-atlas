@@ -1,8 +1,8 @@
 # Human LncRNA Atlas 项目记忆文件
 
 ## 元信息
-- **更新日期**: 2025-12-09
-- **当前版本**: Phase 4.2 (物化视图性能优化)
+- **更新日期**: 2025-12-10
+- **当前版本**: Phase 4.3 (启动修复 + 多数据库方言支持)
 - **项目状态**: 生产就绪，可用于科研分析
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
@@ -138,6 +138,19 @@ git add -A && git commit -m "feat: 描述" && git push
 | `Property 'xxx' is missing` | 配置文件未同步 | 同步所有同名配置文件 |
 | `Cannot find module 'igv'` | 依赖未安装 | `npm install` |
 | `TS2741: Property missing` | 类型不完整 | 检查 `types/` 目录 |
+| `ModuleNotFoundError: app.routers.xxx` | router 文件不存在 | 检查 `main.py` 导入，移除不存在的 router |
+
+### 数据库方言支持 (Phase 4.3)
+
+`database.py` 支持多种数据库方言：
+
+| 方言 | 连接池 | statement_timeout | 说明 |
+|------|--------|-------------------|------|
+| PostgreSQL | QueuePool | ✅ 30s | 生产环境推荐 |
+| SQLite | StaticPool | ❌ 不支持 | Demo/测试模式 |
+| 其他 | QueuePool | ❌ 不支持 | 通用配置 |
+
+**注意**: `with_timeout()` 上下文管理器在非 PostgreSQL 数据库中为 no-op（优雅降级）。
 
 ## 文档索引
 
