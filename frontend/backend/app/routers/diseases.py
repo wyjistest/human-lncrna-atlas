@@ -24,10 +24,54 @@ from app.schemas.disease import (
     TraitBase,
     TraitDetail,
     TraitGeneAssociationDetail,
+    DiseaseOption,
 )
 from app.schemas.common import PaginatedResponse
+from app.core.cache import cache
 
 router = APIRouter(prefix="/diseases", tags=["diseases"])
+
+
+@router.get("/options")
+def get_disease_options(
+    db: Session = Depends(get_db),
+):
+    """
+    获取疾病/性状选项列表（轻量级，用于下拉列表）
+
+    返回所有疾病的 ID 和名称，支持 Redis 缓存（30 分钟 TTL）
+    - 只查询 trait_id 和 trait_name 字段
+    - 使用 DISTINCT 去重
+    - 按 trait_name 排序
+    """
+    # 生成缓存键
+    cache_key = cache._make_key("diseases:options")
+
+    # 尝试从缓存获取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # 查询数据库（只查询必要字段）
+    traits = (
+        db.query(Trait.trait_id, Trait.trait_name)
+        .distinct()
+        .order_by(Trait.trait_name)
+        .all()
+    )
+
+    # 构造响应
+    result = {
+        "traits": [
+            {"trait_id": trait.trait_id, "trait_name": trait.trait_name}
+            for trait in traits
+        ]
+    }
+
+    # 存入缓存（30 分钟 = 1800 秒）
+    cache.set(cache_key, result, 1800)
+
+    return result
 
 
 @router.get("", response_model=PaginatedResponse[TraitGeneAssociationDetail])

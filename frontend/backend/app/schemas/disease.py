@@ -77,6 +77,15 @@ class TraitGeneAssociationDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DiseaseOption(BaseModel):
+    """疾病/性状选项（轻量级，用于下拉列表）"""
+
+    trait_id: int
+    trait_name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TraitFilter(BaseModel):
     """疾病/性状过滤条件"""
 

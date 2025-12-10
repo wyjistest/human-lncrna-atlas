@@ -164,7 +164,12 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             # 记录慢请求
             if process_time > 2.0:
                 logger.warning(
-                    f"Slow request: {request.method} {request.url} - {process_time:.3f}s"
+                    f"🐢 SLOW REQUEST DETECTED\n"
+                    f"  Method: {request.method}\n"
+                    f"  URL: {request.url}\n"
+                    f"  Duration: {process_time:.3f}s\n"
+                    f"  Client IP: {request.client.host if request.client else 'unknown'}\n"
+                    f"  Query Params: {dict(request.query_params)}"
                 )
 
             # Phase 2 - 响应时间分布更新
