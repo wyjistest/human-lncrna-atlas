@@ -41,25 +41,25 @@ test.describe('Disease Dropdown Performance Tests', () => {
 
     console.log('\n🚀 Starting Disease API Performance Test...')
 
-    // Measure API response time
+    // Measure API response time (optimized endpoint)
     const { response, time: apiTime, data, headers } = await metrics.measureAPIResponse(
-      '/api/v1/diseases',
+      '/api/v1/diseases/options',
       async () => {
         await page.goto(`${BASE_URL}${PAGE_URL}`)
         await page.waitForLoadState('networkidle')
       }
     )
 
-    // Extract data metrics
-    const totalItems = data.total || 0
-    const returnedItems = data.items?.length || 0
+    // Extract data metrics (new response structure)
+    const totalItems = data.traits?.length || 0
+    const returnedItems = data.traits?.length || 0
     const payloadSize = parseInt(headers['content-length'] || '0', 10)
     const cacheStatus = headers['x-cache-status'] || 'MISS'
 
     console.log(`\n📊 API Performance Metrics:`)
     console.log(`  - Response Time: ${apiTime}ms`)
-    console.log(`  - Total Items: ${totalItems}`)
-    console.log(`  - Returned Items: ${returnedItems}`)
+    console.log(`  - Total Diseases: ${totalItems}`)
+    console.log(`  - Deduplicated Count: ${returnedItems}`)
     console.log(`  - Payload Size: ${(payloadSize / 1024).toFixed(2)} KB`)
     console.log(`  - Cache Status: ${cacheStatus}`)
 
