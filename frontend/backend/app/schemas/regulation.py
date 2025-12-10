@@ -143,3 +143,41 @@ class NetworkData(BaseModel):
     nodes: list[NetworkNode]
     edges: list[NetworkEdge]
     stats: dict = Field(default_factory=dict, description="网络统计信息")
+
+
+class LncRNAOption(BaseModel):
+    """LncRNA 选项（轻量级，用于下拉框）"""
+
+    gene_id: int
+    gene_ensembl_id: str
+    gene_name: Optional[str] = None
+    species_id: int
+    species_name: str
+    regulation_count: int = Field(description="该 lncRNA 的调控关系数量")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LncRNAOptionsResponse(BaseModel):
+    """LncRNA 选项响应"""
+
+    lncrnas: list[LncRNAOption]
+
+
+class TargetOption(BaseModel):
+    """靶基因选项（轻量级，用于下拉框）"""
+
+    gene_id: int
+    gene_ensembl_id: str
+    gene_name: Optional[str] = None
+    species_id: int
+    species_name: str
+    lncrna_count: int = Field(description="调控该靶基因的 lncRNA 数量")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TargetOptionsResponse(BaseModel):
+    """靶基因选项响应"""
+
+    targets: list[TargetOption]

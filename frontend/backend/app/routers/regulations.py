@@ -4,7 +4,7 @@ import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from math import ceil
 
 
@@ -13,16 +13,183 @@ def escape_like_pattern(value: str) -> str:
     return re.sub(r'([%_\\])', r'\\\1', value)
 
 from app.core.database import get_db
+from app.core.cache import cache
 from app.models import Regulation, Gene, Species, Sequence
 from app.schemas.regulation import (
     RegulationDetail,
     RegulationListItem,
+    LncRNAOption,
+    LncRNAOptionsResponse,
+    TargetOption,
+    TargetOptionsResponse,
 )
 from app.schemas.common import PaginatedResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/regulations", tags=["regulations"])
+
+
+@router.get("/lncrna-options", response_model=LncRNAOptionsResponse)
+def get_lncrna_options(
+    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    db: Session = Depends(get_db),
+):
+    """
+    获取 lncRNA 选项列表（轻量级，用于下拉框）
+
+    性能优化：
+    - 只返回有调控关系的 lncRNA
+    - 包含每个 lncRNA 的调控数量
+    - Redis 缓存 30 分钟
+    - 按 species_id 分组缓存
+
+    Args:
+        species_id: 物种ID（可选）
+        db: 数据库会话
+
+    Returns:
+        LncRNAOptionsResponse: 包含 lncRNA 选项列表
+    """
+    # 构建缓存键
+    cache_suffix = f"{species_id or 'all'}"
+    cache_key = cache._make_key(f"regulations:lncrna-options:{cache_suffix}")
+
+    # 尝试从缓存读取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        logger.debug(f"[CACHE HIT] lncrna-options:{cache_suffix}")
+        return cached
+
+    logger.debug(f"[CACHE MISS] lncrna-options:{cache_suffix}")
+
+    # 查询数据库：从 regulations 表聚合获取有调控关系的 lncRNA
+    query = db.query(
+        Gene.gene_id,
+        Gene.gene_ensembl_id,
+        Gene.gene_name,
+        Gene.species_id,
+        Species.display_name.label("species_name"),
+        func.count(Regulation.regulation_id).label("regulation_count")
+    ).join(
+        Regulation, Gene.gene_id == Regulation.lncrna_gene_id
+    ).join(
+        Species, Gene.species_id == Species.species_id
+    ).group_by(
+        Gene.gene_id,
+        Gene.gene_ensembl_id,
+        Gene.gene_name,
+        Gene.species_id,
+        Species.display_name
+    )
+
+    # 应用物种过滤
+    if species_id:
+        query = query.filter(Gene.species_id == species_id)
+
+    # 执行查询并排序
+    lncrnas = query.order_by(Gene.gene_name).all()
+
+    # 构建响应
+    result = {
+        "lncrnas": [
+            {
+                "gene_id": lnc.gene_id,
+                "gene_ensembl_id": lnc.gene_ensembl_id,
+                "gene_name": lnc.gene_name,
+                "species_id": lnc.species_id,
+                "species_name": lnc.species_name,
+                "regulation_count": lnc.regulation_count
+            }
+            for lnc in lncrnas
+        ]
+    }
+
+    # 写入缓存（30 分钟 = 1800 秒）
+    cache.set(cache_key, result, 1800)
+
+    return result
+
+
+@router.get("/target-options", response_model=TargetOptionsResponse)
+def get_target_options(
+    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    db: Session = Depends(get_db),
+):
+    """
+    获取靶基因选项列表（轻量级，用于下拉框）
+
+    性能优化：
+    - 只返回被调控的基因
+    - 包含每个靶基因被多少个 lncRNA 调控
+    - Redis 缓存 30 分钟
+    - 按 species_id 分组缓存
+
+    Args:
+        species_id: 物种ID（可选）
+        db: 数据库会话
+
+    Returns:
+        TargetOptionsResponse: 包含靶基因选项列表
+    """
+    # 构建缓存键
+    cache_suffix = f"{species_id or 'all'}"
+    cache_key = cache._make_key(f"regulations:target-options:{cache_suffix}")
+
+    # 尝试从缓存读取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        logger.debug(f"[CACHE HIT] target-options:{cache_suffix}")
+        return cached
+
+    logger.debug(f"[CACHE MISS] target-options:{cache_suffix}")
+
+    # 查询数据库：从 regulations 表聚合获取被调控的基因
+    query = db.query(
+        Gene.gene_id,
+        Gene.gene_ensembl_id,
+        Gene.gene_name,
+        Gene.species_id,
+        Species.display_name.label("species_name"),
+        func.count(func.distinct(Regulation.lncrna_gene_id)).label("lncrna_count")
+    ).join(
+        Regulation, Gene.gene_id == Regulation.target_gene_id
+    ).join(
+        Species, Gene.species_id == Species.species_id
+    ).group_by(
+        Gene.gene_id,
+        Gene.gene_ensembl_id,
+        Gene.gene_name,
+        Gene.species_id,
+        Species.display_name
+    )
+
+    # 应用物种过滤
+    if species_id:
+        query = query.filter(Gene.species_id == species_id)
+
+    # 执行查询并排序
+    targets = query.order_by(Gene.gene_name).all()
+
+    # 构建响应
+    result = {
+        "targets": [
+            {
+                "gene_id": tgt.gene_id,
+                "gene_ensembl_id": tgt.gene_ensembl_id,
+                "gene_name": tgt.gene_name,
+                "species_id": tgt.species_id,
+                "species_name": tgt.species_name,
+                "lncrna_count": tgt.lncrna_count
+            }
+            for tgt in targets
+        ]
+    }
+
+    # 写入缓存（30 分钟 = 1800 秒）
+    cache.set(cache_key, result, 1800)
+
+    return result
 
 
 def _build_regulation_list_query(db: Session):
@@ -85,7 +252,26 @@ def list_regulations(
 ):
     """
     获取调控关系列表（支持分页和过滤）
+
+    性能优化：
+    - Redis 缓存 15 分钟（TTL 900 秒）
+    - 按查询参数组合生成缓存键
     """
+    # 构建缓存键（包含所有影响查询结果的参数）
+    cache_key = cache._make_key(
+        f"regulations:list:{lncrna_gene_id}:{target_gene_id}:{species_id or species_ids}:"
+        f"{lncrna_gene_name}:{target_gene_name}:{min_ba}:{max_ba}:{chromosome or chromosomes}:"
+        f"{page}:{page_size}"
+    )
+
+    # 尝试从缓存读取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        logger.debug(f"[CACHE HIT] regulations:list")
+        return cached
+
+    logger.debug(f"[CACHE MISS] regulations:list")
+
     query, LncRNAGene, TargetGene = _build_regulation_list_query(db)
 
     # 物种筛选：优先使用数组参数
@@ -155,13 +341,18 @@ def list_regulations(
         for item in items
     ]
 
-    return PaginatedResponse(
+    result = PaginatedResponse(
         items=regulation_list,
         total=total,
         page=page,
         page_size=page_size,
         total_pages=ceil(total / page_size) if total > 0 else 0,
     )
+
+    # 写入缓存（15 分钟 = 900 秒）
+    cache.set(cache_key, cache._serialize(result), 900)
+
+    return result
 
 
 @router.get("/{regulation_id}", response_model=RegulationDetail)
