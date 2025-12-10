@@ -12,16 +12,114 @@ def escape_like_pattern(value: str) -> str:
     return re.sub(r'([%_\\])', r'\\\1', value)
 
 from app.core.database import get_db
+from app.core.cache import cache
 from app.models import Gene, CoreGene, Species, Regulation, TraitGeneAssociation
 from app.schemas.gene import (
     GeneDetail,
     GeneListItem,
     OrthologInfo,
     GeneFilter,
+    GeneOption,
+    GeneOptionsResponse,
 )
 from app.schemas.common import PaginatedResponse
 
 router = APIRouter(prefix="/genes", tags=["genes"])
+
+
+@router.get("/options", response_model=GeneOptionsResponse)
+def get_gene_options(
+    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    gene_type: Optional[str] = Query(None, description="基因类型过滤（lncRNA/protein_coding）"),
+    db: Session = Depends(get_db),
+):
+    """
+    获取基因选项列表（轻量级，用于下拉框）
+
+    性能优化：
+    - 只返回必要字段（gene_id, gene_ensembl_id, gene_name, species_id, species_name）
+    - Redis 缓存 30 分钟
+    - 按 species_id 和 gene_type 分组缓存
+    - 去除物种后缀（_chimp, _macaque, _marmoset）
+
+    Args:
+        species_id: 物种ID（可选）
+        gene_type: 基因类型（可选）
+        db: 数据库会话
+
+    Returns:
+        GeneOptionsResponse: 包含基因选项列表
+    """
+    # 构建缓存键
+    cache_suffix = f"{species_id or 'all'}:{gene_type or 'all'}"
+    cache_key = cache._make_key(f"genes:options:{cache_suffix}")
+
+    # 尝试从缓存读取
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    # 查询数据库（只查询必要字段）
+    query = db.query(
+        Gene.gene_id,
+        Gene.gene_ensembl_id,
+        Gene.gene_name,
+        Gene.species_id,
+        Species.display_name.label("species_name")
+    ).join(Species, Gene.species_id == Species.species_id)
+
+    # 如果需要按基因类型过滤，需要 JOIN core_genes
+    if gene_type:
+        query = query.join(CoreGene, Gene.core_id == CoreGene.core_id)
+        query = query.filter(CoreGene.gene_type == gene_type)
+
+    # 应用物种过滤
+    if species_id:
+        query = query.filter(Gene.species_id == species_id)
+
+    # 执行查询并排序
+    genes = query.order_by(Gene.gene_name).all()
+
+    # 构建响应（去除物种后缀）
+    result = {
+        "genes": [
+            {
+                "gene_id": g.gene_id,
+                "gene_ensembl_id": g.gene_ensembl_id,
+                "gene_name": _remove_species_suffix(g.gene_name),
+                "species_id": g.species_id,
+                "species_name": g.species_name
+            }
+            for g in genes
+        ]
+    }
+
+    # 写入缓存（30 分钟 = 1800 秒）
+    cache.set(cache_key, result, 1800)
+
+    return result
+
+
+def _remove_species_suffix(gene_name: Optional[str]) -> Optional[str]:
+    """
+    去除基因名中的物种后缀
+
+    Args:
+        gene_name: 原始基因名
+
+    Returns:
+        去除后缀的基因名
+    """
+    if not gene_name:
+        return gene_name
+
+    # 检查并移除后缀
+    suffixes = ['_chimp', '_macaque', '_marmoset']
+    for suffix in suffixes:
+        if gene_name.endswith(suffix):
+            return gene_name[:-len(suffix)]
+
+    return gene_name
 
 
 @router.get("", response_model=PaginatedResponse[GeneListItem])

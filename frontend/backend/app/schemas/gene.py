@@ -98,3 +98,21 @@ class GeneFilter(BaseModel):
     has_disease: Optional[bool] = Field(default=None, description="是否有疾病关联")
     min_regulation_count: Optional[int] = Field(default=None, description="最小调控数量")
     search: Optional[str] = Field(default=None, description="搜索关键词（基因名/ID）")
+
+
+class GeneOption(BaseModel):
+    """基因选项（轻量级，用于下拉框）"""
+
+    gene_id: int
+    gene_ensembl_id: str
+    gene_name: Optional[str] = None
+    species_id: int
+    species_name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GeneOptionsResponse(BaseModel):
+    """基因选项响应"""
+
+    genes: List[GeneOption]
