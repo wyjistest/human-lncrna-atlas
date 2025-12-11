@@ -43,7 +43,12 @@ import {
   Modal,
   Tooltip,
   Spin,
+  Collapse,
+  Select,
+  Tag,
+  Typography,
 } from 'antd'
+import type { MenuProps } from 'antd'
 import {
   DownloadOutlined,
   ReloadOutlined,
@@ -57,8 +62,12 @@ import {
   InfoCircleOutlined,
   EyeOutlined,
   SyncOutlined,
+  SettingOutlined,
+  BgColorsOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from '@tanstack/react-query'
 
 // Components
 import { OverlapFilterPanel } from './OverlapFilterPanel'
@@ -69,6 +78,16 @@ import { OverlapCellTypeChart } from './OverlapCellTypeChart'
 import { OverlapHeatmapMatrix } from './OverlapHeatmapMatrix'
 import { LoadingState } from '@/components/LoadingState'
 import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
+import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
+import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
+
+// API and configs
+import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/features'
+import { genomeApi, type IGVTrackConfig } from '@/api/genome'
+import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
+import type { MarkType } from '@/types/chipseq'
+
+const { Text } = Typography
 
 // Hooks
 import {
@@ -143,6 +162,7 @@ export function LncRNAChIPSeqOverlapTable({
 }: LncRNAChIPSeqOverlapTableProps) {
   const { t } = useTranslation('overlap')
   const { t: tCommon } = useTranslation('common')
+  const { t: tGenomeBrowser } = useTranslation('genomeBrowser')
 
   // UI state
   const [showFilters, setShowFilters] = useState(true)
@@ -153,10 +173,44 @@ export function LncRNAChIPSeqOverlapTable({
 
   // IGV browser handle reference
   const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
+  const browserContainerRef = useRef<HTMLDivElement>(null)
 
   // Overlap track state
   const [autoSyncTrack, setAutoSyncTrack] = useState(false)
   const [trackLoading, setTrackLoading] = useState(false)
+
+  // IGV control state (like GenomeBrowser page)
+  const [igvSpeciesId, setIgvSpeciesId] = useState<number>(1) // Default to Human
+  const [currentLocus, setCurrentLocus] = useState<string | undefined>()
+  const [isExporting, setIsExporting] = useState(false)
+
+  // RepeatMasker track controls
+  const [enabledRepeatClasses, setEnabledRepeatClasses] = useState<Record<string, boolean>>({
+    SINE: false,
+    LINE: false,
+    LTR: false,
+    DNA: false,
+    Simple: false,
+    LowComplexity: false,
+    Other: false,
+  })
+  const [loadingRepeatClasses, setLoadingRepeatClasses] = useState<Record<string, boolean>>({})
+  const [repeatClassTracks, setRepeatClassTracks] = useState<RepeatMaskerClassTrack[]>([])
+
+  // ChIP-seq state
+  const [showChIPSeq, setShowChIPSeq] = useState(false)
+  const [selectedChIPSeqMarks, setSelectedChIPSeqMarks] = useState<string[]>([])
+
+  // RepeatMasker color configuration
+  const REPEAT_CLASS_COLORS: Record<string, string> = {
+    SINE: '#FF0000',
+    LINE: '#0000CC',
+    LTR: '#00CC00',
+    DNA: '#CC00CC',
+    Simple: '#000000',
+    LowComplexity: '#666666',
+    Other: '#888888',
+  }
 
   // API base URL for track loading
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -244,6 +298,273 @@ export function LncRNAChIPSeqOverlapTable({
       return () => clearTimeout(timer)
     }
   }, [autoSyncTrack, showIGV, filters.chromosome, filters.mark_type, filters.cell_type, loadOverlapTrack])
+
+  // ==================== IGV Control Logic (from GenomeBrowser page) ====================
+
+  // Fetch available repeat class tracks when species changes
+  useEffect(() => {
+    const fetchRepeatClassTracks = async () => {
+      try {
+        const response = await getRepeatMaskerClassTracks(igvSpeciesId)
+        if (response.data?.data?.tracks) {
+          setRepeatClassTracks(response.data.data.tracks)
+        }
+      } catch (error) {
+        console.error('Failed to fetch repeat class tracks:', error)
+      }
+    }
+    if (showIGV) {
+      fetchRepeatClassTracks()
+    }
+  }, [igvSpeciesId, showIGV])
+
+  // Fetch available ChIP-seq marks for the selected species
+  const {
+    data: availableChIPSeqMarks,
+    isLoading: isLoadingChIPSeqMarks,
+    error: chipseqMarksError
+  } = useQuery({
+    queryKey: ['chipseq-marks', igvSpeciesId],
+    queryFn: async () => {
+      const response = await genomeApi.getChIPSeqMarks(igvSpeciesId)
+      return response.data.data.marks
+    },
+    enabled: showChIPSeq && showIGV,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Validate selected marks when available marks change
+  useEffect(() => {
+    if (availableChIPSeqMarks && selectedChIPSeqMarks.length > 0) {
+      const availableMarkTypes = new Set(availableChIPSeqMarks.map(m => m.mark_name))
+      const validMarks = selectedChIPSeqMarks.filter(mark => availableMarkTypes.has(mark))
+      if (validMarks.length !== selectedChIPSeqMarks.length) {
+        setSelectedChIPSeqMarks(validMarks)
+        if (validMarks.length < selectedChIPSeqMarks.length) {
+          message.warning(tGenomeBrowser('chipseq.someMarksUnavailable') || 'Some selected marks are not available for this species')
+        }
+      }
+    }
+  }, [availableChIPSeqMarks, tGenomeBrowser])
+
+  // Handle ChIP-seq toggle
+  const handleChIPSeqToggle = useCallback((checked: boolean) => {
+    setShowChIPSeq(checked)
+    if (!checked) {
+      setSelectedChIPSeqMarks([])
+    }
+  }, [])
+
+  // Handle ChIP-seq mark selection change
+  const handleChIPSeqMarksChange = useCallback((marks: string[]) => {
+    setSelectedChIPSeqMarks(marks)
+  }, [])
+
+  // Load a specific repeat class track
+  const loadRepeatClassTrack = useCallback(async (repeatClass: string) => {
+    if (!browserHandleRef.current) {
+      message.warning(tGenomeBrowser('exportNotReady'))
+      return
+    }
+
+    const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
+    if (!track) {
+      message.error(tGenomeBrowser('trackLoadFailed', { name: repeatClass }))
+      return
+    }
+
+    setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: true }))
+    try {
+      await browserHandleRef.current.loadTrack(track as unknown as IGVTrackConfig)
+      message.success(tGenomeBrowser('trackLoaded', { name: tGenomeBrowser(`repeatClasses.${repeatClass}`) }))
+    } catch (error) {
+      console.error(`Failed to load ${repeatClass} track:`, error)
+      message.error(tGenomeBrowser('trackLoadFailed', { name: repeatClass }))
+      setEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
+    } finally {
+      setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
+    }
+  }, [repeatClassTracks, tGenomeBrowser])
+
+  // Remove a specific repeat class track
+  const removeRepeatClassTrack = useCallback((repeatClass: string) => {
+    if (browserHandleRef.current) {
+      const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
+      if (track) {
+        browserHandleRef.current.removeTrack(track.id)
+        message.info(tGenomeBrowser('trackRemoved', { name: tGenomeBrowser(`repeatClasses.${repeatClass}`) }))
+      }
+    }
+  }, [repeatClassTracks, tGenomeBrowser])
+
+  // Handle repeat class toggle
+  const handleRepeatClassToggle = useCallback(async (repeatClass: string, enabled: boolean) => {
+    setEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: enabled }))
+    if (enabled) {
+      await loadRepeatClassTrack(repeatClass)
+    } else {
+      removeRepeatClassTrack(repeatClass)
+    }
+  }, [loadRepeatClassTrack, removeRepeatClassTrack])
+
+  // Handle select all / deselect all for RepeatMasker
+  const handleSelectAllRepeats = useCallback(() => {
+    Object.keys(enabledRepeatClasses).forEach(repeatClass => {
+      if (!enabledRepeatClasses[repeatClass]) {
+        handleRepeatClassToggle(repeatClass, true)
+      }
+    })
+  }, [enabledRepeatClasses, handleRepeatClassToggle])
+
+  const handleDeselectAllRepeats = useCallback(() => {
+    Object.keys(enabledRepeatClasses).forEach(repeatClass => {
+      if (enabledRepeatClasses[repeatClass]) {
+        handleRepeatClassToggle(repeatClass, false)
+      }
+    })
+  }, [enabledRepeatClasses, handleRepeatClassToggle])
+
+  // Handle species change for IGV
+  const handleIgvSpeciesChange = useCallback((value: number) => {
+    setIgvSpeciesId(value)
+    setCurrentLocus(undefined)
+    // Reset tracks when species changes
+    setSelectedChIPSeqMarks([])
+    setEnabledRepeatClasses({
+      SINE: false, LINE: false, LTR: false, DNA: false,
+      Simple: false, LowComplexity: false, Other: false,
+    })
+  }, [])
+
+  // Handle locus change from IGV browser
+  const handleLocusChange = useCallback((locus: string) => {
+    setCurrentLocus(locus)
+  }, [])
+
+  // Handle browser ready callback
+  const handleBrowserReady = useCallback((handle: GenomeBrowserHandle) => {
+    browserHandleRef.current = handle
+  }, [])
+
+  // Handle toolbar search - navigate IGV to the selected locus
+  const handleToolbarSearch = useCallback((locus: string) => {
+    if (browserHandleRef.current) {
+      browserHandleRef.current.navigateToLocus(locus)
+        .then(() => {
+          message.success(`Navigated to ${locus}`)
+          setCurrentLocus(locus)
+        })
+        .catch((err) => {
+          console.error('Navigation failed:', err)
+          message.error(tGenomeBrowser('searchError') || 'Navigation failed')
+        })
+    } else {
+      message.warning('Browser is loading, please wait...')
+    }
+  }, [tGenomeBrowser])
+
+  // Generate filename for exports
+  const getExportFilename = useCallback((extension: string) => {
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')
+    const locusStr = currentLocus ? `-${currentLocus.replace(/[:\s]/g, '_')}` : ''
+    return `igv-overlap-export${locusStr}-${timestamp}.${extension}`
+  }, [currentLocus])
+
+  // Export to SVG
+  const handleExportSVG = useCallback(() => {
+    if (!browserHandleRef.current) {
+      message.warning(tGenomeBrowser('exportNotReady'))
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const svg = browserHandleRef.current.toSVG()
+      if (!svg) {
+        message.error(tGenomeBrowser('exportFailed'))
+        return
+      }
+
+      const blob = new Blob([svg], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = getExportFilename('svg')
+      a.click()
+      URL.revokeObjectURL(url)
+      message.success(tGenomeBrowser('exportSuccess'))
+    } catch (err) {
+      console.error('SVG export failed:', err)
+      message.error(tGenomeBrowser('exportFailed'))
+    } finally {
+      setIsExporting(false)
+    }
+  }, [tGenomeBrowser, getExportFilename])
+
+  // Export to PNG
+  const handleExportPNG = useCallback(() => {
+    if (!browserHandleRef.current) {
+      message.warning(tGenomeBrowser('exportNotReady'))
+      return
+    }
+
+    setIsExporting(true)
+    try {
+      const svg = browserHandleRef.current.toSVG()
+      if (!svg) {
+        message.error(tGenomeBrowser('exportFailed'))
+        setIsExporting(false)
+        return
+      }
+
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const scale = 2
+        canvas.width = img.width * scale
+        canvas.height = img.height * scale
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.scale(scale, scale)
+          ctx.drawImage(img, 0, 0)
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = getExportFilename('png')
+              a.click()
+              URL.revokeObjectURL(url)
+              message.success(tGenomeBrowser('exportSuccess'))
+            } else {
+              message.error(tGenomeBrowser('exportFailed'))
+            }
+            setIsExporting(false)
+          }, 'image/png')
+        } else {
+          message.error(tGenomeBrowser('exportFailed'))
+          setIsExporting(false)
+        }
+      }
+      img.onerror = () => {
+        message.error(tGenomeBrowser('exportFailed'))
+        setIsExporting(false)
+      }
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)))
+    } catch (err) {
+      console.error('PNG export failed:', err)
+      message.error(tGenomeBrowser('exportFailed'))
+      setIsExporting(false)
+    }
+  }, [tGenomeBrowser, getExportFilename])
+
+  // Export menu items for IGV
+  const igvExportMenuItems: MenuProps['items'] = [
+    { key: 'svg', label: tGenomeBrowser('exportSVG'), onClick: handleExportSVG },
+    { key: 'png', label: tGenomeBrowser('exportPNG'), onClick: handleExportPNG },
+  ]
+
+  // ==================== End IGV Control Logic ====================
 
   // Data fetching
   const {
@@ -806,18 +1127,236 @@ export function LncRNAChIPSeqOverlapTable({
                 <span style={{ fontWeight: 'normal', color: '#999', fontSize: 13 }}>
                   ({t('igv.clickHint', 'Click table row to navigate')})
                 </span>
+                {currentLocus && (
+                  <Text type="secondary" style={{ marginLeft: 8 }}>
+                    @ {currentLocus}
+                  </Text>
+                )}
+              </Space>
+            }
+            extra={
+              <Space>
+                {/* Export Button */}
+                <Dropdown menu={{ items: igvExportMenuItems }} disabled={isExporting}>
+                  <Button icon={<DownloadOutlined />} loading={isExporting} size="small">
+                    {tGenomeBrowser('export')}
+                  </Button>
+                </Dropdown>
               </Space>
             }
             style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-            bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px' }}
+            styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column', padding: '8px', overflow: 'auto' } }}
           >
-            <GenomeBrowser
-              speciesId={1}
-              onBrowserReady={(handle) => {
-                browserHandleRef.current = handle
-              }}
-              height="100%"
+            {/* Gene Search Toolbar */}
+            <GenomeBrowserToolbar
+              speciesId={igvSpeciesId}
+              onSpeciesChange={handleIgvSpeciesChange}
+              onSearch={handleToolbarSearch}
+              disabled={false}
             />
+
+            {/* Track Controls Panel */}
+            <Collapse
+              size="small"
+              style={{ marginBottom: 12 }}
+              items={[
+                {
+                  key: 'trackControls',
+                  label: (
+                    <Space>
+                      <SettingOutlined />
+                      <span>{tGenomeBrowser('trackControls')}</span>
+                      {(selectedChIPSeqMarks.length > 0 || Object.values(enabledRepeatClasses).some(v => v)) && (
+                        <Tag color="blue">
+                          {selectedChIPSeqMarks.length + Object.values(enabledRepeatClasses).filter(v => v).length}
+                        </Tag>
+                      )}
+                    </Space>
+                  ),
+                  children: (
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      {/* ChIP-seq Tracks */}
+                      <Collapse
+                        size="small"
+                        items={[
+                          {
+                            key: 'chipseq',
+                            label: (
+                              <Space>
+                                <BgColorsOutlined />
+                                <span style={{ fontWeight: 500 }}>{tGenomeBrowser('chipseq.title')}</span>
+                                {selectedChIPSeqMarks.length > 0 && (
+                                  <Tag color="blue">{selectedChIPSeqMarks.length}</Tag>
+                                )}
+                              </Space>
+                            ),
+                            children: (
+                              <Space direction="vertical" style={{ width: '100%' }}>
+                                <Space align="center">
+                                  <Switch
+                                    checked={showChIPSeq}
+                                    onChange={handleChIPSeqToggle}
+                                    size="small"
+                                  />
+                                  <span>{tGenomeBrowser('chipseq.enableTracks')}</span>
+                                </Space>
+
+                                {showChIPSeq && (
+                                  <>
+                                    {isLoadingChIPSeqMarks ? (
+                                      <Space>
+                                        <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
+                                        <span>{tGenomeBrowser('chipseq.loadingMarks')}</span>
+                                      </Space>
+                                    ) : chipseqMarksError ? (
+                                      <Alert type="error" message={tGenomeBrowser('chipseq.loadMarksFailed')} />
+                                    ) : (
+                                      <>
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                          {tGenomeBrowser('chipseq.selectMarksHint')}
+                                        </Text>
+                                        <Select
+                                          mode="multiple"
+                                          placeholder={tGenomeBrowser('chipseq.selectPlaceholder')}
+                                          style={{ width: '100%' }}
+                                          listHeight={400}
+                                          value={selectedChIPSeqMarks}
+                                          onChange={handleChIPSeqMarksChange}
+                                          options={(() => {
+                                            const availableMarkTypes = new Set(
+                                              availableChIPSeqMarks?.map(m => m.mark_name) || []
+                                            )
+                                            const allGroups = getMarksGroupedByCategory()
+                                            return allGroups
+                                              .map(group => {
+                                                const filteredMarks = group.marks.filter(mark =>
+                                                  availableMarkTypes.has(mark.value)
+                                                )
+                                                if (filteredMarks.length === 0) return null
+                                                return {
+                                                  label: group.categoryName,
+                                                  options: filteredMarks.map(mark => ({
+                                                    label: (
+                                                      <Space>
+                                                        <div
+                                                          style={{
+                                                            width: 12,
+                                                            height: 12,
+                                                            backgroundColor: mark.color,
+                                                            borderRadius: 2,
+                                                            display: 'inline-block',
+                                                          }}
+                                                        />
+                                                        <span>{mark.label}</span>
+                                                      </Space>
+                                                    ),
+                                                    value: mark.value,
+                                                  })),
+                                                }
+                                              })
+                                              .filter((group): group is NonNullable<typeof group> => group !== null)
+                                          })()}
+                                          maxTagCount={3}
+                                          allowClear
+                                        />
+                                        {selectedChIPSeqMarks.length > 0 && (
+                                          <Space wrap style={{ marginTop: 8 }}>
+                                            {selectedChIPSeqMarks.map(mark => (
+                                              <Tag
+                                                key={mark}
+                                                color={getMarkColor(mark as MarkType)}
+                                                closable
+                                                onClose={() => {
+                                                  setSelectedChIPSeqMarks(prev =>
+                                                    prev.filter(m => m !== mark)
+                                                  )
+                                                }}
+                                              >
+                                                {MARK_CONFIGS[mark as MarkType]?.shortName || mark}
+                                              </Tag>
+                                            ))}
+                                          </Space>
+                                        )}
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </Space>
+                            ),
+                          },
+                        ]}
+                      />
+
+                      {/* RepeatMasker Tracks */}
+                      <Collapse
+                        size="small"
+                        items={[
+                          {
+                            key: 'repeatMasker',
+                            label: <span style={{ fontWeight: 500 }}>{tGenomeBrowser('repeatClasses.title')}</span>,
+                            children: (
+                              <Space direction="vertical" style={{ width: '100%' }}>
+                                <Space>
+                                  <Button size="small" onClick={handleSelectAllRepeats}>
+                                    {tGenomeBrowser('repeatClasses.selectAll')}
+                                  </Button>
+                                  <Button size="small" onClick={handleDeselectAllRepeats}>
+                                    {tGenomeBrowser('repeatClasses.deselectAll')}
+                                  </Button>
+                                </Space>
+
+                                {Object.keys(enabledRepeatClasses).map((repeatClass) => (
+                                  <Space key={repeatClass} align="center" style={{ width: '100%' }}>
+                                    <div
+                                      style={{
+                                        width: 16,
+                                        height: 16,
+                                        backgroundColor: REPEAT_CLASS_COLORS[repeatClass],
+                                        borderRadius: 2,
+                                        border: '1px solid #d9d9d9',
+                                      }}
+                                    />
+                                    <Switch
+                                      checked={enabledRepeatClasses[repeatClass]}
+                                      onChange={(checked) => handleRepeatClassToggle(repeatClass, checked)}
+                                      loading={loadingRepeatClasses[repeatClass]}
+                                      size="small"
+                                    />
+                                    <span>{tGenomeBrowser(`repeatClasses.${repeatClass}`)}</span>
+                                  </Space>
+                                ))}
+                              </Space>
+                            ),
+                          },
+                        ]}
+                      />
+                    </Space>
+                  ),
+                },
+              ]}
+            />
+
+            {/* Genome Browser Component */}
+            <div ref={browserContainerRef} style={{ position: 'relative', flex: 1, minHeight: 400 }}>
+              <GenomeBrowser
+                key={`species-${igvSpeciesId}`}
+                speciesId={igvSpeciesId}
+                onLocusChange={handleLocusChange}
+                onBrowserReady={handleBrowserReady}
+                height="100%"
+                showChIPSeq={showChIPSeq}
+                chipseqMarks={selectedChIPSeqMarks}
+              />
+              {/* RepeatMasker Legend */}
+              {Object.values(enabledRepeatClasses).some(enabled => enabled) && (
+                <RepeatMaskerLegend
+                  position="top-right"
+                  compact={false}
+                  defaultCollapsed={false}
+                  style={{ top: 60, right: 16 }}
+                />
+              )}
+            </div>
           </Card>
         </div>
       )}

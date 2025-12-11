@@ -95,8 +95,13 @@ npm run dev -- --host 0.0.0.0
 ```
 
 ### Access
-- Frontend: http://localhost:5173
-- API Docs: http://localhost:8000/docs
+
+| Service | Local | Network (LAN) |
+|---------|-------|---------------|
+| Frontend | http://localhost:5173 | http://192.168.6.135:5173 |
+| API Docs | http://localhost:8000/docs | http://192.168.6.135:8000/docs |
+
+**Server IP**: `192.168.6.135`
 
 ## Database
 

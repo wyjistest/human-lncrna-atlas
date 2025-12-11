@@ -2,7 +2,7 @@
 
 ## 元信息
 - **更新日期**: 2025-12-11
-- **当前版本**: Phase 6.0 (科研数据分析基础设施 - 完成)
+- **当前版本**: Phase 6.1 (Overlap 页面 IGV 功能增强 - 完成)
 - **下一阶段**: Phase 6.0-C (前端结果展示 - 可选) 或 Phase 7.0 (待规划)
 - **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
@@ -16,17 +16,25 @@
 # 后端
 cd /data/wenyujianData/humanLncAtlas/backend/app
 source venv/bin/activate
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 8000 --host 0.0.0.0
 
-# 前端
+# 前端（本地访问）
 cd /data/wenyujianData/humanLncAtlas/frontend/web
 npm run dev
+
+# 前端（局域网访问）
+npm run dev -- --host 0.0.0.0
 ```
 
-**默认访问**：
-- 前端界面：http://localhost:5173
-- API 文档：http://localhost:8000/docs
-- 健康检查：http://localhost:8000/health
+**访问地址**：
+
+| 服务 | 本地访问 | 局域网访问 |
+|------|----------|------------|
+| 前端界面 | http://localhost:5173 | http://192.168.6.135:5173 |
+| API 文档 | http://localhost:8000/docs | http://192.168.6.135:8000/docs |
+| 健康检查 | http://localhost:8000/health | http://192.168.6.135:8000/health |
+
+**服务器 IP**: `192.168.6.135`
 
 ## 代码搜索规则
 
@@ -590,5 +598,65 @@ Conservation 页面显示数据但所有字段为空（显示 `-` 或 `0/4`）�
 4. **多语言支持**: 数据库存储的显示名需与代码中的映射保持一致
 
 ---
+
+## Phase 6.1: Overlap 页面 IGV 功能增强 (2025-12-11)
+
+### 概述
+
+将 lncRNA-ChIP-seq Overlap 页面的 IGV 浏览器升级为与 Genome Browser 页面完全一致的功能。
+
+### 新增功能
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| **GenomeBrowserToolbar** | 物种选择器 + 基因搜索自动完成 | ✅ |
+| **ChIP-seq 轨道选择器** | 多选下拉框，按类别分组，颜色标签 | ✅ |
+| **RepeatMasker 轨道控制** | 7 类重复序列开关（SINE/LINE/LTR/DNA/Simple/LowComplexity/Other） | ✅ |
+| **SVG/PNG 导出** | 导出当前 IGV 视图为图片 | ✅ |
+| **RepeatMasker 图例** | 颜色图例显示 | ✅ |
+| **当前位置显示** | 显示当前浏览的基因组坐标 | ✅ |
+| **4 物种支持** | 人类/黑猩猩/猕猴/狨猴切换 | ✅ |
+
+### 代码改动
+
+**文件**: `frontend/web/src/components/LncRNAChIPSeqOverlapTable/index.tsx`
+
+| 改动类型 | 代码量 |
+|----------|--------|
+| 新增 imports | +20 行 |
+| 新增状态变量 | +40 行 |
+| 新增管理逻辑 | +280 行 |
+| 新增 UI 组件 | +110 行 |
+| **总计** | **+450 行** |
+
+### 访问地址
+
+```
+http://192.168.6.135:5173/lncrna-chipseq-overlap
+```
+
+### IGV 面板结构
+
+```
+┌─────────────────────────────────────────────────┐
+│ 🧬 基因组浏览器    @ chr1:1000000-2000000      │
+│                                    [📥 导出 ▼] │
+├─────────────────────────────────────────────────┤
+│ 物种: [人类 ▼]  [🔍 搜索基因...] [搜索]        │
+├─────────────────────────────────────────────────┤
+│ ▶ 轨道控制                              [2]    │
+│   ├── Epigenomic Tracks (ChIP-seq)             │
+│   │   ├── [Switch] 启用表观遗传轨道            │
+│   │   └── [Multi-select: H3K27me3, H3K4me3...] │
+│   └── RepeatMasker Repeats                     │
+│       ├── [全选] [取消全选]                    │
+│       └── [■] SINE  [■] LINE  [■] LTR ...      │
+├─────────────────────────────────────────────────┤
+│              IGV Genome Browser                 │
+│                                        ┌──────┐│
+│                                        │Legend││
+│                                        └──────┘│
+└─────────────────────────────────────────────────┘
+```
 
 ---
