@@ -26,7 +26,18 @@ from app.schemas.conservation import (
     ConservationMatrix,
     ConservedRegulationList,
     ConservedRegulationItem,
+    SpeciesBindingAffinity,
 )
+
+# Reverse mapping: species name -> species id (supports both English and Chinese)
+SPECIES_NAME_TO_ID = {v: k for k, v in SPECIES_MAP.items()}
+# Add Chinese names mapping (from database display_name)
+SPECIES_NAME_TO_ID.update({
+    "人类": 1,
+    "黑猩猩": 2,
+    "猕猴": 3,
+    "狨猴": 4
+})
 
 router = APIRouter(prefix="/conservation", tags=["conservation"])
 
@@ -452,16 +463,48 @@ def get_conserved_regulations(
     # Build items
     items = []
     for row in results:
-        # Parse species:ba pairs
-        species_ba = {}
+        # Parse species:ba pairs and build structured data (deduplicate by species)
+        species_ba_dict: Dict[int, List[float]] = {}  # species_id -> list of BA values
+        species_names_dict: Dict[int, str] = {}  # species_id -> species_name
+
         if row.species_ba_pairs:
             for pair in row.species_ba_pairs.split(','):
                 if ':' in pair:
                     sp_name, ba_str = pair.split(':', 1)
-                    try:
-                        species_ba[sp_name] = float(ba_str) if ba_str and ba_str != 'None' else None
-                    except ValueError:
-                        species_ba[sp_name] = None
+                    sp_name = sp_name.strip()
+                    # Get species ID from name
+                    sp_id = SPECIES_NAME_TO_ID.get(sp_name)
+                    if sp_id is not None:
+                        if sp_id not in species_ba_dict:
+                            species_ba_dict[sp_id] = []
+                            species_names_dict[sp_id] = sp_name
+                        try:
+                            ba_val = float(ba_str) if ba_str and ba_str != 'None' else None
+                            if ba_val is not None:
+                                species_ba_dict[sp_id].append(ba_val)
+                        except ValueError:
+                            pass
+
+        # Build deduplicated species_ba_list
+        species_ba_list: List[SpeciesBindingAffinity] = []
+        all_ba_values: List[float] = []
+
+        for sp_id in sorted(species_ba_dict.keys()):
+            ba_vals = species_ba_dict[sp_id]
+            avg_species_ba = sum(ba_vals) / len(ba_vals) if ba_vals else None
+            species_ba_list.append(SpeciesBindingAffinity(
+                species_id=sp_id,
+                species_name=species_names_dict[sp_id],
+                binding_affinity=round(avg_species_ba, 2) if avg_species_ba is not None else None
+            ))
+            if ba_vals:
+                all_ba_values.extend(ba_vals)
+
+        # Get unique species IDs
+        species_ids = sorted(species_ba_dict.keys())
+
+        # Calculate overall average binding affinity
+        avg_ba = sum(all_ba_values) / len(all_ba_values) if all_ba_values else None
 
         # Compute conservation label
         core_ids = [row.lncrna_core_id, row.target_core_id]
@@ -469,13 +512,16 @@ def get_conserved_regulations(
         lncrna_label, lncrna_count = conservation_map.get(row.lncrna_core_id, ("0000", 0))
 
         items.append(ConservedRegulationItem(
-            lncrna_core_id=row.lncrna_core_id,
-            lncrna_symbol=row.lncrna_symbol,
-            target_core_id=row.target_core_id,
-            target_symbol=row.target_symbol,
+            core_id=row.lncrna_core_id,
+            lncrna_gene_name=row.lncrna_symbol,
+            lncrna_ensembl_id=None,  # Not available in current query
+            target_gene_name=row.target_symbol,
+            target_ensembl_id=None,  # Not available in current query
             conservation_label=lncrna_label,
-            conservation_count=row.species_count,
-            species_binding_affinities=species_ba
+            species_count=row.species_count,
+            species_ids=species_ids,
+            avg_binding_affinity=round(avg_ba, 2) if avg_ba is not None else None,
+            species_binding_affinities=species_ba_list
         ))
 
     total_pages = (total + page_size - 1) // page_size

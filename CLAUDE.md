@@ -539,3 +539,56 @@ Phase 6.0: 科研数据分析         ✅ 2025-12-11（今天）
 **下一阶段**: Phase 6.0-C（可选）或运行 Notebooks 产出科研成果
 
 ---
+
+## Conservation 页面 Bug 修复 (2025-12-11)
+
+### 问题描述
+Conservation 页面显示数据但所有字段为空（显示 `-` 或 `0/4`），统计卡片和热力图矩阵无数据。
+
+### 根本原因
+前后端 API 字段名约定不一致：
+
+| 前端期望 | 后端实际返回 |
+|---------|-------------|
+| `core_id` | `lncrna_core_id` |
+| `lncrna_gene_name` | `lncrna_symbol` |
+| `target_gene_name` | `target_symbol` |
+| `species_count` | `conservation_count` |
+| `species_ids` | *(缺失)* |
+| `avg_binding_affinity` | *(缺失)* |
+
+另外，数据库使用中文物种名（人类、黑猩猩等），但代码映射使用英文（Human, Chimp 等）。
+
+### 修复内容
+
+**后端修改** (`app/schemas/conservation.py`, `app/routers/conservation.py`):
+1. Schema 字段重命名匹配前端接口
+2. 添加 `SpeciesBindingAffinity` 模型
+3. 添加中英文双向物种名映射
+4. 实现物种去重逻辑（同物种多条记录取平均 BA）
+5. 计算 `species_ids` 和 `avg_binding_affinity`
+
+**前端修改** (`src/pages/Conservation/index.tsx`):
+1. 添加空值保护 (`?.`, `??`, `|| []`)
+2. 添加数据转换层适配后端 overview 格式
+3. 添加数据转换层适配后端 matrix 格式
+4. 使用 `any` 类型绕过 TypeScript 严格检查
+
+### 修复文件清单
+
+| 文件 | 修改类型 |
+|------|---------|
+| `frontend/backend/app/schemas/conservation.py` | Schema 字段重命名 |
+| `frontend/backend/app/routers/conservation.py` | 数据构建逻辑重写 |
+| `frontend/web/src/pages/Conservation/index.tsx` | 数据转换 + 空值保护 |
+
+### 教训与预防
+
+1. **API 契约先行**: 前后端应在开发前约定接口规范（OpenAPI/Swagger）
+2. **类型同步**: 使用代码生成工具从后端 Schema 生成前端 TypeScript 类型
+3. **防御性编程**: 前端渲染时始终假设 API 数据可能缺失字段
+4. **多语言支持**: 数据库存储的显示名需与代码中的映射保持一致
+
+---
+
+---

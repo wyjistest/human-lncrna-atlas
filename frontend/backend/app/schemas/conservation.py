@@ -224,17 +224,27 @@ class ConservationMatrix(BaseModel):
 # =============================================================================
 # Paginated Response for Conserved Regulations
 # =============================================================================
-class ConservedRegulationItem(BaseModel):
-    """Item in conserved regulation list"""
+class SpeciesBindingAffinity(BaseModel):
+    """Binding affinity for a specific species"""
+    species_id: int
+    species_name: str
+    binding_affinity: Optional[float]
 
-    lncrna_core_id: int
-    lncrna_symbol: Optional[str]
-    target_core_id: int
-    target_symbol: Optional[str]
-    conservation_label: str
-    conservation_count: int
-    species_binding_affinities: Dict[str, Optional[float]] = Field(
-        description="Binding affinity per species name"
+
+class ConservedRegulationItem(BaseModel):
+    """Item in conserved regulation list - matches frontend ConservedRegulation interface"""
+
+    core_id: int = Field(description="LncRNA core ID")
+    lncrna_gene_name: Optional[str] = Field(description="LncRNA gene symbol")
+    lncrna_ensembl_id: Optional[str] = Field(default=None, description="LncRNA Ensembl ID")
+    target_gene_name: Optional[str] = Field(description="Target gene symbol")
+    target_ensembl_id: Optional[str] = Field(default=None, description="Target Ensembl ID")
+    conservation_label: str = Field(description="Conservation pattern like '1111'")
+    species_count: int = Field(description="Number of species where conserved")
+    species_ids: List[int] = Field(description="List of species IDs where conserved")
+    avg_binding_affinity: Optional[float] = Field(description="Average binding affinity across species")
+    species_binding_affinities: List[SpeciesBindingAffinity] = Field(
+        description="Binding affinity per species"
     )
 
 

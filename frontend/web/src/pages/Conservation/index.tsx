@@ -158,7 +158,22 @@ export default function Conservation() {
     queryKey: ['conservation-overview', selectedSpecies],
     queryFn: async () => {
       try {
-        return await conservationApi.getOverview(selectedSpecies)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const apiData: any = await conservationApi.getOverview(selectedSpecies)
+        // Transform backend format to frontend expected format
+        const distribution = apiData.distribution || []
+        const getCountByLevel = (level: number) =>
+          distribution.find((d: { conservation_count: number }) => d.conservation_count === level)?.regulation_count || 0
+
+        return {
+          total_conserved: distribution
+            .filter((d: { conservation_count: number }) => d.conservation_count >= 2)
+            .reduce((sum: number, d: { regulation_count: number }) => sum + d.regulation_count, 0),
+          four_species: getCountByLevel(4),
+          three_species: getCountByLevel(3),
+          two_species: getCountByLevel(2),
+          by_combination: apiData.top_combinations || []
+        }
       } catch (error) {
         // Fallback to mock data if API is not available
         console.warn('Conservation API not available, using mock data', error)
@@ -176,7 +191,24 @@ export default function Conservation() {
     queryKey: ['conservation-matrix', selectedSpecies],
     queryFn: async () => {
       try {
-        return await conservationApi.getMatrix(selectedSpecies)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const apiData: any = await conservationApi.getMatrix(selectedSpecies)
+        // Transform backend format to frontend expected format
+        const speciesInfo = apiData.species || []
+        const matrix = apiData.regulation_matrix || apiData.lncrna_matrix || []
+
+        // Calculate min/max values
+        const flatValues = matrix.flat().filter((v: number) => typeof v === 'number')
+        const maxValue = flatValues.length > 0 ? Math.max(...flatValues) : 0
+        const minValue = flatValues.length > 0 ? Math.min(...flatValues) : 0
+
+        return {
+          species: speciesInfo.map((s: { id: number }) => s.id),
+          species_names: speciesInfo.map((s: { name: string }) => s.name),
+          matrix,
+          max_value: maxValue,
+          min_value: minValue
+        }
       } catch (error) {
         // Fallback to mock data
         console.warn('Conservation matrix API not available, using mock data', error)
@@ -277,8 +309,8 @@ export default function Conservation() {
       key: 'lncrna',
       width: 150,
       render: (name: string, record: ConservedRegulation) => (
-        <Tooltip title={record.lncrna_ensembl_id}>
-          <Link to={`/genes?search=${name}`}>{name}</Link>
+        <Tooltip title={record?.lncrna_ensembl_id ?? '-'}>
+          <Link to={`/genes?search=${name ?? ''}`}>{name ?? '-'}</Link>
         </Tooltip>
       )
     },
@@ -288,8 +320,8 @@ export default function Conservation() {
       key: 'target',
       width: 150,
       render: (name: string, record: ConservedRegulation) => (
-        <Tooltip title={record.target_ensembl_id}>
-          <Text>{name}</Text>
+        <Tooltip title={record?.target_ensembl_id ?? '-'}>
+          <Text>{name ?? '-'}</Text>
         </Tooltip>
       )
     },
@@ -300,7 +332,7 @@ export default function Conservation() {
       width: 200,
       render: (speciesIds: number[]) => (
         <Space size={[4, 4]} wrap>
-          {speciesIds.map(id => {
+          {(speciesIds || []).map(id => {
             const species = CONSERVATION_SPECIES.find(s => s.id === id)
             return (
               <Tag key={id} color={SPECIES_TAG_COLORS[id]}>
@@ -317,14 +349,14 @@ export default function Conservation() {
       key: 'conservation_level',
       width: 120,
       render: (count: number, record: ConservedRegulation) => {
-        const category = getConservationCategory(count)
+        const category = getConservationCategory(count ?? 0)
         return (
-          <Tooltip title={record.conservation_label}>
+          <Tooltip title={record?.conservation_label ?? '-'}>
             <Tag
               color={CONSERVATION_COLORS[category]}
               style={{ color: category === 'medium' ? '#000' : '#fff' }}
             >
-              {count}/4
+              {count ?? 0}/4
             </Tag>
           </Tooltip>
         )
@@ -335,8 +367,8 @@ export default function Conservation() {
       dataIndex: 'avg_binding_affinity',
       key: 'avg_ba',
       width: 100,
-      render: (ba: number) => ba.toFixed(2),
-      sorter: (a, b) => a.avg_binding_affinity - b.avg_binding_affinity
+      render: (ba: number) => ba?.toFixed(2) ?? '-',
+      sorter: (a, b) => (a.avg_binding_affinity ?? 0) - (b.avg_binding_affinity ?? 0)
     }
   ], [t])
 
