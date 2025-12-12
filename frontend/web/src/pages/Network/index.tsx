@@ -1425,7 +1425,6 @@ export default function Network() {
           const safeTraitName = traitName.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
           const safeOntologyName = ontologyName.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
 
-          console.log(`🚀 开始批量导出，共 ${readyCards.length} 个物种`)
 
           // ========== PNG 导出（合并图 + 单独图）==========
           if (selectedFormats.includes('png')) {
@@ -1453,7 +1452,6 @@ export default function Network() {
                 const { cyRef, speciesName } = card
                 if (!cyRef.current) continue
 
-                console.log(`📸 正在捕获 ${speciesName} 的图像...`)
 
                 // 只导出一次 blob（避免重复渲染）
                 const blob = cyRef.current.png({
@@ -1462,7 +1460,6 @@ export default function Network() {
                   full: true,
                   scale: 2
                 }) as unknown as Blob
-                console.log(`📸 ${speciesName} blob 大小:`, blob.size, 'bytes')
 
                 // 使用 Object URL 代替 base64（节省内存，提高性能）
                 const objectURL = URL.createObjectURL(blob)
@@ -1473,7 +1470,6 @@ export default function Network() {
                 
                 await new Promise((resolve, reject) => {
                   img.onload = () => {
-                    console.log(`✅ ${speciesName} Image 加载成功: ${img.width}x${img.height}`)
                     resolve(null)
                   }
                   img.onerror = (error) => {
@@ -1503,12 +1499,11 @@ export default function Network() {
               }
 
               // 2. 先将单张图片添加到 ZIP (防止后续合并图失败导致完全没有输出)
-              for (const { speciesId, speciesName, blob } of speciesImages) {
+              for (const { speciesId, blob } of speciesImages) {
                 const speciesEnName = SPECIES_EN_NAMES[speciesId] || `species-${speciesId}`
                 const safeSpeciesName = speciesEnName.replace(/[^a-zA-Z0-9]/g, '-')
                 const individualFileName = `${safeSpeciesName}-${safeTraitName}-${safeOntologyName}-${timestamp}.png`
                 zip.file(individualFileName, blob)
-                console.log(`✅ ${speciesName} 单独图像已添加到 ZIP: ${individualFileName}, 大小: ${blob.size} bytes`)
               }
 
               // 3. 计算合并后的画布尺寸
@@ -1526,7 +1521,6 @@ export default function Network() {
               const canvasWidth = cols * cellWidth + (cols + 1) * padding
               const canvasHeight = rows * cellHeight + (rows + 1) * padding
 
-              console.log(`🎨 创建画布: ${canvasWidth}x${canvasHeight} (${cols}x${rows} 网格)`)
 
               // 4. 创建画布并绘制
               const canvas = document.createElement('canvas')
@@ -1564,7 +1558,6 @@ export default function Network() {
                 // imageElement.crossOrigin 已在加载前设置
                 ctx.drawImage(imageElement, imgX, imgY, width, height)
 
-                console.log(`✅ 已绘制 ${speciesName} 到位置 (${col}, ${row})`)
               }
 
               // 5. 转换为 Blob 并添加到 ZIP（合并图）
@@ -1578,7 +1571,6 @@ export default function Network() {
 
                 const mergedFileName = `network-comparison-${safeTraitName}-${safeOntologyName}-${timestamp}.png`
                 zip.file(mergedFileName, mergedBlob)
-                console.log(`✅ 合并图像已添加到 ZIP: ${mergedFileName}, 大小: ${mergedBlob.size} bytes`)
               } catch (mergeError) {
                 console.error('⚠️ 合并图像生成失败 (可能是尺寸过大):', mergeError)
                 message.warning(t('batchExport.mergeImageFailed'))
@@ -1588,7 +1580,6 @@ export default function Network() {
               speciesImages.forEach(({ objectURL }) => {
                 URL.revokeObjectURL(objectURL)
               })
-              console.log(`🧹 已清理 ${speciesImages.length} 个 Object URL`)
 
             } catch (error) {
               console.error('❌ PNG 导出失败:', error)
@@ -1615,7 +1606,6 @@ export default function Network() {
               try {
                 const csv = generateCSV(data)
                 zip.file(`${prefix}.csv`, csv)
-                console.log(`✅ ${speciesName} CSV 已添加`)
               } catch (error) {
                 console.error(`❌ ${speciesName} CSV 导出失败:`, error)
               }
@@ -1626,18 +1616,11 @@ export default function Network() {
               try {
                 const json = JSON.stringify(data, null, 2)
                 zip.file(`${prefix}.json`, json)
-                console.log(`✅ ${speciesName} JSON 已添加`)
               } catch (error) {
                 console.error(`❌ ${speciesName} JSON 导出失败:`, error)
               }
             }
           }
-
-          // 生成 ZIP 并下载
-          console.log(`📦 准备打包 ZIP，当前 ZIP 中的文件:`)
-          zip.forEach((relativePath, _file) => {
-            console.log(`  - ${relativePath}`)
-          })
 
           message.loading({
             content: t('batchExport.packing'),
@@ -1646,11 +1629,9 @@ export default function Network() {
           })
 
           const blob = await zip.generateAsync({ type: 'blob' })
-          console.log(`✅ ZIP 生成成功，大小: ${blob.size} bytes`)
 
           // 使用相同的时间戳作为 ZIP 文件名
           const zipFileName = `network-comparison-${timestamp}.zip`
-          console.log(`💾 开始下载: ${zipFileName}`)
           saveAs(blob, zipFileName)
 
           // 显式销毁 loading，然后显示成功消息

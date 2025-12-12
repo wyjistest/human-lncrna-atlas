@@ -1,73 +1,88 @@
-# React + TypeScript + Vite
+# Human LncRNA Atlas - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React frontend for the Human LncRNA Atlas database and visualization platform.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Framework**: React 19 + TypeScript
+- **Build Tool**: Vite
+- **UI Library**: Ant Design 6
+- **State Management**: TanStack Query (React Query) v5
+- **Routing**: React Router v7
+- **i18n**: i18next (Chinese/English)
+- **Charts**: ECharts 6
+- **Network Graph**: Cytoscape.js
+- **Genome Browser**: IGV.js
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Install dependencies
+npm install
 
-## Expanding the ESLint configuration
+# Start development server
+npm run dev
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Build for production
+npm run build
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+# Run unit tests
+npm run test:run
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Run E2E tests
+npm run test:e2e
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── api/           # API client and endpoints
+├── components/    # Shared UI components
+├── hooks/         # Custom React hooks
+├── pages/         # Page components
+├── i18n/          # Internationalization
+│   └── locales/   # Translation files (en, zh-CN)
+├── types/         # TypeScript type definitions
+├── utils/         # Utility functions
+└── test/          # Test utilities
+```
+
+## Key Features
+
+- **Gene Browser**: Search and explore lncRNA/protein-coding genes
+- **Regulation Analysis**: View regulatory relationships with binding affinity
+- **Genome Browser**: IGV.js integration for genomic visualization
+- **ChIP-seq Overlap**: Visualize lncRNA-ChIP-seq peak overlaps
+- **Network Visualization**: Cytoscape.js for gene-disease networks
+- **Conservation Analysis**: Cross-species conservation patterns
+- **Data Export**: CSV, Excel, and image export support
+
+## Environment Variables
+
+Create `.env.local` for local development:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+## Testing
+
+```bash
+# Unit tests
+npm run test:run
+
+# E2E tests (requires backend running)
+npm run test:e2e
+
+# E2E tests with UI
+npm run test:e2e:ui
+```
+
+## Build
+
+```bash
+npm run build
+```
+
+Build artifacts are output to `dist/`.

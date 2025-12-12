@@ -31,11 +31,11 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 ### Frontend
 - **Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
-- **UI Library**: Ant Design 5
+- **UI Library**: Ant Design 6
 - **State Management**: TanStack Query (React Query)
-- **Routing**: React Router v6
+- **Routing**: React Router v7
 - **i18n**: i18next (Chinese/English)
-- **Charts**: ECharts
+- **Charts**: ECharts 6
 - **Network Graph**: Cytoscape.js
 
 ## Project Structure

@@ -179,9 +179,7 @@ export async function exportRegulations(
 
   // 2. 获取数据
   try {
-    console.log(`[Export] Fetching ${total} records...`)
     const allData = await fetchAllRegulations(filters, total, onProgress)
-    console.log(`[Export] Fetched ${allData.length} records`)
 
     // 3. 生成文件
     if (format === 'csv') {
@@ -224,8 +222,6 @@ export async function exportSelectedRegulations(
       message: `选中数据过多（${data.length} 条），超过导出限制（${EXPORT_LIMITS.MAX_FRONTEND} 条）`
     }
   }
-
-  console.log(`[Export] Exporting ${data.length} selected records...`)
 
   if (format === 'csv') {
     return exportToCSV(data)
