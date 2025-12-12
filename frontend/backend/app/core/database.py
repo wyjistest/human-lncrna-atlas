@@ -148,15 +148,17 @@ def with_timeout(db, timeout_seconds: int):
     Note:
         The timeout is reset to default after the context exits.
         For non-PostgreSQL databases, this is a no-op (timeout not supported).
+        Uses session-level SET (not SET LOCAL) to ensure timeout applies
+        across the entire context, not just within a single transaction.
     """
     if _is_postgresql:
         timeout_ms = timeout_seconds * 1000
         try:
-            db.execute(text(f"SET LOCAL statement_timeout = {timeout_ms}"))
+            db.execute(text(f"SET statement_timeout = {timeout_ms}"))
             yield db
         finally:
             # Reset to default timeout
-            db.execute(text(f"SET LOCAL statement_timeout = {QUERY_TIMEOUT_MS}"))
+            db.execute(text(f"SET statement_timeout = {QUERY_TIMEOUT_MS}"))
     else:
         # Non-PostgreSQL: timeout not supported, just yield the session
         yield db

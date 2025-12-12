@@ -12,6 +12,7 @@ import json
 import hashlib
 import logging
 import time
+import threading
 from typing import Any, Optional, Callable, TypeVar, Tuple
 from functools import wraps
 
@@ -33,38 +34,44 @@ T = TypeVar('T')
 # ============== 内存缓存（回退方案） ==============
 
 class MemoryCache:
-    """简单的内存缓存（支持 TTL）"""
+    """简单的内存缓存（支持 TTL，线程安全）"""
 
     def __init__(self, max_size: int = 1000):
         self._cache: dict[str, Tuple[Any, float]] = {}
         self._max_size = max_size
+        self._lock = threading.Lock()
 
     def get(self, key: str) -> Optional[Any]:
-        if key in self._cache:
-            value, expiry = self._cache[key]
-            if time.time() < expiry:
-                return value
-            del self._cache[key]
-        return None
+        with self._lock:
+            if key in self._cache:
+                value, expiry = self._cache[key]
+                if time.time() < expiry:
+                    return value
+                del self._cache[key]
+            return None
 
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
-        if len(self._cache) >= self._max_size:
-            self._evict_expired()
-        if len(self._cache) >= self._max_size:
-            oldest_key = next(iter(self._cache))
-            del self._cache[oldest_key]
-        self._cache[key] = (value, time.time() + ttl)
-        return True
+        with self._lock:
+            if len(self._cache) >= self._max_size:
+                self._evict_expired()
+            if len(self._cache) >= self._max_size:
+                oldest_key = next(iter(self._cache))
+                del self._cache[oldest_key]
+            self._cache[key] = (value, time.time() + ttl)
+            return True
 
     def delete(self, key: str) -> bool:
-        return self._cache.pop(key, None) is not None
+        with self._lock:
+            return self._cache.pop(key, None) is not None
 
     def clear(self) -> int:
-        count = len(self._cache)
-        self._cache.clear()
-        return count
+        with self._lock:
+            count = len(self._cache)
+            self._cache.clear()
+            return count
 
     def _evict_expired(self):
+        """Evict expired entries. Must be called while holding self._lock."""
         current = time.time()
         expired = [k for k, (_, exp) in self._cache.items() if exp <= current]
         for k in expired:
@@ -137,14 +144,21 @@ class RedisCache:
             return False
 
     def delete_pattern(self, pattern: str) -> int:
+        """Delete keys matching pattern using non-blocking SCAN"""
         if not self._client:
             return 0
         try:
-            keys = self._client.keys(pattern)
-            if keys:
-                return self._client.delete(*keys)
+            deleted = 0
+            cursor = 0
+            while True:
+                cursor, keys = self._client.scan(cursor=cursor, match=pattern, count=100)
+                if keys:
+                    deleted += self._client.delete(*keys)
+                if cursor == 0:
+                    break
+            return deleted
         except RedisError as e:
-            logger.warning(f"Redis 批量删除失败 [{pattern}]: {e}")
+            logger.warning(f"Redis batch delete failed [{pattern}]: {e}")
         return 0
 
     def clear(self, prefix: str = "lncrna:") -> int:
