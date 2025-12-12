@@ -24,7 +24,7 @@ import { BrowserRouter } from 'react-router-dom'
 // Mock react-i18next
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string, defaultValue?: string) => {
+    t: (key: string, options?: Record<string, unknown> | string) => {
       const translations: Record<string, string> = {
         'title': 'Scientific Analysis Results',
         'description': 'Explore analysis results from Jupyter Notebooks',
@@ -48,8 +48,19 @@ vi.mock('react-i18next', () => ({
         // Disease Tab
         'disease.title': 'Disease Association Networks',
         'disease.description': 'LncRNA-gene-disease regulatory networks',
+        // Common
+        'common.total': 'Total {{count}} items',
+        'common.loading': 'Loading...',
+        'common.refresh': 'Refresh',
+        'common.export': 'Export',
+        'common.exportCsv': 'Export CSV',
       }
-      return translations[key] || defaultValue || key
+      // Handle i18next interpolation - if options is an object with values, use the key
+      if (typeof options === 'object' && options !== null && 'count' in options) {
+        const template = translations[key] || key
+        return template.replace('{{count}}', String(options.count))
+      }
+      return translations[key] || (typeof options === 'string' ? options : key)
     },
   }),
 }))
