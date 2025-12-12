@@ -1,10 +1,10 @@
 # Human LncRNA Atlas 项目记忆文件
 
 ## 元信息
-- **更新日期**: 2025-12-11
-- **当前版本**: Phase 6.1 (Overlap 页面 IGV 功能增强 - 完成)
-- **下一阶段**: Phase 6.0-C (前端结果展示 - 可选) 或 Phase 7.0 (待规划)
-- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力
+- **更新日期**: 2025-12-12
+- **当前版本**: Phase 6.0-C (前端分析结果展示 - 完成)
+- **下一阶段**: Phase 5.3 (高级可视化) 或 Phase 7.0 (待规划)
+- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 分析结果展示
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 ## 项目概述
@@ -596,6 +596,86 @@ Conservation 页面显示数据但所有字段为空（显示 `-` 或 `0/4`）�
 2. **类型同步**: 使用代码生成工具从后端 Schema 生成前端 TypeScript 类型
 3. **防御性编程**: 前端渲染时始终假设 API 数据可能缺失字段
 4. **多语言支持**: 数据库存储的显示名需与代码中的映射保持一致
+
+---
+
+## Phase 6.0-C: 前端分析结果展示 (2025-12-12)
+
+### 概述
+
+创建 `/analysis` 页面，展示 Jupyter Notebooks 的科研分析结果，包含 4 个 Tab：
+- 高亲和力调控网络分析
+- 跨物种保守性模式
+- 表观遗传标记关联
+- 疾病关联网络
+
+### 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `src/pages/Analysis/index.tsx` | 主页面（Tabs 容器） |
+| `src/pages/Analysis/components/HighAffinityTab.tsx` | 高亲和力分析 Tab |
+| `src/pages/Analysis/components/ConservationTab.tsx` | 保守性分析 Tab |
+| `src/pages/Analysis/components/EpigeneticTab.tsx` | 表观遗传 Tab |
+| `src/pages/Analysis/components/DiseaseTab.tsx` | 疾病网络 Tab |
+| `src/api/analysis.ts` | API 封装 + TypeScript 类型 |
+| `src/hooks/useAnalysis.ts` | React Query Hooks |
+| `src/i18n/locales/en/analysis.json` | 英文翻译 |
+| `src/i18n/locales/zh-CN/analysis.json` | 中文翻译 |
+
+### 访问地址
+
+```
+http://192.168.6.135:5173/analysis
+```
+
+### 数据统计
+
+| Tab | 数据量 |
+|-----|--------|
+| 高亲和力 | 802,896 条调控记录 |
+| 保守性 | 保守性模式数据 |
+| 表观遗传 | 6,537,078 条 ChIP-seq 重叠 |
+| 疾病网络 | 273 疾病, 1,969 lncRNA, 5,484 基因 |
+
+### ⚠️ 踩坑记录：前后端 API 字段名不匹配
+
+**问题现象**：
+- 表格列显示空白或 `-`
+- React 控制台报 "duplicate key" 警告
+- 疾病网络 Tab 显示 "No Data"
+
+**根本原因**：
+前端 TypeScript 接口定义的字段名与后端实际返回的字段名不一致：
+
+| 前端期望 | 后端实际返回 | 正确做法 |
+|---------|-------------|---------|
+| `lncrna_symbol` | `lncrna_name` | 使用 `lncrna_name` |
+| `target_symbol` | `target_name` | 使用 `target_name` |
+| `chromosome` | `chr` | 使用 `chr` |
+| `lncrna_symbol`（保守性） | `lncrna_names` | 使用 `lncrna_names` |
+| 扁平表格结构 | 图数据结构 `{nodes, edges}` | 检查 API 返回结构 |
+
+**修复步骤**：
+1. 用浏览器 Network 面板或 `curl` 检查 API 实际返回的 JSON 字段名
+2. 更新 `src/api/analysis.ts` 中的 TypeScript interface 字段名
+3. 更新组件中的 `dataIndex` 和 `rowKey` 引用
+4. 对于图数据结构（疾病网络），需要完全重写组件适配 `{nodes, edges}` 格式
+
+**调试命令**：
+```bash
+# 检查 API 实际返回的字段名
+curl -s "http://localhost:8000/api/v1/export/high-affinity?limit=1" | python3 -m json.tool | head -30
+
+# 检查疾病网络 API 返回结构
+curl -s "http://localhost:8000/api/v1/export/disease-network?limit=10" | python3 -m json.tool | head -50
+```
+
+**预防措施**：
+1. **开发前先测试 API**：用 curl 或 Postman 确认返回结构
+2. **使用 Network 面板**：前端开发时观察实际响应
+3. **rowKey 必须唯一**：使用 `record.primary_key` + `index` 组合，如 `${record.lncrna_gene_id}-${record.target_gene_id}-${index}`
+4. **检查数据结构类型**：扁平表格 vs 图数据 vs 嵌套对象
 
 ---
 

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Layout, Menu } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { HomeOutlined, DatabaseOutlined, LinkOutlined, MedicineBoxOutlined, BarChartOutlined, ApartmentOutlined, DashboardOutlined, ExperimentOutlined, InteractionOutlined, RadarChartOutlined, BranchesOutlined } from '@ant-design/icons'
+import { HomeOutlined, DatabaseOutlined, LinkOutlined, MedicineBoxOutlined, BarChartOutlined, ApartmentOutlined, DashboardOutlined, ExperimentOutlined, InteractionOutlined, RadarChartOutlined, BranchesOutlined, LineChartOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '@/components/LanguageSwitch'
 
@@ -20,6 +20,7 @@ export default function MainLayout() {
     { key: '/diseases', icon: <MedicineBoxOutlined />, label: t('diseases') },
     { key: '/network', icon: <ApartmentOutlined />, label: t('network') },
     { key: '/conservation', icon: <BranchesOutlined />, label: t('conservation', 'Conservation') },
+    { key: '/analysis', icon: <LineChartOutlined />, label: t('analysis', 'Analysis') },
     { key: '/lncrna-chipseq-overlap', icon: <InteractionOutlined />, label: t('overlap') },
     { key: '/chipseq-compare', icon: <RadarChartOutlined />, label: t('chipseqCompare', 'ChIP-seq Compare') },
     { key: '/genome-browser', icon: <ExperimentOutlined />, label: t('genomeBrowser') },

@@ -1,0 +1,113 @@
+{
+  "title": "分析结果",
+  "description": "Jupyter Notebooks 科研分析结果摘要",
+  "tabs": {
+    "highAffinity": "高亲和力",
+    "conservation": "保守性",
+    "epigenetic": "表观遗传",
+    "disease": "疾病网络"
+  },
+  "highAffinity": {
+    "title": "高亲和力调控网络分析",
+    "description": "分析 lncRNA 与靶基因之间的高结合亲和力调控关系",
+    "stats": {
+      "totalRegulations": "高亲和力调控",
+      "uniqueLncrnas": "lncRNA 数量",
+      "uniqueTargets": "靶基因数量",
+      "avgBa": "平均结合亲和力",
+      "maxBa": "最大结合亲和力"
+    },
+    "charts": {
+      "baDistribution": "结合亲和力分布",
+      "topLncrnas": "Top 20 lncRNA（按靶基因数量）"
+    },
+    "table": {
+      "lncrna": "lncRNA",
+      "target": "靶基因",
+      "ba": "结合亲和力",
+      "species": "物种",
+      "chromosome": "染色体"
+    }
+  },
+  "conservation": {
+    "title": "跨物种保守性模式分析",
+    "description": "揭示 lncRNA 在 4 种灵长类物种中的进化保守性规律",
+    "stats": {
+      "fourSpecies": "4 物种保守",
+      "threeSpecies": "3 物种保守",
+      "twoSpecies": "2 物种保守",
+      "totalConserved": "总保守数量"
+    },
+    "charts": {
+      "speciesDistribution": "保守性等级分布",
+      "matrix": "物种保守性矩阵"
+    },
+    "table": {
+      "lncrna": "lncRNA",
+      "speciesCount": "保守物种数",
+      "species": "所在物种",
+      "regulationCount": "调控关系数"
+    }
+  },
+  "epigenetic": {
+    "title": "表观遗传标记关联分析",
+    "description": "分析 lncRNA 调控位点与 ChIP-seq 组蛋白修饰标记的关联",
+    "stats": {
+      "totalOverlaps": "ChIP-seq 重叠",
+      "bivalentDomains": "双价域",
+      "activeMarks": "活性标记",
+      "repressiveMarks": "抑制性标记"
+    },
+    "charts": {
+      "markDistribution": "组蛋白标记分布",
+      "cellTypeHeatmap": "细胞类型 × 标记热力图"
+    },
+    "table": {
+      "lncrna": "lncRNA",
+      "mark": "组蛋白标记",
+      "cellType": "细胞类型",
+      "peakScore": "峰强度",
+      "ba": "结合亲和力"
+    },
+    "marks": {
+      "H3K4me1": "H3K4me1 (增强子)",
+      "H3K4me3": "H3K4me3 (活性启动子)",
+      "H3K27ac": "H3K27ac (活性增强子)",
+      "H3K36me3": "H3K36me3 (转录延伸)",
+      "H3K9me3": "H3K9me3 (异染色质)",
+      "H3K27me3": "H3K27me3 (Polycomb抑制)"
+    }
+  },
+  "disease": {
+    "title": "疾病关联网络分析",
+    "description": "构建疾病-基因-lncRNA 三层调控网络，识别潜在治疗靶点",
+    "stats": {
+      "totalDiseases": "分析疾病数",
+      "totalLncrnas": "关联 lncRNA",
+      "totalGenes": "关联基因",
+      "avgConnections": "平均连接数"
+    },
+    "charts": {
+      "sharedMatrix": "疾病共享 lncRNA 矩阵",
+      "networkPreview": "网络预览"
+    },
+    "table": {
+      "disease": "疾病/性状",
+      "lncrna": "lncRNA",
+      "gene": "靶基因",
+      "connectionScore": "连接评分"
+    }
+  },
+  "common": {
+    "loading": "正在加载分析数据...",
+    "error": "加载分析数据失败",
+    "noData": "暂无数据",
+    "export": "导出数据",
+    "exportCsv": "导出 CSV",
+    "exportExcel": "导出 Excel",
+    "refresh": "刷新",
+    "viewDetails": "查看详情",
+    "total": "共 {{count}} 条记录",
+    "filterPlaceholder": "搜索..."
+  }
+}

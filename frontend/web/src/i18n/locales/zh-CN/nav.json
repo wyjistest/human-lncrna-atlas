@@ -7,6 +7,9 @@
   "chipseqCompare": "ChIP-seq对比",
   "diseases": "疾病关联",
   "network": "网络可视化",
+  "conservation": "保守性分析",
+  "analysis": "分析结果",
   "genomeBrowser": "基因组浏览器",
+  "monitoring": "系统监控",
   "siteTitle": "Human LncRNA Atlas"
 }

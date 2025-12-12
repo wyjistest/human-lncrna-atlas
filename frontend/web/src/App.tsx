@@ -14,6 +14,7 @@ import Regulations from './pages/Regulations'
 import Diseases from './pages/Diseases'
 import Network from './pages/Network'
 import Conservation from './pages/Conservation'
+import Analysis from './pages/Analysis'
 import Monitoring from './pages/Admin/Monitoring'
 import LncRNAChIPSeqOverlapPage from './pages/LncRNAChIPSeqOverlapPage'
 import ChIPSeqComparePage from './pages/ChIPSeqComparePage'
@@ -47,6 +48,7 @@ function App() {
             <Route path="diseases" element={<Diseases />} />
             <Route path="network" element={<Network />} />
             <Route path="conservation" element={<Conservation />} />
+            <Route path="analysis" element={<Analysis />} />
             <Route path="genome-browser" element={
               <Suspense fallback={<LazyLoadFallback />}>
                 <GenomeBrowser />

@@ -1,0 +1,113 @@
+{
+  "title": "Analysis Results",
+  "description": "Summary of scientific analysis from Jupyter Notebooks",
+  "tabs": {
+    "highAffinity": "High Affinity",
+    "conservation": "Conservation",
+    "epigenetic": "Epigenetic Marks",
+    "disease": "Disease Networks"
+  },
+  "highAffinity": {
+    "title": "High Affinity Regulatory Network Analysis",
+    "description": "Analysis of high binding affinity regulatory relationships between lncRNAs and target genes",
+    "stats": {
+      "totalRegulations": "High BA Regulations",
+      "uniqueLncrnas": "Unique lncRNAs",
+      "uniqueTargets": "Unique Targets",
+      "avgBa": "Average BA",
+      "maxBa": "Maximum BA"
+    },
+    "charts": {
+      "baDistribution": "Binding Affinity Distribution",
+      "topLncrnas": "Top 20 lncRNAs by Target Count"
+    },
+    "table": {
+      "lncrna": "lncRNA",
+      "target": "Target Gene",
+      "ba": "Binding Affinity",
+      "species": "Species",
+      "chromosome": "Chromosome"
+    }
+  },
+  "conservation": {
+    "title": "Cross-Species Conservation Pattern Analysis",
+    "description": "Revealing evolutionary conservation patterns of lncRNAs across 4 primate species",
+    "stats": {
+      "fourSpecies": "4 Species Conserved",
+      "threeSpecies": "3 Species Conserved",
+      "twoSpecies": "2 Species Conserved",
+      "totalConserved": "Total Conserved"
+    },
+    "charts": {
+      "speciesDistribution": "Conservation Level Distribution",
+      "matrix": "Species Conservation Matrix"
+    },
+    "table": {
+      "lncrna": "lncRNA",
+      "speciesCount": "Conserved Species",
+      "species": "Present in Species",
+      "regulationCount": "Regulation Count"
+    }
+  },
+  "epigenetic": {
+    "title": "Epigenetic Mark Association Analysis",
+    "description": "Analysis of lncRNA regulatory site associations with ChIP-seq histone modification marks",
+    "stats": {
+      "totalOverlaps": "ChIP-seq Overlaps",
+      "bivalentDomains": "Bivalent Domains",
+      "activeMarks": "Active Marks",
+      "repressiveMarks": "Repressive Marks"
+    },
+    "charts": {
+      "markDistribution": "Histone Mark Distribution",
+      "cellTypeHeatmap": "Cell Type × Mark Heatmap"
+    },
+    "table": {
+      "lncrna": "lncRNA",
+      "mark": "Histone Mark",
+      "cellType": "Cell Type",
+      "peakScore": "Peak Score",
+      "ba": "Binding Affinity"
+    },
+    "marks": {
+      "H3K4me1": "H3K4me1 (Enhancer)",
+      "H3K4me3": "H3K4me3 (Active Promoter)",
+      "H3K27ac": "H3K27ac (Active Enhancer)",
+      "H3K36me3": "H3K36me3 (Transcription Elongation)",
+      "H3K9me3": "H3K9me3 (Heterochromatin)",
+      "H3K27me3": "H3K27me3 (Polycomb Repression)"
+    }
+  },
+  "disease": {
+    "title": "Disease Association Network Analysis",
+    "description": "Building disease-gene-lncRNA three-layer regulatory networks to identify therapeutic targets",
+    "stats": {
+      "totalDiseases": "Diseases Analyzed",
+      "totalLncrnas": "Associated lncRNAs",
+      "totalGenes": "Associated Genes",
+      "avgConnections": "Avg Connections"
+    },
+    "charts": {
+      "sharedMatrix": "Disease Shared lncRNA Matrix",
+      "networkPreview": "Network Preview"
+    },
+    "table": {
+      "disease": "Disease/Trait",
+      "lncrna": "lncRNA",
+      "gene": "Target Gene",
+      "connectionScore": "Connection Score"
+    }
+  },
+  "common": {
+    "loading": "Loading analysis data...",
+    "error": "Failed to load analysis data",
+    "noData": "No data available",
+    "export": "Export Data",
+    "exportCsv": "Export CSV",
+    "exportExcel": "Export Excel",
+    "refresh": "Refresh",
+    "viewDetails": "View Details",
+    "total": "Total: {{count}} records",
+    "filterPlaceholder": "Search..."
+  }
+}

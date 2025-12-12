@@ -7,6 +7,9 @@
   "chipseqCompare": "ChIP-seq Compare",
   "diseases": "Diseases",
   "network": "Network",
+  "conservation": "Conservation",
+  "analysis": "Analysis Results",
   "genomeBrowser": "Genome Browser",
+  "monitoring": "Monitoring",
   "siteTitle": "Human LncRNA Atlas"
 }
