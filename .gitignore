@@ -67,6 +67,7 @@ htmlcov/
 
 # Data files (too large for GitHub)
 *.txt
+!requirements.txt
 *.fa
 *.fasta
 *.gtf
