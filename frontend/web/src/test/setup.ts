@@ -38,3 +38,71 @@ window.getComputedStyle = (element: Element) => {
   }
   return originalGetComputedStyle(element)
 }
+
+// Mock canvas for ECharts/zrender (JSDOM doesn't support canvas)
+HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+  clearRect: vi.fn(),
+  fillRect: vi.fn(),
+  getImageData: vi.fn().mockReturnValue({ data: [] }),
+  putImageData: vi.fn(),
+  createImageData: vi.fn().mockReturnValue([]),
+  setTransform: vi.fn(),
+  drawImage: vi.fn(),
+  save: vi.fn(),
+  fillText: vi.fn(),
+  restore: vi.fn(),
+  beginPath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  closePath: vi.fn(),
+  stroke: vi.fn(),
+  fill: vi.fn(),
+  translate: vi.fn(),
+  scale: vi.fn(),
+  rotate: vi.fn(),
+  arc: vi.fn(),
+  measureText: vi.fn().mockReturnValue({ width: 0 }),
+  transform: vi.fn(),
+  rect: vi.fn(),
+  clip: vi.fn(),
+  createLinearGradient: vi.fn().mockReturnValue({
+    addColorStop: vi.fn(),
+  }),
+  createRadialGradient: vi.fn().mockReturnValue({
+    addColorStop: vi.fn(),
+  }),
+  createPattern: vi.fn(),
+})
+
+// Mock echarts-for-react globally to prevent canvas issues
+vi.mock('echarts-for-react', () => ({
+  default: vi.fn().mockImplementation(() => null),
+}))
+
+// Mock echarts core to prevent zrender canvas operations
+vi.mock('echarts', () => ({
+  init: vi.fn().mockReturnValue({
+    setOption: vi.fn(),
+    dispose: vi.fn(),
+    resize: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    getOption: vi.fn(),
+  }),
+  use: vi.fn(),
+  registerTheme: vi.fn(),
+}))
+
+// Mock echarts/core for treeshaking imports
+vi.mock('echarts/core', () => ({
+  init: vi.fn().mockReturnValue({
+    setOption: vi.fn(),
+    dispose: vi.fn(),
+    resize: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    getOption: vi.fn(),
+  }),
+  use: vi.fn(),
+}))
+
