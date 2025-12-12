@@ -1355,11 +1355,28 @@ Phase 7.3: 代码审查综合修复     ✅ 2025-12-13
   ├── API 契约修复 (6 项)      ✅ /summary别名, 字段命名
   ├── 性能修复 (4 项)          ✅ Redis SCAN, 线程安全
   ├── 代码清理 (3 项)          ✅ 删除 115+ 过时文件
-  └── CI/脚本/ETL (9 项)       ✅ SQL注入防护, 包结构
+  ├── CI/脚本/ETL (9 项)       ✅ SQL注入防护, 包结构
+  └── 收尾修复 (4 项)          ✅ 文档/CI/注释同步
 ```
 
-**当前版本**: Phase 7.3
-**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固
+**当前版本**: Phase 7.3 (完成)
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固 + CI 完善
 **下一阶段**: Phase 8.0 (新功能)
+
+### Phase 7.3 收尾修复 (2025-12-13)
+
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| heatmap schema 文档错误 | `app/schemas/lncrna_chipseq_overlap.py:169` | `chr1` → `chr22` (与实现一致) |
+| 统计端点注释不明确 | `src/api/lncRNAChIPSeqOverlapApi.ts` | 明确 `/statistics` 为规范端点，`/summary` 为别名 |
+| E2E 测试注释 | `e2e/lncrna-chipseq-overlap-charts.spec.ts` | 添加端点关系说明 |
+| CI 缺少后端测试 | `.github/workflows/test.yml` | 新增 `backend-checks` job (模块导入 + 语法检查) |
+
+**CI 工作流结构（更新后）**:
+```
+Push/PR 触发 → frontend-unit-tests ─┐
+             → backend-checks (新增) ├→ build
+             → lint (阻断式) ────────┘
+```
 
 ---

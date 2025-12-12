@@ -321,7 +321,10 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
     })
 
     test('should handle API error gracefully', async ({ page }) => {
-      // Intercept statistics API and return error
+      // Intercept both statistics endpoints:
+      // - /statistics is the canonical endpoint
+      // - /summary is an alias for backward compatibility
+      // We intercept both to ensure complete test coverage
       await page.route('**/api/v1/lncrna-chipseq-overlap/statistics*', (route) => {
         route.fulfill({
           status: 500,

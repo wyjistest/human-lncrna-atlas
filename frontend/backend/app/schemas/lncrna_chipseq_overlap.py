@@ -166,7 +166,7 @@ class OverlapHeatmapResponse(BaseModel):
     valid_combinations: int = Field(..., description="Number of combinations with data")
     default_filter_applied: bool = Field(
         default=False,
-        description="True if default chromosome filter (chr1) was applied for performance optimization"
+        description="True if default chromosome filter (chr22) was applied for performance optimization"
     )
     effective_chromosome: Optional[str] = Field(
         default=None,

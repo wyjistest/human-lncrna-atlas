@@ -7,7 +7,8 @@
  *
  * Backend Endpoints:
  * - GET /api/v1/lncrna-chipseq-overlap - Paginated overlap query
- * - GET /api/v1/lncrna-chipseq-overlap/summary - Statistics summary (Phase 2)
+ * - GET /api/v1/lncrna-chipseq-overlap/statistics - Statistics summary (canonical endpoint)
+ * - GET /api/v1/lncrna-chipseq-overlap/summary - Alias for /statistics (backward compatibility)
  */
 
 import { apiClient } from './client'
@@ -60,7 +61,10 @@ export const lncRNAChIPSeqOverlapApi = {
     }),
 
   /**
-   * Get summary statistics for overlap analysis (Phase 2)
+   * Get summary statistics for overlap analysis
+   *
+   * Note: This calls /summary endpoint (alias for /statistics).
+   * The canonical endpoint is /statistics, but /summary is kept for backward compatibility.
    *
    * @param filters - Optional filters to scope the summary
    * @returns Summary statistics
