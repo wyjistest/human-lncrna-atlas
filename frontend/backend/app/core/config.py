@@ -76,6 +76,18 @@ class Settings(BaseSettings):
         description="允许访问 Admin API 的 IP 地址白名单"
     )
 
+    # Trusted Proxies for X-Forwarded-For header validation
+    # Only trust X-Forwarded-For headers from these IP ranges
+    TRUSTED_PROXIES: list = Field(
+        default=[
+            "127.0.0.1",        # localhost
+            "10.0.0.0/8",       # Private Class A
+            "172.16.0.0/12",    # Private Class B
+            "192.168.0.0/16",   # Private Class C
+        ],
+        description="IP addresses/ranges trusted as reverse proxies for X-Forwarded-For parsing"
+    )
+
     @property
     def database_url(self) -> str:
         """构建数据库连接URL"""

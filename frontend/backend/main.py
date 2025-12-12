@@ -257,10 +257,14 @@ if os.path.exists(GENOMES_DIR):
     from starlette.types import ASGIApp, Receive, Scope, Send
 
     class CORSStaticFiles:
-        """带 CORS 支持的静态文件服务"""
+        """带 CORS 支持的静态文件服务（严格 Origin 验证）"""
         def __init__(self, app: ASGIApp, allow_origins: list):
             self.app = app
-            self.allow_origins = allow_origins
+            self.allow_origins = set(allow_origins)  # Convert to set for O(1) lookup
+
+        def _is_origin_allowed(self, origin: str) -> bool:
+            """Check if the origin is in the allowed list"""
+            return origin in self.allow_origins
 
         async def __call__(self, scope: Scope, receive: Receive, send: Send):
             if scope["type"] == "http":
@@ -268,28 +272,42 @@ if os.path.exists(GENOMES_DIR):
                 headers = dict(scope.get("headers", []))
                 origin = headers.get(b"origin", b"").decode()
 
+                # Validate origin against allowed list (no wildcard fallback)
+                allowed_origin = origin if self._is_origin_allowed(origin) else ""
+
                 # 检查是否是预检请求
                 if scope["method"] == "OPTIONS":
-                    response_headers = [
-                        (b"access-control-allow-origin", origin.encode() if origin else b"*"),
-                        (b"access-control-allow-methods", b"GET, HEAD, OPTIONS"),
-                        (b"access-control-allow-headers", b"Range, Content-Type"),
-                        (b"access-control-max-age", b"86400"),
-                        (b"content-length", b"0"),
-                    ]
-                    await send({"type": "http.response.start", "status": 204, "headers": response_headers})
-                    await send({"type": "http.response.body", "body": b""})
+                    # Only respond to preflight if origin is allowed
+                    if allowed_origin:
+                        response_headers = [
+                            (b"access-control-allow-origin", allowed_origin.encode()),
+                            (b"access-control-allow-methods", b"GET, HEAD, OPTIONS"),
+                            (b"access-control-allow-headers", b"Range, Content-Type"),
+                            (b"access-control-max-age", b"86400"),
+                            (b"content-length", b"0"),
+                        ]
+                        await send({"type": "http.response.start", "status": 204, "headers": response_headers})
+                        await send({"type": "http.response.body", "body": b""})
+                    else:
+                        # Origin not allowed - return 403
+                        response_headers = [
+                            (b"content-type", b"text/plain"),
+                            (b"content-length", b"16"),
+                        ]
+                        await send({"type": "http.response.start", "status": 403, "headers": response_headers})
+                        await send({"type": "http.response.body", "body": b"Origin forbidden"})
                     return
 
                 # 包装 send 函数以添加 CORS 头
                 async def send_with_cors(message):
                     if message["type"] == "http.response.start":
                         headers = list(message.get("headers", []))
-                        # 添加 CORS 头
-                        headers.append((b"access-control-allow-origin", origin.encode() if origin else b"*"))
-                        headers.append((b"access-control-allow-methods", b"GET, HEAD, OPTIONS"))
-                        headers.append((b"access-control-allow-headers", b"Range, Content-Type"))
-                        headers.append((b"access-control-expose-headers", b"Content-Length, Content-Range, Accept-Ranges"))
+                        # Only add CORS headers if origin is allowed
+                        if allowed_origin:
+                            headers.append((b"access-control-allow-origin", allowed_origin.encode()))
+                            headers.append((b"access-control-allow-methods", b"GET, HEAD, OPTIONS"))
+                            headers.append((b"access-control-allow-headers", b"Range, Content-Type"))
+                            headers.append((b"access-control-expose-headers", b"Content-Length, Content-Range, Accept-Ranges"))
                         message = {**message, "headers": headers}
                     await send(message)
 
