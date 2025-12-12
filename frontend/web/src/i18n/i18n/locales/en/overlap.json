@@ -1,8 +1,0 @@
-{
-  "title": "lncRNA-ChIP-seq Overlap Analysis",
-  "description": "Analyze overlap between lncRNA binding sites and ChIP-seq peaks",
-  "breadcrumb": {
-    "home": "Home",
-    "overlap": "Overlap Analysis"
-  }
-}
