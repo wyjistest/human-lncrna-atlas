@@ -74,12 +74,12 @@ def get_overview_stats(db: Session = Depends(get_db)):
             func.count(func.distinct(Gene.gene_id)).label("gene_count"),
             func.count(
                 func.distinct(
-                    case((CoreGene.gene_type == "lncRNA", Gene.gene_id))
+                    case((CoreGene.gene_type == "lncRNA", Gene.gene_id), else_=None)
                 )
             ).label("lncrna_count"),
             func.count(
                 func.distinct(
-                    case((CoreGene.gene_type == "protein_coding", Gene.gene_id))
+                    case((CoreGene.gene_type == "protein_coding", Gene.gene_id), else_=None)
                 )
             ).label("protein_coding_count"),
             func.coalesce(regulation_subq.c.regulation_count, 0).label("regulation_count"),
@@ -208,7 +208,8 @@ def get_top_diseases(
             func.count(
                 func.distinct(
                     case(
-                        (CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id)
+                        (CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id),
+                        else_=None
                     )
                 )
             ).label("lncrna_count"),

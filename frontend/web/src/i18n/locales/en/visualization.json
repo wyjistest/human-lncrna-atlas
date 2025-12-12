@@ -1,0 +1,36 @@
+{
+  "sankey": {
+    "title": "Sankey Flow Diagram",
+    "breadcrumb": "Sankey Flow",
+    "description": "Visualize three-layer regulatory relationships: lncRNA → Gene → Disease. Explore how lncRNAs regulate genes associated with diseases.",
+    "chartTitle": "lncRNA → Gene → Disease Flow",
+    "flowValue": "Flow Value",
+    "noData": "No data available. Try adjusting filters.",
+    "stats": {
+      "totalNodes": "Total Nodes",
+      "totalNodesHelp": "lncRNA + Gene + Disease nodes",
+      "lncrnaNodes": "LncRNA Nodes",
+      "geneNodes": "Gene Nodes",
+      "diseaseNodes": "Disease Nodes",
+      "totalLinks": "Total Links"
+    },
+    "filters": {
+      "title": "Filters",
+      "species": "Species",
+      "allSpecies": "All Species",
+      "disease": "Disease/Trait",
+      "diseasePlaceholder": "e.g., diabetes",
+      "minBA": "Min. Binding Affinity",
+      "limit": "Node Limit"
+    },
+    "table": {
+      "title": "Flow Details",
+      "lncrna": "LncRNA",
+      "gene": "Gene",
+      "disease": "Disease",
+      "flowValue": "Flow Value",
+      "connections": "Connections",
+      "total": "Total {{count}} flows"
+    }
+  }
+}

@@ -328,8 +328,9 @@ def cached(namespace: str, ttl: int = None):
             if not cache.enabled:
                 return func(*args, **kwargs)
 
-            # 生成缓存键（过滤掉 db 参数）
-            key_params = {k: v for k, v in kwargs.items() if k != 'db'}
+            # 生成缓存键（过滤掉非业务参数，如 db / request）
+            excluded_keys = {"db", "request"}
+            key_params = {k: v for k, v in kwargs.items() if k not in excluded_keys}
             key = cache._make_key(namespace, **key_params)
 
             # 尝试获取缓存
@@ -367,7 +368,8 @@ def cache_response(expire: int = 300):
             if not cache.enabled:
                 return await func(*args, **kwargs)
 
-            key_params = {k: v for k, v in kwargs.items() if k != 'db'}
+            excluded_keys = {"db", "request"}
+            key_params = {k: v for k, v in kwargs.items() if k not in excluded_keys}
             key = cache._make_key(func.__name__, **key_params)
 
             cached_value = cache.get(key)

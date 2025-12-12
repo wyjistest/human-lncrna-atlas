@@ -173,13 +173,15 @@ class TestOverlapExportBasic:
             assert first_row['chromosome'].startswith('chr'), "Chromosome should start with 'chr'"
 
     def test_export_invalid_format(self, api_client: httpx.Client):
-        """GET /export with invalid format returns 400"""
+        """GET /export with invalid format returns 400/422"""
         response = api_client.get(EXPORT_ENDPOINT, params={
             "format": "invalid_format",
             "chromosome": "chr22"
         })
 
-        assert response.status_code == 400, "Should return 400 for invalid format"
+        # 使用 Literal 校验时 FastAPI 会返回 422
+        assert response.status_code in [400, 422], \
+            f"Should return 400 or 422 for invalid format, got {response.status_code}"
 
 
 class TestOverlapExportFilters:

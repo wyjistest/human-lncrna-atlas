@@ -17,6 +17,7 @@ import {
   HeatmapChart,
   RadarChart,
   ScatterChart,
+  SankeyChart,
 } from 'echarts/charts'
 
 // 组件
@@ -43,6 +44,7 @@ import type {
   HeatmapSeriesOption,
   RadarSeriesOption,
   ScatterSeriesOption,
+  SankeySeriesOption,
 } from 'echarts/charts'
 
 import type {
@@ -65,6 +67,7 @@ export type ECOption = echarts.ComposeOption<
   | HeatmapSeriesOption
   | RadarSeriesOption
   | ScatterSeriesOption
+  | SankeySeriesOption
   | TitleComponentOption
   | TooltipComponentOption
   | LegendComponentOption
@@ -84,6 +87,7 @@ echarts.use([
   HeatmapChart,
   RadarChart,
   ScatterChart,
+  SankeyChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,

@@ -99,7 +99,7 @@ def list_diseases(
             func.count(func.distinct(TraitGeneAssociation.core_id)).label("gene_count"),
             func.count(
                 func.distinct(
-                    case((CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id))
+                    case((CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id), else_=None)
                 )
             ).label("lncrna_count"),
         )
@@ -194,7 +194,7 @@ def get_disease_detail(
         db.query(
             func.count(func.distinct(TraitGeneAssociation.core_id)).label("gene_count"),
             func.count(func.distinct(
-                case((CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id))
+                case((CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id), else_=None)
             )).label("lncrna_count"),
         )
         .join(CoreGene, TraitGeneAssociation.core_id == CoreGene.core_id)

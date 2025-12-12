@@ -28,6 +28,9 @@ from typing import Optional, List, Tuple, Literal, Generator
 import logging
 import csv
 from io import StringIO
+import ipaddress
+import inspect
+from functools import wraps
 
 from app.core.database import get_db
 from app.core.cache import cache, cached
@@ -111,12 +114,39 @@ def rate_limit(limit_string: str):
             ...
     """
     def decorator(func):
-        if SLOWAPI_AVAILABLE and limiter:
-            # Apply slowapi rate limiting
-            return limiter.limit(limit_string)(func)
-        else:
-            # No rate limiting - return function as-is
+        if not (SLOWAPI_AVAILABLE and limiter):
             return func
+
+        limited_func = limiter.limit(limit_string)(func)
+
+        def _is_private_request(req: Request) -> bool:
+            client_ip = req.client.host if req.client else ""
+            try:
+                ip = ipaddress.ip_address(client_ip)
+                return ip.is_private or ip.is_loopback or ip.is_link_local
+            except ValueError:
+                return False
+
+        if inspect.iscoroutinefunction(func):
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                request = next((v for v in kwargs.values() if isinstance(v, Request)), None) or \
+                          next((a for a in args if isinstance(a, Request)), None)
+                if request and _is_private_request(request):
+                    return await func(*args, **kwargs)
+                return await limited_func(*args, **kwargs)
+
+            return async_wrapper
+
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            request = next((v for v in kwargs.values() if isinstance(v, Request)), None) or \
+                      next((a for a in args if isinstance(a, Request)), None)
+            if request and _is_private_request(request):
+                return func(*args, **kwargs)
+            return limited_func(*args, **kwargs)
+
+        return sync_wrapper
     return decorator
 
 

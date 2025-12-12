@@ -25,7 +25,7 @@ from app.core.database import init_db, close_db
 from app.core.logging_config import setup_logging
 from app.middleware.logging import LoggingMiddleware, MetricsMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
-from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis
+from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization
 from app.schemas.common import HealthResponse
 
 # ============================================================================
@@ -238,6 +238,7 @@ app.include_router(lncrna_chipseq_overlap.router, prefix=settings.API_V1_PREFIX)
 app.include_router(conservation.router, prefix=settings.API_V1_PREFIX)
 app.include_router(export.router, prefix=settings.API_V1_PREFIX)  # Phase 6.0-A: 数据导出 API
 app.include_router(analysis.router, prefix=settings.API_V1_PREFIX)  # Phase 6.0-C: 分析结果 API
+app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sankey 流向图可视化 API
 
 # 挂载静态文件服务（用于 IGV.js 基因组文件）
 # 使用独立的 FastAPI 子应用，完全绕过主应用的中间件（解决 BaseHTTPMiddleware 兼容性问题）

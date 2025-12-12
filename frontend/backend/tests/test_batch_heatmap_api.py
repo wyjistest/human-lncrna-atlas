@@ -57,16 +57,16 @@ def measure_batch_response_time(
     Returns:
         dict with elapsed_ms, status_code, data, and row count
     """
-    url = f"{BASE_URL}{API_PREFIX}/features/chipseq/batch-heatmap"
-    params = {
-        "gene_ids": ",".join(str(g) for g in gene_ids),
-        "marks": marks,
-        "cell_types": cell_types,
+    url = f"{BASE_URL}{API_PREFIX}/features/chipseq/genes/batch-heatmap-matrix"
+    payload = {
+        "gene_ids": gene_ids,
+        "marks": [m.strip() for m in marks.split(",") if m.strip()],
+        "cell_types": [c.strip() for c in cell_types.split(",") if c.strip()],
         "metric": "median_fold_enrichment"
     }
 
     start = time.time()
-    response = client.get(url, params=params)
+    response = client.post(url, json=payload)
     elapsed_ms = (time.time() - start) * 1000
 
     data = response.json() if response.status_code == 200 else None
@@ -77,7 +77,7 @@ def measure_batch_response_time(
         "data": data,
         "gene_count": len(gene_ids),
         "expected_rows": len(gene_ids),
-        "actual_rows": len(data.get("matrices", [])) if data else 0
+        "actual_rows": len(data.get("genes", [])) if data else 0
     }
 
 
@@ -116,10 +116,10 @@ class TestBatchHeatmapAPI:
             f"Expected 200, got {result['status_code']}"
         assert result["data"] is not None, \
             "Response data should not be None"
-        assert "matrices" in result["data"], \
-            "Response should contain 'matrices' field"
-        assert len(result["data"]["matrices"]) > 0, \
-            "Batch response should contain at least one matrix"
+        assert "genes" in result["data"], \
+            "Response should contain 'genes' field"
+        assert len(result["data"]["genes"]) > 0, \
+            "Batch response should contain at least one gene matrix"
 
         print(f"Batch 3 genes response time: {result['elapsed_ms']:.2f}ms")
 
@@ -169,18 +169,18 @@ class TestBatchHeatmapAPI:
 
         # Validate top-level structure
         assert isinstance(data, dict), "Response should be a dictionary"
-        assert "matrices" in data, "Response should have 'matrices' key"
-        assert isinstance(data["matrices"], list), "'matrices' should be a list"
+        assert "genes" in data, "Response should have 'genes' key"
+        assert isinstance(data["genes"], list), "'genes' should be a list"
 
         # Validate each matrix structure
-        for i, matrix in enumerate(data["matrices"]):
+        for i, matrix in enumerate(data["genes"]):
             assert isinstance(matrix, dict), f"Matrix[{i}] should be a dictionary"
             assert "gene_id" in matrix, f"Matrix[{i}] should have 'gene_id'"
             assert "gene_name" in matrix, f"Matrix[{i}] should have 'gene_name'"
-            assert "data" in matrix, f"Matrix[{i}] should have 'data'"
-            assert isinstance(matrix["data"], list), f"Matrix[{i}] data should be a list"
+            assert "matrix" in matrix, f"Matrix[{i}] should have 'matrix'"
+            assert isinstance(matrix["matrix"], list), f"Matrix[{i}] matrix should be a list"
 
-        print(f"Response structure validated for {len(data['matrices'])} matrices")
+        print(f"Response structure validated for {len(data['genes'])} matrices")
 
     def test_batch_different_marks(self, batch_client: httpx.Client, batch_gene_ids: List[int]):
         """Test batch heatmap with different histone marks"""
@@ -209,41 +209,40 @@ class TestBatchHeatmapAPI:
 
     def test_batch_empty_gene_ids(self, batch_client: httpx.Client):
         """Test batch heatmap with empty gene IDs - should fail"""
-        url = f"{BASE_URL}{API_PREFIX}/features/chipseq/batch-heatmap"
-        params = {
-            "gene_ids": "",
-            "marks": "H3K27me3,H3K4me3",
-            "cell_types": "K562,HepG2",
+        url = f"{BASE_URL}{API_PREFIX}/features/chipseq/genes/batch-heatmap-matrix"
+        payload = {
+            "gene_ids": [],
+            "marks": ["H3K27me3", "H3K4me3"],
+            "cell_types": ["K562", "HepG2"],
             "metric": "median_fold_enrichment"
         }
 
-        response = batch_client.get(url, params=params)
+        response = batch_client.post(url, json=payload)
 
-        # Should either fail with 400 or return empty list
-        assert response.status_code in [400, 200], \
-            f"Expected 400 or 200, got {response.status_code}"
+        # Schema min_length=1 会返回 422；也可能被后端拦截为 400
+        assert response.status_code in [400, 422], \
+            f"Expected 400 or 422, got {response.status_code}"
 
     def test_batch_invalid_gene_ids(self, batch_client: httpx.Client):
         """Test batch heatmap with invalid gene IDs - should fail gracefully"""
-        url = f"{BASE_URL}{API_PREFIX}/features/chipseq/batch-heatmap"
-        params = {
-            "gene_ids": "999999,999998,999997",
-            "marks": "H3K27me3,H3K4me3",
-            "cell_types": "K562,HepG2",
+        url = f"{BASE_URL}{API_PREFIX}/features/chipseq/genes/batch-heatmap-matrix"
+        payload = {
+            "gene_ids": [999999, 999998, 999997],
+            "marks": ["H3K27me3", "H3K4me3"],
+            "cell_types": ["K562", "HepG2"],
             "metric": "median_fold_enrichment"
         }
 
-        response = batch_client.get(url, params=params)
+        response = batch_client.post(url, json=payload)
 
-        # Should return 200 with empty matrices or 404
-        assert response.status_code in [200, 404], \
-            f"Expected 200 or 404, got {response.status_code}"
+        assert response.status_code == 200, \
+            f"Expected 200, got {response.status_code}"
 
-        if response.status_code == 200:
-            data = response.json()
-            # Either empty or has matrices key
-            assert "matrices" in data or len(data) == 0, \
-                "Should have 'matrices' key or be empty"
+        data = response.json()
+        assert "genes" in data and "failed_genes" in data, \
+            "Response should include genes and failed_genes"
+        assert set(payload["gene_ids"]).issubset(set(data.get("failed_genes", []))), \
+            "All invalid gene IDs should be reported as failed"
 
     def test_batch_mixed_valid_invalid_genes(self, batch_client: httpx.Client, batch_gene_ids: List[int]):
         """Test batch heatmap with mix of valid and invalid gene IDs"""

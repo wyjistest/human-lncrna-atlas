@@ -12,18 +12,44 @@
 
 ## 快速启动
 
+### 一键启动命令（推荐）
+
 ```bash
-# 后端
-cd /data/wenyujianData/humanLncAtlas/backend/app
-source venv/bin/activate
-uvicorn main:app --reload --port 8000 --host 0.0.0.0
+# 后端（后台运行）
+cd /data/wenyujianData/human-lncrna-atlas-github/frontend/backend && nohup python3 -m uvicorn main:app --reload --port 8000 --host 0.0.0.0 > /tmp/fastapi.log 2>&1 &
 
-# 前端（本地访问）
-cd /data/wenyujianData/humanLncAtlas/frontend/web
-npm run dev
+# 前端（后台运行，局域网可访问）
+cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web && nohup npm run dev -- --host 0.0.0.0 > /tmp/vite.log 2>&1 &
 
-# 前端（局域网访问）
+# 检查服务状态
+curl -s http://localhost:8000/health && echo " ✅ Backend OK"
+curl -s http://localhost:5173 > /dev/null && echo "✅ Frontend OK"
+```
+
+### 前台启动（调试用）
+
+```bash
+# 后端（前台运行，看日志）
+cd /data/wenyujianData/human-lncrna-atlas-github/frontend/backend
+python3 -m uvicorn main:app --reload --port 8000 --host 0.0.0.0
+
+# 前端（前台运行）
+cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
 npm run dev -- --host 0.0.0.0
+```
+
+### 停止服务
+
+```bash
+# 停止后端
+pkill -f "uvicorn main:app"
+
+# 停止前端
+pkill -f "vite"
+
+# 查看日志
+tail -f /tmp/fastapi.log  # 后端日志
+tail -f /tmp/vite.log     # 前端日志
 ```
 
 **访问地址**：
@@ -536,15 +562,17 @@ Phase 1-4: 数据库核心功能       ✅ 2024-2025
 Phase 5: 全站性能优化           ✅ 2025-12-10
   ├── 5.0: Conservation API    ✅
   ├── 5.1: Network 优化(236x)  ✅
-  └── 5.2: 全站优化(42.7x)     ✅
-Phase 6.0: 科研数据分析         ✅ 2025-12-11（今天）
+  ├── 5.2: 全站优化(42.7x)     ✅
+  └── 5.3: Sankey Flow 可视化  ✅ 2025-12-12
+Phase 6.0: 科研数据分析         ✅ 2025-12-11
   ├── 6.0-A: 数据导出 API      ✅ 4 端点（83x 加速）
-  └── 6.0-B: Jupyter Notebooks ✅ 4 分析（~1,500 行）
+  ├── 6.0-B: Jupyter Notebooks ✅ 4 分析（~1,500 行）
+  └── 6.0-C: 分析结果前端展示  ✅ /analysis 页面
 ```
 
-**当前版本**: Phase 6.0
-**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力
-**下一阶段**: Phase 6.0-C（可选）或运行 Notebooks 产出科研成果
+**当前版本**: Phase 6.0 + Phase 5.3
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 高级可视化
+**下一阶段**: Phase 5.4（更多高级可视化：Chord 图、3D 网络）
 
 ---
 
@@ -738,5 +766,108 @@ http://192.168.6.135:5173/lncrna-chipseq-overlap
 │                                        └──────┘│
 └─────────────────────────────────────────────────┘
 ```
+
+---
+
+## Phase 5.3: Sankey Flow 高级可视化 (2025-12-12)
+
+### 概述
+
+实现三层 Sankey 流向图，展示 lncRNA → Gene → Disease 调控关系流向。
+
+### 新增功能
+
+| 功能 | 描述 | 状态 |
+|------|------|------|
+| **Sankey Flow 页面** | 三层流向图可视化 | ✅ |
+| **API 端点** | `/api/v1/visualization/sankey-data` | ✅ |
+| **交互式筛选** | 物种、疾病搜索、BA 阈值、数量限制 | ✅ |
+| **统计卡片** | Total/LncRNA/Gene/Disease 节点数 | ✅ |
+| **Flow Details 表格** | 详细流向数据，支持分页 | ✅ |
+| **E2E 测试** | 23 个 Playwright 测试用例 | ✅ |
+
+### 技术实现
+
+**三层网络结构**:
+- **Layer 0 (蓝色)**: lncRNA 节点
+- **Layer 1 (绿色)**: Gene 节点
+- **Layer 2 (红色)**: Disease 节点
+
+**权重计算**:
+- lncRNA → Gene: Binding Affinity (BA) 值
+- Gene → Disease: -log10(p-value)
+
+### 新增文件
+
+| 文件 | 说明 | 代码量 |
+|------|------|--------|
+| `frontend/backend/app/routers/visualization.py` | API Router | ~290 行 |
+| `frontend/backend/app/schemas/visualization.py` | Pydantic Schemas | ~68 行 |
+| `frontend/web/src/pages/Visualization/SankeyFlow/index.tsx` | 主页面组件 | ~510 行 |
+| `frontend/web/src/api/visualization.ts` | API Client | ~102 行 |
+| `frontend/web/src/i18n/locales/en/visualization.json` | 英文翻译 | ~36 行 |
+| `frontend/web/src/i18n/locales/zh-CN/visualization.json` | 中文翻译 | ~36 行 |
+| `frontend/web/e2e/visualization/sankey-flow.spec.ts` | E2E 测试 | ~610 行 |
+
+### 访问地址
+
+```
+http://192.168.6.135:5173/visualization/sankey-flow
+```
+
+### API 使用示例
+
+```bash
+# 获取 Sankey 数据（人类，限制 100 个节点）
+curl "http://localhost:8000/api/v1/visualization/sankey-data?species_id=1&limit=100"
+
+# 按疾病筛选
+curl "http://localhost:8000/api/v1/visualization/sankey-data?trait_name=diabetes&limit=50"
+
+# 设置最小 BA 阈值
+curl "http://localhost:8000/api/v1/visualization/sankey-data?min_ba=100&limit=200"
+```
+
+### 页面布局
+
+```
+┌─────────────────────────────────────────────────┐
+│  Sankey Flow Diagram                            │
+├─────────────────────────────────────────────────┤
+│  [Total: 87] [LncRNA: 11] [Gene: 26] [Disease: 50] │
+├─────────────────────────────────────────────────┤
+│  Filters: [Species▼] [Disease🔍] [BA━━] [Limit━━] │
+├─────────────────────────────────────────────────┤
+│  lncRNA → Gene → Disease Flow                   │
+│  ┌─────────────────────────────────────────────┐│
+│  │  🔵 lncRNA  →  🟢 Gene  →  🔴 Disease      ││
+│  │     │              │             │          ││
+│  │     ├──────────────┼─────────────┤          ││
+│  │     │              │             │          ││
+│  └─────────────────────────────────────────────┘│
+├─────────────────────────────────────────────────┤
+│  Flow Details (表格，支持分页)                   │
+│  Total 119 flows | [1] [2] [3] ... [20/page]    │
+└─────────────────────────────────────────────────┘
+```
+
+### 踩坑记录
+
+**问题 1: API 响应结构不匹配**
+- 前端期望: `{nodes, links, statistics}`
+- 后端返回: `{success, data: {nodes, links}, stats}`
+- 解决: 在 API client 中添加数据转换层
+
+**问题 2: ECharts 节点重复**
+- 原因: 使用 `name` 作为节点标识，但 `links` 使用 `id`
+- 解决: 使用 `id` 作为 ECharts 节点 name，添加 `label.formatter` 显示真实名称
+
+### 测试结果
+
+| 测试类型 | 结果 |
+|---------|------|
+| 生产构建 | ✅ 16.75s |
+| P0 测试 | ✅ 6/7 通过 |
+| API 响应 | ✅ ~1s (100 nodes) |
 
 ---

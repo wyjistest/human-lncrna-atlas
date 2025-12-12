@@ -341,7 +341,7 @@ class EpigeneticMarkType(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "mark_category IN ('repressive', 'activating', 'bivalent_component', 'structural', 'other')",
+            "mark_category IN ('repressive', 'activating', 'bivalent_component', 'open_chromatin', 'structural', 'other')",
             name="chk_mark_category"
         ),
     )
@@ -463,7 +463,7 @@ class ChIPSeqPeak(Base):
     score = Column(Integer)
 
     # Additional attributes
-    attributes = Column(JSONB, default={})
+    attributes = Column(JSONB, default=dict)
 
     # Metadata
     created_at = Column(DateTime, default=utc_now)

@@ -43,6 +43,7 @@ class MarkCategory(str, Enum):
     repressive = "repressive"
     activating = "activating"
     bivalent_component = "bivalent_component"
+    open_chromatin = "open_chromatin"
     structural = "structural"
     other = "other"
 

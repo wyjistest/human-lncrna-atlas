@@ -1,0 +1,36 @@
+{
+  "sankey": {
+    "title": "Sankey 流向图",
+    "breadcrumb": "Sankey 流向图",
+    "description": "可视化三层调控关系：lncRNA → 基因 → 疾病。探索 lncRNA 如何调控与疾病相关的基因。",
+    "chartTitle": "lncRNA → 基因 → 疾病 流向",
+    "flowValue": "流向值",
+    "noData": "暂无数据。请尝试调整筛选条件。",
+    "stats": {
+      "totalNodes": "总节点数",
+      "totalNodesHelp": "lncRNA + 基因 + 疾病节点",
+      "lncrnaNodes": "LncRNA 节点",
+      "geneNodes": "基因节点",
+      "diseaseNodes": "疾病节点",
+      "totalLinks": "总连接数"
+    },
+    "filters": {
+      "title": "筛选器",
+      "species": "物种",
+      "allSpecies": "所有物种",
+      "disease": "疾病/性状",
+      "diseasePlaceholder": "例如：糖尿病",
+      "minBA": "最小结合亲和力",
+      "limit": "节点限制"
+    },
+    "table": {
+      "title": "流向详情",
+      "lncrna": "LncRNA",
+      "gene": "基因",
+      "disease": "疾病",
+      "flowValue": "流向值",
+      "connections": "连接数",
+      "total": "共 {{count}} 条流向"
+    }
+  }
+}
