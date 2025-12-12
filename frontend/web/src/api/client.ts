@@ -35,13 +35,14 @@ apiClient.interceptors.response.use(
         case 400:
           message.error(data.detail || 'Invalid request parameters');
           break;
-        case 422:
+        case 422: {
           // Pydantic validation error
           const validationMsg = Array.isArray(data.detail)
             ? data.detail.map((e: { msg: string }) => e.msg).join(', ')
             : data.detail || 'Validation error';
           message.error(validationMsg);
           break;
+        }
         case 429:
           message.error('请求过于频繁，请稍后再试');
           break;
