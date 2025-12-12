@@ -1,16 +1,11 @@
 """基因相关API路由"""
-import re
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from math import ceil
 
-
-def escape_like_pattern(value: str) -> str:
-    """转义 LIKE 模式中的特殊字符 (%, _, \\)"""
-    return re.sub(r'([%_\\])', r'\\\1', value)
-
+from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
 from app.models import Gene, CoreGene, Species, Regulation, TraitGeneAssociation

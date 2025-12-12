@@ -123,7 +123,7 @@ check_environment() {
 
     # 检查数据库连接
     log_info "检查数据库连接..."
-    if PGPASSWORD="" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1" &> /dev/null; then
+    if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" &> /dev/null; then
         log_info "数据库连接: OK"
     else
         log_warning "数据库连接失败，后端可能无法正常工作"

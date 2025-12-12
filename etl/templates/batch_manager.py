@@ -17,9 +17,18 @@ from psycopg2.extras import execute_values
 from datetime import datetime
 from typing import Optional, Dict, List
 import logging
+import re
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+VALID_SQL_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+def validate_sql_identifier(name: str, max_length: int = 63) -> str:
+    """Validate SQL identifier to prevent injection"""
+    if not name or not VALID_SQL_IDENTIFIER.match(name) or len(name) > max_length:
+        raise ValueError(f"Invalid SQL identifier: {name}")
+    return name
 
 
 class BatchManager:
@@ -184,24 +193,28 @@ class DataQualityChecker:
         Returns:
             问题记录数量
         """
+        # Validate table and column names to prevent SQL injection
+        validated_table = validate_sql_identifier(table)
+
         with self.conn.cursor() as cur:
             for col in columns:
+                validated_col = validate_sql_identifier(col)
                 cur.execute(f"""
                     SELECT COUNT(*)
-                    FROM {table}
-                    WHERE {col} IS NULL
+                    FROM {validated_table}
+                    WHERE {validated_col} IS NULL
                 """)
                 null_count = cur.fetchone()[0]
 
                 if null_count > 0:
                     issue = {
-                        'table': table,
-                        'column': col,
+                        'table': validated_table,
+                        'column': validated_col,
                         'type': 'null_value',
                         'count': null_count
                     }
                     self.issues.append(issue)
-                    logger.warning(f"发现 {null_count} 条记录的 {table}.{col} 为NULL")
+                    logger.warning(f"发现 {null_count} 条记录的 {validated_table}.{validated_col} 为NULL")
 
         return len(self.issues)
 
@@ -216,12 +229,15 @@ class DataQualityChecker:
         Returns:
             重复记录数量
         """
-        cols_str = ', '.join(unique_columns)
+        # Validate table and column names to prevent SQL injection
+        validated_table = validate_sql_identifier(table)
+        validated_columns = [validate_sql_identifier(col) for col in unique_columns]
+        cols_str = ', '.join(validated_columns)
 
         with self.conn.cursor() as cur:
             cur.execute(f"""
                 SELECT {cols_str}, COUNT(*)
-                FROM {table}
+                FROM {validated_table}
                 GROUP BY {cols_str}
                 HAVING COUNT(*) > 1
             """)
@@ -230,13 +246,13 @@ class DataQualityChecker:
 
             if duplicates:
                 issue = {
-                    'table': table,
+                    'table': validated_table,
                     'type': 'duplicate',
-                    'columns': unique_columns,
+                    'columns': validated_columns,
                     'count': len(duplicates)
                 }
                 self.issues.append(issue)
-                logger.warning(f"发现 {len(duplicates)} 组重复数据在 {table}({cols_str})")
+                logger.warning(f"发现 {len(duplicates)} 组重复数据在 {validated_table}({cols_str})")
 
         return len(duplicates)
 

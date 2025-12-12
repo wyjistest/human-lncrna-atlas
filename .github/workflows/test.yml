@@ -55,7 +55,7 @@ jobs:
       - name: Run ESLint
         working-directory: frontend/web
         run: npm run lint
-        continue-on-error: true
+        continue-on-error: false
 
   build:
     name: Build

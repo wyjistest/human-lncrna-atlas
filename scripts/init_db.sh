@@ -22,6 +22,7 @@ DB_PASSWORD="${DB_PASSWORD:-}"  # 如果为空，将提示输入
 
 SCHEMA_DIR="$(cd "$(dirname "$0")/../schema/v2.3" && pwd)"
 INSTALL_EXTENSION_LAYER="${INSTALL_EXTENSION_LAYER:-no}"  # yes/no
+FORCE_RECREATE="${FORCE_RECREATE:-no}"  # yes/no - 用于非交互模式
 
 # 颜色输出
 RED='\033[0;31m'
@@ -124,7 +125,18 @@ check_database_exists() {
     log_info "检查数据库是否已存在..."
     if run_psql_postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
         log_warning "数据库 '$DB_NAME' 已存在"
-        read -p "是否删除并重新创建? (yes/no): " response
+
+        # 非交互模式支持
+        if [ "${FORCE_RECREATE}" = "yes" ]; then
+            response="yes"
+        elif [ ! -t 0 ]; then
+            # Non-interactive mode - default to safe behavior
+            log_info "Non-interactive mode detected, keeping existing database"
+            response="no"
+        else
+            read -p "是否删除并重新创建? (yes/no): " response
+        fi
+
         if [ "$response" != "yes" ]; then
             log_info "保留现有数据库，退出"
             exit 0

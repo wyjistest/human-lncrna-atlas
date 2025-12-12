@@ -29,7 +29,7 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **Caching**: Redis (optional)
 
 ### Frontend
-- **Framework**: React 18 + TypeScript
+- **Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
 - **UI Library**: Ant Design 5
 - **State Management**: TanStack Query (React Query)

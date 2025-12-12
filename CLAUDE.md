@@ -2,9 +2,9 @@
 
 ## 元信息
 - **更新日期**: 2025-12-13
-- **当前版本**: Phase 7.2 (代码质量提升 - 完成)
+- **当前版本**: Phase 7.3 (代码审查综合修复 - 完成)
 - **下一阶段**: Phase 8.0 (新功能)
-- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + 测试覆盖
+- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + 测试覆盖 + 安全加固
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 ## 项目概述
@@ -96,7 +96,7 @@ human-lncrna-atlas-github/
 | 层级 | 技术 |
 |------|------|
 | 后端 | FastAPI + PostgreSQL + Redis |
-| 前端 | React 18 + TypeScript + Vite + Ant Design 5 |
+| 前端 | React 19 + TypeScript + Vite + Ant Design 5 |
 | 可视化 | IGV.js (基因组) + Cytoscape.js (网络) + ECharts (图表) |
 | 数据源 | ENCODE, UCSC Genome Browser |
 
@@ -1177,8 +1177,189 @@ Phase 7.2: 单元测试基础设施     ✅ 2025-12-13
   └── API/Hook JSDoc           ✅ 100% 覆盖
 ```
 
-**当前版本**: Phase 7.2
-**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖
+**当前版本**: Phase 7.3
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固
+**下一阶段**: Phase 8.0 (新功能)
+
+---
+
+## Phase 7.3: 代码审查综合修复 (2025-12-13)
+
+### 概述
+
+基于全面代码审查，修复 27 项问题，涵盖安全、API契约、性能、代码清理、CI/脚本 6 大类别。采用 5 Agent 并行协作，将 15-20 天工作量压缩至 3 小时完成。
+
+### 修复分类汇总
+
+| Phase | 类别 | 修复数量 | 关键改动 |
+|-------|------|---------|---------|
+| 1 | 安全修复 | 5 | X-Forwarded-For 可信代理验证, DB 异常清洗, CORS 严格模式 |
+| 2 | API 契约 | 6 | /summary 别名, 字段命名统一, peak_qvalue 排序 |
+| 3 | 性能优化 | 4 | Redis SCAN, MemoryCache 线程安全, statement_timeout |
+| 4 | 代码清理 | 3 | 删除 115+ 过时 i18n 副本, 重复 API 文件 |
+| 5-6 | CI/脚本/ETL | 9 | SQL 注入防护, 包结构, 脚本非交互模式 |
+
+### Phase 1: 安全修复
+
+**问题 1.1: X-Forwarded-For 头信任漏洞**
+- **文件**: `app/routers/admin.py`, `app/core/config.py`
+- **问题**: Admin API 无条件信任 X-Forwarded-For 头，攻击者可伪造 IP 绕过白名单
+- **修复**: 添加 `TRUSTED_PROXIES` 配置，仅从可信代理接受转发头
+
+```python
+# config.py
+TRUSTED_PROXIES: list = ["127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+# admin.py
+def _get_client_ip(request: Request) -> str:
+    direct_ip = request.client.host if request.client else "unknown"
+    if _is_trusted_proxy(direct_ip):  # 仅信任代理时才解析转发头
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+    return direct_ip
+```
+
+**问题 1.2: 数据库异常暴露**
+- **文件**: `app/core/exceptions.py` (新建)
+- **问题**: 原始 PostgreSQL 错误返回客户端，暴露 schema 信息
+- **修复**: 创建 `sanitize_db_error()` 函数，返回通用错误消息 + 错误 ID
+
+**问题 1.3: CORS 通配符回退**
+- **文件**: `main.py`
+- **修复**: 移除 `origin or b"*"` 回退，严格验证白名单
+
+### Phase 2: API 契约修复
+
+**问题 2.1: 端点命名不一致**
+- 前端调用 `/summary`，后端实现 `/statistics`
+- **修复**: 添加别名端点（向后兼容）
+
+```python
+@router.get("/summary", response_model=OverlapStatistics, include_in_schema=False)
+def get_overlap_summary(...):
+    return get_overlap_statistics(...)
+```
+
+**问题 2.2: 字段命名不一致**
+- `unique_targets` → `unique_target_genes`
+- 添加缺失的 `unique_cell_types` 字段
+
+**问题 2.3: peak_qvalue 排序缺失**
+- **修复**: 添加到排序白名单
+
+### Phase 3: 性能修复
+
+**问题 3.1: Redis KEYS 命令阻塞**
+- **文件**: `app/core/cache.py`
+- **问题**: `KEYS` 是 O(N) 操作，会阻塞 Redis
+- **修复**: 改用 `SCAN` 游标迭代
+
+```python
+def delete_pattern(self, pattern: str) -> int:
+    cursor, deleted = 0, 0
+    while True:
+        cursor, keys = self._client.scan(cursor=cursor, match=pattern, count=100)
+        if keys: deleted += self._client.delete(*keys)
+        if cursor == 0: break
+    return deleted
+```
+
+**问题 3.2: MemoryCache 线程不安全**
+- **修复**: 添加 `threading.Lock()` 保护所有缓存操作
+
+**问题 3.3: statement_timeout 作用域**
+- **修复**: `SET LOCAL` → `SET` (事务级 → 会话级)
+
+### Phase 4: 代码清理
+
+**问题 4.1: i18n 目录过时副本**
+- 删除 `src/i18n/` 下 115+ 过时源码副本
+- 保留合法的国际化文件：`index.ts`, `locales/`
+
+**问题 4.2: 重复 API 文件**
+- 删除 `src/hooks/lncRNAChIPSeqOverlapApi.ts`
+- 保留 `src/api/lncRNAChIPSeqOverlapApi.ts`
+
+**问题 4.3: Axios 错误处理增强**
+- **文件**: `src/api/client.ts`
+- **修复**: 添加 400/422 验证错误处理
+
+### Phase 5-6: CI/脚本/ETL 修复
+
+**问题 5.1: ETL SQL 注入**
+- **文件**: `etl/templates/batch_manager.py`
+- **修复**: 添加 `validate_sql_identifier()` 函数
+
+```python
+VALID_SQL_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+def validate_sql_identifier(name: str, max_length: int = 63) -> str:
+    if not name or not VALID_SQL_IDENTIFIER.match(name) or len(name) > max_length:
+        raise ValueError(f"Invalid SQL identifier: {name}")
+    return name
+```
+
+**问题 5.2: ETL 包结构**
+- 创建 `etl/__init__.py`, `etl/templates/__init__.py`
+- 修复相对导入为绝对导入
+
+**问题 5.3: 脚本非交互模式**
+- `init_db.sh`: 添加 `FORCE_RECREATE` 环境变量
+- `start.sh`: 移除 `PGPASSWORD=""` 暴露
+
+**问题 5.4: ESLint 非阻塞**
+- `.github/workflows/test.yml`: `continue-on-error: true` → `false`
+
+**问题 5.5: README 版本**
+- "React 18" → "React 19"
+
+**问题 5.6: 工具函数整合**
+- 创建 `app/core/utils.py`，整合 6 处重复的 `escape_like_pattern()`
+
+### 新增文件
+
+| 文件 | 用途 |
+|------|------|
+| `frontend/backend/app/core/exceptions.py` | 数据库错误清洗 |
+| `frontend/backend/app/core/utils.py` | 共享工具函数 |
+| `etl/__init__.py` | ETL 包初始化 |
+| `etl/templates/__init__.py` | ETL 子包初始化 |
+
+### 删除文件
+
+| 文件/目录 | 原因 |
+|----------|------|
+| `src/i18n/{api,hooks,components,pages,types,utils,config}/` | 过时源码副本 |
+| `src/hooks/lncRNAChIPSeqOverlapApi.ts` | 重复 API 文件 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| `npm run build` | ✅ 16.81s 成功 |
+| Backend imports | ✅ 全部模块导入成功 |
+| ETL imports | ✅ SQL 注入防护验证通过 |
+| 可信代理测试 | ✅ 全部 PASS |
+
+### 项目里程碑更新
+
+```
+Phase 1-4: 数据库核心功能       ✅ 2024-2025
+Phase 5: 全站性能优化           ✅ 2025-12-10
+Phase 6.0: 科研数据分析         ✅ 2025-12-11
+Phase 7.0: API 完善             ✅ 2025-12-12
+Phase 7.1: 代码质量修复         ✅ 2025-12-12
+Phase 7.2: 单元测试基础设施     ✅ 2025-12-13
+Phase 7.3: 代码审查综合修复     ✅ 2025-12-13
+  ├── 安全修复 (5 项)          ✅ X-Forwarded-For, DB异常, CORS
+  ├── API 契约修复 (6 项)      ✅ /summary别名, 字段命名
+  ├── 性能修复 (4 项)          ✅ Redis SCAN, 线程安全
+  ├── 代码清理 (3 项)          ✅ 删除 115+ 过时文件
+  └── CI/脚本/ETL (9 项)       ✅ SQL注入防护, 包结构
+```
+
+**当前版本**: Phase 7.3
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固
 **下一阶段**: Phase 8.0 (新功能)
 
 ---

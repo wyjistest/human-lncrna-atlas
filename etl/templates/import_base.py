@@ -16,7 +16,7 @@ import logging
 import csv
 from pathlib import Path
 
-from batch_manager import BatchManager, DataQualityChecker
+from etl.templates.batch_manager import BatchManager, DataQualityChecker
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
