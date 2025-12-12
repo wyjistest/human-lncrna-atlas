@@ -63,7 +63,10 @@ class OverlapResult(BaseModel):
     peak_fold_enrichment: Decimal = Field(..., description="ChIP-seq peak fold enrichment")
     peak_qvalue: Optional[Decimal] = Field(None, description="ChIP-seq peak Q-value (FDR)")
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float}
+    )
 
 
 class OverlapResponse(BaseModel):
@@ -117,8 +120,9 @@ class OverlapStatistics(BaseModel):
 
     total_overlaps: int = Field(..., description="Total number of overlaps")
     unique_lncrnas: int = Field(..., description="Number of unique lncRNAs")
-    unique_targets: int = Field(..., description="Number of unique target genes")
+    unique_target_genes: int = Field(..., description="Number of unique target genes")
     unique_marks: int = Field(..., description="Number of unique mark types")
+    unique_cell_types: int = Field(default=0, description="Number of unique cell types")
     avg_overlap_length: float = Field(..., description="Average overlap length in bp")
     avg_binding_affinity: float = Field(..., description="Average binding affinity")
     avg_peak_strength: float = Field(..., description="Average peak fold enrichment")
@@ -126,14 +130,17 @@ class OverlapStatistics(BaseModel):
     by_cell_type: List[CellTypeStats] = Field(default=[], description="Statistics breakdown by cell type")
     default_filter_applied: bool = Field(
         default=False,
-        description="True if default chromosome filter (chr1) was applied for performance optimization"
+        description="True if default chromosome filter (chr22) was applied for performance optimization"
     )
     effective_chromosome: Optional[str] = Field(
         default=None,
         description="The chromosome filter actually used in the query (may differ from requested if default was applied)"
     )
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={Decimal: float}
+    )
 
 
 # ============================================================================

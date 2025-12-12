@@ -34,6 +34,7 @@ from functools import wraps
 
 from app.core.database import get_db
 from app.core.cache import cache, cached
+from app.core.exceptions import sanitize_db_error
 
 # ============================================================================
 # Rate Limiting Setup (slowapi)
@@ -250,7 +251,8 @@ def get_lncrna_chipseq_overlaps_from_mv(
     sort_field_map = {
         "binding_affinity": "binding_affinity",
         "overlap_length": "overlap_length",
-        "peak_fold_enrichment": "fold_enrichment"
+        "peak_fold_enrichment": "fold_enrichment",
+        "peak_qvalue": "qvalue"
     }
     sort_field = sort_field_map.get(filters.sort_by, "binding_affinity")
     sort_direction = "DESC" if filters.sort_order.lower() == "desc" else "ASC"
@@ -364,8 +366,7 @@ def get_lncrna_chipseq_overlaps_from_mv(
         return items, total
 
     except Exception as e:
-        logger.error(f"Error querying materialized view: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+        raise sanitize_db_error(e, logger)
 
 
 def get_lncrna_chipseq_overlaps_query(
@@ -392,7 +393,8 @@ def get_lncrna_chipseq_overlaps_query(
     sort_field_map = {
         "binding_affinity": "r.binding_affinity",
         "overlap_length": "overlap_length",
-        "peak_fold_enrichment": "p.fold_enrichment"
+        "peak_fold_enrichment": "p.fold_enrichment",
+        "peak_qvalue": "p.qvalue"
     }
     # Validate sort_by against whitelist, default to safe value if not found
     sort_field = sort_field_map.get(filters.sort_by, "r.binding_affinity")
@@ -530,8 +532,7 @@ def get_lncrna_chipseq_overlaps_query(
         return items, total
 
     except Exception as e:
-        logger.error(f"Error querying lncRNA-ChIP-seq overlaps: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+        raise sanitize_db_error(e, logger)
 
 
 @router.get("", response_model=OverlapResponse)
@@ -615,6 +616,8 @@ def get_lncrna_chipseq_overlaps(
             lncrna_gene_id,
             target_gene_id,
             chromosome,
+            mark_type,  # ADD THIS
+            cell_type,  # ADD THIS
             min_binding_affinity and min_binding_affinity > 0,
         ])
 
@@ -702,6 +705,8 @@ def get_overlap_statistics(
         lncrna_gene_id,
         target_gene_id,
         chromosome,
+        mark_type,  # ADD THIS
+        cell_type,  # ADD THIS
         min_binding_affinity and min_binding_affinity > 0,
     ])
 
@@ -734,8 +739,9 @@ def get_overlap_statistics(
         SELECT
             COUNT(*) AS total_overlaps,
             COUNT(DISTINCT r.lncrna_gene_id) AS unique_lncrnas,
-            COUNT(DISTINCT r.target_gene_id) AS unique_targets,
+            COUNT(DISTINCT r.target_gene_id) AS unique_target_genes,
             COUNT(DISTINCT m.mark_name) AS unique_marks,
+            COUNT(DISTINCT e.cell_type) AS unique_cell_types,
             AVG(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start)) AS avg_overlap_length,
             AVG(r.binding_affinity) AS avg_binding_affinity,
             AVG(p.fold_enrichment) AS avg_peak_strength
@@ -805,7 +811,8 @@ def get_overlap_statistics(
             return OverlapStatistics(
                 total_overlaps=0,
                 unique_lncrnas=0,
-                unique_targets=0,
+                unique_target_genes=0,
+                unique_cell_types=0,
                 unique_marks=0,
                 avg_overlap_length=0.0,
                 avg_binding_affinity=0.0,
@@ -840,7 +847,8 @@ def get_overlap_statistics(
         return OverlapStatistics(
             total_overlaps=result.total_overlaps,
             unique_lncrnas=result.unique_lncrnas,
-            unique_targets=result.unique_targets,
+            unique_target_genes=result.unique_target_genes,
+            unique_cell_types=result.unique_cell_types,
             unique_marks=result.unique_marks,
             avg_overlap_length=float(result.avg_overlap_length) if result.avg_overlap_length else 0.0,
             avg_binding_affinity=float(result.avg_binding_affinity) if result.avg_binding_affinity else 0.0,
@@ -852,8 +860,37 @@ def get_overlap_statistics(
         )
 
     except Exception as e:
-        logger.error(f"Error calculating overlap statistics: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+        raise sanitize_db_error(e, logger)
+
+
+@router.get("/summary", response_model=OverlapStatistics, include_in_schema=False)
+@rate_limit("60/minute")
+@cached("overlap:summary", ttl=cache.TTL_LIST)
+def get_overlap_summary(
+    request: Request,
+    lncrna_gene_id: Optional[int] = Query(None, description="Filter by specific lncRNA gene ID"),
+    target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
+    mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated"),
+    cell_type: Optional[str] = Query(None, description="Filter by cell type(s), comma-separated"),
+    chromosome: Optional[str] = Query(None, description="Filter by chromosome"),
+    min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity"),
+    min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
+    min_peak_strength: Optional[float] = Query(None, ge=0, description="Minimum peak fold enrichment"),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value"),
+    db: Session = Depends(get_db),
+):
+    """Alias for /statistics endpoint for backwards compatibility"""
+    return get_overlap_statistics(
+        request=request,
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        mark_type=mark_type,
+        cell_type=cell_type,
+        chromosome=chromosome,
+        min_binding_affinity=min_binding_affinity,
+        max_qvalue=max_qvalue,
+        db=db,
+    )
 
 
 # =============================================================================
@@ -1117,8 +1154,7 @@ def get_overlap_heatmap(
         )
 
     except Exception as e:
-        logger.error(f"Error generating heatmap data: {e}")
-        raise HTTPException(status_code=500, detail=f"Database query error: {str(e)}")
+        raise sanitize_db_error(e, logger)
 
 
 # =============================================================================
@@ -1226,6 +1262,8 @@ def generate_overlap_export(
         lncrna_gene_id,
         target_gene_id,
         chromosome,
+        mark_type,  # ADD THIS
+        cell_type,  # ADD THIS
         min_binding_affinity and min_binding_affinity > 0,
     ])
 
