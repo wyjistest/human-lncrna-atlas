@@ -141,13 +141,31 @@ cd /data/wenyujianData/humanLncAtlas/frontend/web
 # 2. 同步到 GitHub 目录
 cp -r src/* /data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/
 
-# 3. 验证编译
+# 3. 完整验证（必须全部通过才能提交）
 cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
-npm install && npm run build
+npm run lint          # ESLint 检查 (0 errors)
+npm run test:run      # 单元测试 (全部通过，无 unhandled errors)
+npm run build         # 生产构建
 
-# 4. 提交推送
+# 4. 检查 git 状态
+git status            # 确认文件追踪正确（注意 .gitignore 规则）
+git diff --stat       # 确认改动范围
+
+# 5. 提交推送
 git add -A && git commit -m "feat: 描述" && git push
 ```
+
+### ⚠️ 提交前检查清单
+
+| 检查项 | 命令 | 期望结果 |
+|--------|------|----------|
+| ESLint | `npm run lint` | 0 errors |
+| 单元测试 | `npm run test:run` | All passed, 0 errors |
+| 构建 | `npm run build` | ✓ built successfully |
+| 文件追踪 | `git ls-files <path>` | 新文件已被追踪 |
+| 后端导入 | `python3 -c "import main"` | 无报错 |
+
+**踩坑记录**: `.gitignore` 中的 `*.txt` 规则会忽略 `requirements.txt`，已添加 `!requirements.txt` 例外。
 
 ### Commit 类型规范
 - `feat` - 新功能
