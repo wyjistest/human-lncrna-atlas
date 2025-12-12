@@ -481,14 +481,54 @@ def compare_species_networks(
     db: Session = Depends(get_db),
 ):
     """
-    跨物种网络对比
+    Cross-species Network Comparison API
 
-    返回指定lncRNA在不同物种中的调控网络数据
+    Compare regulatory networks of an lncRNA across different species based on ortholog mapping.
 
-    - lncrna_gene_id: lncRNA基因ID
-    - min_ba: 最小结合亲和力过滤
-    - max_targets_per_species: 每个物种返回的最大靶基因数，按 BA 降序取 TOP N
+    **Parameters**:
+    - `lncrna_gene_id` (int, required): Gene ID of the lncRNA (from any species)
+    - `min_ba` (float, default=50): Minimum binding affinity threshold (0-100)
+    - `max_targets_per_species` (int, default=100): Maximum number of target genes per species (sorted by BA desc)
+
+    **Returns**:
+    ```json
+    {
+        "lncrna_core_id": 11,
+        "species_names": {
+            "1": "Human",
+            "2": "Chimpanzee",
+            "3": "Macaque",
+            "4": "Marmoset"
+        },
+        "species_networks": {
+            "1": {
+                "lncrna_gene_id": 17276,
+                "species_id": 1,
+                "species_name": "Human",
+                "target_count": 46,
+                "total_target_count": 46,
+                "truncated": false,
+                "targets": [...]
+            }
+        },
+        "conserved_target_count": 24,
+        "conserved_targets": [35995, 64661, ...]
+    }
+    ```
+
+    **Example**:
+    ```bash
+    curl "http://localhost:8000/api/v1/network/compare?lncrna_gene_id=17276&min_ba=50"
+    ```
     """
+    # Species names mapping (English)
+    SPECIES_NAMES = {
+        1: "Human",
+        2: "Chimpanzee",
+        3: "Macaque",
+        4: "Marmoset"
+    }
+
     # 查询lncRNA的core_id
     lncrna = db.query(Gene).filter(Gene.gene_id == lncrna_gene_id).first()
 
@@ -540,6 +580,7 @@ def compare_species_networks(
         species_networks[species_id] = {
             "lncrna_gene_id": gene_id,
             "species_id": species_id,
+            "species_name": SPECIES_NAMES.get(species_id, f"Unknown ({species_id})"),
             "target_count": len(targets),
             "total_target_count": total_count,
             "truncated": total_count > max_targets_per_species,
@@ -555,8 +596,15 @@ def compare_species_networks(
     core_id_counts = Counter(all_target_core_ids)
     conserved_targets = [core_id for core_id, count in core_id_counts.items() if count > 1]
 
+    # Build species_names mapping for present species
+    species_names_map = {
+        str(species_id): SPECIES_NAMES.get(species_id, f"Unknown ({species_id})")
+        for species_id in species_networks.keys()
+    }
+
     return {
         "lncrna_core_id": lncrna.core_id,
+        "species_names": species_names_map,
         "species_networks": species_networks,
         "conserved_target_count": len(conserved_targets),
         "conserved_targets": conserved_targets,

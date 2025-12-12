@@ -16,3 +16,6 @@ export * from './network'
 
 // 导出监控相关类型
 export * from './monitoring'
+
+// 导出统计相关类型
+export * from './stats'

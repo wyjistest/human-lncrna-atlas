@@ -184,8 +184,8 @@ test.describe('HTTP Error Status Handling', () => {
     await page.goto(`${BASE_URL}/regulations`)
     await page.waitForTimeout(3000)
 
-    const errorIndicator = page.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error')
-    const errorText = page.getByText(/Server Error|500|服务器错误/i)
+    const errorIndicator = page.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error, .ant-result-error, .ant-result-500')
+    const errorText = page.getByText(/Server Error|500|服务器错误|Loading Failed|Internal Server Error/i)
 
     const hasError = await errorIndicator.isVisible().catch(() => false) ||
                      await errorText.isVisible().catch(() => false)

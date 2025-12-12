@@ -130,5 +130,28 @@
     "totalRegulations": "Total Regulations",
     "totalBA": "Total Binding Affinity",
     "noData": "No data"
+  },
+
+  "comparison": {
+    "title": "Cross-Species Comparison",
+    "button": "Compare Across Species",
+    "lncrnaLabel": "LncRNA",
+    "coreIdLabel": "Core ID",
+    "conservedTargetsLabel": "Conserved Targets",
+    "conservedCount": "{{count}} targets across {{speciesCount}} species",
+    "noDataForSpecies": "No data for this species",
+    "noLncrnaSelected": "No lncRNA found in the network",
+    "loading": "Loading comparison data...",
+    "error": "Failed to load comparison data",
+    "targetGene": "Target Gene",
+    "coreId": "Core ID",
+    "bindingAffinity": "Binding Affinity",
+    "conserved": "Conserved",
+    "conservedIn": "Conserved in {{count}} species",
+    "notConserved": "Not conserved",
+    "allSpecies": "All {{count}} species",
+    "targetCount": "{{count}} targets",
+    "truncatedWarning": "Showing top {{count}} targets (total: {{total}})",
+    "exportComparison": "Export Comparison"
   }
 }

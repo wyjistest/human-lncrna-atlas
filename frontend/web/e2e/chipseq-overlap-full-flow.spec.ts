@@ -319,7 +319,7 @@ test.describe('ChIP-seq Overlap - Empty States', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ data: [], total: 0, page: 1, page_size: 20 })
+        body: JSON.stringify({ items: [], total: 0, page: 1, page_size: 20, total_pages: 0 })
       })
     })
 
@@ -349,7 +349,7 @@ test.describe('ChIP-seq Overlap - Empty States', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ data: [], total: 0 })
+        body: JSON.stringify({ items: [], total: 0, page: 1, page_size: 20, total_pages: 0 })
       })
     })
 
@@ -389,7 +389,11 @@ test.describe('ChIP-seq Overlap - Error States', () => {
     })
 
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForTimeout(3000)
+
+    // 等待错误状态出现（React Query 有重试）
+    const errorIndicator = page.locator('.ant-notification-notice-error, .ant-message-error, .ant-alert-error')
+      .or(page.getByText(/Error|Failed|500|Server|Loading Failed/i))
+    await expect(errorIndicator.first()).toBeVisible({ timeout: 15000 }).catch(() => {})
 
     // Check for error notification or message
     const errorNotification = page.locator('.ant-notification-notice-error, .ant-message-error')
@@ -597,7 +601,7 @@ test.describe('ChIP-seq Overlap - Export', () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ data: [], total: 0 })
+        body: JSON.stringify({ items: [], total: 0, page: 1, page_size: 20, total_pages: 0 })
       })
     })
 

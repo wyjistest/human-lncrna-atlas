@@ -541,3 +541,134 @@ export interface HeatmapMatrixResponse {
   /** Number of combinations with valid data */
   valid_combinations: number
 }
+
+// ============================================
+// EXPERIMENT TYPES (Phase C/D)
+// ============================================
+
+/**
+ * ChIP-seq Experiment data from backend
+ * Matches backend ChIPSeqExperimentResponse schema
+ */
+export interface ChIPSeqExperiment {
+  /** Unique experiment identifier */
+  experiment_id: number
+  /** Experiment name */
+  experiment_name: string
+  /** Species ID */
+  species_id: number
+  /** Species code (e.g., 'hg38', 'panTro6') */
+  species_code?: string
+  /** Mark type (e.g., 'H3K27me3') */
+  mark_type: string
+  /** Mark category (e.g., 'repressive', 'activating') */
+  mark_category: string
+  /** Mark display color */
+  mark_display_color?: string
+  /** Cell type (e.g., 'H1-hESC') */
+  cell_type?: string
+  /** Tissue type (e.g., 'brain') */
+  tissue_type?: string
+  /** Cell line */
+  cell_line?: string
+  /** Treatment condition */
+  treatment?: string
+  /** Data source (e.g., 'ENCODE', 'GEO') */
+  source_database?: string
+  /** Accession number */
+  source_accession?: string
+  /** Peak caller used (e.g., 'MACS2') */
+  peak_caller?: string
+  /** Reference genome (e.g., 'GRCh38') */
+  reference_genome?: string
+  /** Total sequencing reads */
+  total_reads?: number
+  /** Mapped reads count */
+  mapped_reads?: number
+  /** Fraction of Reads in Peaks */
+  frip_score?: number
+  /** Whether experiment is active */
+  is_active: boolean
+  /** Creation timestamp */
+  created_at: string
+  /** Number of peaks from this experiment */
+  peak_count?: number
+}
+
+/**
+ * Paginated response for ChIP-seq experiments
+ */
+export interface ChIPSeqExperimentListResponse {
+  /** Total number of experiments matching filters */
+  total: number
+  /** Current page experiments */
+  items: ChIPSeqExperiment[]
+  /** Current page number */
+  page: number
+  /** Items per page */
+  page_size: number
+}
+
+/**
+ * Filter parameters for listing ChIP-seq experiments
+ */
+export interface ChIPSeqExperimentFilters {
+  /** Filter by species ID */
+  species_id?: number
+  /** Filter by mark type(s), comma-separated */
+  mark_type?: string
+  /** Filter by mark category */
+  mark_category?: string
+  /** Filter by cell type */
+  cell_type?: string
+  /** Filter by source database */
+  source_database?: string
+  /** Only return active experiments */
+  active_only?: boolean
+  /** Page number */
+  page?: number
+  /** Items per page */
+  page_size?: number
+}
+
+/**
+ * Statistics for a single mark type
+ * Matches backend ChIPSeqMarkStats schema
+ */
+export interface ChIPSeqMarkStats {
+  /** Mark name (e.g., 'H3K27me3') */
+  mark_name: string
+  /** Mark category */
+  mark_category: string
+  /** Display color */
+  display_color: string
+  /** Species code */
+  species_code: string
+  /** Number of experiments */
+  experiment_count: number
+  /** Total number of peaks */
+  total_peaks: number
+  /** Average fold enrichment */
+  avg_fold_enrichment?: number
+  /** Median fold enrichment */
+  median_fold_enrichment?: number
+  /** Average peak width in bp */
+  avg_peak_width?: number
+}
+
+/**
+ * Global ChIP-seq statistics
+ * Matches backend ChIPSeqGlobalStats schema
+ */
+export interface ChIPSeqGlobalStats {
+  /** Total number of experiments */
+  total_experiments: number
+  /** Total number of peaks */
+  total_peaks: number
+  /** List of available mark types */
+  marks_available: string[]
+  /** List of available species codes */
+  species_available: string[]
+  /** Per-mark statistics */
+  stats_by_mark: ChIPSeqMarkStats[]
+}

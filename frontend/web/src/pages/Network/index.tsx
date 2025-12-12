@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, memo, useMemo } from 'react'
-import { Button, Space, Select, message, Drawer, Descriptions, Tag, Input, Dropdown, Slider, Radio, Collapse, Modal, Checkbox, Alert } from 'antd'
-import { SearchOutlined, DownloadOutlined, FileImageOutlined, FileTextOutlined, FilterOutlined } from '@ant-design/icons'
+import { Button, Space, Select, message, Drawer, Descriptions, Tag, Input, Dropdown, Slider, Radio, Collapse, Modal, Checkbox, Alert, Table, Tabs } from 'antd'
+import { SearchOutlined, DownloadOutlined, FileImageOutlined, FileTextOutlined, FilterOutlined, SwapOutlined } from '@ant-design/icons'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/api/client'
+import { networkApi } from '@/api/network'
 import { diseasesApi } from '@/api/diseases'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -72,9 +72,11 @@ interface NetworkCardProps {
   loading: boolean
   error: any
   onRefReady?: (cyRef: React.RefObject<Core>, isReady: boolean) => void
+  lncrnaCoreId?: number  // NEW: For cross-species comparison
+  lncrnaGeneId?: number  // NEW: For cross-species comparison
 }
 
-const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, error, onRefReady }: NetworkCardProps) => {
+const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, error, onRefReady, lncrnaCoreId, lncrnaGeneId }: NetworkCardProps) => {
   const { t } = useTranslation('network')
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<Core | null>(null)
@@ -82,6 +84,14 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Array<{id: string, label: string}>>([])
+
+  // NEW: Cross-species comparison state
+  const [comparisonDrawerOpen, setComparisonDrawerOpen] = useState(false)
+  const [selectedLncrnaForComparison, setSelectedLncrnaForComparison] = useState<{
+    geneId: number
+    coreId: number
+    geneName: string
+  } | null>(null)
 
   // Phase 3: 高级过滤器状态
   const [minBA, setMinBA] = useState<number>(0)
@@ -163,11 +173,35 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
     queryKey: ['gene-detail', selectedGeneId],
     queryFn: async () => {
       if (!selectedGeneId) return null
-      const res = await apiClient.get(`/api/v1/network/gene/${selectedGeneId}/detail`)
-      return res.data as GeneDetail
+      const res = await networkApi.getGeneDetail(selectedGeneId)
+      return res.data
     },
     enabled: !!selectedGeneId && detailDrawerOpen
   })
+
+  // NEW: Cross-species comparison query
+  const { data: comparisonData, isLoading: comparisonLoading, error: comparisonError } = useQuery({
+    queryKey: ['species-comparison', selectedLncrnaForComparison?.geneId],
+    queryFn: async () => {
+      if (!selectedLncrnaForComparison?.geneId) return null
+      const res = await networkApi.compareSpecies(selectedLncrnaForComparison.geneId, {
+        min_ba: 0,
+        max_targets_per_species: 100
+      })
+      return res.data
+    },
+    enabled: !!selectedLncrnaForComparison && comparisonDrawerOpen
+  })
+
+  // NEW: Handler for opening comparison
+  const handleCompareSpecies = (node: NodeSingular) => {
+    const geneId = node.data('gene_id') as number
+    const coreId = node.data('core_id') as number
+    const geneName = node.data('label') as string
+
+    setSelectedLncrnaForComparison({ geneId, coreId, geneName })
+    setComparisonDrawerOpen(true)
+  }
 
   // 确保组件卸载时总是销毁Cytoscape实例和清理tooltip
   useEffect(() => {
@@ -727,6 +761,23 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
               size="small"
               prefix={<SearchOutlined />}
             />
+            {/* NEW: Compare Across Species button */}
+            {lncrnaCoreId && lncrnaGeneId && (
+              <Button
+                size="small"
+                icon={<SwapOutlined />}
+                onClick={() => {
+                  const lncrnaNode = cyRef.current?.nodes('[type="lncRNA"]').first()
+                  if (lncrnaNode) {
+                    handleCompareSpecies(lncrnaNode)
+                  } else {
+                    message.warning(t('comparison.noLncrnaSelected'))
+                  }
+                }}
+              >
+                {t('comparison.button')}
+              </Button>
+            )}
             <Dropdown
               menu={{
                 items: [
@@ -978,6 +1029,142 @@ const NetworkCard = memo(({ speciesId: _speciesId, speciesName, data, loading, e
           <div>{t('drawer.noData')}</div>
         )}
       </Drawer>
+
+      {/* NEW: Cross-species comparison drawer */}
+      <Drawer
+        title={t('comparison.title')}
+        placement="right"
+        onClose={() => {
+          setComparisonDrawerOpen(false)
+          setSelectedLncrnaForComparison(null)
+        }}
+        open={comparisonDrawerOpen}
+        width={800}
+      >
+        {comparisonLoading ? (
+          <LoadingState />
+        ) : comparisonError ? (
+          <ErrorState error={comparisonError} />
+        ) : comparisonData ? (
+          <div>
+            {/* Summary Information */}
+            <Descriptions column={1} bordered size="small" style={{ marginBottom: 16 }}>
+              <Descriptions.Item label={t('comparison.lncrnaLabel')}>
+                {selectedLncrnaForComparison?.geneName}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('comparison.coreIdLabel')}>
+                {comparisonData.lncrna_core_id}
+              </Descriptions.Item>
+              <Descriptions.Item label={t('comparison.conservedTargetsLabel')}>
+                <Tag color="blue" style={{ fontSize: 14, padding: '4px 12px' }}>
+                  {comparisonData.conserved_target_count}
+                </Tag>
+                <span style={{ marginLeft: 8, color: '#666' }}>
+                  {t('comparison.conservedCount', {
+                    count: comparisonData.conserved_target_count,
+                    speciesCount: Object.keys(comparisonData.species_networks).length
+                  })}
+                </span>
+              </Descriptions.Item>
+            </Descriptions>
+
+            {/* Species-wise comparison tabs */}
+            <Tabs
+              items={Object.entries(comparisonData.species_networks).map(([speciesIdStr, speciesData]) => {
+                const sid = parseInt(speciesIdStr)
+                const speciesKey = SPECIES_KEYS[sid] || 'unknown'
+                const speciesName = t(`species.${speciesKey}`, { id: sid })
+
+                // Build conserved targets set for highlighting
+                const conservedSet = new Set(comparisonData.conserved_targets)
+
+                return {
+                  key: speciesIdStr,
+                  label: (
+                    <span>
+                      {speciesName}
+                      <Tag color="blue" style={{ marginLeft: 8 }}>
+                        {t('comparison.targetCount', { count: speciesData.target_count })}
+                      </Tag>
+                    </span>
+                  ),
+                  children: (
+                    <div>
+                      {speciesData.truncated && (
+                        <Alert
+                          message={t('comparison.truncatedWarning', {
+                            count: speciesData.target_count,
+                            total: speciesData.total_target_count
+                          })}
+                          type="info"
+                          showIcon
+                          style={{ marginBottom: 12 }}
+                        />
+                      )}
+                      <Table
+                        dataSource={speciesData.targets}
+                        rowKey={(record, index) => `${record.target_gene_id}-${record.target_core_id}-${index}`}
+                        size="small"
+                        pagination={{ pageSize: 20, showSizeChanger: true }}
+                        columns={[
+                          {
+                            title: t('comparison.targetGene'),
+                            dataIndex: 'target_name',
+                            key: 'target_name',
+                            render: (name) => name || '-'
+                          },
+                          {
+                            title: t('comparison.coreId'),
+                            dataIndex: 'target_core_id',
+                            key: 'target_core_id'
+                          },
+                          {
+                            title: t('comparison.bindingAffinity'),
+                            dataIndex: 'binding_affinity',
+                            key: 'binding_affinity',
+                            render: (ba) => ba?.toFixed(2) || '-',
+                            sorter: (a, b) => (a.binding_affinity || 0) - (b.binding_affinity || 0)
+                          },
+                          {
+                            title: t('comparison.conserved'),
+                            dataIndex: 'target_core_id',
+                            key: 'conserved',
+                            render: (coreId) => {
+                              const isConserved = conservedSet.has(coreId)
+                              if (isConserved) {
+                                // Count how many species this target appears in
+                                const count = Object.values(comparisonData.species_networks).filter(
+                                  (sn) => sn.targets.some((t) => t.target_core_id === coreId)
+                                ).length
+                                return (
+                                  <Tag color="green">
+                                    {t('comparison.conservedIn', { count })}
+                                  </Tag>
+                                )
+                              }
+                              return <span style={{ color: '#999' }}>-</span>
+                            },
+                            filters: [
+                              { text: t('comparison.conserved'), value: 'conserved' },
+                              { text: t('comparison.notConserved'), value: 'not_conserved' }
+                            ],
+                            onFilter: (value, record) => {
+                              const isConserved = conservedSet.has(record.target_core_id)
+                              return value === 'conserved' ? isConserved : !isConserved
+                            }
+                          }
+                        ]}
+                      />
+                    </div>
+                  )
+                }
+              })}
+            />
+          </div>
+        ) : (
+          <div>{t('comparison.noDataForSpecies')}</div>
+        )}
+      </Drawer>
     </>
   )
 })
@@ -1017,7 +1204,7 @@ export default function Network() {
   const { data: availableCombinations } = useQuery({
     queryKey: ['available-combinations'],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/network/available-combinations')
+      const res = await networkApi.getAvailableCombinations()
       return res.data.combinations
     }
   })
@@ -1073,8 +1260,12 @@ export default function Network() {
     queries: speciesIds.map(speciesId => ({
       queryKey: ['network', speciesId, traitId, ontologyId, queryTrigger],
       queryFn: async () => {
-        const res = await apiClient.get('/api/v1/network/disease', {
-          params: { species_id: speciesId, trait_id: traitId, ontology_id: ontologyId, min_ba: 0 }
+        if (!traitId || !ontologyId) return null
+        const res = await networkApi.getDiseaseNetwork({
+          species_id: speciesId,
+          trait_id: traitId,
+          ontology_id: ontologyId,
+          min_ba: 0
         })
         return res.data
       },

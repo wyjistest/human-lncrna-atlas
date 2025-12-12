@@ -23,6 +23,20 @@
     "lncRNA": "lncRNA",
     "proteinCoding": "蛋白编码基因"
   },
+  "ortholog": {
+    "title": "直系同源基因",
+    "speciesCount": "{{count}} 个物种",
+    "viewRegulations": "查看调控",
+    "goToDetail": "查看详情",
+    "compare": "对比",
+    "noOrthologs": "未找到直系同源基因",
+    "regulationsDrawerTitle": "{{geneName}} 调控关系",
+    "position": "位置",
+    "chromosome": "染色体",
+    "allSpecies": "所有物种",
+    "loading": "正在加载同源基因...",
+    "error": "加载同源基因失败"
+  },
   "columns": {
     "geneName": "基因名称",
     "ensemblId": "Ensembl ID",

@@ -66,15 +66,53 @@ export interface RepeatStats {
 }
 
 /**
- * Feature Track Configuration (for future extension)
+ * Feature Track Configuration
+ * Matches backend FeatureTrackResponse schema
  */
 export interface FeatureTrack {
   track_id: number
   track_name: string
-  track_category: 'repeat' | 'epigenetic' | 'conservation'
+  track_category: string
   display_name: string
-  display_color: string
+  display_color: string | null
+  source_database: string | null
+  version: string | null
   is_active: boolean
+  attribute_schema: Record<string, unknown> | null
+  created_at: string
+}
+
+/**
+ * Feature Track Statistics
+ * Matches backend FeatureTrackStats schema
+ */
+export interface FeatureTrackStats {
+  track_id: number
+  track_name: string
+  display_name: string
+  species_stats: Record<string, number>
+  total_features: number
+}
+
+/**
+ * Query parameters for listing feature tracks
+ */
+export interface FeatureTrackListParams {
+  category?: string
+  active_only?: boolean
+}
+
+/**
+ * Query parameters for region-based repeat queries
+ */
+export interface RepeatRegionParams {
+  chromosome: string
+  start: number
+  end: number
+  repeat_class?: string
+  repeat_family?: string
+  page?: number
+  page_size?: number
 }
 
 /**

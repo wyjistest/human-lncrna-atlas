@@ -276,7 +276,7 @@ def get_gene_detail(
         .scalar()
     ) or 0
 
-    # 查询直系同源基因
+    # 查询直系同源基因 with regulation counts
     orthologs_query = (
         db.query(
             Gene.gene_id,
@@ -287,10 +287,22 @@ def get_gene_detail(
             Gene.gene_end,
             Species.species_id,
             Species.display_name.label("species_name"),
+            func.count(Regulation.regulation_id).label("regulation_count"),
         )
         .join(Species, Gene.species_id == Species.species_id)
+        .outerjoin(Regulation, Regulation.lncrna_gene_id == Gene.gene_id)
         .filter(Gene.core_id == gene_obj.core_id)
         .filter(Gene.gene_id != gene_id)  # 排除自己
+        .group_by(
+            Gene.gene_id,
+            Gene.gene_name,
+            Gene.gene_ensembl_id,
+            Gene.chromosome,
+            Gene.gene_start,
+            Gene.gene_end,
+            Species.species_id,
+            Species.display_name,
+        )
     )
 
     orthologs = [
@@ -303,6 +315,7 @@ def get_gene_detail(
             chromosome=o.chromosome,
             gene_start=o.gene_start,
             gene_end=o.gene_end,
+            regulation_count=o.regulation_count or 0,
         )
         for o in orthologs_query.all()
     ]
@@ -334,6 +347,9 @@ def get_gene_orthologs(
 ):
     """
     获取基因的直系同源基因列表
+
+    Returns orthologs (genes with the same core_id) for the specified gene,
+    including regulation counts for each ortholog.
     """
     # 查询基因的core_id
     gene = db.query(Gene.core_id).filter(Gene.gene_id == gene_id).first()
@@ -341,7 +357,8 @@ def get_gene_orthologs(
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
 
-    # 查询同源基因
+    # 查询同源基因 with regulation counts
+    # Uses left outer join to count regulations where the ortholog is the lncRNA
     orthologs = (
         db.query(
             Gene.gene_id,
@@ -352,10 +369,22 @@ def get_gene_orthologs(
             Gene.gene_end,
             Species.species_id,
             Species.display_name.label("species_name"),
+            func.count(Regulation.regulation_id).label("regulation_count"),
         )
         .join(Species, Gene.species_id == Species.species_id)
+        .outerjoin(Regulation, Regulation.lncrna_gene_id == Gene.gene_id)
         .filter(Gene.core_id == gene.core_id)
         .filter(Gene.gene_id != gene_id)
+        .group_by(
+            Gene.gene_id,
+            Gene.gene_name,
+            Gene.gene_ensembl_id,
+            Gene.chromosome,
+            Gene.gene_start,
+            Gene.gene_end,
+            Species.species_id,
+            Species.display_name,
+        )
         .all()
     )
 
@@ -369,6 +398,7 @@ def get_gene_orthologs(
             chromosome=o.chromosome,
             gene_start=o.gene_start,
             gene_end=o.gene_end,
+            regulation_count=o.regulation_count or 0,
         )
         for o in orthologs
     ]

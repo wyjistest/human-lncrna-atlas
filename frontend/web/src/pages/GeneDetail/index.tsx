@@ -38,6 +38,7 @@ import { SequenceViewer } from '@/components/SequenceViewer'
 import { RepeatMaskerTable } from '@/components/RepeatMaskerTable'
 import { ChIPSeqPeaksTable } from '@/components/ChIPSeqPeaksTable'
 import { ConservationBadge } from '@/components/ConservationBadge'
+import { OrthologBrowser } from '@/components/OrthologBrowser'
 import { createSpeciesTranslator } from '@/utils/species'
 
 export default function GeneDetail() {
@@ -255,21 +256,15 @@ export default function GeneDetail() {
 
       <Divider />
 
-      {/* Orthologs */}
+      {/* Orthologs - Enhanced Browser */}
       {gene.orthologs && gene.orthologs.length > 0 && (
         <>
           <h4>{t('detail.orthologs')}</h4>
-          <Table
-            dataSource={gene.orthologs}
-            rowKey="gene_id"
-            size="small"
-            pagination={false}
-            columns={[
-              { title: t('columns.species'), dataIndex: 'species_name', render: translateSpecies },
-              { title: t('columns.geneName'), dataIndex: 'gene_name' },
-              { title: 'Ensembl ID', dataIndex: 'gene_ensembl_id' },
-              { title: t('columns.chromosome'), dataIndex: 'chromosome' },
-            ]}
+          <OrthologBrowser
+            geneId={geneIdNum}
+            currentSpeciesId={gene.species_id}
+            orthologs={gene.orthologs}
+            onNavigate={(id) => navigate(`/genes/${id}`)}
           />
         </>
       )}

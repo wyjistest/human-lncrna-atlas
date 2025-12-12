@@ -52,6 +52,7 @@ class OrthologInfo(BaseModel):
     chromosome: Optional[str] = None
     gene_start: Optional[int] = None
     gene_end: Optional[int] = None
+    regulation_count: int = 0  # Number of regulations for this ortholog
 
     model_config = ConfigDict(from_attributes=True)
 

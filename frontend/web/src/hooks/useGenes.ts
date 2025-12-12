@@ -74,3 +74,25 @@ export const useGeneDiseases = (geneId: number) => {
     enabled: !!geneId,
   })
 }
+
+/**
+ * 获取基因的直系同源基因列表
+ *
+ * Phase 6.2 - Ortholog Browser feature
+ *
+ * 用途: OrthologBrowser 组件，显示跨物种直系同源基因
+ *
+ * @param geneId - 基因 ID
+ * @returns 直系同源基因列表
+ */
+export const useGeneOrthologs = (geneId: number) => {
+  return useQuery({
+    queryKey: ['gene', geneId, 'orthologs'],
+    queryFn: async () => {
+      const { data } = await genesApi.getOrthologs(geneId)
+      return data
+    },
+    enabled: geneId > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+  })
+}

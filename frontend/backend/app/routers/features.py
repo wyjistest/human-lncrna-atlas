@@ -68,20 +68,7 @@ def list_feature_tracks(
     return tracks
 
 
-@router.get("/tracks/{track_id}", response_model=FeatureTrackResponse)
-def get_feature_track(
-    track_id: int,
-    db: Session = Depends(get_db),
-):
-    """
-    Get details for a specific feature track
-    """
-    track = db.query(FeatureTrack).filter(FeatureTrack.track_id == track_id).first()
-    if not track:
-        raise HTTPException(status_code=404, detail="Feature track not found")
-    return track
-
-
+# NOTE: /tracks/stats must be defined BEFORE /tracks/{track_id} to avoid routing conflict
 @router.get("/tracks/stats", response_model=List[FeatureTrackStats])
 def get_feature_track_statistics(
     db: Session = Depends(get_db),
@@ -127,6 +114,20 @@ def get_feature_track_statistics(
             track_stats[track_id]['total_features'] += row.count
 
     return [FeatureTrackStats(**stats) for stats in track_stats.values()]
+
+
+@router.get("/tracks/{track_id}", response_model=FeatureTrackResponse)
+def get_feature_track(
+    track_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get details for a specific feature track
+    """
+    track = db.query(FeatureTrack).filter(FeatureTrack.track_id == track_id).first()
+    if not track:
+        raise HTTPException(status_code=404, detail="Feature track not found")
+    return track
 
 
 # =============================================================================

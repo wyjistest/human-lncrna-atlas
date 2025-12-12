@@ -264,6 +264,47 @@ def list_mark_types(
     ]
 
 
+# NOTE: /marks/relationships must be defined BEFORE /marks/{species_id} to avoid routing conflict
+@router.get("/marks/relationships", response_model=List[MarkRelationshipResponse])
+def get_mark_relationships(
+    relationship_type: Optional[str] = Query(None, description="Filter by relationship type"),
+    db: Session = Depends(get_db),
+):
+    """
+    Get relationships between epigenetic marks
+
+    Returns pairs of marks that have biological relationships (bivalent, antagonistic, etc.)
+    """
+    query = text("""
+        SELECT
+            r.relationship_id,
+            m1.mark_name as mark_1,
+            m2.mark_name as mark_2,
+            r.relationship_type,
+            r.description,
+            r.biological_significance
+        FROM mark_relationships r
+        JOIN epigenetic_mark_types m1 ON r.mark_type_id_1 = m1.mark_type_id
+        JOIN epigenetic_mark_types m2 ON r.mark_type_id_2 = m2.mark_type_id
+        WHERE :relationship_type IS NULL OR r.relationship_type = :relationship_type
+        ORDER BY r.relationship_type, m1.mark_name
+    """)
+
+    rows = db.execute(query, {"relationship_type": relationship_type}).fetchall()
+
+    return [
+        MarkRelationshipResponse(
+            relationship_id=row[0],
+            mark_1=row[1],
+            mark_2=row[2],
+            relationship_type=row[3],
+            description=row[4],
+            biological_significance=row[5],
+        )
+        for row in rows
+    ]
+
+
 @router.get("/marks/{species_id}", response_model=AvailableMarksResponse)
 def get_available_marks_for_species(
     species_id: int,
@@ -336,46 +377,6 @@ def get_available_marks_for_species(
         total_experiments=total_experiments,
         total_peaks=total_peaks,
     )
-
-
-@router.get("/marks/relationships", response_model=List[MarkRelationshipResponse])
-def get_mark_relationships(
-    relationship_type: Optional[str] = Query(None, description="Filter by relationship type"),
-    db: Session = Depends(get_db),
-):
-    """
-    Get relationships between epigenetic marks
-
-    Returns pairs of marks that have biological relationships (bivalent, antagonistic, etc.)
-    """
-    query = text("""
-        SELECT
-            r.relationship_id,
-            m1.mark_name as mark_1,
-            m2.mark_name as mark_2,
-            r.relationship_type,
-            r.description,
-            r.biological_significance
-        FROM mark_relationships r
-        JOIN epigenetic_mark_types m1 ON r.mark_type_id_1 = m1.mark_type_id
-        JOIN epigenetic_mark_types m2 ON r.mark_type_id_2 = m2.mark_type_id
-        WHERE :relationship_type IS NULL OR r.relationship_type = :relationship_type
-        ORDER BY r.relationship_type, m1.mark_name
-    """)
-
-    rows = db.execute(query, {"relationship_type": relationship_type}).fetchall()
-
-    return [
-        MarkRelationshipResponse(
-            relationship_id=row[0],
-            mark_1=row[1],
-            mark_2=row[2],
-            relationship_type=row[3],
-            description=row[4],
-            biological_significance=row[5],
-        )
-        for row in rows
-    ]
 
 
 # =============================================================================

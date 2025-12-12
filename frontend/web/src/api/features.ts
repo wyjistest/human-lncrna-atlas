@@ -6,7 +6,11 @@ import { apiClient } from './client'
 import type {
   RepeatMaskerResponse,
   RepeatMaskerFilters,
-  RepeatStats
+  RepeatStats,
+  FeatureTrack,
+  FeatureTrackStats,
+  FeatureTrackListParams,
+  RepeatRegionParams
 } from '../types/features'
 
 /**
@@ -54,7 +58,60 @@ export const featuresApi = {
     const queryString = params.toString()
     const url = `${API_BASE_URL}/api/v1/features/genes/${geneId}/repeats/export${queryString ? `?${queryString}` : ''}`
     window.open(url, '_blank')
-  }
+  },
+
+  // =============================================================================
+  // Feature Tracks API
+  // =============================================================================
+
+  /**
+   * List all available feature tracks
+   * @param params - Optional filters for category and active status
+   */
+  listTracks: (params?: FeatureTrackListParams) =>
+    apiClient.get<FeatureTrack[]>('/api/v1/features/tracks', { params }),
+
+  /**
+   * Get details for a specific feature track
+   * @param trackId - Track ID
+   */
+  getTrack: (trackId: number) =>
+    apiClient.get<FeatureTrack>(`/api/v1/features/tracks/${trackId}`),
+
+  /**
+   * Get statistics for all feature tracks (feature counts by species)
+   */
+  getTrackStats: () =>
+    apiClient.get<FeatureTrackStats[]>('/api/v1/features/tracks/stats'),
+
+  // =============================================================================
+  // Region-based RepeatMasker API
+  // =============================================================================
+
+  /**
+   * Get RepeatMasker annotations for a specific genomic region
+   * @param speciesId - Species ID
+   * @param params - Region coordinates and optional filters
+   */
+  getRepeatsByRegion: (speciesId: number, params: RepeatRegionParams) =>
+    apiClient.get<RepeatMaskerResponse>(`/api/v1/features/repeats/${speciesId}`, { params }),
+
+  /**
+   * Get list of unique repeat classes for a species
+   * @param speciesId - Species ID
+   */
+  getRepeatClasses: (speciesId: number) =>
+    apiClient.get<string[]>(`/api/v1/features/repeats/${speciesId}/classes`),
+
+  /**
+   * Get list of unique repeat families for a species
+   * @param speciesId - Species ID
+   * @param repeatClass - Optional filter by repeat class
+   */
+  getRepeatFamilies: (speciesId: number, repeatClass?: string) =>
+    apiClient.get<string[]>(`/api/v1/features/repeats/${speciesId}/families`, {
+      params: repeatClass ? { repeat_class: repeatClass } : undefined
+    }),
 }
 
 /**

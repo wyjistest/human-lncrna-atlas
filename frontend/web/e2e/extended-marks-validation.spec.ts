@@ -138,6 +138,18 @@ async function countCanvasElements(page: Page): Promise<number> {
   return await canvases.count()
 }
 
+/**
+ * 等待 ChIP-seq 活动标签页里出现可见内容。
+ * 避免选择到其它隐藏 tab 的 ant-table 导致误报。
+ */
+async function expectVisibleChipSeqContent(page: Page) {
+  const activePane = page.locator('.ant-tabs-tabpane-active')
+  const content = activePane.locator(
+    '.ant-table:visible, .ant-empty:visible, .ant-alert:visible, canvas:visible, svg:visible'
+  )
+  await expect(content.first()).toBeVisible({ timeout: 15000 })
+}
+
 // ============================================================================
 // Test Suite: Extended Marks Display in Dropdown
 // ============================================================================
@@ -251,9 +263,8 @@ test.describe('New Marks Data Loading', () => {
 
         console.log(`H4K20me3 API calls: ${apiCalls.length}`)
 
-        // Verify content loaded (table or empty state)
-        const content = page.locator('.ant-table, .ant-empty, .ant-alert')
-        await expect(content.first()).toBeVisible({ timeout: 10000 })
+        // Verify content loaded (table/empty/error) within active tab
+        await expectVisibleChipSeqContent(page)
       }
     }
   })
@@ -278,8 +289,7 @@ test.describe('New Marks Data Loading', () => {
 
         console.log(`H3K56ac API calls: ${apiCalls.length}`)
 
-        const content = page.locator('.ant-table, .ant-empty, .ant-alert')
-        await expect(content.first()).toBeVisible({ timeout: 10000 })
+        await expectVisibleChipSeqContent(page)
       }
     }
   })
@@ -304,8 +314,7 @@ test.describe('New Marks Data Loading', () => {
 
         console.log(`CTCF API calls: ${apiCalls.length}`)
 
-        const content = page.locator('.ant-table, .ant-empty, .ant-alert')
-        await expect(content.first()).toBeVisible({ timeout: 10000 })
+        await expectVisibleChipSeqContent(page)
       }
     }
   })
@@ -508,8 +517,7 @@ test.describe('Structural Marks (CTCF, H2AZ) Comparison', () => {
       console.log(`CTCF comparison API calls: ${compareApiCalls.length}`)
 
       // Verify comparison content loaded
-      const content = page.locator('.ant-table, .ant-card, canvas')
-      await expect(content.first()).toBeVisible({ timeout: 10000 })
+      await expectVisibleChipSeqContent(page)
     }
   })
 
@@ -532,9 +540,8 @@ test.describe('Structural Marks (CTCF, H2AZ) Comparison', () => {
       await h2azOption.click()
       await page.waitForTimeout(1500)
 
-      // Verify content loaded
-      const content = page.locator('.ant-table, .ant-card, canvas')
-      await expect(content.first()).toBeVisible({ timeout: 10000 })
+      // Verify content loaded in active tab
+      await expectVisibleChipSeqContent(page)
     }
   })
 
@@ -568,8 +575,7 @@ test.describe('Structural Marks (CTCF, H2AZ) Comparison', () => {
       await page.waitForTimeout(1500)
 
       // Verify structural marks comparison loaded
-      const content = page.locator('.ant-table, .ant-card, canvas')
-      await expect(content.first()).toBeVisible({ timeout: 10000 })
+      await expectVisibleChipSeqContent(page)
 
       console.log('Structural marks (CTCF vs H2AZ) comparison test completed')
     }

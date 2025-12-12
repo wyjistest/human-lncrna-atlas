@@ -20,6 +20,10 @@ import type {
   CellLineComparisonResponse,
   HeatmapMatrixResponse,
   HeatmapMetricType,
+  ChIPSeqExperiment,
+  ChIPSeqExperimentListResponse,
+  ChIPSeqExperimentFilters,
+  ChIPSeqGlobalStats,
 } from '@/types/chipseq'
 
 /**
@@ -180,6 +184,39 @@ export const chipseqApi = {
         },
       }
     ),
+
+  // =============================================================================
+  // Experiments API
+  // =============================================================================
+
+  /**
+   * List ChIP-seq experiments with filtering options
+   * Supports filtering by species, mark type, cell type, and data source
+   * @param filters - Optional filter parameters
+   */
+  listExperiments: (filters?: ChIPSeqExperimentFilters) =>
+    apiClient.get<ChIPSeqExperimentListResponse>('/api/v1/features/chipseq/experiments', {
+      params: filters,
+    }),
+
+  /**
+   * Get details for a specific ChIP-seq experiment
+   * @param experimentId - Experiment ID
+   */
+  getExperiment: (experimentId: number) =>
+    apiClient.get<ChIPSeqExperiment>(`/api/v1/features/chipseq/experiments/${experimentId}`),
+
+  // =============================================================================
+  // Global Statistics API
+  // =============================================================================
+
+  /**
+   * Get global ChIP-seq statistics
+   * Returns overall counts and per-mark statistics
+   * Uses materialized view for fast response
+   */
+  getGlobalStats: () =>
+    apiClient.get<ChIPSeqGlobalStats>('/api/v1/features/chipseq/stats'),
 }
 
 /**
@@ -217,4 +254,18 @@ export const chipseqQueryKeys = {
   /** Heatmap matrix data for multiple marks and cell types */
   heatmapMatrix: (geneId: number, marks: MarkType[], cellTypes: string[], metric: HeatmapMetricType) =>
     [...chipseqQueryKeys.gene(geneId), 'heatmap-matrix', marks.sort().join(','), cellTypes.sort().join(','), metric] as const,
+
+  /** All experiments */
+  experiments: () => [...chipseqQueryKeys.all, 'experiments'] as const,
+
+  /** Experiments with filters */
+  experimentsList: (filters: ChIPSeqExperimentFilters) =>
+    [...chipseqQueryKeys.experiments(), 'list', filters] as const,
+
+  /** Single experiment by ID */
+  experiment: (experimentId: number) =>
+    [...chipseqQueryKeys.experiments(), experimentId] as const,
+
+  /** Global statistics */
+  globalStats: () => [...chipseqQueryKeys.all, 'global-stats'] as const,
 }

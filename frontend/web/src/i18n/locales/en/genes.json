@@ -23,6 +23,20 @@
     "lncRNA": "lncRNA",
     "proteinCoding": "Protein Coding"
   },
+  "ortholog": {
+    "title": "Ortholog Genes",
+    "speciesCount": "{{count}} species",
+    "viewRegulations": "View Regulations",
+    "goToDetail": "Go to Detail",
+    "compare": "Compare",
+    "noOrthologs": "No ortholog genes found",
+    "regulationsDrawerTitle": "{{geneName}} Regulations",
+    "position": "Position",
+    "chromosome": "Chromosome",
+    "allSpecies": "All Species",
+    "loading": "Loading orthologs...",
+    "error": "Failed to load orthologs"
+  },
   "columns": {
     "geneName": "Gene Name",
     "ensemblId": "Ensembl ID",

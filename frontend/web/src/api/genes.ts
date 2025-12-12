@@ -9,6 +9,7 @@ import type { components } from '@/types'
 
 type GeneListItem = components['schemas']['GeneListItem']
 type GeneDetail = components['schemas']['GeneDetail']
+type OrthologInfo = components['schemas']['OrthologInfo']
 type PaginatedResponse<T> = components['schemas']['PaginatedResponse_GeneListItem_'] & { items: T[] }
 
 /**
@@ -141,5 +142,24 @@ export const genesApi = {
       { params }
     )
     return response.data
-  }
+  },
+
+  /**
+   * Get ortholog genes for a specific gene
+   *
+   * Phase 6.2 - Ortholog Browser feature
+   *
+   * Returns ortholog genes from other species that share the same core_id.
+   * Used by OrthologBrowser component on Gene Detail page.
+   *
+   * @param geneId - Gene ID to find orthologs for
+   * @returns Array of ortholog information (species, gene name, position)
+   *
+   * @example
+   * // Get orthologs for gene ID 1
+   * const { data } = await genesApi.getOrthologs(1)
+   * // Returns: OrthologInfo[]
+   */
+  getOrthologs: (geneId: number) =>
+    apiClient.get<OrthologInfo[]>(`/api/v1/genes/${geneId}/orthologs`),
 }

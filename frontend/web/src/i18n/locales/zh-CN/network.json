@@ -130,5 +130,28 @@
     "totalRegulations": "总调控关系",
     "totalBA": "总Binding Affinity",
     "noData": "无数据"
+  },
+
+  "comparison": {
+    "title": "跨物种对比分析",
+    "button": "跨物种对比",
+    "lncrnaLabel": "LncRNA",
+    "coreIdLabel": "Core ID",
+    "conservedTargetsLabel": "保守靶基因",
+    "conservedCount": "{{count}} 个靶基因（跨 {{speciesCount}} 个物种）",
+    "noDataForSpecies": "该物种无数据",
+    "noLncrnaSelected": "网络中未找到 lncRNA",
+    "loading": "正在加载对比数据...",
+    "error": "加载对比数据失败",
+    "targetGene": "靶基因",
+    "coreId": "Core ID",
+    "bindingAffinity": "结合亲和力",
+    "conserved": "保守",
+    "conservedIn": "在 {{count}} 个物种中保守",
+    "notConserved": "不保守",
+    "allSpecies": "所有 {{count}} 个物种",
+    "targetCount": "{{count}} 个靶基因",
+    "truncatedWarning": "显示前 {{count}} 个靶基因（总共 {{total}} 个）",
+    "exportComparison": "导出对比结果"
   }
 }

@@ -39,20 +39,17 @@ test.describe('Conservation Analysis Page', () => {
   })
 
   test('species selector is functional', async ({ page }) => {
-    // Find species selector (checkbox group)
-    const checkboxGroup = page.locator('.ant-checkbox-group')
-    await expect(checkboxGroup).toBeVisible({ timeout: 10000 })
-
-    // Should have 4 species checkboxes
+    // SpeciesSelector 使用独立 Checkbox（无 checkbox-group 容器）
     const checkboxes = page.locator('.ant-checkbox-wrapper')
+    await expect(checkboxes.first()).toBeVisible({ timeout: 10000 })
     expect(await checkboxes.count()).toBeGreaterThanOrEqual(4)
 
-    // Click on a checkbox to toggle selection
     const firstCheckbox = checkboxes.first()
     await firstCheckbox.click()
 
-    // Verify checkbox state changed
-    await expect(firstCheckbox.locator('.ant-checkbox')).toHaveClass(/ant-checkbox-checked|ant-checkbox/)
+    // Verify checkbox state changed (checked)
+    const input = firstCheckbox.locator('input[type="checkbox"]')
+    await expect(input).toBeChecked({ timeout: 5000 })
   })
 
   test('conservation heatmap renders', async ({ page }) => {
@@ -230,6 +227,7 @@ test.describe('Conservation Accessibility', () => {
 
     // Should have at least one h1 or h2 heading
     const headings = page.locator('h1, h2, h3')
+    await expect(headings.first()).toBeVisible({ timeout: 10000 })
     expect(await headings.count()).toBeGreaterThan(0)
   })
 

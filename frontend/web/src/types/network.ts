@@ -51,3 +51,53 @@ export interface NetworkData {
     ontology_name?: string
   }
 }
+
+/**
+ * Cross-species comparison types
+ */
+export interface CompareParams {
+  min_ba?: number
+  max_targets_per_species?: number
+}
+
+export interface SpeciesTargetGene {
+  target_gene_id: number
+  target_name: string | null
+  target_core_id: number
+  binding_affinity: number | null
+}
+
+export interface SpeciesNetworkData {
+  lncrna_gene_id: number
+  species_id: number
+  target_count: number
+  total_target_count: number
+  truncated: boolean
+  targets: SpeciesTargetGene[]
+}
+
+export interface SpeciesNetworkComparison {
+  lncrna_core_id: number
+  species_networks: Record<number, SpeciesNetworkData>
+  conserved_target_count: number
+  conserved_targets: number[]
+}
+
+export interface AvailableCombination {
+  trait_id: number
+  ontology_id: number
+  species_id: number
+}
+
+export interface AvailableCombinationsResponse {
+  combinations: AvailableCombination[]
+}
+
+export interface DiseaseNetworkParams {
+  trait_id: number
+  ontology_id: number
+  species_id?: number
+  min_ba?: number
+  max_nodes?: number
+  max_edges?: number
+}
