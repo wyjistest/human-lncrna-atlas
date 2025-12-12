@@ -128,31 +128,7 @@ export function BatchHeatmapMatrix({
   const isZh = i18n.language === 'zh-CN'
   const chartRef = useRef<ReactECharts>(null)
 
-  // Validate data
-  if (!data || data.length === 0) {
-    return (
-      <Card loading={loading}>
-        <Empty
-          description={t('batchGeneHeatmap.noData', 'No data available')}
-          style={{ paddingTop: 48, paddingBottom: 48 }}
-        />
-      </Card>
-    )
-  }
-
-  if (error) {
-    return (
-      <Card loading={loading}>
-        <Alert
-          type="error"
-          message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
-          description={error.message}
-          showIcon
-        />
-      </Card>
-    )
-  }
-
+  // All hooks must be called before any early returns
   // Metric options
   const metricOptions = useMemo(
     () => [
@@ -429,6 +405,31 @@ export function BatchHeatmapMatrix({
       chartInstance.off('click', handleClick)
     }
   }, [onCellClick, data, allMarks, yLabels])
+
+  // Early returns after all hooks
+  if (!data || data.length === 0) {
+    return (
+      <Card loading={loading}>
+        <Empty
+          description={t('batchGeneHeatmap.noData', 'No data available')}
+          style={{ paddingTop: 48, paddingBottom: 48 }}
+        />
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card loading={loading}>
+        <Alert
+          type="error"
+          message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
+          description={error.message}
+          showIcon
+        />
+      </Card>
+    )
+  }
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>

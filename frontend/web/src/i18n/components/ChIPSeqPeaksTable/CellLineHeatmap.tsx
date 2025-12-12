@@ -228,7 +228,6 @@ export function CellLineHeatmap({
         inRange: {
           color: getColorRange(),
         },
-        // @ts-ignore - ECharts type definition issue with formatter
         formatter: (value: number) => formatMetricValue(value, metric),
       },
       series: [

@@ -625,6 +625,13 @@ def get_gene_chipseq(
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
 
+    # Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
+
     # 2. Calculate query region
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
@@ -756,6 +763,13 @@ def get_gene_chipseq_summary(
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
+
+    # Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
 
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
@@ -1034,6 +1048,13 @@ def compare_gene_marks(
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
+
+    # Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
 
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
@@ -1384,6 +1405,13 @@ def compare_gene_cell_lines(
     if not gene:
         raise HTTPException(status_code=404, detail=f"Gene {gene_id} not found")
 
+    # Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
+
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
@@ -1629,6 +1657,13 @@ def get_gene_heatmap_matrix(
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
     if not gene:
         raise HTTPException(status_code=404, detail=f"Gene {gene_id} not found")
+
+    # Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
 
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
@@ -2276,6 +2311,13 @@ def export_comparison(
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
 
+    # Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
+
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
@@ -2461,6 +2503,13 @@ def export_overlaps_bed(
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
+
+    # Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
 
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking

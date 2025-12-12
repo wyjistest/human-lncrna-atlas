@@ -248,7 +248,7 @@ export default function GeneDetail() {
   }
 
   // Core Data Tab Content
-  const CoreDataContent = () => (
+  const CoreDataContent = (
     <>
       {/* Statistics - Collapsible panels */}
       <h4 style={{ marginBottom: 16 }}>{t('detail.statistics')}</h4>
@@ -271,40 +271,38 @@ export default function GeneDetail() {
     </>
   )
 
-  // Genomic Features Tab Content - with sub-tabs for RepeatMasker and ChIP-seq
-  const GenomicFeaturesContent = () => {
-    const genomicSubTabs: TabsProps['items'] = [
-      {
-        key: 'repeats',
-        label: (
-          <span>
-            <AppstoreOutlined />
-            {t('detail.repeats.title')}
-          </span>
-        ),
-        children: <RepeatMaskerTable geneId={geneIdNum} />
-      },
-      {
-        key: 'chipseq',
-        label: (
-          <span>
-            <AreaChartOutlined />
-            {t('detail.chipseq.title')}
-          </span>
-        ),
-        children: <ChIPSeqPeaksTable geneId={geneIdNum} enableComparison />
-      }
-    ]
+  // Genomic Features Tab Content
+  const genomicSubTabs: TabsProps['items'] = [
+    {
+      key: 'repeats',
+      label: (
+        <span>
+          <AppstoreOutlined />
+          {t('detail.repeats.title')}
+        </span>
+      ),
+      children: <RepeatMaskerTable geneId={geneIdNum} />
+    },
+    {
+      key: 'chipseq',
+      label: (
+        <span>
+          <AreaChartOutlined />
+          {t('detail.chipseq.title')}
+        </span>
+      ),
+      children: <ChIPSeqPeaksTable geneId={geneIdNum} enableComparison />
+    }
+  ]
 
-    return (
-      <Tabs
-        activeKey={genomicSubTab}
-        onChange={setGenomicSubTab}
-        items={genomicSubTabs}
-        size="small"
-      />
-    )
-  }
+  const GenomicFeaturesContent = (
+    <Tabs
+      activeKey={genomicSubTab}
+      onChange={setGenomicSubTab}
+      items={genomicSubTabs}
+      size="small"
+    />
+  )
 
   // Tab items configuration
   const tabItems: TabsProps['items'] = [
@@ -316,7 +314,7 @@ export default function GeneDetail() {
           {t('detail.tabs.core')}
         </span>
       ),
-      children: <CoreDataContent />
+      children: CoreDataContent
     },
     {
       key: 'genomic',
@@ -326,7 +324,7 @@ export default function GeneDetail() {
           {t('detail.tabs.genomicFeatures')}
         </span>
       ),
-      children: <GenomicFeaturesContent />
+      children: GenomicFeaturesContent
     }
   ]
 

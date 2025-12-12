@@ -970,8 +970,76 @@ Phase 7.0: API 完善             ✅ 2025-12-12
   └── Stats API 扩展           ✅
 ```
 
-**当前版本**: Phase 7.0
-**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+
-**下一阶段**: Phase 7.1 (UI 优化) 或 Phase 8.0 (新功能)
+**当前版本**: Phase 7.1
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + ESLint 0 errors
+**下一阶段**: Phase 8.0 (新功能)
+
+---
+
+## Phase 7.1: 代码质量修复 (2025-12-12)
+
+### 概述
+
+修复代码审查发现的高优先级问题，确保 ESLint 0 errors，提升代码质量和稳定性。
+
+### 修复的问题
+
+#### 高优先级（前端）
+
+| 问题 | 文件 | 修复方法 |
+|------|------|----------|
+| React Hooks 顺序违规 | `BatchHeatmapMatrix.tsx` | 移动所有hooks到早期return之前 |
+| render阶段访问ref | `FilterPanel.tsx` | 改用`useMemo`+直接依赖 |
+| useMemo条件调用 | `GeneDetail/index.tsx` | 改为普通JSX表达式 |
+| 静态组件问题 | `i18n/GeneDetail/index.tsx` (×2) | 改为JSX表达式 |
+| @ts-ignore | `CellLineHeatmap.tsx` (×2) | 移除不需要的注释 |
+| no-case-declarations | `i18n/ChIPSeqPeaksTable/index.tsx` | 用`{}`包裹case块 |
+
+#### 高优先级（后端）
+
+| 问题 | 文件 | 修复方法 |
+|------|------|----------|
+| 基因坐标空值 | `chipseq.py` (7处) | 添加空值检查，返回400错误 |
+| 基因坐标空值 | `features.py` (2处) | 添加空值检查，返回400错误 |
+| 距离过滤空值 | `network.py` (1处) | 添加条件检查 |
+| 缺失依赖 | `requirements.txt` | 添加 pandas, openpyxl |
+
+#### 低优先级
+
+| 问题 | 文件 | 修复方法 |
+|------|------|----------|
+| .gitignore补充 | `.gitignore` | 添加notebooks相关规则 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| `npm run build` | ✅ 19.84s 成功 |
+| `npx eslint . --quiet` | ✅ 0 errors |
+| `python3 -c "import main"` | ✅ 后端启动成功 |
+
+### React 19 Hooks 规则要点
+
+1. **Hooks顺序**: 所有hooks必须在任何条件return之前调用
+2. **Ref访问**: 不能在render阶段读取或更新`ref.current`
+3. **静态组件**: 不要在render内定义组件函数，改用JSX表达式
+
+### 修改文件清单
+
+**前端**:
+- `src/components/ChIPSeqPeaksTable/FilterPanel.tsx`
+- `src/components/ChIPSeqPeaksTable/CellLineHeatmap.tsx`
+- `src/pages/GeneDetail/index.tsx`
+- `src/i18n/components/BatchGeneHeatmap/BatchHeatmapMatrix.tsx`
+- `src/i18n/components/ChIPSeqPeaksTable/CellLineHeatmap.tsx`
+- `src/i18n/components/ChIPSeqPeaksTable/index.tsx`
+- `src/i18n/pages/GeneDetail/index.tsx`
+- `src/i18n/GeneDetail/index.tsx`
+
+**后端**:
+- `app/routers/chipseq.py`
+- `app/routers/features.py`
+- `app/routers/network.py`
+- `requirements.txt`
 
 ---

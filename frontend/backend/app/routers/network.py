@@ -352,9 +352,11 @@ def get_gene_network(
     if min_ba is not None:
         query_1st = query_1st.filter(Regulation.binding_affinity >= min_ba)
     if max_distance is not None:
-        query_1st = query_1st.filter(
-            func.abs(Regulation.target_start - gene_obj.gene_start) <= max_distance
-        )
+        # Add null check for gene coordinates before distance filtering
+        if gene_obj.gene_start is not None and Regulation.target_start is not None:
+            query_1st = query_1st.filter(
+                func.abs(Regulation.target_start - gene_obj.gene_start) <= max_distance
+            )
 
     # 按 binding_affinity 降序排列，并限制边数（第一层使用大部分配额）
     first_layer_limit = max_edges if depth == 1 else int(max_edges * 0.7)

@@ -77,3 +77,14 @@ htmlcov/
 # Playwright
 /frontend/web/test-results/
 /frontend/web/playwright-report/
+
+# Jupyter Notebooks
+notebooks/.ipynb_checkpoints/
+notebooks/data/
+notebooks/figures/
+notebooks/results/
+.ipynb_checkpoints/
+
+# Generated reports
+*_REPORT.md
+*_FIX_REPORT.md

@@ -20,3 +20,10 @@
 - 2025-12-10T15:22:54+08:00 | 工具: shell(ls/find/sed/date) | 参数: 目录结构、README、后端主要文件与路由扫描 | 输出: 确认 main.py 引入 conservation 路由但仓库无该模块；记录当前时间
 - 2025-12-10T15:22:54+08:00 | 工具: apply_patch | 参数: 更新 .codex/context-scan.json 增加缺失路由与工具不可用备注 | 输出: 完成上下文观察补充
 - 2025-12-10T15:22:54+08:00 | 工具: update_plan | 参数: 新建审查计划并标记进度 | 输出: 计划已创建并执行中
+- 2025-12-12T00:00:00+08:00 | 工具: sequential-thinking | 参数: IGV 初始加载慢问题分析 | 输出: 识别前端 IGV init 与后端 BED 轨道加载为主要瓶颈
+- 2025-12-12T00:00:00+08:00 | 工具: shell(rg/sed/nl) | 参数: 定位 GenomeBrowser 组件、igv.py 轨道端点与数据流 | 输出: 确认 Gene Mode 轨道使用静态 BED URL，未按视窗过滤
+- 2025-12-12T00:00:00+08:00 | 工具: context7(resolve/get-library-docs) | 参数: igv.js webservice track 与 URL 模板 | 输出: 采用 sourceType=\"service\" + $CHR/$START/$END 占位符官方方案
+- 2025-12-12T00:00:00+08:00 | 工具: apply_patch | 参数: IGVTrack 增加 sourceType；Gene Mode regulations/interactions 轨道改为 service track；BED/BEDPE 查询改为 yield_per 流式 | 输出: 减少首屏数据量与 DB offset 扫描
+- 2025-12-12T00:00:00+08:00 | 工具: apply_patch | 参数: 前端 IGVTrackConfig 类型补齐 sourceType | 输出: 前后端配置字段一致
+- 2025-12-12T00:00:00+08:00 | 工具: shell(pytest/playwright) | 参数: 运行后端 IGV 测试与全量 E2E | 输出: 后端测试通过；E2E 发现 2 个既有错误态用例失败
+- 2025-12-12T00:00:00+08:00 | 工具: apply_patch | 参数: regulations/interactions 轨道端点 start/end 兼容 float 并标准化为 int | 输出: 修复 IGV.js service track 422 校验错误

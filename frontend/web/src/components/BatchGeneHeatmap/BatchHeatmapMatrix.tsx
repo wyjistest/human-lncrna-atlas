@@ -128,31 +128,7 @@ export function BatchHeatmapMatrix({
   const isZh = i18n.language === 'zh-CN'
   const chartRef = useRef<ReactECharts>(null)
 
-  // Validate data
-  if (!data || data.length === 0) {
-    return (
-      <Card loading={loading}>
-        <Empty
-          description={t('batchGeneHeatmap.noData', 'No data available')}
-          style={{ paddingTop: 48, paddingBottom: 48 }}
-        />
-      </Card>
-    )
-  }
-
-  if (error) {
-    return (
-      <Card loading={loading}>
-        <Alert
-          type="error"
-          message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
-          description={error.message}
-          showIcon
-        />
-      </Card>
-    )
-  }
-
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // Metric options
   const metricOptions = useMemo(
     () => [
@@ -176,8 +152,9 @@ export function BatchHeatmapMatrix({
     [t]
   )
 
-  // Flatten all unique marks and cell types
+  // Flatten all unique marks and cell types (safe with empty data)
   const allMarks = useMemo(() => {
+    if (!data || data.length === 0) return []
     const marks = new Set<string>()
     data.forEach((gene) => {
       gene.marks.forEach((m) => marks.add(m))
@@ -186,6 +163,7 @@ export function BatchHeatmapMatrix({
   }, [data])
 
   const allCellTypes = useMemo(() => {
+    if (!data || data.length === 0) return []
     const cellTypes = new Set<string>()
     data.forEach((gene) => {
       gene.cell_types.forEach((ct) => cellTypes.add(ct))
@@ -193,8 +171,16 @@ export function BatchHeatmapMatrix({
     return Array.from(cellTypes)
   }, [data])
 
-  // Build Y-axis labels and heatmap data
+  // Build Y-axis labels and heatmap data (safe with empty data)
   const { yLabels, heatmapData, valueRange } = useMemo(() => {
+    if (!data || data.length === 0) {
+      return {
+        yLabels: [],
+        heatmapData: [],
+        valueRange: { min: 0, max: 1 },
+      }
+    }
+
     const labels: string[] = []
     const heatData: Array<[number, number, number | null]> = []
     const values: Array<number> = []
@@ -379,7 +365,7 @@ export function BatchHeatmapMatrix({
 
   // Handle chart click events
   useEffect(() => {
-    if (!chartRef.current || !onCellClick) return
+    if (!chartRef.current || !onCellClick || !data || data.length === 0) return
 
     const chartInstance = chartRef.current.getEchartsInstance() as EChartsInstance
 
@@ -429,6 +415,32 @@ export function BatchHeatmapMatrix({
       chartInstance.off('click', handleClick)
     }
   }, [onCellClick, data, allMarks, yLabels])
+
+  // NOW we can do conditional returns after all hooks
+  // Validate data
+  if (!data || data.length === 0) {
+    return (
+      <Card loading={loading}>
+        <Empty
+          description={t('batchGeneHeatmap.noData', 'No data available')}
+          style={{ paddingTop: 48, paddingBottom: 48 }}
+        />
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card loading={loading}>
+        <Alert
+          type="error"
+          message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
+          description={error.message}
+          showIcon
+        />
+      </Card>
+    )
+  }
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>

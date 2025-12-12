@@ -31,6 +31,9 @@ class IGVTrack(BaseModel):
     type: str
     format: str
     url: str
+    # 可选：IGV.js webservice 轨道
+    # 当 sourceType="service" 且 url 包含 $CHR/$START/$END 占位符时，IGV 会按当前视窗区域动态请求数据。
+    sourceType: Optional[str] = None
     indexURL: Optional[str] = None
     displayMode: Optional[str] = "EXPANDED"
     color: Optional[str] = None

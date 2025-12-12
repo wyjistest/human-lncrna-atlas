@@ -450,42 +450,31 @@ def generate_bed_stream(
     # 按染色体和起始位置排序
     query = query.order_by(Regulation.best_peak_chr, Regulation.best_peak_start)
 
-    # 流式处理，分批获取
+    # 流式处理：使用 yield_per + stream_results 避免 offset 扫描导致的大表性能问题
     batch_size = 10000
-    offset = 0
+    streaming_query = query.execution_options(stream_results=True).yield_per(batch_size)
 
-    while True:
-        batch = query.offset(offset).limit(batch_size).all()
-        if not batch:
-            break
+    for row in streaming_query:
+        # BED 坐标转换（数据库中已经是 0-based）
+        chr_name = row.best_peak_chr
+        start = row.best_peak_start
+        end = row.best_peak_end
 
-        for row in batch:
-            # BED 坐标转换（数据库中已经是 0-based）
-            chr_name = row.best_peak_chr
-            start = row.best_peak_start
-            end = row.best_peak_end
+        # 构建 name 字段
+        lncrna = row.lncrna_name or "unknown_lncRNA"
+        target = row.target_name or "unknown_target"
+        name = f"{lncrna}->{target}"
 
-            # 构建 name 字段
-            lncrna = row.lncrna_name or "unknown_lncRNA"
-            target = row.target_name or "unknown_target"
-            name = f"{lncrna}->{target}"
+        # 转换 binding_affinity 到 BED score (0-1000)
+        # 原始值范围假设是 0-100，需要放大 10 倍
+        ba = float(row.binding_affinity) if row.binding_affinity else 0
+        score = min(1000, max(0, int(ba * 10)))
 
-            # 转换 binding_affinity 到 BED score (0-1000)
-            # 原始值范围假设是 0-100，需要放大 10 倍
-            ba = float(row.binding_affinity) if row.binding_affinity else 0
-            score = min(1000, max(0, int(ba * 10)))
+        # strand 未知，使用 '.'
+        strand = "."
 
-            # strand 未知，使用 '.'
-            strand = "."
-
-            # 输出 BED6 格式行
-            yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
-
-        offset += batch_size
-
-        # 如果返回的记录少于批次大小，说明已经到末尾
-        if len(batch) < batch_size:
-            break
+        # 输出 BED6 格式行
+        yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
 
 
 def generate_bedpe_stream(
@@ -579,52 +568,42 @@ def generate_bedpe_stream(
     # 按 lncRNA 染色体和起始位置排序
     query = query.order_by(LncRNAGene.chromosome, LncRNAGene.gene_start)
 
-    # 流式处理，分批获取
+    # 流式处理：使用 yield_per + stream_results 避免 offset 扫描
     batch_size = 10000
-    offset = 0
+    streaming_query = query.execution_options(stream_results=True).yield_per(batch_size)
 
-    while True:
-        batch = query.offset(offset).limit(batch_size).all()
-        if not batch:
-            break
+    for row in streaming_query:
+        # Endpoint 1: lncRNA gene location
+        chr1 = row.chr1
+        start1 = row.start1
+        end1 = row.end1
 
-        for row in batch:
-            # Endpoint 1: lncRNA gene location
-            chr1 = row.chr1
-            start1 = row.start1
-            end1 = row.end1
+        # Endpoint 2: binding site location
+        chr2 = row.chr2
+        start2 = row.start2
+        end2 = row.end2
 
-            # Endpoint 2: binding site location
-            chr2 = row.chr2
-            start2 = row.start2
-            end2 = row.end2
+        # 构建 name 字段 (使用 | 分隔符)
+        lncrna = row.lncrna_name or "unknown_lncRNA"
+        target = row.target_name or "unknown_target"
+        name = f"{lncrna}|{target}"
 
-            # 构建 name 字段 (使用 | 分隔符)
-            lncrna = row.lncrna_name or "unknown_lncRNA"
-            target = row.target_name or "unknown_target"
-            name = f"{lncrna}|{target}"
+        # 转换 binding_affinity 到 BEDPE score (0-1000)
+        # 原始值范围假设是 0-100，需要放大 10 倍
+        ba = float(row.binding_affinity) if row.binding_affinity else 0
+        score = min(1000, max(0, int(ba * 10)))
 
-            # 转换 binding_affinity 到 BEDPE score (0-1000)
-            # 原始值范围假设是 0-100，需要放大 10 倍
-            ba = float(row.binding_affinity) if row.binding_affinity else 0
-            score = min(1000, max(0, int(ba * 10)))
-
-            # 输出 BEDPE 8列格式行
-            yield f"{chr1}\t{start1}\t{end1}\t{chr2}\t{start2}\t{end2}\t{name}\t{score}\n"
-
-        offset += batch_size
-
-        # 如果返回的记录少于批次大小，说明已经到末尾
-        if len(batch) < batch_size:
-            break
+        # 输出 BEDPE 8列格式行
+        yield f"{chr1}\t{start1}\t{end1}\t{chr2}\t{start2}\t{end2}\t{name}\t{score}\n"
 
 
 @router.get("/tracks/regulations/{species_id}.bed")
 def get_regulations_bed(
     species_id: int,
     chr: Optional[str] = Query(None, description="染色体过滤，如 chr1"),
-    start: Optional[int] = Query(None, ge=0, description="起始位置 (0-based)"),
-    end: Optional[int] = Query(None, ge=0, description="结束位置"),
+    # IGV.js webservice 轨道会传递浮点坐标（像素换算），这里兼容 float 并向下取整
+    start: Optional[float] = Query(None, ge=0, description="起始位置 (0-based)"),
+    end: Optional[float] = Query(None, ge=0, description="结束位置"),
     lncrna: Optional[str] = Query(None, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
     db: Session = Depends(get_db),
 ):
@@ -653,28 +632,32 @@ def get_regulations_bed(
     if not species:
         raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
 
+    # 参数标准化：float -> int（向下取整）
+    start_int = int(start) if start is not None else None
+    end_int = int(end) if end is not None else None
+
     # 参数验证
-    if (start is not None or end is not None) and chr is None:
+    if (start_int is not None or end_int is not None) and chr is None:
         raise HTTPException(
             status_code=400,
             detail="chr parameter is required when using start/end filters"
         )
 
-    if start is not None and end is not None and start >= end:
+    if start_int is not None and end_int is not None and start_int >= end_int:
         raise HTTPException(
             status_code=400,
             detail="start must be less than end"
         )
 
-    logger.info(f"BED export requested: species={species_id}, chr={chr}, start={start}, end={end}, lncrna={lncrna}")
+    logger.info(f"BED export requested: species={species_id}, chr={chr}, start={start_int}, end={end_int}, lncrna={lncrna}")
 
     # 生成 BED 数据流
     bed_stream = generate_bed_stream(
         db=db,
         species_id=species_id,
         chr_filter=chr,
-        start_filter=start,
-        end_filter=end,
+        start_filter=start_int,
+        end_filter=end_int,
         lncrna_filter=lncrna,
     )
 
@@ -684,8 +667,8 @@ def get_regulations_bed(
         filename = f"regulations_{lncrna}"
     if chr:
         filename += f"_{chr}"
-        if start is not None and end is not None:
-            filename += f"_{start}-{end}"
+        if start_int is not None and end_int is not None:
+            filename += f"_{start_int}-{end_int}"
     filename += ".bed"
 
     return StreamingResponse(
@@ -702,8 +685,9 @@ def get_regulations_bed(
 def get_interactions_bedpe(
     species_id: int,
     chr: Optional[str] = Query(None, description="染色体过滤，如 chr1"),
-    start: Optional[int] = Query(None, ge=0, description="起始位置 (0-based)"),
-    end: Optional[int] = Query(None, ge=0, description="结束位置"),
+    # IGV.js webservice 轨道会传递浮点坐标（像素换算），这里兼容 float 并向下取整
+    start: Optional[float] = Query(None, ge=0, description="起始位置 (0-based)"),
+    end: Optional[float] = Query(None, ge=0, description="结束位置"),
     lncrna: Optional[str] = Query(None, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
     db: Session = Depends(get_db),
 ):
@@ -735,28 +719,32 @@ def get_interactions_bedpe(
     if not species:
         raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
 
+    # 参数标准化：float -> int（向下取整）
+    start_int = int(start) if start is not None else None
+    end_int = int(end) if end is not None else None
+
     # 参数验证
-    if (start is not None or end is not None) and chr is None:
+    if (start_int is not None or end_int is not None) and chr is None:
         raise HTTPException(
             status_code=400,
             detail="chr parameter is required when using start/end filters"
         )
 
-    if start is not None and end is not None and start >= end:
+    if start_int is not None and end_int is not None and start_int >= end_int:
         raise HTTPException(
             status_code=400,
             detail="start must be less than end"
         )
 
-    logger.info(f"BEDPE export requested: species={species_id}, chr={chr}, start={start}, end={end}, lncrna={lncrna}")
+    logger.info(f"BEDPE export requested: species={species_id}, chr={chr}, start={start_int}, end={end_int}, lncrna={lncrna}")
 
     # 生成 BEDPE 数据流
     bedpe_stream = generate_bedpe_stream(
         db=db,
         species_id=species_id,
         chr_filter=chr,
-        start_filter=start,
-        end_filter=end,
+        start_filter=start_int,
+        end_filter=end_int,
         lncrna_filter=lncrna,
     )
 
@@ -766,8 +754,8 @@ def get_interactions_bedpe(
         filename = f"interactions_{lncrna}"
     if chr:
         filename += f"_{chr}"
-        if start is not None and end is not None:
-            filename += f"_{start}-{end}"
+        if start_int is not None and end_int is not None:
+            filename += f"_{start_int}-{end_int}"
     filename += ".bedpe"
 
     return StreamingResponse(
@@ -893,11 +881,14 @@ def get_igv_config_for_gene(
         name=f"Regulations: {gene_name}",
         type="annotation",
         format="bed",
-        url=f"/api/v1/igv/tracks/regulations/{species.species_id}.bed?lncrna={gene_name}",
+        # 使用 IGV.js webservice 轨道按视窗动态请求，避免一次性加载全基因组数据
+        sourceType="service",
+        url=f"/api/v1/igv/tracks/regulations/{species.species_id}.bed?lncrna={gene_name}&chr=$CHR&start=$START&end=$END",
         indexURL=None,
         displayMode="EXPANDED",
         color="#FF6B6B",
         height=150,
+        visibilityWindow=5000000,  # 5Mb 以上不请求，避免大范围卡顿
     )
     tracks.append(regulations_track)
 
@@ -906,7 +897,9 @@ def get_igv_config_for_gene(
         name=f"Interactions: {gene_name}",
         type="interact",  # IGV.js uses "interact" not "interaction"
         format="bedpe",
-        url=f"/api/v1/igv/tracks/interactions/{species.species_id}.bedpe?lncrna={gene_name}",
+        # 使用 webservice 动态加载当前区域交互
+        sourceType="service",
+        url=f"/api/v1/igv/tracks/interactions/{species.species_id}.bedpe?lncrna={gene_name}&chr=$CHR&start=$START&end=$END",
         indexURL=None,
         displayMode="EXPANDED",
         color="#8B5CF6",  # Purple color for interactions

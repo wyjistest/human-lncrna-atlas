@@ -19,6 +19,8 @@ export interface IGVTrackConfig {
   type: string
   format: string
   url: string
+  /** Optional IGV.js service track to fetch by viewport */
+  sourceType?: string
   indexURL?: string
   displayMode?: string
   color?: string

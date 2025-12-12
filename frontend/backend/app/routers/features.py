@@ -157,14 +157,21 @@ def get_gene_repeats(
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
 
-    # 2. Get RepeatMasker track_id
+    # 2. Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
+
+    # 3. Get RepeatMasker track_id
     track_id = get_repeatmasker_track_id(db)
 
-    # 3. Calculate query region
+    # 4. Calculate query region
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
-    # 4. Build query conditions
+    # 5. Build query conditions
     conditions = [
         GenomicFeature.track_id == track_id,
         GenomicFeature.species_id == gene.species_id,
@@ -234,15 +241,22 @@ def get_gene_repeat_stats(
     if not gene:
         raise HTTPException(status_code=404, detail="Gene not found")
 
-    # 2. Get RepeatMasker track_id
+    # 2. Check gene coordinates
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gene {gene_id} has no coordinate information"
+        )
+
+    # 3. Get RepeatMasker track_id
     track_id = get_repeatmasker_track_id(db)
 
-    # 3. Calculate query region
+    # 4. Calculate query region
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
     region_length = region_end - region_start
 
-    # 4. Base query conditions
+    # 5. Base query conditions
     base_conditions = [
         GenomicFeature.track_id == track_id,
         GenomicFeature.species_id == gene.species_id,

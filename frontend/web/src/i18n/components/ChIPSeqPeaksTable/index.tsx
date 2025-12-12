@@ -580,7 +580,7 @@ export function ChIPSeqPeaksTable({
         )
 
       case 'merged':
-      default:
+      default: {
         // Merge all peaks into one table
         const allPeaks = compareData?.marks.flatMap((m) =>
           m.top_peaks.map((peak) => ({ ...peak, mark_type: m.mark_type }))
@@ -634,6 +634,7 @@ export function ChIPSeqPeaksTable({
             </Card>
           </Space>
         )
+      }
     }
   }
 

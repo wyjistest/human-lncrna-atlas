@@ -10,7 +10,7 @@
  * - Flanking region size
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Card,
   Space,
@@ -82,14 +82,14 @@ export function FilterPanel({
   ])
 
   // Create a debounced filter change function
-  // Using useRef to maintain the same debounced function across renders
-  const debouncedFilterChange = useRef(
-    debounce((newFilters: ChIPSeqFilters) => {
+  // Recreates when onFiltersChange changes (usually stable from parent)
+  const debouncedFilterChange = useMemo(() => {
+    return debounce((newFilters: ChIPSeqFilters) => {
       onFiltersChange(newFilters)
     }, 500)
-  ).current
+  }, [onFiltersChange])
 
-  // Cleanup debounce on unmount
+  // Cleanup debounce on unmount or when callback changes
   useEffect(() => {
     return () => {
       debouncedFilterChange.cancel()
