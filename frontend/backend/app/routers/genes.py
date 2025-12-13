@@ -13,8 +13,6 @@ from app.schemas.gene import (
     GeneDetail,
     GeneListItem,
     OrthologInfo,
-    GeneFilter,
-    GeneOption,
     GeneOptionsResponse,
 )
 from app.schemas.common import PaginatedResponse

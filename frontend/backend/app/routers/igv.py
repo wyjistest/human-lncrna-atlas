@@ -8,16 +8,17 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from app.core.database import get_db
-from app.models import Species, Gene
-from app.core.igv_utils import get_genome_reference
+from app.models import Species, Gene, Regulation, EpigeneticMarkType, ChIPSeqExperiment
+from app.core.igv_utils import get_genome_reference, get_chipseq_mark_color
 from app.config.igv_genomes import (
     GENOME_REFERENCES,
-    SPECIES_NAMES,
     GENE_ANNOTATION_TRACKS,
     CHIPSEQ_BIGBED_TRACKS,
+    get_track_name_prefix,
 )
 from app.schemas.igv import (
     GenomeReference,
@@ -355,7 +356,6 @@ def get_igv_config_for_gene(
             requested_marks = [m.strip() for m in chipseq_marks.split(",") if m.strip()]
 
         # Query available marks for this species
-        from sqlalchemy import func
 
         mark_query = (
             db.query(
@@ -366,7 +366,7 @@ def get_igv_config_for_gene(
             )
             .join(ChIPSeqExperiment, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
             .filter(ChIPSeqExperiment.species_id == species.species_id)
-            .filter(ChIPSeqExperiment.is_active == True)
+            .filter(ChIPSeqExperiment.is_active.is_(True))
         )
 
         # Filter by requested marks if specified

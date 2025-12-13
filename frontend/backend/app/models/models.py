@@ -4,10 +4,6 @@ SQLAlchemy ORM 模型
 """
 from datetime import datetime, timezone
 
-
-def utc_now():
-    """返回当前 UTC 时间（兼容 Python 3.12+，避免弃用的 utcnow()）"""
-    return datetime.now(timezone.utc)
 from sqlalchemy import (
     Column,
     Integer,
@@ -26,6 +22,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+
+
+def utc_now():
+    """返回当前 UTC 时间（兼容 Python 3.12+，避免弃用的 utcnow()）"""
+    return datetime.now(timezone.utc)
 
 
 class Species(Base):

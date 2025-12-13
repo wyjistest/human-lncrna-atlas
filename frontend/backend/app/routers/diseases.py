@@ -16,10 +16,8 @@ from app.models import (
     Species,
 )
 from app.schemas.disease import (
-    TraitBase,
     TraitDetail,
     TraitGeneAssociationDetail,
-    DiseaseOption,
 )
 from app.schemas.common import PaginatedResponse
 from app.core.cache import cache

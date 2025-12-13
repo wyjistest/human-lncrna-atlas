@@ -3,7 +3,6 @@ IGV搜索路由
 提供基因搜索、坐标定位和自动完成功能
 """
 import logging
-import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models import Species, Gene
-from app.core.utils import escape_like_pattern
 from app.schemas.igv import (
     IGVSearchResult,
     GeneAutocompleteItem,

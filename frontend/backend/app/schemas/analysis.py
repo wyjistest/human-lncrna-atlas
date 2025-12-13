@@ -2,7 +2,7 @@
 
 Phase 6.0-C: 为 Analysis Results 页面提供聚合统计数据
 """
-from typing import List, Optional, Dict
+from typing import List, Dict
 from pydantic import BaseModel, Field, ConfigDict
 
 

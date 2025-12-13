@@ -21,7 +21,7 @@ Phase 3.2 Enhancements (2025-12-09):
 - Removed DEFAULT_CHROMOSOME restriction when using materialized view
 """
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import Optional, List, Tuple, Literal, Generator
@@ -42,7 +42,6 @@ from app.core.exceptions import sanitize_db_error
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
-    from slowapi.errors import RateLimitExceeded
     SLOWAPI_AVAILABLE = True
 except ImportError:
     SLOWAPI_AVAILABLE = False
@@ -1275,7 +1274,7 @@ def generate_overlap_export(
     # Yield header
     if format == 'bed':
         # BED track header (optional but recommended)
-        yield f'track name="lncRNA-ChIPseq-Overlap" description="lncRNA binding sites overlapping with ChIP-seq peaks" useScore=1\n'
+        yield 'track name="lncRNA-ChIPseq-Overlap" description="lncRNA binding sites overlapping with ChIP-seq peaks" useScore=1\n'
     elif format == 'csv':
         # CSV header row
         yield format_csv_row({col: col for col in CSV_EXPORT_COLUMNS})

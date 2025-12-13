@@ -1,7 +1,6 @@
 """数据导出 API Schema 定义"""
 from typing import List, Optional
 from pydantic import BaseModel, Field, ConfigDict
-from decimal import Decimal
 
 
 # ============================================================================

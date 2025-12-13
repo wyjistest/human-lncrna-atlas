@@ -12,9 +12,7 @@ import logging
 import ipaddress
 import inspect
 from functools import wraps
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -28,7 +26,6 @@ from app.schemas.chipseq import ChIPSeqGlobalStats, ChIPSeqMarkStats
 try:
     from slowapi import Limiter
     from slowapi.util import get_remote_address
-    from slowapi.errors import RateLimitExceeded
     SLOWAPI_AVAILABLE = True
 except ImportError:
     SLOWAPI_AVAILABLE = False
@@ -126,13 +123,16 @@ async def rate_limit_exceeded_handler(request: Request, exc):
 
 # =============================================================================
 # Import and Register Sub-routers
+# NOTE: These imports are placed here (after rate_limit definition) to avoid
+# circular imports. Sub-routers import rate_limit and DEFAULT_FLANKING_REGION
+# from this module.
 # =============================================================================
 
-from app.routers.chipseq_marks import router as marks_router
-from app.routers.chipseq_experiments import router as experiments_router
-from app.routers.chipseq_genes import router as genes_router
-from app.routers.chipseq_regions import router as regions_router
-from app.routers.chipseq_export import router as export_router
+from app.routers.chipseq_marks import router as marks_router  # noqa: E402
+from app.routers.chipseq_experiments import router as experiments_router  # noqa: E402
+from app.routers.chipseq_genes import router as genes_router  # noqa: E402
+from app.routers.chipseq_regions import router as regions_router  # noqa: E402
+from app.routers.chipseq_export import router as export_router  # noqa: E402
 
 # Register all sub-routers
 router.include_router(marks_router)

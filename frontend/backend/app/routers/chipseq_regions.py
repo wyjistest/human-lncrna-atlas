@@ -106,7 +106,7 @@ def get_peaks_by_region(
           AND e.is_active = TRUE
           AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
           AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
-          AND (:max_qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
         ORDER BY p.peak_start
         LIMIT :limit OFFSET :offset
     """)

@@ -13,9 +13,7 @@ from app.models import Regulation, Gene, Species, Sequence
 from app.schemas.regulation import (
     RegulationDetail,
     RegulationListItem,
-    LncRNAOption,
     LncRNAOptionsResponse,
-    TargetOption,
     TargetOptionsResponse,
 )
 from app.schemas.common import PaginatedResponse
@@ -52,10 +50,10 @@ def get_lncrna_options(
     # 尝试从缓存读取
     cached = cache.get(cache_key)
     if cached is not None:
-        logger.debug(f"[CACHE HIT] regulations:lncrna-options")
+        logger.debug("[CACHE HIT] regulations:lncrna-options")
         return cached
 
-    logger.debug(f"[CACHE MISS] regulations:lncrna-options")
+    logger.debug("[CACHE MISS] regulations:lncrna-options")
 
     # 查询数据库：从 regulations 表聚合获取有调控关系的 lncRNA
     query = db.query(
@@ -132,10 +130,10 @@ def get_target_options(
     # 尝试从缓存读取
     cached = cache.get(cache_key)
     if cached is not None:
-        logger.debug(f"[CACHE HIT] regulations:target-options")
+        logger.debug("[CACHE HIT] regulations:target-options")
         return cached
 
-    logger.debug(f"[CACHE MISS] regulations:target-options")
+    logger.debug("[CACHE MISS] regulations:target-options")
 
     # 查询数据库：从 regulations 表聚合获取被调控的基因
     query = db.query(
@@ -260,10 +258,10 @@ def list_regulations(
     # 尝试从缓存读取
     cached = cache.get(cache_key)
     if cached is not None:
-        logger.debug(f"[CACHE HIT] regulations:list")
+        logger.debug("[CACHE HIT] regulations:list")
         return cached
 
-    logger.debug(f"[CACHE MISS] regulations:list")
+    logger.debug("[CACHE MISS] regulations:list")
 
     query, LncRNAGene, TargetGene = _build_regulation_list_query(db)
 

@@ -4,6 +4,7 @@ IGV utility functions
 """
 from typing import Optional
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from app.config.igv_genomes import (
     GENOME_REFERENCES,
@@ -11,6 +12,7 @@ from app.config.igv_genomes import (
     DEFAULT_CHIPSEQ_COLOR,
 )
 from app.schemas.igv import GenomeReference
+from app.models import FeatureTrack
 
 
 def get_genome_reference(species_id: int) -> GenomeReference:
@@ -44,3 +46,16 @@ def get_chipseq_mark_color(mark_name: str, db_color: Optional[str] = None) -> st
     if db_color and db_color != '#666666':  # Skip default gray
         return db_color
     return CHIPSEQ_MARK_COLORS.get(mark_name, DEFAULT_CHIPSEQ_COLOR)
+
+
+def get_repeatmasker_track_id(db: Session) -> Optional[int]:
+    """
+    Get the track_id for RepeatMasker annotations.
+
+    Returns:
+        track_id if RepeatMasker track exists, None otherwise
+    """
+    track = db.query(FeatureTrack).filter(
+        FeatureTrack.track_name == 'repeatmasker_repeats'
+    ).first()
+    return track.track_id if track else None

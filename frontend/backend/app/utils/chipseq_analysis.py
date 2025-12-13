@@ -4,7 +4,6 @@ ChIP-seq Analysis Utilities
 """
 import statistics
 from typing import List, Dict, Any
-from itertools import combinations
 
 from app.schemas.chipseq import (
     OverlapRegion,

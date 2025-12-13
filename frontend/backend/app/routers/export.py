@@ -16,19 +16,16 @@ import logging
 import io
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text
+from sqlalchemy import text
 import pandas as pd
 
 from app.core.database import get_db
 from app.schemas.export import (
     HighAffinityExportResponse,
-    HighAffinityRegulationExport,
     ConservationExportResponse,
-    ConservationExport,
     ChipseqOverlapExportResponse,
-    ChipseqOverlapExport,
     DiseaseNetworkExportResponse,
     NetworkNode,
     NetworkEdge,

@@ -6,9 +6,15 @@ from typing import Optional, Generator
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import and_
 
-from app.models import Regulation, Gene, GenomicFeature, ChIPSeqPeak, EpigeneticMarkType
-from app.core.igv_utils import get_chipseq_mark_color
-from app.config.igv_genomes import get_track_name_prefix
+from app.models import (
+    Regulation,
+    Gene,
+    GenomicFeature,
+    ChIPSeqPeak,
+    ChIPSeqExperiment,
+    EpigeneticMarkType,
+)
+from app.core.igv_utils import get_repeatmasker_track_id
 
 
 def generate_bed_stream(
@@ -328,7 +334,7 @@ def generate_chipseq_bed_stream(
         db.query(ChIPSeqExperiment.experiment_id)
         .filter(ChIPSeqExperiment.species_id == species_id)
         .filter(ChIPSeqExperiment.mark_type_id == mark_type_obj.mark_type_id)
-        .filter(ChIPSeqExperiment.is_active == True)
+        .filter(ChIPSeqExperiment.is_active.is_(True))
         .all()
     )
     exp_ids = [e.experiment_id for e in experiment_ids]

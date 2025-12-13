@@ -3,12 +3,11 @@ IGV ChIP-seq轨道路由
 提供ChIP-seq峰的BED格式数据导出和配置
 """
 import logging
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, and_
+from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models import Species, ChIPSeqExperiment, EpigeneticMarkType
@@ -16,12 +15,13 @@ from app.core.igv_stream_generators import (
     generate_chipseq_bed_stream,
     generate_empty_chipseq_bed_stream,
 )
-from app.core.igv_utils import get_chipseq_mark_color
+from app.core.igv_utils import get_chipseq_mark_color, get_genome_reference
 from app.config.igv_genomes import (
     get_track_name_prefix,
     CHIPSEQ_BIGBED_TRACKS,
+    GENE_ANNOTATION_TRACKS,
 )
-from app.schemas.igv import IGVTrack, IGVConfigResponse, IGVConfig
+from app.schemas.igv import IGVTrack, IGVConfigResponse, IGVConfig, IGVSearchConfig
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ def get_chipseq_bed(
             db.query(ChIPSeqExperiment)
             .filter(ChIPSeqExperiment.species_id == species_id)
             .filter(ChIPSeqExperiment.mark_type_id == mark_type_obj.mark_type_id)
-            .filter(ChIPSeqExperiment.is_active == True)
+            .filter(ChIPSeqExperiment.is_active.is_(True))
             .count()
         )
         has_data = experiment_count > 0
@@ -221,7 +221,6 @@ def get_igv_chipseq_config(
         requested_marks = [m.strip() for m in mark_types.split(",") if m.strip()]
 
     # Query available marks for this species
-    from sqlalchemy import func
 
     mark_query = (
         db.query(
@@ -232,7 +231,7 @@ def get_igv_chipseq_config(
         )
         .join(ChIPSeqExperiment, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
         .filter(ChIPSeqExperiment.species_id == species_id)
-        .filter(ChIPSeqExperiment.is_active == True)
+        .filter(ChIPSeqExperiment.is_active.is_(True))
     )
 
     # Filter by requested marks if specified

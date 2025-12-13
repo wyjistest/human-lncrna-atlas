@@ -4,7 +4,6 @@ Provides endpoints for RepeatMasker annotations and other genomic features
 """
 import logging
 from typing import Optional, List
-from math import ceil
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -12,6 +11,7 @@ from sqlalchemy import func, and_, cast, Float
 
 from app.core.database import get_db
 from app.models import Gene, GenomicFeature, FeatureTrack, Species
+from app.core.igv_utils import get_repeatmasker_track_id as _get_repeatmasker_track_id
 from app.schemas.features import (
     RepeatMaskerFeature,
     RepeatMaskerResponse,
@@ -32,16 +32,14 @@ DEFAULT_FLANKING_REGION = 10000
 
 
 def get_repeatmasker_track_id(db: Session) -> int:
-    """Get the track_id for RepeatMasker annotations"""
-    track = db.query(FeatureTrack).filter(
-        FeatureTrack.track_name == 'repeatmasker_repeats'
-    ).first()
-    if not track:
+    """Get the track_id for RepeatMasker annotations, raising HTTPException if not found."""
+    track_id = _get_repeatmasker_track_id(db)
+    if track_id is None:
         raise HTTPException(
             status_code=404,
             detail="RepeatMasker track not found. Please ensure the database schema is initialized."
         )
-    return track.track_id
+    return track_id
 
 
 # =============================================================================
@@ -62,7 +60,7 @@ def list_feature_tracks(
     if category:
         query = query.filter(FeatureTrack.track_category == category)
     if active_only:
-        query = query.filter(FeatureTrack.is_active == True)
+        query = query.filter(FeatureTrack.is_active.is_(True))
 
     tracks = query.order_by(FeatureTrack.track_category, FeatureTrack.display_name).all()
     return tracks
@@ -87,7 +85,7 @@ def get_feature_track_statistics(
         )
         .outerjoin(GenomicFeature, FeatureTrack.track_id == GenomicFeature.track_id)
         .outerjoin(Species, GenomicFeature.species_id == Species.species_id)
-        .filter(FeatureTrack.is_active == True)
+        .filter(FeatureTrack.is_active.is_(True))
         .group_by(
             FeatureTrack.track_id,
             FeatureTrack.track_name,

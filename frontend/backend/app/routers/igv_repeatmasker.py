@@ -3,17 +3,17 @@ IGV RepeatMasker轨道路由
 提供重复序列注释的BED格式数据导出和配置
 """
 import logging
-from typing import Optional, List
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import and_
 
 from app.core.database import get_db
-from app.models import Species, GenomicFeature, FeatureTrack
+from app.models import Species, GenomicFeature
 from app.core.igv_stream_generators import generate_repeatmasker_bed_stream
-from app.schemas.igv import IGVTrack
+from app.core.igv_utils import get_repeatmasker_track_id
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,6 @@ router = APIRouter()
 # =============================================================================
 # RepeatMasker IGV Track Endpoints
 # =============================================================================
-
-def get_repeatmasker_track_id(db: Session) -> Optional[int]:
-    """Get the track_id for RepeatMasker annotations"""
-    track = db.query(FeatureTrack).filter(
-        FeatureTrack.track_name == 'repeatmasker_repeats'
-    ).first()
-    return track.track_id if track else None
 
 
 @router.get("/tracks/repeatmasker/{species_id}.bed")
@@ -319,7 +312,7 @@ def get_repeatmasker_class_tracks(
     if species_id != 1:
         raise HTTPException(
             status_code=400,
-            detail=f"RepeatMasker class tracks are currently only available for Human (species_id=1)"
+            detail="RepeatMasker class tracks are currently only available for Human (species_id=1)"
         )
 
     track_id = get_repeatmasker_track_id(db)

@@ -6,7 +6,7 @@
 import logging
 import math
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -171,6 +171,7 @@ def get_sankey_data(
     # ========================================================================
     nodes_dict = {}  # {node_id: SankeyNode}
     links = []
+    seen_links = set()  # Track (source, target) pairs for O(1) deduplication
 
     # 统计信息
     lncrna_ids = set()
@@ -219,12 +220,10 @@ def get_sankey_data(
             disease_ids.add(trait_id)
 
         # 添加 lncRNA -> Gene 连接
-        # 使用元组去重（避免同一对 lncRNA-Gene 多次出现）
+        # 使用集合进行 O(1) 去重（避免同一对 lncRNA-Gene 多次出现）
         link_key_1 = (lncrna_node_id, gene_node_id)
-        if not any(
-            link.source == lncrna_node_id and link.target == gene_node_id
-            for link in links
-        ):
+        if link_key_1 not in seen_links:
+            seen_links.add(link_key_1)
             links.append(
                 SankeyLink(
                     source=lncrna_node_id,
@@ -238,10 +237,8 @@ def get_sankey_data(
 
         # 添加 Gene -> Disease 连接
         link_key_2 = (gene_node_id, disease_node_id)
-        if not any(
-            link.source == gene_node_id and link.target == disease_node_id
-            for link in links
-        ):
+        if link_key_2 not in seen_links:
+            seen_links.add(link_key_2)
             # 使用 -log10(p-value) 作为权重，如果 p-value 缺失则使用 1.0
             # 这样权重始终为正，且更小的 p-value (更显著) 得到更高的权重
             try:

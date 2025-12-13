@@ -16,7 +16,7 @@ Phase 6.0-C: 为 Analysis Results 页面提供聚合统计数据
 import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text
+from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.cache import cache, CacheService

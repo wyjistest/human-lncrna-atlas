@@ -3,7 +3,7 @@
 
 用于高级可视化（Sankey Flow Diagram）的数据模型
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from pydantic import BaseModel, Field, ConfigDict
 
 

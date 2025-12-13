@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Set
 from collections import defaultdict
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import func, case, distinct, String
+from sqlalchemy import func, distinct, String
 
 from app.core.database import get_db
 from app.core.cache import cache, CacheService
@@ -251,9 +251,6 @@ def get_conservation_matrix(db: Session = Depends(get_db)):
     if cached is not None:
         return ConservationMatrix(**cached)
 
-    # Get all lncRNA core_ids
-    lncrna_core_ids = get_lncrna_core_ids(db)
-
     # Build species -> set of core_ids mapping
     species_core_ids: Dict[int, Set[int]] = {sid: set() for sid in SPECIES_IDS}
 
@@ -302,24 +299,16 @@ def get_conservation_matrix(db: Session = Depends(get_db)):
             # Shared regulations (lncRNA-target pairs present in both species)
             if i <= j:  # Only compute for upper triangle + diagonal
                 if shared:
-                    # Get gene_ids for shared lncRNAs in each species
-                    genes_sp1 = set(
-                        row[0] for row in
-                        db.query(Gene.gene_id)
-                        .filter(Gene.core_id.in_(shared))
-                        .filter(Gene.species_id == sid1)
-                        .all()
-                    )
-                    genes_sp2 = set(
-                        row[0] for row in
-                        db.query(Gene.gene_id)
-                        .filter(Gene.core_id.in_(shared))
-                        .filter(Gene.species_id == sid2)
-                        .all()
-                    )
-
                     if i == j:
                         # Diagonal: total regulations for this species
+                        # Get gene_ids for shared lncRNAs in this species
+                        genes_sp1 = set(
+                            row[0] for row in
+                            db.query(Gene.gene_id)
+                            .filter(Gene.core_id.in_(shared))
+                            .filter(Gene.species_id == sid1)
+                            .all()
+                        )
                         if genes_sp1:
                             reg_count = (
                                 db.query(func.count(Regulation.regulation_id))

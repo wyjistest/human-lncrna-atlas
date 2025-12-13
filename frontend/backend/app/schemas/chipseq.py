@@ -2,7 +2,7 @@
 Pydantic Schemas for ChIP-seq Epigenetic Marks
 Supports multiple histone modifications with unified architecture
 """
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from datetime import datetime
