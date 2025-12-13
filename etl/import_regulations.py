@@ -440,48 +440,73 @@ class RegulationsImporter:
                 VALUES %s
             """, reg_values)
 
-            # 从临时表插入到正式表，使用 RETURNING 获取 row_idx 和 regulation_id 的映射
-            # 这样即使有重复被跳过，我们也能知道哪些行成功插入了
+            # 从临时表插入到正式表
+            # 修复 (2025-12-13):
+            #   1. 使用 DISTINCT ON 去除批次内重复（保留最小 row_idx）
+            #   2. 使用 CTE + JOIN 代替子查询，确保 row_idx 映射唯一确定
             cursor.execute("""
-                INSERT INTO regulations (
-                    batch_id, species_id, lncrna_gene_id, target_gene_id,
-                    target_chromosome, target_start, target_end, tfo_file,
-                    total_sites, kept_sites, num_peaks, best_peak_num,
-                    best_avg_ba, best_num_sites, best_peak_chr,
-                    best_peak_start, best_peak_end, best_site_ba,
-                    lncrna_start, lncrna_end, dna_start, dna_end,
-                    binding_affinity
+                WITH deduplicated AS (
+                    -- 批次内去重：对每个唯一键只保留最小 row_idx 的行
+                    SELECT DISTINCT ON (
+                        species_id, lncrna_gene_id, target_gene_id,
+                        lncrna_start, lncrna_end, dna_start, dna_end
+                    )
+                        row_idx, batch_id, species_id, lncrna_gene_id, target_gene_id,
+                        target_chromosome, target_start, target_end, tfo_file,
+                        total_sites, kept_sites, num_peaks, best_peak_num,
+                        best_avg_ba, best_num_sites, best_peak_chr,
+                        best_peak_start, best_peak_end, best_site_ba,
+                        lncrna_start, lncrna_end, dna_start, dna_end,
+                        binding_affinity
+                    FROM temp_regulations_batch
+                    ORDER BY species_id, lncrna_gene_id, target_gene_id,
+                             lncrna_start, lncrna_end, dna_start, dna_end,
+                             row_idx  -- 保留最小 row_idx
+                ),
+                inserted AS (
+                    INSERT INTO regulations (
+                        batch_id, species_id, lncrna_gene_id, target_gene_id,
+                        target_chromosome, target_start, target_end, tfo_file,
+                        total_sites, kept_sites, num_peaks, best_peak_num,
+                        best_avg_ba, best_num_sites, best_peak_chr,
+                        best_peak_start, best_peak_end, best_site_ba,
+                        lncrna_start, lncrna_end, dna_start, dna_end,
+                        binding_affinity
+                    )
+                    SELECT
+                        batch_id, species_id, lncrna_gene_id, target_gene_id,
+                        target_chromosome, target_start, target_end, tfo_file,
+                        total_sites, kept_sites, num_peaks, best_peak_num,
+                        best_avg_ba, best_num_sites, best_peak_chr,
+                        best_peak_start, best_peak_end, best_site_ba,
+                        lncrna_start, lncrna_end, dna_start, dna_end,
+                        binding_affinity
+                    FROM deduplicated t
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM regulations r
+                        WHERE r.species_id = t.species_id
+                          AND r.lncrna_gene_id = t.lncrna_gene_id
+                          AND r.target_gene_id = t.target_gene_id
+                          AND r.lncrna_start = t.lncrna_start
+                          AND r.lncrna_end = t.lncrna_end
+                          AND r.dna_start = t.dna_start
+                          AND r.dna_end = t.dna_end
+                    )
+                    RETURNING regulation_id, species_id, lncrna_gene_id, target_gene_id,
+                              lncrna_start, lncrna_end, dna_start, dna_end
                 )
-                SELECT
-                    batch_id, species_id, lncrna_gene_id, target_gene_id,
-                    target_chromosome, target_start, target_end, tfo_file,
-                    total_sites, kept_sites, num_peaks, best_peak_num,
-                    best_avg_ba, best_num_sites, best_peak_chr,
-                    best_peak_start, best_peak_end, best_site_ba,
-                    lncrna_start, lncrna_end, dna_start, dna_end,
-                    binding_affinity
-                FROM temp_regulations_batch t
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM regulations r
-                    WHERE r.species_id = t.species_id
-                      AND r.lncrna_gene_id = t.lncrna_gene_id
-                      AND r.target_gene_id = t.target_gene_id
-                      AND r.lncrna_start = t.lncrna_start
-                      AND r.lncrna_end = t.lncrna_end
-                      AND r.dna_start = t.dna_start
-                      AND r.dna_end = t.dna_end
+                -- JOIN back to deduplicated to get the unique row_idx
+                SELECT i.regulation_id, d.row_idx
+                FROM inserted i
+                JOIN deduplicated d ON (
+                    i.species_id = d.species_id
+                    AND i.lncrna_gene_id = d.lncrna_gene_id
+                    AND i.target_gene_id = d.target_gene_id
+                    AND i.lncrna_start = d.lncrna_start
+                    AND i.lncrna_end = d.lncrna_end
+                    AND i.dna_start = d.dna_start
+                    AND i.dna_end = d.dna_end
                 )
-                RETURNING regulation_id, (
-                    SELECT row_idx FROM temp_regulations_batch t2
-                    WHERE t2.species_id = regulations.species_id
-                      AND t2.lncrna_gene_id = regulations.lncrna_gene_id
-                      AND t2.target_gene_id = regulations.target_gene_id
-                      AND t2.lncrna_start = regulations.lncrna_start
-                      AND t2.lncrna_end = regulations.lncrna_end
-                      AND t2.dna_start = regulations.dna_start
-                      AND t2.dna_end = regulations.dna_end
-                    LIMIT 1
-                ) as row_idx
             """)
 
             # 获取插入结果：(regulation_id, row_idx) 的列表

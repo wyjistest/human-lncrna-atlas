@@ -14,9 +14,6 @@ hiredis==2.2.3
 # 限流 (Rate Limiting)
 slowapi==0.1.9
 
-# API文档
-python-multipart==0.0.6
-
 # 工具库
 python-dotenv==1.0.0
 pydantic-settings==2.1.0

@@ -72,7 +72,9 @@ class Gene(Base):
     __tablename__ = "genes"
 
     gene_id = Column(Integer, primary_key=True, autoincrement=True)
-    core_id = Column(Integer, ForeignKey("core_genes.core_id"), nullable=False)
+    # Note: core_id can be NULL for genes without ortholog information
+    # Schema comment: "关联到core_genes，NULL表示该基因无同源信息"
+    core_id = Column(Integer, ForeignKey("core_genes.core_id"), nullable=True)
     species_id = Column(Integer, ForeignKey("species.species_id"), nullable=False)
     gene_ensembl_id = Column(String(50), nullable=False)
     gene_name = Column(String(100))

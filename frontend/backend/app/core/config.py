@@ -2,9 +2,15 @@
 应用配置模块
 """
 import json
+from pathlib import Path
 from typing import Optional, List, Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BaseModel, Field, field_validator
+
+# 计算 .env 文件的绝对路径（相对于 backend 目录）
+# 这样无论从哪个目录启动应用，都能正确加载 .env
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+_ENV_FILE = _BACKEND_DIR / ".env"
 
 
 class AlertThresholds(BaseModel):
@@ -130,13 +136,8 @@ class Settings(BaseSettings):
         else:
             return f"postgresql://{self.DATABASE_USER}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
 
-    @property
-    def async_database_url(self) -> str:
-        """构建异步数据库连接URL"""
-        if self.DATABASE_PASSWORD:
-            return f"postgresql+asyncpg://{self.DATABASE_USER}:{self.DATABASE_PASSWORD}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
-        else:
-            return f"postgresql+asyncpg://{self.DATABASE_USER}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+    # Note: async_database_url removed - asyncpg not in dependencies and not used
+    # If async DB support is needed, add asyncpg to requirements.txt first
 
     @property
     def redis_url(self) -> str:
@@ -147,7 +148,7 @@ class Settings(BaseSettings):
             return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),  # 使用绝对路径，支持从任意目录启动
         case_sensitive=True,
     )
 

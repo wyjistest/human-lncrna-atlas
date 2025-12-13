@@ -353,6 +353,8 @@ class CacheService:
         """
         获取带缓存的 query.count() 结果
 
+        优化：使用 order_by(None) 移除排序以生成更高效的 COUNT SQL
+
         Args:
             query: SQLAlchemy Query 对象
             cache_key: 缓存键（使用 _make_key 或 make_list_key 生成）
@@ -365,7 +367,8 @@ class CacheService:
             >>> total = cache.get_cached_count(query, cache_key)
         """
         if not self.enabled:
-            return query.count()
+            # Remove ORDER BY for more efficient COUNT SQL
+            return query.order_by(None).count()
 
         # 尝试从缓存获取
         cached = self.get(cache_key)
@@ -374,8 +377,9 @@ class CacheService:
             return cached
 
         # 计算并缓存
+        # Remove ORDER BY for more efficient COUNT SQL
         logger.debug(f"[CACHE MISS] count: {cache_key}")
-        count = query.count()
+        count = query.order_by(None).count()
         self.set(cache_key, count, self.TTL_COUNT)
 
         return count

@@ -2,9 +2,9 @@
 
 ## 元信息
 - **更新日期**: 2025-12-13
-- **当前版本**: Phase 8.0 (代码审查修复 - 完成)
+- **当前版本**: Phase 8.2 (代码审查深度修复 - 完成)
 - **下一阶段**: Phase 9.0 (新功能)
-- **项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署
+- **项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署 + ETL数据一致性
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 ## 项目概述
@@ -1718,6 +1718,60 @@ Phase 7.5: 超大文件拆分         ✅ 2025-12-13
 3. **指标系统标准化**: 采用 Prometheus 单一标准
 4. **环境变量配置**: 去除硬编码，支持任意服务器部署
 
+---
+
+## Phase 8.1: CI/配置修复 (2025-12-13)
+
+### 修复内容
+
+| 问题 | 文件 | 修复 |
+|------|------|------|
+| React Compiler memoization 错误 | `ComparisonDrawer.tsx`, `Network/index.tsx` | 使用 `useMemo` 包装复杂计算 |
+| CI 后端测试失败 | `.github/workflows/test.yml` | 排除需要数据库的集成测试 |
+| GENOMES_DIR 不读取 .env | `config.py` | 添加到 Settings 类 + 绝对路径 |
+| 错误消息显示 `[object Object]` | `main.tsx` | 增强错误处理，显示 error_id |
+| `import time` 缺失 | `main.py` | 添加缺失的导入 |
+
+---
+
+## Phase 8.2: 数据一致性修复 (2025-12-13)
+
+### 概述
+
+修复代码审查发现的高优先级数据一致性问题，确保 ETL 去重逻辑正确、迁移脚本安全。
+
+### 高优先级修复
+
+| 问题 | 文件 | 修复 |
+|------|------|------|
+| Migration JOIN 逻辑错误 | `migrate_dedup_regulations.sql` | 使用 `keep_mapping` 表确保唯一映射 |
+| 缺失 sequences INSERT | `migrate_dedup_regulations.sql` | 先 INSERT 占位行再 UPDATE |
+| 空字符串未处理 | `migrate_dedup_regulations.sql` | 使用 `NULLIF(col, '')` |
+| ETL 批次内重复 | `import_regulations.py` | 添加 `DISTINCT ON` CTE |
+| row_idx 映射不确定 | `import_regulations.py` | 使用 CTE + JOIN 替代子查询 |
+| genes.core_id NULL | `models.py`, `genes.py` | `nullable=True` + `outerjoin` |
+
+### 中优先级修复
+
+| 问题 | 文件 | 修复 |
+|------|------|------|
+| count() 性能 | `cache.py` | 添加 `order_by(None)` |
+| 未使用 async_database_url | `config.py` | 移除（asyncpg 不在依赖中） |
+| onCellClick 空函数开销 | `BatchGeneHeatmap/index.tsx` | 改为 `undefined` |
+| 空字符串序列 | `import_sequences.py` | 归一化为 NULL |
+
+### 低优先级修复
+
+| 问题 | 文件 | 修复 |
+|------|------|------|
+| 重复迁移脚本 | `etl/migrations/001_*.sql` | 添加 DEPRECATED 注释 |
+
+### 技术要点
+
+1. **DISTINCT ON 模式**: PostgreSQL 获取"每组第一行"的惯用方式
+2. **Outerjoin for Optional FK**: 可空外键必须使用 outerjoin
+3. **NULL-safe Migration**: 使用 `IS NOT DISTINCT FROM` 和 `NULLIF`
+
 ### 项目进度
 
 ```
@@ -1731,10 +1785,20 @@ Phase 8.0: 代码审查修复         ✅ 2025-12-13
   ├── 性能优化 (4 项)           ✅ count 缓存/缓存 key/Prometheus
   ├── 工程化清理 (5 项)         ✅ 依赖/CI/配置统一
   └── 部署可移植 (2 项)         ✅ 硬编码路径/README IP
+Phase 8.1: CI/配置修复          ✅ 2025-12-13
+  ├── CI lint 修复              ✅ React Compiler memoization
+  ├── GENOMES_DIR 配置          ✅ Settings + 绝对路径
+  └── 错误处理增强              ✅ error_id 显示
+Phase 8.2: 数据一致性修复       ✅ 2025-12-13
+  ├── Migration 脚本修复        ✅ keep_mapping + NULLIF + INSERT
+  ├── ETL batch dedup           ✅ DISTINCT ON + CTE JOIN
+  ├── genes.core_id NULL        ✅ nullable=True + outerjoin
+  ├── count() 优化              ✅ order_by(None)
+  └── 空字符串归一化            ✅ import_sequences.py
 ```
 
-**当前版本**: Phase 8.0 (完成)
-**项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署
+**当前版本**: Phase 8.2 (完成)
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署 + ETL数据一致性
 **下一阶段**: Phase 9.0 (新功能)
 
 ---

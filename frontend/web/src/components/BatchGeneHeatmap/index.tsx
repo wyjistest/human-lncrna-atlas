@@ -264,10 +264,9 @@ export function BatchGeneHeatmapViewer({
             onMetricChange={setMetric}
             loading={batchHeatmapQuery.isLoading}
             error={batchHeatmapQuery.error}
-            onCellClick={(params) => {
-              console.log('Cell clicked:', params)
-              // Handle cell click - could open details panel, etc.
-            }}
+            // Pass undefined to avoid unnecessary ECharts click listener binding
+            // Can be replaced with a handler to open details panel when implemented
+            onCellClick={undefined}
           />
         </Card>
       )}

@@ -2,7 +2,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, literal
 from math import ceil
 
 from app.core.utils import escape_like_pattern
@@ -138,14 +138,16 @@ def list_genes(
             Gene.core_id,
             Gene.gene_name,
             Gene.gene_ensembl_id,
-            CoreGene.gene_type,
+            # Use COALESCE to handle genes without core_id (returns 'unknown' if NULL)
+            func.coalesce(CoreGene.gene_type, literal('unknown')).label("gene_type"),
             Species.display_name.label("species_name"),
             Gene.chromosome,
             Gene.gene_start,
             Gene.gene_end,
             func.count(Regulation.regulation_id).label("regulation_count"),
         )
-        .join(CoreGene, Gene.core_id == CoreGene.core_id)
+        # Use outerjoin to include genes without core_id
+        .outerjoin(CoreGene, Gene.core_id == CoreGene.core_id)
         .join(Species, Gene.species_id == Species.species_id)
         .outerjoin(
             Regulation,
@@ -156,7 +158,7 @@ def list_genes(
             Gene.core_id,
             Gene.gene_name,
             Gene.gene_ensembl_id,
-            CoreGene.gene_type,
+            CoreGene.gene_type,  # OK to group by even with outerjoin (NULL is a group)
             Species.display_name,
             Gene.chromosome,
             Gene.gene_start,
@@ -248,11 +250,13 @@ def get_gene_detail(
 ):
     """
     获取基因详细信息（包含统计和直系同源基因）
+
+    Note: Handles genes without core_id (ortholog info unavailable)
     """
-    # 查询基因基本信息
+    # 查询基因基本信息 - use outerjoin to handle genes without core_id
     gene = (
         db.query(Gene, CoreGene, Species.display_name.label("species_name"))
-        .join(CoreGene, Gene.core_id == CoreGene.core_id)
+        .outerjoin(CoreGene, Gene.core_id == CoreGene.core_id)
         .join(Species, Gene.species_id == Species.species_id)
         .filter(Gene.gene_id == gene_id)
         .first()
@@ -273,55 +277,61 @@ def get_gene_detail(
     target_count = stats.target_count or 0
 
     # 疾病关联统计（需要单独查询，因为基于不同的表）
-    disease_count = (
-        db.query(func.count(TraitGeneAssociation.association_id))
-        .filter(TraitGeneAssociation.core_id == gene_obj.core_id)
-        .scalar()
-    ) or 0
+    # Only query if gene has core_id
+    disease_count = 0
+    if gene_obj.core_id is not None:
+        disease_count = (
+            db.query(func.count(TraitGeneAssociation.association_id))
+            .filter(TraitGeneAssociation.core_id == gene_obj.core_id)
+            .scalar()
+        ) or 0
 
     # 查询直系同源基因 with regulation counts
-    orthologs_query = (
-        db.query(
-            Gene.gene_id,
-            Gene.gene_name,
-            Gene.gene_ensembl_id,
-            Gene.chromosome,
-            Gene.gene_start,
-            Gene.gene_end,
-            Species.species_id,
-            Species.display_name.label("species_name"),
-            func.count(Regulation.regulation_id).label("regulation_count"),
+    # Only query if gene has core_id (orthologs require core_id mapping)
+    orthologs_result = []
+    if gene_obj.core_id is not None:
+        orthologs_query = (
+            db.query(
+                Gene.gene_id,
+                Gene.gene_name,
+                Gene.gene_ensembl_id,
+                Gene.chromosome,
+                Gene.gene_start,
+                Gene.gene_end,
+                Species.species_id,
+                Species.display_name.label("species_name"),
+                func.count(Regulation.regulation_id).label("regulation_count"),
+            )
+            .join(Species, Gene.species_id == Species.species_id)
+            .outerjoin(Regulation, Regulation.lncrna_gene_id == Gene.gene_id)
+            .filter(Gene.core_id == gene_obj.core_id)
+            .filter(Gene.gene_id != gene_id)  # 排除自己
+            .group_by(
+                Gene.gene_id,
+                Gene.gene_name,
+                Gene.gene_ensembl_id,
+                Gene.chromosome,
+                Gene.gene_start,
+                Gene.gene_end,
+                Species.species_id,
+                Species.display_name,
+            )
         )
-        .join(Species, Gene.species_id == Species.species_id)
-        .outerjoin(Regulation, Regulation.lncrna_gene_id == Gene.gene_id)
-        .filter(Gene.core_id == gene_obj.core_id)
-        .filter(Gene.gene_id != gene_id)  # 排除自己
-        .group_by(
-            Gene.gene_id,
-            Gene.gene_name,
-            Gene.gene_ensembl_id,
-            Gene.chromosome,
-            Gene.gene_start,
-            Gene.gene_end,
-            Species.species_id,
-            Species.display_name,
-        )
-    )
 
-    orthologs = [
-        OrthologInfo(
-            species_id=o.species_id,
-            species_name=o.species_name,
-            gene_id=o.gene_id,
-            gene_name=o.gene_name,
-            gene_ensembl_id=o.gene_ensembl_id,
-            chromosome=o.chromosome,
-            gene_start=o.gene_start,
-            gene_end=o.gene_end,
-            regulation_count=o.regulation_count or 0,
-        )
-        for o in orthologs_query.all()
-    ]
+        orthologs_result = [
+            OrthologInfo(
+                species_id=o.species_id,
+                species_name=o.species_name,
+                gene_id=o.gene_id,
+                gene_name=o.gene_name,
+                gene_ensembl_id=o.gene_ensembl_id,
+                chromosome=o.chromosome,
+                gene_start=o.gene_start,
+                gene_end=o.gene_end,
+                regulation_count=o.regulation_count or 0,
+            )
+            for o in orthologs_query.all()
+        ]
 
     return GeneDetail(
         gene_id=gene_obj.gene_id,
@@ -330,7 +340,8 @@ def get_gene_detail(
         species_name=species_name,
         gene_name=gene_obj.gene_name,
         gene_ensembl_id=gene_obj.gene_ensembl_id,
-        gene_type=core_gene.gene_type,
+        # Handle genes without core_id: return 'unknown' if no core_gene
+        gene_type=core_gene.gene_type if core_gene else "unknown",
         chromosome=gene_obj.chromosome,
         gene_start=gene_obj.gene_start,
         gene_end=gene_obj.gene_end,
@@ -338,7 +349,7 @@ def get_gene_detail(
         regulation_count=regulation_count or 0,
         target_count=target_count or 0,
         disease_count=disease_count or 0,
-        orthologs=orthologs,
+        orthologs=orthologs_result,
         created_at=gene_obj.created_at,
     )
 

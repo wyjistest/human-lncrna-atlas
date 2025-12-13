@@ -299,16 +299,17 @@ def process_file(
                     lncrna_seq = row.get('LncRNA_Sequence', '').strip()
                     dna_seq = row.get('DNA_Sequence', '').strip()
 
-                    # 跳过空序列
-                    if (not lncrna_seq or lncrna_seq == 'None') and (not dna_seq or dna_seq == 'None'):
+                    # Normalize empty strings and 'None' literal to None
+                    # This ensures consistent NULL handling in the database
+                    if not lncrna_seq or lncrna_seq == 'None':
+                        lncrna_seq = None
+                    if not dna_seq or dna_seq == 'None':
+                        dna_seq = None
+
+                    # 跳过两个都为空的行
+                    if lncrna_seq is None and dna_seq is None:
                         stats["empty_seq"] += 1
                         continue
-
-                    # 清理 None 值
-                    if lncrna_seq == 'None':
-                        lncrna_seq = None
-                    if dna_seq == 'None':
-                        dna_seq = None
 
                     # 获取 gene_id
                     lnc_gene_id = lookup_gene(gene_map, lncrna_id)
