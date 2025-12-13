@@ -27,13 +27,17 @@ function getErrorMessage(error: unknown): string {
 
     // 处理 detail 为对象的情况（包括脱敏格式和 Admin 错误）
     if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
+      // 提取 error_id（如果存在）用于调试追踪
+      const errorId = 'error_id' in detail ? detail.error_id : null
+
       // 优先使用 message 字段
       if ('message' in detail && typeof detail.message === 'string') {
-        return detail.message
+        // 如果有 error_id，附加到消息末尾便于用户反馈
+        return errorId ? `${detail.message} [${errorId}]` : detail.message
       }
       // 其次使用 error 字段
       if ('error' in detail && typeof detail.error === 'string') {
-        return detail.error
+        return errorId ? `${detail.error} [${errorId}]` : detail.error
       }
       // 最后尝试 JSON 序列化（避免显示 [object Object]）
       try {

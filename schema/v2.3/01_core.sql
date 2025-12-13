@@ -285,6 +285,20 @@ CREATE INDEX idx_reg_location ON regulations(target_chromosome, target_start, ta
 
 -- 【重要】唯一约束用于ETL去重（ON CONFLICT DO NOTHING）
 -- 该约束确保同一物种、同一lncRNA-target对、同一位置的调控关系只有一条记录
+--
+-- ⚠️ 迁移注意：
+-- 如果在已存在重复数据的库上创建此索引会失败。
+-- 对于存量数据库，请先运行去重脚本：
+--   DELETE FROM regulations a USING regulations b
+--   WHERE a.regulation_id > b.regulation_id
+--     AND a.species_id = b.species_id
+--     AND a.lncrna_gene_id = b.lncrna_gene_id
+--     AND a.target_gene_id = b.target_gene_id
+--     AND a.lncrna_start = b.lncrna_start
+--     AND a.lncrna_end = b.lncrna_end
+--     AND a.dna_start = b.dna_start
+--     AND a.dna_end = b.dna_end;
+-- 此索引仅用于新库初始化或已完成去重的存量库。
 CREATE UNIQUE INDEX idx_regulations_unique_key
 ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end);
 
