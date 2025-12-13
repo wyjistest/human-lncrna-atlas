@@ -12,13 +12,13 @@
 使用示例：
   # 使用环境变量
   export DB_HOST=localhost DB_PORT=5432 DB_USER=amax DB_PASSWORD=xxx DB_NAME=lncrna_production
-  python import_sequences.py --species 1
+  python3 import_sequences.py --species 1
 
   # 使用命令行参数
-  python import_sequences.py --host localhost --user amax --password xxx --dbname lncrna_production --species 1
+  python3 import_sequences.py --host localhost --user amax --password xxx --dbname lncrna_production --species 1
 
   # 预览模式（不实际导入）
-  python import_sequences.py --species 1 --dry-run
+  python3 import_sequences.py --species 1 --dry-run
 """
 
 import os
@@ -372,13 +372,13 @@ def main():
 示例:
   # 使用环境变量配置数据库
   export DB_HOST=localhost DB_USER=amax DB_PASSWORD=xxx
-  python import_sequences.py --species 1
+  python3 import_sequences.py --species 1
 
   # 使用命令行参数
-  python import_sequences.py --host localhost --user amax --password xxx --species 1
+  python3 import_sequences.py --host localhost --user amax --password xxx --species 1
 
   # 预览模式
-  python import_sequences.py --species 1 --dry-run
+  python3 import_sequences.py --species 1 --dry-run
         """
     )
 

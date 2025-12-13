@@ -4,13 +4,13 @@ ChIP-seq Peak Data Import Script
 Unified importer for multiple histone modification marks
 
 Usage:
-    python import_chipseq.py --input peaks.narrowPeak \
+    python3 import_chipseq.py --input peaks.narrowPeak \
         --mark-type H3K27me3 \
         --species human \
         --experiment-name "ENCODE_H1_H3K27me3" \
         --cell-type "H1-hESC"
 
-    python import_chipseq.py --config experiment_config.json
+    python3 import_chipseq.py --config experiment_config.json
 
 Supported input formats:
     - narrowPeak (ENCODE standard)
@@ -658,7 +658,7 @@ def parse_args():
         epilog="""
 Examples:
   # Import narrowPeak file
-  python import_chipseq.py \\
+  python3 import_chipseq.py \\
     --input H3K27me3_peaks.narrowPeak.gz \\
     --mark-type H3K27me3 \\
     --species human \\
@@ -666,10 +666,10 @@ Examples:
     --cell-type "H1-hESC"
 
   # Import with configuration file
-  python import_chipseq.py --config experiment.json
+  python3 import_chipseq.py --config experiment.json
 
   # Import broadPeak (for H3K36me3)
-  python import_chipseq.py \\
+  python3 import_chipseq.py \\
     --input H3K36me3_peaks.broadPeak \\
     --mark-type H3K36me3 \\
     --format broadPeak \\

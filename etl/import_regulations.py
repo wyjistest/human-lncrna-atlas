@@ -350,6 +350,11 @@ class RegulationsImporter:
         CREATE UNIQUE INDEX IF NOT EXISTS idx_regulations_unique_key
         ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end);
 
+        修复说明 (2025-12-13):
+        原实现使用 RETURNING 获取插入的 regulation_id，但当发生 ON CONFLICT DO NOTHING 时，
+        RETURNING 只返回实际插入的行，无法建立与原始序列列表的正确对应关系。
+        修复方案：使用临时表传递行索引，确保每个 regulation_id 能正确映射到其对应的 sequence。
+
         Args:
             regulations: 调控关系数据列表
             sequences: 序列数据列表（可选）
@@ -358,10 +363,11 @@ class RegulationsImporter:
         cursor = self.conn.cursor()
 
         try:
-            # 准备regulations数据
+            # 准备regulations数据，添加行索引以便追踪序列对应关系
             reg_values = []
-            for reg in regulations:
+            for idx, reg in enumerate(regulations):
                 reg_values.append((
+                    idx,  # 行索引，用于追踪序列对应关系
                     batch_id,
                     reg['species_id'],
                     reg['lncrna_gene_id'],
@@ -387,9 +393,56 @@ class RegulationsImporter:
                     reg['binding_affinity'],
                 ))
 
-            # 插入regulations，使用 ON CONFLICT DO NOTHING 防止重复
-            # 返回实际插入的 regulation_id
-            regulation_ids = execute_values(cursor, """
+            # 创建临时表存储待插入数据及其行索引
+            cursor.execute("""
+                CREATE TEMP TABLE IF NOT EXISTS temp_regulations_batch (
+                    row_idx INTEGER,
+                    batch_id INTEGER,
+                    species_id INTEGER,
+                    lncrna_gene_id INTEGER,
+                    target_gene_id INTEGER,
+                    target_chromosome VARCHAR(20),
+                    target_start BIGINT,
+                    target_end BIGINT,
+                    tfo_file VARCHAR(255),
+                    total_sites INTEGER,
+                    kept_sites INTEGER,
+                    num_peaks INTEGER,
+                    best_peak_num INTEGER,
+                    best_avg_ba DECIMAL(10, 4),
+                    best_num_sites INTEGER,
+                    best_peak_chr VARCHAR(20),
+                    best_peak_start BIGINT,
+                    best_peak_end BIGINT,
+                    best_site_ba DECIMAL(10, 4),
+                    lncrna_start INTEGER,
+                    lncrna_end INTEGER,
+                    dna_start BIGINT,
+                    dna_end BIGINT,
+                    binding_affinity DECIMAL(10, 4)
+                ) ON COMMIT DELETE ROWS
+            """)
+
+            # 清空临时表（以防之前的批次未清理）
+            cursor.execute("TRUNCATE temp_regulations_batch")
+
+            # 批量插入到临时表
+            execute_values(cursor, """
+                INSERT INTO temp_regulations_batch (
+                    row_idx, batch_id, species_id, lncrna_gene_id, target_gene_id,
+                    target_chromosome, target_start, target_end, tfo_file,
+                    total_sites, kept_sites, num_peaks, best_peak_num,
+                    best_avg_ba, best_num_sites, best_peak_chr,
+                    best_peak_start, best_peak_end, best_site_ba,
+                    lncrna_start, lncrna_end, dna_start, dna_end,
+                    binding_affinity
+                )
+                VALUES %s
+            """, reg_values)
+
+            # 从临时表插入到正式表，使用 RETURNING 获取 row_idx 和 regulation_id 的映射
+            # 这样即使有重复被跳过，我们也能知道哪些行成功插入了
+            cursor.execute("""
                 INSERT INTO regulations (
                     batch_id, species_id, lncrna_gene_id, target_gene_id,
                     target_chromosome, target_start, target_end, tfo_file,
@@ -399,14 +452,43 @@ class RegulationsImporter:
                     lncrna_start, lncrna_end, dna_start, dna_end,
                     binding_affinity
                 )
-                VALUES %s
-                ON CONFLICT (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end)
-                DO NOTHING
-                RETURNING regulation_id
-            """, reg_values, fetch=True)
+                SELECT
+                    batch_id, species_id, lncrna_gene_id, target_gene_id,
+                    target_chromosome, target_start, target_end, tfo_file,
+                    total_sites, kept_sites, num_peaks, best_peak_num,
+                    best_avg_ba, best_num_sites, best_peak_chr,
+                    best_peak_start, best_peak_end, best_site_ba,
+                    lncrna_start, lncrna_end, dna_start, dna_end,
+                    binding_affinity
+                FROM temp_regulations_batch t
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM regulations r
+                    WHERE r.species_id = t.species_id
+                      AND r.lncrna_gene_id = t.lncrna_gene_id
+                      AND r.target_gene_id = t.target_gene_id
+                      AND r.lncrna_start = t.lncrna_start
+                      AND r.lncrna_end = t.lncrna_end
+                      AND r.dna_start = t.dna_start
+                      AND r.dna_end = t.dna_end
+                )
+                RETURNING regulation_id, (
+                    SELECT row_idx FROM temp_regulations_batch t2
+                    WHERE t2.species_id = regulations.species_id
+                      AND t2.lncrna_gene_id = regulations.lncrna_gene_id
+                      AND t2.target_gene_id = regulations.target_gene_id
+                      AND t2.lncrna_start = regulations.lncrna_start
+                      AND t2.lncrna_end = regulations.lncrna_end
+                      AND t2.dna_start = regulations.dna_start
+                      AND t2.dna_end = regulations.dna_end
+                    LIMIT 1
+                ) as row_idx
+            """)
+
+            # 获取插入结果：(regulation_id, row_idx) 的列表
+            inserted_rows = cursor.fetchall()
 
             # 统计实际插入数量（可能因为去重而少于提交数量）
-            actual_inserted = len(regulation_ids) if regulation_ids else 0
+            actual_inserted = len(inserted_rows)
             skipped_duplicates = len(reg_values) - actual_inserted
             self.stats['regulations_inserted'] += actual_inserted
 
@@ -417,16 +499,18 @@ class RegulationsImporter:
                 logger.debug(f"跳过 {skipped_duplicates} 条重复记录")
 
             # 插入sequences（如果有且有成功插入的 regulation）
-            if sequences and regulation_ids:
+            if sequences and inserted_rows:
                 seq_values = []
-                # 只为实际插入的 regulation 添加序列
-                for (reg_id,), seq in zip(regulation_ids, sequences[:actual_inserted]):
-                    if seq['lncrna_sequence'] or seq['dna_sequence']:
-                        seq_values.append((
-                            reg_id,
-                            seq['lncrna_sequence'],
-                            seq['dna_sequence']
-                        ))
+                # 使用 row_idx 正确映射 regulation_id 到对应的 sequence
+                for reg_id, row_idx in inserted_rows:
+                    if row_idx is not None and row_idx < len(sequences):
+                        seq = sequences[row_idx]
+                        if seq['lncrna_sequence'] or seq['dna_sequence']:
+                            seq_values.append((
+                                reg_id,
+                                seq['lncrna_sequence'],
+                                seq['dna_sequence']
+                            ))
 
                 if seq_values:
                     execute_values(cursor, """

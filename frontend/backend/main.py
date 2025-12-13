@@ -23,8 +23,8 @@ mimetypes.add_type("application/octet-stream", ".bigwig")
 from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.core.logging_config import setup_logging
+from app.core.exceptions import sanitize_internal_error
 from app.middleware.logging import LoggingMiddleware, MetricsMiddleware
-from app.middleware.rate_limit import RateLimitMiddleware
 from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization
 from app.schemas.common import HealthResponse
 
@@ -39,6 +39,16 @@ try:
 except ImportError:
     SLOWAPI_AVAILABLE = False
     chipseq_limiter = None
+
+# ============================================================================
+# Prometheus Metrics Setup (prometheus-fastapi-instrumentator)
+# ============================================================================
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+    Instrumentator = None
 
 # 初始化日志
 logger = setup_logging(settings.LOG_LEVEL)
@@ -93,7 +103,7 @@ app = FastAPI(
 )
 
 # 配置中间件
-app.add_middleware(RateLimitMiddleware, requests_per_minute=100)  # 限流：100请求/分钟
+# 注意：RateLimitMiddleware 已移除，统一使用 slowapi 进行端点级别限流
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(MetricsMiddleware)
 app.add_middleware(
@@ -111,6 +121,32 @@ if SLOWAPI_AVAILABLE and chipseq_limiter:
     app.state.limiter = chipseq_limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     logger.info("slowapi rate limiting enabled for ChIP-seq endpoints")
+
+# ============================================================================
+# Prometheus Metrics Integration (prometheus-fastapi-instrumentator)
+# ============================================================================
+if PROMETHEUS_AVAILABLE and Instrumentator:
+    # 创建 Instrumentator 实例
+    instrumentator = Instrumentator(
+        should_group_status_codes=True,           # 将状态码分组（2xx, 3xx, 4xx, 5xx）
+        should_ignore_untemplated=True,           # 忽略无模板路由
+        should_respect_env_var=True,              # 支持环境变量控制
+        should_instrument_requests_inprogress=True,  # 追踪进行中的请求
+        excluded_handlers=["/health", "/docs", "/redoc", "/openapi.json", "/metrics"],  # 排除的路径
+        env_var_name="ENABLE_METRICS",            # 控制开关的环境变量
+        inprogress_name="http_requests_inprogress",
+        inprogress_labels=True,
+    )
+
+    # 对应用进行埋点
+    instrumentator.instrument(app)
+
+    # 暴露 /metrics 端点
+    instrumentator.expose(app, endpoint="/metrics", include_in_schema=True, tags=["monitoring"])
+
+    logger.info("Prometheus metrics enabled at /metrics endpoint")
+else:
+    logger.warning("prometheus-fastapi-instrumentator not available, /metrics endpoint disabled")
 
 # 保存MetricsMiddleware实例到app.state（用于/metrics端点）
 # 注意：需要在第一个请求后才能获取实例
@@ -150,13 +186,25 @@ app.state.start_time = time.time()
 # 全局异常处理
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    """
+    全局异常处理器 - 使用 sanitize_internal_error 进行错误脱敏
+
+    安全改进：
+    - 不再在 DEBUG 模式下暴露完整错误信息
+    - 使用 error_id 关联服务器日志和客户端报告
+    - 返回通用错误消息，防止信息泄露
+    """
+    # 使用 sanitize_internal_error 生成脱敏的 HTTPException
+    sanitized_exc = sanitize_internal_error(
+        e=exc,
+        logger=logger,
+        error_type="INTERNAL_ERROR",
+        message="An internal server error occurred. Please try again later."
+    )
+
     return JSONResponse(
-        status_code=500,
-        content={
-            "message": "Internal server error",
-            "detail": str(exc) if settings.LOG_LEVEL == "DEBUG" else "An error occurred",
-        },
+        status_code=sanitized_exc.status_code,
+        content=sanitized_exc.detail,
     )
 
 
@@ -188,7 +236,9 @@ def health_check():
             conn.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
-        db_status = f"unhealthy: {str(e)}"
+        # 安全改进：不暴露底层异常详情，只记录日志
+        logger.error(f"Health check database error: {e}")
+        db_status = "unhealthy"
 
     return HealthResponse(
         status="healthy" if db_status == "healthy" else "degraded",
@@ -245,16 +295,11 @@ app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sanke
 GENOMES_DIR = os.environ.get("GENOMES_DIR", "/data/wenyujianData/humanLncAtlas/genomes")
 
 if os.path.exists(GENOMES_DIR):
-    from starlette.applications import Starlette
-    from starlette.routing import Mount
-    from starlette.middleware import Middleware
-    from starlette.middleware.cors import CORSMiddleware as StarletteCORS
+    # 包装 StaticFiles 以添加 CORS 头（自定义实现，避免 BaseHTTPMiddleware 兼容性问题）
+    from starlette.types import ASGIApp, Receive, Scope, Send
 
     # 创建独立的静态文件子应用，带 CORS 支持
     static_app = StaticFiles(directory=GENOMES_DIR)
-
-    # 包装 StaticFiles 以添加 CORS 头
-    from starlette.types import ASGIApp, Receive, Scope, Send
 
     class CORSStaticFiles:
         """带 CORS 支持的静态文件服务（严格 Origin 验证）"""

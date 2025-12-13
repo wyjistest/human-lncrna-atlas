@@ -195,7 +195,7 @@ export async function exportChartsToPDF(
   options: PDFExportOptions = {}
 ): Promise<boolean> {
   const {
-    title: _title = 'Human LncRNA Atlas Charts',  // 保留用于未来封面页
+    // Note: title is available for future use (e.g., cover page)
     includeTimestamp = true,
     filename = 'lncrna-atlas-charts'
   } = options

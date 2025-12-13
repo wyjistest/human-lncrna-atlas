@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-Test script for batch heatmap matrix API endpoint
+Manual acceptance test script for batch heatmap matrix API endpoint.
+
+NOTE: This is a manual validation script, NOT an automated pytest test.
+      It was moved from frontend/backend/test_batch_heatmap.py to avoid
+      pytest collection and allow independent manual execution.
 
 Usage:
-    python test_batch_heatmap.py
+    python3 scripts/manual_batch_heatmap_check.py
 
 Tests:
     1. Basic batch query with 3 genes
@@ -301,7 +305,7 @@ def main():
             return 1
     except Exception as e:
         print(f"ERROR: Cannot connect to API at {BASE_URL}")
-        print(f"Make sure the backend is running: python -m uvicorn app.main:app --reload")
+        print(f"Make sure the backend is running: python3 -m uvicorn app.main:app --reload")
         return 1
 
     print("✓ API is accessible")

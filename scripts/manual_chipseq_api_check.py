@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """
-ChIP-seq Multi-Marks Comparison API Acceptance Test Script
+Manual acceptance test script for ChIP-seq Multi-Marks Comparison API.
+
+NOTE: This is a manual validation script, NOT an automated pytest test.
+      It was moved from test_chipseq_api.py (project root) to avoid
+      pytest collection and allow independent manual execution.
+
 Tests the three main API endpoints for the Human LncRNA Atlas project.
+
+Usage:
+    python3 scripts/manual_chipseq_api_check.py
 """
 
 import json

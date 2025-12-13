@@ -132,9 +132,15 @@ async def verify_admin_access(
     """
     验证 Admin API 访问权限
 
-    安全检查优先级：
-    1. 如果配置了 API Key，必须提供正确的 Key
-    2. 如果没有配置 API Key，检查 IP 白名单
+    安全检查策略：
+    1. 如果提供了正确的 API Key，立即授权访问
+    2. 如果提供了错误的 API Key，记录警告但继续检查 IP
+    3. 如果客户端 IP 在白名单或为私有/内网地址，授权访问
+    4. 所有检查都失败则拒绝访问
+
+    注意：内网 IP（私有地址）可以绕过 API Key 检查，这是为了方便
+    开发和内部监控。生产环境中，如果需要严格的 API Key 验证，
+    应确保服务只在可信网络中暴露，或移除私有 IP 的自动信任逻辑。
 
     Args:
         request: FastAPI Request 对象
@@ -145,12 +151,12 @@ async def verify_admin_access(
     """
     client_ip = _get_client_ip(request)
 
-    # 检查 API Key（如果配置了）
+    # 检查 API Key（如果配置了且提供了）
     if settings.ADMIN_API_KEY:
         if x_admin_api_key == settings.ADMIN_API_KEY:
             logger.debug(f"Admin API access granted via API Key from {client_ip}")
             return
-        # API Key 配置了但未提供或不正确，继续检查 IP
+        # API Key 配置了但提供的值不正确，记录警告后继续检查 IP
         if x_admin_api_key:
             logger.warning(f"Invalid Admin API Key from {client_ip}")
 

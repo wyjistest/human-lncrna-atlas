@@ -18,7 +18,7 @@ type RegulationListItem = components['schemas']['RegulationListItem']
 
 export default function Regulations() {
   const navigate = useNavigate()
-  const { t, i18n } = useTranslation('regulations')
+  const { t } = useTranslation('regulations')
   const { t: tc } = useTranslation('common')
   const { t: tGB } = useTranslation('genomeBrowser')
   const [page, setPage] = useState(1)
@@ -256,7 +256,7 @@ export default function Regulations() {
         </Button>
       ),
     },
-  ], [t, i18n.language, handleViewInIGV, tGB])
+  ], [t, handleViewInIGV, tGB])
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />

@@ -4,11 +4,70 @@ import './i18n'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query'
+import { message } from 'antd'
+import { AxiosError } from 'axios'
 import './index.css'
 import App from './App.tsx'
 
+/**
+ * 统一错误消息映射
+ * 根据 HTTP 状态码返回用户友好的错误消息
+ */
+function getErrorMessage(error: unknown): string {
+  if (error instanceof AxiosError && error.response) {
+    const { status, data } = error.response
+    const detail = data?.detail
+
+    switch (status) {
+      case 400:
+        return detail || 'Invalid request parameters'
+      case 404:
+        return 'Resource not found'
+      case 422: {
+        // Pydantic validation error
+        if (Array.isArray(detail)) {
+          return detail.map((e: { msg: string }) => e.msg).join(', ')
+        }
+        return detail || 'Validation error'
+      }
+      case 429:
+        return 'Too many requests, please try later'
+      case 500:
+        return detail || 'Server error'
+      default:
+        return detail || 'Request failed'
+    }
+  }
+
+  // 网络错误或其他错误
+  if (error instanceof AxiosError && error.request) {
+    return 'Network error, please check your connection'
+  }
+
+  // 其他错误
+  return error instanceof Error ? error.message : 'An unexpected error occurred'
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      // 跳过有自定义错误处理的查询（通过 meta.skipGlobalErrorHandler 标记）
+      if (query.meta?.skipGlobalErrorHandler) {
+        return
+      }
+      message.error(getErrorMessage(error))
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      // 跳过有自定义错误处理的 mutation
+      if (mutation.meta?.skipGlobalErrorHandler) {
+        return
+      }
+      message.error(getErrorMessage(error))
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5分钟内数据视为新鲜，不会触发后台重新获取

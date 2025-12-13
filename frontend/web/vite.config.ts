@@ -10,24 +10,44 @@ export default defineConfig(({ mode }) => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // 仅生产环境移除 console.log 和 debugger
+  // Only remove console.log and debugger in production builds
   esbuild: mode === 'production' ? {
     drop: ['console', 'debugger'],
   } : {},
   build: {
-    minify: 'esbuild',  // 使用 esbuild（更快）
+    minify: 'esbuild',  // Use esbuild (faster)
     rollupOptions: {
       output: {
         manualChunks: {
+          // Core React vendor (loaded immediately)
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+
+          // UI framework (loaded immediately)
           'antd-vendor': ['antd', '@ant-design/icons'],
+
+          // Data fetching (loaded immediately)
           'query-vendor': ['@tanstack/react-query'],
-          'echarts-vendor': ['echarts'],
+
+          // Visualization - split into separate chunks for lazy loading
+          // ECharts is large (~800KB), split for dynamic import
+          'echarts-core': ['echarts'],
+          'echarts-react': ['echarts-for-react'],
+
+          // Network visualization (used on specific pages)
           'cytoscape-vendor': ['cytoscape', 'cytoscape-svg'],
+
+          // Genome browser (large, dynamically loaded in GenomeBrowser component)
           'igv-vendor': ['igv'],
+
+          // Export utilities (loaded on demand)
+          'export-vendor': ['file-saver', 'xlsx', 'jspdf', 'html2canvas', 'jszip'],
+
+          // i18n (loaded immediately)
+          'i18n-vendor': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         },
       },
     },
-    chunkSizeWarningLimit: 600,
+    // Increase warning limit slightly since we now have more fine-grained chunks
+    chunkSizeWarningLimit: 650,
   },
 }))

@@ -6,7 +6,7 @@ Regulations数据导入器
 从*_batch_BA*.txt文件导入lncRNA调控关系数据
 
 用法:
-    python import_regulations.py \
+    python3 import_regulations.py \
         --file /path/to/human_batch_BA60.txt \
         --species-id 1 \
         --batch-name "Human Regulations BA60" \

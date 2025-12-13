@@ -98,7 +98,7 @@ export default function Analysis() {
         activeKey={activeTab}
         items={items}
         onChange={setActiveTab}
-        destroyInactiveTabPane
+        destroyOnHidden
         size="large"
       />
     </div>

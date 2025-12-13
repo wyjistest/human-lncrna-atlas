@@ -51,7 +51,7 @@ export function PercentilesCard({ data }: PercentilesCardProps) {
           title="P50 (Median)"
           value={data.p50_ms.toFixed(0)}
           suffix="ms"
-          valueStyle={{ color: getP50Color(data.p50_ms) }}
+          styles={{ content: { color: getP50Color(data.p50_ms) } }}
         />
       </Col>
       <Col span={8} style={{ textAlign: 'center' }}>
@@ -59,7 +59,7 @@ export function PercentilesCard({ data }: PercentilesCardProps) {
           title="P95"
           value={data.p95_ms.toFixed(0)}
           suffix="ms"
-          valueStyle={{ color: getP95Color(data.p95_ms) }}
+          styles={{ content: { color: getP95Color(data.p95_ms) } }}
         />
       </Col>
       <Col span={8} style={{ textAlign: 'center' }}>
@@ -67,7 +67,7 @@ export function PercentilesCard({ data }: PercentilesCardProps) {
           title="P99"
           value={data.p99_ms.toFixed(0)}
           suffix="ms"
-          valueStyle={{ color: getP99Color(data.p99_ms) }}
+          styles={{ content: { color: getP99Color(data.p99_ms) } }}
         />
       </Col>
     </Row>

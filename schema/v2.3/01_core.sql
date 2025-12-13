@@ -281,6 +281,11 @@ CREATE INDEX idx_reg_ba ON regulations(binding_affinity) WHERE binding_affinity 
 -- 位置查询索引
 CREATE INDEX idx_reg_location ON regulations(target_chromosome, target_start, target_end);
 
+-- 【重要】唯一约束用于ETL去重（ON CONFLICT DO NOTHING）
+-- 该约束确保同一物种、同一lncRNA-target对、同一位置的调控关系只有一条记录
+CREATE UNIQUE INDEX idx_regulations_unique_key
+ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end);
+
 -- ============================================================================
 -- 10. 序列表（分离存储，按需加载）
 -- ============================================================================

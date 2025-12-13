@@ -1,8 +1,10 @@
 /**
- * Axios客户端配置
+ * Axios 客户端配置
+ *
+ * 注意: 错误处理已移至 QueryClient 的 QueryCache/MutationCache 全局处理
+ * 参见 src/main.tsx 中的 queryClient 配置
  */
 import axios from 'axios';
-import { message } from 'antd';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
@@ -15,7 +17,7 @@ export const apiClient = axios.create({
 // 请求拦截器
 apiClient.interceptors.request.use(
   (config) => {
-    // 可以在这里添加token等
+    // 可以在这里添加 token 等认证信息
     return config;
   },
   (error) => {
@@ -24,41 +26,11 @@ apiClient.interceptors.request.use(
 );
 
 // 响应拦截器
+// 注意: 不在此处调用 message.error()，由 React Query 全局处理
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // 统一错误处理
-    if (error.response) {
-      const { status, data } = error.response;
-
-      switch (status) {
-        case 400:
-          message.error(data.detail || 'Invalid request parameters');
-          break;
-        case 422: {
-          // Pydantic validation error
-          const validationMsg = Array.isArray(data.detail)
-            ? data.detail.map((e: { msg: string }) => e.msg).join(', ')
-            : data.detail || 'Validation error';
-          message.error(validationMsg);
-          break;
-        }
-        case 429:
-          message.error('请求过于频繁，请稍后再试');
-          break;
-        case 500:
-          message.error(data.detail || '服务器错误');
-          break;
-        case 404:
-          message.error('资源不存在');
-          break;
-        default:
-          message.error(data.detail || '请求失败');
-      }
-    } else if (error.request) {
-      message.error('网络错误，请检查连接');
-    }
-
+    // 直接 reject 错误，让 React Query 的 QueryCache.onError 处理
     return Promise.reject(error);
   }
 );

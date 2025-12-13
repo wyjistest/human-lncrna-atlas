@@ -6,7 +6,7 @@ This script performs comprehensive data validation for ChIP-seq epigenetic marks
 checking coverage matrix, data quality, and consistency across cell types.
 
 Usage:
-    python scripts/validate_additional_marks.py
+    python3 scripts/validate_additional_marks.py
 """
 import psycopg2
 from psycopg2.extras import RealDictCursor

@@ -98,7 +98,7 @@ run_backend_tests() {
     echo ""
 
     # Run pytest with verbose output
-    python -m pytest tests/test_chipseq_api.py -v --tb=short 2>&1
+    python3 -m pytest tests/test_chipseq_api.py -v --tb=short 2>&1
 
     BACKEND_EXIT_CODE=$?
 

@@ -2,9 +2,9 @@
 
 ## 元信息
 - **更新日期**: 2025-12-13
-- **当前版本**: Phase 7.3 (代码审查综合修复 - 完成)
+- **当前版本**: Phase 7.4 (本地代码审查修复 - 完成)
 - **下一阶段**: Phase 8.0 (新功能)
-- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + 测试覆盖 + 安全加固
+- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + 测试覆盖 + 安全加固 + ETL 数据一致性
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 ## 项目概述
@@ -1396,5 +1396,170 @@ Push/PR 触发 → frontend-unit-tests ─┐
              → backend-checks (新增) ├→ build
              → lint (阻断式) ────────┘
 ```
+
+---
+
+## Phase 7.4: 本地代码审查修复 (2025-12-13)
+
+### 概述
+
+基于本地代码审查结果（pytest 190 passed, vitest 171 passed, eslint 904 warnings），修复 14 项问题，涵盖 ETL 数据一致性、后端安全、前端质量、仓库规范。
+
+### 修复分类汇总
+
+| 优先级 | 修复数量 | 关键改动 |
+|-------|---------|---------|
+| 高优先级 | 5 | ETL 序列映射, unique constraint, python3, test 脚本隔离, env 配置 |
+| 中优先级 | 5 | Admin auth 文档, health check 脱敏, DB timeout, 代码清理 |
+| 前端质量 | 3 | ESLint 分层规则, Ant Design 6 迁移, manualChunks 优化 |
+| 仓库规范 | 1 | MIT License |
+
+### 高优先级修复
+
+**1. ETL 序列映射 Bug**
+- **文件**: `etl/import_regulations.py`
+- **问题**: `ON CONFLICT DO NOTHING` 跳过重复记录时，`RETURNING` 只返回插入的行，导致序列与 regulation_id 错配
+- **修复**: 使用临时表 + `row_idx` 追踪原始行索引
+
+```python
+# 创建带 row_idx 的临时表
+CREATE TEMP TABLE temp_regulations_batch (
+    row_idx INTEGER,
+    batch_id INTEGER,
+    ...
+) ON COMMIT DELETE ROWS
+
+# 返回 regulation_id 和 row_idx 映射
+RETURNING regulation_id, (SELECT row_idx FROM temp_regulations_batch...) as row_idx
+
+# 使用 row_idx 正确映射序列
+for reg_id, row_idx in inserted_rows:
+    if row_idx is not None and row_idx < len(sequences):
+        seq = sequences[row_idx]
+```
+
+**2. Unique Constraint**
+- **文件**: `schema/v2.3/01_core.sql`
+- **修复**: 添加 unique index 支持 ETL 去重
+
+```sql
+CREATE UNIQUE INDEX idx_regulations_unique_key
+ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end);
+```
+
+**3. Python → Python3**
+- **文件**: 6+ 脚本文件
+- **修复**: 替换所有 `python ` 为 `python3`（跨环境兼容）
+
+**4. Test 脚本隔离**
+- **修复**: 移动 `test_*.py` 到 `scripts/manual_*.py`，避免 pytest 误收集
+  - `test_batch_heatmap.py` → `scripts/manual_batch_heatmap_check.py`
+  - `test_chipseq_api.py` → `scripts/manual_chipseq_api_check.py`
+
+**5. .env.development 默认配置**
+- **修复**: 改为 `localhost` 默认值，创建 `.env.example` 模板
+
+### 中优先级修复
+
+**1. Admin Auth 文档对齐**
+- **文件**: `app/routers/admin.py`
+- **修复**: 更新 docstring 准确描述 IP 绕过机制
+
+**2. Health Check 脱敏**
+- **文件**: `main.py`
+- **修复**: 数据库错误不再暴露给客户端
+
+```python
+except Exception as e:
+    logger.error(f"Health check database error: {e}")
+    db_status = "unhealthy"  # 不是 f"unhealthy: {str(e)}"
+```
+
+**3. TRUSTED_PROXIES 收窄**
+- **文件**: `app/core/config.py`
+- **修复**: 仅信任 localhost（127.0.0.1, ::1）
+
+**4. DB Timeout 简化**
+- **文件**: `app/core/database.py`
+- **修复**: 移除重复的 `statement_timeout`，`print` → `logger`
+
+**5. 未使用导入清理**
+- **修复**: 移除 Starlette 未使用导入
+
+### 前端质量修复
+
+**1. ESLint 分层规则**
+- **文件**: `eslint.config.js`
+- **修复**: 测试文件放宽规则（`no-console: off`, `any: off`）
+- **效果**: 警告从 904 降至 110
+
+**2. Ant Design 6 API 迁移**
+- `destroyInactiveTabPane` → `destroyOnHidden`
+- `valueStyle` → `styles.content`
+
+**3. Vite manualChunks 优化**
+- **文件**: `vite.config.ts`
+- **修复**: 优化代码分割配置
+
+**4. TS/Hook 警告修复**
+- 修复未使用变量 `_title`
+- 移除 `useMemo` 中不必要的 `i18n.language` 依赖
+
+### 仓库规范
+
+**MIT License**
+- **新文件**: `LICENSE`
+- 内容: MIT License, Copyright (c) 2024-2025 Human LncRNA Atlas Project
+
+### 新增文件
+
+| 文件 | 用途 |
+|------|------|
+| `LICENSE` | MIT 开源协议 |
+| `frontend/web/.env.example` | 环境变量模板 |
+| `scripts/manual_batch_heatmap_check.py` | 手动测试脚本 |
+| `scripts/manual_chipseq_api_check.py` | 手动测试脚本 |
+
+### 删除文件
+
+| 文件 | 原因 |
+|------|------|
+| `frontend/backend/app/middleware/rate_limit.py` | 统一使用 slowapi |
+| `frontend/backend/test_batch_heatmap.py` | 移至 scripts/ |
+| `test_chipseq_api.py` | 移至 scripts/ |
+| `src/hooks/api.ts` | 与 types/api.ts 完全重复 |
+| `src/hooks/client.ts` | 过时版本 |
+| `src/hooks/{admin,diseases,genes,genome,regulations,stats,api-extensions}.ts` | 已迁移到 api/ 目录 |
+
+### 验证结果
+
+| 检查项 | 结果 |
+|--------|------|
+| pytest | ✅ 190 passed, 5 warnings |
+| npm run build | ✅ 16.98s 成功 |
+| ESLint | ✅ 0 errors, 110 warnings |
+
+### 项目里程碑更新
+
+```
+Phase 1-4: 数据库核心功能       ✅ 2024-2025
+Phase 5: 全站性能优化           ✅ 2025-12-10
+Phase 6.0: 科研数据分析         ✅ 2025-12-11
+Phase 7.0: API 完善             ✅ 2025-12-12
+Phase 7.1: 代码质量修复         ✅ 2025-12-12
+Phase 7.2: 单元测试基础设施     ✅ 2025-12-13
+Phase 7.3: 代码审查综合修复     ✅ 2025-12-13
+Phase 7.4: 本地代码审查修复     ✅ 2025-12-13
+  ├── ETL 数据一致性修复       ✅ temp table + row_idx
+  ├── 安全加固                 ✅ health check 脱敏, TRUSTED_PROXIES
+  ├── 代码清理                 ✅ 删除重复/过时文件
+  ├── ESLint 优化              ✅ 904 → 110 warnings
+  ├── Ant Design 6 迁移        ✅ 废弃 API 更新
+  └── 仓库规范                 ✅ MIT License
+```
+
+**当前版本**: Phase 7.4 (完成)
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + 测试覆盖 + 安全加固 + ETL 数据一致性
+**下一阶段**: Phase 8.0 (新功能)
 
 ---

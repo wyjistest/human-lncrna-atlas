@@ -32,7 +32,8 @@ _engine_kwargs = {
 }
 
 if _is_postgresql:
-    # PostgreSQL: Use QueuePool with connection pooling and statement timeout
+    # PostgreSQL: Use QueuePool with connection pooling
+    # Note: statement_timeout is set via connect event listener (below) for consistency
     _engine_kwargs.update({
         "poolclass": QueuePool,
         "pool_size": 5,  # 连接池大小
@@ -40,10 +41,6 @@ if _is_postgresql:
         "pool_timeout": 30,  # 获取连接超时（秒）
         "pool_recycle": 1800,  # 连接回收时间（秒）
         "pool_pre_ping": True,  # 连接前检查，避免使用已断开的连接
-        # PostgreSQL-specific: Set statement timeout to prevent long-running queries
-        "connect_args": {
-            "options": f"-c statement_timeout={QUERY_TIMEOUT_MS}"
-        },
     })
     logger.info("Using PostgreSQL database engine with connection pooling")
 elif _is_sqlite:
@@ -113,12 +110,12 @@ def init_db():
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         if _is_sqlite:
-            print(f"✅ 数据库连接成功: SQLite ({_db_url})")
+            logger.info(f"Database connection successful: SQLite ({_db_url})")
         else:
-            print(f"✅ 数据库连接成功: {settings.DATABASE_NAME}@{settings.DATABASE_HOST}")
+            logger.info(f"Database connection successful: {settings.DATABASE_NAME}@{settings.DATABASE_HOST}")
         return True
     except Exception as e:
-        print(f"❌ 数据库连接失败: {e}")
+        logger.error(f"Database connection failed: {e}")
         return False
 
 
@@ -128,7 +125,7 @@ def close_db():
     在应用关闭时调用
     """
     engine.dispose()
-    print("Database connections closed")
+    logger.info("Database connections closed")
 
 
 @contextmanager

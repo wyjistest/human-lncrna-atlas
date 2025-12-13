@@ -1,9 +1,10 @@
 """
 应用配置模块
 """
-from typing import Optional
+import json
+from typing import Optional, List, Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AlertThresholds(BaseModel):
@@ -36,21 +37,42 @@ class Settings(BaseSettings):
     REDIS_DB: int = Field(default=0, env="REDIS_DB")
     REDIS_PASSWORD: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
 
-    # CORS配置（移除通配符以提高安全性）
-    CORS_ORIGINS: list = [
-        "http://localhost:5173",  # Vite开发服务器
-        "http://localhost:5174",  # Vite备用端口
-        "http://localhost:3000",  # 备用端口
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:3000",
-        "http://192.168.6.135:5173",  # 内网访问
-        "http://192.168.6.135:5174",
-        "http://45.62.117.191:6003",  # 公网前端
-        "http://45.62.117.191:5173",
-        "http://45.62.117.191:5174",
-        # 如需添加更多来源，请在此处明确指定
-    ]
+    # CORS配置（支持环境变量 CORS_ORIGINS，JSON 数组格式）
+    # 默认值为开发环境常用地址
+    CORS_ORIGINS: List[str] = Field(
+        default=[
+            "http://localhost:5173",  # Vite开发服务器
+            "http://localhost:5174",  # Vite备用端口
+            "http://localhost:3000",  # 备用端口
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:5174",
+            "http://127.0.0.1:3000",
+        ],
+        env="CORS_ORIGINS",
+        description="允许的 CORS 来源列表，环境变量需使用 JSON 数组格式"
+    )
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: Any) -> List[str]:
+        """
+        解析 CORS_ORIGINS 配置
+
+        支持两种格式：
+        1. JSON 数组字符串: '["http://localhost:5173", "http://example.com"]'
+        2. 已解析的列表（来自代码默认值）
+        """
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return [str(item) for item in parsed]
+                raise ValueError("CORS_ORIGINS must be a JSON array")
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON in CORS_ORIGINS: {e}")
+        if isinstance(v, list):
+            return v
+        raise ValueError(f"CORS_ORIGINS must be a list or JSON string, got {type(v)}")
 
     # 缓存配置
     CACHE_TTL: int = Field(default=3600, env="CACHE_TTL")  # 缓存时间（秒）
@@ -77,15 +99,18 @@ class Settings(BaseSettings):
     )
 
     # Trusted Proxies for X-Forwarded-For header validation
-    # Only trust X-Forwarded-For headers from these IP ranges
+    # Only trust X-Forwarded-For headers from these IP addresses/ranges
+    # SECURITY NOTE: Default values are conservative (localhost only).
+    # In production with a reverse proxy (nginx, traefik, etc.), add the proxy's IP.
+    # Avoid trusting entire private ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+    # unless you fully control that network segment.
     TRUSTED_PROXIES: list = Field(
         default=[
-            "127.0.0.1",        # localhost
-            "10.0.0.0/8",       # Private Class A
-            "172.16.0.0/12",    # Private Class B
-            "192.168.0.0/16",   # Private Class C
+            "127.0.0.1",        # localhost IPv4
+            "::1",              # localhost IPv6
         ],
-        description="IP addresses/ranges trusted as reverse proxies for X-Forwarded-For parsing"
+        description="IP addresses/ranges trusted as reverse proxies for X-Forwarded-For parsing. "
+                    "Add your reverse proxy IP here (e.g., '10.0.0.1' or '192.168.1.100')."
     )
 
     @property

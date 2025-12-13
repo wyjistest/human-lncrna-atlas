@@ -278,7 +278,7 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
               <Statistic
                 title={t('detail.repeats.totalCount')}
                 value={statsData.total_count}
-                valueStyle={{ color: '#1890ff' }}
+                styles={{ content: { color: '#1890ff' } }}
               />
             </Card>
           </Col>
@@ -289,7 +289,7 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
                 value={statsData.avg_divergence}
                 suffix="%"
                 precision={1}
-                valueStyle={{ color: '#52c41a' }}
+                styles={{ content: { color: '#52c41a' } }}
               />
             </Card>
           </Col>

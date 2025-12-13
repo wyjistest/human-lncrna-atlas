@@ -95,8 +95,8 @@ export default function Monitoring() {
               title="Error Rate"
               value={((data?.errors.rate ?? 0) * 100).toFixed(2)}
               suffix="%"
-              valueStyle={{
-                color: (data?.errors.rate ?? 0) > 0.05 ? '#cf1322' : '#3f8600'
+              styles={{
+                content: { color: (data?.errors.rate ?? 0) > 0.05 ? '#cf1322' : '#3f8600' }
               }}
             />
             <div style={{ marginTop: 8, fontSize: 12, color: '#8c8c8c' }}>
@@ -112,8 +112,8 @@ export default function Monitoring() {
               title="Avg Response Time"
               value={data?.response_time.avg_ms?.toFixed(0) ?? 0}
               suffix="ms"
-              valueStyle={{
-                color: (data?.response_time.avg_ms ?? 0) > 500 ? '#cf1322' : '#3f8600'
+              styles={{
+                content: { color: (data?.response_time.avg_ms ?? 0) > 500 ? '#cf1322' : '#3f8600' }
               }}
             />
           </Card>
