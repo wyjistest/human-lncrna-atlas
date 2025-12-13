@@ -117,6 +117,8 @@ jobs:
           # Integration tests: test_api_contracts, test_api_smoke, test_batch_heatmap_api,
           # test_cell_line_data_validation, test_chipseq_api, test_heatmap_matrix_performance,
           # test_igv_overlap_track, test_overlap_export, test_performance, test_phase_3_1_regression
+          set -e  # Exit on error
+          EXIT_CODE=0
           pytest tests/ -v \
             --ignore=tests/e2e/ \
             --ignore=tests/test_api_contracts.py \
@@ -129,7 +131,17 @@ jobs:
             --ignore=tests/test_overlap_export.py \
             --ignore=tests/test_performance.py \
             --ignore=tests/test_phase_3_1_regression.py \
-            || echo "No unit tests found (all tests are integration tests requiring database)"
+            || EXIT_CODE=$?
+          # Exit code 5 = no tests collected (acceptable, all tests are integration tests)
+          # Exit code 0 = tests passed
+          # Exit code 1+ = tests failed (should fail CI)
+          if [ $EXIT_CODE -eq 5 ]; then
+            echo "No unit tests found (all tests are integration tests requiring database)"
+            exit 0
+          elif [ $EXIT_CODE -ne 0 ]; then
+            echo "Tests failed with exit code $EXIT_CODE"
+            exit $EXIT_CODE
+          fi
 
   build:
     name: Build
