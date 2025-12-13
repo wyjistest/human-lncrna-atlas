@@ -4,7 +4,7 @@ ChIP-seq Export API Router
 """
 import io
 import csv
-from typing import Optional
+from typing import Optional, Iterator, Tuple, Dict, Any
 from itertools import combinations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -16,10 +16,34 @@ from app.core.database import get_db
 from app.models import Gene
 from app.schemas.chipseq import ExportFormat
 
-# 从主路由导入 rate_limit 装饰器
-from app.routers.chipseq import rate_limit, DEFAULT_FLANKING_REGION
+# 从共享模块导入 rate_limit 装饰器（避免与主路由形成循环依赖）
+from app.routers.chipseq_rate_limit import rate_limit, DEFAULT_FLANKING_REGION
 
 router = APIRouter()
+
+def _iter_overlapping_peak_pairs(
+    peaks_a: list[Dict[str, Any]],
+    peaks_b: list[Dict[str, Any]],
+) -> Iterator[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """
+    迭代返回两个 peak 列表中相互重叠的 peak 对。
+
+    说明：
+    - 输入列表必须按 `peak_start` 升序排序（SQL 查询已保证）
+    - 算法为滑动窗口，避免 O(n*m) 全量笛卡尔比较
+    """
+    j = 0
+    for peak_a in peaks_a:
+        start_a = peak_a["peak_start"]
+        end_a = peak_a["peak_end"]
+
+        while j < len(peaks_b) and peaks_b[j]["peak_end"] <= start_a:
+            j += 1
+
+        k = j
+        while k < len(peaks_b) and peaks_b[k]["peak_start"] < end_a:
+            yield peak_a, peaks_b[k]
+            k += 1
 
 
 @router.get("/genes/{gene_id}/compare/export")
@@ -138,21 +162,19 @@ def export_comparison(
     if include_overlaps and len(marks_data) >= 2:
         mark_names = list(marks_data.keys())
         for mark_1, mark_2 in combinations(mark_names, 2):
-            for p1 in marks_data[mark_1]:
-                for p2 in marks_data[mark_2]:
-                    if p1["peak_start"] < p2["peak_end"] and p1["peak_end"] > p2["peak_start"]:
-                        overlap_start = max(p1["peak_start"], p2["peak_start"])
-                        overlap_end = min(p1["peak_end"], p2["peak_end"])
-                        overlaps_data.append({
-                            "chromosome": gene.chromosome,
-                            "start": overlap_start,
-                            "end": overlap_end,
-                            "length": overlap_end - overlap_start,
-                            "mark_1": mark_1,
-                            "mark_2": mark_2,
-                            "mark_1_peak_id": p1["peak_id"],
-                            "mark_2_peak_id": p2["peak_id"],
-                        })
+            for p1, p2 in _iter_overlapping_peak_pairs(marks_data[mark_1], marks_data[mark_2]):
+                overlap_start = max(p1["peak_start"], p2["peak_start"])
+                overlap_end = min(p1["peak_end"], p2["peak_end"])
+                overlaps_data.append({
+                    "chromosome": gene.chromosome,
+                    "start": overlap_start,
+                    "end": overlap_end,
+                    "length": overlap_end - overlap_start,
+                    "mark_1": mark_1,
+                    "mark_2": mark_2,
+                    "mark_1_peak_id": p1["peak_id"],
+                    "mark_2_peak_id": p2["peak_id"],
+                })
 
     # Generate output based on format
     if format == ExportFormat.json:
@@ -323,25 +345,23 @@ def export_overlaps_bed(
         if filter_marks and {mark_1, mark_2} != filter_marks:
             continue
 
-        for p1 in marks_data[mark_1]:
-            for p2 in marks_data[mark_2]:
-                if p1["peak_start"] < p2["peak_end"] and p1["peak_end"] > p2["peak_start"]:
-                    overlap_start = max(p1["peak_start"], p2["peak_start"])
-                    overlap_end = min(p1["peak_end"], p2["peak_end"])
-                    overlap_length = overlap_end - overlap_start
+        for p1, p2 in _iter_overlapping_peak_pairs(marks_data[mark_1], marks_data[mark_2]):
+            overlap_start = max(p1["peak_start"], p2["peak_start"])
+            overlap_end = min(p1["peak_end"], p2["peak_end"])
+            overlap_length = overlap_end - overlap_start
 
-                    if overlap_length >= min_overlap_bp:
-                        overlaps.append({
-                            "chromosome": gene.chromosome,
-                            "start": overlap_start,
-                            "end": overlap_end,
-                            "name": f"{mark_1}_{mark_2}_overlap",
-                            "score": min(1000, int(overlap_length)),  # BED score 0-1000
-                            "strand": ".",
-                            "mark_1": mark_1,
-                            "mark_2": mark_2,
-                            "length": overlap_length,
-                        })
+            if overlap_length >= min_overlap_bp:
+                overlaps.append({
+                    "chromosome": gene.chromosome,
+                    "start": overlap_start,
+                    "end": overlap_end,
+                    "name": f"{mark_1}_{mark_2}_overlap",
+                    "score": min(1000, int(overlap_length)),  # BED score 0-1000
+                    "strand": ".",
+                    "mark_1": mark_1,
+                    "mark_2": mark_2,
+                    "length": overlap_length,
+                })
 
     # Sort by position
     overlaps.sort(key=lambda x: (x["chromosome"], x["start"]))

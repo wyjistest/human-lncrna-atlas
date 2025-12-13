@@ -187,7 +187,7 @@ def get_repeatmasker_igv_config(
     display_mode: str = Query(
         "SQUISHED",
         description="Display mode: SQUISHED (default, single color), EXPANDED (colored by repeat class), or COLLAPSED",
-        regex="^(SQUISHED|EXPANDED|COLLAPSED)$"
+        pattern="^(SQUISHED|EXPANDED|COLLAPSED)$"
     ),
     db: Session = Depends(get_db),
 ):

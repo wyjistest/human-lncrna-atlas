@@ -3,9 +3,51 @@ lncRNA-ChIP-seq Overlap Analysis Schemas
 
 Pydantic models for lncRNA binding site overlap with ChIP-seq peaks API
 """
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, List
 from decimal import Decimal
+from enum import Enum
+from typing import Annotated, List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+
+DecimalAsFloat = Annotated[
+    Decimal,
+    PlainSerializer(lambda v: float(v), return_type=float, when_used="json"),
+]
+
+
+class OverlapSortField(str, Enum):
+    """允许的排序字段（白名单）"""
+
+    binding_affinity = "binding_affinity"
+    overlap_length = "overlap_length"
+    peak_fold_enrichment = "peak_fold_enrichment"
+    peak_qvalue = "peak_qvalue"
+
+    @classmethod
+    def _missing_(cls, value):  # type: ignore[override]
+        # 兼容大小写输入（例如 DESC/Asc），并避免把未知值默默降级为默认值
+        if isinstance(value, str):
+            lowered = value.lower()
+            for member in cls:
+                if member.value == lowered:
+                    return member
+        return None
+
+
+class OverlapSortOrder(str, Enum):
+    """允许的排序方向（白名单）"""
+
+    asc = "asc"
+    desc = "desc"
+
+    @classmethod
+    def _missing_(cls, value):  # type: ignore[override]
+        if isinstance(value, str):
+            lowered = value.lower()
+            for member in cls:
+                if member.value == lowered:
+                    return member
+        return None
 
 
 class OverlapFilters(BaseModel):
@@ -22,8 +64,14 @@ class OverlapFilters(BaseModel):
     max_qvalue: Optional[float] = Field(0.05, ge=0, le=1, description="Maximum Q-value (FDR) for peaks")
     page: int = Field(1, ge=1, description="Page number (starts from 1)")
     page_size: int = Field(100, ge=1, le=1000, description="Items per page")
-    sort_by: Optional[str] = Field("binding_affinity", description="Sort field (binding_affinity, overlap_length, peak_fold_enrichment)")
-    sort_order: Optional[str] = Field("desc", description="Sort order (asc or desc)")
+    sort_by: OverlapSortField = Field(
+        default=OverlapSortField.binding_affinity,
+        description="Sort field (binding_affinity, overlap_length, peak_fold_enrichment, peak_qvalue)",
+    )
+    sort_order: OverlapSortOrder = Field(
+        default=OverlapSortOrder.desc,
+        description="Sort order (asc or desc)",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,14 +107,11 @@ class OverlapResult(BaseModel):
     overlap_length: int = Field(..., description="Overlap length in bp")
 
     # Signal strength metrics
-    binding_affinity: Decimal = Field(..., description="lncRNA binding affinity score")
-    peak_fold_enrichment: Decimal = Field(..., description="ChIP-seq peak fold enrichment")
-    peak_qvalue: Optional[Decimal] = Field(None, description="ChIP-seq peak Q-value (FDR)")
+    binding_affinity: DecimalAsFloat = Field(..., description="lncRNA binding affinity score")
+    peak_fold_enrichment: DecimalAsFloat = Field(..., description="ChIP-seq peak fold enrichment")
+    peak_qvalue: Optional[DecimalAsFloat] = Field(None, description="ChIP-seq peak Q-value (FDR)")
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={Decimal: float}
-    )
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OverlapResponse(BaseModel):
@@ -137,10 +182,7 @@ class OverlapStatistics(BaseModel):
         description="The chromosome filter actually used in the query (may differ from requested if default was applied)"
     )
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={Decimal: float}
-    )
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============================================================================

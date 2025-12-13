@@ -2,12 +2,15 @@
 日志配置
 """
 import logging
+import os
 import sys
 from pathlib import Path
 
 # 日志目录
-LOG_DIR = Path("/tmp")
-LOG_DIR.mkdir(exist_ok=True)
+# 默认写入 backend 目录下的 logs/，避免使用 /tmp 这类公共临时目录引入的潜在覆盖/劫持风险
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+LOG_DIR = Path(os.getenv("LOG_DIR", str(_BACKEND_DIR / "logs")))
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def setup_logging(log_level: str = "INFO"):

@@ -206,7 +206,7 @@ class CacheService:
             filtered = {k: v for k, v in sorted(kwargs.items())
                        if v is not None and k != 'db'}
             params_str = json.dumps(filtered, sort_keys=True, default=str)
-            params_hash = hashlib.md5(params_str.encode()).hexdigest()[:10]
+            params_hash = hashlib.sha256(params_str.encode()).hexdigest()[:10]
             return f"{self.PREFIX}{namespace}:{params_hash}"
         return f"{self.PREFIX}{namespace}"
 

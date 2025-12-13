@@ -5,7 +5,7 @@
  * v2.0: 支持多种布局算法切换
  */
 
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Button, Space, Badge, message, Spin, Alert, Select, Tooltip } from 'antd'
 import { DownloadOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -85,19 +85,26 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
   const [nodeCount, setNodeCount] = useState(0)
   const [edgeCount, setEdgeCount] = useState(0)
   const [layout, setLayout] = useState<LayoutName>('cose')
+  const layoutRef = useRef<LayoutName>('cose')
+
+  useEffect(() => {
+    layoutRef.current = layout
+  }, [layout])
 
   // 布局选项（本地化）
-  const layoutOptions = useMemo(() => [
+  const layoutOptions = [
     { value: 'cose' as LayoutName, label: t('visualization.layouts.cose'), description: t('visualization.layoutDesc.cose') },
     { value: 'circle' as LayoutName, label: t('visualization.layouts.circle'), description: t('visualization.layoutDesc.circle') },
     { value: 'concentric' as LayoutName, label: t('visualization.layouts.concentric'), description: t('visualization.layoutDesc.concentric') },
     { value: 'breadthfirst' as LayoutName, label: t('visualization.layouts.breadthfirst'), description: t('visualization.layoutDesc.breadthfirst') },
     { value: 'grid' as LayoutName, label: t('visualization.layouts.grid'), description: t('visualization.layoutDesc.grid') }
-  ], [t, i18n.language])
+  ]
 
   // 限制数据量
   const isOverLimit = data.length > BATCH_LIMITS.MAX_VISUALIZATION
-  const displayData = isOverLimit ? data.slice(0, BATCH_LIMITS.MAX_VISUALIZATION) : data
+  const displayData = useMemo(() => (
+    isOverLimit ? data.slice(0, BATCH_LIMITS.MAX_VISUALIZATION) : data
+  ), [data, isOverLimit])
 
   useEffect(() => {
     if (!open || !containerRef.current || displayData.length === 0) return
@@ -208,7 +215,7 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
               }
             }
           ],
-          layout: LAYOUT_CONFIGS[layout],
+          layout: LAYOUT_CONFIGS[layoutRef.current],
           wheelSensitivity: 0.3
         })
 
@@ -227,7 +234,6 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
         cyRef.current = null
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, displayData])
 
   // 布局切换处理

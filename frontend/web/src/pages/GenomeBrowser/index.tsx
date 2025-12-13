@@ -156,7 +156,7 @@ export default function GenomeBrowserPage() {
         }
       }
     }
-  }, [availableChIPSeqMarks, t]) // Note: selectedChIPSeqMarks intentionally not in deps to avoid infinite loop
+  }, [availableChIPSeqMarks, selectedChIPSeqMarks, t])
 
   // Handle ChIP-seq toggle
   const handleChIPSeqToggle = useCallback((checked: boolean) => {

@@ -31,17 +31,17 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     # 数据库配置
-    DATABASE_HOST: str = Field(default="localhost", env="DB_HOST")
-    DATABASE_PORT: int = Field(default=5432, env="DB_PORT")
-    DATABASE_USER: str = Field(default="amax", env="DB_USER")
-    DATABASE_PASSWORD: str = Field(default="", env="DB_PASSWORD")
-    DATABASE_NAME: str = Field(default="lncrna_production", env="DB_NAME")
+    DATABASE_HOST: str = Field(default="localhost", validation_alias="DB_HOST")
+    DATABASE_PORT: int = Field(default=5432, validation_alias="DB_PORT")
+    DATABASE_USER: str = Field(default="amax", validation_alias="DB_USER")
+    DATABASE_PASSWORD: str = Field(default="", validation_alias="DB_PASSWORD")
+    DATABASE_NAME: str = Field(default="lncrna_production", validation_alias="DB_NAME")
 
     # Redis配置
-    REDIS_HOST: str = Field(default="localhost", env="REDIS_HOST")
-    REDIS_PORT: int = Field(default=6379, env="REDIS_PORT")
-    REDIS_DB: int = Field(default=0, env="REDIS_DB")
-    REDIS_PASSWORD: Optional[str] = Field(default=None, env="REDIS_PASSWORD")
+    REDIS_HOST: str = Field(default="localhost", validation_alias="REDIS_HOST")
+    REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT")
+    REDIS_DB: int = Field(default=0, validation_alias="REDIS_DB")
+    REDIS_PASSWORD: Optional[str] = Field(default=None, validation_alias="REDIS_PASSWORD")
 
     # CORS配置（支持环境变量 CORS_ORIGINS，JSON 数组格式）
     # 默认值为开发环境常用地址
@@ -54,7 +54,7 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5174",
             "http://127.0.0.1:3000",
         ],
-        env="CORS_ORIGINS",
+        validation_alias="CORS_ORIGINS",
         description="允许的 CORS 来源列表，环境变量需使用 JSON 数组格式"
     )
 
@@ -81,24 +81,24 @@ class Settings(BaseSettings):
         raise ValueError(f"CORS_ORIGINS must be a list or JSON string, got {type(v)}")
 
     # 缓存配置
-    CACHE_TTL: int = Field(default=3600, env="CACHE_TTL")  # 缓存时间（秒）
-    ENABLE_CACHE: bool = Field(default=True, env="ENABLE_CACHE")
+    CACHE_TTL: int = Field(default=3600, validation_alias="CACHE_TTL")  # 缓存时间（秒）
+    ENABLE_CACHE: bool = Field(default=True, validation_alias="ENABLE_CACHE")
 
     # 分页配置
     DEFAULT_PAGE_SIZE: int = 100
     MAX_PAGE_SIZE: int = 1000
 
     # 日志配置
-    LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL")
+    LOG_LEVEL: str = Field(default="INFO", validation_alias="LOG_LEVEL")
 
     # 性能配置
-    QUERY_TIMEOUT: int = Field(default=30, env="QUERY_TIMEOUT")  # 查询超时（秒）
+    QUERY_TIMEOUT: int = Field(default=30, validation_alias="QUERY_TIMEOUT")  # 查询超时（秒）
 
     # 告警阈值配置
     ALERT_THRESHOLDS: AlertThresholds = AlertThresholds()
 
     # Admin API 安全配置
-    ADMIN_API_KEY: Optional[str] = Field(default=None, env="ADMIN_API_KEY")
+    ADMIN_API_KEY: Optional[str] = Field(default=None, validation_alias="ADMIN_API_KEY")
     ADMIN_ALLOWED_IPS: list = Field(
         default=["127.0.0.1", "localhost", "::1"],
         description="允许访问 Admin API 的 IP 地址白名单"
@@ -124,7 +124,7 @@ class Settings(BaseSettings):
     # If not set or directory doesn't exist, IGV static file service will be disabled
     GENOMES_DIR: Optional[str] = Field(
         default=None,
-        env="GENOMES_DIR",
+        validation_alias="GENOMES_DIR",
         description="Directory containing genome files for IGV.js (e.g., /data/genomes)"
     )
 

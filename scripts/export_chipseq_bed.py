@@ -19,8 +19,7 @@ Usage:
 import argparse
 import sys
 from pathlib import Path
-from datetime import datetime
-from typing import Optional, List, Dict, Generator
+from typing import Optional, Dict
 import subprocess
 
 # Add backend to path
@@ -188,11 +187,12 @@ def sort_bed_file(bed_file: str) -> str:
     print(f"🔄 Sorting {Path(bed_file).name}...")
 
     # Use sort command for efficient sorting
-    subprocess.run(
-        f"sort -k1,1 -k2,2n {bed_file} > {sorted_file}",
-        shell=True,
-        check=True
-    )
+    with open(sorted_file, "w", encoding="utf-8") as out:
+        subprocess.run(
+            ["sort", "-k1,1", "-k2,2n", bed_file],
+            stdout=out,
+            check=True,
+        )
 
     return sorted_file
 

@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Phase 8.3: Codex 5轮代码审查** (2025-12-13)
+  - 使用 OpenAI Codex CLI (gpt-5.2) 进行 5 轮迭代代码审查
+  - 新增 8 个测试文件，6 个新模块文件
+  - 新增 `DecimalAsFloat` 类型别名（Pydantic v2 兼容）
+  - 新增 `OverlapSortField` 和 `OverlapSortOrder` 枚举（SQL 注入防护）
+
 ### Fixed
+- **N+1 查询优化** - `conservation.py` 批量计算 conservation_map
+- **SQL 注入防护** - 字符串参数改为 Enum 白名单验证
+- **命令注入修复** - 移除所有 `shell=True` subprocess 调用
+- **Pydantic v2 兼容** - `json_encoders` → `PlainSerializer`
+- **React Hooks 依赖** - 修复 3 处 missing dependency 警告
+- **未使用导入清理** - 移除 `chipseq.py`, `import_base.py` 中的死代码
 - **CI: Backend tests silent failure** - Fixed pytest exit code handling in `.github/workflows/test.yml`
-  - Previously used `|| echo` which swallowed test failures (exit code 0 regardless of test results)
-  - Now properly handles pytest exit codes: 0=pass, 5=no tests (acceptable), other=fail CI
-  - This ensures test regressions will correctly fail the CI pipeline
 
 ### Changed
-- **Code Review**: Comprehensive code review of human-lncrna-atlas project
-  - Reviewing Phase 8.2 and recent commits for code quality issues
-  - Identifying potential bugs, security vulnerabilities, and improvements
+- **性能优化**: O(n²) → O(n log n) 滑动窗口算法 (`chipseq_export.py`)
+- **代码质量**: 26 个文件修改，+1,059/-828 行代码变更
+- **安全加固**: Ruff S608 安全规则全部通过

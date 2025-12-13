@@ -173,7 +173,7 @@ export const handleBatchExport = ({
             duration: 0
           })
 
-          let speciesImages: Array<{
+          const speciesImages: Array<{
             speciesId: number
             speciesName: string
             imageElement: HTMLImageElement

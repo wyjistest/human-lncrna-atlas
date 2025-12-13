@@ -25,10 +25,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 from typing import Optional, List, Dict, Any, Iterator, Tuple
-from decimal import Decimal
 
 import psycopg2
 from psycopg2.extras import execute_values
@@ -640,8 +637,8 @@ def import_chipseq(config: ExperimentConfig, db_config: Dict[str, Any]) -> Dict[
                         results['batch_id'], 'failed', error_message=str(e)
                     )
                     importer.commit()
-                except:
-                    pass
+                except Exception as update_error:
+                    logger.warning(f"Failed to update batch status for batch_id={results['batch_id']}: {update_error}")
             raise
 
     return results

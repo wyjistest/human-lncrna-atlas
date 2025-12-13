@@ -345,7 +345,7 @@ export function LncRNAChIPSeqOverlapTable({
         }
       }
     }
-  }, [availableChIPSeqMarks, tGenomeBrowser])
+  }, [availableChIPSeqMarks, selectedChIPSeqMarks, tGenomeBrowser])
 
   // Handle ChIP-seq toggle
   const handleChIPSeqToggle = useCallback((checked: boolean) => {

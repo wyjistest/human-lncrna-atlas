@@ -56,6 +56,8 @@ from app.schemas.lncrna_chipseq_overlap import (
     OverlapFilters,
     OverlapResponse,
     OverlapResult,
+    OverlapSortField,
+    OverlapSortOrder,
     OverlapStatistics,
     MarkTypeStats,
     CellTypeStats,
@@ -248,13 +250,13 @@ def get_lncrna_chipseq_overlaps_from_mv(
 
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     sort_field_map = {
-        "binding_affinity": "binding_affinity",
-        "overlap_length": "overlap_length",
-        "peak_fold_enrichment": "fold_enrichment",
-        "peak_qvalue": "qvalue"
+        OverlapSortField.binding_affinity: "binding_affinity",
+        OverlapSortField.overlap_length: "overlap_length",
+        OverlapSortField.peak_fold_enrichment: "fold_enrichment",
+        OverlapSortField.peak_qvalue: "qvalue",
     }
-    sort_field = sort_field_map.get(filters.sort_by, "binding_affinity")
-    sort_direction = "DESC" if filters.sort_order.lower() == "desc" else "ASC"
+    sort_field = sort_field_map[filters.sort_by]
+    sort_direction = "DESC" if filters.sort_order == OverlapSortOrder.desc else "ASC"
 
     # Count query using materialized view
     count_sql = text("""
@@ -273,7 +275,8 @@ def get_lncrna_chipseq_overlaps_from_mv(
     """)
 
     # Main data query using materialized view
-    data_sql = text(f"""
+    data_sql = text(
+        f"""
         SELECT
             overlap_id,
             regulation_id,
@@ -308,7 +311,8 @@ def get_lncrna_chipseq_overlaps_from_mv(
             AND (:min_overlap_length IS NULL OR overlap_length >= :min_overlap_length)
         ORDER BY {sort_field} {sort_direction}
         LIMIT :page_size OFFSET :offset
-    """)
+        """  # noqa: S608
+    )
 
     # Calculate offset
     offset = (filters.page - 1) * filters.page_size
@@ -390,15 +394,13 @@ def get_lncrna_chipseq_overlaps_query(
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     # Only allowed values from the map can be used in the SQL query
     sort_field_map = {
-        "binding_affinity": "r.binding_affinity",
-        "overlap_length": "overlap_length",
-        "peak_fold_enrichment": "p.fold_enrichment",
-        "peak_qvalue": "p.qvalue"
+        OverlapSortField.binding_affinity: "r.binding_affinity",
+        OverlapSortField.overlap_length: "overlap_length",
+        OverlapSortField.peak_fold_enrichment: "p.fold_enrichment",
+        OverlapSortField.peak_qvalue: "p.qvalue",
     }
-    # Validate sort_by against whitelist, default to safe value if not found
-    sort_field = sort_field_map.get(filters.sort_by, "r.binding_affinity")
-    # Force sort_direction to be only ASC or DESC (no user input passes through)
-    sort_direction = "DESC" if filters.sort_order.lower() == "desc" else "ASC"
+    sort_field = sort_field_map[filters.sort_by]
+    sort_direction = "DESC" if filters.sort_order == OverlapSortOrder.desc else "ASC"
 
     # Count query
     count_sql = text("""
@@ -427,7 +429,8 @@ def get_lncrna_chipseq_overlaps_query(
     """)
 
     # Main data query
-    data_sql = text(f"""
+    data_sql = text(
+        f"""
         SELECT
             CONCAT('reg_', r.regulation_id, '_peak_', p.peak_id) AS overlap_id,
             r.regulation_id,
@@ -474,7 +477,8 @@ def get_lncrna_chipseq_overlaps_query(
                  (LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start)) >= :min_overlap_length)
         ORDER BY {sort_field} {sort_direction}
         LIMIT :page_size OFFSET :offset
-    """)
+        """  # noqa: S608
+    )
 
     # Calculate offset
     offset = (filters.page - 1) * filters.page_size
@@ -547,8 +551,14 @@ def get_lncrna_chipseq_overlaps(
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value (FDR) for peaks"),
     page: int = Query(1, ge=1, description="Page number (starts from 1)"),
     page_size: int = Query(100, ge=1, le=1000, description="Items per page"),
-    sort_by: Optional[str] = Query("binding_affinity", description="Sort field (binding_affinity, overlap_length, peak_fold_enrichment)"),
-    sort_order: Optional[str] = Query("desc", description="Sort order (asc or desc)"),
+    sort_by: OverlapSortField = Query(
+        OverlapSortField.binding_affinity,
+        description="Sort field (binding_affinity, overlap_length, peak_fold_enrichment, peak_qvalue)",
+    ),
+    sort_order: OverlapSortOrder = Query(
+        OverlapSortOrder.desc,
+        description="Sort order (asc or desc)",
+    ),
     db: Session = Depends(get_db)
 ):
     """
@@ -585,7 +595,7 @@ def get_lncrna_chipseq_overlaps(
     - **max_qvalue**: Optional, maximum Q-value (FDR) for ChIP-seq peaks (default: 0.05)
     - **page**: Page number, starting from 1 (default: 1)
     - **page_size**: Items per page, max 1000 (default: 100)
-    - **sort_by**: Sort field - "binding_affinity", "overlap_length", or "peak_fold_enrichment" (default: "binding_affinity")
+    - **sort_by**: Sort field - "binding_affinity", "overlap_length", "peak_fold_enrichment", or "peak_qvalue" (default: "binding_affinity")
     - **sort_order**: Sort direction - "asc" or "desc" (default: "desc")
 
     ## Response
@@ -734,7 +744,8 @@ def get_overlap_statistics(
     """
 
     # Main statistics query
-    stats_sql = text(f"""
+    stats_sql = text(
+        f"""
         SELECT
             COUNT(*) AS total_overlaps,
             COUNT(DISTINCT r.lncrna_gene_id) AS unique_lncrnas,
@@ -753,10 +764,12 @@ def get_overlap_statistics(
         JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
         WHERE {base_where}
-    """)
+        """  # noqa: S608
+    )
 
     # By mark type breakdown query
-    by_mark_sql = text(f"""
+    by_mark_sql = text(
+        f"""
         SELECT
             m.mark_name AS mark_type,
             COUNT(*) AS count,
@@ -772,10 +785,12 @@ def get_overlap_statistics(
         WHERE {base_where}
         GROUP BY m.mark_name
         ORDER BY count DESC
-    """)
+        """  # noqa: S608
+    )
 
     # By cell type breakdown query
-    by_cell_sql = text(f"""
+    by_cell_sql = text(
+        f"""
         SELECT
             e.cell_type,
             COUNT(*) AS count
@@ -790,7 +805,8 @@ def get_overlap_statistics(
         WHERE {base_where}
         GROUP BY e.cell_type
         ORDER BY count DESC
-    """)
+        """  # noqa: S608
+    )
 
     params = {
         "lncrna_gene_id": lncrna_gene_id,
@@ -1038,7 +1054,8 @@ def get_overlap_heatmap(
 
     try:
         # Step 1: Get all distinct X-axis values (ordered alphabetically)
-        x_labels_sql = text(f"""
+        x_labels_sql = text(
+            f"""
             SELECT DISTINCT {x_select} AS x_value
             FROM regulations r
             JOIN chipseq_peaks_human p ON
@@ -1050,7 +1067,8 @@ def get_overlap_heatmap(
             JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
             WHERE {base_where}
             ORDER BY x_value
-        """)
+            """  # noqa: S608
+        )
 
         x_results = db.execute(x_labels_sql, params).fetchall()
         x_labels = [row.x_value for row in x_results if row.x_value]
@@ -1068,7 +1086,8 @@ def get_overlap_heatmap(
             )
 
         # Step 2: Get top N Y-axis values (by total count across all X values)
-        y_labels_sql = text(f"""
+        y_labels_sql = text(
+            f"""
             SELECT {y_select} AS y_value, COUNT(*) AS total_count
             FROM regulations r
             {y_join}
@@ -1084,7 +1103,8 @@ def get_overlap_heatmap(
             GROUP BY {y_select}
             ORDER BY total_count DESC
             LIMIT :top_n
-        """)
+            """  # noqa: S608
+        )
 
         y_results = db.execute(y_labels_sql, params).fetchall()
         y_labels = [row.y_value for row in y_results if row.y_value]
@@ -1103,7 +1123,8 @@ def get_overlap_heatmap(
 
         # Step 3: Get heatmap data for all X-Y combinations
         # Build the main aggregation query
-        heatmap_sql = text(f"""
+        heatmap_sql = text(
+            f"""
             SELECT
                 {x_select} AS x_value,
                 {y_select} AS y_value,
@@ -1121,7 +1142,8 @@ def get_overlap_heatmap(
                 AND {y_select} = ANY(:y_labels)
             GROUP BY {x_group}, {y_select}
             ORDER BY x_value, y_value
-        """)
+            """  # noqa: S608
+        )
 
         params["y_labels"] = y_labels
 
@@ -1330,7 +1352,7 @@ def generate_overlap_export(
             AND (:min_overlap_length IS NULL OR
                  (LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start)) >= :min_overlap_length)
         ORDER BY r.best_peak_chr, overlap_start
-        LIMIT :max_rows
+        LIMIT :limit OFFSET :offset
     """)
 
     params = {
@@ -1343,7 +1365,6 @@ def generate_overlap_export(
         "min_peak_strength": min_peak_strength,
         "max_qvalue": max_qvalue,
         "min_overlap_length": min_overlap_length,
-        "max_rows": max_rows
     }
 
     # Stream data in batches
@@ -1353,9 +1374,15 @@ def generate_overlap_export(
 
     try:
         while rows_exported < max_rows:
-            # Fetch batch
-            batch_sql = text(str(data_sql).replace('LIMIT :max_rows', f'LIMIT {batch_size} OFFSET {offset}'))
-            batch = db.execute(batch_sql, params).fetchall()
+            batch_limit = min(batch_size, max_rows - rows_exported)
+            batch = db.execute(
+                data_sql,
+                {
+                    **params,
+                    "limit": batch_limit,
+                    "offset": offset,
+                },
+            ).fetchall()
 
             if not batch:
                 break
@@ -1397,10 +1424,10 @@ def generate_overlap_export(
 
                 rows_exported += 1
 
-            offset += batch_size
+            offset += len(batch)
 
             # Stop if we got fewer rows than batch size (end of data)
-            if len(batch) < batch_size:
+            if len(batch) < batch_limit:
                 break
 
     except Exception as e:

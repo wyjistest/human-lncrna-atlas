@@ -12,9 +12,9 @@
 日期: 2025-11-20
 """
 
+import os
 import psycopg2
-from psycopg2.extras import execute_values
-from datetime import datetime
+from psycopg2 import sql
 from typing import Optional, Dict, List
 import logging
 import re
@@ -199,11 +199,15 @@ class DataQualityChecker:
         with self.conn.cursor() as cur:
             for col in columns:
                 validated_col = validate_sql_identifier(col)
-                cur.execute(f"""
+                query = sql.SQL("""
                     SELECT COUNT(*)
-                    FROM {validated_table}
-                    WHERE {validated_col} IS NULL
-                """)
+                    FROM {table}
+                    WHERE {column} IS NULL
+                """).format(
+                    table=sql.Identifier(validated_table),
+                    column=sql.Identifier(validated_col),
+                )
+                cur.execute(query)
                 null_count = cur.fetchone()[0]
 
                 if null_count > 0:
@@ -233,14 +237,19 @@ class DataQualityChecker:
         validated_table = validate_sql_identifier(table)
         validated_columns = [validate_sql_identifier(col) for col in unique_columns]
         cols_str = ', '.join(validated_columns)
+        cols_sql = sql.SQL(", ").join(sql.Identifier(col) for col in validated_columns)
 
         with self.conn.cursor() as cur:
-            cur.execute(f"""
-                SELECT {cols_str}, COUNT(*)
-                FROM {validated_table}
-                GROUP BY {cols_str}
+            query = sql.SQL("""
+                SELECT {cols}, COUNT(*)
+                FROM {table}
+                GROUP BY {cols}
                 HAVING COUNT(*) > 1
-            """)
+            """).format(
+                cols=cols_sql,
+                table=sql.Identifier(validated_table),
+            )
+            cur.execute(query)
 
             duplicates = cur.fetchall()
 
@@ -264,29 +273,41 @@ class DataQualityChecker:
         Returns:
             孤立记录数量
         """
+        # Validate identifiers to prevent SQL injection
+        validated_table = validate_sql_identifier(table)
+        validated_fk_column = validate_sql_identifier(fk_column)
+        validated_ref_table = validate_sql_identifier(ref_table)
+        validated_ref_column = validate_sql_identifier(ref_column)
+
         with self.conn.cursor() as cur:
-            cur.execute(f"""
+            query = sql.SQL("""
                 SELECT COUNT(*)
-                FROM {table} t
+                FROM {table} AS t
                 WHERE t.{fk_column} IS NOT NULL
                   AND NOT EXISTS (
-                    SELECT 1 FROM {ref_table} r
+                    SELECT 1 FROM {ref_table} AS r
                     WHERE r.{ref_column} = t.{fk_column}
                   )
-            """)
+            """).format(
+                table=sql.Identifier(validated_table),
+                fk_column=sql.Identifier(validated_fk_column),
+                ref_table=sql.Identifier(validated_ref_table),
+                ref_column=sql.Identifier(validated_ref_column),
+            )
+            cur.execute(query)
 
             orphan_count = cur.fetchone()[0]
 
             if orphan_count > 0:
                 issue = {
-                    'table': table,
+                    'table': validated_table,
                     'type': 'orphan_fk',
-                    'fk_column': fk_column,
-                    'ref_table': ref_table,
+                    'fk_column': validated_fk_column,
+                    'ref_table': validated_ref_table,
                     'count': orphan_count
                 }
                 self.issues.append(issue)
-                logger.warning(f"发现 {orphan_count} 条孤立外键在 {table}.{fk_column}")
+                logger.warning(f"发现 {orphan_count} 条孤立外键在 {validated_table}.{validated_fk_column}")
 
         return orphan_count
 
@@ -298,25 +319,33 @@ class DataQualityChecker:
         Returns:
             超出范围的记录数量
         """
+        # Validate identifiers to prevent SQL injection
+        validated_table = validate_sql_identifier(table)
+        validated_column = validate_sql_identifier(column)
+
         with self.conn.cursor() as cur:
-            cur.execute(f"""
+            query = sql.SQL("""
                 SELECT COUNT(*)
                 FROM {table}
                 WHERE {column} < %s OR {column} > %s
-            """, (min_value, max_value))
+            """).format(
+                table=sql.Identifier(validated_table),
+                column=sql.Identifier(validated_column),
+            )
+            cur.execute(query, (min_value, max_value))
 
             out_of_range = cur.fetchone()[0]
 
             if out_of_range > 0:
                 issue = {
-                    'table': table,
-                    'column': column,
+                    'table': validated_table,
+                    'column': validated_column,
                     'type': 'out_of_range',
                     'range': (min_value, max_value),
                     'count': out_of_range
                 }
                 self.issues.append(issue)
-                logger.warning(f"发现 {out_of_range} 条记录超出范围在 {table}.{column}")
+                logger.warning(f"发现 {out_of_range} 条记录超出范围在 {validated_table}.{validated_column}")
 
         return out_of_range
 
@@ -338,10 +367,10 @@ class DataQualityChecker:
 if __name__ == "__main__":
     # 连接数据库
     conn = psycopg2.connect(
-        host="localhost",
-        database="lncrna_network",
-        user="postgres",
-        password="your_password"
+        host=os.getenv("PGHOST", "localhost"),
+        database=os.getenv("PGDATABASE", "lncrna_network"),
+        user=os.getenv("PGUSER", "postgres"),
+        password=os.getenv("PGPASSWORD", ""),
     )
 
     # 示例1: 使用批次管理器

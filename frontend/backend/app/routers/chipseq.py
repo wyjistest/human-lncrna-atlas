@@ -9,123 +9,27 @@ Phase 2.5 Enhancements:
 主路由文件，保留全局配置并整合子路由
 """
 import logging
-import ipaddress
-import inspect
-from functools import wraps
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
 from app.schemas.chipseq import ChIPSeqGlobalStats, ChIPSeqMarkStats
-
-# ============================================================================
-# Rate Limiting Setup (slowapi)
-# ============================================================================
-try:
-    from slowapi import Limiter
-    from slowapi.util import get_remote_address
-    SLOWAPI_AVAILABLE = True
-except ImportError:
-    SLOWAPI_AVAILABLE = False
-    Limiter = None
-
-# Initialize limiter if slowapi is available
-if SLOWAPI_AVAILABLE:
-    limiter = Limiter(key_func=get_remote_address)
-    # Export for sub-routers
-    chipseq_limiter = limiter
-else:
-    limiter = None
-    chipseq_limiter = None
+from app.routers.chipseq_rate_limit import (
+    chipseq_limiter,
+    rate_limit,
+    DEFAULT_FLANKING_REGION,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/features/chipseq", tags=["chipseq"])
 
-# Default flanking region for gene queries (10kb)
-DEFAULT_FLANKING_REGION = 10000
-
-
-# =============================================================================
-# Rate Limiting Decorator Helper (exported for sub-routers)
-# =============================================================================
-
-def rate_limit(limit_string: str):
-    """
-    Rate limiting decorator that gracefully handles missing slowapi.
-
-    Args:
-        limit_string: Rate limit string (e.g., "30/minute", "5/minute")
-
-    Usage:
-        @rate_limit("30/minute")
-        def my_endpoint(request: Request, ...):
-            ...
-    """
-    def decorator(func):
-        if not (SLOWAPI_AVAILABLE and limiter):
-            return func
-
-        limited_func = limiter.limit(limit_string)(func)
-
-        def _is_private_request(req: Request) -> bool:
-            client_ip = req.client.host if req.client else ""
-            try:
-                ip = ipaddress.ip_address(client_ip)
-                return ip.is_private or ip.is_loopback or ip.is_link_local
-            except ValueError:
-                return False
-
-        if inspect.iscoroutinefunction(func):
-            @wraps(func)
-            async def async_wrapper(*args, **kwargs):
-                request = next((v for v in kwargs.values() if isinstance(v, Request)), None) or \
-                          next((a for a in args if isinstance(a, Request)), None)
-                if request and _is_private_request(request):
-                    return await func(*args, **kwargs)
-                return await limited_func(*args, **kwargs)
-
-            return async_wrapper
-
-        @wraps(func)
-        def sync_wrapper(*args, **kwargs):
-            request = next((v for v in kwargs.values() if isinstance(v, Request)), None) or \
-                      next((a for a in args if isinstance(a, Request)), None)
-            if request and _is_private_request(request):
-                return func(*args, **kwargs)
-            return limited_func(*args, **kwargs)
-
-        return sync_wrapper
-    return decorator
-
-
-# =============================================================================
-# Rate Limit Exception Handler (for router-level handling)
-# =============================================================================
-
-async def rate_limit_exceeded_handler(request: Request, exc):
-    """Custom handler for rate limit exceeded errors"""
-    return JSONResponse(
-        status_code=429,
-        content={
-            "success": False,
-            "error": {
-                "code": "RATE_LIMIT_EXCEEDED",
-                "message": "Too many requests. Please try again later.",
-                "detail": str(exc.detail) if hasattr(exc, 'detail') else "Rate limit exceeded",
-                "retry_after": getattr(exc, 'retry_after', 60)
-            }
-        }
-    )
-
 
 # =============================================================================
 # Import and Register Sub-routers
 # NOTE: These imports are placed here (after rate_limit definition) to avoid
-# circular imports. Sub-routers import rate_limit and DEFAULT_FLANKING_REGION
-# from this module.
+# circular imports.
 # =============================================================================
 
 from app.routers.chipseq_marks import router as marks_router  # noqa: E402

@@ -34,6 +34,7 @@ from app.routers.igv_search import router as search_router
 from app.routers.igv_regulations import router as regulations_router
 from app.routers.igv_repeatmasker import router as repeatmasker_router
 from app.routers.igv_chipseq import router as chipseq_router
+from app.routers.igv_overlap_track import router as overlap_track_router
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ router.include_router(search_router)
 router.include_router(regulations_router)
 router.include_router(repeatmasker_router)
 router.include_router(chipseq_router)
+router.include_router(overlap_track_router)
 
 
 @router.get("/config/{species_id}", response_model=IGVConfigResponse)
@@ -517,4 +519,3 @@ def get_regulations_count(
         },
         "message": f"Found {count} regulations in the specified region",
     }
-

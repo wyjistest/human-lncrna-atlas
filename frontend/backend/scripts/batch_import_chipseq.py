@@ -12,7 +12,6 @@ import json
 import subprocess
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict
 import time
 
 
@@ -110,7 +109,7 @@ def import_single_experiment(exp_config: dict, options: dict) -> dict:
                 if 'Imported' in line and 'peaks' in line:
                     try:
                         peak_count = int(''.join(filter(str.isdigit, line.split('Imported')[1].split('peaks')[0])))
-                    except:
+                    except (ValueError, IndexError):
                         pass
 
             print(f'[{mark_type} / {cell_line}] ✓ Completed in {elapsed:.1f}s ({peak_count} peaks)')
@@ -214,14 +213,14 @@ def batch_import(config_file: Path, parallel: int = 1):
         print(f'Avg time per experiment: {avg_time:.1f}s')
 
     # List successful imports
-    print(f'\n✓ Successful imports:')
+    print('\n✓ Successful imports:')
     for r in results:
         if r['success']:
             print(f"  - {r['mark_type']:10s} / {r['cell_line']:10s} ({r.get('peak_count', 0):,} peaks)")
 
     # List failures
     if failed_count > 0:
-        print(f'\n✗ Failed imports:')
+        print('\n✗ Failed imports:')
         for r in results:
             if not r['success']:
                 print(f"  - {r['mark_type']:10s} / {r['cell_line']:10s} - {r.get('error', 'Unknown')[:80]}")
@@ -232,21 +231,23 @@ def batch_import(config_file: Path, parallel: int = 1):
         print('Refreshing materialized views...')
         print('='*60)
 
-        refresh_cmd = """
-        psql -U amax -d lncrna_production -c "
-        REFRESH MATERIALIZED VIEW mv_chipseq_mark_stats;
-        REFRESH MATERIALIZED VIEW mv_gene_mark_summary;
-        SELECT 'Materialized views refreshed' AS status;
-        "
-        """
+        refresh_sql = (
+            "REFRESH MATERIALIZED VIEW mv_chipseq_mark_stats; "
+            "REFRESH MATERIALIZED VIEW mv_gene_mark_summary; "
+            "SELECT 'Materialized views refreshed' AS status;"
+        )
 
         try:
-            subprocess.run(refresh_cmd, shell=True, check=True)
+            subprocess.run(
+                ["psql", "-U", "amax", "-d", "lncrna_production", "-c", refresh_sql],
+                check=True,
+                text=True,
+            )
             print('✓ Materialized views refreshed')
         except Exception as e:
             print(f'⚠️  Warning: Failed to refresh materialized views: {e}')
 
-    print(f'\n✨ Batch import complete!')
+    print('\n✨ Batch import complete!')
     print(f'   Success rate: {success_count}/{len(results)} ({100*success_count/len(results):.1f}%)')
 
     return 0 if failed_count == 0 else 1

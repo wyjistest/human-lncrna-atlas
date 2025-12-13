@@ -9,14 +9,13 @@ ETL基类模板
 """
 
 import psycopg2
-from psycopg2.extras import execute_values
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional, Tuple
 import logging
 import csv
 from pathlib import Path
 
-from etl.templates.batch_manager import BatchManager, DataQualityChecker
+from etl.templates.batch_manager import BatchManager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

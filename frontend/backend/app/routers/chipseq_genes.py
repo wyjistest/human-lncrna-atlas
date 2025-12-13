@@ -14,6 +14,7 @@ from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.cache import cache, cached
+from app.core.exceptions import sanitize_db_error
 from app.models import Gene
 from app.schemas.chipseq import (
     GeneChIPSeqResponse,
@@ -45,8 +46,8 @@ from app.utils.chipseq_analysis import (
 )
 from app.utils.chipseq_db import parse_mark_types
 
-# 从主路由导入 rate_limit 装饰器和常量
-from app.routers.chipseq import rate_limit, DEFAULT_FLANKING_REGION
+# 从共享模块导入 rate_limit 装饰器和常量（避免与主路由形成循环依赖）
+from app.routers.chipseq_rate_limit import rate_limit, DEFAULT_FLANKING_REGION
 
 logger = logging.getLogger(__name__)
 
@@ -794,12 +795,22 @@ def get_gene_heatmap_matrix(
     marks: str = Query(
         ...,
         description="Comma-separated marks (e.g., H3K27me3,H3K4me3,H3K27ac)",
-        example="H3K27me3,H3K4me3,H3K27ac,H3K4me1"
+        examples={
+            "default": {
+                "summary": "常用组蛋白标记",
+                "value": "H3K27me3,H3K4me3,H3K27ac,H3K4me1",
+            }
+        },
     ),
     cell_types: str = Query(
         ...,
         description="Comma-separated cell types (e.g., K562,HepG2)",
-        example="K562,HepG2,GM12878,H1-hESC"
+        examples={
+            "default": {
+                "summary": "常用细胞系",
+                "value": "K562,HepG2,GM12878,H1-hESC",
+            }
+        },
     ),
     metric: str = Query(
         "median_fold_enrichment",
@@ -997,6 +1008,87 @@ def get_gene_heatmap_matrix(
     )
 
 
+def _build_batch_heatmap_gene_result(
+    *,
+    gene_id: int,
+    gene_name: str,
+    gene_ensembl_id: str,
+    chromosome: str,
+    region_start: int,
+    region_end: int,
+    mark_list: List[str],
+    cell_type_list: List[str],
+    metric: str,
+    include_details: bool,
+    stats_by_cell_mark: Dict[str, Dict[str, CellMarkStats]],
+) -> HeatmapMatrixResponse:
+    """
+    构建单个 gene 的 HeatmapMatrixResponse（供 batch endpoint 复用）。
+
+    Args:
+        gene_id/gene_name/gene_ensembl_id/chromosome: 基因元数据
+        region_start/region_end: 查询区域
+        mark_list/cell_type_list: 请求的维度顺序
+        metric/include_details: 矩阵值与 tooltip 细节开关
+        stats_by_cell_mark: stats[cell_type][mark] = CellMarkStats（缺失表示无数据）
+    """
+    details: Optional[Dict[str, Dict[str, CellMarkStats]]] = {} if include_details else None
+    matrix: List[List[Optional[float]]] = []
+
+    for cell_type in cell_type_list:
+        if include_details:
+            details.setdefault(cell_type, {})
+
+        row_values: List[Optional[float]] = []
+        for mark in mark_list:
+            cell_mark_stats = stats_by_cell_mark.get(cell_type, {}).get(mark)
+            if cell_mark_stats is None:
+                row_values.append(None)
+                continue
+
+            if metric == "median_fold_enrichment":
+                value = cell_mark_stats.median_fold_enrichment
+            elif metric == "peak_count":
+                value = float(cell_mark_stats.peak_count)
+            elif metric == "total_coverage_bp":
+                value = float(cell_mark_stats.total_coverage_bp)
+            elif metric == "avg_signal":
+                value = cell_mark_stats.avg_signal
+            else:
+                value = None
+
+            row_values.append(value)
+
+            if include_details:
+                details[cell_type][mark] = cell_mark_stats
+
+        matrix.append(row_values)
+
+    missing: List[Dict[str, str]] = []
+    for cell_type in cell_type_list:
+        for mark in mark_list:
+            if stats_by_cell_mark.get(cell_type, {}).get(mark) is None:
+                missing.append({"cell_type": cell_type, "mark": mark})
+
+    total_combos = len(cell_type_list) * len(mark_list)
+    return HeatmapMatrixResponse(
+        gene_id=gene_id,
+        gene_name=gene_name or "Unknown",
+        gene_ensembl_id=gene_ensembl_id,
+        chromosome=chromosome,
+        region_start=region_start,
+        region_end=region_end,
+        cell_types=cell_type_list,
+        marks=mark_list,
+        metric=metric,
+        matrix=matrix,
+        details=details,
+        missing_combinations=missing if missing else None,
+        total_combinations=total_combos,
+        valid_combinations=total_combos - len(missing),
+    )
+
+
 @router.post("/genes/batch-heatmap-matrix", response_model=BatchHeatmapMatrixResponse)
 @rate_limit("10/minute")  # Rate limit: 10 requests per minute per IP (batch is resource-intensive)
 def get_batch_gene_heatmap_matrix(
@@ -1062,169 +1154,154 @@ def get_batch_gene_heatmap_matrix(
     genes = db.query(Gene).filter(Gene.gene_id.in_(request.gene_ids)).all()
     gene_dict = {g.gene_id: g for g in genes}
 
-    # 3. Track results
-    successful_results: List[HeatmapMatrixResponse] = []
+    # 3. Prepare regions in request order (and capture invalid/missing genes)
+    mark_list = list(request.marks)
+    cell_type_list = list(request.cell_types)
+
+    gene_regions_values: List[str] = []
+    gene_region_bounds: Dict[int, tuple[int, int]] = {}
+    valid_gene_ids: List[int] = []
     failed_gene_ids: List[int] = []
 
-    # 4. Process each gene
-    for gene_id in request.gene_ids:
-        try:
-            if gene_id not in gene_dict:
-                logger.warning(f"Gene {gene_id} not found")
-                failed_gene_ids.append(gene_id)
-                continue
+    params: Dict[str, Any] = {
+        "marks": mark_list,
+        "cell_types": cell_type_list,
+        "max_qvalue": request.max_qvalue,
+    }
 
-            gene = gene_dict[gene_id]
-
-            # Calculate region boundaries
-            region_start = max(0, gene.gene_start - request.flanking)
-            region_end = gene.gene_end + request.flanking
-
-            # Convert string lists to arrays for SQL
-            mark_list = list(request.marks)
-            cell_type_list = list(request.cell_types)
-
-            # Execute single gene heatmap query (reuse existing logic)
-            query = text("""
-                SELECT
-                    e.cell_type,
-                    m.mark_name,
-                    p.peak_id,
-                    p.fold_enrichment,
-                    p.signal_value,
-                    p.qvalue,
-                    p.peak_start,
-                    p.peak_end
-                FROM chipseq_peaks p
-                JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-                JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-                WHERE p.species_id = :species_id
-                  AND p.chromosome = :chromosome
-                  AND p.peak_start < :region_end
-                  AND p.peak_end > :region_start
-                  AND e.is_active = TRUE
-                  AND m.mark_name = ANY(:marks)
-                  AND e.cell_type = ANY(:cell_types)
-                  AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
-                ORDER BY e.cell_type, m.mark_name
-            """)
-
-            rows = db.execute(query, {
-                "species_id": gene.species_id,
-                "chromosome": gene.chromosome,
-                "region_start": region_start,
-                "region_end": region_end,
-                "marks": mark_list,
-                "cell_types": cell_type_list,
-                "max_qvalue": request.max_qvalue,
-            }).fetchall()
-
-            # 5. Aggregate data by cell_type and mark
-            combo_stats: Dict[str, Dict[str, CellMarkStats]] = {}
-
-            for row in rows:
-                cell_type = row[0]
-                mark = row[1]
-                fold_enrichment = float(row[3]) if row[3] else None
-                signal_value = float(row[4]) if row[4] else None
-
-                if cell_type not in combo_stats:
-                    combo_stats[cell_type] = {}
-                if mark not in combo_stats[cell_type]:
-                    combo_stats[cell_type][mark] = {
-                        "median_fold_enrichment": [],
-                        "peak_count": 0,
-                        "total_coverage_bp": 0,
-                        "avg_signal": [],
-                    }
-
-                stats = combo_stats[cell_type][mark]
-                if fold_enrichment is not None:
-                    stats["median_fold_enrichment"].append(fold_enrichment)
-                if signal_value is not None:
-                    stats["avg_signal"].append(signal_value)
-                stats["peak_count"] += 1
-                stats["total_coverage_bp"] += int(row[7] - row[6]) if row[7] and row[6] else 0
-
-            # 6. Build matrix with proper metric selection
-            matrix: List[List[Optional[float]]] = []
-            details: Optional[Dict[str, Dict[str, CellMarkStats]]] = None
-
-            if request.include_details:
-                details = {}
-
-            for cell_type in cell_type_list:
-                row_values: List[Optional[float]] = []
-
-                if request.include_details and cell_type not in details:
-                    details[cell_type] = {}
-
-                for mark in mark_list:
-                    cell_mark_data = combo_stats.get(cell_type, {}).get(mark)
-
-                    if cell_mark_data is None:
-                        row_values.append(None)
-                    else:
-                        # Select metric value
-                        if request.metric == "median_fold_enrichment":
-                            values = cell_mark_data["median_fold_enrichment"]
-                            value = statistics.median(values) if values else None
-                        elif request.metric == "peak_count":
-                            value = float(cell_mark_data["peak_count"])
-                        elif request.metric == "total_coverage_bp":
-                            value = float(cell_mark_data["total_coverage_bp"])
-                        elif request.metric == "avg_signal":
-                            values = cell_mark_data["avg_signal"]
-                            value = (sum(values) / len(values)) if values else None
-                        else:
-                            value = None
-
-                        row_values.append(value)
-
-                        # Store details if requested
-                        if request.include_details:
-                            details[cell_type][mark] = CellMarkStats(
-                                median_fold_enrichment=statistics.median(cell_mark_data["median_fold_enrichment"]) if cell_mark_data["median_fold_enrichment"] else None,
-                                peak_count=cell_mark_data["peak_count"],
-                                total_coverage_bp=cell_mark_data["total_coverage_bp"],
-                                avg_signal=(sum(cell_mark_data["avg_signal"]) / len(cell_mark_data["avg_signal"])) if cell_mark_data["avg_signal"] else None,
-                            )
-
-                matrix.append(row_values)
-
-            # 7. Find missing combinations
-            missing: List[Dict[str, str]] = []
-            for cell_type in cell_type_list:
-                for mark in mark_list:
-                    if combo_stats.get(cell_type, {}).get(mark) is None:
-                        missing.append({"cell_type": cell_type, "mark": mark})
-
-            total_combos = len(cell_type_list) * len(mark_list)
-
-            # 8. Create response for this gene
-            result = HeatmapMatrixResponse(
-                gene_id=gene.gene_id,
-                gene_name=gene.gene_name or "Unknown",
-                gene_ensembl_id=gene.gene_ensembl_id,
-                chromosome=gene.chromosome,
-                region_start=region_start,
-                region_end=region_end,
-                cell_types=cell_type_list,
-                marks=mark_list,
-                metric=request.metric,
-                matrix=matrix,
-                details=details,
-                missing_combinations=missing if missing else None,
-                total_combinations=total_combos,
-                valid_combinations=total_combos - len(missing),
-            )
-
-            successful_results.append(result)
-
-        except Exception as e:
-            logger.error(f"Error processing gene {gene_id}: {str(e)}")
+    for idx, gene_id in enumerate(request.gene_ids):
+        gene = gene_dict.get(gene_id)
+        if not gene:
+            logger.warning(f"Gene {gene_id} not found")
             failed_gene_ids.append(gene_id)
             continue
+
+        if gene.gene_start is None or gene.gene_end is None or not gene.chromosome:
+            logger.warning(f"Gene {gene_id} missing coordinate/chromosome information")
+            failed_gene_ids.append(gene_id)
+            continue
+
+        region_start = max(0, gene.gene_start - request.flanking)
+        region_end = gene.gene_end + request.flanking
+
+        gene_region_bounds[gene_id] = (region_start, region_end)
+        valid_gene_ids.append(gene_id)
+
+        gene_regions_values.append(
+            f"(:gene_id_{idx}, :species_id_{idx}, :chromosome_{idx}, :region_start_{idx}, :region_end_{idx})"
+        )
+        params.update({
+            f"gene_id_{idx}": gene.gene_id,
+            f"species_id_{idx}": gene.species_id,
+            f"chromosome_{idx}": gene.chromosome,
+            f"region_start_{idx}": region_start,
+            f"region_end_{idx}": region_end,
+        })
+
+    if not valid_gene_ids:
+        query_time_ms = int((time.time() - start_time) * 1000)
+        return BatchHeatmapMatrixResponse(
+            genes=[],
+            total_genes=len(request.gene_ids),
+            successful_genes=0,
+            failed_genes=failed_gene_ids,
+            query_time_ms=query_time_ms,
+        )
+
+    # 4. Single aggregated query for all genes (avoid N+1 queries)
+    values_clause = ",\n        ".join(gene_regions_values)
+    # 该 SQL 仅动态拼接参数占位符（:gene_id_0 ...），不包含任何用户输入，用于避免 N+1 查询。
+    # ruff(S608) 会对动态 SQL 拼接做保守告警，这里仅注入受控的占位符字符串。
+    query_sql = (
+        """
+        WITH gene_regions (gene_id, species_id, chromosome, region_start, region_end) AS (
+            VALUES
+        """
+        + values_clause
+        + """
+        )
+        SELECT
+            gr.gene_id,
+            e.cell_type,
+            m.mark_name AS mark_name,
+            COUNT(*) AS peak_count,
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN p.peak_start IS NOT NULL AND p.peak_end IS NOT NULL THEN (p.peak_end - p.peak_start)
+                        ELSE 0
+                    END
+                ),
+                0
+            ) AS total_coverage_bp,
+            AVG(p.signal_value) AS avg_signal,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY p.fold_enrichment)
+                FILTER (WHERE p.fold_enrichment IS NOT NULL) AS median_fold_enrichment,
+            STDDEV_SAMP(p.fold_enrichment)
+                FILTER (WHERE p.fold_enrichment IS NOT NULL) AS std_fold_enrichment
+        FROM gene_regions gr
+        JOIN chipseq_peaks p ON
+            p.species_id = gr.species_id
+            AND p.chromosome = gr.chromosome
+            AND p.peak_start < gr.region_end
+            AND p.peak_end > gr.region_start
+        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+        WHERE
+            e.is_active = TRUE
+            AND m.mark_name = ANY(:marks)
+            AND e.cell_type = ANY(:cell_types)
+            AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+        GROUP BY gr.gene_id, e.cell_type, m.mark_name
+        ORDER BY gr.gene_id, e.cell_type, m.mark_name
+        """
+    )  # noqa: S608
+    query = text(query_sql)
+
+    try:
+        rows = db.execute(query, params).fetchall()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
+
+    # 5. Index results: stats[gene_id][cell_type][mark] = CellMarkStats
+    stats_by_gene: Dict[int, Dict[str, Dict[str, CellMarkStats]]] = {}
+    for row in rows:
+        gene_id = int(row.gene_id)
+        cell_type = str(row.cell_type)
+        mark_name = str(row.mark_name)
+
+        stats_by_gene.setdefault(gene_id, {}).setdefault(cell_type, {})[mark_name] = CellMarkStats(
+            median_fold_enrichment=float(row.median_fold_enrichment) if row.median_fold_enrichment is not None else None,
+            peak_count=int(row.peak_count) if row.peak_count is not None else 0,
+            total_coverage_bp=int(row.total_coverage_bp) if row.total_coverage_bp is not None else 0,
+            avg_signal=float(row.avg_signal) if row.avg_signal is not None else None,
+            std_fold_enrichment=float(row.std_fold_enrichment) if row.std_fold_enrichment is not None else None,
+        )
+
+    # 6. Build per-gene responses (preserve request ordering)
+    successful_results: List[HeatmapMatrixResponse] = []
+    for gene_id in valid_gene_ids:
+        try:
+            gene = gene_dict[gene_id]
+            region_start, region_end = gene_region_bounds[gene_id]
+            successful_results.append(
+                _build_batch_heatmap_gene_result(
+                    gene_id=gene.gene_id,
+                    gene_name=gene.gene_name or "Unknown",
+                    gene_ensembl_id=gene.gene_ensembl_id,
+                    chromosome=gene.chromosome,
+                    region_start=region_start,
+                    region_end=region_end,
+                    mark_list=mark_list,
+                    cell_type_list=cell_type_list,
+                    metric=request.metric,
+                    include_details=request.include_details,
+                    stats_by_cell_mark=stats_by_gene.get(gene_id, {}),
+                )
+            )
+        except Exception as e:
+            logger.error(f"Error building batch heatmap result for gene {gene_id}: {e}", exc_info=True)
+            failed_gene_ids.append(gene_id)
 
     # 9. Calculate query time
     query_time_ms = int((time.time() - start_time) * 1000)
@@ -1238,5 +1315,3 @@ def get_batch_gene_heatmap_matrix(
         failed_genes=failed_gene_ids,
         query_time_ms=query_time_ms,
     )
-
-

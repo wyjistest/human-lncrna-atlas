@@ -207,9 +207,9 @@ export async function prefetchBatchGeneHeatmap(
  * @param results - Results from useBatchGeneHeatmap
  */
 export function useBatchGeneHeatmapStatus(results: ReturnType<typeof useBatchGeneHeatmap>) {
-  return useMemo(() => {
-    const { queryStatus } = results
+  const { queryStatus } = results
 
+  return useMemo(() => {
     const loadingGenes = queryStatus.filter((s) => s.isPending).map((s) => s.gene_name)
     const failedGenes = queryStatus.filter((s) => s.isError).map((s) => s.gene_name)
     const successGenes = queryStatus.filter((s) => s.isSuccess).map((s) => s.gene_name)
@@ -225,7 +225,7 @@ export function useBatchGeneHeatmapStatus(results: ReturnType<typeof useBatchGen
       anySuccess: successGenes.length > 0,
       anyError: failedGenes.length > 0,
     }
-  }, [results.queryStatus])
+  }, [queryStatus])
 }
 
 export default useBatchGeneHeatmap

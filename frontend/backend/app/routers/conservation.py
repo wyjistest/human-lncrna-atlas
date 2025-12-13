@@ -16,6 +16,7 @@ from sqlalchemy import func, distinct, String
 
 from app.core.database import get_db
 from app.core.cache import cache, CacheService
+from app.core.utils import escape_like_pattern
 from app.models import CoreGene, Gene, Regulation, Species
 from app.schemas.conservation import (
     SPECIES_MAP,
@@ -89,6 +90,84 @@ def get_lncrna_core_ids(db: Session) -> List[int]:
         .filter(CoreGene.gene_type == "lncRNA")
         .all()
     ]
+
+
+def _build_conserved_regulation_items(results: list, db: Session) -> List[ConservedRegulationItem]:
+    """
+    Build ConservedRegulationItem list from query results.
+
+    Performance: batch compute conservation_map for all core_ids to avoid N+1 queries.
+    """
+    # Batch compute conservation labels for all core_ids in this page
+    core_ids: Set[int] = set()
+    for row in results:
+        if row.lncrna_core_id is not None:
+            core_ids.add(row.lncrna_core_id)
+        if row.target_core_id is not None:
+            core_ids.add(row.target_core_id)
+
+    conservation_map = compute_conservation_map(list(core_ids), db) if core_ids else {}
+
+    items: List[ConservedRegulationItem] = []
+    for row in results:
+        # Parse species:ba pairs and build structured data (deduplicate by species)
+        species_ba_dict: Dict[int, List[float]] = {}  # species_id -> list of BA values
+        species_names_dict: Dict[int, str] = {}  # species_id -> species_name
+
+        if row.species_ba_pairs:
+            for pair in row.species_ba_pairs.split(','):
+                if ':' in pair:
+                    sp_name, ba_str = pair.split(':', 1)
+                    sp_name = sp_name.strip()
+                    sp_id = SPECIES_NAME_TO_ID.get(sp_name)
+                    if sp_id is not None:
+                        if sp_id not in species_ba_dict:
+                            species_ba_dict[sp_id] = []
+                            species_names_dict[sp_id] = sp_name
+                        try:
+                            ba_val = float(ba_str) if ba_str and ba_str != 'None' else None
+                            if ba_val is not None:
+                                species_ba_dict[sp_id].append(ba_val)
+                        except ValueError:
+                            pass
+
+        # Build deduplicated species_ba_list
+        species_ba_list: List[SpeciesBindingAffinity] = []
+        all_ba_values: List[float] = []
+
+        for sp_id in sorted(species_ba_dict.keys()):
+            ba_vals = species_ba_dict[sp_id]
+            avg_species_ba = sum(ba_vals) / len(ba_vals) if ba_vals else None
+            species_ba_list.append(SpeciesBindingAffinity(
+                species_id=sp_id,
+                species_name=species_names_dict[sp_id],
+                binding_affinity=round(avg_species_ba, 2) if avg_species_ba is not None else None
+            ))
+            if ba_vals:
+                all_ba_values.extend(ba_vals)
+
+        # Get unique species IDs
+        species_ids = sorted(species_ba_dict.keys())
+
+        # Calculate overall average binding affinity
+        avg_ba = sum(all_ba_values) / len(all_ba_values) if all_ba_values else None
+
+        lncrna_label, _ = conservation_map.get(row.lncrna_core_id, ("0000", 0))
+
+        items.append(ConservedRegulationItem(
+            core_id=row.lncrna_core_id,
+            lncrna_gene_name=row.lncrna_symbol,
+            lncrna_ensembl_id=None,  # Not available in current query
+            target_gene_name=row.target_symbol,
+            target_ensembl_id=None,  # Not available in current query
+            conservation_label=lncrna_label,
+            species_count=row.species_count,
+            species_ids=species_ids,
+            avg_binding_affinity=round(avg_ba, 2) if avg_ba is not None else None,
+            species_binding_affinities=species_ba_list
+        ))
+
+    return items
 
 
 # =============================================================================
@@ -427,12 +506,14 @@ def get_conserved_regulations(
 
     # Apply symbol filters if provided
     if lncrna_symbol:
+        escaped = escape_like_pattern(lncrna_symbol)
         base_query = base_query.filter(
-            LncRNACore.canonical_symbol.ilike(f"%{lncrna_symbol}%")
+            LncRNACore.canonical_symbol.ilike(f"%{escaped}%", escape="\\")
         )
     if target_symbol:
+        escaped = escape_like_pattern(target_symbol)
         base_query = base_query.filter(
-            TargetCore.canonical_symbol.ilike(f"%{target_symbol}%")
+            TargetCore.canonical_symbol.ilike(f"%{escaped}%", escape="\\")
         )
 
     # Count total (using subquery for efficiency)
@@ -449,69 +530,7 @@ def get_conserved_regulations(
         .all()
     )
 
-    # Build items
-    items = []
-    for row in results:
-        # Parse species:ba pairs and build structured data (deduplicate by species)
-        species_ba_dict: Dict[int, List[float]] = {}  # species_id -> list of BA values
-        species_names_dict: Dict[int, str] = {}  # species_id -> species_name
-
-        if row.species_ba_pairs:
-            for pair in row.species_ba_pairs.split(','):
-                if ':' in pair:
-                    sp_name, ba_str = pair.split(':', 1)
-                    sp_name = sp_name.strip()
-                    # Get species ID from name
-                    sp_id = SPECIES_NAME_TO_ID.get(sp_name)
-                    if sp_id is not None:
-                        if sp_id not in species_ba_dict:
-                            species_ba_dict[sp_id] = []
-                            species_names_dict[sp_id] = sp_name
-                        try:
-                            ba_val = float(ba_str) if ba_str and ba_str != 'None' else None
-                            if ba_val is not None:
-                                species_ba_dict[sp_id].append(ba_val)
-                        except ValueError:
-                            pass
-
-        # Build deduplicated species_ba_list
-        species_ba_list: List[SpeciesBindingAffinity] = []
-        all_ba_values: List[float] = []
-
-        for sp_id in sorted(species_ba_dict.keys()):
-            ba_vals = species_ba_dict[sp_id]
-            avg_species_ba = sum(ba_vals) / len(ba_vals) if ba_vals else None
-            species_ba_list.append(SpeciesBindingAffinity(
-                species_id=sp_id,
-                species_name=species_names_dict[sp_id],
-                binding_affinity=round(avg_species_ba, 2) if avg_species_ba is not None else None
-            ))
-            if ba_vals:
-                all_ba_values.extend(ba_vals)
-
-        # Get unique species IDs
-        species_ids = sorted(species_ba_dict.keys())
-
-        # Calculate overall average binding affinity
-        avg_ba = sum(all_ba_values) / len(all_ba_values) if all_ba_values else None
-
-        # Compute conservation label
-        core_ids = [row.lncrna_core_id, row.target_core_id]
-        conservation_map = compute_conservation_map(core_ids, db)
-        lncrna_label, lncrna_count = conservation_map.get(row.lncrna_core_id, ("0000", 0))
-
-        items.append(ConservedRegulationItem(
-            core_id=row.lncrna_core_id,
-            lncrna_gene_name=row.lncrna_symbol,
-            lncrna_ensembl_id=None,  # Not available in current query
-            target_gene_name=row.target_symbol,
-            target_ensembl_id=None,  # Not available in current query
-            conservation_label=lncrna_label,
-            species_count=row.species_count,
-            species_ids=species_ids,
-            avg_binding_affinity=round(avg_ba, 2) if avg_ba is not None else None,
-            species_binding_affinities=species_ba_list
-        ))
+    items = _build_conserved_regulation_items(results, db)
 
     total_pages = (total + page_size - 1) // page_size
 

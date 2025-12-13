@@ -1,8 +1,10 @@
 [
-  {"priority": "high", "question": "FastAPI 路由参数验证是否充分，SQLAlchemy 查询是否存在 SQL 注入或未转义/无界分页问题？"},
-  {"priority": "high", "question": "数据库查询是否存在 N+1、缺少排序稳定性或可能扫描大表的性能隐患？"},
-  {"priority": "high", "question": "React API hooks/组件的错误处理、加载状态、类型是否与后端契约一致？"},
-  {"priority": "high", "question": "前端是否存在 XSS/危险 HTML 注入，API 参数是否被过滤/编码？"},
-  {"priority": "high", "question": "ETL 脚本对空值、重复数据、事务回滚和异常是否处理充分？"},
-  {"priority": "medium", "question": "测试覆盖是否覆盖关键路径，是否有性能/合约回归测试？"}
+  {"priority": "high", "question": "后端是否存在明确的 N+1 查询：例如 conservation/regulations 是否在循环内重复触发数据库查询？"},
+  {"priority": "high", "question": "后端 raw SQL 是否存在用户输入字符串拼接导致的 SQL 注入或 LIMIT/OFFSET 拼接隐患？"},
+  {"priority": "high", "question": "离线脚本是否存在 shell=True 或命令拼接导致的潜在命令注入风险？"},
+  {"priority": "high", "question": "ChIP-seq 路由是否存在循环依赖导致模块不可直接 import/测试？（chipseq_export ↔ chipseq）"},
+  {"priority": "high", "question": "ChIP-seq overlap 导出是否存在明显的 O(n^2) 算法瓶颈（双层循环）导致大数据下性能退化？"},
+  {"priority": "medium", "question": "LIKE/ILIKE 模糊搜索是否统一做转义（避免通配符导致意外匹配与性能退化）？"},
+  {"priority": "medium", "question": "前端是否存在 XSS/危险 HTML 注入（dangerouslySetInnerHTML 等）以及 hooks 依赖与类型安全问题？"},
+  {"priority": "medium", "question": "现有测试是否可在离线环境运行；若依赖运行中 API/真实数据，本轮修复应补充哪些纯单元测试保障回归？"}
 ]

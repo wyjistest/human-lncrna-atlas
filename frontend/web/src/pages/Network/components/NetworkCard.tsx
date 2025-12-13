@@ -233,7 +233,7 @@ export const NetworkCard = memo(({
       .map((e: any) => e.binding_affinity)
       .filter((ba: number) => ba != null && ba > 0)
 
-    let minBARange = baValues.length > 0 ? Math.min(...baValues) : 0
+    const minBARange = baValues.length > 0 ? Math.min(...baValues) : 0
     let maxBARange = baValues.length > 0 ? Math.max(...baValues) : 100
 
     if (minBARange === maxBARange) {

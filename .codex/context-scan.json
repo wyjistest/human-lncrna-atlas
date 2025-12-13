@@ -1,40 +1,43 @@
 {
+  "date": "2025-12-13",
+  "review_round": 2,
   "locations": {
-    "backend": "frontend/backend/app (routers/core/models/schemas) with entry frontend/backend/main.py; DB file lncrna_atlas.db present",
-    "frontend": "frontend/web/src (api, pages, components, hooks, config, types)",
-    "etl": "etl/*.py with templates and examples",
+    "backend": "frontend/backend/app (routers/core/models/schemas) with entry frontend/backend/main.py",
+    "frontend": "frontend/web/src (api, pages, components, hooks, config, types) with entry frontend/web/src/main.tsx",
+    "etl": "etl/*.py and frontend/backend/scripts/*.py for data import/export utilities",
     "tests": {
-      "backend": "frontend/backend/tests (api smoke/contracts/performance)",
-      "frontend": "frontend/web/src/components/__tests__, playwright e2e in frontend/web/e2e"
+      "backend": "frontend/backend/tests (多数为依赖已运行 API 的合同/冒烟/性能测试)",
+      "frontend": "frontend/web/src/**/__tests__ (Vitest), frontend/web/e2e (Playwright)"
     }
   },
   "current_implementation": {
-    "backend": "FastAPI routers for genes/regulations/diseases/network/stats/admin using SQLAlchemy ORM and Pydantic v2 schemas; DB session from app.core.database; escape_like_pattern used for LIKE searches; pagination via PaginatedResponse; joins CoreGene/Species/Regulation etc.",
-    "frontend": "React 18 + TS + Vite + Ant Design + TanStack Query; API client under src/api with hooks in src/hooks; pages for Genes/Regulations/Network/Diseases/GeneDetail; i18n in src/i18n; tests via Vitest/Playwright.",
-    "etl": "Scripts import_regulations.py/import_sequences.py/import_table15.py/import_ortholog_data.py using pandas/sqlalchemy to load CSV/templates; templates directory for SQL or mapping; examples contains sample CSV.",
+    "backend": "FastAPI + SQLAlchemy 2.0 + Pydantic v2；包含缓存（Redis/内存回退）、全局异常脱敏处理、ChIP-seq/IGV 相关大查询（部分用 text SQL）、端点级限流（slowapi 可选）与 Prometheus 指标（可选）；基因组文件通过 /genomes 静态服务挂载并做严格 Origin 校验。",
+    "frontend": "React 19 + TypeScript + Vite + Ant Design 6 + TanStack Query；Axios client + QueryClient 全局错误处理（src/main.tsx）；MSW 可选（仅开发且 VITE_USE_MOCK=true）；页面与组件按 src/pages、src/components、src/hooks 组织。",
+    "etl": "Python 脚本使用 pandas/sqlalchemy/subprocess 等完成数据导入与导出，主要在离线环境运行。",
     "similar_cases": [
-      "Backend tests test_api_contracts.py validate response schemas for main endpoints",
-      "Frontend components/tests for shared UI under src/components/__tests__"
+      "后端：frontend/backend/app/routers/genes.py 的 LIKE 搜索转义与分页稳定性处理",
+      "后端：frontend/backend/app/routers/lncrna_chipseq_overlap.py 的白名单排序/维度映射与批处理导出",
+      "前端：frontend/web/src/main.tsx 的全局错误消息映射与 QueryCache/MutationCache onError"
     ]
   },
   "tech_stack": {
     "backend": "FastAPI, SQLAlchemy 2.0 ORM, Pydantic v2, PostgreSQL (prod) with SQLite sample db, Redis optional",
-    "frontend": "React, TypeScript, Vite, Ant Design, TanStack Query, React Router, i18next, ECharts, Cytoscape.js",
+    "frontend": "React, TypeScript, Vite, Ant Design, TanStack Query, React Router, i18next, ECharts, Cytoscape.js, Axios",
     "etl": "Python pandas/sqlalchemy; CLI scripts",
     "tests": "Pytest, Vitest, Playwright"
   },
   "tests_and_verification": {
-    "backend": "pytest tests/test_api_contracts.py etc.",
+    "backend": "pytest frontend/backend/tests/*（默认依赖已启动 API 与真实/近似数据）",
     "frontend": "npm run test:run (Vitest) and npm run test:e2e (Playwright)",
     "sql_smoke": "tests/smoke_test.sql under root"
   },
   "observation_report": [
-    "Backend DB file lncrna_atlas.db exists in repo; verify if used or for demo.",
-    "Need to confirm request validation and SQLAlchemy query safety (LIKE escapes present in genes).",
-    "Front-end hooks and API client should be checked for proper error handling and type safety.",
-    "ETL scripts likely depend on CSV schemas; need to review boundary conditions and exceptions.",
-    "Security/performance review pending deeper inspection.",
-    "main.py imports app.routers.conservation but the module is missing, causing ModuleNotFoundError on startup.",
-    "Augment/auggie codebase-retrieval unavailable per user; review performed via manual scans."
+    "后端存在大量 raw SQL（sqlalchemy.text），动态部分多通过白名单映射与参数化绑定控制；仍建议持续核查是否存在字符串拼接参数导致 SQL 注入。",
+    "ChIP-seq 子路由存在 import 顺序依赖的循环依赖（chipseq_export ↔ chipseq），会导致直接 import 失败并阻碍单元测试；第2轮已抽出 `chipseq_rate_limit` 共享模块解决。",
+    "ChIP-seq 导出 overlap 计算存在 O(n^2) 双层循环，极端情况下易触发 CPU/内存放大；第2轮已改为滑动窗口算法并补充单元测试回归。",
+    "Pydantic v2/FastAPI 迁移告警：`Field(env=...)` 与 `Query(regex=...)` 已被标记弃用；第2轮已改为 `validation_alias` / `pattern` 并增加 env alias 单测。",
+    "后端测试多数为依赖运行中服务的合同/冒烟测试；当前更适合继续补充可离线运行的纯单元测试覆盖关键纯函数与输入校验。",
+    "前端仍存在较多 `any` 与 hooks deps 告警；第2轮已先处理一个 generated 文件 lint 噪音与一个 Modal 内的 hooks 依赖/重建问题。",
+    "脚本目录已未发现 `shell=True`；但 `etl/` 与 `scripts/` 仍有较多 ruff 级别基础告警（unused imports / F541 / E722 等），建议后续批量清理。"
   ]
 }
