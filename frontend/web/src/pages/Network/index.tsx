@@ -70,20 +70,25 @@ export default function Network() {
     staleTime: 10 * 60 * 1000, // 10分钟缓存
   })
 
-  // 根据选中的物种和有数据的组合过滤疾病和Ontology
-  const availableForSelectedSpecies = availableCombinations?.filter((c: any) =>
-    speciesIds.some(speciesId => c.species_id === speciesId)
-  )
+  // Memoize available combinations for selected species
+  const availableForSelectedSpecies = useMemo(() => {
+    if (!availableCombinations) return []
+    return availableCombinations.filter((c: any) =>
+      speciesIds.some(speciesId => c.species_id === speciesId)
+    )
+  }, [availableCombinations, speciesIds])
 
-  const availableTraitIds = new Set((availableForSelectedSpecies ?? []).map((c: any) => c.trait_id))
-
+  // Filter traits based on available combinations
   const traits = useMemo(() => {
-    if (!diseaseOptions?.traits) return []
-    return diseaseOptions.traits.filter(t => availableTraitIds.has(t.trait_id))
-  }, [diseaseOptions?.traits, availableTraitIds])
+    const traitsList = diseaseOptions?.traits
+    if (!traitsList) return []
+    const availableTraitIds = new Set(availableForSelectedSpecies.map((c: any) => c.trait_id))
+    return traitsList.filter(trait => availableTraitIds.has(trait.trait_id))
+  }, [diseaseOptions, availableForSelectedSpecies])
 
+  // Filter ontologies based on selected trait
   const ontologies = useMemo(() => {
-    if (!availableForSelectedSpecies || !traitId) return []
+    if (availableForSelectedSpecies.length === 0 || !traitId) return []
     const ontologyMap = new Map<number, string>()
 
     availableForSelectedSpecies
