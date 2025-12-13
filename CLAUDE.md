@@ -2,9 +2,9 @@
 
 ## 元信息
 - **更新日期**: 2025-12-13
-- **当前版本**: Phase 7.4 (本地代码审查修复 - 完成)
+- **当前版本**: Phase 7.5 (超大文件拆分 - 完成)
 - **下一阶段**: Phase 8.0 (新功能)
-- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + 测试覆盖 + 安全加固 + ETL 数据一致性
+- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固 + 模块化架构
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 ## 项目概述
@@ -1560,6 +1560,116 @@ Phase 7.4: 本地代码审查修复     ✅ 2025-12-13
 
 **当前版本**: Phase 7.4 (完成)
 **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + API 利用率 90%+ + 测试覆盖 + 安全加固 + ETL 数据一致性
+
+---
+
+## Phase 7.5: 超大文件拆分 (2025-12-13)
+
+### 概述
+
+将 3 个超大文件（共 7,105 行）拆分为 22 个模块化文件，主文件缩减至 1,043 行（85% 减少），大幅提升代码可维护性。
+
+### 拆分结果
+
+| 文件 | 拆分前 | 拆分后 | 减少率 | 新增模块 |
+|------|--------|--------|--------|----------|
+| Network/index.tsx | 1,779 行 | 287 行 | 84% | 9 个 |
+| igv.py | 2,692 行 | 520 行 | 81% | 8 个 |
+| chipseq.py | 2,634 行 | 236 行 | 91% | 7 个 |
+| **总计** | 7,105 行 | 1,043 行 | **85%** | **24 个** |
+
+### Network 模块结构 (Frontend)
+
+```
+frontend/web/src/pages/Network/
+├── index.tsx                      # 主页面 (287 行)
+├── components/
+│   ├── NetworkCard.tsx            # 网络卡片组件 (~850 行)
+│   ├── GeneDetailDrawer.tsx       # 基因详情抽屉 (~100 行)
+│   ├── ComparisonDrawer.tsx       # 跨物种比较抽屉 (~158 行)
+│   └── AdvancedFilters.tsx        # 高级筛选面板 (~100 行)
+├── hooks/
+│   └── useNetworkSearch.ts        # 搜索高亮逻辑 (~80 行)
+├── utils/
+│   ├── exporters.ts               # PNG/SVG/CSV/JSON 导出 (~150 行)
+│   ├── batchExport.tsx            # 批量导出 + PNG 合并 (~379 行)
+│   ├── networkFiltering.ts        # BA/度/类型过滤 (~50 行)
+│   └── cytoscapeLayouts.ts        # 布局配置常量 (~70 行)
+└── types.ts                       # 类型定义 (~30 行)
+```
+
+### IGV 模块结构 (Backend)
+
+```
+frontend/backend/app/
+├── config/
+│   └── igv_genomes.py             # 基因组配置 (~172 行)
+├── core/
+│   ├── igv_utils.py               # 工具函数 (~46 行)
+│   └── igv_stream_generators.py   # BED/BEDPE 流生成 (~435 行)
+└── routers/
+    ├── igv.py                     # 主路由 (520 行)
+    ├── igv_search.py              # 搜索端点 (~383 行)
+    ├── igv_regulations.py         # 调控轨道 (~189 行)
+    ├── igv_repeatmasker.py        # RepeatMasker 轨道 (~419 行)
+    └── igv_chipseq.py             # ChIP-seq 轨道 (~370 行)
+```
+
+### ChIP-seq 模块结构 (Backend)
+
+```
+frontend/backend/app/
+├── utils/
+│   ├── chipseq_analysis.py        # 分析算法 (~280 行)
+│   └── chipseq_db.py              # DB 查询工具 (~42 行)
+└── routers/
+    ├── chipseq.py                 # 主路由 (236 行)
+    ├── chipseq_marks.py           # Mark 管理 (~185 行)
+    ├── chipseq_experiments.py     # 实验管理 (~207 行)
+    ├── chipseq_genes.py           # 基因分析 (~1,514 行)
+    ├── chipseq_regions.py         # 区域查询 (~156 行)
+    └── chipseq_export.py          # 导出功能 (~387 行)
+```
+
+### 技术要点
+
+1. **FastAPI Sub-router 模式**: 使用 `include_router()` 保持 API 路径不变
+2. **React 组件提取**: 按功能职责拆分，通过 props 传递 cyRef
+3. **Stream Generator 复用**: BED/BEDPE 流生成器提取为独立模块
+4. **Rate Limiter 共享**: 主路由定义，子路由导入使用
+
+### 验证结果
+
+- ✅ Frontend build: 16.80s 成功
+- ✅ Backend import: 所有模块正常加载
+- ✅ API 端点: 路径保持不变，无破坏性变更
+- ✅ TypeScript: 0 errors
+
+### 修复的问题
+
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| rowKey 类型错误 | ComparisonDrawer.tsx | `index: number` → `index?: number` |
+
+### 项目进度
+
+```
+Phase 1-4: 数据库核心功能       ✅ 2024-2025
+Phase 5: 全站性能优化           ✅ 2025-12-10
+Phase 6.0: 科研数据分析         ✅ 2025-12-11
+Phase 7.0: API 完善             ✅ 2025-12-12
+Phase 7.1: 代码质量修复         ✅ 2025-12-12
+Phase 7.2: 单元测试基础设施     ✅ 2025-12-13
+Phase 7.3: 代码审查综合修复     ✅ 2025-12-13
+Phase 7.4: 本地代码审查修复     ✅ 2025-12-13
+Phase 7.5: 超大文件拆分         ✅ 2025-12-13
+  ├── Network/index.tsx 拆分    ✅ 1,779 → 287 行 (9 模块)
+  ├── igv.py 拆分               ✅ 2,692 → 520 行 (8 模块)
+  └── chipseq.py 拆分           ✅ 2,634 → 236 行 (7 模块)
+```
+
+**当前版本**: Phase 7.5 (完成)
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固 + 模块化架构
 **下一阶段**: Phase 8.0 (新功能)
 
 ---
