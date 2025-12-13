@@ -3,7 +3,7 @@ from collections import Counter
 from typing import Optional, Dict, Set
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, or_
+from sqlalchemy import func, case, or_, and_
 
 from app.core.database import get_db
 from app.models import Regulation, Gene, CoreGene, TraitGeneAssociation, Trait, Ontology, Species
@@ -353,9 +353,12 @@ def get_gene_network(
         query_1st = query_1st.filter(Regulation.binding_affinity >= min_ba)
     if max_distance is not None:
         # Add null check for gene coordinates before distance filtering
-        if gene_obj.gene_start is not None and Regulation.target_start is not None:
+        if gene_obj.gene_start is not None:
             query_1st = query_1st.filter(
-                func.abs(Regulation.target_start - gene_obj.gene_start) <= max_distance
+                and_(
+                    Regulation.target_start.isnot(None),
+                    func.abs(Regulation.target_start - gene_obj.gene_start) <= max_distance
+                )
             )
 
     # 按 binding_affinity 降序排列，并限制边数（第一层使用大部分配额）

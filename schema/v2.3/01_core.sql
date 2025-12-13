@@ -36,6 +36,8 @@ COMMENT ON COLUMN species.species_code IS '物种代码: human, chimp, macaque, 
 COMMENT ON COLUMN species.genome_assembly IS '基因组版本: hg38, panTro6等';
 
 -- 预插入数据
+-- 注意：genome_assembly 字段存储的是 UCSC Genome Browser 参考基因组版本
+-- IGV 浏览器使用的版本：hg19 (人类), panTro5 (黑猩猩), rheMac10 (猕猴), calJac3 (狨猴)
 INSERT INTO species (species_code, display_name, latin_name, genome_assembly) VALUES
 ('human', '人类', 'Homo sapiens', 'hg38'),
 ('chimp', '黑猩猩', 'Pan troglodytes', 'panTro6'),

@@ -13,11 +13,18 @@ import App from './App.tsx'
 /**
  * 统一错误消息映射
  * 根据 HTTP 状态码返回用户友好的错误消息
+ *
+ * 兼容后端脱敏格式：{detail: {error, message, error_id}}
  */
 function getErrorMessage(error: unknown): string {
   if (error instanceof AxiosError && error.response) {
     const { status, data } = error.response
     const detail = data?.detail
+
+    // 处理后端脱敏格式：{detail: {error, message, error_id}}
+    if (typeof detail === 'object' && detail !== null && 'error_id' in detail) {
+      return (detail as { message?: string }).message || 'An error occurred'
+    }
 
     switch (status) {
       case 400:

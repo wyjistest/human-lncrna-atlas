@@ -89,3 +89,6 @@ notebooks/results/
 # Generated reports
 *_REPORT.md
 *_FIX_REPORT.md
+
+# Claude Code plugins
+.codex/

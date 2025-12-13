@@ -181,6 +181,7 @@ class CacheService:
     TTL_LIST = 300        # 列表数据 5 分钟
     TTL_DETAIL = 600      # 详情数据 10 分钟
     TTL_SHORT = 60        # 短期缓存 1 分钟
+    TTL_COUNT = 300       # count() 查询缓存 5 分钟
 
     def __init__(self):
         self._redis = RedisCache()
@@ -319,6 +320,65 @@ class CacheService:
             "misses": self._misses,
             "hit_rate": f"{(self._hits / max(total, 1)) * 100:.1f}%",
         }
+
+    # ============== 新增：缓存键生成辅助方法 ==============
+
+    def make_list_key(self, endpoint: str, **params) -> str:
+        """
+        生成列表查询的缓存键
+
+        Args:
+            endpoint: API 端点名称（如 "regulations", "genes"）
+            **params: 查询参数（page, page_size, species_id 等）
+
+        Returns:
+            规范化的缓存键
+        """
+        return self._make_key(f"{endpoint}:list", **params)
+
+    def make_options_key(self, endpoint: str, **params) -> str:
+        """
+        生成选项查询的缓存键
+
+        Args:
+            endpoint: API 端点名称（如 "regulations", "genes"）
+            **params: 查询参数（species_id, gene_type 等）
+
+        Returns:
+            规范化的缓存键
+        """
+        return self._make_key(f"{endpoint}:options", **params)
+
+    def get_cached_count(self, query, cache_key: str) -> int:
+        """
+        获取带缓存的 query.count() 结果
+
+        Args:
+            query: SQLAlchemy Query 对象
+            cache_key: 缓存键（使用 _make_key 或 make_list_key 生成）
+
+        Returns:
+            查询结果总数（从缓存或数据库）
+
+        Example:
+            >>> cache_key = cache.make_list_key("regulations", species_id=1, page=1)
+            >>> total = cache.get_cached_count(query, cache_key)
+        """
+        if not self.enabled:
+            return query.count()
+
+        # 尝试从缓存获取
+        cached = self.get(cache_key)
+        if cached is not None:
+            logger.debug(f"[CACHE HIT] count: {cache_key}")
+            return cached
+
+        # 计算并缓存
+        logger.debug(f"[CACHE MISS] count: {cache_key}")
+        count = query.count()
+        self.set(cache_key, count, self.TTL_COUNT)
+
+        return count
 
 
 # 全局缓存实例

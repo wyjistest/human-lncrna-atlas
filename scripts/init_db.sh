@@ -17,7 +17,7 @@ set -u  # 使用未定义变量时报错
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-postgres}"
-DB_NAME="${DB_NAME:-lncrna_network}"
+DB_NAME="${DB_NAME:-lncrna_production}"
 DB_PASSWORD="${DB_PASSWORD:-}"  # 如果为空，将提示输入
 
 SCHEMA_DIR="$(cd "$(dirname "$0")/../schema/v2.3" && pwd)"

@@ -60,12 +60,17 @@ def get_source_files() -> Dict[int, str]:
     """
     获取源文件路径配置
 
-    优先使用环境变量，否则使用默认路径
+    优先使用环境变量，否则报错（必填配置）
 
     Returns:
         物种ID到文件路径的映射
+
+    Raises:
+        ValueError: 如果未设置 LNCRNA_DATA_PATH 环境变量
     """
-    base_path = os.environ.get("LNCRNA_DATA_PATH", "/data/wenyujianData/humanLncAtlas")
+    base_path = os.environ.get("LNCRNA_DATA_PATH")
+    if base_path is None:
+        raise ValueError("LNCRNA_DATA_PATH environment variable is required")
     return {
         1: os.path.join(base_path, "human_batch_human.txt"),
         2: os.path.join(base_path, "chimp_batch_BA50.txt"),

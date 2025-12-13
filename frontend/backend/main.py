@@ -9,8 +9,6 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
 import mimetypes
-from collections import deque
-import time
 import logging
 
 # 注册基因组文件的 MIME 类型，避免被当作 text/plain 处理
@@ -24,7 +22,7 @@ from app.core.config import settings
 from app.core.database import init_db, close_db
 from app.core.logging_config import setup_logging
 from app.core.exceptions import sanitize_internal_error
-from app.middleware.logging import LoggingMiddleware, MetricsMiddleware
+from app.middleware.logging import LoggingMiddleware
 from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization
 from app.schemas.common import HealthResponse
 
@@ -104,8 +102,8 @@ app = FastAPI(
 
 # 配置中间件
 # 注意：RateLimitMiddleware 已移除，统一使用 slowapi 进行端点级别限流
+# MetricsMiddleware 已移除，统一使用 Prometheus Metrics (prometheus-fastapi-instrumentator)
 app.add_middleware(LoggingMiddleware)
-app.add_middleware(MetricsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -147,40 +145,6 @@ if PROMETHEUS_AVAILABLE and Instrumentator:
     logger.info("Prometheus metrics enabled at /metrics endpoint")
 else:
     logger.warning("prometheus-fastapi-instrumentator not available, /metrics endpoint disabled")
-
-# 保存MetricsMiddleware实例到app.state（用于/metrics端点）
-# 注意：需要在第一个请求后才能获取实例
-app.state.metrics_data = {
-    # Phase 1 - 基础指标（保留向后兼容）
-    "total_requests": 0,
-    "total_errors": 0,
-    "total_time": 0.0,
-    "last_minute_requests": 0,
-
-    # Phase 2 - 响应时间分布
-    "response_time_buckets": {
-        "0-50": 0,
-        "50-100": 0,
-        "100-200": 0,
-        "200-500": 0,
-        "500+": 0,
-    },
-
-    # Phase 2 - 时间序列数据（最近10分钟，每秒一条）
-    "time_series": deque(maxlen=600),
-
-    # Phase 2 - 端点统计 {"/api/v1/genes": {"requests": 0, "errors": 0, "total_time": 0.0}}
-    "endpoints": {},
-
-    # Phase 2 - 当前秒数据聚合
-    "current_second": {"timestamp": 0, "requests": 0, "errors": 0},
-
-    # Phase 3 - 响应时间原始数据（用于百分位计算）
-    "response_times": deque(maxlen=1000),
-}
-
-# 记录应用启动时间（用于计算运行时间）
-app.state.start_time = time.time()
 
 
 # 全局异常处理
@@ -248,30 +212,6 @@ def health_check():
     )
 
 
-# 监控指标端点（原始格式，保留用于内部监控）
-@app.get("/internal/metrics", tags=["monitoring"])
-def get_internal_metrics():
-    """
-    获取原始性能指标（内部使用）
-
-    注意：前端请使用 /api/v1/admin/metrics 端点
-    """
-    if hasattr(app.state, "metrics_data"):
-        data = app.state.metrics_data
-        total = data["total_requests"]
-        errors = data["total_errors"]
-        total_time = data["total_time"]
-
-        avg_time = total_time / total if total > 0 else 0
-        error_rate = errors / total if total > 0 else 0
-
-        return {
-            "total_requests": total,
-            "total_errors": errors,
-            "error_rate": f"{error_rate:.2%}",
-            "avg_response_time": f"{avg_time:.3f}s",
-        }
-    return {"message": "Metrics not available"}
 
 
 # 注册路由
@@ -292,9 +232,9 @@ app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sanke
 
 # 挂载静态文件服务（用于 IGV.js 基因组文件）
 # 使用独立的 FastAPI 子应用，完全绕过主应用的中间件（解决 BaseHTTPMiddleware 兼容性问题）
-GENOMES_DIR = os.environ.get("GENOMES_DIR", "/data/wenyujianData/humanLncAtlas/genomes")
+GENOMES_DIR = os.environ.get("GENOMES_DIR")
 
-if os.path.exists(GENOMES_DIR):
+if GENOMES_DIR and os.path.exists(GENOMES_DIR):
     # 包装 StaticFiles 以添加 CORS 头（自定义实现，避免 BaseHTTPMiddleware 兼容性问题）
     from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -365,6 +305,8 @@ if os.path.exists(GENOMES_DIR):
     app.mount("/genomes", cors_static_app)
 
     logger.info(f"📁 基因组文件服务已启用: /genomes -> {GENOMES_DIR}")
+else:
+    logger.warning("GENOMES_DIR not set or does not exist, genome file service disabled")
 
 
 if __name__ == "__main__":

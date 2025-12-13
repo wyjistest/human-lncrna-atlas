@@ -47,16 +47,15 @@ def get_lncrna_options(
         LncRNAOptionsResponse: 包含 lncRNA 选项列表
     """
     # 构建缓存键
-    cache_suffix = f"{species_id or 'all'}"
-    cache_key = cache._make_key(f"regulations:lncrna-options:{cache_suffix}")
+    cache_key = cache.make_options_key("regulations:lncrna", species_id=species_id)
 
     # 尝试从缓存读取
     cached = cache.get(cache_key)
     if cached is not None:
-        logger.debug(f"[CACHE HIT] lncrna-options:{cache_suffix}")
+        logger.debug(f"[CACHE HIT] regulations:lncrna-options")
         return cached
 
-    logger.debug(f"[CACHE MISS] lncrna-options:{cache_suffix}")
+    logger.debug(f"[CACHE MISS] regulations:lncrna-options")
 
     # 查询数据库：从 regulations 表聚合获取有调控关系的 lncRNA
     query = db.query(
@@ -128,16 +127,15 @@ def get_target_options(
         TargetOptionsResponse: 包含靶基因选项列表
     """
     # 构建缓存键
-    cache_suffix = f"{species_id or 'all'}"
-    cache_key = cache._make_key(f"regulations:target-options:{cache_suffix}")
+    cache_key = cache.make_options_key("regulations:target", species_id=species_id)
 
     # 尝试从缓存读取
     cached = cache.get(cache_key)
     if cached is not None:
-        logger.debug(f"[CACHE HIT] target-options:{cache_suffix}")
+        logger.debug(f"[CACHE HIT] regulations:target-options")
         return cached
 
-    logger.debug(f"[CACHE MISS] target-options:{cache_suffix}")
+    logger.debug(f"[CACHE MISS] regulations:target-options")
 
     # 查询数据库：从 regulations 表聚合获取被调控的基因
     query = db.query(
@@ -309,8 +307,21 @@ def list_regulations(
     # 添加排序，确保分页结果稳定
     query = query.order_by(desc(Regulation.binding_affinity), Regulation.regulation_id)
 
-    # 总数
-    total = query.count()
+    # 总数（使用缓存）
+    count_cache_key = cache.make_list_key(
+        "regulations",
+        species_id=species_id,
+        species_ids=species_ids,
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        lncrna_gene_name=lncrna_gene_name,
+        target_gene_name=target_gene_name,
+        min_ba=min_ba,
+        max_ba=max_ba,
+        chromosome=chromosome,
+        chromosomes=chromosomes,
+    )
+    total = cache.get_cached_count(query, count_cache_key)
 
     # 分页
     offset = (page - 1) * page_size
@@ -464,8 +475,13 @@ def get_gene_regulations(
     # 添加排序，确保分页结果稳定
     query = query.order_by(desc(Regulation.binding_affinity), Regulation.regulation_id)
 
-    # 总数
-    total = query.count()
+    # 总数（使用缓存）
+    count_cache_key = cache.make_list_key(
+        "regulations:gene",
+        gene_id=gene_id,
+        min_ba=min_ba,
+    )
+    total = cache.get_cached_count(query, count_cache_key)
 
     # 分页
     offset = (page - 1) * page_size

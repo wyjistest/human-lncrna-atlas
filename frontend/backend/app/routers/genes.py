@@ -46,8 +46,7 @@ def get_gene_options(
         GeneOptionsResponse: 包含基因选项列表
     """
     # 构建缓存键
-    cache_suffix = f"{species_id or 'all'}:{gene_type or 'all'}"
-    cache_key = cache._make_key(f"genes:options:{cache_suffix}")
+    cache_key = cache.make_options_key("genes", species_id=species_id, gene_type=gene_type)
 
     # 尝试从缓存读取
     cached = cache.get(cache_key)
@@ -192,8 +191,17 @@ def list_genes(
     if min_regulation_count is not None:
         query = query.having(func.count(Regulation.regulation_id) >= min_regulation_count)
 
-    # 总记录数（应用所有过滤后，包括HAVING）
-    total = query.count()
+    # 总记录数（使用缓存）
+    count_cache_key = cache.make_list_key(
+        "genes",
+        gene_type=gene_type,
+        species_id=species_id,
+        chromosome=chromosome,
+        search=search,
+        has_regulation=has_regulation,
+        min_regulation_count=min_regulation_count,
+    )
+    total = cache.get_cached_count(query, count_cache_key)
 
     # 分页（添加 ORDER BY 确保分页稳定性）
     offset = (page - 1) * page_size

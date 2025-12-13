@@ -8,7 +8,9 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **Sequence Data Display**: View lncRNA and DNA target site sequences
 - **Disease Association Analysis**: GWAS data integration for lncRNA-disease/trait associations
 - **Network Visualization**: Interactive network visualization of regulatory relationships using Cytoscape.js
-- **IGV Genome Browser**: Integrated genome browser with multi-species support (hg19, panTro4, rheMac8, calJac3)
+- **IGV Genome Browser**: Integrated genome browser with multi-species support
+  - Genome assemblies: hg19 (Human), panTro5 (Chimpanzee), rheMac10 (Macaque), calJac3 (Marmoset)
+  - Reference genomes optimized for IGV.js visualization
 - **ChIP-seq Epigenetic Marks**: Real ENCODE data integration (K562, 6 marks, 422K peaks)
   - H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3
   - Bivalent domain detection (H3K27me3 + H3K4me3)
@@ -96,12 +98,12 @@ npm run dev -- --host 0.0.0.0
 
 ### Access
 
+**Note**: Replace `<server-ip>` with your server's IP address.
+
 | Service | Local | Network (LAN) |
 |---------|-------|---------------|
-| Frontend | http://localhost:5173 | http://192.168.6.135:5173 |
-| API Docs | http://localhost:8000/docs | http://192.168.6.135:8000/docs |
-
-**Server IP**: `192.168.6.135`
+| Frontend | http://localhost:5173 | http://<server-ip>:5173 |
+| API Docs | http://localhost:8000/docs | http://<server-ip>:8000/docs |
 
 ## Database
 

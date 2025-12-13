@@ -2,9 +2,9 @@
 
 ## 元信息
 - **更新日期**: 2025-12-13
-- **当前版本**: Phase 7.5 (超大文件拆分 - 完成)
-- **下一阶段**: Phase 8.0 (新功能)
-- **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固 + 模块化架构
+- **当前版本**: Phase 8.0 (代码审查修复 - 完成)
+- **下一阶段**: Phase 9.0 (新功能)
+- **项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 ## 项目概述
@@ -1670,6 +1670,71 @@ Phase 7.5: 超大文件拆分         ✅ 2025-12-13
 
 **当前版本**: Phase 7.5 (完成)
 **项目状态**: 🟢 生产就绪 + 企业级性能 + 科研分析能力 + 测试覆盖 + 安全加固 + 模块化架构
-**下一阶段**: Phase 8.0 (新功能)
+
+---
+
+## Phase 8.0: 代码审查修复 (2025-12-13)
+
+### 概述
+
+修复代码审查发现的 14 个问题，分 4 个并行 Agent 执行，涵盖高优先级 bug、性能优化、工程化清理和部署可移植性。
+
+### 修复清单
+
+#### Agent 1: 高优先级修复
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| 基因组版本文档 | `schema/01_core.sql`, `README.md` | 添加 IGV 使用 hg19 系列的注释说明 |
+| 前端错误处理 | `main.tsx` | 兼容后端脱敏格式 `{detail: {error_id, message}}` |
+| 网络过滤 bug | `network.py` | 修复 `is not None` → `.isnot(None)` |
+
+#### Agent 2: 性能与数据层优化
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| count() 缓存 | `cache.py`, `regulations.py`, `genes.py` | 添加 `get_cached_count()` 方法，TTL 5 分钟 |
+| 缓存 key 统一 | `cache.py` | 添加 `make_list_key()`, `make_options_key()` |
+| 指标系统统一 | `main.py`, `logging.py` | 删除 MetricsMiddleware，统一使用 Prometheus |
+
+#### Agent 3: 工程化清理
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| 未使用依赖 | `requirements.txt` | 删除 alembic, email-validator |
+| 未使用依赖 | `package.json` | 删除 tailwindcss, autoprefixer, postcss |
+| CI 增强 | `test.yml` | 添加 backend-unit-tests job |
+| 数据库名统一 | `init_db.sh` | lncrna_network → lncrna_production |
+| gitignore | `.gitignore` | 添加 .codex/ |
+
+#### Agent 4: 部署可移植性
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| 硬编码路径 | `main.py`, `import_sequences.py` | 改为环境变量 GENOMES_DIR, LNCRNA_DATA_PATH |
+| README IP | `README.md` | 192.168.6.135 → `<server-ip>` |
+| 配置说明 | `.env.example` | 添加路径环境变量说明 |
+
+### 技术亮点
+
+1. **SQLAlchemy 空值检查**: 使用 `.isnot(None)` 而非 Python 的 `is not None`
+2. **缓存架构优化**: 统一缓存键生成和 count() 缓存
+3. **指标系统标准化**: 采用 Prometheus 单一标准
+4. **环境变量配置**: 去除硬编码，支持任意服务器部署
+
+### 项目进度
+
+```
+Phase 1-4: 数据库核心功能       ✅ 2024-2025
+Phase 5: 全站性能优化           ✅ 2025-12-10
+Phase 6.0: 科研数据分析         ✅ 2025-12-11
+Phase 7.0-7.4: API 完善/测试    ✅ 2025-12-12
+Phase 7.5: 超大文件拆分         ✅ 2025-12-13
+Phase 8.0: 代码审查修复         ✅ 2025-12-13
+  ├── 高优先级修复 (3 项)       ✅ 基因组版本/错误处理/过滤 bug
+  ├── 性能优化 (4 项)           ✅ count 缓存/缓存 key/Prometheus
+  ├── 工程化清理 (5 项)         ✅ 依赖/CI/配置统一
+  └── 部署可移植 (2 项)         ✅ 硬编码路径/README IP
+```
+
+**当前版本**: Phase 8.0 (完成)
+**项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署
+**下一阶段**: Phase 9.0 (新功能)
 
 ---
