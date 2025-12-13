@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // Only remove console.log and debugger in production builds
+  // Remove console.* and debugger statements in production builds
+  // Note: drop: ['console'] removes ALL console methods including console.error
+  // This is intentional for production to reduce bundle size and prevent info leaks
   esbuild: mode === 'production' ? {
     drop: ['console', 'debugger'],
   } : {},

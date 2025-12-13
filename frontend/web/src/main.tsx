@@ -14,30 +14,50 @@ import App from './App.tsx'
  * 统一错误消息映射
  * 根据 HTTP 状态码返回用户友好的错误消息
  *
- * 兼容后端脱敏格式：{detail: {error, message, error_id}}
+ * 兼容后端多种错误格式：
+ * - 脱敏格式：{detail: {error, message, error_id}}
+ * - Admin 403 格式：{detail: {error: "...", message: "..."}}
+ * - Pydantic 验证：{detail: [{msg: "..."}]}
+ * - 字符串：{detail: "error message"}
  */
 function getErrorMessage(error: unknown): string {
   if (error instanceof AxiosError && error.response) {
     const { status, data } = error.response
     const detail = data?.detail
 
-    // 处理后端脱敏格式：{detail: {error, message, error_id}}
-    if (typeof detail === 'object' && detail !== null && 'error_id' in detail) {
-      return (detail as { message?: string }).message || 'An error occurred'
+    // 处理 detail 为对象的情况（包括脱敏格式和 Admin 错误）
+    if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
+      // 优先使用 message 字段
+      if ('message' in detail && typeof detail.message === 'string') {
+        return detail.message
+      }
+      // 其次使用 error 字段
+      if ('error' in detail && typeof detail.error === 'string') {
+        return detail.error
+      }
+      // 最后尝试 JSON 序列化（避免显示 [object Object]）
+      try {
+        return JSON.stringify(detail)
+      } catch {
+        return 'An error occurred'
+      }
     }
 
+    // 处理 Pydantic 验证错误（数组格式）
+    if (Array.isArray(detail)) {
+      return detail.map((e: { msg: string }) => e.msg).join(', ')
+    }
+
+    // 处理字符串 detail 或根据状态码返回默认消息
     switch (status) {
       case 400:
         return detail || 'Invalid request parameters'
+      case 403:
+        return detail || 'Access denied'
       case 404:
         return 'Resource not found'
-      case 422: {
-        // Pydantic validation error
-        if (Array.isArray(detail)) {
-          return detail.map((e: { msg: string }) => e.msg).join(', ')
-        }
+      case 422:
         return detail || 'Validation error'
-      }
       case 429:
         return 'Too many requests, please try later'
       case 500:

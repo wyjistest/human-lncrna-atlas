@@ -60,6 +60,13 @@ async def lifespan(app: FastAPI):
     logger.info(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info("=" * 60)
 
+    # 初始化应用启动时间（用于 admin metrics uptime 计算）
+    app.state.start_time = time.time()
+
+    # 初始化空的 metrics_data（兼容 admin metrics 端点）
+    # 注意：详细请求指标请使用 Prometheus /metrics 端点
+    app.state.metrics_data = {}
+
     # 初始化数据库连接
     if init_db():
         logger.info("✅ 应用启动成功")
@@ -232,7 +239,8 @@ app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sanke
 
 # 挂载静态文件服务（用于 IGV.js 基因组文件）
 # 使用独立的 FastAPI 子应用，完全绕过主应用的中间件（解决 BaseHTTPMiddleware 兼容性问题）
-GENOMES_DIR = os.environ.get("GENOMES_DIR")
+# GENOMES_DIR 通过 Settings 加载，支持 .env 文件配置
+GENOMES_DIR = settings.GENOMES_DIR
 
 if GENOMES_DIR and os.path.exists(GENOMES_DIR):
     # 包装 StaticFiles 以添加 CORS 头（自定义实现，避免 BaseHTTPMiddleware 兼容性问题）

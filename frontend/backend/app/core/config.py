@@ -113,6 +113,15 @@ class Settings(BaseSettings):
                     "Add your reverse proxy IP here (e.g., '10.0.0.1' or '192.168.1.100')."
     )
 
+    # IGV Genome Files Directory
+    # Path to directory containing genome reference files for IGV.js browser
+    # If not set or directory doesn't exist, IGV static file service will be disabled
+    GENOMES_DIR: Optional[str] = Field(
+        default=None,
+        env="GENOMES_DIR",
+        description="Directory containing genome files for IGV.js (e.g., /data/genomes)"
+    )
+
     @property
     def database_url(self) -> str:
         """构建数据库连接URL"""

@@ -609,22 +609,26 @@ def calculate_percentiles(response_times: deque) -> Optional[PercentileMetrics]:
     summary="获取系统监控指标",
     description="""
     返回系统运行状态和性能指标，包括：
-    - 请求统计（总数、最近一分钟）
-    - 错误统计（总数、错误率）
-    - 响应时间（平均毫秒）
     - 健康状态（数据库、缓存、运行时间）
-    - Phase 2: 响应时间分布、错误趋势、端点统计
-    - Phase 3: 系统资源监控、告警、响应时间百分位
+    - 系统资源（CPU、内存）
+    - 告警信息
+
+    **注意**：详细请求指标（QPS、响应时间分布等）请使用 Prometheus `/metrics` 端点。
+    此端点主要提供健康检查和系统资源监控。
     """,
 )
 async def get_metrics(request: Request) -> MetricsResponse:
     """
     获取系统监控指标
 
-    从 app.state.metrics_data 获取现有指标数据，
-    并添加健康检查逻辑（数据库、缓存状态）。
-    Phase 2 新增：响应时间分布、错误趋势、端点统计
-    Phase 3 新增：系统资源监控、告警、响应时间百分位
+    主要用途：
+    - 健康检查（数据库、缓存状态）
+    - 系统资源监控（CPU、内存）
+    - 运行时间和告警
+
+    注意：请求级别的详细指标（QPS、响应时间百分位等）
+    已迁移到 Prometheus /metrics 端点。此端点返回的
+    request/error 计数为 0（历史兼容）。
     """
     # 获取 metrics_data
     metrics_data = getattr(request.app.state, "metrics_data", {})
