@@ -25,6 +25,7 @@ import { getMarkConfig } from '@/config/markConfigs'
 import { getCellTypeLabel } from '@/config/cellTypeConfigs'
 import type { CellLineMatrixResponse, CellLineMatrixMetric } from '@/types/globalCompare'
 import type { MarkType } from '@/types/chipseq'
+import type { HeatmapParams, VisualMapFormatter } from '@/types/echarts'
 
 const { Text } = Typography
 
@@ -196,8 +197,10 @@ export function CellLineMatrixChart({
       ),
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
-          const [xIdx, yIdx, value] = params.data
+        formatter: (params: unknown) => {
+          const p = params as HeatmapParams
+          const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+          const [xIdx, yIdx, value] = dataArr
           const markType = data.x_labels[xIdx]
           const cellType = data.y_labels[yIdx]
 
@@ -268,7 +271,7 @@ export function CellLineMatrixChart({
         inRange: {
           color: getColorRange(metric),
         },
-        formatter: ((value: number) => formatMetricValue(value, metric)) as any,
+        formatter: ((value: number) => formatMetricValue(value, metric)) as VisualMapFormatter,
       },
       series: [
         {
@@ -277,8 +280,10 @@ export function CellLineMatrixChart({
           data: heatmapData,
           label: {
             show: xLabels.length <= 10 && yLabels.length <= 10,
-            formatter: (params: any) => {
-              const value = params.data[2]
+            formatter: (params: unknown) => {
+              const p = params as HeatmapParams
+              const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+              const value = dataArr[2]
               if (value === null || value === undefined) return '-'
               if (metric === 'peak_count' || metric === 'gene_count') {
                 if (value >= 1000) return `${(value / 1000).toFixed(0)}k`
@@ -316,9 +321,11 @@ export function CellLineMatrixChart({
 
     const chartInstance = chartRef.current.getEchartsInstance() as EChartsInstance
 
-    const handleClick = (params: any) => {
-      if (params.componentType === 'series' && params.seriesType === 'heatmap') {
-        const [xIdx, yIdx] = params.data
+    const handleClick = (params: unknown) => {
+      const p = params as HeatmapParams
+      if (p.componentType === 'series' && p.seriesType === 'heatmap') {
+        const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+        const [xIdx, yIdx] = dataArr
         onCellClick(data.y_labels[yIdx], data.x_labels[xIdx] as MarkType)
       }
     }

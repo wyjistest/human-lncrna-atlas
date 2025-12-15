@@ -22,6 +22,7 @@ import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getMarkColor, getMarkConfig } from '@/config/markConfigs'
 import type { GlobalMarkSummary } from '@/types/globalCompare'
+import type { RadarParams } from '@/types/echarts'
 
 interface RadarCompareChartProps {
   /** Mark summary data for comparison */
@@ -196,11 +197,12 @@ export function RadarCompareChart({
       },
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
-          if (!params.data) return ''
+        formatter: (params: unknown) => {
+          const p = params as RadarParams & { data?: { originalValues?: GlobalMarkSummary } }
+          if (!p.data || !p.data.originalValues) return ''
 
-          const markName = params.name
-          const originalValues = params.data.originalValues
+          const markName = p.name
+          const originalValues = p.data.originalValues
 
           const lines = [
             `<strong>${markName}</strong>`,

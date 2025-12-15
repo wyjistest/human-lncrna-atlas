@@ -19,6 +19,7 @@ import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getMarkColor, getMarkConfig } from '@/config/markConfigs'
 import type { MarkType, ChIPSeqCompareResponse, MarkComparisonData, OverlapRegion } from '@/types/chipseq'
+import type { TooltipFormatterParams, BarParams, HeatmapParams, BoxplotParams } from '@/types/echarts'
 
 const { Text } = Typography
 
@@ -63,10 +64,11 @@ function PeakCountChart({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: (params: any) => {
-          const p = params[0]
+        formatter: (params: unknown) => {
+          const arr = params as TooltipFormatterParams[]
+          const p = arr[0]
           const config = getMarkConfig(p.name as MarkType)
-          return `<strong>${config.displayName}</strong><br/>Peaks: ${p.value.toLocaleString()}`
+          return `<strong>${config.displayName}</strong><br/>Peaks: ${(p.value as number).toLocaleString()}`
         },
       },
       xAxis: {
@@ -107,7 +109,10 @@ function PeakCountChart({
           label: {
             show: true,
             position: 'top',
-            formatter: (params: any) => params.value.toLocaleString(),
+            formatter: (params: unknown) => {
+              const p = params as BarParams
+              return (p.value as number).toLocaleString()
+            },
             fontSize: 10,
           },
         },
@@ -167,11 +172,12 @@ function SignalComparisonChart({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: (params: any) => {
-          if (!Array.isArray(params) || params.length === 0) return ''
-          const markName = params[0].name
-          const avgVal = params[0]?.value ?? 0
-          const maxVal = params[1]?.value ?? 0
+        formatter: (params: unknown) => {
+          const arr = params as TooltipFormatterParams[]
+          if (!Array.isArray(arr) || arr.length === 0) return ''
+          const markName = arr[0].name
+          const avgVal = (arr[0]?.value as number) ?? 0
+          const maxVal = (arr[1]?.value as number) ?? 0
           return [
             `<strong>${markName}</strong>`,
             `${t('detail.chipseq.avgFoldEnrichment', 'Avg Fold Enrichment')}: ${avgVal.toFixed(2)}x`,
@@ -218,7 +224,10 @@ function SignalComparisonChart({
           label: {
             show: true,
             position: 'top',
-            formatter: (params: any) => `${params.value.toFixed(1)}x`,
+            formatter: (params: unknown) => {
+              const p = params as BarParams
+              return `${(p.value as number).toFixed(1)}x`
+            },
             fontSize: 9,
           },
         },
@@ -398,9 +407,10 @@ function FoldEnrichmentChart({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: (params: any) => {
-          const p = params[0]
-          return `${p.name}: ${p.value.toFixed(2)}x`
+        formatter: (params: unknown) => {
+          const arr = params as TooltipFormatterParams[]
+          const p = arr[0]
+          return `${p.name}: ${(p.value as number).toFixed(2)}x`
         },
       },
       xAxis: {
@@ -438,7 +448,10 @@ function FoldEnrichmentChart({
           label: {
             show: true,
             position: 'top',
-            formatter: (params: any) => `${params.value.toFixed(1)}x`,
+            formatter: (params: unknown) => {
+              const p = params as BarParams
+              return `${(p.value as number).toFixed(1)}x`
+            },
             fontSize: 10,
           },
         },
@@ -599,10 +612,11 @@ function PeakWidthDistributionChart({
       ),
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
-          const [min, q1, median, q3, max] = params.data.value
+        formatter: (params: unknown) => {
+          const p = params as BoxplotParams
+          const [min, q1, median, q3, max] = p.value
           return [
-            `<strong>${params.name}</strong>`,
+            `<strong>${p.name}</strong>`,
             `Max: ${max.toFixed(0)} bp`,
             `Q3 (75%): ${q3.toFixed(0)} bp`,
             `Median: ${median.toFixed(0)} bp`,
@@ -706,8 +720,10 @@ function OverlapHeatmapChart({
       ),
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
-          const [x, y, value] = params.data
+        formatter: (params: unknown) => {
+          const p = params as HeatmapParams
+          const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+          const [x, y, value] = dataArr
           if (value === -1) {
             return `${markLabels[x]}: Self`
           }
@@ -750,7 +766,11 @@ function OverlapHeatmapChart({
           data: heatmapData.filter((d) => d[2] !== -1), // Exclude self
           label: {
             show: true,
-            formatter: (params: any) => params.data[2].toString(),
+            formatter: (params: unknown) => {
+              const p = params as HeatmapParams
+              const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+              return (dataArr[2] ?? 0).toString()
+            },
           },
           emphasis: {
             itemStyle: {

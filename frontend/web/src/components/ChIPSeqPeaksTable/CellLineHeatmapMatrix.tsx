@@ -26,6 +26,7 @@ import { getChartToolbox } from '@/utils/chart-export'
 import { getCellTypeColor, getCellTypeLabel, CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import { getMarkConfig, MARK_CONFIGS } from '@/config/markConfigs'
 import type { HeatmapMatrixResponse, HeatmapMetricType, MarkType } from '@/types/chipseq'
+import type { HeatmapParams, VisualMapFormatter } from '@/types/echarts'
 
 const { Text } = Typography
 
@@ -201,8 +202,10 @@ export function CellLineHeatmapMatrix({
       ),
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
-          const [markIdx, cellIdx, value] = params.data
+        formatter: (params: unknown) => {
+          const p = params as HeatmapParams
+          const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+          const [markIdx, cellIdx, value] = dataArr
           const cellType = data.cell_types[cellIdx]
           const mark = data.marks[markIdx]
           const cellConfig = CELL_TYPE_CONFIGS[cellType]
@@ -284,7 +287,7 @@ export function CellLineHeatmapMatrix({
         inRange: {
           color: getColorRange(metric),
         },
-        formatter: ((value: number) => formatMetricValue(value, metric)) as any,
+        formatter: ((value: number) => formatMetricValue(value, metric)) as VisualMapFormatter,
       },
       series: [
         {
@@ -293,8 +296,10 @@ export function CellLineHeatmapMatrix({
           data: heatmapData,
           label: {
             show: data.marks.length <= 12 && data.cell_types.length <= 10,
-            formatter: (params: any) => {
-              const value = params.data[2]
+            formatter: (params: unknown) => {
+              const p = params as HeatmapParams
+              const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+              const value = dataArr[2]
               if (value === null || value === undefined) return '-'
               // Shorter format for cell labels
               if (metric === 'peak_count') return value.toString()
@@ -330,9 +335,11 @@ export function CellLineHeatmapMatrix({
 
     const chartInstance = chartRef.current.getEchartsInstance() as EChartsInstance
 
-    const handleClick = (params: any) => {
-      if (params.componentType === 'series' && params.seriesType === 'heatmap') {
-        const [markIdx, cellIdx, value] = params.data
+    const handleClick = (params: unknown) => {
+      const p = params as HeatmapParams
+      if (p.componentType === 'series' && p.seriesType === 'heatmap') {
+        const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+        const [markIdx, cellIdx, value] = dataArr
         onCellClick({
           cellType: data.cell_types[cellIdx],
           mark: data.marks[markIdx],

@@ -46,6 +46,7 @@ import type {
   OverlapFilters,
 } from '@/types/lncRNAChIPSeqOverlap'
 import type { MarkType } from '@/types/chipseq'
+import type { HeatmapParams, VisualMapFormatter } from '@/types/echarts'
 
 const { Text } = Typography
 
@@ -284,8 +285,10 @@ export function OverlapHeatmapMatrix({
       ),
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
-          const [xIdx, yIdx, value] = params.data
+        formatter: (params: unknown) => {
+          const p = params as HeatmapParams
+          const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+          const [xIdx, yIdx, value] = dataArr
           const xLabel = heatmapData.x_labels[xIdx]
           const yLabel = heatmapData.y_labels[yIdx]
 
@@ -340,7 +343,7 @@ export function OverlapHeatmapMatrix({
         inRange: {
           color: getColorRange(metric),
         },
-        formatter: ((value: number) => formatMetricValue(value, metric)) as any,
+        formatter: ((value: number) => formatMetricValue(value, metric)) as VisualMapFormatter,
       },
       series: [
         {
@@ -350,8 +353,10 @@ export function OverlapHeatmapMatrix({
           label: {
             show:
               heatmapData.x_labels.length <= 8 && heatmapData.y_labels.length <= 15,
-            formatter: (params: any) => {
-              const value = params.data[2]
+            formatter: (params: unknown) => {
+              const p = params as HeatmapParams
+              const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+              const value = dataArr[2]
               if (value === null || value === undefined) return '-'
               if (metric === 'count') {
                 if (value >= 1000) return `${(value / 1000).toFixed(0)}k`
@@ -389,13 +394,15 @@ export function OverlapHeatmapMatrix({
 
     const chartInstance = chartRef.current.getEchartsInstance() as EChartsInstance
 
-    const handleClick = (params: any) => {
-      if (params.componentType === 'series' && params.seriesType === 'heatmap') {
-        const [xIdx, yIdx, value] = params.data
+    const handleClick = (params: unknown) => {
+      const p = params as HeatmapParams
+      if (p.componentType === 'series' && p.seriesType === 'heatmap') {
+        const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+        const [xIdx, yIdx, value] = dataArr
         onCellClick({
           x: heatmapData.x_labels[xIdx],
           y: heatmapData.y_labels[yIdx],
-          value,
+          value: value ?? 0,
         })
       }
     }

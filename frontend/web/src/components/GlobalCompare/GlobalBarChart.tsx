@@ -22,6 +22,7 @@ import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getMarkColor, getMarkConfig } from '@/config/markConfigs'
 import type { GlobalMarkSummary } from '@/types/globalCompare'
+import type { TooltipFormatterParams, BarParams } from '@/types/echarts'
 
 const { Text } = Typography
 
@@ -172,8 +173,9 @@ export function GlobalBarChart({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: (params: any) => {
-          const p = params[0]
+        formatter: (params: unknown) => {
+          const arr = params as TooltipFormatterParams[]
+          const p = arr[0]
           const markIndex = p.dataIndex
           const markData = sortedData[markIndex]
           const markConfig = getMarkConfig(markData.mark_type)
@@ -236,8 +238,9 @@ export function GlobalBarChart({
           label: {
             show: sortedData.length <= 15,
             position: 'top',
-            formatter: (params: any) => {
-              return formatMetricValue(params.value, metric)
+            formatter: (params: unknown) => {
+              const p = params as BarParams
+              return formatMetricValue(p.value as number, metric)
             },
             fontSize: 10,
             color: '#666',

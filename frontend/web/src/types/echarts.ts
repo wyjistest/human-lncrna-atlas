@@ -128,6 +128,14 @@ export interface AxisLabelFormatterParams {
 export type VisualMapFormatterParams = number | [number, number]
 
 /**
+ * Visual Map formatter 函数类型
+ * ECharts 内置类型定义不完整，需要类型断言
+ * 注意：使用时需要 `as unknown as VisualMapFormatter` 模式
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type VisualMapFormatter = any
+
+/**
  * ECharts click 事件参数
  */
 export type EChartsClickParams =

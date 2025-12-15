@@ -22,6 +22,7 @@ import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getMarkColor, getMarkConfig } from '@/config/markConfigs'
 import type { BoxPlotData } from '@/types/globalCompare'
+import type { BoxplotParams } from '@/types/echarts'
 
 interface BoxPlotChartProps {
   /** Box plot data for each mark */
@@ -122,10 +123,11 @@ export function BoxPlotChart({
       ),
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
-          if (params.componentType === 'series' && params.seriesType === 'boxplot') {
-            const [min, q1, median, q3, max] = params.data.value
-            const markIndex = params.dataIndex
+        formatter: (params: unknown) => {
+          const p = params as BoxplotParams
+          if (p.componentType === 'series' && p.seriesType === 'boxplot') {
+            const [min, q1, median, q3, max] = p.value
+            const markIndex = p.dataIndex
             const markData = sortedData[markIndex]
             const markConfig = getMarkConfig(markData.mark_type)
             const markName = markConfig?.displayName || markData.mark_type
@@ -141,8 +143,9 @@ export function BoxPlotChart({
             ].join('<br/>')
           }
           // Outlier tooltip
-          if (params.componentType === 'series' && params.seriesType === 'scatter') {
-            return `${t('charts.boxplot.outlier', 'Outlier')}: ${formatValue(params.data[1])}`
+          if (p.componentType === 'series' && p.seriesType === 'scatter') {
+            const scatterData = p.data as { value?: [number, number] }
+            return `${t('charts.boxplot.outlier', 'Outlier')}: ${formatValue(scatterData.value?.[1] ?? 0)}`
           }
           return ''
         },

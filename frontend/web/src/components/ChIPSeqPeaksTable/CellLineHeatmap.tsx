@@ -18,7 +18,8 @@ import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getCellTypeColor, getCellTypeLabel, CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import { getMarkConfig } from '@/config/markConfigs'
-import type { CellLineComparisonResponse } from '@/types/chipseq'
+import type { CellLineComparisonResponse, MarkType } from '@/types/chipseq'
+import type { HeatmapParams, BarParams } from '@/types/echarts'
 
 const { Text, Title } = Typography
 
@@ -100,7 +101,7 @@ export function CellLineHeatmap({
   const { t, i18n } = useTranslation('genes')
   const isZh = i18n.language === 'zh-CN'
 
-  const markConfig = getMarkConfig(data.mark_type as any)
+  const markConfig = getMarkConfig(data.mark_type as MarkType)
 
   // Metric options for segmented control
   const metricOptions = useMemo(
@@ -174,10 +175,12 @@ export function CellLineHeatmap({
       ),
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
-          const cellType = cellTypes[params.data[0]]
+        formatter: (params: unknown) => {
+          const p = params as HeatmapParams
+          const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+          const cellType = cellTypes[dataArr[0]]
           const cellConfig = CELL_TYPE_CONFIGS[cellType]
-          const value = params.data[2]
+          const value = dataArr[2] ?? 0
           const formattedValue = formatMetricValue(value, metric)
           const label = isZh ? cellConfig?.labelZh : cellConfig?.label
           return [
@@ -237,7 +240,11 @@ export function CellLineHeatmap({
           data: values,
           label: {
             show: true,
-            formatter: (params: any) => formatMetricValue(params.data[2], metric),
+            formatter: (params: unknown) => {
+              const p = params as HeatmapParams
+              const dataArr = Array.isArray(p.data) ? p.data : p.data.value
+              return formatMetricValue(dataArr[2] ?? 0, metric)
+            },
             fontSize: 12,
             fontWeight: 'bold',
           },
@@ -283,15 +290,16 @@ export function CellLineHeatmap({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: (params: any) => {
-          const p = params[0]
+        formatter: (params: unknown) => {
+          const arr = params as BarParams[]
+          const p = arr[0]
           const cellType = cellTypes[p.dataIndex]
           const cellConfig = CELL_TYPE_CONFIGS[cellType]
           const label = isZh ? cellConfig?.labelZh : cellConfig?.label
           return [
             `<strong>${label || cellType}</strong>`,
             `<br/>`,
-            `${metricOptions.find((o) => o.value === metric)?.label}: <strong>${formatMetricValue(p.value, metric)}</strong>`,
+            `${metricOptions.find((o) => o.value === metric)?.label}: <strong>${formatMetricValue(p.value as number, metric)}</strong>`,
           ].join('')
         },
       },
@@ -342,7 +350,10 @@ export function CellLineHeatmap({
           label: {
             show: true,
             position: 'top',
-            formatter: (params: any) => formatMetricValue(params.value, metric),
+            formatter: (params: unknown) => {
+              const p = params as BarParams
+              return formatMetricValue(p.value as number, metric)
+            },
             fontSize: 10,
           },
         },
