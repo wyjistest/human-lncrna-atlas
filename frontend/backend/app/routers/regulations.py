@@ -225,6 +225,30 @@ def _parse_ids(ids_str: str, param_name: str) -> list[int]:
     return result
 
 
+def _normalize_list_param(value: str | None) -> str | None:
+    """
+    规范化列表参数字符串，提升缓存命中率
+
+    - 去除空格
+    - 排序元素
+    - 重新拼接
+
+    Examples:
+        "1, 2, 3" -> "1,2,3"
+        "3,1,2" -> "1,2,3"
+        "chr1, chr2" -> "chr1,chr2"
+    """
+    if not value:
+        return value
+    items = [x.strip() for x in value.split(",") if x.strip()]
+    # 尝试按数字排序，失败则按字符串排序
+    try:
+        items = sorted(items, key=int)
+    except ValueError:
+        items = sorted(items)
+    return ",".join(items)
+
+
 @router.get("", response_model=PaginatedResponse[RegulationListItem])
 def list_regulations(
     page: int = Query(1, ge=1),
@@ -248,19 +272,23 @@ def list_regulations(
     - Redis 缓存 15 分钟（TTL 900 秒）
     - 按查询参数组合生成缓存键（使用 make_list_key 进行参数哈希）
     """
+    # 规范化列表参数，提升缓存命中率（去空格、排序）
+    normalized_species_ids = _normalize_list_param(species_ids)
+    normalized_chromosomes = _normalize_list_param(chromosomes)
+
     # 构建缓存键（使用 make_list_key 进行参数哈希，确保键长度稳定且一致）
     cache_key = cache.make_list_key(
         "regulations",
         lncrna_gene_id=lncrna_gene_id,
         target_gene_id=target_gene_id,
         species_id=species_id,
-        species_ids=species_ids,
+        species_ids=normalized_species_ids,
         lncrna_gene_name=lncrna_gene_name,
         target_gene_name=target_gene_name,
         min_ba=min_ba,
         max_ba=max_ba,
         chromosome=chromosome,
-        chromosomes=chromosomes,
+        chromosomes=normalized_chromosomes,
         page=page,
         page_size=page_size,
     )

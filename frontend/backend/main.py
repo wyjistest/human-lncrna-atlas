@@ -228,7 +228,7 @@ def health_check():
     elif db_status == "healthy":
         overall_status = "degraded"  # Redis 使用回退
     else:
-        overall_status = "degraded"  # 数据库不健康
+        overall_status = "down"  # 数据库不健康，服务不可用
 
     return HealthResponse(
         status=overall_status,

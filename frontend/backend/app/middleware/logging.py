@@ -46,7 +46,7 @@ class LoggingMiddleware:
 
         # 获取请求信息
         method = scope.get("method", "UNKNOWN")
-        query_string = scope.get("query_string", b"").decode()
+        query_string = scope.get("query_string", b"").decode(errors="replace")
         url = f"{path}?{query_string}" if query_string else path
 
         # 获取客户端 IP
