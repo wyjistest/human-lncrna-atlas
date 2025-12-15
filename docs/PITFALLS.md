@@ -245,4 +245,81 @@ def _get_client_ip(request):
 
 ---
 
+## 代码审查最佳实践
+
+### Codex 审查流程
+
+使用 OpenAI Codex (GPT-5.2) 进行代码审查时，遵循以下流程可显著提升审查质量：
+
+#### 1. Lint First - 先静态扫描
+
+```bash
+# Python
+ruff check --fix . && ruff check .
+
+# JavaScript/TypeScript
+npm run lint
+```
+
+**原因**: 先用静态工具扫描，减少 AI 审查噪音。让 AI 聚焦于逻辑和设计问题，而非格式问题。
+
+#### 2. CHANGELOG 先行
+
+```bash
+# 在调用 codex review 前，先更新 CHANGELOG
+git diff --stat  # 了解改了什么
+# 手动或 AI 辅助生成 CHANGELOG 条目
+```
+
+**原因**: 让 AI 同时看到"意图 (Intention)"和"实现 (Implementation)"。单纯看代码只知道做了什么，不知道为什么。
+
+#### 3. 测试验证
+
+```bash
+# 修改后立即运行测试
+pytest tests/ -v --tb=short
+
+# 前端测试
+npm run test:run
+```
+
+**原因**: AI 审查通过不代表代码正确，必须有测试兜底。修复 lint 问题时可能意外删除必要代码。
+
+#### 4. CI 确认
+
+```bash
+# 本地通过后推送
+git push origin main
+
+# 等待 CI 绿灯
+gh run list --limit 1
+```
+
+**原因**: 本地环境与 CI 环境可能有差异。CI 是最终的质量关卡。
+
+---
+
+### Ruff Lint 常见问题
+
+| 规则 | 问题 | 解决方案 |
+|------|------|----------|
+| F401 | 未使用的导入 | `ruff check --fix` 自动删除 |
+| F541 | f-string 无占位符 | 移除 `f` 前缀或添加占位符 |
+| F841 | 变量赋值后未使用 | 删除或添加 `_ =` 前缀 |
+| E741 | 模糊变量名 (`l`, `O`, `I`) | 重命名为有意义的名称 |
+| E402 | 导入不在文件顶部 | 添加 `# noqa: E402` 或重构代码 |
+
+#### E402 例外情况
+
+当必须在导入前执行某些代码时（如注册 MIME 类型），使用 `noqa` 注释：
+
+```python
+import mimetypes
+mimetypes.add_type("application/octet-stream", ".bigwig")
+
+from app.core.config import settings  # noqa: E402
+```
+
+---
+
 *文档更新: 2025-12-15*
