@@ -6,13 +6,14 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { analysisApi } from '@/api/analysis'
+import { queryKeys } from './queryKeys'
 
 /**
  * Hook for analysis summary statistics
  */
 export const useAnalysisSummary = () => {
   return useQuery({
-    queryKey: ['analysis', 'summary'],
+    queryKey: queryKeys.analysis.summary(),
     queryFn: async () => {
       const { data } = await analysisApi.getSummary()
       return data
@@ -31,7 +32,7 @@ export const useHighAffinityData = (params?: {
   offset?: number
 }) => {
   return useQuery({
-    queryKey: ['analysis', 'high-affinity', params],
+    queryKey: queryKeys.analysis.highAffinity(params as Record<string, unknown>),
     queryFn: async () => {
       const { data } = await analysisApi.getHighAffinity(params)
       return data
@@ -49,7 +50,7 @@ export const useConservationData = (params?: {
   offset?: number
 }) => {
   return useQuery({
-    queryKey: ['analysis', 'conservation', params],
+    queryKey: queryKeys.analysis.conservation(params as Record<string, unknown>),
     queryFn: async () => {
       const { data } = await analysisApi.getConservation(params)
       return data
@@ -69,7 +70,7 @@ export const useEpigeneticData = (params?: {
   offset?: number
 }) => {
   return useQuery({
-    queryKey: ['analysis', 'epigenetic', params],
+    queryKey: queryKeys.analysis.epigenetic(params as Record<string, unknown>),
     queryFn: async () => {
       const { data } = await analysisApi.getChipseqOverlaps(params)
       return data
@@ -88,7 +89,7 @@ export const useDiseaseData = (params?: {
   offset?: number
 }) => {
   return useQuery({
-    queryKey: ['analysis', 'disease', params],
+    queryKey: queryKeys.analysis.disease(params as Record<string, unknown>),
     queryFn: async () => {
       const { data } = await analysisApi.getDiseaseNetwork(params)
       return data

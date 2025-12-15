@@ -12,6 +12,35 @@ export default function MainLayout() {
   const location = useLocation()
   const { t } = useTranslation('nav')
 
+  // Compute selected keys based on path matching
+  // This handles child routes like /genes/:id highlighting the parent /genes menu item
+  const selectedKeys = useMemo(() => {
+    const pathname = location.pathname
+    // Define menu paths in order of specificity (longer paths first)
+    const menuPaths = [
+      '/admin/monitoring',
+      '/lncrna-chipseq-overlap',
+      '/chipseq-compare',
+      '/genome-browser',
+      '/conservation',
+      '/regulations',
+      '/analysis',
+      '/diseases',
+      '/network',
+      '/genes',
+      '/stats',
+      '/',
+    ]
+    // Find the first menu path that matches the current location
+    const matchedPath = menuPaths.find((path) => {
+      if (path === '/') {
+        return pathname === '/'
+      }
+      return pathname === path || pathname.startsWith(`${path}/`)
+    })
+    return matchedPath ? [matchedPath] : [pathname]
+  }, [location.pathname])
+
   const menuItems = useMemo(() => [
     { key: '/', icon: <HomeOutlined />, label: t('home') },
     { key: '/stats', icon: <BarChartOutlined />, label: t('stats') },
@@ -45,7 +74,7 @@ export default function MainLayout() {
         <Sider width={200} theme="light">
           <Menu
             mode="inline"
-            selectedKeys={[location.pathname]}
+            selectedKeys={selectedKeys}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
           />

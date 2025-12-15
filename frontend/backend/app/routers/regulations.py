@@ -246,13 +246,23 @@ def list_regulations(
 
     性能优化：
     - Redis 缓存 15 分钟（TTL 900 秒）
-    - 按查询参数组合生成缓存键
+    - 按查询参数组合生成缓存键（使用 make_list_key 进行参数哈希）
     """
-    # 构建缓存键（包含所有影响查询结果的参数）
-    cache_key = cache._make_key(
-        f"regulations:list:{lncrna_gene_id}:{target_gene_id}:{species_id or species_ids}:"
-        f"{lncrna_gene_name}:{target_gene_name}:{min_ba}:{max_ba}:{chromosome or chromosomes}:"
-        f"{page}:{page_size}"
+    # 构建缓存键（使用 make_list_key 进行参数哈希，确保键长度稳定且一致）
+    cache_key = cache.make_list_key(
+        "regulations",
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        species_id=species_id,
+        species_ids=species_ids,
+        lncrna_gene_name=lncrna_gene_name,
+        target_gene_name=target_gene_name,
+        min_ba=min_ba,
+        max_ba=max_ba,
+        chromosome=chromosome,
+        chromosomes=chromosomes,
+        page=page,
+        page_size=page_size,
     )
 
     # 尝试从缓存读取

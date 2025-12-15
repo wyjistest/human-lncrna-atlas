@@ -8,6 +8,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { statsApi } from '@/api/stats'
+import { queryKeys } from './queryKeys'
 
 interface UseDetailedStatsOptions {
   buckets?: number
@@ -18,7 +19,7 @@ export function useDetailedStats(options: UseDetailedStatsOptions = {}) {
   const { buckets = 10, topLimit = 10 } = options
 
   return useQuery({
-    queryKey: ['stats-detailed', buckets, topLimit],
+    queryKey: queryKeys.stats.detailed({ buckets, topLimit }),
     queryFn: async () => {
       const { data } = await statsApi.detailed({ buckets, top_limit: topLimit })
       return data
@@ -33,7 +34,7 @@ export function useDetailedStats(options: UseDetailedStatsOptions = {}) {
  */
 export function useBARange() {
   return useQuery({
-    queryKey: ['stats-ba-range'],
+    queryKey: queryKeys.stats.baRange(),
     queryFn: async () => {
       const { data } = await statsApi.baRange()
       return data

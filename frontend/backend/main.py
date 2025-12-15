@@ -200,10 +200,11 @@ def read_root():
 def health_check():
     """健康检查接口"""
     from app.core.database import engine
+    from app.core.cache import cache
     from sqlalchemy import text
 
+    # 检查数据库状态
     try:
-        # 测试数据库连接
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "healthy"
@@ -212,10 +213,27 @@ def health_check():
         logger.error(f"Health check database error: {e}")
         db_status = "unhealthy"
 
+    # 检查 Redis/缓存状态（对齐 CacheService 实际状态）
+    if not cache.enabled:
+        redis_status = "disabled"
+    elif cache.backend == "redis":
+        redis_status = "healthy"
+    else:
+        # 使用内存缓存回退
+        redis_status = "fallback (memory)"
+
+    # 综合状态判断
+    if db_status == "healthy" and redis_status in ("healthy", "disabled"):
+        overall_status = "healthy"
+    elif db_status == "healthy":
+        overall_status = "degraded"  # Redis 使用回退
+    else:
+        overall_status = "degraded"  # 数据库不健康
+
     return HealthResponse(
-        status="healthy" if db_status == "healthy" else "degraded",
+        status=overall_status,
         database=db_status,
-        redis="not configured",
+        redis=redis_status,
         version=settings.APP_VERSION,
     )
 
@@ -244,76 +262,30 @@ app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sanke
 GENOMES_DIR = settings.GENOMES_DIR
 
 if GENOMES_DIR and os.path.exists(GENOMES_DIR):
-    # 包装 StaticFiles 以添加 CORS 头（自定义实现，避免 BaseHTTPMiddleware 兼容性问题）
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    # 创建独立的 FastAPI 子应用用于静态文件服务
+    # 使用 Starlette CORSMiddleware 包装，代替自定义 CORSStaticFiles 实现
+    from fastapi import FastAPI as SubFastAPI
 
-    # 创建独立的静态文件子应用，带 CORS 支持
-    static_app = StaticFiles(directory=GENOMES_DIR)
+    # 创建静态文件子应用
+    genomes_app = SubFastAPI()
 
-    class CORSStaticFiles:
-        """带 CORS 支持的静态文件服务（严格 Origin 验证）"""
-        def __init__(self, app: ASGIApp, allow_origins: list):
-            self.app = app
-            self.allow_origins = set(allow_origins)  # Convert to set for O(1) lookup
+    # 为子应用添加 CORS 中间件（使用标准 Starlette 实现）
+    genomes_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "HEAD", "OPTIONS"],
+        allow_headers=["Range", "Content-Type"],
+        expose_headers=["Content-Length", "Content-Range", "Accept-Ranges"],
+    )
 
-        def _is_origin_allowed(self, origin: str) -> bool:
-            """Check if the origin is in the allowed list"""
-            return origin in self.allow_origins
+    # 挂载静态文件到子应用根路径
+    genomes_app.mount("/", StaticFiles(directory=GENOMES_DIR), name="genomes_static")
 
-        async def __call__(self, scope: Scope, receive: Receive, send: Send):
-            if scope["type"] == "http":
-                # 获取 Origin 头
-                headers = dict(scope.get("headers", []))
-                origin = headers.get(b"origin", b"").decode()
+    # 将子应用挂载到主应用
+    app.mount("/genomes", genomes_app)
 
-                # Validate origin against allowed list (no wildcard fallback)
-                allowed_origin = origin if self._is_origin_allowed(origin) else ""
-
-                # 检查是否是预检请求
-                if scope["method"] == "OPTIONS":
-                    # Only respond to preflight if origin is allowed
-                    if allowed_origin:
-                        response_headers = [
-                            (b"access-control-allow-origin", allowed_origin.encode()),
-                            (b"access-control-allow-methods", b"GET, HEAD, OPTIONS"),
-                            (b"access-control-allow-headers", b"Range, Content-Type"),
-                            (b"access-control-max-age", b"86400"),
-                            (b"content-length", b"0"),
-                        ]
-                        await send({"type": "http.response.start", "status": 204, "headers": response_headers})
-                        await send({"type": "http.response.body", "body": b""})
-                    else:
-                        # Origin not allowed - return 403
-                        response_headers = [
-                            (b"content-type", b"text/plain"),
-                            (b"content-length", b"16"),
-                        ]
-                        await send({"type": "http.response.start", "status": 403, "headers": response_headers})
-                        await send({"type": "http.response.body", "body": b"Origin forbidden"})
-                    return
-
-                # 包装 send 函数以添加 CORS 头
-                async def send_with_cors(message):
-                    if message["type"] == "http.response.start":
-                        headers = list(message.get("headers", []))
-                        # Only add CORS headers if origin is allowed
-                        if allowed_origin:
-                            headers.append((b"access-control-allow-origin", allowed_origin.encode()))
-                            headers.append((b"access-control-allow-methods", b"GET, HEAD, OPTIONS"))
-                            headers.append((b"access-control-allow-headers", b"Range, Content-Type"))
-                            headers.append((b"access-control-expose-headers", b"Content-Length, Content-Range, Accept-Ranges"))
-                        message = {**message, "headers": headers}
-                    await send(message)
-
-                await self.app(scope, receive, send_with_cors)
-            else:
-                await self.app(scope, receive, send)
-
-    # 挂载带 CORS 的静态文件服务
-    cors_static_app = CORSStaticFiles(static_app, settings.CORS_ORIGINS)
-    app.mount("/genomes", cors_static_app)
-
-    logger.info(f"📁 基因组文件服务已启用: /genomes -> {GENOMES_DIR}")
+    logger.info(f"Genome file service enabled: /genomes -> {GENOMES_DIR}")
 else:
     logger.warning("GENOMES_DIR not set or does not exist, genome file service disabled")
 

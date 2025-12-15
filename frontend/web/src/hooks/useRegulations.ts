@@ -1,13 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { regulationsApi } from '@/api/regulations'
+import { queryKeys } from './queryKeys'
 import type { components } from '@/types'
 
 type RegulationDetail = components['schemas']['RegulationDetail']
 
 export const useRegulations = (params: Parameters<typeof regulationsApi.list>[0]) => {
   return useQuery({
-    queryKey: ['regulations', params],
+    queryKey: queryKeys.regulations.list(params as Record<string, unknown>),
     queryFn: async () => {
       const { data } = await regulationsApi.list(params)
       return data
@@ -24,7 +25,7 @@ export const usePrefetchRegulations = () => {
 
   return useCallback((params: Parameters<typeof regulationsApi.list>[0]) => {
     queryClient.prefetchQuery({
-      queryKey: ['regulations', params],
+      queryKey: queryKeys.regulations.list(params as Record<string, unknown>),
       queryFn: async () => {
         const { data } = await regulationsApi.list(params)
         return data
@@ -47,7 +48,7 @@ export const useRegulationDetail = (
   const isEnabled = !!regulationId && (options?.enabled ?? true)
 
   return useQuery<RegulationDetail | null>({
-    queryKey: ['regulation', regulationId],
+    queryKey: queryKeys.regulations.detail(regulationId ?? 0),
     queryFn: async () => {
       if (!regulationId) return null
       const { data } = await regulationsApi.getDetail(regulationId)

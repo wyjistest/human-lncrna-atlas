@@ -15,6 +15,8 @@ export const queryKeys = {
     detail: (id: number) => [...queryKeys.genes.details(), id] as const,
     regulations: (geneId: number, params?: Record<string, unknown>) =>
       [...queryKeys.genes.detail(geneId), 'regulations', params] as const,
+    diseases: (geneId: number) => [...queryKeys.genes.detail(geneId), 'diseases'] as const,
+    orthologs: (geneId: number) => [...queryKeys.genes.detail(geneId), 'orthologs'] as const,
   },
 
   // Regulations
@@ -50,7 +52,7 @@ export const queryKeys = {
   // Network
   network: {
     all: ['network'] as const,
-    gene: (geneId: number, params?: Record<string, unknown>) =>
+    gene: (geneId: number | null, params?: Record<string, unknown>) =>
       [...queryKeys.network.all, 'gene', geneId, params] as const,
     geneDetail: (geneId: number) => [...queryKeys.network.all, 'gene-detail', geneId] as const,
   },
@@ -59,6 +61,26 @@ export const queryKeys = {
   species: {
     all: ['species'] as const,
     list: () => [...queryKeys.species.all, 'list'] as const,
+  },
+
+  // Admin / Monitoring
+  admin: {
+    all: ['admin'] as const,
+    metrics: () => [...queryKeys.admin.all, 'metrics'] as const,
+  },
+
+  // Analysis
+  analysis: {
+    all: ['analysis'] as const,
+    summary: () => [...queryKeys.analysis.all, 'summary'] as const,
+    highAffinity: (params?: Record<string, unknown>) =>
+      [...queryKeys.analysis.all, 'high-affinity', params] as const,
+    conservation: (params?: Record<string, unknown>) =>
+      [...queryKeys.analysis.all, 'conservation', params] as const,
+    epigenetic: (params?: Record<string, unknown>) =>
+      [...queryKeys.analysis.all, 'epigenetic', params] as const,
+    disease: (params?: Record<string, unknown>) =>
+      [...queryKeys.analysis.all, 'disease', params] as const,
   },
 } as const
 
