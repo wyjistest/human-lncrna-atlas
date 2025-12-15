@@ -64,6 +64,47 @@ python3 -c "import main"  # 后端导入
 git add -A && git commit -m "feat: 描述" && git push
 ```
 
+## Agent 协作模式
+
+开发时优先使用专业化 Agent 进行任务分工：
+
+| Agent | 用途 | 触发场景 |
+|-------|------|----------|
+| `backend-api-developer` | 后端 API 开发 | FastAPI 路由、数据库 Schema、SQL 查询 |
+| `frontend-architect` | 前端开发 | React 组件、API 集成、状态管理 |
+| `playwright-test-expert` | E2E 测试 | 功能验证、测试编写、失败诊断 |
+| `code-reviewer` | 代码审查 | PR 前质量检查 |
+| `Explore` | 代码探索 | 理解代码库结构、搜索功能实现 |
+
+**并行开发示例**:
+```
+用户需求 → 拆分任务 → 多 Agent 并行执行 → 汇总结果
+         ├── backend-api-developer (API)
+         ├── frontend-architect (UI)
+         └── playwright-test-expert (测试)
+```
+
+## Playwright 测试
+
+```bash
+# 运行所有 E2E 测试
+cd frontend/web && npx playwright test
+
+# 运行特定测试文件
+npx playwright test e2e/visualization/sankey-flow.spec.ts
+
+# 带 UI 调试
+npx playwright test --ui
+
+# 生成测试报告
+npx playwright show-report
+```
+
+| 测试目录 | 覆盖范围 |
+|---------|---------|
+| `e2e/visualization/` | Sankey Flow、图表交互 |
+| `e2e/lncrna-chipseq-overlap*.spec.ts` | ChIP-seq 重叠功能 |
+
 ## 数据库统计
 
 | 表 | 记录数 |
@@ -79,6 +120,45 @@ git add -A && git commit -m "feat: 描述" && git push
 | API 500 | `tail -f /tmp/fastapi.log` |
 | 数据库连接 | 检查 `.env` DATABASE_URL |
 | 前端编译失败 | 同步 `src/config/` 配置 |
+
+## 踩坑记录
+
+### 前后端 API 契约
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| 表格列显示空白 | 前端字段名与后端返回不一致 | 用 `curl` 检查实际 API 返回字段名 |
+| rowKey 重复警告 | 数据无唯一主键 | 使用 `${record.id}-${index}` 组合键 |
+| 图数据结构错误 | 期望扁平表格，实际返回 `{nodes, edges}` | 检查 API 返回结构类型 |
+
+**调试命令**:
+```bash
+curl -s "http://localhost:8000/api/v1/xxx?limit=1" | python3 -m json.tool | head -30
+```
+
+### React 19 Hooks 规则
+
+| 问题 | 修复 |
+|------|------|
+| Hooks 顺序违规 | 所有 hooks 必须在条件 return 之前调用 |
+| render 阶段访问 ref | 改用 `useMemo` + 直接依赖 |
+| 静态组件问题 | 不要在 render 内定义组件，改用 JSX 表达式 |
+
+### 常见编译错误
+
+| 错误 | 解决 |
+|------|------|
+| `Property 'xxx' is missing` | 同步所有同名配置文件 |
+| `Cannot find module 'igv'` | `npm install` |
+| `ModuleNotFoundError: app.routers.xxx` | 检查 `main.py` 导入，移除不存在的 router |
+
+### SQLAlchemy 注意点
+
+| 问题 | 正确写法 |
+|------|---------|
+| 布尔比较 | `.is_(True)` 而非 `== True` |
+| 空值检查 | `.isnot(None)` 而非 `is not None` |
+| 可空外键 | 使用 `outerjoin` 而非 `join` |
 
 ## 环境变量
 
