@@ -7,7 +7,6 @@ Verification script - Check batch heatmap matrix API implementation
 import os
 import sys
 import re
-from pathlib import Path
 
 
 def check_file_exists(path: str, description: str) -> bool:

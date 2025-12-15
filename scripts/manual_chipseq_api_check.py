@@ -12,10 +12,9 @@ Usage:
     python3 scripts/manual_chipseq_api_check.py
 """
 
-import json
 import time
 import requests
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Tuple
 from dataclasses import dataclass
 
 BASE_URL = "http://localhost:8000/api/v1/features/chipseq"
@@ -438,7 +437,7 @@ def print_summary(results: List[TestResult]):
     # Response time statistics
     valid_times = [r.response_time_ms for r in results if r.response_time_ms > 0]
     if valid_times:
-        print(f"\nResponse Time Statistics:")
+        print("\nResponse Time Statistics:")
         print(f"  Average: {sum(valid_times)/len(valid_times):.0f}ms")
         print(f"  Min: {min(valid_times):.0f}ms")
         print(f"  Max: {max(valid_times):.0f}ms")
@@ -446,7 +445,7 @@ def print_summary(results: List[TestResult]):
     # List failures
     failures = [r for r in results if not r.passed]
     if failures:
-        print(f"\nFailed Tests:")
+        print("\nFailed Tests:")
         for f in failures:
             print(f"  - {f.name}")
             for err in f.errors:

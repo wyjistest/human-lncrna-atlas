@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Ruff Lint 全面修复** (2025-12-15)
+  - 自动修复 84 个问题：未使用导入、多余 f-string 前缀
+  - 手动修复 22 个问题：变量命名、未使用变量、notebook 格式
+  - 模糊变量名修复：`l` → `lnc` (PEP8 E741 规范)
+  - main.py 导入顺序：添加 `# noqa: E402` 注释（mimetypes 配置必须先于导入）
+  - Jupyter notebook 代码风格：拆分单行多语句、import 置于 cell 顶部
+
+### Changed
+- **涉及文件**: etl/import_ortholog_data.py, frontend/backend/main.py, frontend/backend/app/routers/visualization.py, frontend/backend/tests/*.py, scripts/*.py, notebooks/01_high_affinity_analysis.ipynb
+
 ### Added
 - **Phase 8.3: Codex 5轮代码审查** (2025-12-13)
   - 使用 OpenAI Codex CLI (gpt-5.2) 进行 5 轮迭代代码审查

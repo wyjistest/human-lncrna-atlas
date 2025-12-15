@@ -23,9 +23,7 @@ import sys
 import os
 import argparse
 import logging
-import re
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Generator
+from typing import Dict, List, Optional, Generator
 from datetime import datetime
 
 import psycopg2
@@ -395,7 +393,7 @@ class RepeatMaskerImporter:
             dry_run: If True, don't actually insert data
             chromosome_filter: Optional chromosome filter (e.g., 'chr1')
         """
-        logger.info(f"Starting RepeatMasker import")
+        logger.info("Starting RepeatMasker import")
         logger.info(f"  File: {file_path}")
         logger.info(f"  Species: {species_code}")
         logger.info(f"  Format: {file_format}")
@@ -463,7 +461,7 @@ class RepeatMaskerImporter:
                 self.conn.commit()
                 self._update_batch(batch_id, 'completed', self.stats['imported'])
 
-            logger.info(f"Import completed successfully!")
+            logger.info("Import completed successfully!")
 
         except Exception as e:
             logger.error(f"Import failed: {e}")

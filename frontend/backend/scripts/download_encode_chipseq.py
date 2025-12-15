@@ -13,7 +13,7 @@ Usage:
 import argparse
 import subprocess
 from pathlib import Path
-from typing import List, Dict
+from typing import List
 import json
 
 
@@ -322,7 +322,7 @@ def generate_batch_import_config(experiments: List[dict], output_dir: Path):
         json.dump(config, f, indent=2)
 
     print(f'\n{"="*60}')
-    print(f'✓ Batch import config generated')
+    print('✓ Batch import config generated')
     print(f'{"="*60}')
     print(f'Config file: {config_file}')
     print(f'Total experiments: {len(experiments)}')
@@ -371,7 +371,7 @@ def main():
     print('='*60)
     print('ENCODE Histone Modification Data Downloader')
     print('='*60)
-    print(f'Source: UCSC Broad Histone (hg19)')
+    print('Source: UCSC Broad Histone (hg19)')
     print(f'Output: {output_dir}')
     print(f'Cell lines: {", ".join(args.cell_line)}')
     if args.dry_run:
@@ -401,10 +401,10 @@ def main():
     # Generate batch import config
     if all_experiments and not args.dry_run:
         config_file = generate_batch_import_config(all_experiments, output_dir)
-        print(f'\n✨ Ready to import!')
+        print('\n✨ Ready to import!')
         print(f'   Next: python3 scripts/batch_import_chipseq.py {config_file}')
     elif args.dry_run:
-        print(f'\n📋 Dry run complete. Run without --dry-run to download.')
+        print('\n📋 Dry run complete. Run without --dry-run to download.')
         print(f'   Total files to download: {len(all_experiments)}')
         total_size = sum(
             ENCODE_FILES[e['cell_line']][e['mark_type']]['size_mb']

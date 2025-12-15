@@ -10,7 +10,6 @@ from contextlib import asynccontextmanager
 import os
 import time
 import mimetypes
-import logging
 
 # 注册基因组文件的 MIME 类型，避免被当作 text/plain 处理
 mimetypes.add_type("application/octet-stream", ".2bit")
@@ -19,13 +18,13 @@ mimetypes.add_type("application/octet-stream", ".bigbed")
 mimetypes.add_type("application/octet-stream", ".bw")
 mimetypes.add_type("application/octet-stream", ".bigwig")
 
-from app.core.config import settings
-from app.core.database import init_db, close_db
-from app.core.logging_config import setup_logging
-from app.core.exceptions import sanitize_internal_error
-from app.middleware.logging import LoggingMiddleware
-from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization
-from app.schemas.common import HealthResponse
+from app.core.config import settings  # noqa: E402
+from app.core.database import init_db, close_db  # noqa: E402
+from app.core.logging_config import setup_logging  # noqa: E402
+from app.core.exceptions import sanitize_internal_error  # noqa: E402
+from app.middleware.logging import LoggingMiddleware  # noqa: E402
+from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization  # noqa: E402
+from app.schemas.common import HealthResponse  # noqa: E402
 
 # ============================================================================
 # slowapi Rate Limiting Setup (for per-endpoint rate limiting)

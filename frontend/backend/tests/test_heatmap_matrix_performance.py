@@ -10,7 +10,7 @@ import pytest
 import httpx
 import time
 import statistics
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 import os
 
 # ============== Configuration ==============
@@ -230,7 +230,7 @@ class TestHeatmapMatrixPerformance:
         assert stats["mean_ms"] < PERF_THRESHOLD_2X2, \
             f"Mean response time {stats['mean_ms']:.0f}ms exceeds threshold"
 
-        print(f"\nRepeated request statistics:")
+        print("\nRepeated request statistics:")
         print(f"  Min: {stats['min_ms']:.2f}ms")
         print(f"  Max: {stats['max_ms']:.2f}ms")
         print(f"  Mean: {stats['mean_ms']:.2f}ms")

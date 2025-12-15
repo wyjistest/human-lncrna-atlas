@@ -19,8 +19,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 import argparse
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional
 
 logging.basicConfig(
     level=logging.INFO,

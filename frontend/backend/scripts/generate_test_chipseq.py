@@ -14,7 +14,7 @@ import argparse
 import random
 import json
 from pathlib import Path
-from typing import List, Tuple
+from typing import Tuple
 
 
 # Chromosome sizes (hg19, selected chromosomes)
@@ -281,14 +281,14 @@ def generate_all_phase24_data(output_dir: Path, peaks_per_mark: int = 300):
         json.dump(config, f, indent=2)
 
     print(f'\n{"="*60}')
-    print(f'✓ All test data generated')
+    print('✓ All test data generated')
     print(f'{"="*60}')
     print(f'Total experiments: {len(generated_files)}')
     print(f'Total peaks: {sum(e["num_peaks"] for e in generated_files)}')
     print(f'Config file: {config_file}')
-    print(f'\nNext steps:')
+    print('\nNext steps:')
     print(f'  1. Review generated files in {output_dir}/')
-    print(f'  2. Import data:')
+    print('  2. Import data:')
     print(f'     python3 scripts/batch_import_chipseq.py {config_file}')
 
     return config_file
@@ -338,7 +338,7 @@ def main():
     if args.all:
         # Generate all Phase 2.4 marks
         config_file = generate_all_phase24_data(output_dir, args.peaks_per_mark)
-        print(f'\n✨ Ready for Phase 2.4 validation!')
+        print('\n✨ Ready for Phase 2.4 validation!')
         print(f'   Config: {config_file}')
     else:
         # Generate single mark
@@ -353,15 +353,15 @@ def main():
             output_dir
         )
 
-        print(f'\n✨ Test data generated!')
-        print(f'   Import with:')
-        print(f'   python3 scripts/import_chipseq.py \\')
+        print('\n✨ Test data generated!')
+        print('   Import with:')
+        print('   python3 scripts/import_chipseq.py \\')
         print(f'       --input {peaks_file} \\')
         print(f'       --mark-type {args.mark} \\')
-        print(f'       --species human \\')
+        print('       --species human \\')
         print(f'       --experiment-name "Test_{args.mark}_{args.cell_line}" \\')
         print(f'       --metadata {metadata_file} \\')
-        print(f'       --compute-associations')
+        print('       --compute-associations')
 
 
 if __name__ == '__main__':

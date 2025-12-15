@@ -470,7 +470,7 @@ class TestOverlapExportPerformance:
         headers, rows = parse_csv_content(content)
 
         # Should have up to 1000 rows
-        assert len(rows) <= 1000, f"Should have at most 1000 rows"
+        assert len(rows) <= 1000, "Should have at most 1000 rows"
 
     def test_export_streaming_response(self, api_client: httpx.Client, api_assert: APIAssertions):
         """Export returns streaming response (doesn't load all data into memory)"""

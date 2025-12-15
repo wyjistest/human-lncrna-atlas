@@ -479,7 +479,7 @@ def get_chord_data(
         target_gene_id = row.target_gene_id
         target_name = row.target_name
         avg_ba = float(row.avg_ba) if row.avg_ba else 0
-        regulation_count = row.regulation_count
+        # Note: row.regulation_count available but not needed for chord diagram
 
         # 节点 ID
         lncrna_node_id = f"lncrna_{lncrna_gene_id}"

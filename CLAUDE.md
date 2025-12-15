@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.1 |
+| 版本 | Phase 9.2 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-15 |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
@@ -148,7 +148,8 @@ npx playwright show-report
 | 7.0-7.5 | API 完善 + 单元测试 + 模块化 | 2025-12-12/13 |
 | 8.0-8.3 | 代码审查 + ETL 一致性 + Codex 审查 | 2025-12-13 |
 | 9.0 | 高级可视化 (Chord/聚类热力图) | 2025-12-15 |
-| **9.1** | **ESLint 警告清零 (135→0)** | **2025-12-15** |
+| 9.1 | ESLint 警告清零 (135→0) | 2025-12-15 |
+| **9.2** | **Ruff Lint 全面修复 (106 issues)** | **2025-12-15** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

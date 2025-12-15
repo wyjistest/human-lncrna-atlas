@@ -11,6 +11,7 @@
 - [Phase 8.0-8.3: 代码审查与修复](#phase-80-83-代码审查与修复)
 - [Phase 9.0: 高级可视化](#phase-90-高级可视化)
 - [Phase 9.1: 代码审查修复](#phase-91-代码审查修复)
+- [Phase 9.2: Ruff Lint 修复](#phase-92-ruff-lint-全面修复)
 
 ---
 
@@ -235,6 +236,55 @@ scikit-learn>=1.4.0
 - Table 组件: 使用 `Record<string, unknown>` 替代 `any`
 - Selector 组件: 扩展 `DefaultOptionType` 添加自定义属性
 - MSW 初始化: `console.log` → `console.warn`
+
+---
+
+## Phase 9.2: Ruff Lint 全面修复
+
+### 修复统计
+
+| 类别 | 数量 | 说明 |
+|------|------|------|
+| 自动修复 | 84 | 未使用导入、多余 f-string 前缀 |
+| 手动修复 | 22 | 变量命名、未使用变量、notebook 格式 |
+| **总计** | **106** | 全部通过 |
+
+### 主要修复内容
+
+| 规则 | 问题描述 | 修复方式 |
+|------|---------|---------|
+| F401 | 未使用的导入 | 自动删除 |
+| F541 | f-string 无占位符 | 移除 `f` 前缀 |
+| F841 | 变量赋值后未使用 | 删除或添加注释说明 |
+| E741 | 模糊变量名 `l` | 重命名为 `lnc`/`line` |
+| E402 | 导入不在文件顶部 | 添加 `# noqa: E402` (mimetypes 初始化必须先于导入) |
+| E702 | 单行多语句 (notebook) | 拆分为多行 |
+
+### 涉及文件 (31 个)
+
+- **ETL 脚本**: `import_*.py`, `fix_chimp_empty_dna.py`
+- **后端核心**: `main.py`, `visualization.py`, `clustering.py`
+- **测试文件**: `test_*.py` (11 个文件)
+- **验证脚本**: `scripts/*.py`
+- **Notebook**: `01_high_affinity_analysis.ipynb`
+
+### Codex (GPT-5.2) 审查确认
+
+| 检查项 | 状态 |
+|--------|------|
+| 无功能性风险 | ✅ |
+| 导入顺序处理正确 | ✅ |
+| 变量移除安全 | ✅ |
+| 测试全部通过 | ✅ (200 tests) |
+
+### 验证结果
+
+| 检查 | 状态 |
+|------|------|
+| `ruff check .` | ✅ All checks passed |
+| `npm run lint` | ✅ 0 errors, 0 warnings |
+| `npm run build` | ✅ 成功 (17.13s) |
+| `pytest tests/` | ✅ 200 passed |
 
 ---
 

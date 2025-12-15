@@ -19,9 +19,8 @@ BED12 Format:
 """
 
 import re
-import sys
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict
 
 
 def parse_gtf_attributes(attr_string: str) -> Dict[str, str]:
@@ -214,12 +213,12 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
             exon_count = 1  # Treated as single exon
         exon_distribution[exon_count] += 1
 
-    print(f"\n=== Statistics ===")
+    print("\n=== Statistics ===")
     print(f"Total transcripts: {len(bed_records):,}")
     print(f"Multi-exon transcripts: {multi_exon:,} ({100*multi_exon/len(bed_records):.1f}%)")
     print(f"Single-exon transcripts: {single_exon:,} ({100*single_exon/len(bed_records):.1f}%)")
 
-    print(f"\nExon count distribution (top 10):")
+    print("\nExon count distribution (top 10):")
     for count in sorted(exon_distribution.keys())[:10]:
         num = exon_distribution[count]
         print(f"  {count} exon(s): {num:,} transcripts ({100*num/len(bed_records):.1f}%)")

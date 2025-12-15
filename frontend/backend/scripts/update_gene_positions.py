@@ -7,7 +7,6 @@
 import re
 import psycopg2
 from psycopg2.extras import execute_batch
-from collections import defaultdict
 
 # 配置
 GTF_FILE = "/data/wenyujianData/humanLncAtlas/FANTOM_CAT.lv3_robust.gtf"
@@ -145,7 +144,7 @@ def update_database(genes: dict):
         """, (HUMAN_SPECIES_ID,))
 
         result = cur.fetchone()
-        print(f"\n验证结果 (人类基因):")
+        print("\n验证结果 (人类基因):")
         print(f"  总数: {result[0]}")
         print(f"  有 gene_start: {result[1]}")
         print(f"  有 gene_end: {result[2]}")

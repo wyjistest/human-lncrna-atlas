@@ -9,7 +9,6 @@ Usage:
     python3 scripts/validate_additional_marks.py
 """
 import psycopg2
-from psycopg2.extras import RealDictCursor
 import sys
 from typing import Dict, List, Tuple, Any
 from collections import defaultdict
@@ -389,7 +388,7 @@ def test_heatmap_api():
             with urllib.request.urlopen(url, timeout=10) as response:
                 data = json.loads(response.read().decode())
 
-                print(f"\n  [OK] API Response Status: 200")
+                print("\n  [OK] API Response Status: 200")
                 print(f"  Gene: {data.get('gene_name', 'N/A')} (ID: {data.get('gene_id', 'N/A')})")
                 print(f"  Total Combinations: {data.get('total_combinations', 'N/A')}")
                 print(f"  Valid Combinations: {data.get('valid_combinations', 'N/A')}")
@@ -399,7 +398,7 @@ def test_heatmap_api():
                 if matrix:
                     print("\n  Matrix Preview (first 2 rows):")
                     cell_types_list = data.get('cell_types', [])
-                    marks_list = data.get('marks', [])
+                    # Note: marks available via data.get('marks', [])
 
                     for i, cell_type in enumerate(cell_types_list[:2]):
                         row_values = []

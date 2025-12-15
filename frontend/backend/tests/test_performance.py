@@ -5,7 +5,6 @@
 import pytest
 import requests
 import time
-from typing import Dict
 
 BASE_URL = "http://localhost:8000"
 
@@ -105,14 +104,14 @@ class TestDatabaseIndexes:
         print("\n\n=== 慢查询检测 ===")
         for name, url in queries:
             start = time.time()
-            response = requests.get(url)
+            requests.get(url)  # Execute query for timing
             elapsed = time.time() - start
 
             status = "⚠️ 慢" if elapsed > 2.0 else "✅ 快"
             print(f"{status} {name}: {elapsed:.3f}秒")
 
             if elapsed > 2.0:
-                print(f"   建议: 为相关字段添加索引")
+                print("   建议: 为相关字段添加索引")
 
 
 if __name__ == "__main__":

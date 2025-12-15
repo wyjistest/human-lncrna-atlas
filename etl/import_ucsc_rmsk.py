@@ -22,8 +22,6 @@ Usage:
     python3 import_ucsc_rmsk.py rmsk.txt [--limit N] [--batch-size N]
 """
 
-import sys
-import os
 import argparse
 from datetime import datetime
 import psycopg2
@@ -210,7 +208,7 @@ def main():
 
         print()
         print("=" * 60)
-        print(f"Import completed successfully!")
+        print("Import completed successfully!")
         print(f"  Records: {total:,}")
         print(f"  Time: {elapsed:.1f} seconds")
         print(f"  Speed: {total/elapsed:,.0f} records/second")

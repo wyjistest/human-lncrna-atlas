@@ -4,7 +4,6 @@ API冒烟测试 - 验证所有核心端点
 """
 import pytest
 import requests
-from typing import Dict, Any
 
 BASE_URL = "http://localhost:8000"
 

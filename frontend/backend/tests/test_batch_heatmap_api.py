@@ -13,7 +13,7 @@ Run: pytest tests/test_batch_heatmap_api.py -v
 import pytest
 import httpx
 import time
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
 import os
 
 # ============== Configuration ==============

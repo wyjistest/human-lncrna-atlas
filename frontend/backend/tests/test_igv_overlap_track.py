@@ -10,7 +10,6 @@ Run: pytest tests/test_igv_overlap_track.py -v
 """
 import pytest
 import httpx
-from typing import Optional
 
 
 BASE_URL = "http://localhost:8000"
@@ -236,7 +235,7 @@ class TestOverlapTrackBED6Format:
                 fields = line.split("\t")
 
                 # BED6 format validation
-                assert len(fields) == 6, f"BED6 should have 6 fields"
+                assert len(fields) == 6, "BED6 should have 6 fields"
 
                 # Field 1: chromosome (string)
                 assert fields[0].startswith("chr"), f"Invalid chromosome: {fields[0]}"

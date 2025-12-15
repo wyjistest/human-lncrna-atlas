@@ -16,10 +16,9 @@ Author: Human LncRNA Atlas Project
 """
 
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 import numpy as np
-from scipy.cluster.hierarchy import linkage, dendrogram, fcluster
-from scipy.spatial.distance import pdist, squareform
+from scipy.cluster.hierarchy import linkage, dendrogram
 from scipy.stats import spearmanr
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler

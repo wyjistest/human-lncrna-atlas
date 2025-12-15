@@ -8,7 +8,6 @@ API 合同测试 - 验证所有 API 响应符合定义的 Schema
 """
 import pytest
 import httpx
-from decimal import Decimal
 
 from conftest import (
     validate_paginated_response,
@@ -16,7 +15,7 @@ from conftest import (
 )
 from app.schemas.gene import GeneListItem, GeneDetail
 from app.schemas.regulation import RegulationListItem, RegulationDetail
-from app.schemas.stats import OverviewStats, SpeciesStats
+from app.schemas.stats import OverviewStats
 from app.schemas.disease import TraitGeneAssociationDetail, TraitDetail
 
 

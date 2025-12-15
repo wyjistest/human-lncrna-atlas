@@ -19,8 +19,7 @@ import psycopg2
 from psycopg2.extras import execute_values
 import argparse
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
 
 logging.basicConfig(
     level=logging.INFO,
@@ -186,7 +185,7 @@ class OrthologImporter:
         core_genes_data = []
         for core_id, lnc_list in core_groups.items():
             # 使用human作为参考
-            human_lnc = next((l for l in lnc_list if l['species_id'] == 1), lnc_list[0])
+            human_lnc = next((lnc for lnc in lnc_list if lnc['species_id'] == 1), lnc_list[0])
 
             core_genes_data.append((
                 core_id,

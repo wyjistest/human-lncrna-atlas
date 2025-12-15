@@ -16,8 +16,6 @@ import httpx
 from typing import Optional
 
 from conftest import (
-    validate_paginated_response,
-    validate_single_response,
     APIAssertions,
 )
 
@@ -80,7 +78,7 @@ def get_available_marks(client: httpx.Client, species_id: int = 1) -> list:
     Returns empty list if no marks are available.
     Note: API returns a list directly, not wrapped in {"marks": [...]}
     """
-    response = client.get(f"/api/v1/features/chipseq/marks", params={"species_id": species_id})
+    response = client.get("/api/v1/features/chipseq/marks", params={"species_id": species_id})
     if response.status_code == 200:
         data = response.json()
         # API returns list directly
@@ -725,7 +723,7 @@ class TestStructuralMarks:
             f"CTCF mark: Expected 200 or 404, got {response.status_code}"
 
         if response.status_code == 200:
-            data = response.json()
+            _ = response.json()  # Validate JSON response
             print(f"CTCF data available for gene {gene_id}")
 
     def test_h2az_data_available(self, api_client: httpx.Client):

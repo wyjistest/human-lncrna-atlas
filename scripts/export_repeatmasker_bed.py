@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "frontend" / "backend"))
 
 from app.core.database import SessionLocal
 from app.models.models import GenomicFeature, FeatureTrack, Species
-from sqlalchemy import and_
 
 
 def export_repeatmasker_bed(species_id: int, output_file: str):

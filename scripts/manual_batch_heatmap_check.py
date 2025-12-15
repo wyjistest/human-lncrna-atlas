@@ -20,7 +20,6 @@ Tests:
 import httpx
 import json
 import time
-from typing import List, Dict, Any
 import statistics
 
 # API Base URL
@@ -303,9 +302,9 @@ def main():
         if response.status_code != 200:
             print("ERROR: API is not responding correctly")
             return 1
-    except Exception as e:
+    except Exception:
         print(f"ERROR: Cannot connect to API at {BASE_URL}")
-        print(f"Make sure the backend is running: python3 -m uvicorn app.main:app --reload")
+        print("Make sure the backend is running: python3 -m uvicorn app.main:app --reload")
         return 1
 
     print("✓ API is accessible")

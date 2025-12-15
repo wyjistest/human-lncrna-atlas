@@ -13,8 +13,7 @@ Environment variables:
 import os
 import sys
 import psycopg2
-from psycopg2.extras import RealDictCursor
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 
 # Configuration
 DB_CONFIG = {
@@ -198,7 +197,7 @@ def validate_signal_values(cur, experiment_id: int):
 
     if row and row[0] > 0:
         total, avg_fe, min_fe, max_fe, median_fe = row
-        log_info(f"Fold enrichment statistics:")
+        log_info("Fold enrichment statistics:")
         log_info(f"  Total peaks with FE: {total:,}")
         log_info(f"  Min: {min_fe:.2f}")
         log_info(f"  Avg: {avg_fe:.2f}")
@@ -362,7 +361,7 @@ def main():
             sys.exit(1)
 
         # Validation 2-7: Data quality checks
-        peak_count = validate_peak_count(cur, experiment_id)
+        validate_peak_count(cur, experiment_id)
         validate_no_duplicates(cur, experiment_id)
         validate_coordinates(cur, experiment_id)
         validate_signal_values(cur, experiment_id)

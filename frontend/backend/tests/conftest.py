@@ -12,8 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.schemas.gene import GeneListItem, GeneDetail
 from app.schemas.regulation import RegulationListItem, RegulationDetail
-from app.schemas.stats import OverviewStats, SpeciesStats
-from app.schemas.disease import TraitGeneAssociationDetail, TraitDetail
+from app.schemas.stats import OverviewStats
 
 
 # ============== 配置 ==============

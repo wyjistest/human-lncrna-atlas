@@ -8,7 +8,6 @@ Run: pytest tests/test_phase_3_1_regression.py -v
 import pytest
 import httpx
 import time
-from typing import Dict, Any
 
 
 # Configuration
@@ -173,7 +172,7 @@ class TestExportStillWorks:
         assert len(content) > 0, "Export should return data"
 
         # Check BED format
-        lines = [l for l in content.split('\n') if l and not l.startswith('track')]
+        lines = [line for line in content.split('\n') if line and not line.startswith('track')]
         if lines:
             first_line = lines[0].split('\t')
             assert len(first_line) == 6, "BED export should have 6 columns"
