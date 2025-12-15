@@ -24,7 +24,7 @@ export default function Genes() {
   const [pageSize, setPageSize] = useState(100)
   const [search, setSearch] = useState('')
   const [geneType, setGeneType] = useState<string>()
-  const { t, i18n } = useTranslation('genes')
+  const { t } = useTranslation('genes')
   const { t: tCommon } = useTranslation('common')
 
   // 翻译物种名称
@@ -130,7 +130,7 @@ export default function Genes() {
         </Button>
       )
     },
-  ], [t, i18n.language, translateSpecies, tCommon, navigate])
+  ], [t, translateSpecies, tCommon, navigate])
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />

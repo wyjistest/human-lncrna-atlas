@@ -186,8 +186,11 @@ export const OrthologBrowser: React.FC<OrthologBrowserProps> = ({
     preloadedOrthologs ? 0 : geneId
   )
 
-  // Use pre-loaded or fetched orthologs
-  const orthologs = preloadedOrthologs || fetchedOrthologs || []
+  // Use pre-loaded or fetched orthologs (memoized to prevent reference instability)
+  const orthologs = useMemo(
+    () => preloadedOrthologs || fetchedOrthologs || [],
+    [preloadedOrthologs, fetchedOrthologs]
+  )
 
   // Species translator
   const baseTranslate = createSpeciesTranslator(tCommon)

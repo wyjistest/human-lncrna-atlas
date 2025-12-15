@@ -23,7 +23,7 @@ interface TopLncRNAChartProps {
 }
 
 export function TopLncRNAChart({ data }: TopLncRNAChartProps) {
-  const { t, i18n } = useTranslation('stats')
+  const { t } = useTranslation('stats')
   const { t: tCommon } = useTranslation('common')
 
   const translateSpecies = createSpeciesTranslator(tCommon)
@@ -102,7 +102,7 @@ export function TopLncRNAChart({ data }: TopLncRNAChartProps) {
         }
       }
     ]
-  }), [data, reversedData, t, i18n.language, speciesLabel, regulationCountLabel, translateSpecies])
+  }), [reversedData, t, speciesLabel, regulationCountLabel, translateSpecies])
 
   // 表格列定义
   const columns = useMemo(() => [

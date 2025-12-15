@@ -16,7 +16,7 @@ interface BAChartProps {
 }
 
 export function BAChart({ data }: BAChartProps) {
-  const { t, i18n } = useTranslation('stats')
+  const { t } = useTranslation('stats')
 
   // 生成 X 轴标签
   const labels = data.map(b => `${b.range_start.toFixed(0)}-${b.range_end.toFixed(0)}`)
@@ -95,7 +95,7 @@ export function BAChart({ data }: BAChartProps) {
         }
       }
     ]
-  }), [data, labels, counts, t, i18n.language, regulationCountLabel, baRangeLabel])
+  }), [labels, counts, t, regulationCountLabel, baRangeLabel])
 
   return (
     <ReactECharts

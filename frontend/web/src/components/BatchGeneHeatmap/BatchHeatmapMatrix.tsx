@@ -361,7 +361,7 @@ export function BatchHeatmapMatrix({
         },
       ],
     }
-  }, [data, metric, heatmapData, valueRange, allMarks, yLabels, markLabels, totalRows, t])
+  }, [metric, heatmapData, valueRange, allMarks, yLabels, markLabels, totalRows, t])
 
   // Handle chart click events
   useEffect(() => {

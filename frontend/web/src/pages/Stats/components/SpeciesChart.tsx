@@ -17,7 +17,7 @@ interface SpeciesChartProps {
 }
 
 export function SpeciesChart({ data }: SpeciesChartProps) {
-  const { t, i18n } = useTranslation('stats')
+  const { t } = useTranslation('stats')
   const { t: tCommon } = useTranslation('common')
 
   const translateSpecies = createSpeciesTranslator(tCommon)
@@ -68,7 +68,7 @@ export function SpeciesChart({ data }: SpeciesChartProps) {
         }
       }
     ]
-  }), [data, t, i18n.language, translateSpecies])
+  }), [data, t, translateSpecies])
 
   return (
     <ReactECharts

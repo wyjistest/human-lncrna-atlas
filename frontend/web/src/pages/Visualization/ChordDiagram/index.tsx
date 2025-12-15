@@ -42,6 +42,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
+import type { ChordParams } from '@/types/echarts'
 
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -108,9 +109,9 @@ export default function ChordDiagram() {
   })
 
   // Transform data for ECharts Circular Graph
-  const chartOption: EChartsOption = useMemo(() => {
+  const chartOption = useMemo(() => {
     if (!chordData || !chordData.nodes || !chordData.links) {
-      return {}
+      return { series: [] } as EChartsOption
     }
 
     // Transform nodes for graph
@@ -153,13 +154,17 @@ export default function ChordDiagram() {
       },
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
+        formatter: (rawParams: unknown) => {
+          const params = rawParams as ChordParams
           if (params.dataType === 'edge') {
-            const sourceName = idToName.get(params.data.source) || params.data.source
-            const targetName = idToName.get(params.data.target) || params.data.target
+            const sourceId = String(params.data.source ?? '')
+            const targetId = String(params.data.target ?? '')
+            const sourceName = idToName.get(sourceId) || sourceId
+            const targetName = idToName.get(targetId) || targetId
+            const value = params.data.value ?? 0
             return `
               <strong>${sourceName} ←→ ${targetName}</strong><br/>
-              ${t('chord.bindingAffinity', 'Binding Affinity')}: <strong>${params.data.value.toFixed(2)}</strong>
+              ${t('chord.bindingAffinity', 'Binding Affinity')}: <strong>${value.toFixed(2)}</strong>
             `
           } else {
             const nodeName = idToName.get(params.name) || params.name

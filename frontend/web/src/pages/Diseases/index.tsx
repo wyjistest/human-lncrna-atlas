@@ -12,7 +12,7 @@ export default function Diseases() {
   const [pageSize, setPageSize] = useState(100)
   const [search, setSearch] = useState('')
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([])
-  const { t, i18n } = useTranslation('diseases')
+  const { t } = useTranslation('diseases')
   const { t: tCommon } = useTranslation('common')
 
   const translateSpecies = createSpeciesTranslator(tCommon)
@@ -71,7 +71,7 @@ export default function Diseases() {
     },
     { title: t('columns.genes'), dataIndex: 'gene_count', width: 80 },
     { title: t('columns.lncrnas'), dataIndex: 'lncrna_count', width: 80 },
-  ], [t, i18n.language, translateSpecies])
+  ], [t, translateSpecies])
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
@@ -122,7 +122,7 @@ export default function Diseases() {
 }
 
 function DiseaseAssociations({ traitId, ontologyId }: { traitId: number; ontologyId: number }) {
-  const { t, i18n } = useTranslation('diseases')
+  const { t } = useTranslation('diseases')
 
   const { data, isLoading, error } = useDiseaseGenes(traitId, {
     page: 1,
@@ -136,7 +136,7 @@ function DiseaseAssociations({ traitId, ontologyId }: { traitId: number; ontolog
     { title: t('expanded.oddsRatio'), dataIndex: 'odds_ratio', width: 100 },
     { title: t('expanded.fdr'), dataIndex: 'fdr', width: 100 },
     { title: t('expanded.literature'), dataIndex: 'literature_support', width: 100, render: (val: boolean) => val ? '✓' : '-' },
-  ], [t, i18n.language])
+  ], [t])
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
