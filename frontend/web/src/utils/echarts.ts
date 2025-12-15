@@ -18,6 +18,7 @@ import {
   RadarChart,
   ScatterChart,
   SankeyChart,
+  GraphChart,
 } from 'echarts/charts'
 
 // 组件
@@ -45,6 +46,7 @@ import type {
   RadarSeriesOption,
   ScatterSeriesOption,
   SankeySeriesOption,
+  GraphSeriesOption,
 } from 'echarts/charts'
 
 import type {
@@ -68,6 +70,7 @@ export type ECOption = echarts.ComposeOption<
   | RadarSeriesOption
   | ScatterSeriesOption
   | SankeySeriesOption
+  | GraphSeriesOption
   | TitleComponentOption
   | TooltipComponentOption
   | LegendComponentOption
@@ -88,6 +91,7 @@ echarts.use([
   RadarChart,
   ScatterChart,
   SankeyChart,
+  GraphChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,

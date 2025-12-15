@@ -19,6 +19,8 @@ interface ConservationMatrixProps {
   title?: string
   /** Chart height */
   height?: number
+  /** Callback when clicking a cell */
+  onCellClick?: (speciesX: number, speciesY: number, value: number) => void
 }
 
 /**
@@ -44,7 +46,8 @@ export function ConservationMatrix({
   data,
   loading = false,
   title,
-  height = 400
+  height = 400,
+  onCellClick
 }: ConservationMatrixProps) {
   const { t } = useTranslation('conservation')
   const chartRef = useRef<HTMLDivElement>(null)
@@ -189,11 +192,21 @@ export function ConservationMatrix({
 
     chartInstance.current.setOption(option, true)
 
+    // Add click event listener
+    if (onCellClick) {
+      chartInstance.current.on('click', (params: any) => {
+        if (params.componentType === 'series' && params.seriesType === 'heatmap') {
+          const [x, y, value] = params.value as [number, number, number]
+          onCellClick(x, y, value)
+        }
+      })
+    }
+
     // Cleanup on unmount
     return () => {
       // Don't destroy here, just clear option to avoid memory issues
     }
-  }, [chartData, title, t])
+  }, [chartData, title, t, onCellClick])
 
   // Handle resize
   useEffect(() => {

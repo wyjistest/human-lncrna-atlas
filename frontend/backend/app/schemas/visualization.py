@@ -64,3 +64,64 @@ class SankeyResponse(BaseModel):
     query_params: Dict[str, Any] = Field(description="查询参数记录")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# Chord Diagram Schemas
+# ============================================================================
+
+class ChordNode(BaseModel):
+    """Chord 图节点"""
+
+    id: str = Field(description="节点唯一标识 (lncrna_123, gene_456)")
+    name: str = Field(description="节点显示名称")
+    category: str = Field(description="节点类型：lncrna | gene")
+    value: float = Field(description="节点权重（用于节点大小）")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChordLink(BaseModel):
+    """Chord 图连接"""
+
+    source: str = Field(description="源节点 ID")
+    target: str = Field(description="目标节点 ID")
+    value: float = Field(description="连接权重（结合亲和力）")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChordData(BaseModel):
+    """Chord 图数据容器"""
+
+    nodes: List[ChordNode] = Field(description="节点列表")
+    links: List[ChordLink] = Field(description="连接列表")
+    matrix: List[List[float]] = Field(description="邻接矩阵（用于 D3 chord 图）")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChordStats(BaseModel):
+    """Chord 图统计信息"""
+
+    total_nodes: int = Field(description="总节点数")
+    total_lncrnas: int = Field(description="lncRNA 节点数")
+    total_genes: int = Field(description="基因节点数")
+    total_links: int = Field(description="连接数（调控关系数）")
+    avg_binding_affinity: float = Field(description="平均结合亲和力")
+    max_binding_affinity: float = Field(description="最大结合亲和力")
+    min_binding_affinity: float = Field(description="最小结合亲和力")
+    species_id: int = Field(description="物种 ID")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ChordResponse(BaseModel):
+    """Chord 图响应模型"""
+
+    success: bool = Field(default=True, description="请求是否成功")
+    data: ChordData = Field(description="Chord 图数据")
+    stats: ChordStats = Field(description="统计信息")
+    query_params: Dict[str, Any] = Field(description="查询参数记录")
+
+    model_config = ConfigDict(from_attributes=True)

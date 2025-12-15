@@ -1,10 +1,10 @@
 # Human LncRNA Atlas 项目记忆文件
 
 ## 元信息
-- **更新日期**: 2025-12-13
-- **当前版本**: Phase 8.3 (Codex 5轮代码审查 - 完成)
-- **下一阶段**: Phase 9.0 (新功能)
-- **项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署 + ETL数据一致性 + Codex审查通过
+- **更新日期**: 2025-12-15
+- **当前版本**: Phase 9.0 (高级可视化功能 - 完成)
+- **下一阶段**: Phase 10.0 (待规划)
+- **项目状态**: 🟢 生产就绪 + 企业级性能 + 测试覆盖 + 安全加固 + 模块化架构 + 可移植部署 + ETL数据一致性 + Codex审查通过 + 高级可视化
 - **GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 ## 项目概述
@@ -1863,6 +1863,127 @@ Phase 8.3: Codex 5轮代码审查    ✅ 2025-12-13
   ├── 第3轮审查+修复            ✅ E712, F841
   ├── 第4轮审查+修复            ✅ E402, F401, F541 (28+ fixes)
   └── 第5轮最终审查             ✅ All checks passed!
+```
+
+---
+
+## Phase 9.0: 高级可视化功能 (2025-12-15)
+
+### 概述
+
+实现高级可视化功能，包括 Chord 图（弦图）、聚类热力图、交互式保守性矩阵、可视化导航中心。使用 MCP 工具（Sequential Thinking 可行性评估、Context7 库文档查询）进行技术规划，4 个并行 Agent 协同实现。
+
+### 新增功能
+
+| 功能 | 描述 | 技术实现 |
+|------|------|---------|
+| **Chord 图** | lncRNA-Target 调控关系弦图可视化 | ECharts graph + circular layout |
+| **聚类热力图** | 带层级聚类树的热力图 | ECharts heatmap + 自定义 SVG dendrogram |
+| **交互式保守性矩阵** | 点击单元格查看物种对详细调控关系 | ECharts click 事件 + Ant Design Drawer |
+| **可视化导航中心** | 统一的可视化功能入口页面 | 响应式卡片布局 |
+
+### 新增后端依赖
+
+```
+scipy>=1.12.0      # 层级聚类、距离计算
+scikit-learn>=1.4.0 # K-means、特征缩放
+```
+
+### 新增文件清单
+
+#### 后端 (FastAPI)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `app/utils/clustering.py` | 567 | 聚类工具函数 (hierarchical_cluster, kmeans_cluster, find_optimal_clusters) |
+| `app/routers/visualization.py` | +305 | Chord 图 API (get_chord_data) |
+| `app/schemas/visualization.py` | +60 | Chord 数据模型 (ChordNode, ChordLink, ChordResponse) |
+
+#### 前端 (React)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `pages/Visualization/index.tsx` | 150 | 可视化导航中心 |
+| `pages/Visualization/ChordDiagram/index.tsx` | 425 | Chord 图页面 |
+| `api/chord.ts` | 217 | Chord API 客户端 |
+| `api/clustering.ts` | 143 | 聚类 API 客户端 |
+| `components/visualization/ClusteredHeatmap.tsx` | 180 | 聚类热力图组件 |
+| `components/visualization/DendrogramSVG.tsx` | 155 | 层级聚类树 SVG 渲染器 |
+| `pages/Conservation/components/ConservationDetailsDrawer.tsx` | 200 | 保守性详情抽屉 |
+
+#### 国际化 (i18n)
+
+| 文件 | 新增键数 |
+|------|---------|
+| `en/visualization.json` | +54 |
+| `zh-CN/visualization.json` | +54 |
+| `en/conservation.json` | +12 |
+| `zh-CN/conservation.json` | +12 |
+
+### API 端点
+
+#### GET /api/visualization/chord-data
+
+获取 Chord 图数据（lncRNA-Target 调控关系矩阵）。
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `species_id` | int | 1 | 物种 ID (1-4) |
+| `lncrna_id` | int | null | 指定 lncRNA ID |
+| `min_ba` | float | 50.0 | 最小结合亲和力 |
+| `limit` | int | 100 | 最大边数 |
+
+**响应结构**:
+```json
+{
+  "data": {
+    "nodes": [{ "id": "...", "name": "...", "category": 0, "symbolSize": 20 }],
+    "links": [{ "source": "...", "target": "...", "value": 85.5 }],
+    "categories": [{ "name": "lncRNA" }, { "name": "Target" }]
+  },
+  "stats": { "node_count": 50, "link_count": 100, "avg_affinity": 72.3 }
+}
+```
+
+### 聚类工具函数 (clustering.py)
+
+| 函数 | 说明 |
+|------|------|
+| `hierarchical_cluster(data, method='ward')` | 层级聚类，返回 linkage matrix 和 dendrogram 数据 |
+| `kmeans_cluster(data, n_clusters=5)` | K-means 聚类，返回标签和中心点 |
+| `compute_correlation_matrix(data, method='pearson')` | 计算相关性矩阵 |
+| `reorder_by_clustering(matrix, method='ward')` | 按聚类结果重排矩阵 |
+| `find_optimal_clusters(data, max_k=10)` | 肘部法找最优聚类数 |
+
+### 路由更新 (App.tsx)
+
+```typescript
+// 新增路由
+<Route path="visualization" element={<VisualizationHub />} />
+<Route path="visualization/chord" element={<ChordDiagram />} />
+```
+
+### 技术决策
+
+| 决策点 | 选择 | 理由 |
+|-------|------|------|
+| Chord 图库 | ECharts graph | 已集成，支持 circular layout |
+| 聚类树渲染 | 自定义 SVG | 灵活控制布局，无额外依赖 |
+| 层级聚类 | scipy.cluster.hierarchy | 成熟稳定，支持多种链接方法 |
+| 状态管理 | React Query | 与现有架构一致 |
+
+### 项目里程碑更新
+
+```
+Phase 8.3: Codex 5轮代码审查    ✅ 2025-12-13
+Phase 9.0: 高级可视化功能       ✅ 2025-12-15
+  ├── 后端基础设施 (clustering.py)  ✅ 567 行
+  ├── Chord 图后端 API              ✅ 305 行
+  ├── Chord 图前端组件              ✅ 425 行
+  ├── 聚类热力图组件                ✅ 335 行
+  ├── 交互式保守性矩阵              ✅ 抽屉组件
+  ├── 可视化导航中心                ✅ 150 行
+  └── 国际化支持                    ✅ en/zh-CN
 ```
 
 ---

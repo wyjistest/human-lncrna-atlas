@@ -43,6 +43,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { conservationApi } from '@/api/conservation'
 import { SpeciesSelector } from './components/SpeciesSelector'
 import { ConservationMatrix } from './components/ConservationMatrix'
+import { ConservationDetailsDrawer } from './components/ConservationDetailsDrawer'
 import type {
   ConservedRegulation,
   ConservationMatrixData,
@@ -148,6 +149,10 @@ export default function Conservation() {
   const [minBA, setMinBA] = useState(0)
   const [lncrnaSearch, setLncrnaSearch] = useState('')
   const [targetSearch, setTargetSearch] = useState('')
+
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [selectedPair, setSelectedPair] = useState<{ speciesX: number; speciesY: number; value: number } | null>(null)
 
   // API Queries with fallback to mock data
   const {
@@ -257,6 +262,12 @@ export default function Conservation() {
   const handleSpeciesChange = useCallback((speciesIds: number[]) => {
     setSelectedSpecies(speciesIds)
     setPage(1) // Reset pagination
+  }, [])
+
+  // Handle matrix cell click
+  const handleCellClick = useCallback((speciesX: number, speciesY: number, value: number) => {
+    setSelectedPair({ speciesX, speciesY, value })
+    setDrawerOpen(true)
   }, [])
 
   const handleExport = useCallback(async () => {
@@ -487,6 +498,7 @@ export default function Conservation() {
             loading={matrixLoading}
             title={t('matrix.title', 'Conservation Matrix')}
             height={450}
+            onCellClick={handleCellClick}
           />
         </Col>
       </Row>
@@ -611,6 +623,13 @@ export default function Conservation() {
           size="middle"
         />
       </Card>
+
+      {/* Conservation Details Drawer */}
+      <ConservationDetailsDrawer
+        open={drawerOpen}
+        speciesPair={selectedPair}
+        onClose={() => setDrawerOpen(false)}
+      />
     </div>
   )
 }

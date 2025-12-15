@@ -1,4 +1,37 @@
 {
+  "hub": {
+    "breadcrumb": "Visualizations",
+    "title": "Visualization Hub",
+    "description": "Explore lncRNA regulatory relationships through interactive visualizations. Choose from network graphs, flow diagrams, heatmaps, and genomic browsers.",
+    "network": {
+      "title": "Network Graph",
+      "description": "Interactive gene regulatory network with Cytoscape.js"
+    },
+    "sankey": {
+      "title": "Sankey Flow",
+      "description": "lncRNA → Gene → Disease three-layer flow diagram"
+    },
+    "chord": {
+      "title": "Chord Diagram",
+      "description": "lncRNA ←→ Gene circular network"
+    },
+    "conservation": {
+      "title": "Conservation Matrix",
+      "description": "Cross-species conservation heatmap"
+    },
+    "genome": {
+      "title": "Genome Browser",
+      "description": "IGV.js genomic visualization with tracks"
+    },
+    "info": {
+      "title": "About Visualizations",
+      "description": "Each visualization provides unique insights into lncRNA regulatory networks:",
+      "network": "Explore complex regulatory relationships with interactive node-edge graphs. Filter by species, diseases, and binding affinity.",
+      "sankey": "Visualize three-layer flow from lncRNAs through genes to diseases. Understand regulatory cascades.",
+      "conservation": "Compare conservation patterns across 4 primate species with interactive heatmaps. Click cells to explore shared regulations.",
+      "genome": "View genomic coordinates, ChIP-seq peaks, and RepeatMasker annotations on an IGV.js browser."
+    }
+  },
   "sankey": {
     "title": "Sankey Flow Diagram",
     "breadcrumb": "Sankey Flow",
@@ -31,6 +64,38 @@
       "flowValue": "Flow Value",
       "connections": "Connections",
       "total": "Total {{count}} flows"
+    }
+  },
+  "chord": {
+    "title": "Chord Diagram",
+    "breadcrumb": "Chord Diagram",
+    "description": "Visualize lncRNA-Gene regulatory relationships as a circular network. Node size represents connection degree, edge width represents binding affinity.",
+    "chartTitle": "lncRNA ←→ Gene Regulatory Network",
+    "bindingAffinity": "Binding Affinity",
+    "category": "Category",
+    "connections": "Connections",
+    "noData": "No data available. Try adjusting filters.",
+    "export": "Export PNG",
+    "stats": {
+      "totalNodes": "Total Nodes",
+      "totalNodesHelp": "lncRNA + Gene nodes",
+      "lncrnaNodes": "LncRNA Nodes",
+      "geneNodes": "Gene Nodes",
+      "totalLinks": "Total Connections"
+    },
+    "filters": {
+      "title": "Filters",
+      "species": "Species",
+      "allSpecies": "All Species",
+      "minBA": "Min. Binding Affinity",
+      "limit": "Node Limit"
+    },
+    "table": {
+      "title": "Connection Details",
+      "lncrna": "LncRNA",
+      "gene": "Gene",
+      "bindingAffinity": "Binding Affinity",
+      "total": "Total {{count}} connections"
     }
   }
 }

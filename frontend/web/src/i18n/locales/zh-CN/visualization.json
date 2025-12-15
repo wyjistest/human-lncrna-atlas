@@ -1,11 +1,44 @@
 {
+  "hub": {
+    "breadcrumb": "可视化",
+    "title": "可视化中心",
+    "description": "通过交互式可视化探索 lncRNA 调控关系。选择网络图、流向图、热图和基因组浏览器。",
+    "network": {
+      "title": "网络图",
+      "description": "基于 Cytoscape.js 的交互式基因调控网络"
+    },
+    "sankey": {
+      "title": "桑基流向图",
+      "description": "lncRNA → 基因 → 疾病三层流向图"
+    },
+    "chord": {
+      "title": "弦图",
+      "description": "lncRNA ←→ 基因环形网络"
+    },
+    "conservation": {
+      "title": "保守性矩阵",
+      "description": "跨物种保守性热图"
+    },
+    "genome": {
+      "title": "基因组浏览器",
+      "description": "基于 IGV.js 的基因组可视化与轨道"
+    },
+    "info": {
+      "title": "关于可视化",
+      "description": "每种可视化都提供对 lncRNA 调控网络的独特见解：",
+      "network": "通过交互式节点-边图探索复杂的调控关系。按物种、疾病和结合亲和力筛选。",
+      "sankey": "可视化从 lncRNA 到基因再到疾病的三层流动。理解调控级联。",
+      "conservation": "通过交互式热图比较 4 个灵长类物种的保守性模式。点击单元格探索共享调控关系。",
+      "genome": "在 IGV.js 浏览器上查看基因组坐标、ChIP-seq 峰和 RepeatMasker 注释。"
+    }
+  },
   "sankey": {
-    "title": "Sankey 流向图",
-    "breadcrumb": "Sankey 流向图",
+    "title": "桑基流向图",
+    "breadcrumb": "桑基流向图",
     "description": "可视化三层调控关系：lncRNA → 基因 → 疾病。探索 lncRNA 如何调控与疾病相关的基因。",
-    "chartTitle": "lncRNA → 基因 → 疾病 流向",
-    "flowValue": "流向值",
-    "noData": "暂无数据。请尝试调整筛选条件。",
+    "chartTitle": "lncRNA → 基因 → 疾病流向",
+    "flowValue": "流量值",
+    "noData": "无数据。请尝试调整筛选条件。",
     "stats": {
       "totalNodes": "总节点数",
       "totalNodesHelp": "lncRNA + 基因 + 疾病节点",
@@ -15,11 +48,11 @@
       "totalLinks": "总连接数"
     },
     "filters": {
-      "title": "筛选器",
+      "title": "筛选条件",
       "species": "物种",
       "allSpecies": "所有物种",
       "disease": "疾病/性状",
-      "diseasePlaceholder": "例如：糖尿病",
+      "diseasePlaceholder": "例如：diabetes",
       "minBA": "最小结合亲和力",
       "limit": "节点限制"
     },
@@ -28,9 +61,41 @@
       "lncrna": "LncRNA",
       "gene": "基因",
       "disease": "疾病",
-      "flowValue": "流向值",
+      "flowValue": "流量值",
       "connections": "连接数",
-      "total": "共 {{count}} 条流向"
+      "total": "共 {{count}} 个流向"
+    }
+  },
+  "chord": {
+    "title": "Chord 图",
+    "breadcrumb": "Chord 图",
+    "description": "将 lncRNA-基因调控关系可视化为环形网络。节点大小表示连接度，边宽度表示结合亲和力。",
+    "chartTitle": "lncRNA ←→ 基因调控网络",
+    "bindingAffinity": "结合亲和力",
+    "category": "类别",
+    "connections": "连接数",
+    "noData": "暂无数据。请尝试调整筛选条件。",
+    "export": "导出 PNG",
+    "stats": {
+      "totalNodes": "总节点数",
+      "totalNodesHelp": "lncRNA + 基因节点",
+      "lncrnaNodes": "LncRNA 节点",
+      "geneNodes": "基因节点",
+      "totalLinks": "总连接数"
+    },
+    "filters": {
+      "title": "筛选器",
+      "species": "物种",
+      "allSpecies": "所有物种",
+      "minBA": "最小结合亲和力",
+      "limit": "节点限制"
+    },
+    "table": {
+      "title": "连接详情",
+      "lncrna": "LncRNA",
+      "gene": "基因",
+      "bindingAffinity": "结合亲和力",
+      "total": "共 {{count}} 个连接"
     }
   }
 }
