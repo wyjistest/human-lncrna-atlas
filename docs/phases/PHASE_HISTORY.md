@@ -216,9 +216,25 @@ scikit-learn>=1.4.0
 
 ### 验证结果
 
-- ESLint: 0 errors, 135 warnings
+- ESLint: 0 errors, **0 warnings** ✅
 - Unit Tests: 171 passed
 - Build: ✅ 成功
+
+### ESLint Warnings 清零
+
+| Commit | 描述 | 警告数变化 |
+|--------|------|-----------|
+| `13f29c8` | 初始清理 | 135 → 124 |
+| `a81136c` | Network 模块类型修复 | 124 → 89 |
+| `c6f0baa` | ECharts 回调类型修复 | 89 → 51 |
+| `2fdb483` | 最终清理完成 | 51 → 0 |
+
+**修复的类型问题:**
+- API 层: 添加后端响应接口 (`ChordBackendResponse`, `ClusteringBackendResponse`)
+- ECharts 回调: 使用 `HeatmapParams`, `BarParams`, `TooltipFormatterParams`
+- Table 组件: 使用 `Record<string, unknown>` 替代 `any`
+- Selector 组件: 扩展 `DefaultOptionType` 添加自定义属性
+- MSW 初始化: `console.log` → `console.warn`
 
 ---
 

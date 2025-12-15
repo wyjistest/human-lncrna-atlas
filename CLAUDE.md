@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.0 |
+| 版本 | Phase 9.1 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-15 |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
@@ -55,7 +55,7 @@ curl -s http://localhost:8000/health && echo " ✅ Backend OK"
 
 ```bash
 # 验证检查清单
-npm run lint          # ESLint (0 errors)
+npm run lint          # ESLint (0 errors, 0 warnings)
 npm run test:run      # 单元测试 (全部通过)
 npm run build         # 生产构建
 python3 -c "import main"  # 后端导入
@@ -147,7 +147,8 @@ npx playwright show-report
 | 6.0 | 科研数据分析 (4 API + 4 Notebooks) | 2025-12-11 |
 | 7.0-7.5 | API 完善 + 单元测试 + 模块化 | 2025-12-12/13 |
 | 8.0-8.3 | 代码审查 + ETL 一致性 + Codex 审查 | 2025-12-13 |
-| **9.0** | **高级可视化 (Chord/聚类热力图)** | **2025-12-15** |
+| 9.0 | 高级可视化 (Chord/聚类热力图) | 2025-12-15 |
+| **9.1** | **ESLint 警告清零 (135→0)** | **2025-12-15** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
