@@ -343,11 +343,11 @@ def list_regulations(
     # 添加排序，确保分页结果稳定
     query = query.order_by(desc(Regulation.binding_affinity), Regulation.regulation_id)
 
-    # 总数（使用缓存）
+    # 总数（使用缓存，使用规范化后的参数确保与列表缓存键一致）
     count_cache_key = cache.make_list_key(
         "regulations",
         species_id=species_id,
-        species_ids=species_ids,
+        species_ids=normalized_species_ids,
         lncrna_gene_id=lncrna_gene_id,
         target_gene_id=target_gene_id,
         lncrna_gene_name=lncrna_gene_name,
@@ -355,7 +355,7 @@ def list_regulations(
         min_ba=min_ba,
         max_ba=max_ba,
         chromosome=chromosome,
-        chromosomes=chromosomes,
+        chromosomes=normalized_chromosomes,
     )
     total = cache.get_cached_count(query, count_cache_key)
 
