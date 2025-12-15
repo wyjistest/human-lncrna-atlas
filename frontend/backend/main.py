@@ -177,7 +177,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
     return JSONResponse(
         status_code=sanitized_exc.status_code,
-        content=sanitized_exc.detail,
+        content={"detail": sanitized_exc.detail},
     )
 
 

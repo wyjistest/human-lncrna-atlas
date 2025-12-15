@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
             status="error"
             title="Something went wrong"
             subTitle={
-              process.env.NODE_ENV === 'development'
+              import.meta.env.DEV
                 ? this.state.error?.message
                 : 'An unexpected error occurred. Please try again.'
             }
@@ -74,7 +74,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </Button>,
             ]}
           >
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <div style={{
                 textAlign: 'left',
                 marginTop: 24,

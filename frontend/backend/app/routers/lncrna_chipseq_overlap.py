@@ -37,21 +37,9 @@ from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
 
 # ============================================================================
-# Rate Limiting Setup (slowapi)
+# Rate Limiting Setup (reuse shared limiter from chipseq_rate_limit)
 # ============================================================================
-try:
-    from slowapi import Limiter
-    from slowapi.util import get_remote_address
-    SLOWAPI_AVAILABLE = True
-except ImportError:
-    SLOWAPI_AVAILABLE = False
-    Limiter = None
-
-# Initialize limiter if slowapi is available
-if SLOWAPI_AVAILABLE:
-    limiter = Limiter(key_func=get_remote_address)
-else:
-    limiter = None
+from app.routers.chipseq_rate_limit import SLOWAPI_AVAILABLE, limiter
 from app.schemas.lncrna_chipseq_overlap import (
     OverlapFilters,
     OverlapResponse,

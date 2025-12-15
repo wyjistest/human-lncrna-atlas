@@ -18,6 +18,7 @@ BED12 Format:
 12. blockStarts- Comma-separated exon starts (relative to chromStart)
 """
 
+import os
 import re
 from collections import defaultdict
 from typing import Dict
@@ -231,7 +232,16 @@ def gtf_to_bed12(gtf_file: str, output_file: str):
 
 
 if __name__ == '__main__':
-    gtf_file = '/data/wenyujianData/humanLncAtlas/FANTOM_CAT.lv3_robust.gtf'
-    output_file = '/data/wenyujianData/humanLncAtlas/genomes/fantom_cat_transcripts_bed12.bed'
+    import argparse
 
-    gtf_to_bed12(gtf_file, output_file)
+    parser = argparse.ArgumentParser(description='Convert GTF to BED12 format')
+    parser.add_argument('--input', '-i', type=str,
+                        default=os.environ.get('GTF_INPUT', './data/FANTOM_CAT.lv3_robust.gtf'),
+                        help='Input GTF file path')
+    parser.add_argument('--output', '-o', type=str,
+                        default=os.environ.get('BED12_OUTPUT', './data/genomes/fantom_cat_transcripts_bed12.bed'),
+                        help='Output BED12 file path')
+
+    args = parser.parse_args()
+
+    gtf_to_bed12(args.input, args.output)

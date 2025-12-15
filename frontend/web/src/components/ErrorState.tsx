@@ -93,7 +93,7 @@ export const ErrorState = ({
         subTitle={
           <Space orientation="vertical" size="small">
             <Text type="secondary">{getErrorMessage()}</Text>
-            {process.env.NODE_ENV === 'development' && error instanceof Error && (
+            {import.meta.env.DEV && error instanceof Error && (
               <Text type="secondary" style={{ fontSize: 11 }}>
                 {error.name}: {error.stack?.split('\n')[0]}
               </Text>

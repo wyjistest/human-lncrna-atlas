@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Phase 9.3: 代码审查修复** (2025-12-15)
+  - 全局异常返回结构：统一为 `{detail: {...}}` 格式与前端约定一致
+  - Limiter 实例统一：`lncrna_chipseq_overlap.py` 复用共享的 limiter
+  - 脚本硬编码路径：改为环境变量 + argparse 参数化
+  - Vite 兼容性：`process.env.NODE_ENV` → `import.meta.env.DEV`
+  - 分页交互：搜索/筛选时重置页码到第一页
+
+### Changed
+- **移除未使用依赖**: zustand (前端状态管理库，项目中未实际使用)
+
+### Fixed
 - **Ruff Lint 全面修复** (2025-12-15)
   - 自动修复 84 个问题：未使用导入、多余 f-string 前缀
   - 手动修复 22 个问题：变量命名、未使用变量、notebook 格式

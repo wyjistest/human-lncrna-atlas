@@ -12,6 +12,7 @@
 - [Phase 9.0: 高级可视化](#phase-90-高级可视化)
 - [Phase 9.1: 代码审查修复](#phase-91-代码审查修复)
 - [Phase 9.2: Ruff Lint 修复](#phase-92-ruff-lint-全面修复)
+- [Phase 9.3: 代码审查修复](#phase-93-代码审查修复)
 
 ---
 
@@ -284,6 +285,68 @@ scikit-learn>=1.4.0
 | `ruff check .` | ✅ All checks passed |
 | `npm run lint` | ✅ 0 errors, 0 warnings |
 | `npm run build` | ✅ 成功 (17.13s) |
+| `pytest tests/` | ✅ 200 passed |
+
+---
+
+## Phase 9.3: 代码审查修复
+
+### 问题分类与修复
+
+#### 高优先级 (4 项)
+
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| 全局异常返回结构 | `main.py:178` | `content=exc.detail` → `content={"detail": exc.detail}` |
+| Limiter 实例冗余 | `lncrna_chipseq_overlap.py` | 复用 `chipseq_rate_limit` 共享 limiter |
+| 脚本硬编码路径 | `fix_chimp_empty_dna.py`, `gtf_to_bed12.py`, `export_chipseq_bed.py` | 环境变量 + argparse 参数化 |
+| Vite 兼容性 | `ErrorBoundary.tsx`, `ErrorState.tsx` | `process.env.NODE_ENV` → `import.meta.env.DEV` |
+
+#### 中等优先级 (2 项)
+
+| 问题 | 文件 | 修复内容 |
+|------|------|----------|
+| 未使用依赖 | `package.json` | 移除 zustand |
+| 分页交互 | `pages/Genes/index.tsx` | 搜索/筛选时重置页码 |
+
+### 技术细节
+
+**全局异常处理一致性**
+
+修复前后端契约不一致问题：
+```python
+# Before
+content=sanitized_exc.detail
+
+# After (符合前端约定)
+content={"detail": sanitized_exc.detail}
+```
+
+**分页交互优化**
+
+使用 `useCallback` 封装搜索和筛选处理函数，自动重置分页：
+```tsx
+const handleSearchChange = useCallback((value: string) => {
+  setSearch(value)
+  setPage(1)  // 重置到第一页
+}, [])
+```
+
+**环境变量配置**
+
+脚本配置优先级：命令行参数 > 环境变量 > 默认值
+```python
+parser.add_argument('--input', '-i',
+    default=os.environ.get('GTF_INPUT', './data/default.gtf'))
+```
+
+### 验证结果
+
+| 检查 | 状态 |
+|------|------|
+| `ruff check .` | ✅ All checks passed |
+| `npm run lint` | ✅ 0 errors, 0 warnings |
+| `npm run build` | ✅ 成功 |
 | `pytest tests/` | ✅ 200 passed |
 
 ---

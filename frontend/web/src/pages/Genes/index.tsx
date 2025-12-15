@@ -33,6 +33,17 @@ export default function Genes() {
     return key ? tCommon(`species.${key}`) : speciesName
   }, [tCommon])
 
+  // 搜索/筛选时重置页码到第一页
+  const handleSearchChange = useCallback((value: string) => {
+    setSearch(value)
+    setPage(1)
+  }, [])
+
+  const handleGeneTypeChange = useCallback((value: string | undefined) => {
+    setGeneType(value)
+    setPage(1)
+  }, [])
+
   const { data, isLoading, error } = useGenes({ page, page_size: pageSize, search, gene_type: geneType })
 
   // 预加载相邻页
@@ -141,14 +152,14 @@ export default function Genes() {
       <Space style={{ marginBottom: 16 }}>
         <Input.Search
           placeholder={t('search.placeholder')}
-          onSearch={setSearch}
+          onSearch={handleSearchChange}
           style={{ width: 250 }}
           allowClear
         />
         <Select
           placeholder={t('search.geneType')}
           style={{ width: 150 }}
-          onChange={setGeneType}
+          onChange={handleGeneTypeChange}
           allowClear
           options={[
             { label: t('geneTypes.lncRNA'), value: 'lncRNA' },

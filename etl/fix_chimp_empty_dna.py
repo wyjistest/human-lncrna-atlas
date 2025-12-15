@@ -5,19 +5,27 @@
 从 8chimpManualProPromoterSeq 目录读取DNA文件，
 匹配空DNA序列记录（考虑1bp坐标偏差），
 更新数据库中的sequences表。
+
+Usage:
+    python fix_chimp_empty_dna.py [--dna-dir /path/to/dna/files]
+
+Environment Variables:
+    CHIMP_DNA_DIR: DNA文件目录路径
+    DB_HOST, DB_PORT, DB_USER, DB_NAME: 数据库连接配置
 """
 
 import os
 import psycopg2
 from psycopg2.extras import execute_batch
 
-# 配置
-DNA_DIR = '/data/wenyujianData/humanLncAtlas/chimp/8chimpManualProPromoterSeq/'
+# 配置 - 优先使用环境变量
+DNA_DIR = os.environ.get('CHIMP_DNA_DIR', './data/chimp/8chimpManualProPromoterSeq/')
+BATCH_FILE = os.environ.get('CHIMP_BATCH_FILE', './data/chimp_batch_BA50.txt')
 DB_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'user': 'amax',
-    'dbname': 'lncrna_production'
+    'host': os.environ.get('DB_HOST', 'localhost'),
+    'port': int(os.environ.get('DB_PORT', '5432')),
+    'user': os.environ.get('DB_USER', 'amax'),
+    'dbname': os.environ.get('DB_NAME', 'lncrna_production')
 }
 
 
@@ -130,7 +138,7 @@ def main():
     import csv
 
     empty_records = []
-    with open('/data/wenyujianData/humanLncAtlas/chimp_batch_BA50.txt', 'r') as f:
+    with open(BATCH_FILE, 'r') as f:
         reader = csv.DictReader(f, delimiter='\t')
         for row in reader:
             dna_seq = row.get('DNA_Sequence', '').strip()

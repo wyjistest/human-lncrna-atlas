@@ -17,6 +17,7 @@ Usage:
     python3 export_chipseq_bed.py --mark-type H3K27me3 --output-dir /path/to/output
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import Optional, Dict
@@ -292,20 +293,20 @@ Examples:
     parser.add_argument(
         '--chrom-sizes',
         type=str,
-        default='/data/wenyujianData/humanLncAtlas/genomes/hg19.chrom.sizes',
-        help='Path to chromosome sizes file'
+        default=os.environ.get('CHROM_SIZES', './data/genomes/hg19.chrom.sizes'),
+        help='Path to chromosome sizes file (env: CHROM_SIZES)'
     )
     parser.add_argument(
         '--bigbed-tool',
         type=str,
-        default='/data/wenyujianData/humanLncAtlas/scripts/bedToBigBed',
-        help='Path to bedToBigBed executable'
+        default=os.environ.get('BIGBED_TOOL', 'bedToBigBed'),
+        help='Path to bedToBigBed executable (env: BIGBED_TOOL)'
     )
     parser.add_argument(
         '--bigbed-output-dir',
         type=str,
-        default='/data/wenyujianData/humanLncAtlas/genomes',
-        help='Output directory for BigBed files (default: genomes/)'
+        default=os.environ.get('BIGBED_OUTPUT_DIR', './data/genomes'),
+        help='Output directory for BigBed files (env: BIGBED_OUTPUT_DIR)'
     )
 
     args = parser.parse_args()
