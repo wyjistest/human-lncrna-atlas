@@ -126,3 +126,15 @@
 - `git diff --check`：发现多处 trailing whitespace（主要为 CRLF 行尾/混合行尾导致的 diff 噪音）
 - `ruff check --select S frontend/backend/app -q`：通过
 - 配置契约验证：在 `frontend/backend` 下用 Python 实例化 `Settings(_env_file=None)`，确认仅 `DB_*` 生效，`DATABASE_*` 不生效（用于驱动部署文档修正）
+
+## 测试执行记录（2025-12-15，第8轮）
+
+### Backend（FastAPI/Python）
+
+- 修复 slowapi middleware 与 StreamingResponse 冲突后回归：
+  - `cd frontend/backend && pytest tests/ -q`：通过（200 passed）
+
+### 手工验证（流式端点）
+
+- `curl "http://localhost:8000/api/v1/igv/overlap-track?chr=chr1&start=1000000&end=2000000&limit=10"`：返回多行 BED6，未再出现 `transfer closed with outstanding read data remaining`
+- `curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=bed&chromosome=chr22&max_rows=100"`：返回完整 BED，未再出现连接提前关闭

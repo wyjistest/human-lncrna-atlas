@@ -120,8 +120,8 @@ npx playwright show-report
 
 | 问题 | 检查方法 |
 |------|----------|
-| API 500 | `tail -f /tmp/fastapi.log` |
-| 数据库连接 | 检查 `.env` DATABASE_URL |
+| API 500 | `tail -f frontend/backend/logs/api.log` |
+| 数据库连接 | 检查 `.env` DB_HOST/DB_NAME 等 |
 | 前端编译失败 | 同步 `src/config/` 配置 |
 
 > 详细踩坑记录: [docs/PITFALLS.md](docs/PITFALLS.md)

@@ -33,7 +33,7 @@ from app.schemas.common import HealthResponse
 try:
     from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
-    from slowapi.middleware import SlowAPIASGIMiddleware
+    from slowapi.middleware import SlowAPIMiddleware
     from app.routers.chipseq_rate_limit import chipseq_limiter
     SLOWAPI_AVAILABLE = True
 except ImportError:
@@ -127,7 +127,7 @@ app.add_middleware(
 if SLOWAPI_AVAILABLE and chipseq_limiter:
     app.state.limiter = chipseq_limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    app.add_middleware(SlowAPIASGIMiddleware)
+    app.add_middleware(SlowAPIMiddleware)
     logger.info("slowapi rate limiting enabled for ChIP-seq endpoints")
 
 # ============================================================================
