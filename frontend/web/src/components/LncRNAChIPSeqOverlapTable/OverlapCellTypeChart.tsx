@@ -21,6 +21,7 @@ import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getCellTypeColor, getCellTypeLabel } from '@/config/cellTypeConfigs'
+import type { PieParams } from '@/types/echarts'
 
 interface CellTypeDistData {
   cell_type: string
@@ -88,13 +89,14 @@ export function OverlapCellTypeChart({
       ),
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
-          const cellType = params.name
+        formatter: (params: unknown) => {
+          const p = params as PieParams
+          const cellType = p.name
           const displayName = getCellTypeLabel(cellType, i18n.language)
-          const percentage = ((params.value / total) * 100).toFixed(1)
+          const percentage = ((p.value / total) * 100).toFixed(1)
           return [
             `<strong>${displayName}</strong>`,
-            `${t('charts.overlapCount', 'Overlaps')}: ${params.value.toLocaleString()}`,
+            `${t('charts.overlapCount', 'Overlaps')}: ${p.value.toLocaleString()}`,
             `${t('charts.percentage', 'Percentage')}: ${percentage}%`,
           ].join('<br/>')
         },
@@ -139,12 +141,13 @@ export function OverlapCellTypeChart({
           },
           label: {
             show: true,
-            formatter: (params: any) => {
-              const percentage = ((params.value / total) * 100).toFixed(1)
+            formatter: (params: unknown) => {
+              const p = params as PieParams
+              const percentage = ((p.value / total) * 100).toFixed(1)
               if (parseFloat(percentage) < 5) {
                 return '' // Hide labels for small slices
               }
-              return `${getCellTypeLabel(params.name, i18n.language)}\n${params.value.toLocaleString()} (${percentage}%)`
+              return `${getCellTypeLabel(p.name, i18n.language)}\n${p.value.toLocaleString()} (${percentage}%)`
             },
             fontSize: 11,
           },

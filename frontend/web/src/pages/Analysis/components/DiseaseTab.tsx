@@ -17,6 +17,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import echarts from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import type { ECOption } from '@/utils/echarts'
 import type { DiseaseNetworkNode, DiseaseNetworkEdge } from '@/api/analysis'
 
 export default function DiseaseTab() {
@@ -32,7 +33,7 @@ export default function DiseaseTab() {
   })
 
   // Network preview chart
-  const networkPreviewOption: any = useMemo(() => {
+  const networkPreviewOption: ECOption = useMemo(() => {
     if (!data?.nodes || data.nodes.length === 0) return {}
 
     // Create nodes with categories
@@ -64,11 +65,12 @@ export default function DiseaseTab() {
       toolbox: getChartToolbox('disease-network', t('common.export')),
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
-          if (params.dataType === 'edge') {
-            return `Weight: ${params.value?.toFixed(2) || '-'}`
+        formatter: (params: unknown) => {
+          const p = params as { dataType?: string; name?: string; value?: number; data?: { category?: number } }
+          if (p.dataType === 'edge') {
+            return `Weight: ${p.value?.toFixed(2) || '-'}`
           }
-          return `${params.name} (${params.data.category === 0 ? 'Disease' : params.data.category === 1 ? 'Gene' : 'lncRNA'})`
+          return `${p.name} (${p.data?.category === 0 ? 'Disease' : p.data?.category === 1 ? 'Gene' : 'lncRNA'})`
         },
       },
       legend: {
@@ -142,7 +144,7 @@ export default function DiseaseTab() {
         { text: 'Gene', value: 'gene' },
         { text: 'lncRNA', value: 'lncrna' },
       ],
-      onFilter: (value: any, record: DiseaseNetworkNode) => record.type === value,
+      onFilter: (value: boolean | React.Key, record: DiseaseNetworkNode) => record.type === value,
     },
   ]
 

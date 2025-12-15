@@ -1,6 +1,10 @@
 import { message } from 'antd'
 import { saveAs } from 'file-saver'
 import type { Core } from 'cytoscape'
+import type { NetworkData, NetworkNode, NetworkEdge } from '@/types/network'
+
+/** Translation function type */
+type TranslateFn = (key: string, params?: Record<string, unknown>) => string
 
 /**
  * CSV escape function (prevent CSV injection and formula injection)
@@ -29,7 +33,7 @@ export const escapeCSV = (val: unknown): string => {
 export const exportAsPNG = async (
   cyRef: React.RefObject<Core>,
   speciesName: string,
-  t: (key: string, params?: any) => string
+  t: TranslateFn
 ) => {
   if (!cyRef.current) {
     message.error(t('export.networkNotLoaded'))
@@ -67,7 +71,7 @@ export const exportAsPNG = async (
 export const exportAsSVG = (
   cyRef: React.RefObject<Core>,
   speciesName: string,
-  t: (key: string, params?: any) => string
+  t: TranslateFn
 ) => {
   if (!cyRef.current) {
     message.error(t('export.networkNotLoaded'))
@@ -97,9 +101,9 @@ export const exportAsSVG = (
  * Export network data as CSV
  */
 export const exportAsCSV = (
-  data: any,
+  data: NetworkData,
   speciesName: string,
-  t: (key: string, params?: any) => string
+  t: TranslateFn
 ) => {
   if (!data) {
     message.error(t('export.noData'))
@@ -113,14 +117,14 @@ export const exportAsCSV = (
     try {
       // Export nodes (use escapeCSV to prevent injection)
       const nodeHeaders = ['ID', 'Label', 'Type', 'Gene ID', 'Core ID']
-      const nodeRows = data.nodes.map((n: any) =>
+      const nodeRows = data.nodes.map((n: NetworkNode) =>
         [escapeCSV(n.id), escapeCSV(n.label), escapeCSV(n.type), escapeCSV(n.gene_id), escapeCSV(n.core_id)].join(',')
       )
       const nodeCSV = [nodeHeaders.join(','), ...nodeRows].join('\n')
 
       // Export edges (use escapeCSV to prevent injection)
       const edgeHeaders = ['Source', 'Target', 'Binding Affinity', 'Regulation ID']
-      const edgeRows = data.edges.map((e: any) =>
+      const edgeRows = data.edges.map((e: NetworkEdge) =>
         [escapeCSV(e.source), escapeCSV(e.target), escapeCSV(e.binding_affinity), escapeCSV(e.regulation_id)].join(',')
       )
       const edgeCSV = [edgeHeaders.join(','), ...edgeRows].join('\n')
@@ -145,9 +149,9 @@ export const exportAsCSV = (
  * Export network data as JSON
  */
 export const exportAsJSON = (
-  data: any,
+  data: NetworkData,
   speciesName: string,
-  t: (key: string, params?: any) => string
+  t: TranslateFn
 ) => {
   if (!data) {
     message.error(t('export.noData'))

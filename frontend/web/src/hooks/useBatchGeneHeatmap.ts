@@ -5,7 +5,7 @@
  * Phase 2.10 - Batch Gene Heatmap Feature
  */
 
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, QueryClient } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { chipseqApi, chipseqQueryKeys } from '@/api/chipseq'
 import type { HeatmapMetricType, MarkType } from '@/types/chipseq'
@@ -174,7 +174,7 @@ export function useBatchGeneHeatmap(
  * ```
  */
 export async function prefetchBatchGeneHeatmap(
-  queryClient: any,
+  queryClient: QueryClient,
   genes: GeneInfo[],
   marks: MarkType[],
   cellTypes: string[],

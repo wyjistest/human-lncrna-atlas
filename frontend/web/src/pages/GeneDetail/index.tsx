@@ -40,6 +40,7 @@ import { ChIPSeqPeaksTable } from '@/components/ChIPSeqPeaksTable'
 import { ConservationBadge } from '@/components/ConservationBadge'
 import { OrthologBrowser } from '@/components/OrthologBrowser'
 import { createSpeciesTranslator } from '@/utils/species'
+import type { GeneDetailExtended } from '@/types/api-extensions'
 
 export default function GeneDetail() {
   const { geneId } = useParams<{ geneId: string }>()
@@ -91,7 +92,7 @@ export default function GeneDetail() {
   const cleanId = cleanEnsemblId(gene.gene_ensembl_id)
 
   // Regulation columns
-  const regulationColumns: TableProps<any>['columns'] = [
+  const regulationColumns: TableProps<Record<string, unknown>>['columns'] = [
     {
       title: t('detail.targetGene'),
       dataIndex: 'target_gene_name',
@@ -106,8 +107,8 @@ export default function GeneDetail() {
       title: t('detail.position'),
       key: 'position',
       width: 200,
-      render: (_: unknown, record: any) =>
-        `${record.target_start?.toLocaleString()} - ${record.target_end?.toLocaleString()}`,
+      render: (_: unknown, record: Record<string, unknown>) =>
+        `${(record.target_start as number | undefined)?.toLocaleString()} - ${(record.target_end as number | undefined)?.toLocaleString()}`,
     },
     {
       title: t('detail.bindingAffinity'),
@@ -130,13 +131,13 @@ export default function GeneDetail() {
       title: tReg('sequence.view'),
       key: 'action',
       width: 100,
-      render: (_: unknown, record: any) => (
+      render: (_: unknown, record: Record<string, unknown>) => (
         <Button
           type="link"
           size="small"
           icon={<EyeOutlined />}
           onClick={() => {
-            setSelectedRegulationId(record.regulation_id)
+            setSelectedRegulationId(record.regulation_id as number)
             setSequenceViewerOpen(true)
           }}
         >
@@ -147,7 +148,7 @@ export default function GeneDetail() {
   ]
 
   // Disease columns
-  const diseaseColumns: TableProps<any>['columns'] = [
+  const diseaseColumns: TableProps<Record<string, unknown>>['columns'] = [
     {
       title: t('detail.traitName'),
       dataIndex: 'trait_name',
@@ -372,8 +373,8 @@ export default function GeneDetail() {
           </Descriptions.Item>
           <Descriptions.Item label={t('detail.conservation')}>
             <ConservationBadge
-              conservationLabel={(gene as any).conservation_label}
-              conservationCount={(gene as any).conservation_count}
+              conservationLabel={(gene as GeneDetailExtended).conservation_label}
+              conservationCount={(gene as GeneDetailExtended).conservation_count}
             />
           </Descriptions.Item>
           <Descriptions.Item label={t('columns.species')}>

@@ -20,6 +20,7 @@ import echarts from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import type { ECOption } from '@/utils/echarts'
 import type { HighAffinityRecord } from '@/api/analysis'
+import type { TooltipFormatterParams } from '@/types/echarts'
 
 export default function HighAffinityTab() {
   const { t } = useTranslation('analysis')
@@ -62,9 +63,11 @@ export default function HighAffinityTab() {
       toolbox: getChartToolbox('ba-distribution', t('common.export')),
       tooltip: {
         trigger: 'axis',
-        formatter: (params: any) => {
-          const value = params[0].value
-          const baRange = `${minValue + params[0].dataIndex * binSize}-${minValue + (params[0].dataIndex + 1) * binSize}`
+        formatter: (params: unknown) => {
+          const paramsArr = params as TooltipFormatterParams[]
+          const p = paramsArr[0]
+          const value = p.value as number
+          const baRange = `${minValue + p.dataIndex * binSize}-${minValue + (p.dataIndex + 1) * binSize}`
           return `BA Range: ${baRange}<br/>Count: ${value}`
         },
       },

@@ -116,6 +116,24 @@ export interface ChordResponse {
 // API Endpoints
 // =============================================================================
 
+/** Raw backend response structure (internal use only) */
+interface ChordBackendResponse {
+  data?: {
+    nodes?: ChordNode[]
+    links?: ChordLink[]
+    matrix?: ChordMatrix
+  }
+  query_params?: {
+    species_id: number | null
+    min_ba: number | null
+    limit: number
+  }
+  stats?: {
+    lncrna_count?: number
+    gene_count?: number
+  }
+}
+
 /**
  * Chord Diagram API endpoints
  */
@@ -164,7 +182,7 @@ export const chordApi = {
     const response = await apiClient.get('/api/v1/visualization/chord-data', { params })
 
     // Transform backend response to frontend format
-    const raw = response.data as any
+    const raw = response.data as ChordBackendResponse
 
     return {
       nodes: raw.data?.nodes || [],

@@ -19,7 +19,7 @@ export default function Diseases() {
 
   const { data, isLoading, error } = useDiseases({ page, page_size: pageSize, search })
 
-  const columns: TableProps<any>['columns'] = useMemo(() => [
+  const columns: TableProps<Record<string, unknown>>['columns'] = useMemo(() => [
     { title: t('columns.traitId'), dataIndex: 'trait_id', width: 80 },
     { title: t('columns.traitName'), dataIndex: 'trait_name', width: 200 },
     {
@@ -98,7 +98,7 @@ export default function Diseases() {
             const key = `${record.trait_id}-${record.ontology_id}`
             setExpandedRowKeys(expanded ? [key] : [])
           },
-          expandedRowRender: (record) => <DiseaseAssociations traitId={record.trait_id} ontologyId={record.ontology_id} />,
+          expandedRowRender: (record) => <DiseaseAssociations traitId={record.trait_id as number} ontologyId={record.ontology_id as number} />,
         }}
         pagination={{
           current: page,
@@ -130,7 +130,7 @@ function DiseaseAssociations({ traitId, ontologyId }: { traitId: number; ontolog
     ontology_id: ontologyId,
   })
 
-  const columns: TableProps<any>['columns'] = useMemo(() => [
+  const columns: TableProps<Record<string, unknown>>['columns'] = useMemo(() => [
     { title: t('expanded.gene'), dataIndex: 'gene_name', width: 150 },
     { title: t('expanded.type'), dataIndex: 'gene_type', width: 120 },
     { title: t('expanded.oddsRatio'), dataIndex: 'odds_ratio', width: 100 },

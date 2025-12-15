@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next'
 import * as echarts from 'echarts'
 import type { EChartsOption, HeatmapSeriesOption } from 'echarts'
 import type { ConservationMatrixData } from '@/types/conservationPage'
+import type { HeatmapParams } from '@/types/echarts'
 
 interface ConservationMatrixProps {
   /** Matrix data from API */
@@ -96,11 +97,12 @@ export function ConservationMatrix({
       },
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
-          const { value } = params
+        formatter: (params: unknown) => {
+          const p = params as HeatmapParams
+          const value = p.value
           const xName = speciesNames[value[0]]
           const yName = speciesNames[value[1]]
-          const count = value[2]
+          const count = value[2] ?? 0
           return `
             <strong>${xName} - ${yName}</strong><br/>
             ${t('matrix.sharedRegulations', 'Shared Regulations')}: <strong>${count.toLocaleString()}</strong>
@@ -165,8 +167,9 @@ export function ConservationMatrix({
           data: heatmapData,
           label: {
             show: true,
-            formatter: (params: any) => {
-              const value = params.value[2]
+            formatter: (params: unknown) => {
+              const p = params as HeatmapParams
+              const value = p.value[2] ?? 0
               // Format large numbers with K suffix
               if (value >= 1000) {
                 return `${(value / 1000).toFixed(1)}K`
@@ -194,10 +197,11 @@ export function ConservationMatrix({
 
     // Add click event listener
     if (onCellClick) {
-      chartInstance.current.on('click', (params: any) => {
-        if (params.componentType === 'series' && params.seriesType === 'heatmap') {
-          const [x, y, value] = params.value as [number, number, number]
-          onCellClick(x, y, value)
+      chartInstance.current.on('click', (params: unknown) => {
+        const p = params as HeatmapParams & { componentType?: string; seriesType?: string }
+        if (p.componentType === 'series' && p.seriesType === 'heatmap') {
+          const [x, y, value] = p.value
+          onCellClick(x, y, value ?? 0)
         }
       })
     }

@@ -82,7 +82,7 @@ export default function EpigeneticTab() {
           type: 'bar',
           data: counts,
           itemStyle: {
-            color: (params: any) => {
+            color: (params: { dataIndex: number }) => {
               const mark = marks[params.dataIndex]
               const markConfig = HISTONE_MARKS.find((m) => m.value === mark)
               return markConfig?.color || '#1890ff'
@@ -122,7 +122,7 @@ export default function EpigeneticTab() {
         )
       },
       filters: HISTONE_MARKS.map((mark) => ({ text: mark.label, value: mark.value })),
-      onFilter: (value: any, record: ChIPSeqOverlapRecord) => record.mark_name === value,
+      onFilter: (value: boolean | React.Key, record: ChIPSeqOverlapRecord) => record.mark_name === value,
     },
     {
       title: t('epigenetic.table.cellType'),

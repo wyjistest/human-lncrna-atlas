@@ -23,6 +23,7 @@ import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getMarkColor, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
+import type { TooltipFormatterParams, BarParams } from '@/types/echarts'
 
 interface MarkDistData {
   mark_type: string
@@ -87,8 +88,9 @@ export function OverlapMarkDistChart({
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
-        formatter: (params: any) => {
-          const p = params[0]
+        formatter: (params: unknown) => {
+          const paramsArr = params as TooltipFormatterParams[]
+          const p = paramsArr[0]
           const markType = p.name as MarkType
           const config = MARK_CONFIGS[markType]
           const displayName = config?.displayName || markType
@@ -96,7 +98,7 @@ export function OverlapMarkDistChart({
 
           const lines = [
             `<strong>${displayName}</strong>`,
-            `${t('charts.overlapCount', 'Overlaps')}: ${p.value.toLocaleString()}`,
+            `${t('charts.overlapCount', 'Overlaps')}: ${(p.value ?? 0).toLocaleString()}`,
           ]
 
           if (dataItem?.avg_strength) {
@@ -155,11 +157,12 @@ export function OverlapMarkDistChart({
           label: {
             show: sortedData.length <= 10,
             position: 'top',
-            formatter: (params: any) => {
-              if (params.value >= 1000) {
-                return `${(params.value / 1000).toFixed(1)}K`
+            formatter: (params: unknown) => {
+              const p = params as BarParams
+              if (p.value >= 1000) {
+                return `${(p.value / 1000).toFixed(1)}K`
               }
-              return params.value.toLocaleString()
+              return p.value.toLocaleString()
             },
             fontSize: 10,
           },

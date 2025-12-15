@@ -113,7 +113,7 @@ export function ConservationDetailsDrawer({
       title: t('drawer.speciesXBA', `${speciesXName} BA`),
       key: 'speciesXBA',
       width: 120,
-      render: (_: any, record: ConservedRegulation) => {
+      render: (_: unknown, record: ConservedRegulation) => {
         const ba = record.species_binding_affinities?.find(
           s => s.species_id === (speciesPair?.speciesX ?? 0) + 1
         )?.binding_affinity
@@ -133,7 +133,7 @@ export function ConservationDetailsDrawer({
       title: t('drawer.speciesYBA', `${speciesYName} BA`),
       key: 'speciesYBA',
       width: 120,
-      render: (_: any, record: ConservedRegulation) => {
+      render: (_: unknown, record: ConservedRegulation) => {
         const ba = record.species_binding_affinities?.find(
           s => s.species_id === (speciesPair?.speciesY ?? 0) + 1
         )?.binding_affinity

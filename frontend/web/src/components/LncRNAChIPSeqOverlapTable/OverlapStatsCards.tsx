@@ -28,6 +28,7 @@ import { useTranslation } from 'react-i18next'
 import { getMarkColor } from '@/config/markConfigs'
 import { getCellTypeColor } from '@/config/cellTypeConfigs'
 import type { OverlapSummary } from '@/types/lncRNAChIPSeqOverlap'
+import type { MarkType } from '@/types/chipseq'
 
 interface OverlapStatsCardsProps {
   /** Summary statistics data */
@@ -48,7 +49,7 @@ function MarkTypeTag({
   count: number
   avgStrength: number
 }) {
-  const color = getMarkColor(markType as any)
+  const color = getMarkColor(markType as MarkType)
 
   return (
     <Tooltip

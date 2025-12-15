@@ -130,11 +130,11 @@ async function enableMocking() {
 
   // 环境变量检查
   if (import.meta.env.VITE_USE_MOCK !== 'true') {
-    console.log('[MSW] Disabled (VITE_USE_MOCK=false)')
+    console.warn('[MSW] Disabled (VITE_USE_MOCK=false)')
     return
   }
 
-  console.log('[MSW] Starting...')
+  console.warn('[MSW] Starting...')
 
   const { worker } = await import('./mocks/browser')
 
@@ -159,7 +159,7 @@ async function enableMocking() {
     }
   })
 
-  console.log('[MSW] Started successfully')
+  console.warn('[MSW] Started successfully')
 }
 
 // 确保 MSW 启动完成后再挂载 App

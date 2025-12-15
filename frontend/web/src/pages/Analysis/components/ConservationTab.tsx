@@ -79,7 +79,7 @@ export default function ConservationTab() {
             formatter: '{b}\n{c} ({d}%)',
           },
           itemStyle: {
-            color: (params: any) => {
+            color: (params: { dataIndex: number }) => {
               const colors = ['#1890ff', '#52c41a', '#faad14']
               return colors[params.dataIndex]
             },

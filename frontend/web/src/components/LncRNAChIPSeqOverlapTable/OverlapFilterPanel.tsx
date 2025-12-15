@@ -32,6 +32,7 @@ import {
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { OverlapFilters } from '@/types/lncRNAChIPSeqOverlap'
+import type { MarkType } from '@/types/chipseq'
 import { CELL_TYPE_OPTIONS, CHROMOSOME_OPTIONS } from '@/types/lncRNAChIPSeqOverlap'
 import { MarkSelector } from '../ChIPSeqPeaksTable/MarkSelector'
 
@@ -85,7 +86,7 @@ export function OverlapFilterPanel({
 
   // Handle mark type change (supports multiple selection)
   const handleMarkTypeChange = useCallback(
-    (markType: any) => {
+    (markType: MarkType | MarkType[]) => {
       // MarkSelector returns MarkType | MarkType[], we convert to comma-separated string
       const markTypeStr = Array.isArray(markType) ? markType.join(',') : markType
       onFiltersChange({
@@ -180,7 +181,7 @@ export function OverlapFilterPanel({
                 {t('filters.markType', 'Mark Type')}:
               </span>
               <MarkSelector
-                value={filters.mark_type?.split(',') as any}
+                value={filters.mark_type?.split(',') as MarkType[]}
                 onChange={handleMarkTypeChange}
                 multiple
                 placeholder={t('filters.selectMarks', 'Select histone marks')}

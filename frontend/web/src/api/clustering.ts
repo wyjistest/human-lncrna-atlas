@@ -60,6 +60,29 @@ export interface ClusteredHeatmapResponse {
 // API Endpoints
 // =============================================================================
 
+/** Raw backend response structure (internal use only) */
+interface ClusteringBackendResponse {
+  data?: {
+    matrix?: number[][]
+    row_labels?: string[]
+    col_labels?: string[]
+    row_dendrogram?: {
+      icoord: number[][]
+      dcoord: number[][]
+      leaves: number[]
+    }
+    col_dendrogram?: {
+      icoord: number[][]
+      dcoord: number[][]
+      leaves: number[]
+    }
+  }
+  metadata?: {
+    method?: string
+    metric?: string
+  }
+}
+
 /**
  * Clustering API endpoints
  */
@@ -117,7 +140,7 @@ export const clusteringApi = {
     const response = await apiClient.post('/api/v1/clustering/heatmap-clustered', params)
 
     // Transform backend response to frontend format
-    const raw = response.data as any
+    const raw = response.data as ClusteringBackendResponse
 
     return {
       data: raw.data?.matrix || [],

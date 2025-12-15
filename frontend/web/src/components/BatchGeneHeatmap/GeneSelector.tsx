@@ -10,6 +10,12 @@ import { PlusOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { DefaultOptionType } from 'antd/es/select'
 
+/** Extended option type with custom searchValue property */
+interface GeneOptionType extends DefaultOptionType {
+  searchValue?: string
+  data?: GeneInfo
+}
+
 interface GeneInfo {
   gene_id: number
   gene_name: string
@@ -98,7 +104,7 @@ export function GeneSelector({
   const { t } = useTranslation('genes')
 
   // Build options from available genes
-  const options = useMemo<DefaultOptionType[]>(() => {
+  const options = useMemo<GeneOptionType[]>(() => {
     return availableGenes.map((gene) => ({
       value: gene.gene_id,
       label: (
@@ -131,9 +137,9 @@ export function GeneSelector({
 
   // Filter function for search
   const filterOption = useCallback(
-    (input: string, option: DefaultOptionType | undefined) => {
+    (input: string, option: GeneOptionType | undefined) => {
       if (!option) return false
-      const searchValue = (option as any).searchValue as string | undefined
+      const searchValue = option.searchValue
       if (!searchValue) return true
       return searchValue.toLowerCase().includes(input.toLowerCase())
     },

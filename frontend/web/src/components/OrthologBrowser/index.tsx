@@ -96,7 +96,7 @@ const RegulationsDrawer: React.FC<RegulationsDrawerProps> = ({
     { page, page_size: pageSize }
   )
 
-  const columns: TableProps<any>['columns'] = [
+  const columns: TableProps<Record<string, unknown>>['columns'] = [
     {
       title: t('detail.targetGene'),
       dataIndex: 'target_gene_name',

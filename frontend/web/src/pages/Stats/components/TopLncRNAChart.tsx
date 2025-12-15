@@ -116,7 +116,7 @@ export function TopLncRNAChart({ data }: TopLncRNAChartProps) {
       title: t('table.lncrna'),
       dataIndex: 'gene_name',
       key: 'gene_name',
-      render: (name: string, record: any) => {
+      render: (name: string, record: DetailedStatsResponse['top_lncrnas'][number]) => {
         // 使用 gene_ensembl_id 并去掉物种后缀
         const ensemblId = record.gene_ensembl_id?.replace(/_(marmoset|macaque|chimpanzee|chimp)$/i, '') || name
         return (

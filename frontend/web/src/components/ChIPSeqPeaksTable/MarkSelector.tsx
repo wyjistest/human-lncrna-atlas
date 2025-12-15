@@ -32,6 +32,11 @@ import type { MarkType, MarkCategory } from '@/types/chipseq'
 
 import type { DefaultOptionType } from 'antd/es/select'
 
+/** Extended option type with custom searchValue property */
+interface MarkOptionType extends DefaultOptionType {
+  searchValue?: string
+}
+
 interface MarkSelectorProps {
   /** Currently selected mark(s) */
   value?: MarkType | MarkType[]
@@ -226,9 +231,9 @@ export function MarkSelector({
 
   // Filter function for search
   const filterOption = useCallback(
-    (input: string, option: DefaultOptionType | undefined) => {
+    (input: string, option: MarkOptionType | undefined) => {
       if (!option) return false
-      const searchValue = (option as any).searchValue as string | undefined
+      const searchValue = option.searchValue
       if (!searchValue) return true
       return searchValue.toLowerCase().includes(input.toLowerCase())
     },

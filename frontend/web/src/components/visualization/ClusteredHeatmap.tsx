@@ -12,6 +12,7 @@ import { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
 import { DendrogramSVG, type DendrogramData } from './DendrogramSVG'
+import type { HeatmapParams } from '@/types/echarts'
 
 /**
  * Props for ClusteredHeatmap component
@@ -98,11 +99,12 @@ export function ClusteredHeatmap({
     return {
       tooltip: {
         position: 'top',
-        formatter: (params: any) => {
-          const [colIdx, rowIdx, value] = params.value
+        formatter: (params: unknown) => {
+          const p = params as HeatmapParams
+          const [colIdx, rowIdx, value] = p.value
           return `
             <strong>${rowLabels[rowIdx]} × ${colLabels[colIdx]}</strong><br/>
-            Value: <strong>${value.toFixed(2)}</strong>
+            Value: <strong>${(value ?? 0).toFixed(2)}</strong>
           `
         },
       },
@@ -147,7 +149,10 @@ export function ClusteredHeatmap({
           data: heatmapData,
           label: {
             show: showValues,
-            formatter: (params: any) => params.value[2].toFixed(1),
+            formatter: (params: unknown) => {
+              const p = params as HeatmapParams
+              return (p.value[2] ?? 0).toFixed(1)
+            },
           },
           emphasis: {
             itemStyle: {
@@ -161,10 +166,11 @@ export function ClusteredHeatmap({
   }, [heatmapData, rowLabels, colLabels, dataMin, dataMax, showValues])
 
   // Handle cell click
-  const handleChartClick = (params: any) => {
-    if (params.componentType === 'series' && onCellClick) {
-      const [colIdx, rowIdx, value] = params.value
-      onCellClick(rowIdx, colIdx, value)
+  const handleChartClick = (params: unknown) => {
+    const p = params as HeatmapParams & { componentType?: string }
+    if (p.componentType === 'series' && onCellClick) {
+      const [colIdx, rowIdx, value] = p.value
+      onCellClick(rowIdx, colIdx, value ?? 0)
     }
   }
 
