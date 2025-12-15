@@ -3,6 +3,7 @@ import { message, Modal, Checkbox, Space } from 'antd'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import type { Core } from 'cytoscape'
+import type { NetworkData, NetworkNode, NetworkEdge } from '@/types/network'
 import { SPECIES_EN_NAMES } from '../types'
 
 /**
@@ -26,15 +27,15 @@ const escapeCSV = (val: unknown): string => {
 /**
  * Generate CSV content from network data
  */
-export const generateCSV = (data: any): string => {
+export const generateCSV = (data: NetworkData): string => {
   const nodeHeaders = ['ID', 'Label', 'Type', 'Gene ID', 'Core ID']
-  const nodeRows = data.nodes.map((n: any) =>
+  const nodeRows = data.nodes.map((n: NetworkNode) =>
     [escapeCSV(n.id), escapeCSV(n.label), escapeCSV(n.type), escapeCSV(n.gene_id), escapeCSV(n.core_id)].join(',')
   )
   const nodeCSV = [nodeHeaders.join(','), ...nodeRows].join('\n')
 
   const edgeHeaders = ['Source', 'Target', 'Binding Affinity', 'Regulation ID']
-  const edgeRows = data.edges.map((e: any) =>
+  const edgeRows = data.edges.map((e: NetworkEdge) =>
     [escapeCSV(e.source), escapeCSV(e.target), escapeCSV(e.binding_affinity), escapeCSV(e.regulation_id)].join(',')
   )
   const edgeCSV = [edgeHeaders.join(','), ...edgeRows].join('\n')
@@ -44,7 +45,7 @@ export const generateCSV = (data: any): string => {
 
 export interface NetworkCardRef {
   cyRef: React.RefObject<Core>
-  data: any
+  data: NetworkData | null
   speciesName: string
   isReady: boolean
 }
@@ -55,7 +56,7 @@ export interface BatchExportOptions {
   getSpeciesName: (id: number) => string
   traitName?: string
   ontologyName?: string
-  t: (key: string, params?: any) => string
+  t: (key: string, params?: Record<string, unknown>) => string
 }
 
 /**

@@ -30,6 +30,8 @@ export interface NetworkNode {
   type: 'lncRNA' | 'protein_coding'
   gene_id: number
   core_id: number
+  conservation_label?: string
+  conservation_count?: number
 }
 
 export interface NetworkEdge {
@@ -87,6 +89,7 @@ export interface AvailableCombination {
   trait_id: number
   ontology_id: number
   species_id: number
+  ontology_name?: string
 }
 
 export interface AvailableCombinationsResponse {

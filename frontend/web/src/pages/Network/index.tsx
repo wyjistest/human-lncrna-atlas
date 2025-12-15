@@ -5,6 +5,8 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { networkApi } from '@/api/network'
 import { diseasesApi } from '@/api/diseases'
+import type { DiseaseOption } from '@/api/diseases'
+import type { AvailableCombination } from '@/types/network'
 import cytoscape from 'cytoscape'
 import cytoscapeSvg from 'cytoscape-svg'
 import { NetworkCard } from './components/NetworkCard'
@@ -73,7 +75,7 @@ export default function Network() {
   // Memoize available combinations for selected species
   const availableForSelectedSpecies = useMemo(() => {
     if (!availableCombinations) return []
-    return availableCombinations.filter((c: any) =>
+    return availableCombinations.filter((c: AvailableCombination) =>
       speciesIds.some(speciesId => c.species_id === speciesId)
     )
   }, [availableCombinations, speciesIds])
@@ -82,7 +84,7 @@ export default function Network() {
   const traits = useMemo(() => {
     const traitsList = diseaseOptions?.traits
     if (!traitsList) return []
-    const availableTraitIds = new Set(availableForSelectedSpecies.map((c: any) => c.trait_id))
+    const availableTraitIds = new Set(availableForSelectedSpecies.map((c: AvailableCombination) => c.trait_id))
     return traitsList.filter(trait => availableTraitIds.has(trait.trait_id))
   }, [diseaseOptions, availableForSelectedSpecies])
 
@@ -92,8 +94,8 @@ export default function Network() {
     const ontologyMap = new Map<number, string>()
 
     availableForSelectedSpecies
-      .filter((c: any) => c.trait_id === traitId)
-      .forEach((c: any) => {
+      .filter((c: AvailableCombination) => c.trait_id === traitId)
+      .forEach((c: AvailableCombination) => {
         if (!ontologyMap.has(c.ontology_id)) {
           ontologyMap.set(c.ontology_id, c.ontology_name || `Ontology ${c.ontology_id}`)
         }
@@ -154,8 +156,8 @@ export default function Network() {
 
   // 批量导出处理
   const handleBatchExportClick = () => {
-    const traitName = traits?.find((t: any) => t.trait_id === traitId)?.trait_name || `trait-${traitId || 'unknown'}`
-    const ontologyName = ontologies?.find((o: any) => o.ontology_id === ontologyId)?.ontology_name || `ontology-${ontologyId || 'unknown'}`
+    const traitName = traits?.find((t: DiseaseOption) => t.trait_id === traitId)?.trait_name || `trait-${traitId || 'unknown'}`
+    const ontologyName = ontologies?.find((o: { ontology_id: number; ontology_name: string }) => o.ontology_id === ontologyId)?.ontology_name || `ontology-${ontologyId || 'unknown'}`
 
     handleBatchExport({
       speciesIds,
@@ -204,7 +206,7 @@ export default function Network() {
             const label = typeof option?.label === 'string' ? option.label : ''
             return label.toLowerCase().includes(input.toLowerCase())
           }}
-          options={traits?.map((tr: any) => ({ label: tr.trait_name, value: tr.trait_id }))}
+          options={traits?.map((tr: DiseaseOption) => ({ label: tr.trait_name, value: tr.trait_id }))}
         />
         <span>{t('ontology.label')}:</span>
         <Select
@@ -221,7 +223,7 @@ export default function Network() {
             const label = typeof option?.label === 'string' ? option.label : ''
             return label.toLowerCase().includes(input.toLowerCase())
           }}
-          options={ontologies?.map((o: any) => ({ label: o.ontology_name, value: o.ontology_id }))}
+          options={ontologies?.map((o: { ontology_id: number; ontology_name: string }) => ({ label: o.ontology_name, value: o.ontology_id }))}
         />
         <Button type="primary" onClick={handleQuery} disabled={!traitId || !ontologyId}>
           {t('query.button')}
@@ -271,13 +273,13 @@ export default function Network() {
                 key={speciesId}
                 speciesId={speciesId}
                 speciesName={speciesName}
-                data={query.data}
+                data={query.data ?? null}
                 loading={query.isLoading}
-                error={query.error}
+                error={query.error ?? null}
                 onRefReady={(cyRef, isReady) => {
                   networkCardsRef.current.set(speciesId, {
                     cyRef,
-                    data: query.data,
+                    data: query.data ?? null,
                     speciesName,
                     isReady: isReady && !query.isLoading && !query.error && !!query.data
                   })

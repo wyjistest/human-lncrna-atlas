@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { saveAs } from 'file-saver'
 import cytoscape from 'cytoscape'
-import type { GeneDetail } from '@/types/network'
+import type { GeneDetail, NetworkNode, NetworkEdge } from '@/types/network'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import { ConservationLegend } from '@/components/ConservationLegend'
@@ -177,18 +177,18 @@ export const NetworkCard = memo(({
     }
 
     // 应用过滤器
-    const filteredEdges = data.edges.filter((edge: any) => {
+    const filteredEdges = data.edges.filter((edge: NetworkEdge) => {
       const ba = edge.binding_affinity || 0
       return ba >= minBA
     })
 
     const nodeDegrees = new Map<string, number>()
-    filteredEdges.forEach((edge: any) => {
+    filteredEdges.forEach((edge: NetworkEdge) => {
       nodeDegrees.set(edge.source, (nodeDegrees.get(edge.source) || 0) + 1)
       nodeDegrees.set(edge.target, (nodeDegrees.get(edge.target) || 0) + 1)
     })
 
-    const filteredNodes = data.nodes.filter((node: any) => {
+    const filteredNodes = data.nodes.filter((node: NetworkNode) => {
       if (nodeTypeFilter !== 'all' && node.type !== nodeTypeFilter) {
         return false
       }
@@ -196,13 +196,13 @@ export const NetworkCard = memo(({
       return degree >= minDegree
     })
 
-    const nodeIds = new Set(filteredNodes.map((n: any) => n.id))
-    const finalEdges = filteredEdges.filter((edge: any) =>
+    const nodeIds = new Set(filteredNodes.map((n: NetworkNode) => n.id))
+    const finalEdges = filteredEdges.filter((edge: NetworkEdge) =>
       nodeIds.has(edge.source) && nodeIds.has(edge.target)
     )
 
     const elements = [
-      ...filteredNodes.map((node: any) => {
+      ...filteredNodes.map((node: NetworkNode) => {
         const conservationData = parseConservationLabel(
           node.conservation_label,
           node.conservation_count
@@ -218,7 +218,7 @@ export const NetworkCard = memo(({
           }
         }
       }),
-      ...finalEdges.map((edge: any) => ({
+      ...finalEdges.map((edge: NetworkEdge) => ({
         data: {
           source: edge.source,
           target: edge.target,
@@ -230,7 +230,7 @@ export const NetworkCard = memo(({
 
     // 动态计算BA值范围
     const baValues = finalEdges
-      .map((e: any) => e.binding_affinity)
+      .map((e: NetworkEdge) => e.binding_affinity)
       .filter((ba: number) => ba != null && ba > 0)
 
     const minBARange = baValues.length > 0 ? Math.min(...baValues) : 0
@@ -531,13 +531,13 @@ export const NetworkCard = memo(({
     setTimeout(() => {
       try {
         const nodeHeaders = ['ID', 'Label', 'Type', 'Gene ID', 'Core ID']
-        const nodeRows = data.nodes.map((n: any) =>
+        const nodeRows = data.nodes.map((n: NetworkNode) =>
           [escapeCSV(n.id), escapeCSV(n.label), escapeCSV(n.type), escapeCSV(n.gene_id), escapeCSV(n.core_id)].join(',')
         )
         const nodeCSV = [nodeHeaders.join(','), ...nodeRows].join('\n')
 
         const edgeHeaders = ['Source', 'Target', 'Binding Affinity', 'Regulation ID']
-        const edgeRows = data.edges.map((e: any) =>
+        const edgeRows = data.edges.map((e: NetworkEdge) =>
           [escapeCSV(e.source), escapeCSV(e.target), escapeCSV(e.binding_affinity), escapeCSV(e.regulation_id)].join(',')
         )
         const edgeCSV = [edgeHeaders.join(','), ...edgeRows].join('\n')
@@ -846,9 +846,9 @@ export const NetworkCard = memo(({
           setSelectedLncrnaForComparison(null)
         }}
         selectedLncrna={selectedLncrnaForComparison}
-        comparisonData={comparisonData}
+        comparisonData={comparisonData ?? null}
         loading={comparisonLoading}
-        error={comparisonError}
+        error={comparisonError ?? null}
       />
     </>
   )

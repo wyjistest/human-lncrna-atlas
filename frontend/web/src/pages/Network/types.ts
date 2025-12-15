@@ -1,4 +1,5 @@
 import type { Core } from 'cytoscape'
+import type { NetworkData } from '@/types/network'
 
 /**
  * Species ID to translation key mapping
@@ -26,9 +27,9 @@ export const SPECIES_EN_NAMES: Record<number, string> = {
 export interface NetworkCardProps {
   speciesId: number
   speciesName: string
-  data: any
+  data: NetworkData | null
   loading: boolean
-  error: any
+  error: Error | null
   onRefReady?: (cyRef: React.RefObject<Core>, isReady: boolean) => void
   lncrnaCoreId?: number  // For cross-species comparison
   lncrnaGeneId?: number  // For cross-species comparison
@@ -39,7 +40,7 @@ export interface NetworkCardProps {
  */
 export interface NetworkCardRef {
   cyRef: React.RefObject<Core>
-  data: any
+  data: NetworkData | null
   speciesName: string
   isReady: boolean
 }

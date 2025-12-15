@@ -4,6 +4,7 @@ import type { TabsProps } from 'antd'
 import { useTranslation } from 'react-i18next'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
+import type { SpeciesNetworkComparison, SpeciesNetworkData, SpeciesTargetGene } from '@/types/network'
 import { SPECIES_KEYS } from '../types'
 
 interface ComparisonDrawerProps {
@@ -14,9 +15,9 @@ interface ComparisonDrawerProps {
     coreId: number
     geneName: string
   } | null
-  comparisonData: any
+  comparisonData: SpeciesNetworkComparison | null
   loading: boolean
-  error: any
+  error: Error | null
 }
 
 /**
@@ -39,7 +40,7 @@ export const ComparisonDrawer = ({
 
     const conservedSet = new Set(comparisonData.conserved_targets || [])
 
-    return Object.entries(comparisonData.species_networks).map(([speciesIdStr, speciesData]: [string, any]) => {
+    return Object.entries(comparisonData.species_networks).map(([speciesIdStr, speciesData]: [string, SpeciesNetworkData]) => {
       const sid = parseInt(speciesIdStr)
       const speciesKey = SPECIES_KEYS[sid] || 'unknown'
       const speciesName = t(`species.${speciesKey}`, { id: sid })
@@ -69,7 +70,7 @@ export const ComparisonDrawer = ({
             )}
             <Table
               dataSource={speciesData.targets}
-              rowKey={(record: any, index?: number) => `${record.target_gene_id}-${record.target_core_id}-${index ?? 0}`}
+              rowKey={(record: SpeciesTargetGene, index?: number) => `${record.target_gene_id}-${record.target_core_id}-${index ?? 0}`}
               size="small"
               pagination={{ pageSize: 20, showSizeChanger: true }}
               columns={[
@@ -89,7 +90,7 @@ export const ComparisonDrawer = ({
                   dataIndex: 'binding_affinity',
                   key: 'binding_affinity',
                   render: (ba: number) => ba?.toFixed(2) || '-',
-                  sorter: (a: any, b: any) => (a.binding_affinity || 0) - (b.binding_affinity || 0)
+                  sorter: (a: SpeciesTargetGene, b: SpeciesTargetGene) => (a.binding_affinity || 0) - (b.binding_affinity || 0)
                 },
                 {
                   title: t('comparison.conserved'),
@@ -100,7 +101,7 @@ export const ComparisonDrawer = ({
                     if (isConserved) {
                       // Count how many species this target appears in
                       const count = Object.values(comparisonData.species_networks).filter(
-                        (sn: any) => sn.targets.some((target: any) => target.target_core_id === coreId)
+                        (sn: SpeciesNetworkData) => sn.targets.some((target: SpeciesTargetGene) => target.target_core_id === coreId)
                       ).length
                       return (
                         <Tag color="green">
@@ -114,7 +115,7 @@ export const ComparisonDrawer = ({
                     { text: t('comparison.conserved'), value: 'conserved' },
                     { text: t('comparison.notConserved'), value: 'not_conserved' }
                   ],
-                  onFilter: (value: any, record: any) => {
+                  onFilter: (value: boolean | React.Key, record: SpeciesTargetGene) => {
                     const isConserved = conservedSet.has(record.target_core_id)
                     return value === 'conserved' ? isConserved : !isConserved
                   }
