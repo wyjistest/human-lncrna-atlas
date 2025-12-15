@@ -16,6 +16,7 @@ import { test, expect, Page } from '@playwright/test';
 // 配置
 const BASE_URL = 'http://localhost:5173';
 const API_BASE = 'http://localhost:8000';
+const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || './test-results/screenshots';
 
 // 测试结果收集
 interface TestResult {
@@ -86,7 +87,7 @@ test.describe('1. 首页 (/) 测试', () => {
     }
 
     // 截图
-    await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-homepage.png', fullPage: true });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-homepage.png`, fullPage: true });
     result.details.push('截图: e2e-homepage.png');
 
     testResults.push(result);
@@ -159,7 +160,7 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
       result.details.push(`首行数据预览: ${firstRowText?.substring(0, 100)}...`);
     }
 
-    await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-genes-list.png', fullPage: true });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-genes-list.png`, fullPage: true });
     result.details.push('截图: e2e-genes-list.png');
 
     testResults.push(result);
@@ -223,7 +224,7 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
         const optionsCount = await options.count();
         result.details.push(`筛选选项数量: ${optionsCount}`);
 
-        await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-genes-filter.png' });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-genes-filter.png` });
       } catch (e) {
         result.issues.push(`筛选器交互失败: ${e}`);
       }
@@ -266,7 +267,7 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
         result.issues.push('未能跳转到详情页');
       }
 
-      await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-gene-detail.png', fullPage: true });
+      await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-gene-detail.png`, fullPage: true });
     } else {
       result.issues.push('无可点击的基因链接');
     }
@@ -298,7 +299,7 @@ test.describe('3. 调控关系页 (/regulations) 测试', () => {
     const rowsCount = await tableRows.count();
     result.details.push(`表格行数: ${rowsCount}`);
 
-    await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-regulations.png', fullPage: true });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-regulations.png`, fullPage: true });
     result.details.push('截图: e2e-regulations.png');
 
     if (rowsCount === 0) {
@@ -384,7 +385,7 @@ test.describe('4. 保守性分析页 (/conservation) 测试', () => {
     const canvasCount = await canvasElements.count();
     result.details.push(`Canvas 元素数量: ${canvasCount}`);
 
-    await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-conservation.png', fullPage: true });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-conservation.png`, fullPage: true });
     result.details.push('截图: e2e-conservation.png');
 
     testResults.push(result);
@@ -440,7 +441,7 @@ test.describe('4. 保守性分析页 (/conservation) 测试', () => {
       await waitForNetworkIdle(page, 5000);
       result.details.push('Tab 切换成功');
 
-      await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-conservation-tab2.png', fullPage: true });
+      await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-conservation-tab2.png`, fullPage: true });
     }
 
     testResults.push(result);
@@ -473,7 +474,7 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
     const canvasCount = await canvas.count();
     result.details.push(`Canvas 数量: ${canvasCount}`);
 
-    await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-network.png', fullPage: true });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-network.png`, fullPage: true });
     result.details.push('截图: e2e-network.png');
 
     if (canvasCount === 0 && !hasCytoscape) {
@@ -508,7 +509,7 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
         const optionsCount = await options.count();
         result.details.push(`疾病选项数量: ${optionsCount}`);
 
-        await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-network-diseases.png' });
+        await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-network-diseases.png` });
       } catch (e) {
         result.issues.push(`选择器交互失败: ${e}`);
       }
@@ -575,7 +576,7 @@ test.describe('6. Sankey 流图页 (/visualization/sankey-flow) 测试', () => {
     const canvasCount = await canvas.count();
     result.details.push(`Canvas 数量: ${canvasCount}`);
 
-    await page.screenshot({ path: '/data/wenyujianData/.playwright-mcp/e2e-sankey.png', fullPage: true });
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-sankey.png`, fullPage: true });
     result.details.push('截图: e2e-sankey.png');
 
     if (canvasCount === 0) {

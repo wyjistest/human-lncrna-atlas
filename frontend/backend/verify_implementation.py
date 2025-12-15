@@ -44,7 +44,8 @@ def main():
     print("  Batch Heatmap Matrix API - Implementation Verification")
     print("=" * 70)
 
-    base_dir = "/data/wenyujianData/humanLncAtlas/frontend/backend"
+    # 使用脚本所在目录作为基准，或从环境变量获取
+    base_dir = os.environ.get('BACKEND_DIR', os.path.dirname(os.path.abspath(__file__)))
     all_checks_passed = True
 
     # 1. Check Schema file

@@ -4,18 +4,19 @@
 仅更新 species_id = 1 (人类) 的基因
 """
 
+import os
 import re
 import psycopg2
 from psycopg2.extras import execute_batch
 
-# 配置
-GTF_FILE = "/data/wenyujianData/humanLncAtlas/FANTOM_CAT.lv3_robust.gtf"
+# 配置 - 优先使用环境变量
+GTF_FILE = os.environ.get('GTF_FILE', './data/FANTOM_CAT.lv3_robust.gtf')
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "user": "amax",
-    "password": "",
-    "dbname": "lncrna_production"
+    "host": os.environ.get('DB_HOST', 'localhost'),
+    "port": int(os.environ.get('DB_PORT', '5432')),
+    "user": os.environ.get('DB_USER', 'amax'),
+    "password": os.environ.get('DB_PASSWORD', ''),
+    "dbname": os.environ.get('DB_NAME', 'lncrna_production')
 }
 HUMAN_SPECIES_ID = 1
 
