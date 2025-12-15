@@ -121,44 +121,7 @@ npx playwright show-report
 | 数据库连接 | 检查 `.env` DATABASE_URL |
 | 前端编译失败 | 同步 `src/config/` 配置 |
 
-## 踩坑记录
-
-### 前后端 API 契约
-
-| 问题 | 原因 | 解决 |
-|------|------|------|
-| 表格列显示空白 | 前端字段名与后端返回不一致 | 用 `curl` 检查实际 API 返回字段名 |
-| rowKey 重复警告 | 数据无唯一主键 | 使用 `${record.id}-${index}` 组合键 |
-| 图数据结构错误 | 期望扁平表格，实际返回 `{nodes, edges}` | 检查 API 返回结构类型 |
-
-**调试命令**:
-```bash
-curl -s "http://localhost:8000/api/v1/xxx?limit=1" | python3 -m json.tool | head -30
-```
-
-### React 19 Hooks 规则
-
-| 问题 | 修复 |
-|------|------|
-| Hooks 顺序违规 | 所有 hooks 必须在条件 return 之前调用 |
-| render 阶段访问 ref | 改用 `useMemo` + 直接依赖 |
-| 静态组件问题 | 不要在 render 内定义组件，改用 JSX 表达式 |
-
-### 常见编译错误
-
-| 错误 | 解决 |
-|------|------|
-| `Property 'xxx' is missing` | 同步所有同名配置文件 |
-| `Cannot find module 'igv'` | `npm install` |
-| `ModuleNotFoundError: app.routers.xxx` | 检查 `main.py` 导入，移除不存在的 router |
-
-### SQLAlchemy 注意点
-
-| 问题 | 正确写法 |
-|------|---------|
-| 布尔比较 | `.is_(True)` 而非 `== True` |
-| 空值检查 | `.isnot(None)` 而非 `is not None` |
-| 可空外键 | 使用 `outerjoin` 而非 `join` |
+> 详细踩坑记录: [docs/PITFALLS.md](docs/PITFALLS.md)
 
 ## 环境变量
 
@@ -195,6 +158,7 @@ curl -s "http://localhost:8000/api/v1/xxx?limit=1" | python3 -m json.tool | head
 
 | 文档 | 路径 |
 |------|------|
+| 踩坑记录 | `docs/PITFALLS.md` |
 | Phase 详细历史 | `docs/phases/PHASE_HISTORY.md` |
 | 项目状态报告 | `docs/PROJECT_STATUS_REPORT.md` |
 | API 文档 | http://localhost:8000/docs |
