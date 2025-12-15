@@ -266,7 +266,7 @@ def main():
     parser.add_argument(
         '--output',
         type=Path,
-        default=Path('/data/wenyujianData/humanLncAtlas/genomes/repeatmasker_human_bed9.bed'),
+        default=Path('repeatmasker_human_bed9.bed'),
         help='Output BED9 file path'
     )
     parser.add_argument(

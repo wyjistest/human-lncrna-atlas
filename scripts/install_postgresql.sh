@@ -14,6 +14,10 @@ set -e
 PG_VERSION="${PG_VERSION:-17}"
 GRANT_SUPERUSER="${GRANT_SUPERUSER:-no}"  # 默认不授予超级权限
 
+# 运行时路径（用于输出提示）
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 # 颜色输出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -289,7 +293,7 @@ echo "  3. 创建测试数据库:"
 echo "     sudo -u postgres createdb test_db -O $USER"
 echo ""
 echo "  4. 运行端到端测试:"
-echo "     cd /data/wenyujianData/humanLncAtlas"
+echo "     cd ${PROJECT_ROOT}"
 echo "     ./scripts/end_to_end_test.sh"
 echo ""
 echo "📁 配置文件位置:"

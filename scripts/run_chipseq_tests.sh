@@ -19,11 +19,20 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Project directories
-GITHUB_REPO="/data/wenyujianData/human-lncrna-atlas-github"
-LOCAL_DEV="/data/wenyujianData/humanLncAtlas"
-BACKEND_DIR="${GITHUB_REPO}/frontend/backend"
-FRONTEND_DIR="${LOCAL_DEV}/frontend/web"
+# Project directories (support overrides via env vars)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+GITHUB_REPO="${GITHUB_REPO:-${REPO_DIR}}"
+BACKEND_DIR="${BACKEND_DIR:-${GITHUB_REPO}/frontend/backend}"
+
+if [ -z "${FRONTEND_DIR:-}" ]; then
+    if [ -n "${LOCAL_DEV:-}" ]; then
+        FRONTEND_DIR="${LOCAL_DEV}/frontend/web"
+    else
+        FRONTEND_DIR="${GITHUB_REPO}/frontend/web"
+    fi
+fi
 
 # Functions
 print_header() {
@@ -91,28 +100,34 @@ check_frontend_server() {
 run_backend_tests() {
     print_header "Running Backend ChIP-seq API Tests"
 
+    if [ ! -d "${BACKEND_DIR}" ]; then
+        print_error "Backend directory not found: ${BACKEND_DIR}"
+        return 1
+    fi
+
     cd "${BACKEND_DIR}"
 
     echo "Test directory: ${BACKEND_DIR}/tests"
     echo "Test file: test_chipseq_api.py"
     echo ""
 
-    # Run pytest with verbose output
-    python3 -m pytest tests/test_chipseq_api.py -v --tb=short 2>&1
-
-    BACKEND_EXIT_CODE=$?
-
-    if [ $BACKEND_EXIT_CODE -eq 0 ]; then
+    if python3 -m pytest tests/test_chipseq_api.py -v --tb=short 2>&1; then
         print_success "Backend tests passed!"
+        return 0
     else
-        print_error "Backend tests failed with exit code $BACKEND_EXIT_CODE"
+        local exit_code=$?
+        print_error "Backend tests failed with exit code ${exit_code}"
+        return ${exit_code}
     fi
-
-    return $BACKEND_EXIT_CODE
 }
 
 run_e2e_tests() {
     print_header "Running Frontend E2E ChIP-seq Tests"
+
+    if [ ! -d "${FRONTEND_DIR}" ]; then
+        print_error "Frontend directory not found: ${FRONTEND_DIR}"
+        return 1
+    fi
 
     cd "${FRONTEND_DIR}"
 
@@ -120,21 +135,18 @@ run_e2e_tests() {
     echo "Test file: chipseq-flow.spec.ts"
     echo ""
 
-    # Run Playwright tests with HTML reporter
-    npx playwright test e2e/chipseq-flow.spec.ts --reporter=html 2>&1
-
-    E2E_EXIT_CODE=$?
-
-    if [ $E2E_EXIT_CODE -eq 0 ]; then
+    local exit_code=0
+    if npx playwright test e2e/chipseq-flow.spec.ts --reporter=html 2>&1; then
         print_success "E2E tests passed!"
     else
-        print_error "E2E tests failed with exit code $E2E_EXIT_CODE"
+        exit_code=$?
+        print_error "E2E tests failed with exit code ${exit_code}"
     fi
 
     echo ""
     echo "HTML report available at: ${FRONTEND_DIR}/playwright-report/index.html"
 
-    return $E2E_EXIT_CODE
+    return ${exit_code}
 }
 
 run_all_tests() {

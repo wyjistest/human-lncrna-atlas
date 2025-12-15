@@ -148,12 +148,19 @@ def main():
     if check_file_exists(doc_md, "API documentation"):
         all_checks_passed &= check_content(doc_md, doc_patterns, "Documentation content")
 
-    # 7. Check GitHub Sync
+    # 7. Check GitHub Sync (optional)
     print("\n[7] Checking GitHub Repository Sync...")
-    github_schema = "/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/schemas/chipseq.py"
-    github_router = "/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/routers/chipseq.py"
-    github_test = "/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/test_batch_heatmap.py"
-    github_doc = "/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/BATCH_HEATMAP_API.md"
+    github_backend_dir = os.environ.get("GITHUB_BACKEND_DIR")
+    if github_backend_dir:
+        print(f"  GitHub backend dir: {github_backend_dir}")
+    else:
+        github_backend_dir = base_dir
+        print(f"  GitHub backend dir: (not set; using BACKEND_DIR) {github_backend_dir}")
+
+    github_schema = os.path.join(github_backend_dir, "app", "schemas", "chipseq.py")
+    github_router = os.path.join(github_backend_dir, "app", "routers", "chipseq.py")
+    github_test = os.path.join(github_backend_dir, "test_batch_heatmap.py")
+    github_doc = os.path.join(github_backend_dir, "BATCH_HEATMAP_API.md")
 
     all_checks_passed &= check_file_exists(github_schema, "GitHub schema sync")
     all_checks_passed &= check_file_exists(github_router, "GitHub router sync")

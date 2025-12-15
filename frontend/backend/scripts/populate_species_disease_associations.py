@@ -7,7 +7,10 @@
 3. 为其他物种创建相同的疾病关联记录（复制 trait_id, ontology_id 等信息）
 """
 import sys
-sys.path.append('/data/wenyujianData/humanLncAtlas/frontend/backend')
+from pathlib import Path
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BACKEND_DIR))
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
