@@ -138,7 +138,7 @@ export function CellLineComparePanel({
         </Tag>
       }
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* Info Alert */}
         <Alert
           message={t(

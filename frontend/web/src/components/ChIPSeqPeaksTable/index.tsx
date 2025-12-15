@@ -371,7 +371,7 @@ export function ChIPSeqPeaksTable({
     }
 
     return (
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="large" style={{ width: '100%' }}>
         {/* Statistics Cards */}
         <StatsCards
           markType={selectedMark}
@@ -518,7 +518,7 @@ export function ChIPSeqPeaksTable({
     switch (viewMode) {
       case 'stats':
         return (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             {/* Bivalent Domain Badge (Phase 2.5) */}
             {hasBivalentMarksSelected && (
               <BivalentDomainBadge
@@ -587,7 +587,7 @@ export function ChIPSeqPeaksTable({
         ) || []
 
         return (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             {/* Bivalent Domain Badge (Phase 2.5) - inline mode for merged view */}
             {hasBivalentMarksSelected && compareData?.has_bivalent_domain && (
               <BivalentDomainBadge
@@ -639,13 +639,13 @@ export function ChIPSeqPeaksTable({
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Header with mark selector */}
       <Card size="small">
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} md={16}>
             {compareMode ? (
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                 <span style={{ fontWeight: 500 }}>
                   {t('detail.chipseq.selectMarksToCompare', 'Select marks to compare')}:
                 </span>
@@ -660,7 +660,7 @@ export function ChIPSeqPeaksTable({
                 />
               </Space>
             ) : (
-              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                 <span style={{ fontWeight: 500 }}>
                   {t('detail.chipseq.selectMark', 'Select histone mark')}:
                 </span>

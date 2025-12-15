@@ -10,6 +10,7 @@
 - [Phase 7.0-7.5: API 完善与代码质量](#phase-70-75-api-完善与代码质量)
 - [Phase 8.0-8.3: 代码审查与修复](#phase-80-83-代码审查与修复)
 - [Phase 9.0: 高级可视化](#phase-90-高级可视化)
+- [Phase 9.1: 代码审查修复](#phase-91-代码审查修复)
 
 ---
 
@@ -182,6 +183,42 @@ scikit-learn>=1.4.0
 - `kmeans_cluster()` - K-means 聚类
 - `compute_correlation_matrix()` - 相关性矩阵
 - `find_optimal_clusters()` - 最优聚类数
+
+---
+
+## Phase 9.1: 代码审查修复
+
+### Codex (GPT-5.2) 审查修复
+
+| 问题 | 修复内容 |
+|------|---------|
+| SlowAPI 限流集成 | 正确导入 ASGI middleware |
+| OpenAPI 类型生成 | 添加 `npm run generate:types` |
+| Ant Design v6 弃用 | 迁移 130+ 处 API 调用 |
+| 文档配置契约 | `DATABASE_URL` → `DB_*` 变量 |
+| Schema 脚本整理 | 标记弃用 + 添加 README |
+
+### Ant Design v6 API 迁移
+
+| 弃用 API | 新 API | 影响文件数 |
+|----------|--------|-----------|
+| `Space direction` | `Space orientation` | 82 |
+| `Statistic valueStyle` | `styles.content` | 42 |
+| `Drawer width` | `styles.wrapper.width` | 4 |
+| `Card bodyStyle` | `styles.body` | 3 |
+
+### 新增文件
+
+| 文件 | 用途 |
+|------|------|
+| `src/types/echarts.ts` | ECharts 回调类型定义 |
+| `schema/README.md` | Schema 执行顺序说明 |
+
+### 验证结果
+
+- ESLint: 0 errors, 135 warnings
+- Unit Tests: 171 passed
+- Build: ✅ 成功
 
 ---
 

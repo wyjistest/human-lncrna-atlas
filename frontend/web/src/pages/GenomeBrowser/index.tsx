@@ -615,7 +615,7 @@ export default function GenomeBrowserPage() {
                 </Space>
               ),
               children: (
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                   {/* ChIP-seq Tracks */}
                   <Collapse
                     size="small"
@@ -632,7 +632,7 @@ export default function GenomeBrowserPage() {
                           </Space>
                         ),
                         children: (
-                          <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space orientation="vertical" style={{ width: '100%' }}>
                             {/* ChIP-seq Toggle */}
                             <Space align="center">
                               <Switch
@@ -749,7 +749,7 @@ export default function GenomeBrowserPage() {
                         key: 'repeatMasker',
                         label: <span style={{ fontWeight: 500 }}>{t('repeatClasses.title')}</span>,
                         children: (
-                          <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space orientation="vertical" style={{ width: '100%' }}>
                             {/* Select All / Deselect All Buttons */}
                             <Space>
                               <Button size="small" onClick={handleSelectAll}>

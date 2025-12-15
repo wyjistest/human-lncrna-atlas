@@ -488,7 +488,7 @@ function OverlapStatsCard({
       size="small"
       title={t('detail.chipseq.charts.overlapStats', 'Overlap Statistics')}
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {relevantOverlaps.map((overlap, idx) => (
           <div
             key={idx}
@@ -528,13 +528,13 @@ function OverlapStatsCard({
               <Statistic
                 title={t('detail.chipseq.bivalent.regionCount', 'Regions')}
                 value={overlap.region_count}
-                valueStyle={{ fontSize: 16 }}
+                styles={{ content: { fontSize: 16 } }}
               />
               <Statistic
                 title={t('detail.chipseq.bivalent.totalBp', 'Coverage')}
                 value={overlap.total_bp}
                 suffix="bp"
-                valueStyle={{ fontSize: 16 }}
+                styles={{ content: { fontSize: 16 } }}
               />
             </Space>
           </div>

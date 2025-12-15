@@ -732,7 +732,7 @@ export const NetworkCard = memo(({
                 </span>
               ),
               children: (
-                <Space direction="vertical" style={{ width: '100%' }} size="small">
+                <Space orientation="vertical" style={{ width: '100%' }} size="small">
                   <div>
                     <div style={{ fontSize: 12, marginBottom: 4 }}>
                       {t('filters.baThreshold')}: {minBA}

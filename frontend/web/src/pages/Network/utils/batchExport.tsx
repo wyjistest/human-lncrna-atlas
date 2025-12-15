@@ -107,7 +107,7 @@ export const handleBatchExport = ({
               selectedFormats = values as string[]
             }}
           >
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <Checkbox value="png">{t('batchExport.pngFormat')}</Checkbox>
               <Checkbox value="csv">{t('batchExport.csvFormat')}</Checkbox>
               <Checkbox value="json">{t('batchExport.jsonFormat')}</Checkbox>

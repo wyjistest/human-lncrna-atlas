@@ -116,7 +116,7 @@ export function OverlapStatsCards({ summary, loading = false }: OverlapStatsCard
               </Space>
             }
             value={summary?.total_overlaps ?? 0}
-            valueStyle={{ color: '#1890ff' }}
+            styles={{ content: { color: '#1890ff' } }}
           />
         </Card>
       </Col>
@@ -132,7 +132,7 @@ export function OverlapStatsCards({ summary, loading = false }: OverlapStatsCard
               </Space>
             }
             value={summary?.unique_lncrnas ?? 0}
-            valueStyle={{ color: '#52c41a' }}
+            styles={{ content: { color: '#52c41a' } }}
           />
         </Card>
       </Col>
@@ -148,7 +148,7 @@ export function OverlapStatsCards({ summary, loading = false }: OverlapStatsCard
               </Space>
             }
             value={summary?.unique_target_genes ?? 0}
-            valueStyle={{ color: '#722ed1' }}
+            styles={{ content: { color: '#722ed1' } }}
           />
         </Card>
       </Col>
@@ -164,7 +164,7 @@ export function OverlapStatsCards({ summary, loading = false }: OverlapStatsCard
               </Space>
             }
             value={summary?.unique_marks ?? 0}
-            valueStyle={{ color: '#fa8c16' }}
+            styles={{ content: { color: '#fa8c16' } }}
           />
         </Card>
       </Col>
@@ -182,7 +182,7 @@ export function OverlapStatsCards({ summary, loading = false }: OverlapStatsCard
             value={summary?.avg_overlap_length ?? 0}
             precision={0}
             suffix="bp"
-            valueStyle={{ color: '#1890ff' }}
+            styles={{ content: { color: '#1890ff' } }}
           />
         </Card>
       </Col>
@@ -199,7 +199,7 @@ export function OverlapStatsCards({ summary, loading = false }: OverlapStatsCard
             }
             value={summary?.avg_binding_affinity ?? 0}
             precision={2}
-            valueStyle={{ color: '#52c41a' }}
+            styles={{ content: { color: '#52c41a' } }}
           />
         </Card>
       </Col>
@@ -217,7 +217,7 @@ export function OverlapStatsCards({ summary, loading = false }: OverlapStatsCard
             value={summary?.avg_peak_strength ?? 0}
             precision={2}
             suffix="x"
-            valueStyle={{ color: '#fa8c16' }}
+            styles={{ content: { color: '#fa8c16' } }}
           />
         </Card>
       </Col>

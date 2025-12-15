@@ -76,7 +76,7 @@ export function SpeciesSelector({
       size="small"
       style={{ marginBottom: 16 }}
     >
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         {/* Selection hint */}
         <Text type="secondary" style={{ fontSize: 12 }}>
           {t('speciesSelector.hint', 'Select 2-4 species to analyze conservation patterns')}

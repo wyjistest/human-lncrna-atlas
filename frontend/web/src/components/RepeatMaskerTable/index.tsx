@@ -269,7 +269,7 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
   const { items, total, page, page_size } = repeatsData
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Statistics Cards */}
       {statsData && (
         <Row gutter={[16, 16]}>
@@ -336,10 +336,10 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
           </Button>
         }
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={12} md={8}>
-              <Space direction="vertical" style={{ width: '100%' }} size={4}>
+              <Space orientation="vertical" style={{ width: '100%' }} size={4}>
                 <span style={{ fontWeight: 500 }}>{t('detail.repeats.repeatClass')}:</span>
                 <Select
                   style={{ width: '100%' }}
@@ -352,7 +352,7 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
               </Space>
             </Col>
             <Col xs={24} sm={12} md={12}>
-              <Space direction="vertical" style={{ width: '100%' }} size={4}>
+              <Space orientation="vertical" style={{ width: '100%' }} size={4}>
                 <span style={{ fontWeight: 500 }}>
                   {t('detail.repeats.divergence')}: {divergenceRange[0]}% - {divergenceRange[1]}%
                 </span>

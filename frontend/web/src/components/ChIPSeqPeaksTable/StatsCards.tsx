@@ -97,7 +97,7 @@ export function StatsCards({ markType, summary, loading = false }: StatsCardsPro
               </Space>
             }
             value={summary?.total_peaks ?? 0}
-            valueStyle={{ color: markColor }}
+            styles={{ content: { color: markColor } }}
           />
         </Card>
       </Col>
@@ -114,7 +114,7 @@ export function StatsCards({ markType, summary, loading = false }: StatsCardsPro
             }
             value={summary?.avg_signal ?? 0}
             precision={2}
-            valueStyle={{ color: '#1890ff' }}
+            styles={{ content: { color: '#1890ff' } }}
           />
         </Card>
       </Col>
@@ -132,7 +132,7 @@ export function StatsCards({ markType, summary, loading = false }: StatsCardsPro
             value={summary?.avg_fold_enrichment ?? 0}
             precision={2}
             suffix="x"
-            valueStyle={{ color: '#52c41a' }}
+            styles={{ content: { color: '#52c41a' } }}
           />
         </Card>
       </Col>
@@ -149,7 +149,7 @@ export function StatsCards({ markType, summary, loading = false }: StatsCardsPro
             }
             value={summary?.max_signal ?? 0}
             precision={2}
-            valueStyle={{ color: '#722ed1' }}
+            styles={{ content: { color: '#722ed1' } }}
           />
         </Card>
       </Col>

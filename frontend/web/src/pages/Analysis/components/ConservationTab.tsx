@@ -146,7 +146,7 @@ export default function ConservationTab() {
             <Statistic
               title={t('conservation.stats.fourSpecies')}
               value={summary?.conservation.four_species || 0}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -155,7 +155,7 @@ export default function ConservationTab() {
             <Statistic
               title={t('conservation.stats.threeSpecies')}
               value={summary?.conservation.three_species || 0}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -164,7 +164,7 @@ export default function ConservationTab() {
             <Statistic
               title={t('conservation.stats.twoSpecies')}
               value={summary?.conservation.two_species || 0}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -173,7 +173,7 @@ export default function ConservationTab() {
             <Statistic
               title={t('conservation.stats.totalConserved')}
               value={summary?.conservation.total_conserved || 0}
-              valueStyle={{ color: '#f5222d' }}
+              styles={{ content: { color: '#f5222d' } }}
             />
           </Card>
         </Col>

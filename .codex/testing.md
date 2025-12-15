@@ -105,3 +105,24 @@
 - `cd frontend/web && npm run lint`：通过（126 warnings；消除 3 处 hooks missing deps）
 - `cd frontend/web && npm run build`：通过（`tsc -b` + `vite build`；仍有 chunk size 提示告警）
 - `cd frontend/web && npm run test:run`：通过（11 个文件，171 条测试；存在 antd 组件弃用告警与 jsdom CSS 解析告警）
+
+## 测试执行记录（2025-12-15，第6轮）
+
+### Backend（FastAPI/Python）
+
+- `cd frontend/backend && python3 -m py_compile main.py`：通过
+- `cd frontend/backend && pytest tests/ -v ...（忽略集成测试）`：通过（15 passed）
+
+### Frontend（React/TS）
+
+- `cd frontend/web && npm run lint`：通过（135 warnings；0 errors；主要为 `no-explicit-any` 与 `react-hooks/exhaustive-deps`）
+- `cd frontend/web && npm run test:run`：通过（11 个文件，171 条测试；存在 antd 组件弃用告警与 jsdom CSS 解析告警）
+- `cd frontend/web && npm run build`：通过（`tsc -b` + `vite build`；仍有 chunk size 提示告警）
+
+## 测试执行记录（2025-12-15，第7轮）
+
+### 静态检查/风险扫描
+
+- `git diff --check`：发现多处 trailing whitespace（主要为 CRLF 行尾/混合行尾导致的 diff 噪音）
+- `ruff check --select S frontend/backend/app -q`：通过
+- 配置契约验证：在 `frontend/backend` 下用 Python 实例化 `Settings(_env_file=None)`，确认仅 `DB_*` 生效，`DATABASE_*` 不生效（用于驱动部署文档修正）

@@ -440,7 +440,7 @@ export function OverlapHeatmapMatrix({
         <Card size="small">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} sm={12} md={6}>
-              <Space direction="vertical" size={0} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={0} style={{ width: '100%' }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {t('charts.heatmap.xAxisLabel', 'X-Axis (Columns)')}
                 </Text>
@@ -454,7 +454,7 @@ export function OverlapHeatmapMatrix({
               </Space>
             </Col>
             <Col xs={24} sm={12} md={6}>
-              <Space direction="vertical" size={0} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={0} style={{ width: '100%' }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {t('charts.heatmap.yAxisLabel', 'Y-Axis (Rows)')}
                 </Text>
@@ -468,7 +468,7 @@ export function OverlapHeatmapMatrix({
               </Space>
             </Col>
             <Col xs={24} sm={12} md={6}>
-              <Space direction="vertical" size={0} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={0} style={{ width: '100%' }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {t('charts.heatmap.topNLabel', 'Top N Items')}
                 </Text>
@@ -484,7 +484,7 @@ export function OverlapHeatmapMatrix({
               </Space>
             </Col>
             <Col xs={24} sm={12} md={6}>
-              <Space direction="vertical" size={0} style={{ width: '100%' }}>
+              <Space orientation="vertical" size={0} style={{ width: '100%' }}>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {t('charts.heatmap.metricLabel', 'Metric')}
                 </Text>

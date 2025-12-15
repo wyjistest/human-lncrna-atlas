@@ -253,7 +253,7 @@ export function ConservationMatrix({
   return (
     <Card
       title={null}
-      bodyStyle={{ padding: 16 }}
+      styles={{ body: { padding: 16 } }}
     >
       <div ref={chartRef} style={{ width: '100%', height }} />
     </Card>

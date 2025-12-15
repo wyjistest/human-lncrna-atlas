@@ -197,7 +197,7 @@ export function OverlapTable({
           const overlapEnd = typeof record.overlap_end === 'string' ? parseInt(record.overlap_end, 10) : record.overlap_end
           const overlapLength = typeof record.overlap_length === 'string' ? parseInt(record.overlap_length, 10) : record.overlap_length
           return (
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Text style={{ fontSize: 12 }}>
                 {formatCoordinates(record.chromosome, overlapStart, overlapEnd)}
               </Text>

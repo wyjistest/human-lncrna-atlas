@@ -133,7 +133,7 @@ export const ComparisonDrawer = ({
       placement="right"
       onClose={onClose}
       open={open}
-      width={800}
+      styles={{ wrapper: { width: 800 } }}
     >
       {loading ? (
         <LoadingState />

@@ -145,7 +145,7 @@ export function GeneSelector({
   const defaultPlaceholder = placeholder || t('batchGeneHeatmap.selectGenes', 'Select genes to analyze')
 
   return (
-    <Space direction="vertical" style={{ width: '100%', ...style }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%', ...style }} size="middle">
       {/* Selection info */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 12, color: '#666' }}>

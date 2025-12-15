@@ -111,7 +111,7 @@ export default function VisualizationHub() {
       />
 
       {/* Page Header */}
-      <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 32 }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 32 }}>
         <Title level={2}>{t('hub.title', 'Visualization Hub')}</Title>
         <Paragraph type="secondary">
           {t(
@@ -133,12 +133,14 @@ export default function VisualizationHub() {
                 borderTop: `4px solid ${viz.color}`,
                 cursor: 'pointer'
               }}
-              bodyStyle={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                textAlign: 'center',
-                padding: '32px 24px'
+              styles={{
+                body: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  padding: '32px 24px'
+                }
               }}
             >
               <div style={{ color: viz.color, marginBottom: 16 }}>
@@ -158,9 +160,9 @@ export default function VisualizationHub() {
       {/* Additional Info Section */}
       <Card
         style={{ marginTop: 32 }}
-        bodyStyle={{ padding: 24 }}
+        styles={{ body: { padding: 24 } }}
       >
-        <Space direction="vertical" size={16}>
+        <Space orientation="vertical" size={16}>
           <Title level={4}>{t('hub.info.title', 'About Visualizations')}</Title>
           <Paragraph>
             {t(

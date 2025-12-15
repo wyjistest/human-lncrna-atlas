@@ -186,7 +186,7 @@ export default function HighAffinityTab() {
             <Statistic
               title={t('highAffinity.stats.totalRegulations')}
               value={summary?.high_affinity.total_regulations || 0}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -195,7 +195,7 @@ export default function HighAffinityTab() {
             <Statistic
               title={t('highAffinity.stats.uniqueLncrnas')}
               value={summary?.high_affinity.unique_lncrnas || 0}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -205,7 +205,7 @@ export default function HighAffinityTab() {
               title={t('highAffinity.stats.avgBa')}
               value={summary?.high_affinity.avg_ba || 0}
               precision={2}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
@@ -215,7 +215,7 @@ export default function HighAffinityTab() {
               title={t('highAffinity.stats.maxBa')}
               value={summary?.high_affinity.max_ba || 0}
               precision={2}
-              valueStyle={{ color: '#f5222d' }}
+              styles={{ content: { color: '#f5222d' } }}
             />
           </Card>
         </Col>

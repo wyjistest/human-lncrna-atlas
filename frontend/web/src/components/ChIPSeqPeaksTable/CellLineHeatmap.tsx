@@ -359,7 +359,7 @@ export function CellLineHeatmap({
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Header with mark info */}
       <Card size="small">
         <Row gutter={[16, 16]} align="middle">
@@ -407,7 +407,7 @@ export function CellLineHeatmap({
             <Statistic
               title={t('detail.chipseq.cellLineCompare.region', 'Region')}
               value={`${data.chromosome}:${data.region_start.toLocaleString()}-${data.region_end.toLocaleString()}`}
-              valueStyle={{ fontSize: 12 }}
+              styles={{ content: { fontSize: 12 } }}
             />
           </Card>
         </Col>
@@ -464,7 +464,7 @@ export function CellLineHeatmap({
                   size="small"
                   style={{ borderLeft: `4px solid ${getCellTypeColor(cl.cell_type)}` }}
                 >
-                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                     <Text strong>
                       {isZh ? config?.labelZh : config?.label || cl.cell_type}
                     </Text>

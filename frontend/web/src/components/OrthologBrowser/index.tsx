@@ -126,7 +126,7 @@ const RegulationsDrawer: React.FC<RegulationsDrawerProps> = ({
     <Drawer
       title={t('ortholog.regulationsDrawerTitle', { geneName })}
       placement="right"
-      width={600}
+      styles={{ wrapper: { width: 600 } }}
       onClose={onClose}
       open={open}
       extra={

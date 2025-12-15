@@ -68,11 +68,11 @@ pip install -r requirements.txt
 
 ```bash
 # 数据库配置
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_NAME=lncrna_production
-DATABASE_USER=amax
-DATABASE_PASSWORD=your_password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=lncrna_production
+DB_USER=amax
+DB_PASSWORD=your_password
 
 # 应用配置
 APP_NAME="Human LncRNA Atlas API"
@@ -195,11 +195,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_HOST=db
-      - DATABASE_PORT=5432
-      - DATABASE_NAME=lncrna_production
-      - DATABASE_USER=amax
-      - DATABASE_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=lncrna_production
+      - DB_USER=amax
+      - DB_PASSWORD=${DB_PASSWORD}
     depends_on:
       - db
     restart: always
@@ -509,7 +509,7 @@ sudo certbot renew --dry-run
 echo ".env" >> .gitignore
 
 # 生产环境使用环境变量
-export DATABASE_PASSWORD="strong_password_here"
+export DB_PASSWORD="strong_password_here"
 ```
 
 ---

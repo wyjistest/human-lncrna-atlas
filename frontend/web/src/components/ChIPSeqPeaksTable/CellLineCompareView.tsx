@@ -87,7 +87,7 @@ export function CellLineCompareView({
   }, [])
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Selection Panel - always visible */}
       <CellLineComparePanel
         geneId={geneId}

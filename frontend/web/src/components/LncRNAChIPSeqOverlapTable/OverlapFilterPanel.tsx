@@ -170,12 +170,12 @@ export function OverlapFilterPanel({
         </Button>
       }
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         {/* First Row: Mark Type, Cell Type, Chromosome */}
         <Row gutter={[16, 16]} align="middle">
           {/* Mark Type Selector */}
           <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('filters.markType', 'Mark Type')}:
               </span>
@@ -191,7 +191,7 @@ export function OverlapFilterPanel({
 
           {/* Cell Type Selector */}
           <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('filters.cellType', 'Cell Type')}:
               </span>
@@ -213,7 +213,7 @@ export function OverlapFilterPanel({
 
           {/* Chromosome Selector */}
           <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('filters.chromosome', 'Chromosome')}:
               </span>
@@ -237,7 +237,7 @@ export function OverlapFilterPanel({
         <Row gutter={[16, 16]} align="middle">
           {/* Min Binding Affinity */}
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('filters.minBindingAffinity', 'Min Binding Affinity')}:
                 <Tooltip
@@ -263,7 +263,7 @@ export function OverlapFilterPanel({
 
           {/* Min Peak Strength */}
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('filters.minPeakStrength', 'Min Peak Strength')}:
                 <Tooltip
@@ -289,7 +289,7 @@ export function OverlapFilterPanel({
 
           {/* Max Q-value */}
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('filters.maxQValue', 'Max Q-value (FDR)')}:
                 <Tooltip
@@ -314,7 +314,7 @@ export function OverlapFilterPanel({
         {/* Third Row: Overlap Length Slider */}
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} md={16}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('filters.minOverlapLength', 'Min Overlap Length')}: {overlapLengthRange} bp
                 <Tooltip

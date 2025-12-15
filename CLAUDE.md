@@ -38,7 +38,7 @@ curl -s http://localhost:8000/health && echo " ✅ Backend OK"
 | 层级 | 技术 |
 |------|------|
 | 后端 | FastAPI + PostgreSQL + Redis |
-| 前端 | React 19 + TypeScript + Vite + Ant Design 5 |
+| 前端 | React 19 + TypeScript + Vite + Ant Design 6 |
 | 可视化 | IGV.js + Cytoscape.js + ECharts |
 | 分析 | scipy + scikit-learn (聚类) |
 
@@ -59,6 +59,9 @@ npm run lint          # ESLint (0 errors)
 npm run test:run      # 单元测试 (全部通过)
 npm run build         # 生产构建
 python3 -c "import main"  # 后端导入
+
+# OpenAPI 类型生成 (后端 API 变更后执行)
+npm run generate:types  # 需后端运行中
 
 # 提交
 git add -A && git commit -m "feat: 描述" && git push
@@ -127,9 +130,13 @@ npx playwright show-report
 
 | 变量 | 说明 |
 |------|------|
-| DATABASE_URL | PostgreSQL 连接串 |
-| REDIS_URL | Redis 连接 |
-| GENOMES_DIR | 基因组文件目录 |
+| DB_HOST | PostgreSQL 主机 (默认 localhost) |
+| DB_PORT | PostgreSQL 端口 (默认 5432) |
+| DB_USER | 数据库用户 |
+| DB_PASSWORD | 数据库密码 |
+| DB_NAME | 数据库名称 (默认 lncrna_production) |
+| REDIS_HOST | Redis 主机 (默认 localhost) |
+| GENOMES_DIR | 基因组文件目录 (IGV.js) |
 
 ## 版本里程碑
 

@@ -91,7 +91,7 @@ export const ErrorState = ({
         status={getStatus()}
         title={title || t('error.loadFailed', 'Loading Failed')}
         subTitle={
-          <Space direction="vertical" size="small">
+          <Space orientation="vertical" size="small">
             <Text type="secondary">{getErrorMessage()}</Text>
             {process.env.NODE_ENV === 'development' && error instanceof Error && (
               <Text type="secondary" style={{ fontSize: 11 }}>

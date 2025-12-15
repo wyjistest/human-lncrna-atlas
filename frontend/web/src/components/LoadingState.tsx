@@ -95,7 +95,7 @@ export const LoadingState = ({
         padding: 24
       }}
     >
-      <Space direction="vertical" align="center" size="middle">
+      <Space orientation="vertical" align="center" size="middle">
         <Spin size={size} />
         {message && (
           <Text style={{ color: '#666', fontSize: 14 }}>

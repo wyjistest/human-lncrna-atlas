@@ -162,7 +162,7 @@ export default function DiseaseTab() {
             <Statistic
               title={t('disease.stats.totalDiseases')}
               value={summary?.disease.total_diseases || 0}
-              valueStyle={{ color: '#f5222d' }}
+              styles={{ content: { color: '#f5222d' } }}
             />
           </Card>
         </Col>
@@ -171,7 +171,7 @@ export default function DiseaseTab() {
             <Statistic
               title={t('disease.stats.totalLncrnas')}
               value={summary?.disease.total_lncrnas || 0}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -180,7 +180,7 @@ export default function DiseaseTab() {
             <Statistic
               title={t('disease.stats.totalGenes')}
               value={summary?.disease.total_genes || 0}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -190,7 +190,7 @@ export default function DiseaseTab() {
               title={t('disease.stats.avgConnections')}
               value={summary?.disease.avg_connections || 0}
               precision={1}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>

@@ -129,7 +129,7 @@ export function BatchGeneHeatmapViewer({
   )
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Gene Selection Card */}
       <Card
         title={t('batchGeneHeatmap.selectGenes', 'Select Genes')}
@@ -153,7 +153,7 @@ export function BatchGeneHeatmapViewer({
           size="small"
           style={{ backgroundColor: '#fafafa' }}
         >
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             {/* Marks Selection */}
             <div>
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>

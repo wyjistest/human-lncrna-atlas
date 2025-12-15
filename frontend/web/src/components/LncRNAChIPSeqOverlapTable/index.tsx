@@ -759,14 +759,14 @@ export function LncRNAChIPSeqOverlapTable({
     <div style={containerStyle}>
       {/* Top Section: Table and Filters (when IGV enabled and shown) */}
       <div style={enableIGV && showIGV ? { flex: '0 0 50%', overflow: 'auto', borderBottom: '2px solid #e8e8e8', padding: '16px' } : {}}>
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Error Alert - Show at top but allow filter panel to remain visible */}
       {dataError && (
         <Alert
           type="error"
           message={t('error.title', 'Loading Failed')}
           description={
-            <Space direction="vertical" size="small">
+            <Space orientation="vertical" size="small">
               <span>{dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
               <span style={{ fontSize: 12, color: '#999' }}>
                 {t('error.tryAdjustFilters', 'Try adjusting filters or retry the request')}
@@ -1059,7 +1059,7 @@ export function LncRNAChIPSeqOverlapTable({
         {showEmptyState && (
           <Empty
             description={
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 <span>{t('empty.noOverlaps', 'No overlaps found')}</span>
                 <span style={{ fontSize: 12, color: '#999' }}>
                   {t('empty.tryAdjustFilters', 'Try adjusting your filters')}
@@ -1078,7 +1078,7 @@ export function LncRNAChIPSeqOverlapTable({
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={
-              <Space direction="vertical">
+              <Space orientation="vertical">
                 <span>{t('error.noDataDueToError', 'Unable to load data')}</span>
                 <span style={{ fontSize: 12, color: '#999' }}>
                   {t('error.adjustFiltersAbove', 'Adjust filters above and retry')}
@@ -1095,7 +1095,7 @@ export function LncRNAChIPSeqOverlapTable({
           type="info"
           message={t('info.filteredView', 'Filtered View')}
           description={
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               {lncrnaGeneId && (
                 <span>
                   {t('info.filteredByLncRNA', 'Filtered by lncRNA')}:{' '}
@@ -1174,7 +1174,7 @@ export function LncRNAChIPSeqOverlapTable({
                     </Space>
                   ),
                   children: (
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                       {/* ChIP-seq Tracks */}
                       <Collapse
                         size="small"
@@ -1191,7 +1191,7 @@ export function LncRNAChIPSeqOverlapTable({
                               </Space>
                             ),
                             children: (
-                              <Space direction="vertical" style={{ width: '100%' }}>
+                              <Space orientation="vertical" style={{ width: '100%' }}>
                                 <Space align="center">
                                   <Switch
                                     checked={showChIPSeq}
@@ -1295,7 +1295,7 @@ export function LncRNAChIPSeqOverlapTable({
                             key: 'repeatMasker',
                             label: <span style={{ fontWeight: 500 }}>{tGenomeBrowser('repeatClasses.title')}</span>,
                             children: (
-                              <Space direction="vertical" style={{ width: '100%' }}>
+                              <Space orientation="vertical" style={{ width: '100%' }}>
                                 <Space>
                                   <Button size="small" onClick={handleSelectAllRepeats}>
                                     {tGenomeBrowser('repeatClasses.selectAll')}

@@ -332,7 +332,7 @@ export default function SankeyFlow() {
       />
 
       {/* Page Header */}
-      <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
         <Title level={2}>{t('sankey.title', 'Sankey Flow Diagram')}</Title>
         <Paragraph type="secondary">
           {t(
@@ -366,7 +366,7 @@ export default function SankeyFlow() {
             <Statistic
               title={t('sankey.stats.lncrnaNodes', 'LncRNA Nodes')}
               value={sankeyData?.statistics?.lncrna_count || 0}
-              valueStyle={{ color: LAYER_COLORS[0] }}
+              styles={{ content: { color: LAYER_COLORS[0] } }}
               loading={isLoading}
               data-testid="stat-lncrna-nodes"
             />
@@ -377,7 +377,7 @@ export default function SankeyFlow() {
             <Statistic
               title={t('sankey.stats.geneNodes', 'Gene Nodes')}
               value={sankeyData?.statistics?.gene_count || 0}
-              valueStyle={{ color: LAYER_COLORS[1] }}
+              styles={{ content: { color: LAYER_COLORS[1] } }}
               loading={isLoading}
               data-testid="stat-gene-nodes"
             />
@@ -388,7 +388,7 @@ export default function SankeyFlow() {
             <Statistic
               title={t('sankey.stats.diseaseNodes', 'Disease Nodes')}
               value={sankeyData?.statistics?.disease_count || 0}
-              valueStyle={{ color: LAYER_COLORS[2] }}
+              styles={{ content: { color: LAYER_COLORS[2] } }}
               loading={isLoading}
               data-testid="stat-disease-nodes"
             />
@@ -405,7 +405,7 @@ export default function SankeyFlow() {
       >
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('sankey.filters.species', 'Species')}
               </Text>
@@ -422,7 +422,7 @@ export default function SankeyFlow() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('sankey.filters.disease', 'Disease/Trait')}
               </Text>
@@ -437,7 +437,7 @@ export default function SankeyFlow() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('sankey.filters.minBA', 'Min. Binding Affinity')}: {minBA}
               </Text>
@@ -452,7 +452,7 @@ export default function SankeyFlow() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('sankey.filters.limit', 'Node Limit')}: {limit}
               </Text>

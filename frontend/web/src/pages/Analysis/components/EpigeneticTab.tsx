@@ -165,7 +165,7 @@ export default function EpigeneticTab() {
             <Statistic
               title={t('epigenetic.stats.totalOverlaps')}
               value={summary?.epigenetic.total_overlaps || 0}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -174,7 +174,7 @@ export default function EpigeneticTab() {
             <Statistic
               title={t('epigenetic.stats.bivalentDomains')}
               value={summary?.epigenetic.bivalent_domains || 0}
-              valueStyle={{ color: '#722ed1' }}
+              styles={{ content: { color: '#722ed1' } }}
             />
           </Card>
         </Col>
@@ -183,7 +183,7 @@ export default function EpigeneticTab() {
             <Statistic
               title={t('epigenetic.stats.activeMarks')}
               value={summary?.epigenetic.active_marks || 0}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -192,7 +192,7 @@ export default function EpigeneticTab() {
             <Statistic
               title={t('epigenetic.stats.repressiveMarks')}
               value={summary?.epigenetic.repressive_marks || 0}
-              valueStyle={{ color: '#f5222d' }}
+              styles={{ content: { color: '#f5222d' } }}
             />
           </Card>
         </Col>
@@ -213,7 +213,7 @@ export default function EpigeneticTab() {
         </Col>
         <Col xs={24} lg={8}>
           <Card title="Histone Marks">
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               {HISTONE_MARKS.map((mark) => (
                 <div key={mark.value} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Tag color={mark.color}>{mark.label}</Tag>

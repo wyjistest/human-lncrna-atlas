@@ -202,11 +202,11 @@ export function FilterPanel({
         </Button>
       }
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Row gutter={[16, 16]} align="middle">
           {/* Q-Value Filter */}
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('detail.chipseq.maxQValue', 'Max Q-Value (FDR)')}:
                 <Tooltip title={t('detail.chipseq.qvalueTooltip', 'False Discovery Rate threshold')}>
@@ -227,7 +227,7 @@ export function FilterPanel({
 
           {/* Min Signal Filter */}
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('detail.chipseq.minSignal', 'Min Signal Value')}:
               </span>
@@ -244,7 +244,7 @@ export function FilterPanel({
 
           {/* Position Filter */}
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('detail.chipseq.position', 'Relative Position')}:
               </span>
@@ -264,7 +264,7 @@ export function FilterPanel({
 
           {/* Flanking Region */}
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('detail.chipseq.flanking', 'Flanking Region')}:
                 <Tooltip
@@ -296,7 +296,7 @@ export function FilterPanel({
         <Row gutter={[16, 16]} align="middle">
           {/* Cell Type Filter */}
           <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('detail.chipseq.cellType', 'Cell Type')}:
               </span>
@@ -315,7 +315,7 @@ export function FilterPanel({
         {/* Fold Enrichment Slider - Auto-applies with 500ms debounce */}
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} md={16}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <span style={{ fontWeight: 500 }}>
                 {t('detail.chipseq.foldEnrichment', 'Fold Enrichment')}:{' '}
                 {foldEnrichmentRange[0]} - {foldEnrichmentRange[1]}x

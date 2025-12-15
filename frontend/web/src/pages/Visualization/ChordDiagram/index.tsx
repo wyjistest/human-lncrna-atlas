@@ -304,7 +304,7 @@ export default function ChordDiagram() {
       />
 
       {/* Page Header */}
-      <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
         <Title level={2}>{t('chord.title', 'Chord Diagram')}</Title>
         <Paragraph type="secondary">
           {t(
@@ -338,7 +338,7 @@ export default function ChordDiagram() {
             <Statistic
               title={t('chord.stats.lncrnaNodes', 'LncRNA Nodes')}
               value={chordData?.statistics?.lncrna_count || 0}
-              valueStyle={{ color: CATEGORY_COLORS.lncrna }}
+              styles={{ content: { color: CATEGORY_COLORS.lncrna } }}
               loading={isLoading}
               data-testid="stat-lncrna-nodes"
             />
@@ -349,7 +349,7 @@ export default function ChordDiagram() {
             <Statistic
               title={t('chord.stats.geneNodes', 'Gene Nodes')}
               value={chordData?.statistics?.gene_count || 0}
-              valueStyle={{ color: CATEGORY_COLORS.gene }}
+              styles={{ content: { color: CATEGORY_COLORS.gene } }}
               loading={isLoading}
               data-testid="stat-gene-nodes"
             />
@@ -376,7 +376,7 @@ export default function ChordDiagram() {
       >
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('chord.filters.species', 'Species')}
               </Text>
@@ -393,7 +393,7 @@ export default function ChordDiagram() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('chord.filters.minBA', 'Min. Binding Affinity')}: {minBA}
               </Text>
@@ -408,7 +408,7 @@ export default function ChordDiagram() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={8}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('chord.filters.limit', 'Node Limit')}: {limit}
               </Text>

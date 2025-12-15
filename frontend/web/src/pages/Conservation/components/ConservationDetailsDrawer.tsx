@@ -191,7 +191,7 @@ export function ConservationDetailsDrawer({
   return (
     <Drawer
       title={
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Title level={4} style={{ margin: 0 }}>
             {t('drawer.title', 'Shared Regulations')}
           </Title>
@@ -201,7 +201,7 @@ export function ConservationDetailsDrawer({
           </Text>
         </Space>
       }
-      width={900}
+      styles={{ wrapper: { width: 900 } }}
       open={open}
       onClose={onClose}
       destroyOnClose

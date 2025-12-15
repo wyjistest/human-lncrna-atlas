@@ -443,7 +443,7 @@ export function BatchHeatmapMatrix({
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {/* Header with metric selector */}
       <Card size="small">
         <Row gutter={[16, 16]} align="middle">
@@ -502,7 +502,7 @@ export function BatchHeatmapMatrix({
 
       {/* Summary */}
       <Card size="small">
-        <Space direction="vertical" size={4} style={{ width: '100%', fontSize: 12, color: '#666' }}>
+        <Space orientation="vertical" size={4} style={{ width: '100%', fontSize: 12, color: '#666' }}>
           <div>
             <span style={{ fontWeight: 500 }}>Total dimensions:</span> {data.length} genes × {allMarks.length}{' '}
             marks × {allCellTypes.length} cell types

@@ -420,7 +420,7 @@ export default function Conservation() {
       />
 
       {/* Page Header */}
-      <Space direction="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
+      <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
         <Title level={2}>
           {t('title', 'Cross-Species Conservation Analysis')}
         </Title>
@@ -456,7 +456,7 @@ export default function Conservation() {
             <Statistic
               title={t('stats.fourSpecies', '4 Species')}
               value={overviewData?.four_species || 0}
-              valueStyle={{ color: CONSERVATION_COLORS.high }}
+              styles={{ content: { color: CONSERVATION_COLORS.high } }}
               loading={overviewLoading}
             />
           </Card>
@@ -466,7 +466,7 @@ export default function Conservation() {
             <Statistic
               title={t('stats.threeSpecies', '3 Species')}
               value={overviewData?.three_species || 0}
-              valueStyle={{ color: CONSERVATION_COLORS.medium }}
+              styles={{ content: { color: CONSERVATION_COLORS.medium } }}
               loading={overviewLoading}
             />
           </Card>
@@ -476,7 +476,7 @@ export default function Conservation() {
             <Statistic
               title={t('stats.twoSpecies', '2 Species')}
               value={overviewData?.two_species || 0}
-              valueStyle={{ color: CONSERVATION_COLORS.low }}
+              styles={{ content: { color: CONSERVATION_COLORS.low } }}
               loading={overviewLoading}
             />
           </Card>
@@ -511,7 +511,7 @@ export default function Conservation() {
       >
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('filters.lncrnaName', 'LncRNA Name')}
               </Text>
@@ -528,7 +528,7 @@ export default function Conservation() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('filters.targetName', 'Target Gene')}
               </Text>
@@ -545,7 +545,7 @@ export default function Conservation() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('filters.minConservation', 'Min. Conservation')}: {minConservation} {t('filters.species', 'species')}
               </Text>
@@ -562,7 +562,7 @@ export default function Conservation() {
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <Space direction="vertical" style={{ width: '100%' }} size={4}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('filters.minBA', 'Min. Binding Affinity')}: {minBA}
               </Text>

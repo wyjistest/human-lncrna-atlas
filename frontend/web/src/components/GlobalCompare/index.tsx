@@ -365,7 +365,7 @@ export function GlobalCompareSection({
   )
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Title */}
       {showTitle && (
         <Title level={3}>
@@ -377,7 +377,7 @@ export function GlobalCompareSection({
       <Card size="small" title={<><FilterOutlined /> {t('filters.title', 'Filters')}</>}>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={12}>
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={4} style={{ width: '100%' }}>
               <Text type="secondary">{t('filters.marks', 'Select Marks')}</Text>
               <Select
                 mode="multiple"
@@ -401,7 +401,7 @@ export function GlobalCompareSection({
             </Space>
           </Col>
           <Col xs={24} md={12}>
-            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={4} style={{ width: '100%' }}>
               <Text type="secondary">{t('filters.cellTypes', 'Select Cell Types')}</Text>
               <Select
                 mode="multiple"
@@ -460,7 +460,7 @@ export function GlobalCompareSection({
             <Statistic
               title={t('stats.totalMarks', 'Marks')}
               value={mockCompareData.marks.length}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>
@@ -475,7 +475,7 @@ export function GlobalCompareSection({
                 if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
                 return num.toLocaleString()
               }}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -489,7 +489,7 @@ export function GlobalCompareSection({
                 if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
                 return num.toLocaleString()
               }}
-              valueStyle={{ color: '#722ed1' }}
+              styles={{ content: { color: '#722ed1' } }}
             />
           </Card>
         </Col>
@@ -498,7 +498,7 @@ export function GlobalCompareSection({
             <Statistic
               title={t('stats.cellTypes', 'Cell Types')}
               value={Math.max(...mockCompareData.marks.map((m) => m.cell_type_count))}
-              valueStyle={{ color: '#eb2f96' }}
+              styles={{ content: { color: '#eb2f96' } }}
             />
           </Card>
         </Col>

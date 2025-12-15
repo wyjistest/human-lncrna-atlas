@@ -364,12 +364,12 @@ export function CellLineHeatmapMatrix({
   const chartHeight = Math.max(300, 200 + data.cell_types.length * 50)
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {/* Header with gene info and metric selector */}
       <Card size="small">
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} md={10}>
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Text strong style={{ fontSize: 16 }}>
                 {data.gene_name}
               </Text>

@@ -23,7 +23,7 @@ export const GeneDetailDrawer = ({ open, onClose, geneDetail, loading }: GeneDet
       placement="right"
       onClose={onClose}
       open={open}
-      width={400}
+      styles={{ wrapper: { width: 400 } }}
     >
       {loading ? (
         <LoadingState />
