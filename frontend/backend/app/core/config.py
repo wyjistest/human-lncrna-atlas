@@ -103,6 +103,13 @@ class Settings(BaseSettings):
         default=["127.0.0.1", "localhost", "::1"],
         description="允许访问 Admin API 的 IP 地址白名单"
     )
+    # 严格模式：启用后无条件要求 API Key，不再信任私网 IP 自动放行
+    # 生产环境强烈建议开启
+    ADMIN_REQUIRE_API_KEY: bool = Field(
+        default=False,
+        validation_alias="ADMIN_REQUIRE_API_KEY",
+        description="Strict mode: always require API key, don't trust private IPs automatically"
+    )
 
     # Trusted Proxies for X-Forwarded-For header validation
     # Only trust X-Forwarded-For headers from these IP addresses/ranges
@@ -117,6 +124,16 @@ class Settings(BaseSettings):
         ],
         description="IP addresses/ranges trusted as reverse proxies for X-Forwarded-For parsing. "
                     "Add your reverse proxy IP here (e.g., '10.0.0.1' or '192.168.1.100')."
+    )
+
+    # Rate Limiting - Private IP Bypass
+    # When False (default), rate limiting applies to all requests including private IPs
+    # When True, requests from private/internal IPs bypass rate limiting (dev convenience)
+    # SECURITY NOTE: Keep False in production to prevent bypass via internal network
+    RATE_LIMIT_BYPASS_PRIVATE: bool = Field(
+        default=False,
+        validation_alias="RATE_LIMIT_BYPASS_PRIVATE",
+        description="Allow private IPs to bypass rate limiting (dev only, keep False in production)"
     )
 
     # IGV Genome Files Directory

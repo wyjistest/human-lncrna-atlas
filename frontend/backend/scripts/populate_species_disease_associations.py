@@ -12,10 +12,10 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND_DIR))
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.models import TraitGeneAssociation, Gene, Species
-from app.core.config import settings
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import sessionmaker  # noqa: E402
+from app.models import TraitGeneAssociation, Gene, Species  # noqa: E402
+from app.core.config import settings  # noqa: E402
 
 # 创建数据库连接
 engine = create_engine(settings.database_url)

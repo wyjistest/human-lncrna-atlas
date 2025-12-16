@@ -4,15 +4,20 @@ ChIP-seq 子路由共享的公共能力：限流装饰器与常量。
 目标：
 - 打破 `app.routers.chipseq` 与各子路由之间的循环依赖
 - 让所有 ChIP-seq 子路由复用同一个 slowapi Limiter 实例
+
+安全说明：
+- 使用 ip_utils.get_rate_limit_key 确保反向代理场景下正确识别真实客户端 IP
+- 私网 bypass 由 settings.RATE_LIMIT_BYPASS_PRIVATE 控制（默认关闭）
 """
 
-import ipaddress
 import inspect
 import logging
 from functools import wraps
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+from app.core.ip_utils import get_rate_limit_key, should_bypass_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,6 @@ DEFAULT_FLANKING_REGION = 10000
 # ============================================================================
 try:
     from slowapi import Limiter
-    from slowapi.util import get_remote_address
 
     SLOWAPI_AVAILABLE = True
 except ImportError:  # pragma: no cover - 依赖缺失时走降级逻辑
@@ -34,7 +38,8 @@ except ImportError:  # pragma: no cover - 依赖缺失时走降级逻辑
 
 
 if SLOWAPI_AVAILABLE and Limiter:
-    limiter = Limiter(key_func=get_remote_address)
+    # 使用自定义 key_func 确保反向代理场景下正确识别真实客户端 IP
+    limiter = Limiter(key_func=get_rate_limit_key)
     chipseq_limiter = limiter
 else:
     limiter = None
@@ -44,6 +49,11 @@ else:
 def rate_limit(limit_string: str):
     """
     Rate limiting decorator that gracefully handles missing slowapi.
+
+    安全说明：
+    - 使用 ip_utils.should_bypass_rate_limit 判断是否跳过限流
+    - 默认情况下所有请求都执行限流（包括私网 IP）
+    - 设置 RATE_LIMIT_BYPASS_PRIVATE=true 可启用私网 bypass（仅开发环境）
 
     Args:
         limit_string: Rate limit string (e.g., "30/minute", "5/minute")
@@ -55,14 +65,6 @@ def rate_limit(limit_string: str):
 
         limited_func = limiter.limit(limit_string)(func)
 
-        def _is_private_request(req: Request) -> bool:
-            client_ip = req.client.host if req.client else ""
-            try:
-                ip = ipaddress.ip_address(client_ip)
-                return ip.is_private or ip.is_loopback or ip.is_link_local
-            except ValueError:
-                return False
-
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)
@@ -70,7 +72,7 @@ def rate_limit(limit_string: str):
                 request = next((v for v in kwargs.values() if isinstance(v, Request)), None) or next(
                     (a for a in args if isinstance(a, Request)), None
                 )
-                if request and _is_private_request(request):
+                if request and should_bypass_rate_limit(request):
                     return await func(*args, **kwargs)
                 return await limited_func(*args, **kwargs)
 
@@ -81,7 +83,7 @@ def rate_limit(limit_string: str):
             request = next((v for v in kwargs.values() if isinstance(v, Request)), None) or next(
                 (a for a in args if isinstance(a, Request)), None
             )
-            if request and _is_private_request(request):
+            if request and should_bypass_rate_limit(request):
                 return func(*args, **kwargs)
             return limited_func(*args, **kwargs)
 

@@ -6,79 +6,9 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query'
 import { message } from 'antd'
-import { AxiosError } from 'axios'
 import './index.css'
 import App from './App.tsx'
-
-/**
- * 统一错误消息映射
- * 根据 HTTP 状态码返回用户友好的错误消息
- *
- * 兼容后端多种错误格式：
- * - 脱敏格式：{detail: {error, message, error_id}}
- * - Admin 403 格式：{detail: {error: "...", message: "..."}}
- * - Pydantic 验证：{detail: [{msg: "..."}]}
- * - 字符串：{detail: "error message"}
- */
-function getErrorMessage(error: unknown): string {
-  if (error instanceof AxiosError && error.response) {
-    const { status, data } = error.response
-    const detail = data?.detail
-
-    // 处理 detail 为对象的情况（包括脱敏格式和 Admin 错误）
-    if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
-      // 提取 error_id（如果存在）用于调试追踪
-      const errorId = 'error_id' in detail ? detail.error_id : null
-
-      // 优先使用 message 字段
-      if ('message' in detail && typeof detail.message === 'string') {
-        // 如果有 error_id，附加到消息末尾便于用户反馈
-        return errorId ? `${detail.message} [${errorId}]` : detail.message
-      }
-      // 其次使用 error 字段
-      if ('error' in detail && typeof detail.error === 'string') {
-        return errorId ? `${detail.error} [${errorId}]` : detail.error
-      }
-      // 最后尝试 JSON 序列化（避免显示 [object Object]）
-      try {
-        return JSON.stringify(detail)
-      } catch {
-        return 'An error occurred'
-      }
-    }
-
-    // 处理 Pydantic 验证错误（数组格式）
-    if (Array.isArray(detail)) {
-      return detail.map((e: { msg: string }) => e.msg).join(', ')
-    }
-
-    // 处理字符串 detail 或根据状态码返回默认消息
-    switch (status) {
-      case 400:
-        return detail || 'Invalid request parameters'
-      case 403:
-        return detail || 'Access denied'
-      case 404:
-        return 'Resource not found'
-      case 422:
-        return detail || 'Validation error'
-      case 429:
-        return 'Too many requests, please try later'
-      case 500:
-        return detail || 'Server error'
-      default:
-        return detail || 'Request failed'
-    }
-  }
-
-  // 网络错误或其他错误
-  if (error instanceof AxiosError && error.request) {
-    return 'Network error, please check your connection'
-  }
-
-  // 其他错误
-  return error instanceof Error ? error.message : 'An unexpected error occurred'
-}
+import { getErrorMessage } from '@/utils/errorParser'
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({

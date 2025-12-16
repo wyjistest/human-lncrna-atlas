@@ -8,11 +8,11 @@ Phase 3 增强：系统资源监控、告警、响应时间百分位
 安全机制：
 - IP 白名单：只允许本地和内网 IP 访问
 - API Key 认证：可选的 X-Admin-API-Key 头验证
+- 严格模式：ADMIN_REQUIRE_API_KEY=true 时无条件要求 API Key
 """
 import os
 import time
 import logging
-import ipaddress
 from datetime import datetime
 from typing import Literal, Optional
 from collections import defaultdict, deque
@@ -24,6 +24,7 @@ from sqlalchemy import text
 from app.core.database import engine
 from app.core.cache import cache
 from app.core.config import settings, AlertThresholds
+from app.core.ip_utils import get_client_ip, is_private_ip
 from app.schemas.monitoring import (
     MetricsResponse,
     RequestMetrics,
@@ -45,86 +46,6 @@ from app.schemas.monitoring import (
 logger = logging.getLogger(__name__)
 
 
-def _is_private_ip(ip_str: str) -> bool:
-    """
-    检查 IP 地址是否为私有/内网地址
-
-    Args:
-        ip_str: IP 地址字符串
-
-    Returns:
-        True 如果是私有/本地地址，否则 False
-    """
-    try:
-        ip = ipaddress.ip_address(ip_str)
-        return ip.is_private or ip.is_loopback or ip.is_link_local
-    except ValueError:
-        return False
-
-
-def _is_trusted_proxy(ip_str: str) -> bool:
-    """
-    检查 IP 地址是否为受信任的代理服务器
-
-    仅当请求来自受信任的代理时，才信任 X-Forwarded-For 头。
-    这可以防止 IP 欺骗攻击。
-
-    Args:
-        ip_str: 连接客户端的 IP 地址字符串
-
-    Returns:
-        True 如果 IP 在 TRUSTED_PROXIES 列表中，否则 False
-    """
-    try:
-        ip = ipaddress.ip_address(ip_str)
-        for proxy in settings.TRUSTED_PROXIES:
-            try:
-                # 检查是否为 CIDR 网段（如 10.0.0.0/8）
-                if "/" in proxy:
-                    network = ipaddress.ip_network(proxy, strict=False)
-                    if ip in network:
-                        return True
-                else:
-                    # 单个 IP 地址
-                    if ip == ipaddress.ip_address(proxy):
-                        return True
-            except ValueError:
-                # 无效的代理配置，跳过
-                continue
-        return False
-    except ValueError:
-        return False
-
-
-def _get_client_ip(request: Request) -> str:
-    """
-    获取客户端真实 IP 地址
-
-    安全策略：仅当请求来自受信任的代理时，才信任 X-Forwarded-For 头。
-    这可以防止攻击者伪造 X-Forwarded-For 头来绕过 IP 白名单限制。
-
-    Args:
-        request: FastAPI Request 对象
-
-    Returns:
-        客户端 IP 地址字符串
-    """
-    # 获取直接连接的客户端 IP
-    direct_ip = request.client.host if request.client else "unknown"
-
-    # 仅当直接连接来自受信任的代理时，才检查 X-Forwarded-For
-    if _is_trusted_proxy(direct_ip):
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            # 取第一个 IP（客户端原始 IP）
-            client_ip = forwarded_for.split(",")[0].strip()
-            logger.debug(f"Trusted proxy {direct_ip}, using X-Forwarded-For: {client_ip}")
-            return client_ip
-
-    # 直接连接场景或不信任的代理
-    return direct_ip
-
-
 async def verify_admin_access(
     request: Request,
     x_admin_api_key: Optional[str] = Header(None, alias="X-Admin-API-Key"),
@@ -133,14 +54,15 @@ async def verify_admin_access(
     验证 Admin API 访问权限
 
     安全检查策略：
-    1. 如果提供了正确的 API Key，立即授权访问
-    2. 如果提供了错误的 API Key，记录警告但继续检查 IP
-    3. 如果客户端 IP 在白名单或为私有/内网地址，授权访问
-    4. 所有检查都失败则拒绝访问
+    1. 严格模式 (ADMIN_REQUIRE_API_KEY=true): 必须提供正确的 API Key
+    2. 普通模式:
+       a. 如果提供了正确的 API Key，立即授权访问
+       b. 如果提供了错误的 API Key，记录警告但继续检查 IP
+       c. 如果客户端 IP 在白名单或为私有/内网地址，授权访问
+       d. 所有检查都失败则拒绝访问
 
-    注意：内网 IP（私有地址）可以绕过 API Key 检查，这是为了方便
-    开发和内部监控。生产环境中，如果需要严格的 API Key 验证，
-    应确保服务只在可信网络中暴露，或移除私有 IP 的自动信任逻辑。
+    生产环境强烈建议启用 ADMIN_REQUIRE_API_KEY，防止反向代理场景下
+    因 TRUSTED_PROXIES 配置不当导致私网 IP 自动放行被绕过。
 
     Args:
         request: FastAPI Request 对象
@@ -149,9 +71,30 @@ async def verify_admin_access(
     Raises:
         HTTPException: 403 如果访问被拒绝
     """
-    client_ip = _get_client_ip(request)
+    client_ip = get_client_ip(request)
 
-    # 检查 API Key（如果配置了且提供了）
+    # 严格模式：必须提供正确的 API Key
+    if settings.ADMIN_REQUIRE_API_KEY:
+        if not settings.ADMIN_API_KEY:
+            logger.error("ADMIN_REQUIRE_API_KEY is True but ADMIN_API_KEY is not configured")
+            raise HTTPException(
+                status_code=500,
+                detail={"error": "SERVER_CONFIG_ERROR", "message": "Admin API key not configured"}
+            )
+        if x_admin_api_key == settings.ADMIN_API_KEY:
+            logger.debug(f"Admin API access granted via API Key (strict mode) from {client_ip}")
+            return
+        logger.warning(f"Admin API access denied (strict mode): invalid or missing API Key from {client_ip}")
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "ACCESS_DENIED",
+                "message": "Valid API Key required (strict mode enabled)",
+                "client_ip": client_ip,
+            }
+        )
+
+    # 普通模式：检查 API Key（如果配置了且提供了）
     if settings.ADMIN_API_KEY:
         if x_admin_api_key == settings.ADMIN_API_KEY:
             logger.debug(f"Admin API access granted via API Key from {client_ip}")
@@ -169,7 +112,7 @@ async def verify_admin_access(
         return
 
     # 检查是否为私有/内网 IP
-    if _is_private_ip(client_ip):
+    if is_private_ip(client_ip):
         logger.debug(f"Admin API access granted via private IP: {client_ip}")
         return
 
