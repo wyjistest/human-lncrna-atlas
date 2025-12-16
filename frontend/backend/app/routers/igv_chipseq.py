@@ -3,6 +3,7 @@ IGV ChIP-seq轨道路由
 提供ChIP-seq峰的BED格式数据导出和配置
 """
 import logging
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models import Species, ChIPSeqExperiment, EpigeneticMarkType
 from app.core.igv_stream_generators import (
     generate_chipseq_bed_stream,
@@ -257,7 +259,9 @@ def get_igv_chipseq_config(
     tracks = []
 
     # Add base annotation tracks first (FANTOM CAT for Human, Ensembl for others)
-    if species_id == 1:
+    # Only add local file tracks when GENOMES_DIR is configured
+    genomes_dir_available = settings.GENOMES_DIR and os.path.exists(settings.GENOMES_DIR)
+    if species_id == 1 and genomes_dir_available:
         fantom_transcripts_track = IGVTrack(
             name="FANTOM CAT lncRNA Transcripts",
             type="annotation",
@@ -273,7 +277,7 @@ def get_igv_chipseq_config(
             expandedRowHeight=25,
         )
         tracks.append(fantom_transcripts_track)
-    elif species_id in GENE_ANNOTATION_TRACKS:
+    elif species_id in GENE_ANNOTATION_TRACKS and genomes_dir_available:
         gene_track_config = GENE_ANNOTATION_TRACKS[species_id]
         gene_annotation_track = IGVTrack(
             name=gene_track_config["name"],

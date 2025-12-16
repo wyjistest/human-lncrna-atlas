@@ -5,6 +5,7 @@ IGV.js 集成 API 路由
 主路由文件，包含配置端点并整合子路由
 """
 import logging
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.core.database import get_db
+from app.core.config import settings
 from app.models import Species, Gene, Regulation, EpigeneticMarkType, ChIPSeqExperiment
 from app.core.igv_utils import get_genome_reference, get_chipseq_mark_color
 from app.config.igv_genomes import (
@@ -82,7 +84,9 @@ def get_igv_config(
     # FANTOM CAT transcripts 轨道 (仅 Human)
     # 使用 BED12 bigBed 格式，包含完整的外显子结构（block信息）
     # 在 IGV 中可以看到外显子/内含子结构，而不仅仅是单个区块
-    if species_id == 1:
+    # 只有当 GENOMES_DIR 配置且存在时才添加此轨道
+    genomes_dir_available = settings.GENOMES_DIR and os.path.exists(settings.GENOMES_DIR)
+    if species_id == 1 and genomes_dir_available:
         fantom_transcripts_track = IGVTrack(
             name="FANTOM CAT lncRNA Transcripts",
             type="annotation",
@@ -101,7 +105,8 @@ def get_igv_config(
 
     # 基因注释轨道 (非人类灵长类物种)
     # 使用从 Ensembl GTF 转换的 BigBed 格式，包含完整的外显子结构
-    if species_id in GENE_ANNOTATION_TRACKS:
+    # 只有当 GENOMES_DIR 配置且存在时才添加此轨道
+    if species_id in GENE_ANNOTATION_TRACKS and genomes_dir_available:
         gene_track_config = GENE_ANNOTATION_TRACKS[species_id]
         gene_annotation_track = IGVTrack(
             name=gene_track_config["name"],
