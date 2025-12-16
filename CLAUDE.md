@@ -6,7 +6,7 @@
 |------|------|
 | 版本 | Phase 9.3 |
 | 状态 | 🟢 生产就绪 |
-| 更新 | 2025-12-15 |
+| 更新 | 2025-12-16 |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
 ## 项目概述
@@ -137,6 +137,10 @@ npx playwright show-report
 | DB_NAME | 数据库名称 (默认 lncrna_production) |
 | REDIS_HOST | Redis 主机 (默认 localhost) |
 | GENOMES_DIR | 基因组文件目录 (IGV.js) |
+| ADMIN_API_KEY | Admin API 密钥 (生产环境必需) |
+| ADMIN_REQUIRE_API_KEY | 严格模式 - 必须 API Key (默认 false) |
+| TRUSTED_PROXIES | 可信代理 IP 列表 (JSON 数组格式) |
+| RATE_LIMIT_BYPASS_PRIVATE | 私网 IP 绕过限流 (默认 false) |
 
 ## 版本里程碑
 
@@ -150,7 +154,7 @@ npx playwright show-report
 | 9.0 | 高级可视化 (Chord/聚类热力图) | 2025-12-15 |
 | 9.1 | ESLint 警告清零 (135→0) | 2025-12-15 |
 | 9.2 | Ruff Lint 全面修复 (106 issues) | 2025-12-15 |
-| **9.3** | **代码审查修复 (高优先级问题)** | **2025-12-15** |
+| **9.3** | **全面代码审查 + 安全/性能修复** | **2025-12-16** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -171,6 +175,7 @@ npx playwright show-report
 | 踩坑记录 | `docs/PITFALLS.md` |
 | Phase 详细历史 | `docs/phases/PHASE_HISTORY.md` |
 | 项目状态报告 | `docs/PROJECT_STATUS_REPORT.md` |
+| **代码审查报告** | `frontend/backend/CODE_REVIEW_REPORT_2025-12-16.md` |
 | API 文档 | http://localhost:8000/docs |
 | Jupyter 使用指南 | `notebooks/README.md` |
 
