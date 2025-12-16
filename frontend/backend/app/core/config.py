@@ -53,6 +53,10 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5173",
             "http://127.0.0.1:5174",
             "http://127.0.0.1:3000",
+            "http://45.62.117.191:5173",  # 远程访问
+            "http://45.62.117.191:5174",
+            "http://192.168.6.135:5173",  # 内网访问
+            "http://192.168.6.135:5174",
         ],
         validation_alias="CORS_ORIGINS",
         description="允许的 CORS 来源列表，环境变量需使用 JSON 数组格式"
