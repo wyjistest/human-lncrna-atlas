@@ -65,6 +65,7 @@ import {
   SettingOutlined,
   BgColorsOutlined,
   LoadingOutlined,
+  LinkOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -287,6 +288,59 @@ export function LncRNAChIPSeqOverlapTable({
       setTrackLoading(false)
     }
   }, [filters, API_BASE_URL, t])
+
+  // Load Regulation Track into IGV browser
+  // Shows lncRNA → target gene regulatory relationships in the current view
+  const loadRegulationTrack = useCallback(async () => {
+    if (!browserHandleRef.current) {
+      message.warning(t('igv.browserNotReady', 'IGV browser is not ready'))
+      return
+    }
+
+    setTrackLoading(true)
+    message.loading({
+      content: t('igv.trackLoading', 'Loading track...'),
+      key: 'regulationTrack',
+      duration: 0,
+    })
+
+    try {
+      // Remove existing regulation track first
+      browserHandleRef.current.removeTrack('Regulation Track')
+
+      // Build URL parameters - use chromosome filter if available
+      const params = new URLSearchParams()
+      if (filters.chromosome) params.append('chr', filters.chromosome)
+
+      // Load new track with dynamic URL
+      await browserHandleRef.current.loadTrack({
+        name: 'Regulation Track',
+        type: 'annotation',
+        format: 'bed',
+        url: `${API_BASE_URL}/api/v1/igv/tracks/regulations/${igvSpeciesId}.bed?${params.toString()}`,
+        displayMode: 'EXPANDED',
+        color: '#13c2c2',  // Cyan/teal color for regulation track (distinct from purple overlap)
+        height: 60,
+        removable: true,
+        visibilityWindow: 5000000,  // 5MB window for BED format
+      })
+
+      message.success({
+        content: t('igv.trackLoaded', 'Track loaded'),
+        key: 'regulationTrack',
+        duration: 2,
+      })
+    } catch (error) {
+      console.error('Failed to load regulation track:', error)
+      message.error({
+        content: t('igv.trackLoadError', 'Failed to load track'),
+        key: 'regulationTrack',
+        duration: 3,
+      })
+    } finally {
+      setTrackLoading(false)
+    }
+  }, [filters.chromosome, igvSpeciesId, API_BASE_URL, t])
 
   // Auto-sync track when filters change (if enabled)
   useEffect(() => {
@@ -820,6 +874,16 @@ export function LncRNAChIPSeqOverlapTable({
                     size="small"
                   >
                     {t('igv.loadOverlapTrack', 'Load Overlap Track')}
+                  </Button>
+                </Tooltip>
+                <Tooltip title={t('igv.loadRegulationTrackTip', 'Display lncRNA-target regulation relationships in IGV')}>
+                  <Button
+                    icon={trackLoading ? <Spin size="small" /> : <LinkOutlined />}
+                    onClick={loadRegulationTrack}
+                    disabled={trackLoading}
+                    size="small"
+                  >
+                    {t('igv.loadRegulationTrack', 'Load Regulation Track')}
                   </Button>
                 </Tooltip>
                 <Space size="small">
