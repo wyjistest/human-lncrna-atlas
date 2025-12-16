@@ -805,14 +805,15 @@ export function LncRNAChIPSeqOverlapTable({
   const showEmptyState = !dataError && overlapData && overlapData.total === 0
 
   // Main layout container style
+  // When IGV is shown, use a taller viewport to accommodate both table and browser
   const containerStyle: React.CSSProperties = enableIGV && showIGV
-    ? { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', overflow: 'hidden' }
+    ? { display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', minHeight: 1200, overflow: 'hidden' }
     : {}
 
   return (
     <div style={containerStyle}>
       {/* Top Section: Table and Filters (when IGV enabled and shown) */}
-      <div style={enableIGV && showIGV ? { flex: '0 0 50%', overflow: 'auto', borderBottom: '2px solid #e8e8e8', padding: '16px' } : {}}>
+      <div style={enableIGV && showIGV ? { flex: '0 0 40%', overflow: 'auto', borderBottom: '2px solid #e8e8e8', padding: '16px' } : {}}>
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Error Alert - Show at top but allow filter panel to remain visible */}
       {dataError && (
@@ -1182,7 +1183,7 @@ export function LncRNAChIPSeqOverlapTable({
 
       {/* Bottom Section: IGV Genome Browser (when enabled and shown) */}
       {enableIGV && showIGV && (
-        <div style={{ flex: '1 1 50%', padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: '1 1 60%', padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <Card
             title={
               <Space>
@@ -1401,7 +1402,7 @@ export function LncRNAChIPSeqOverlapTable({
             />
 
             {/* Genome Browser Component */}
-            <div ref={browserContainerRef} style={{ position: 'relative', flex: 1, minHeight: 400 }}>
+            <div ref={browserContainerRef} style={{ position: 'relative', flex: 1, minHeight: 600 }}>
               <GenomeBrowser
                 key={`species-${igvSpeciesId}`}
                 speciesId={igvSpeciesId}
