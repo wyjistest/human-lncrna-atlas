@@ -58,9 +58,11 @@ def get_available_combinations(
         db.query(
             TraitGeneAssociation.trait_id,
             TraitGeneAssociation.ontology_id,
+            Ontology.ontology_name,
             TraitGeneAssociation.evidence_species_id,
         )
         .join(CoreGene, TraitGeneAssociation.core_id == CoreGene.core_id)
+        .join(Ontology, TraitGeneAssociation.ontology_id == Ontology.ontology_id)
         .filter(CoreGene.gene_type == "lncRNA")
     )
 
@@ -74,6 +76,7 @@ def get_available_combinations(
             {
                 "trait_id": c.trait_id,
                 "ontology_id": c.ontology_id,
+                "ontology_name": c.ontology_name,
                 "species_id": c.evidence_species_id,
             }
             for c in combinations
