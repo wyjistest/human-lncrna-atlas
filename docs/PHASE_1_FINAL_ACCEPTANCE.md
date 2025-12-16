@@ -611,7 +611,6 @@ Phase 3 (优化和发布):    [░░░░░░░░░░] 0%   (计划 Week
 
 **页面地址**:
 - http://localhost:5174/lncrna-chipseq-overlap
-- http://192.168.6.135:5174/lncrna-chipseq-overlap
 
 **API 文档**:
 - http://localhost:8000/docs

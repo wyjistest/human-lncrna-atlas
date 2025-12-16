@@ -209,7 +209,6 @@ ns: [..., 'overlap']
 ### 开发环境
 - **前端**: http://localhost:5174/lncrna-chipseq-overlap
 - **后端**: http://localhost:8000/api/v1/chipseq/lncrna-chipseq-overlap
-- **内网访问**: http://192.168.6.135:5174/lncrna-chipseq-overlap
 
 ### 测试步骤
 1. 启动后端服务器:

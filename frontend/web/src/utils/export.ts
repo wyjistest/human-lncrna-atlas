@@ -4,7 +4,7 @@
  * Phase 9.3 更新：迁移到后端 openpyxl 导出
  * - xlsx npm 库存在已知漏洞 (high severity)
  * - 现在所有导出都通过后端 API 完成
- * - 后端使用 openpyxl write_only 模式，内存占用 O(1)
+ * - 后端使用 openpyxl write_only 模式，降低内存峰值（非真 O(1)，完整文件需在内存中生成）
  *
  * 导出限制：
  * - < 1000 条：直接导出

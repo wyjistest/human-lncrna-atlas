@@ -60,11 +60,11 @@
 
 ```bash
 # .env（生产默认）
-VITE_API_BASE_URL=http://45.62.117.191:6004
+VITE_API_BASE_URL=http://<YOUR_SERVER_IP>:6004
 VITE_USE_MOCK=false
 
 # .env.development（开发环境）
-VITE_API_BASE_URL=http://45.62.117.191:6004
+VITE_API_BASE_URL=http://localhost:8000
 VITE_USE_MOCK=true
 ```
 

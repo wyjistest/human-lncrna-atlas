@@ -128,7 +128,7 @@ def export_high_affinity(
     - chr/start/end: 基因组位置
 
     **性能**: 10000 条记录 < 5s
-    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
+    **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
     logger.info(f"[EXPORT] high-affinity: min_ba={min_ba}, species_id={species_id}, limit={limit}, format={format}")
 
@@ -233,7 +233,7 @@ def export_conservation(
     - conserved_targets: 保守靶基因列表（取前10个）
 
     **性能**: 5000 条记录 < 3s
-    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
+    **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
     logger.info(f"[EXPORT] conservation: min_species_count={min_species_count}, limit={limit}, format={format}")
 
@@ -350,7 +350,7 @@ def export_chipseq_overlaps(
     - cell_type: 细胞类型
 
     **性能**: 10000 条记录 < 5s（使用物化视图 mv_lncrna_chipseq_overlaps）
-    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
+    **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
     logger.info(f"[EXPORT] chipseq-overlaps: mark_names={mark_names}, min_ba={min_ba}, limit={limit}, format={format}")
 
@@ -699,7 +699,7 @@ def export_regulations(
     - num_peaks: 峰数量
 
     **性能**: 10000 条记录 < 5s
-    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
+    **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
     logger.info(
         f"[EXPORT] regulations: min_ba={min_ba}, max_ba={max_ba}, "

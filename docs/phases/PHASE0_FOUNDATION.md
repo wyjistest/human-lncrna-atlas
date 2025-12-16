@@ -327,7 +327,7 @@ export default echarts
 
 ```bash
 # API 配置
-VITE_API_BASE_URL=http://45.62.117.191:6004
+VITE_API_BASE_URL=http://<YOUR_SERVER_IP>:6004
 
 # MSW 配置（生产默认关闭）
 VITE_USE_MOCK=false
@@ -337,7 +337,7 @@ VITE_USE_MOCK=false
 
 ```bash
 # 开发环境配置
-VITE_API_BASE_URL=http://45.62.117.191:6004
+VITE_API_BASE_URL=http://localhost:8000
 
 # ✅ 开发环境启用 MSW
 VITE_USE_MOCK=true

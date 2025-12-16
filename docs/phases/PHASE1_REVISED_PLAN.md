@@ -486,11 +486,11 @@ async function exportToXLSX(data: any[]) {
 
 ```bash
 # .env（Git 提交，生产默认值）
-VITE_API_BASE_URL=http://45.62.117.191:6004
+VITE_API_BASE_URL=http://<YOUR_SERVER_IP>:6004
 VITE_USE_MOCK=false  # ✅ 默认关闭
 
 # .env.development（Git 忽略，开发环境）
-VITE_API_BASE_URL=http://45.62.117.191:6004
+VITE_API_BASE_URL=http://localhost:8000
 VITE_USE_MOCK=true   # ✅ 开发时启用
 
 # .env.production（Git 忽略，生产环境）

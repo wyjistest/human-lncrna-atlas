@@ -198,8 +198,8 @@ toolbox: getChartToolbox(t('charts.topLncRNA'), t('export.saveImage'))
 
 | 服务 | 地址 |
 |------|------|
-| 后端 API | `192.168.6.135:8000` |
-| 前端 | `192.168.6.135:5173` |
+| 后端 API | `localhost:8000` |
+| 前端 | `localhost:5173` |
 
 ---
 

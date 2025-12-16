@@ -13,9 +13,6 @@
 ```bash
 # 本地访问
 http://localhost:5174/lncrna-chipseq-overlap
-
-# 内网访问（其他设备）
-http://192.168.6.135:5174/lncrna-chipseq-overlap
 ```
 
 ### API 文档

@@ -61,14 +61,14 @@
 
 | 服务 | 内网 | 外网 |
 |------|------|------|
-| 后端 API | `192.168.6.135:8000` | `45.62.117.191:606x` |
-| 前端 | `192.168.6.135:5173` | - |
+| 后端 API | `localhost:8000` | `<YOUR_SERVER_IP>:606x` |
+| 前端 | `localhost:5173` | - |
 
 ### 3.2 环境变量
 
 ```bash
 # .env.development
-VITE_API_BASE_URL=http://192.168.6.135:8000
+VITE_API_BASE_URL=http://localhost:8000
 VITE_USE_MOCK=false
 ```
 
@@ -174,8 +174,8 @@ cd /data/wenyujianData/humanLncAtlas/frontend/web
 npm run dev -- --host
 
 # 测试 API
-curl http://192.168.6.135:8000/api/v1/stats/ba-range
-curl "http://192.168.6.135:8000/api/v1/regulations?min_ba=100&max_ba=200&species_ids=1,2"
+curl http://localhost:8000/api/v1/stats/ba-range
+curl "http://localhost:8000/api/v1/regulations?min_ba=100&max_ba=200&species_ids=1,2"
 
 # 构建
 npm run build

@@ -480,8 +480,8 @@ fi
 ### 1. 防火墙配置
 
 ```bash
-# 只允许特定IP访问
-sudo ufw allow from 192.168.1.0/24 to any port 8000
+# 只允许特定IP访问（示例，请替换为实际网段）
+sudo ufw allow from <YOUR_SUBNET>/24 to any port 8000
 
 # 或使用Nginx反向代理，不直接暴露8000端口
 sudo ufw deny 8000

@@ -1,7 +1,7 @@
 # Sankey API 快速集成指南（前端）
 
 **API 端点**: `GET /api/v1/visualization/sankey-data`
-**基础 URL**: `http://192.168.6.135:8000`
+**基础 URL**: `http://localhost:8000`
 
 ---
 
@@ -54,7 +54,7 @@ export interface SankeyResponse {
 import axios from 'axios';
 import type { SankeyResponse } from './types/visualization';
 
-const API_BASE = 'http://192.168.6.135:8000/api/v1';
+const API_BASE = 'http://localhost:8000/api/v1';
 
 export interface SankeyParams {
   species_id?: number;    // 1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴
@@ -385,13 +385,13 @@ return <ReactECharts ref={chartRef} option={option} />;
 
 ```bash
 # 基本查询
-http://192.168.6.135:8000/api/v1/visualization/sankey-data?limit=50
+http://localhost:8000/api/v1/visualization/sankey-data?limit=50
 
 # Diabetes 相关
-http://192.168.6.135:8000/api/v1/visualization/sankey-data?trait_name=diabetes&limit=100
+http://localhost:8000/api/v1/visualization/sankey-data?trait_name=diabetes&limit=100
 
 # 高亲和力
-http://192.168.6.135:8000/api/v1/visualization/sankey-data?min_ba=200&limit=100
+http://localhost:8000/api/v1/visualization/sankey-data?min_ba=200&limit=100
 ```
 
 ### 预期数据量
