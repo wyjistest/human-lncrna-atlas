@@ -97,6 +97,11 @@ export default function ConservationTab() {
       key: 'lncrna_names',
       width: 200,
       ellipsis: true,
+      render: (names: string[] | string) => {
+        if (!names) return '-'
+        const arr = Array.isArray(names) ? names : [names]
+        return arr.join(', ')
+      },
     },
     {
       title: t('conservation.table.speciesCount'),
@@ -128,7 +133,13 @@ export default function ConservationTab() {
       title: 'Targets',
       dataIndex: 'conserved_targets',
       key: 'conserved_targets',
-      width: 100,
+      width: 150,
+      ellipsis: true,
+      render: (targets: string[] | string) => {
+        if (!targets) return '-'
+        const arr = Array.isArray(targets) ? targets : [targets]
+        return arr.join(', ')
+      },
     },
   ]
 
