@@ -16,7 +16,7 @@ Phase 9.3 改进：
 - CR-005: 修复伪流式输出问题，改用生成器逐行 yield
 """
 import logging
-from typing import List, Optional, Dict, Any, Iterator, Generator
+from typing import List, Optional, Dict, Any, Iterator, Generator, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -29,6 +29,7 @@ from app.schemas.export import (
     DiseaseNetworkExportResponse,
     NetworkNode,
     NetworkEdge,
+    RegulationsExportResponse,
 )
 from app.utils.streaming_export import (
     stream_csv_response,
@@ -637,5 +638,178 @@ def export_disease_network(
     return DiseaseNetworkExportResponse(
         nodes=nodes,
         edges=edges,
+        query_params=query_params
+    )
+
+
+# ============================================================================
+# 5. Regulations Export (Phase 9.3: 前端 xlsx 迁移到后端)
+# ============================================================================
+
+@router.get(
+    "/regulations",
+    response_model=RegulationsExportResponse,
+    responses={
+        200: {
+            "description": "成功导出数据",
+            "content": {
+                "application/json": {"schema": {"$ref": "#/components/schemas/RegulationsExportResponse"}},
+                "text/csv": {"schema": {"type": "string", "format": "binary"}},
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                    "schema": {"type": "string", "format": "binary"}
+                },
+            },
+        },
+    },
+)
+def export_regulations(
+    min_ba: Optional[float] = Query(None, ge=0, description="最小结合亲和力 (BA)"),
+    max_ba: Optional[float] = Query(None, ge=0, description="最大结合亲和力 (BA)"),
+    species_ids: Optional[str] = Query(None, description="物种 ID 列表（逗号分隔，如 '1,2,3'）"),
+    chromosomes: Optional[str] = Query(None, description="染色体列表（逗号分隔，如 'chr1,chr2'）"),
+    lncrna_gene_name: Optional[str] = Query(None, description="lncRNA 基因名（模糊搜索）"),
+    target_gene_name: Optional[str] = Query(None, description="靶基因名（模糊搜索）"),
+    limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
+    format: Literal["json", "csv", "excel"] = Query("json", description="导出格式 (json/csv/excel)"),
+    db: Session = Depends(get_db),
+):
+    """
+    导出调控关系数据（替代前端 xlsx 库）
+
+    **应用场景**:
+    - 前端 Regulations 页面的批量导出功能
+    - 支持 CSV 和 Excel 格式下载
+    - 与前端筛选参数完全兼容
+
+    **筛选参数**:
+    - min_ba/max_ba: 结合亲和力范围
+    - species_ids: 物种 ID（逗号分隔，如 "1,2"）
+    - chromosomes: 染色体（逗号分隔，如 "chr1,chr2"）
+    - lncrna_gene_name: lncRNA 名称（模糊搜索）
+    - target_gene_name: 靶基因名称（模糊搜索）
+
+    **返回字段**:
+    - regulation_id: 调控关系 ID
+    - lncrna_gene_name: lncRNA 名称
+    - target_gene_name: 靶基因名称
+    - species_name: 物种名称
+    - target_chromosome: 染色体
+    - target_start/end: 位置
+    - binding_affinity: BA 值
+    - num_peaks: 峰数量
+
+    **性能**: 10000 条记录 < 5s
+    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
+    """
+    logger.info(
+        f"[EXPORT] regulations: min_ba={min_ba}, max_ba={max_ba}, "
+        f"species_ids={species_ids}, chromosomes={chromosomes}, "
+        f"lncrna={lncrna_gene_name}, target={target_gene_name}, "
+        f"limit={limit}, format={format}"
+    )
+
+    # 验证参数
+    if limit > MAX_EXPORT_LIMIT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
+        )
+
+    # 解析逗号分隔的参数
+    species_id_list = None
+    if species_ids:
+        try:
+            species_id_list = [int(s.strip()) for s in species_ids.split(",") if s.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid species_ids format")
+
+    chromosome_list = None
+    if chromosomes:
+        chromosome_list = [c.strip() for c in chromosomes.split(",") if c.strip()]
+
+    # 构建动态 SQL（使用参数化查询防止 SQL 注入）
+    conditions = []
+    params = {"limit": limit}
+
+    if min_ba is not None:
+        conditions.append("CAST(r.binding_affinity AS FLOAT) >= :min_ba")
+        params["min_ba"] = min_ba
+
+    if max_ba is not None:
+        conditions.append("CAST(r.binding_affinity AS FLOAT) <= :max_ba")
+        params["max_ba"] = max_ba
+
+    if species_id_list:
+        conditions.append("r.species_id = ANY(:species_ids)")
+        params["species_ids"] = species_id_list
+
+    if chromosome_list:
+        conditions.append("r.target_chromosome = ANY(:chromosomes)")
+        params["chromosomes"] = chromosome_list
+
+    if lncrna_gene_name:
+        conditions.append("lnc.gene_name ILIKE '%' || :lncrna_name || '%'")
+        params["lncrna_name"] = lncrna_gene_name
+
+    if target_gene_name:
+        conditions.append("tgt.gene_name ILIKE '%' || :target_name || '%'")
+        params["target_name"] = target_gene_name
+
+    where_clause = " AND ".join(conditions) if conditions else "1=1"
+
+    sql = text(f"""
+        SELECT
+            r.regulation_id,
+            lnc.gene_name as lncrna_gene_name,
+            tgt.gene_name as target_gene_name,
+            s.display_name as species_name,
+            r.target_chromosome,
+            r.target_start,
+            r.target_end,
+            CAST(r.binding_affinity AS FLOAT) as binding_affinity,
+            r.num_peaks
+        FROM regulations r
+        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
+        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
+        JOIN species s ON r.species_id = s.species_id
+        WHERE {where_clause}
+        ORDER BY r.binding_affinity DESC NULLS LAST
+        LIMIT :limit
+    """)
+
+    # 定义列名（用于流式导出）
+    fieldnames = [
+        "regulation_id", "lncrna_gene_name", "target_gene_name", "species_name",
+        "target_chromosome", "target_start", "target_end", "binding_affinity", "num_peaks"
+    ]
+
+    # CSV/Excel: 使用流式输出
+    if format in ("csv", "excel"):
+        result = db.execute(sql, params)
+        return export_to_streaming_format(
+            create_db_row_generator(result),
+            fieldnames,
+            format,
+            "regulations_export",
+        )
+
+    # JSON: 标准响应
+    result = db.execute(sql, params)
+    data = [dict(row._mapping) for row in result]
+
+    query_params = {
+        "min_ba": min_ba,
+        "max_ba": max_ba,
+        "species_ids": species_ids,
+        "chromosomes": chromosomes,
+        "lncrna_gene_name": lncrna_gene_name,
+        "target_gene_name": target_gene_name,
+        "limit": limit,
+        "format": format
+    }
+
+    return RegulationsExportResponse(
+        data=data,
+        total=len(data),
         query_params=query_params
     )

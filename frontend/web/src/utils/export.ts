@@ -1,6 +1,11 @@
 /**
  * 导出工具函数
  *
+ * Phase 9.3 更新：迁移到后端 openpyxl 导出
+ * - xlsx npm 库存在已知漏洞 (high severity)
+ * - 现在所有导出都通过后端 API 完成
+ * - 后端使用 openpyxl write_only 模式，内存占用 O(1)
+ *
  * 导出限制：
  * - < 1000 条：直接导出
  * - 1000-10000 条：显示警告后导出
@@ -25,7 +30,78 @@ interface ExportFilterParams {
 }
 
 /**
+ * 从后端下载导出文件
+ *
+ * @param filters - 筛选参数
+ * @param format - 导出格式 (csv/excel)
+ * @param total - 预期总数（用于限制检查）
+ */
+async function downloadFromBackend(
+  filters: ExportFilterParams,
+  format: 'csv' | 'xlsx',
+  total: number,
+): Promise<ExportResult> {
+  try {
+    // 构建请求参数
+    const params = new URLSearchParams()
+
+    // 映射格式：前端用 xlsx，后端用 excel
+    params.append('format', format === 'xlsx' ? 'excel' : 'csv')
+    params.append('limit', String(Math.min(total, EXPORT_LIMITS.MAX_FRONTEND)))
+
+    if (filters.min_ba !== undefined) {
+      params.append('min_ba', String(filters.min_ba))
+    }
+    if (filters.max_ba !== undefined) {
+      params.append('max_ba', String(filters.max_ba))
+    }
+    if (filters.species_ids) {
+      params.append('species_ids', filters.species_ids)
+    }
+    if (filters.chromosomes) {
+      params.append('chromosomes', filters.chromosomes)
+    }
+    if (filters.lncrna_gene_name) {
+      params.append('lncrna_gene_name', filters.lncrna_gene_name)
+    }
+    if (filters.target_gene_name) {
+      params.append('target_gene_name', filters.target_gene_name)
+    }
+
+    // 使用 blob 响应类型下载文件
+    const response = await apiClient.get('/api/v1/export/regulations', {
+      params,
+      responseType: 'blob',
+    })
+
+    // 从 Content-Disposition 获取文件名，或使用默认名
+    const contentDisposition = response.headers['content-disposition']
+    let filename = `regulations-${Date.now()}.${format === 'xlsx' ? 'xlsx' : 'csv'}`
+
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename=([^;]+)/)
+      if (match) {
+        filename = match[1].replace(/['"]/g, '')
+      }
+    }
+
+    // 触发浏览器下载
+    saveAs(response.data, filename)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Export failed:', error)
+    return {
+      success: false,
+      error: 'EXPORT_FAILED',
+      message: error instanceof Error ? error.message : '导出失败'
+    }
+  }
+}
+
+/**
  * CSV 转义函数（防止 CSV 注入和公式注入）
+ * 用于 exportSelectedRegulations 的本地 CSV 生成
  *
  * 安全措施：
  * 1. 以 =, +, -, @, \t, \r 开头的字符串前添加单引号防止公式注入
@@ -47,42 +123,9 @@ function escapeCSV(val: unknown): string {
 }
 
 /**
- * 分页获取所有数据
+ * 本地生成 CSV（仅用于小量选中行导出）
  */
-async function fetchAllRegulations(
-  filters: ExportFilterParams,
-  total: number,
-  onProgress?: (current: number, total: number) => void
-): Promise<Regulation[]> {
-  const PAGE_SIZE = EXPORT_LIMITS.FETCH_PAGE_SIZE
-  const totalPages = Math.ceil(total / PAGE_SIZE)
-  const allData: Regulation[] = []
-
-  for (let page = 1; page <= totalPages; page++) {
-    const { data } = await apiClient.get('/api/v1/regulations', {
-      params: {
-        ...filters,
-        page,
-        page_size: PAGE_SIZE
-      }
-    })
-
-    allData.push(...data.items)
-    onProgress?.(allData.length, total)
-
-    // 避免过快请求
-    if (page < totalPages) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-    }
-  }
-
-  return allData
-}
-
-/**
- * 导出为 CSV
- */
-function exportToCSV(data: Regulation[]): ExportResult {
+function exportToCSVLocal(data: Regulation[]): ExportResult {
   try {
     const headers = ['ID', 'lncRNA', 'Target', 'Species', 'Chr', 'Start', 'End', 'BA', 'Peaks']
 
@@ -115,47 +158,9 @@ function exportToCSV(data: Regulation[]): ExportResult {
 }
 
 /**
- * 导出为 XLSX（动态导入）
- *
- * 安全说明：xlsx 库存在已知漏洞（主要影响文件解析场景）。
- * 当前代码仅用于导出（写入），不解析任何用户上传文件，风险可控。
- * 如需更高安全性，可考虑迁移到后端 openpyxl 导出。
- */
-async function exportToXLSX(data: Regulation[]): Promise<ExportResult> {
-  try {
-    // 注意：仅用于导出，禁止用此库解析用户上传的 Excel 文件
-    const XLSX = await import('xlsx')
-
-    const worksheet = XLSX.utils.json_to_sheet(data.map(r => ({
-      'ID': r.regulation_id,
-      'lncRNA': r.lncrna_gene_name || '',
-      'Target': r.target_gene_name || '',
-      'Species': r.species_name,
-      'Chr': r.target_chromosome || '',
-      'Start': r.target_start,
-      'End': r.target_end,
-      'BA': r.binding_affinity,
-      'Peaks': r.num_peaks
-    })))
-
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Regulations')
-
-    XLSX.writeFile(workbook, `regulations-${Date.now()}.xlsx`)
-
-    return { success: true }
-  } catch (error) {
-    console.error('XLSX export failed:', error)
-    return {
-      success: false,
-      error: 'EXPORT_FAILED',
-      message: error instanceof Error ? error.message : '导出失败'
-    }
-  }
-}
-
-/**
  * 导出 Regulations（主函数）
+ *
+ * Phase 9.3: 全部迁移到后端导出
  */
 export async function exportRegulations(
   filters: ExportFilterParams,
@@ -182,28 +187,26 @@ export async function exportRegulations(
     }
   }
 
-  // 2. 获取数据
-  try {
-    const allData = await fetchAllRegulations(filters, total, onProgress)
+  // 2. 通知开始（后端流式处理，无法提供精确进度）
+  onProgress?.(0, total)
 
-    // 3. 生成文件
-    if (format === 'csv') {
-      return exportToCSV(allData)
-    } else {
-      return await exportToXLSX(allData)
-    }
-  } catch (error) {
-    console.error('Export failed:', error)
-    return {
-      success: false,
-      error: 'EXPORT_FAILED',
-      message: error instanceof Error ? error.message : '导出失败'
-    }
+  // 3. 调用后端 API 下载
+  const result = await downloadFromBackend(filters, format, total)
+
+  // 4. 通知完成
+  if (result.success) {
+    onProgress?.(total, total)
   }
+
+  return result
 }
 
 /**
- * 导出选中行（无需分页获取，直接使用内存数据）
+ * 导出选中行
+ *
+ * 对于小量选中行：
+ * - CSV: 本地生成（快速，无需网络请求）
+ * - XLSX: 调用后端 API（安全，避免 xlsx 漏洞）
  */
 export async function exportSelectedRegulations(
   data: Regulation[],
@@ -228,10 +231,19 @@ export async function exportSelectedRegulations(
     }
   }
 
+  // CSV: 本地生成（小量数据，快速响应）
   if (format === 'csv') {
-    return exportToCSV(data)
-  } else {
-    return await exportToXLSX(data)
+    return exportToCSVLocal(data)
+  }
+
+  // XLSX: 选中行导出不支持 XLSX 格式
+  // 原因：后端 API 基于筛选条件查询，无法接收 regulation_id 列表
+  // 解决方案：明确告知用户，建议使用 CSV 格式
+  return {
+    success: false,
+    error: 'FORMAT_NOT_SUPPORTED',
+    message: '选中行导出暂不支持 Excel 格式，请使用 CSV 格式导出',
+    suggestedFormat: 'csv'
   }
 }
 

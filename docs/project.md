@@ -225,14 +225,16 @@ psql -U amax -d lncrna_production -c "
 
 ## 访问地址
 
-### 内网访问
-- **前端**: http://192.168.6.135:5173
-- **后端**: http://192.168.6.135:8000
-- **Swagger**: http://192.168.6.135:8000/docs
+### 本地开发
+- **前端**: http://localhost:5173
+- **后端**: http://localhost:8000
+- **Swagger**: http://localhost:8000/docs
 
-### 外网访问（frp）
-- **前端**: http://45.62.117.191:6003
-- **后端**: http://45.62.117.191:6004
+### 生产部署（示例）
+> 请根据实际部署环境替换 `<YOUR_SERVER_IP>` 和端口号
+
+- **前端**: http://<YOUR_SERVER_IP>:5173
+- **后端**: http://<YOUR_SERVER_IP>:8000
 
 ---
 

@@ -125,3 +125,33 @@ class DiseaseNetworkExportResponse(BaseModel):
     query_params: dict = Field(description="查询参数")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# Regulations Export Schemas (Phase 9.3: 前端 xlsx 迁移到后端)
+# ============================================================================
+
+class RegulationExport(BaseModel):
+    """调控关系导出数据模型"""
+
+    regulation_id: int = Field(description="调控关系 ID")
+    lncrna_gene_name: Optional[str] = Field(None, description="lncRNA 基因名")
+    target_gene_name: Optional[str] = Field(None, description="靶基因名")
+    species_name: str = Field(description="物种名称")
+    target_chromosome: Optional[str] = Field(None, description="染色体")
+    target_start: Optional[int] = Field(None, description="起始位置")
+    target_end: Optional[int] = Field(None, description="终止位置")
+    binding_affinity: Optional[float] = Field(None, description="结合亲和力 (BA)")
+    num_peaks: Optional[int] = Field(None, description="峰数量")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RegulationsExportResponse(BaseModel):
+    """调控关系导出响应 (JSON 格式)"""
+
+    data: List[RegulationExport] = Field(description="调控关系数据列表")
+    total: int = Field(description="总记录数")
+    query_params: dict = Field(description="查询参数")
+
+    model_config = ConfigDict(from_attributes=True)

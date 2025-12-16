@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => ({
           'igv-vendor': ['igv'],
 
           // Export utilities (loaded on demand)
-          'export-vendor': ['file-saver', 'xlsx', 'jspdf', 'html2canvas', 'jszip'],
+          'export-vendor': ['file-saver', 'jspdf', 'html2canvas', 'jszip'],
 
           // i18n (loaded immediately)
           'i18n-vendor': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],

@@ -134,8 +134,10 @@ export type ExportResult =
   | { success: true }
   | {
       success: false
-      error: 'DATA_TOO_LARGE' | 'EXPORT_FAILED' | 'NO_DATA'
+      error: 'DATA_TOO_LARGE' | 'EXPORT_FAILED' | 'NO_DATA' | 'FORMAT_NOT_SUPPORTED'
       total?: number
       limit?: number
       message?: string
+      /** 建议使用的替代格式 */
+      suggestedFormat?: 'csv' | 'xlsx'
     }

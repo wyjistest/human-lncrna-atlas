@@ -29,9 +29,56 @@ Usage:
 import csv
 import io
 import json
+import re
 from typing import Any, Callable, Dict, Generator, Iterator, List, Optional
 
 from fastapi.responses import StreamingResponse
+
+
+# CSV 公式注入防护正则：匹配以 =, +, -, @, \t, \r 开头的字符串
+_CSV_FORMULA_PATTERN = re.compile(r'^[=+\-@\t\r]')
+
+
+def sanitize_csv_value(value: Any) -> Any:
+    """
+    对 CSV 单元格值进行公式注入防护
+
+    安全措施：
+    - 以 =, +, -, @, \\t, \\r 开头的字符串前添加单引号
+    - 防止 Excel/Sheets 将内容解释为公式执行
+
+    Args:
+        value: 原始值
+
+    Returns:
+        经过转义的安全值（非字符串类型原样返回）
+
+    Example:
+        >>> sanitize_csv_value("=CMD|'/C calc'!A0")
+        "'=CMD|'/C calc'!A0"
+        >>> sanitize_csv_value(123)
+        123
+    """
+    if not isinstance(value, str):
+        return value
+
+    if _CSV_FORMULA_PATTERN.match(value):
+        return "'" + value
+
+    return value
+
+
+def sanitize_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    对整行数据进行 CSV 公式注入防护
+
+    Args:
+        row: 原始行数据字典
+
+    Returns:
+        经过转义的安全行数据
+    """
+    return {k: sanitize_csv_value(v) for k, v in row.items()}
 
 
 def stream_csv_rows(
@@ -40,6 +87,7 @@ def stream_csv_rows(
     *,
     delimiter: str = ",",
     include_header: bool = True,
+    sanitize: bool = True,
 ) -> Generator[bytes, None, None]:
     """
     逐行生成 CSV 数据的字节流
@@ -47,11 +95,16 @@ def stream_csv_rows(
     Args:
         rows: 字典迭代器（每个字典为一行数据）
         fieldnames: 列名列表，决定输出顺序
-        delimiter: 分隔符（默认逗号，可设为 \t 输出 TSV）
+        delimiter: 分隔符（默认逗号，可设为 \\t 输出 TSV）
         include_header: 是否包含表头行
+        sanitize: 是否对数据进行公式注入防护（默认 True）
 
     Yields:
         每行 CSV 数据的 UTF-8 字节
+
+    Security:
+        默认启用公式注入防护，防止恶意数据在 Excel 中执行。
+        以 =, +, -, @, \\t, \\r 开头的字符串会被添加前缀单引号。
     """
     # 使用 StringIO 作为缓冲区（每行独立）
     buffer = io.StringIO()
@@ -65,9 +118,10 @@ def stream_csv_rows(
         buffer.seek(0)
         buffer.truncate()
 
-    # 逐行输出数据
+    # 逐行输出数据（带公式注入防护）
     for row in rows:
-        writer.writerow(row)
+        safe_row = sanitize_row(row) if sanitize else row
+        writer.writerow(safe_row)
         yield buffer.getvalue().encode("utf-8")
         buffer.seek(0)
         buffer.truncate()
@@ -153,6 +207,7 @@ def stream_excel_response(
     *,
     sheet_name: str = "Data",
     chunk_size: int = 1000,
+    sanitize: bool = True,
 ) -> StreamingResponse:
     """
     创建 Excel 流式响应
@@ -170,9 +225,13 @@ def stream_excel_response(
         filename: 下载文件名
         sheet_name: Excel 工作表名称
         chunk_size: 处理块大小（用于日志）
+        sanitize: 是否对数据进行公式注入防护（默认 True）
 
     Returns:
         FastAPI StreamingResponse
+
+    Security:
+        默认启用公式注入防护，防止恶意数据在 Excel 中执行。
     """
     # 延迟导入 openpyxl（非必需依赖）
     try:
@@ -187,9 +246,10 @@ def stream_excel_response(
     # 写入表头
     ws.append(fieldnames)
 
-    # 逐行写入数据
+    # 逐行写入数据（带公式注入防护）
     for row in rows:
-        ws.append([row.get(field) for field in fieldnames])
+        safe_row = sanitize_row(row) if sanitize else row
+        ws.append([safe_row.get(field) for field in fieldnames])
 
     # 保存到内存缓冲区
     buffer = io.BytesIO()
