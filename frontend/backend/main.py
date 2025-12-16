@@ -120,6 +120,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ============================================================================
+# Security Headers Middleware
+# ============================================================================
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """
+    添加安全响应头，防御常见 Web 攻击
+
+    Headers:
+    - X-Content-Type-Options: 防止 MIME 类型嗅探
+    - X-Frame-Options: 防止点击劫持（Clickjacking）
+    - X-XSS-Protection: 启用浏览器 XSS 过滤（旧版浏览器）
+    - Referrer-Policy: 控制 Referer 头发送策略
+    - Permissions-Policy: 限制浏览器功能（如地理位置、摄像头）
+    """
+    response = await call_next(request)
+
+    # 防止 MIME 类型嗅探
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # 防止点击劫持（API 不需要在 iframe 中嵌入）
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # XSS 保护（主要针对旧版浏览器）
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # 控制 Referer 发送策略
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # 限制浏览器功能（API 不需要这些功能）
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    return response
+
 # ============================================================================
 # slowapi Rate Limiting Integration (per-endpoint limits for ChIP-seq API)
 # ============================================================================

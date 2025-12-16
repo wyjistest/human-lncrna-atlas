@@ -147,6 +147,30 @@ export interface SankeyQueryParams {
   limit?: number
 }
 
+/**
+ * Backend response structure for Sankey data API
+ * This matches the actual structure returned by the backend
+ * (differs from frontend SankeyResponse for transformation)
+ */
+interface BackendSankeyResponse {
+  success: boolean
+  data: {
+    nodes: SankeyNode[]
+    links: SankeyLink[]
+  }
+  stats: {
+    total_lncrnas: number
+    total_genes: number
+    total_diseases: number
+  }
+  query_params: {
+    species_id: number | null
+    min_ba: number | null
+    trait_name: string | null
+    limit: number
+  }
+}
+
 // =============================================================================
 // API Endpoints
 // =============================================================================
@@ -241,12 +265,14 @@ export const visualizationApi = {
    * @see Phase 5.3 Visualization documentation
    */
   getSankeyData: async (params?: SankeyQueryParams): Promise<SankeyResponse> => {
-    const response = await apiClient.get('/api/v1/visualization/sankey-data', { params })
+    const response = await apiClient.get<BackendSankeyResponse>(
+      '/api/v1/visualization/sankey-data',
+      { params }
+    )
 
     // Backend returns: { success, data: { nodes, links }, stats, query_params }
     // Transform to expected frontend format for consistency
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = response.data as any
+    const raw = response.data
 
     return {
       nodes: raw.data?.nodes || [],

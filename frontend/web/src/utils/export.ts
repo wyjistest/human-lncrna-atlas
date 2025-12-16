@@ -116,9 +116,14 @@ function exportToCSV(data: Regulation[]): ExportResult {
 
 /**
  * 导出为 XLSX（动态导入）
+ *
+ * 安全说明：xlsx 库存在已知漏洞（主要影响文件解析场景）。
+ * 当前代码仅用于导出（写入），不解析任何用户上传文件，风险可控。
+ * 如需更高安全性，可考虑迁移到后端 openpyxl 导出。
  */
 async function exportToXLSX(data: Regulation[]): Promise<ExportResult> {
   try {
+    // 注意：仅用于导出，禁止用此库解析用户上传的 Excel 文件
     const XLSX = await import('xlsx')
 
     const worksheet = XLSX.utils.json_to_sheet(data.map(r => ({

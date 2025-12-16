@@ -1,6 +1,6 @@
 """基因相关API路由"""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, literal
 from math import ceil
@@ -17,11 +17,16 @@ from app.schemas.gene import (
 )
 from app.schemas.common import PaginatedResponse
 
+# Rate limiting - 复用 ChIP-seq 模块的限流实现
+from app.routers.chipseq_rate_limit import rate_limit
+
 router = APIRouter(prefix="/genes", tags=["genes"])
 
 
 @router.get("/options", response_model=GeneOptionsResponse)
+@rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
 def get_gene_options(
+    request: Request,  # Required for rate limiting
     species_id: Optional[int] = Query(None, description="物种ID过滤"),
     gene_type: Optional[str] = Query(None, description="基因类型过滤（lncRNA/protein_coding）"),
     db: Session = Depends(get_db),
@@ -115,7 +120,9 @@ def _remove_species_suffix(gene_name: Optional[str]) -> Optional[str]:
 
 
 @router.get("", response_model=PaginatedResponse[GeneListItem])
+@rate_limit("30/minute")  # Rate limit: 30 requests per minute per IP (aggregation query)
 def list_genes(
+    request: Request,  # Required for rate limiting
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(100, ge=1, le=1000, description="每页数量"),
     gene_type: Optional[str] = Query(None, description="基因类型（lncRNA/protein_coding）"),
@@ -242,7 +249,9 @@ def list_genes(
 
 
 @router.get("/{gene_id}", response_model=GeneDetail)
+@rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
 def get_gene_detail(
+    request: Request,  # Required for rate limiting
     gene_id: int,
     db: Session = Depends(get_db),
 ):
@@ -353,7 +362,9 @@ def get_gene_detail(
 
 
 @router.get("/{gene_id}/orthologs", response_model=List[OrthologInfo])
+@rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
 def get_gene_orthologs(
+    request: Request,  # Required for rate limiting
     gene_id: int,
     db: Session = Depends(get_db),
 ):
