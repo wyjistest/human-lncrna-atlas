@@ -1,12 +1,13 @@
 """疾病/性状相关API路由"""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from math import ceil
 
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import (
     Trait,
     TraitGeneAssociation,
@@ -26,7 +27,9 @@ router = APIRouter(prefix="/diseases", tags=["diseases"])
 
 
 @router.get("/options")
+@rate_limit("60/minute")
 def get_disease_options(
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
@@ -68,7 +71,9 @@ def get_disease_options(
 
 
 @router.get("", response_model=PaginatedResponse[TraitGeneAssociationDetail])
+@rate_limit("60/minute")
 def list_diseases(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
     search: Optional[str] = Query(None, description="搜索关键词（Trait/Ontology名称）"),
@@ -168,7 +173,9 @@ def list_diseases(
 
 
 @router.get("/{trait_id}", response_model=TraitDetail)
+@rate_limit("120/minute")
 def get_disease_detail(
+    request: Request,
     trait_id: int,
     db: Session = Depends(get_db),
 ):
@@ -210,7 +217,9 @@ def get_disease_detail(
 
 
 @router.get("/{trait_id}/genes", response_model=PaginatedResponse[TraitGeneAssociationDetail])
+@rate_limit("60/minute")
 def get_disease_genes(
+    request: Request,
     trait_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
@@ -313,7 +322,9 @@ def get_disease_genes(
 
 
 @router.get("/gene/{gene_id}/associations", response_model=List[TraitGeneAssociationDetail])
+@rate_limit("60/minute")
 def get_gene_disease_associations(
+    request: Request,
     gene_id: int,
     db: Session = Depends(get_db),
 ):

@@ -10,6 +10,9 @@ IGV overlap-track 路由单元测试（不依赖外部服务/数据库）
 from types import SimpleNamespace
 
 import pytest
+
+# Mark all tests in this module as unit tests
+pytestmark = pytest.mark.unit
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 

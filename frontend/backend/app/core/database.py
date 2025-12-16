@@ -33,16 +33,20 @@ _engine_kwargs = {
 
 if _is_postgresql:
     # PostgreSQL: Use QueuePool with connection pooling
+    # Pool parameters configurable via environment variables (see config.py)
     # Note: statement_timeout is set via connect event listener (below) for consistency
     _engine_kwargs.update({
         "poolclass": QueuePool,
-        "pool_size": 5,  # 连接池大小
-        "max_overflow": 10,  # 超出 pool_size 后最多创建的连接数
-        "pool_timeout": 30,  # 获取连接超时（秒）
-        "pool_recycle": 1800,  # 连接回收时间（秒）
+        "pool_size": settings.DB_POOL_SIZE,
+        "max_overflow": settings.DB_POOL_MAX_OVERFLOW,
+        "pool_timeout": settings.DB_POOL_TIMEOUT,
+        "pool_recycle": settings.DB_POOL_RECYCLE,
         "pool_pre_ping": True,  # 连接前检查，避免使用已断开的连接
     })
-    logger.info("Using PostgreSQL database engine with connection pooling")
+    logger.info(
+        f"Using PostgreSQL database engine with connection pooling "
+        f"(pool_size={settings.DB_POOL_SIZE}, max_overflow={settings.DB_POOL_MAX_OVERFLOW})"
+    )
 elif _is_sqlite:
     # SQLite: Use StaticPool for thread safety in multi-threaded environments
     _engine_kwargs.update({
@@ -56,10 +60,10 @@ else:
     # Generic fallback for other databases
     _engine_kwargs.update({
         "poolclass": QueuePool,
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_timeout": 30,
-        "pool_recycle": 1800,
+        "pool_size": settings.DB_POOL_SIZE,
+        "max_overflow": settings.DB_POOL_MAX_OVERFLOW,
+        "pool_timeout": settings.DB_POOL_TIMEOUT,
+        "pool_recycle": settings.DB_POOL_RECYCLE,
         "pool_pre_ping": True,
     })
     logger.info(f"Using generic database engine for: {_db_url.split(':')[0]}")

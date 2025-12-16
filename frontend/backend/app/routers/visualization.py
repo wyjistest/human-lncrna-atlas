@@ -6,11 +6,12 @@
 import logging
 import math
 from typing import Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.visualization import (
     SankeyResponse,
     SankeyData,
@@ -31,7 +32,9 @@ router = APIRouter(prefix="/visualization", tags=["visualization"])
 
 
 @router.get("/sankey-data", response_model=SankeyResponse)
+@rate_limit("30/minute")
 def get_sankey_data(
+    request: Request,
     species_id: int = Query(default=1, ge=1, le=4, description="物种 ID (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     min_ba: float = Query(default=100.0, ge=0, description="最小结合亲和力阈值"),
     trait_name: Optional[str] = Query(default=None, description="疾病/性状名称筛选（模糊搜索）"),
@@ -302,7 +305,9 @@ def get_sankey_data(
 
 
 @router.get("/chord-data", response_model=ChordResponse)
+@rate_limit("30/minute")
 def get_chord_data(
+    request: Request,
     species_id: int = Query(default=1, ge=1, le=4, description="物种 ID (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     lncrna_id: Optional[int] = Query(default=None, description="指定 lncRNA 基因 ID（可选）"),
     min_ba: float = Query(default=50.0, ge=0, description="最小结合亲和力阈值"),

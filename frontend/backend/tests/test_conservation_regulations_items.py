@@ -1,4 +1,8 @@
+import pytest
 from types import SimpleNamespace
+
+# Mark all tests in this module as unit tests (uses monkeypatch, no external deps)
+pytestmark = pytest.mark.unit
 
 
 def test_build_conserved_regulation_items_batches_conservation_map(monkeypatch):

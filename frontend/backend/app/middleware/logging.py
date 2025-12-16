@@ -3,11 +3,19 @@
 
 使用纯 ASGI 中间件代替 BaseHTTPMiddleware，解决与 StreamingResponse 的兼容性问题。
 Starlette 文档警告 BaseHTTPMiddleware 在处理 StreamingResponse 时有局限性。
+
+配置选项 (通过环境变量):
+- REQUEST_LOG_ENABLED: 是否启用请求日志 (默认 true)
+- REQUEST_LOG_SLOW_THRESHOLD_MS: 仅记录慢请求阈值（毫秒），0 表示记录全部
+- REQUEST_LOG_SAMPLE_RATE: 请求日志采样率 0.0-1.0 (默认 1.0 = 100%)
 """
+import random
 import time
 import logging
 from typing import List, Tuple
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+from app.core.config import settings
 
 logger = logging.getLogger("api")
 
@@ -20,6 +28,7 @@ class LoggingMiddleware:
     - 完全兼容 StreamingResponse
     - 不缓冲响应体
     - 更低的内存开销
+    - 可配置：启用/禁用、慢请求阈值、采样率
     """
 
     # 跳过日志记录的路径前缀
@@ -27,6 +36,38 @@ class LoggingMiddleware:
 
     def __init__(self, app: ASGIApp):
         self.app = app
+        self._log_enabled = settings.REQUEST_LOG_ENABLED
+        self._slow_threshold_sec = settings.REQUEST_LOG_SLOW_THRESHOLD_MS / 1000.0
+        self._sample_rate = max(0.0, min(1.0, settings.REQUEST_LOG_SAMPLE_RATE))
+
+        # 启动时记录配置
+        if self._log_enabled:
+            config_info = []
+            if self._slow_threshold_sec > 0:
+                config_info.append(f"slow_threshold={settings.REQUEST_LOG_SLOW_THRESHOLD_MS}ms")
+            if self._sample_rate < 1.0:
+                config_info.append(f"sample_rate={self._sample_rate:.0%}")
+            if config_info:
+                logger.info(f"Request logging configured: {', '.join(config_info)}")
+            else:
+                logger.info("Request logging enabled (all requests)")
+        else:
+            logger.info("Request logging disabled")
+
+    def _should_log(self, process_time: float) -> bool:
+        """根据配置判断是否应该记录日志"""
+        if not self._log_enabled:
+            return False
+
+        # 慢请求阈值检查（如果设置了阈值）
+        if self._slow_threshold_sec > 0 and process_time < self._slow_threshold_sec:
+            return False
+
+        # 采样率检查
+        if self._sample_rate < 1.0 and random.random() > self._sample_rate:
+            return False
+
+        return True
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -75,15 +116,23 @@ class LoggingMiddleware:
         try:
             await self.app(scope, receive, send_wrapper)
 
-            # 记录成功日志
+            # 根据配置决定是否记录日志
             process_time = time.time() - start_time
-            logger.info(
-                f"{method} {url} - {status_code} - "
-                f"{process_time:.3f}s - {client_ip}"
-            )
+            if self._should_log(process_time):
+                # 慢请求使用 WARNING 级别
+                if self._slow_threshold_sec > 0 and process_time >= self._slow_threshold_sec:
+                    logger.warning(
+                        f"SLOW {method} {url} - {status_code} - "
+                        f"{process_time:.3f}s - {client_ip}"
+                    )
+                else:
+                    logger.info(
+                        f"{method} {url} - {status_code} - "
+                        f"{process_time:.3f}s - {client_ip}"
+                    )
 
         except Exception as e:
-            # 记录错误日志
+            # 错误日志始终记录（不受采样/阈值限制）
             process_time = time.time() - start_time
             logger.error(
                 f"{method} {url} - ERROR - {process_time:.3f}s - "

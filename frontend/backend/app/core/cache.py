@@ -34,29 +34,50 @@ T = TypeVar('T')
 # ============== 内存缓存（回退方案） ==============
 
 class MemoryCache:
-    """简单的内存缓存（支持 TTL，线程安全）"""
+    """
+    LRU 内存缓存（支持 TTL，线程安全）
+
+    使用 OrderedDict 实现真正的 LRU（Least Recently Used）淘汰策略：
+    - 每次 get() 访问会将键移动到末尾（最近使用）
+    - 空间不足时从头部（最久未使用）开始淘汰
+    """
 
     def __init__(self, max_size: int = 1000):
-        self._cache: dict[str, Tuple[Any, float]] = {}
+        from collections import OrderedDict
+        self._cache: OrderedDict[str, Tuple[Any, float]] = OrderedDict()
         self._max_size = max_size
         self._lock = threading.Lock()
+        # LRU 统计
+        self._evictions = 0
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
             if key in self._cache:
                 value, expiry = self._cache[key]
                 if time.time() < expiry:
+                    # LRU: 移动到末尾（最近访问）
+                    self._cache.move_to_end(key)
                     return value
+                # 过期删除
                 del self._cache[key]
             return None
 
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
         with self._lock:
+            # 如果键已存在，更新并移动到末尾
+            if key in self._cache:
+                self._cache[key] = (value, time.time() + ttl)
+                self._cache.move_to_end(key)
+                return True
+
+            # 空间检查：先淘汰过期项，再按 LRU 淘汰
             if len(self._cache) >= self._max_size:
                 self._evict_expired()
-            if len(self._cache) >= self._max_size:
-                oldest_key = next(iter(self._cache))
-                del self._cache[oldest_key]
+            while len(self._cache) >= self._max_size:
+                # LRU 淘汰：从头部删除最久未使用的项
+                self._cache.popitem(last=False)
+                self._evictions += 1
+
             self._cache[key] = (value, time.time() + ttl)
             return True
 
@@ -76,6 +97,15 @@ class MemoryCache:
         expired = [k for k, (_, exp) in self._cache.items() if exp <= current]
         for k in expired:
             del self._cache[k]
+
+    def get_stats(self) -> dict:
+        """获取内存缓存统计"""
+        with self._lock:
+            return {
+                "size": len(self._cache),
+                "max_size": self._max_size,
+                "evictions": self._evictions,
+            }
 
 
 # ============== Redis 缓存 ==============
@@ -313,13 +343,32 @@ class CacheService:
     def get_stats(self) -> dict:
         """获取缓存统计"""
         total = self._hits + self._misses
-        return {
+        hit_rate = (self._hits / max(total, 1)) * 100
+        stats = {
             "backend": self.backend,
             "enabled": self.enabled,
             "hits": self._hits,
             "misses": self._misses,
-            "hit_rate": f"{(self._hits / max(total, 1)) * 100:.1f}%",
+            "total_requests": total,
+            "hit_rate": f"{hit_rate:.1f}%",
+            "hit_rate_pct": round(hit_rate, 2),
         }
+
+        # 添加后端特定统计
+        if self._redis.connected:
+            stats["redis"] = {
+                "host": f"{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+                "connected": True,
+            }
+        else:
+            stats["memory"] = self._memory.get_stats()
+
+        return stats
+
+    def reset_stats(self) -> None:
+        """重置统计计数器（用于监控周期性重置）"""
+        self._hits = 0
+        self._misses = 0
 
     # ============== 新增：缓存键生成辅助方法 ==============
 

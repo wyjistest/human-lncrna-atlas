@@ -18,6 +18,9 @@ import httpx
 from io import StringIO
 import csv
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
+
 from conftest import APIAssertions
 
 

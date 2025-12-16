@@ -11,6 +11,8 @@ Run: pytest tests/test_igv_overlap_track.py -v
 import pytest
 import httpx
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
 
 BASE_URL = "http://localhost:8000"
 API_PREFIX = "/api/v1"

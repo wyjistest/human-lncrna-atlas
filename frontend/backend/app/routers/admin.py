@@ -111,9 +111,13 @@ async def verify_admin_access(
         logger.debug(f"Admin API access granted via IP whitelist: {client_ip}")
         return
 
-    # 检查是否为私有/内网 IP
+    # 检查是否为私有/内网 IP（仅在非严格模式下）
     if is_private_ip(client_ip):
-        logger.debug(f"Admin API access granted via private IP: {client_ip}")
+        logger.warning(
+            f"⚠️ SECURITY: Admin API accessed from private IP {client_ip} without API Key. "
+            f"This is allowed in development mode (ADMIN_REQUIRE_API_KEY=false) but is a security risk in production. "
+            f"Set ADMIN_REQUIRE_API_KEY=true to enforce API Key for all requests."
+        )
         return
 
     # 所有检查都失败，拒绝访问
@@ -647,3 +651,76 @@ async def get_metrics(request: Request) -> MetricsResponse:
         alerts=alerts,
         percentiles=percentiles,
     )
+
+
+# ============================================================================
+# Cache Management Endpoints
+# ============================================================================
+
+
+@router.get(
+    "/cache/stats",
+    summary="获取缓存统计",
+    description="返回缓存命中率、后端类型和使用情况",
+)
+async def get_cache_stats() -> dict:
+    """
+    获取缓存统计信息
+
+    Returns:
+        缓存统计数据，包括命中率、后端类型、请求计数等
+    """
+    return cache.get_stats()
+
+
+@router.post(
+    "/cache/clear",
+    summary="清空全部缓存",
+    description="清空所有 lncrna: 前缀的缓存。操作不可撤销。",
+)
+async def clear_cache() -> dict:
+    """
+    清空全部缓存
+
+    Returns:
+        删除的缓存条目数量
+    """
+    deleted = cache.clear_all()
+    cache.reset_stats()  # 重置统计计数器
+    logger.info(f"Cache cleared by admin: {deleted} entries deleted")
+    return {
+        "status": "success",
+        "deleted": deleted,
+        "message": f"Cleared {deleted} cache entries",
+    }
+
+
+@router.post(
+    "/cache/invalidate/{namespace}",
+    summary="按命名空间失效缓存",
+    description="""
+    使指定命名空间的缓存失效。命名空间示例：
+    - regulations - 调控关系相关缓存
+    - genes - 基因相关缓存
+    - stats - 统计数据缓存
+    - export - 导出相关缓存
+    """,
+)
+async def invalidate_cache_namespace(namespace: str) -> dict:
+    """
+    按命名空间失效缓存
+
+    Args:
+        namespace: 缓存命名空间（如 regulations, genes, stats）
+
+    Returns:
+        删除的缓存条目数量
+    """
+    deleted = cache.invalidate(namespace)
+    logger.info(f"Cache namespace '{namespace}' invalidated by admin: {deleted} entries deleted")
+    return {
+        "status": "success",
+        "namespace": namespace,
+        "deleted": deleted,
+        "message": f"Invalidated {deleted} entries in namespace '{namespace}'",
+    }

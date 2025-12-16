@@ -85,6 +85,7 @@ import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
 // API and configs
 import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/features'
 import { genomeApi, type IGVTrackConfig } from '@/api/genome'
+import { API_BASE_URL } from '@/config/api'
 import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 
@@ -213,9 +214,6 @@ export function LncRNAChIPSeqOverlapTable({
     Other: '#888888',
   }
 
-  // API base URL for track loading
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
-
   // Filter state - No default chromosome (backend uses materialized view for all-chromosome queries)
   // NOTE: This must be defined BEFORE loadOverlapTrack which depends on filters
   const [filters, setFilters] = useState<OverlapFilters>(() => ({
@@ -287,7 +285,7 @@ export function LncRNAChIPSeqOverlapTable({
     } finally {
       setTrackLoading(false)
     }
-  }, [filters, API_BASE_URL, t])
+  }, [filters, t])
 
   // Load Regulation Track into IGV browser
   // Shows lncRNA → target gene regulatory relationships in the current view
@@ -340,7 +338,7 @@ export function LncRNAChIPSeqOverlapTable({
     } finally {
       setTrackLoading(false)
     }
-  }, [filters.chromosome, igvSpeciesId, API_BASE_URL, t])
+  }, [filters.chromosome, igvSpeciesId, t])
 
   // Auto-sync track when filters change (if enabled)
   useEffect(() => {
@@ -712,7 +710,6 @@ export function LncRNAChIPSeqOverlapTable({
 
       try {
         // Build the export URL for validation
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
         const params = new URLSearchParams()
 
         // Validate filters and build URL parameters

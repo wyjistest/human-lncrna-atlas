@@ -37,6 +37,28 @@ class Settings(BaseSettings):
     DATABASE_PASSWORD: str = Field(default="", validation_alias="DB_PASSWORD")
     DATABASE_NAME: str = Field(default="lncrna_production", validation_alias="DB_NAME")
 
+    # 数据库连接池配置
+    DB_POOL_SIZE: int = Field(
+        default=5,
+        validation_alias="DB_POOL_SIZE",
+        description="连接池大小 (默认 5)"
+    )
+    DB_POOL_MAX_OVERFLOW: int = Field(
+        default=10,
+        validation_alias="DB_POOL_MAX_OVERFLOW",
+        description="超出 pool_size 后最多创建的连接数 (默认 10)"
+    )
+    DB_POOL_TIMEOUT: int = Field(
+        default=30,
+        validation_alias="DB_POOL_TIMEOUT",
+        description="获取连接超时秒数 (默认 30)"
+    )
+    DB_POOL_RECYCLE: int = Field(
+        default=1800,
+        validation_alias="DB_POOL_RECYCLE",
+        description="连接回收时间秒数 (默认 1800 = 30分钟)"
+    )
+
     # Redis配置
     REDIS_HOST: str = Field(default="localhost", validation_alias="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT")
@@ -91,6 +113,23 @@ class Settings(BaseSettings):
 
     # 日志配置
     LOG_LEVEL: str = Field(default="INFO", validation_alias="LOG_LEVEL")
+
+    # 请求日志配置
+    REQUEST_LOG_ENABLED: bool = Field(
+        default=True,
+        validation_alias="REQUEST_LOG_ENABLED",
+        description="是否启用请求日志 (默认 true)"
+    )
+    REQUEST_LOG_SLOW_THRESHOLD_MS: int = Field(
+        default=0,
+        validation_alias="REQUEST_LOG_SLOW_THRESHOLD_MS",
+        description="仅记录慢请求阈值（毫秒），0 表示记录全部 (默认 0)"
+    )
+    REQUEST_LOG_SAMPLE_RATE: float = Field(
+        default=1.0,
+        validation_alias="REQUEST_LOG_SAMPLE_RATE",
+        description="请求日志采样率 0.0-1.0 (默认 1.0 = 100%)"
+    )
 
     # 性能配置
     QUERY_TIMEOUT: int = Field(default=30, validation_alias="QUERY_TIMEOUT")  # 查询超时（秒）

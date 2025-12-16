@@ -12,6 +12,7 @@
  */
 
 import { apiClient } from './client'
+import { API_BASE_URL } from '@/config/api'
 import type {
   OverlapFilters,
   OverlapResponse,
@@ -89,7 +90,6 @@ export const lncRNAChIPSeqOverlapApi = {
    * @param format - Export format ('bed' or 'csv')
    */
   exportOverlaps: (filters: OverlapFilters, format: 'bed' | 'csv') => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
     const params = new URLSearchParams()
 
     // Apply all filters

@@ -175,6 +175,8 @@ npx playwright show-report
 | 踩坑记录 | `docs/PITFALLS.md` |
 | Phase 详细历史 | `docs/phases/PHASE_HISTORY.md` |
 | 项目状态报告 | `docs/PROJECT_STATUS_REPORT.md` |
+| **数据库 Schema** | `frontend/backend/docs/SCHEMA.md` |
+| **数据库迁移** | `frontend/backend/migrations/README.md` |
 | **代码审查报告** | `frontend/backend/CODE_REVIEW_REPORT_2025-12-16.md` |
 | API 文档 | http://localhost:8000/docs |
 | Jupyter 使用指南 | `notebooks/README.md` |

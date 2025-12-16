@@ -16,6 +16,9 @@ import time
 from typing import List, Dict, Any
 import os
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
+
 # ============== Configuration ==============
 
 BASE_URL = os.getenv("TEST_API_URL", "http://localhost:8000")

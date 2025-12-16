@@ -15,6 +15,9 @@ import pytest
 import httpx
 from typing import Optional
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
+
 from conftest import (
     APIAssertions,
 )

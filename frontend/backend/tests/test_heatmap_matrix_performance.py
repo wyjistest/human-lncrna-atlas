@@ -8,6 +8,9 @@ Run: pytest tests/test_heatmap_matrix_performance.py -v
 """
 import pytest
 import httpx
+
+# Mark all tests in this module as integration + performance tests
+pytestmark = [pytest.mark.integration, pytest.mark.performance]
 import time
 import statistics
 from typing import Optional, Dict, Any

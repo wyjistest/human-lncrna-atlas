@@ -9,6 +9,8 @@ import pytest
 import httpx
 import time
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
 
 # Configuration
 BASE_URL = "http://localhost:8000"

@@ -1,7 +1,10 @@
+import pytest
+
 from app.routers.chipseq_genes import _build_batch_heatmap_gene_result
 from app.schemas.chipseq import CellMarkStats
 
 
+@pytest.mark.unit
 def test_build_batch_heatmap_gene_result_median_and_missing_combinations():
     mark_list = ["H3K27me3", "H3K4me3"]
     cell_type_list = ["K562", "HepG2"]

@@ -10,6 +10,7 @@
  */
 
 import { apiClient } from './client'
+import { API_BASE_URL } from '@/config/api'
 import type {
   MarkType,
   ChIPSeqFilters,
@@ -94,7 +95,6 @@ export const chipseqApi = {
    * @param filters - Optional filters
    */
   exportPeaksToBED: (geneId: number, filters?: ChIPSeqFilters) => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
     const params = new URLSearchParams()
 
     if (filters?.mark_type) params.append('mark_type', filters.mark_type)
@@ -124,7 +124,6 @@ export const chipseqApi = {
    * @param marks - Array of mark types
    */
   exportComparisonToCSV: (geneId: number, marks: MarkType[]) => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
     const params = new URLSearchParams()
     params.append('marks', marks.join(','))
     params.append('format', 'csv')

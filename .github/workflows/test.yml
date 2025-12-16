@@ -108,40 +108,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio requests
+          pip install pytest pytest-asyncio
 
-      - name: Run tests
+      - name: Run unit tests (marked with @pytest.mark.unit)
         working-directory: frontend/backend
         run: |
-          # Skip all integration tests (require running server and database)
-          # Integration tests: test_api_contracts, test_api_smoke, test_batch_heatmap_api,
-          # test_cell_line_data_validation, test_chipseq_api, test_heatmap_matrix_performance,
-          # test_igv_overlap_track, test_overlap_export, test_performance, test_phase_3_1_regression
-          set -e  # Exit on error
-          EXIT_CODE=0
-          pytest tests/ -v \
-            --ignore=tests/e2e/ \
-            --ignore=tests/test_api_contracts.py \
-            --ignore=tests/test_api_smoke.py \
-            --ignore=tests/test_batch_heatmap_api.py \
-            --ignore=tests/test_cell_line_data_validation.py \
-            --ignore=tests/test_chipseq_api.py \
-            --ignore=tests/test_heatmap_matrix_performance.py \
-            --ignore=tests/test_igv_overlap_track.py \
-            --ignore=tests/test_overlap_export.py \
-            --ignore=tests/test_performance.py \
-            --ignore=tests/test_phase_3_1_regression.py \
-            || EXIT_CODE=$?
-          # Exit code 5 = no tests collected (acceptable, all tests are integration tests)
-          # Exit code 0 = tests passed
-          # Exit code 1+ = tests failed (should fail CI)
-          if [ $EXIT_CODE -eq 5 ]; then
-            echo "No unit tests found (all tests are integration tests requiring database)"
-            exit 0
-          elif [ $EXIT_CODE -ne 0 ]; then
-            echo "Tests failed with exit code $EXIT_CODE"
-            exit $EXIT_CODE
-          fi
+          # Run only unit tests (no external dependencies required)
+          # Uses pytest markers instead of --ignore flags
+          pytest -m unit -v --tb=short
 
   build:
     name: Build
@@ -171,4 +145,72 @@ jobs:
         with:
           name: build
           path: frontend/web/dist/
+          retention-days: 7
+
+  # E2E tests - requires running backend server and database
+  # Only runs on workflow_dispatch (manual trigger) on self-hosted runner
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: self-hosted
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: npx playwright install chromium --with-deps
+
+      - name: Wait for backend service
+        run: |
+          # Wait for backend to be ready (assumes services are running on self-hosted runner)
+          timeout=60
+          while ! curl -s http://localhost:8000/health > /dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "Backend service not available"
+              exit 1
+            fi
+            echo "Waiting for backend..."
+            sleep 5
+            timeout=$((timeout - 5))
+          done
+          echo "Backend is ready!"
+
+      - name: Run E2E tests
+        working-directory: frontend/web
+        env:
+          BASE_URL: http://localhost:5173
+          CI: true
+        run: |
+          # Run a subset of critical E2E tests
+          npx playwright test \
+            e2e/genes-flow.spec.ts \
+            e2e/lncrna-chipseq-overlap.spec.ts \
+            e2e/conservation.spec.ts \
+            --reporter=list
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/web/playwright-report/
+          retention-days: 7
+
+      - name: Upload test screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots
+          path: frontend/web/test-results/
           retention-days: 7

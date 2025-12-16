@@ -1,3 +1,9 @@
+import pytest
+
+# Mark all tests in this module as unit tests (pure logic, no external deps)
+pytestmark = pytest.mark.unit
+
+
 def _naive_overlap_pairs(peaks_a, peaks_b):
     for peak_a in peaks_a:
         for peak_b in peaks_b:

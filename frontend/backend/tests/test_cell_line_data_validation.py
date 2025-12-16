@@ -8,6 +8,9 @@ Run: pytest tests/test_cell_line_data_validation.py -v
 """
 import pytest
 import httpx
+
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
 import os
 from typing import Optional
 

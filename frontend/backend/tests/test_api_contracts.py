@@ -9,6 +9,9 @@ API 合同测试 - 验证所有 API 响应符合定义的 Schema
 import pytest
 import httpx
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
+
 from conftest import (
     validate_paginated_response,
     validate_single_response,

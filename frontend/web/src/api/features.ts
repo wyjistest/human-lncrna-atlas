@@ -21,6 +21,7 @@
  * @see Phase 6.1 IGV Feature Enhancement documentation
  */
 import { apiClient } from './client'
+import { API_BASE_URL } from '@/config/api'
 import type {
   RepeatMaskerResponse,
   RepeatMaskerFilters,
@@ -162,7 +163,6 @@ export const featuresApi = {
    * }
    */
   exportRepeatsToBED: (geneId: number, filters?: RepeatMaskerFilters) => {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
     const params = new URLSearchParams()
 
     if (filters?.repeat_class) params.append('repeat_class', filters.repeat_class)

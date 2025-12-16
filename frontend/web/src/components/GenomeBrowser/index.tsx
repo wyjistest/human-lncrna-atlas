@@ -12,6 +12,7 @@ import { message, Alert } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { genomeApi, type IGVConfig } from '@/api/genome'
+import { API_BASE_URL } from '@/config/api'
 import { getMarkColor } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 import { LoadingState } from '@/components/LoadingState'
@@ -198,9 +199,6 @@ const GenomeBrowser = memo(({
         const effectiveLocus = isValidLocus(initialLocusRef.current)
           ? initialLocusRef.current!
           : config.locus
-
-        // Helper function to convert relative paths to absolute backend URLs
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
         const options: IGVBrowserOptions = {
           locus: effectiveLocus,
@@ -404,7 +402,6 @@ const GenomeBrowser = memo(({
     if (!browserRef.current) return
 
     const browser = browserRef.current
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
     const currentMarks = new Set(showChIPSeq ? chipseqMarks : [])
     const loadedMarks = loadedChipseqMarksRef.current
 

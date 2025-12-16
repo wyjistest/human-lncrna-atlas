@@ -1,11 +1,12 @@
 """网络分析API路由"""
 from collections import Counter
 from typing import Optional, Dict, Set
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, or_, and_
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Regulation, Gene, CoreGene, TraitGeneAssociation, Trait, Ontology, Species
 from app.schemas.regulation import NetworkData, NetworkNode, NetworkEdge
 
@@ -47,7 +48,9 @@ def compute_conservation_map(core_ids: list, db: Session) -> Dict[int, tuple]:
 
 
 @router.get("/available-combinations")
+@rate_limit("60/minute")
 def get_available_combinations(
+    request: Request,
     species_id: Optional[int] = Query(None, description="物种ID过滤"),
     db: Session = Depends(get_db),
 ):
@@ -85,7 +88,9 @@ def get_available_combinations(
 
 
 @router.get("/disease", response_model=NetworkData)
+@rate_limit("30/minute")
 def get_disease_network(
+    request: Request,
     trait_id: int = Query(..., description="Trait ID"),
     ontology_id: int = Query(..., description="Ontology ID"),
     species_id: Optional[int] = Query(None, description="物种ID过滤"),
@@ -209,7 +214,9 @@ def get_disease_network(
 
 
 @router.get("/gene/{gene_id}/detail")
+@rate_limit("120/minute")
 def get_gene_detail(
+    request: Request,
     gene_id: int,
     db: Session = Depends(get_db),
 ):
@@ -296,7 +303,9 @@ def get_gene_detail(
 
 
 @router.get("/gene/{gene_id}", response_model=NetworkData)
+@rate_limit("30/minute")
 def get_gene_network(
+    request: Request,
     gene_id: int,
     species_id: Optional[int] = Query(None, description="限制物种"),
     min_ba: Optional[float] = Query(0, ge=0, description="最小结合亲和力"),
@@ -482,7 +491,9 @@ def get_gene_network(
 
 
 @router.get("/compare", response_model=dict)
+@rate_limit("20/minute")
 def compare_species_networks(
+    request: Request,
     lncrna_gene_id: int = Query(..., description="lncRNA基因ID（human）"),
     min_ba: float = Query(50, ge=0, description="最小结合亲和力"),
     max_targets_per_species: int = Query(100, ge=1, le=500, description="每个物种最大靶基因数"),

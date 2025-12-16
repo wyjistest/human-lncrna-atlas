@@ -5,6 +5,9 @@ API冒烟测试 - 验证所有核心端点
 import pytest
 import requests
 
+# Mark all tests in this module as integration tests
+pytestmark = pytest.mark.integration
+
 BASE_URL = "http://localhost:8000"
 
 

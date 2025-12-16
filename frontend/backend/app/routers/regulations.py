@@ -1,7 +1,7 @@
 """调控关系API路由"""
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import desc, func
 from math import ceil
@@ -9,6 +9,7 @@ from math import ceil
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Regulation, Gene, Species, Sequence
 from app.schemas.regulation import (
     RegulationDetail,
@@ -24,7 +25,9 @@ router = APIRouter(prefix="/regulations", tags=["regulations"])
 
 
 @router.get("/lncrna-options", response_model=LncRNAOptionsResponse)
+@rate_limit("60/minute")
 def get_lncrna_options(
+    request: Request,
     species_id: Optional[int] = Query(None, description="物种ID过滤"),
     db: Session = Depends(get_db),
 ):
@@ -104,7 +107,9 @@ def get_lncrna_options(
 
 
 @router.get("/target-options", response_model=TargetOptionsResponse)
+@rate_limit("60/minute")
 def get_target_options(
+    request: Request,
     species_id: Optional[int] = Query(None, description="物种ID过滤"),
     db: Session = Depends(get_db),
 ):
@@ -250,7 +255,9 @@ def _normalize_list_param(value: str | None) -> str | None:
 
 
 @router.get("", response_model=PaginatedResponse[RegulationListItem])
+@rate_limit("60/minute")
 def list_regulations(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
     species_id: Optional[int] = Query(None, description="物种ID（单个）"),
@@ -398,7 +405,9 @@ def list_regulations(
 
 
 @router.get("/{regulation_id}", response_model=RegulationDetail)
+@rate_limit("120/minute")
 def get_regulation_detail(
+    request: Request,
     regulation_id: int,
     db: Session = Depends(get_db),
 ):
@@ -487,7 +496,9 @@ def get_regulation_detail(
 
 
 @router.get("/gene/{gene_id}", response_model=PaginatedResponse[RegulationListItem])
+@rate_limit("60/minute")
 def get_gene_regulations(
+    request: Request,
     gene_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),

@@ -12,16 +12,20 @@ import Genes from './pages/Genes'
 import GeneDetail from './pages/GeneDetail'
 import Regulations from './pages/Regulations'
 import Diseases from './pages/Diseases'
-import Network from './pages/Network'
 import Conservation from './pages/Conservation'
-import Analysis from './pages/Analysis'
 import Monitoring from './pages/Admin/Monitoring'
 import LncRNAChIPSeqOverlapPage from './pages/LncRNAChIPSeqOverlapPage'
 import ChIPSeqComparePage from './pages/ChIPSeqComparePage'
-import VisualizationHub from './pages/Visualization'
-import SankeyFlow from './pages/Visualization/SankeyFlow'
 
-// Lazy load GenomeBrowser (large IGV.js bundle)
+// Lazy load heavy pages with large dependencies
+// Network: Cytoscape.js (~460KB gzipped)
+const Network = lazy(() => import('./pages/Network'))
+// Analysis: Various analysis components
+const Analysis = lazy(() => import('./pages/Analysis'))
+// Visualization: ECharts (~375KB gzipped)
+const VisualizationHub = lazy(() => import('./pages/Visualization'))
+const SankeyFlow = lazy(() => import('./pages/Visualization/SankeyFlow'))
+// GenomeBrowser: IGV.js (~396KB gzipped)
 const GenomeBrowser = lazy(() => import('./pages/GenomeBrowser'))
 
 // Loading fallback for lazy loaded routes
@@ -48,9 +52,17 @@ function App() {
             <Route path="genes/:geneId" element={<GeneDetail />} />
             <Route path="regulations" element={<Regulations />} />
             <Route path="diseases" element={<Diseases />} />
-            <Route path="network" element={<Network />} />
+            <Route path="network" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <Network />
+              </Suspense>
+            } />
             <Route path="conservation" element={<Conservation />} />
-            <Route path="analysis" element={<Analysis />} />
+            <Route path="analysis" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <Analysis />
+              </Suspense>
+            } />
             <Route path="genome-browser" element={
               <Suspense fallback={<LazyLoadFallback />}>
                 <GenomeBrowser />
@@ -58,8 +70,16 @@ function App() {
             } />
             <Route path="lncrna-chipseq-overlap" element={<LncRNAChIPSeqOverlapPage />} />
             <Route path="chipseq-compare" element={<ChIPSeqComparePage />} />
-            <Route path="visualization" element={<VisualizationHub />} />
-            <Route path="visualization/sankey-flow" element={<SankeyFlow />} />
+            <Route path="visualization" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <VisualizationHub />
+              </Suspense>
+            } />
+            <Route path="visualization/sankey-flow" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <SankeyFlow />
+              </Suspense>
+            } />
             <Route path="admin/monitoring" element={<Monitoring />} />
           </Route>
         </Routes>

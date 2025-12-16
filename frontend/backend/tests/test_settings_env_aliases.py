@@ -1,3 +1,7 @@
+import pytest
+
+
+@pytest.mark.unit
 def test_settings_env_aliases(monkeypatch):
     from app.core.config import Settings
 
