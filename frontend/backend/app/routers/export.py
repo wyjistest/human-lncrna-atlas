@@ -4,22 +4,22 @@ Phase 6.0-A: 为 Jupyter Notebook 数据分析提供便捷的数据导出 API
 
 支持格式:
 - JSON (默认)
-- CSV (逗号分隔)
-- Excel (.xlsx)
+- CSV (逗号分隔) - 真流式输出，内存占用 O(1)
+- Excel (.xlsx) - write_only 模式，减少内存峰值
 
 性能优化:
 - 使用 LIMIT 限制返回数量（最大 50000）
-- 支持流式响应（CSV/Excel）
+- 真流式响应：逐行生成 CSV，不在内存中保存完整数据集
 - 复用数据库连接池
+
+Phase 9.3 改进：
+- CR-005: 修复伪流式输出问题，改用生成器逐行 yield
 """
 import logging
-import io
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Iterator, Generator
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-import pandas as pd
 
 from app.core.database import get_db
 from app.schemas.export import (
@@ -30,6 +30,11 @@ from app.schemas.export import (
     NetworkNode,
     NetworkEdge,
 )
+from app.utils.streaming_export import (
+    stream_csv_response,
+    stream_excel_response,
+    create_db_row_generator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,45 +44,55 @@ router = APIRouter(prefix="/export", tags=["export"])
 MAX_EXPORT_LIMIT = 50000
 
 
-def export_to_format(data: List[Dict[str, Any]], format: str, filename: str):
+def export_to_streaming_format(
+    row_iterator: Iterator[Dict[str, Any]],
+    fieldnames: List[str],
+    format: str,
+    filename: str,
+    *,
+    array_fields: Optional[List[str]] = None,
+):
     """
-    将数据导出为指定格式
+    将数据导出为指定格式（真流式输出）
 
     Args:
-        data: 数据字典列表
-        format: 导出格式 (json/csv/excel)
+        row_iterator: 数据行迭代器（生成器）
+        fieldnames: 列名列表
+        format: 导出格式 (csv/excel)
         filename: 文件名（不含扩展名）
+        array_fields: 需要转换为逗号分隔字符串的数组字段
 
     Returns:
-        JSON 响应或 StreamingResponse
-    """
-    if format == "json":
-        return data
+        StreamingResponse
 
-    # 转换为 DataFrame
-    df = pd.DataFrame(data)
+    Note:
+        JSON 格式不使用此函数，直接返回 Pydantic 响应模型
+    """
+    # 可选：转换数组字段为字符串
+    def transform_arrays(row: Dict[str, Any]) -> Dict[str, Any]:
+        if array_fields:
+            for field in array_fields:
+                if field in row and isinstance(row[field], (list, tuple)):
+                    row[field] = ", ".join(str(v) for v in row[field] if v is not None)
+        return row
+
+    # 包装迭代器以应用转换
+    def transformed_rows() -> Generator[Dict[str, Any], None, None]:
+        for row in row_iterator:
+            yield transform_arrays(row)
 
     if format == "csv":
-        # CSV 格式
-        stream = io.StringIO()
-        df.to_csv(stream, index=False)
-        stream.seek(0)
-        return StreamingResponse(
-            io.BytesIO(stream.getvalue().encode("utf-8")),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}.csv"}
+        return stream_csv_response(
+            transformed_rows(),
+            fieldnames,
+            f"{filename}.csv",
         )
 
     elif format == "excel":
-        # Excel 格式
-        stream = io.BytesIO()
-        with pd.ExcelWriter(stream, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name="Data")
-        stream.seek(0)
-        return StreamingResponse(
-            stream,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}.xlsx"}
+        return stream_excel_response(
+            transformed_rows(),
+            fieldnames,
+            f"{filename}.xlsx",
         )
 
     else:
@@ -112,6 +127,7 @@ def export_high_affinity(
     - chr/start/end: 基因组位置
 
     **性能**: 10000 条记录 < 5s
+    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
     """
     logger.info(f"[EXPORT] high-affinity: min_ba={min_ba}, species_id={species_id}, limit={limit}, format={format}")
 
@@ -145,27 +161,41 @@ def export_high_affinity(
         LIMIT :limit
     """)
 
-    # 执行查询
+    # 定义列名（用于流式导出）
+    fieldnames = [
+        "lncrna_gene_id", "lncrna_name", "target_gene_id", "target_name",
+        "binding_affinity", "species_id", "species_name", "chr",
+        "start_in_genome", "end_in_genome"
+    ]
+
+    # CSV/Excel: 使用流式输出
+    if format in ("csv", "excel"):
+        result = db.execute(sql, {
+            "min_ba": min_ba,
+            "species_id": species_id,
+            "limit": limit
+        })
+        return export_to_streaming_format(
+            create_db_row_generator(result),
+            fieldnames,
+            format,
+            "high_affinity_regulations",
+        )
+
+    # JSON: 标准响应（需要 total 字段）
     result = db.execute(sql, {
         "min_ba": min_ba,
         "species_id": species_id,
         "limit": limit
     })
-
-    # 转换为字典列表
     data = [dict(row._mapping) for row in result]
 
-    # 记录查询参数
     query_params = {
         "min_ba": min_ba,
         "species_id": species_id,
         "limit": limit,
         "format": format
     }
-
-    # 根据格式返回
-    if format != "json":
-        return export_to_format(data, format, "high_affinity_regulations")
 
     return HighAffinityExportResponse(
         data=data,
@@ -202,6 +232,7 @@ def export_conservation(
     - conserved_targets: 保守靶基因列表（取前10个）
 
     **性能**: 5000 条记录 < 3s
+    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
     """
     logger.info(f"[EXPORT] conservation: min_species_count={min_species_count}, limit={limit}, format={format}")
 
@@ -231,35 +262,45 @@ def export_conservation(
         LIMIT :limit
     """)
 
+    # 行转换函数：处理数组字段和限制靶基因数量
+    def transform_conservation_row(row: Dict[str, Any]) -> Dict[str, Any]:
+        conserved_targets = row.get("target_names", []) or []
+        row["conserved_targets"] = conserved_targets[:10] if conserved_targets else []
+        row.pop("target_names", None)
+        return row
+
+    # 定义列名
+    fieldnames = [
+        "core_id", "species_count", "total_regulations",
+        "avg_binding_affinity", "lncrna_names", "conserved_targets"
+    ]
+
+    # CSV/Excel: 使用流式输出
+    if format in ("csv", "excel"):
+        result = db.execute(sql, {
+            "min_species_count": min_species_count,
+            "limit": limit
+        })
+        return export_to_streaming_format(
+            create_db_row_generator(result, transform=transform_conservation_row),
+            fieldnames,
+            format,
+            "conservation_lncrnas",
+            array_fields=["lncrna_names", "conserved_targets"],
+        )
+
+    # JSON: 标准响应
     result = db.execute(sql, {
         "min_species_count": min_species_count,
         "limit": limit
     })
-
-    # 转换为字典列表（处理数组字段）
-    data = []
-    for row in result:
-        row_dict = dict(row._mapping)
-        # 取前10个保守靶基因（避免数据过大）
-        conserved_targets = row_dict.get("target_names", []) or []
-        row_dict["conserved_targets"] = conserved_targets[:10] if conserved_targets else []
-        # 删除原始 target_names 字段
-        row_dict.pop("target_names", None)
-        data.append(row_dict)
+    data = [transform_conservation_row(dict(row._mapping)) for row in result]
 
     query_params = {
         "min_species_count": min_species_count,
         "limit": limit,
         "format": format
     }
-
-    # 根据格式返回
-    if format != "json":
-        # 对于 CSV/Excel，将数组转换为逗号分隔的字符串
-        for item in data:
-            item["lncrna_names"] = ", ".join(item.get("lncrna_names", []) or [])
-            item["conserved_targets"] = ", ".join(item.get("conserved_targets", []) or [])
-        return export_to_format(data, format, "conservation_lncrnas")
 
     return ConservationExportResponse(
         data=data,
@@ -308,6 +349,7 @@ def export_chipseq_overlaps(
     - cell_type: 细胞类型
 
     **性能**: 10000 条记录 < 5s（使用物化视图 mv_lncrna_chipseq_overlaps）
+    **内存**: CSV/Excel 使用真流式输出，内存占用 O(1)
     """
     logger.info(f"[EXPORT] chipseq-overlaps: mark_names={mark_names}, min_ba={min_ba}, limit={limit}, format={format}")
 
@@ -348,13 +390,32 @@ def export_chipseq_overlaps(
         LIMIT :limit
     """)
 
+    # 定义列名
+    fieldnames = [
+        "regulation_id", "lncrna_name", "target_name", "binding_affinity",
+        "mark_name", "peak_score", "peak_chr", "peak_start", "peak_end", "cell_type"
+    ]
+
+    # CSV/Excel: 使用流式输出
+    if format in ("csv", "excel"):
+        result = db.execute(sql, {
+            "mark_names": mark_names,
+            "min_ba": min_ba,
+            "limit": limit
+        })
+        return export_to_streaming_format(
+            create_db_row_generator(result),
+            fieldnames,
+            format,
+            "chipseq_overlaps",
+        )
+
+    # JSON: 标准响应
     result = db.execute(sql, {
         "mark_names": mark_names,
         "min_ba": min_ba,
         "limit": limit
     })
-
-    # 转换为字典列表
     data = [dict(row._mapping) for row in result]
 
     query_params = {
@@ -363,10 +424,6 @@ def export_chipseq_overlaps(
         "limit": limit,
         "format": format
     }
-
-    # 根据格式返回
-    if format != "json":
-        return export_to_format(data, format, "chipseq_overlaps")
 
     return ChipseqOverlapExportResponse(
         data=data,
