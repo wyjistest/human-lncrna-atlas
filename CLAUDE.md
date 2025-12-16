@@ -135,12 +135,17 @@ npx playwright show-report
 | DB_USER | 数据库用户 |
 | DB_PASSWORD | 数据库密码 |
 | DB_NAME | 数据库名称 (默认 lncrna_production) |
+| DB_POOL_SIZE | 连接池大小 (默认 5) |
+| DB_POOL_MAX_OVERFLOW | 连接池溢出 (默认 10) |
 | REDIS_HOST | Redis 主机 (默认 localhost) |
 | GENOMES_DIR | 基因组文件目录 (IGV.js) |
 | ADMIN_API_KEY | Admin API 密钥 (生产环境必需) |
-| ADMIN_REQUIRE_API_KEY | 严格模式 - 必须 API Key (默认 false) |
+| ADMIN_REQUIRE_API_KEY | 严格模式 - 必须 API Key (默认 **true**) ⚠️ |
 | TRUSTED_PROXIES | 可信代理 IP 列表 (JSON 数组格式) |
 | RATE_LIMIT_BYPASS_PRIVATE | 私网 IP 绕过限流 (默认 false) |
+| REQUEST_LOG_ENABLED | 启用请求日志 (默认 true) |
+| REQUEST_LOG_SLOW_THRESHOLD_MS | 慢请求阈值毫秒 (0=全部) |
+| REQUEST_LOG_SAMPLE_RATE | 日志采样率 0.0-1.0 (默认 1.0) |
 
 ## 版本里程碑
 
