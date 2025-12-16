@@ -499,6 +499,17 @@ def export_disease_network(
             detail="Disease network export only supports JSON format (network data structure)"
         )
 
+    # P0 修复：防止无过滤条件的全表扫描
+    # 当未提供 trait_name 时，限制返回数量以避免内存溢出
+    if trait_name is None:
+        effective_limit = min(limit, 500)  # 无过滤时最多返回 500 条
+        logger.warning(
+            f"[EXPORT] disease-network: No trait_name filter provided, "
+            f"limiting to {effective_limit} rows (requested: {limit})"
+        )
+    else:
+        effective_limit = limit
+
     nodes = []
     edges = []
     node_ids = set()
@@ -522,7 +533,7 @@ def export_disease_network(
 
     disease_gene_result = db.execute(disease_gene_sql, {
         "trait_name": trait_name,
-        "limit": limit
+        "limit": effective_limit
     })
 
     # 收集基因 ID（用于后续查询调控关系）
@@ -587,7 +598,7 @@ def export_disease_network(
 
         gene_lncrna_result = db.execute(gene_lncrna_sql, {
             "gene_ids": list(gene_ids),
-            "limit": limit
+            "limit": effective_limit
         })
 
         for row in gene_lncrna_result:

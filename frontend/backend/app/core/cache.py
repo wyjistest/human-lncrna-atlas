@@ -99,8 +99,8 @@ class RedisCache:
                 db=settings.REDIS_DB,
                 password=settings.REDIS_PASSWORD,
                 decode_responses=True,
-                socket_timeout=5,
-                socket_connect_timeout=5,
+                socket_timeout=10,  # 读写超时（增加容错性，减少网络抖动时的缓存失效）
+                socket_connect_timeout=5,  # 连接建立超时
             )
             self._client.ping()
             logger.info(f"Redis 连接成功: {settings.REDIS_HOST}:{settings.REDIS_PORT}")

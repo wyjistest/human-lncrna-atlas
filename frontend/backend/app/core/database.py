@@ -77,7 +77,8 @@ if _is_postgresql:
         This prevents any single query from running longer than QUERY_TIMEOUT seconds.
         """
         cursor = dbapi_connection.cursor()
-        cursor.execute(f"SET statement_timeout = {QUERY_TIMEOUT_MS}")
+        # 使用参数化查询防止 SQL 注入（即使 timeout 来自配置）
+        cursor.execute("SET statement_timeout = %s", (QUERY_TIMEOUT_MS,))
         cursor.close()
         logger.debug(f"Set statement_timeout to {QUERY_TIMEOUT_MS}ms on new connection")
 
@@ -151,11 +152,12 @@ def with_timeout(db, timeout_seconds: int):
     if _is_postgresql:
         timeout_ms = timeout_seconds * 1000
         try:
-            db.execute(text(f"SET statement_timeout = {timeout_ms}"))
+            # 使用参数化查询防止 SQL 注入
+            db.execute(text("SET statement_timeout = :timeout"), {"timeout": timeout_ms})
             yield db
         finally:
             # Reset to default timeout
-            db.execute(text(f"SET statement_timeout = {QUERY_TIMEOUT_MS}"))
+            db.execute(text("SET statement_timeout = :timeout"), {"timeout": QUERY_TIMEOUT_MS})
     else:
         # Non-PostgreSQL: timeout not supported, just yield the session
         yield db
