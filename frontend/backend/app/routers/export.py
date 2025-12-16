@@ -500,8 +500,9 @@ def export_disease_network(
         )
 
     # P0 修复：防止无过滤条件的全表扫描
-    # 当未提供 trait_name 时，限制返回数量以避免内存溢出
-    if trait_name is None:
+    # 当未提供 trait_name 或为空字符串时，限制返回数量以避免内存溢出
+    # 注意：空字符串也被视为未提供过滤条件，防止 ?trait_name= 绕过保护
+    if not trait_name or not trait_name.strip():
         effective_limit = min(limit, 500)  # 无过滤时最多返回 500 条
         logger.warning(
             f"[EXPORT] disease-network: No trait_name filter provided, "

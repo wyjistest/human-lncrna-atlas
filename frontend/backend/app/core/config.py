@@ -44,7 +44,8 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: Optional[str] = Field(default=None, validation_alias="REDIS_PASSWORD")
 
     # CORS配置（支持环境变量 CORS_ORIGINS，JSON 数组格式）
-    # 默认值为开发环境常用地址
+    # 默认值仅包含 localhost，生产环境请通过 CORS_ORIGINS 环境变量配置实际域名
+    # 安全提示：不要在默认值中硬编码具体 IP 地址
     CORS_ORIGINS: List[str] = Field(
         default=[
             "http://localhost:5173",  # Vite开发服务器
@@ -53,10 +54,6 @@ class Settings(BaseSettings):
             "http://127.0.0.1:5173",
             "http://127.0.0.1:5174",
             "http://127.0.0.1:3000",
-            "http://45.62.117.191:5173",  # 远程访问
-            "http://45.62.117.191:5174",
-            "http://192.168.6.135:5173",  # 内网访问
-            "http://192.168.6.135:5174",
         ],
         validation_alias="CORS_ORIGINS",
         description="允许的 CORS 来源列表，环境变量需使用 JSON 数组格式"

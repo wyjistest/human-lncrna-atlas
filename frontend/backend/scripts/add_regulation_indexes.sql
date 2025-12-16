@@ -7,8 +7,17 @@
 -- 执行方式：
 --   psql -d lncrna_production -f add_regulation_indexes.sql
 --
--- 或使用 Python 脚本：
---   python3 scripts/add_regulation_indexes.py
+-- ⚠️ 生产环境风险提示：
+--   1. DROP INDEX 会获取表的排他锁（ACCESS EXCLUSIVE），阻塞所有读写操作
+--   2. 对于 80 万行的表，锁表时间可能达到数秒
+--   3. 建议在低峰期执行，或改用以下安全方式：
+--      - 使用 CREATE INDEX CONCURRENTLY（不阻塞写入，但需要更长时间）
+--      - 使用 DROP INDEX CONCURRENTLY（PostgreSQL 11+）
+--      - 跳过 DROP IF EXISTS，仅在索引不存在时创建
+--
+-- 生产环境推荐执行方式（无锁）：
+--   CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_xxx ON table(column);
+--   -- 验证索引正常工作后再清理旧索引
 
 -- ============================================================================
 -- Step 1: 添加单列索引（用于 JOIN 优化）
