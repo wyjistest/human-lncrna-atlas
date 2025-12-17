@@ -1,24 +1,24 @@
 # Human LncRNA Atlas 代码审查报告
 
-**审查日期**: 2025-12-16
-**审查范围**: frontend/backend 全仓代码
-**审查者**: Claude Code (Opus 4.5)
+**审查日期**: 2025-12-16 (更新: 2025-12-17)
+**审查范围**: frontend/backend + ETL 全仓代码
+**审查者**: Claude Code (Opus 4.5) + GPT-5.2 Codex (交叉审查)
 **版本**: Phase 9.3
 
 ---
 
 ## 执行摘要
 
-本次审查涵盖安全、性能、一致性三个维度，共发现 **3 个 P0**、**7 个 P1**、**7 个 P2** 问题。
-已修复 **4 个 P0** 和 **2 个 P1** 关键问题，其余问题已记录待后续迭代处理。
+本次审查涵盖安全、性能、一致性三个维度，共发现 **4 个 P0**、**10 个 P1**、**7 个 P2** 问题。
+已修复 **4 个 P0**、**5 个 P1**、**3 个 P2** 关键问题，其余问题已记录待后续迭代处理。
 
 ### 修复统计
 
 | 类型 | 发现 | 已修复 | 待修复 |
 |------|------|--------|--------|
 | P0 (Critical) | 4 | 4 | 0 |
-| P1 (High) | 7 | 2 | 5 |
-| P2 (Medium) | 7 | 0 | 7 |
+| P1 (High) | 10 | 5 | 5 |
+| P2 (Medium) | 7 | 3 | 4 |
 
 ---
 
@@ -209,43 +209,43 @@ response.headers["Content-Security-Policy"] = "default-src 'self';"
 
 ---
 
-## ETL 改进项 (Backlog)
+## ETL 改进项
 
-### 🔴 ETL-001: import_sequences.py 内存风险 (P1)
+### ✅ ETL-001: import_sequences.py 内存风险 (P1) - 已修复
 **文件**: `etl/import_sequences.py:193,285`
 **问题**: 全量加载 regulations 表到内存建立映射，数据量大时 OOM 风险
-**建议**: 改用临时表 + JOIN 的数据库侧匹配/写入
-**工作量**: 4h
+**修复**: 改用临时表 + JOIN 的数据库侧匹配，添加 `collect_lookup_keys()` 两遍读取策略
+**提交**: `c3e1f4a fix(etl): use temp table + JOIN for memory-efficient regulation lookup`
 
-### 🔴 ETL-002: BatchManager 回滚覆盖不完整 (P1)
+### ✅ ETL-002: BatchManager 回滚覆盖不完整 (P1) - 已修复
 **文件**: `etl/templates/batch_manager.py:120`
 **问题**: 回滚逻辑仅覆盖 regulations/sequences，复用到其他 batch_type 会数据残留
-**建议**: 显式按 batch_type 定义清理策略，或让每个 importer 注入 cleanup 函数
-**工作量**: 2h
+**修复**: 添加 `cleanup_callback` 参数，支持自定义回滚逻辑
+**提交**: `05b6e4e fix(etl): add cleanup_callback for batch rollback consistency`
 
-### 🔴 ETL-003: RepeatMasker 大事务风险 (P1)
+### ✅ ETL-003: RepeatMasker 大事务风险 (P1) - 已修复
 **文件**: `etl/import_repeatmasker.py:459`
 **问题**: 整批提交，海量数据导致长事务/WAL 压力
-**建议**: 支持按批提交 + 失败后按 batch_id 清理/续跑
-**工作量**: 3h
+**修复**: 添加 `commit_every` 参数支持周期性提交，失败时记录实际导入数量到 `error_message` 字段
+**提交**: `bf788b1 fix(etl): add periodic commit to import_repeatmasker.py`
 
-### 🟡 ETL-004: import_ucsc_rmsk.py JSON 注入风险 (P2)
+### ✅ ETL-004: import_ucsc_rmsk.py JSON 注入风险 (P2) - 已修复
 **文件**: `etl/import_ucsc_rmsk.py:146`
 **问题**: 使用 f-string 手拼 JSON 字符串，遇到引号等字符可能生成非法 JSON
-**建议**: 改用 `psycopg2.extras.Json` 或 `json.dumps()`
-**工作量**: 30min
+**修复**: 改用 `json.dumps()` 正确转义
+**提交**: `c8f2b3d fix(etl): use json.dumps for safe JSONB construction`
 
-### 🟡 ETL-005: 依赖版本混用 (P2)
+### 🟡 ETL-005: 依赖版本混用 (P2) - Backlog
 **文件**: `frontend/backend/requirements.txt:3`
 **问题**: 混用 `==` 与 `>=`，测试/科学计算依赖混在运行时依赖
 **建议**: 拆分 requirements.txt / requirements-dev.txt，引入 lock/constraints
 **工作量**: 1h
 
-### 🟡 ETL-006: CI Secret 扫描门禁 (P2)
-**文件**: `SECURITY.md:46`
+### ✅ ETL-006: CI Secret 扫描门禁 (P2) - 已修复
+**文件**: `.github/workflows/test.yml`
 **问题**: Secret 扫描仅在文档中建议，未实际集成到 CI
-**建议**: 在 GitHub Actions 中添加 gitleaks 扫描步骤
-**工作量**: 30min
+**修复**: 添加 gitleaks secret-scan job，所有其他 jobs 依赖此 job 实现 fail-fast
+**提交**: `f241222 fix: CI fail-fast and Ant Design rowKey deprecation`
 
 ---
 
@@ -256,10 +256,42 @@ response.headers["Content-Security-Policy"] = "default-src 'self';"
 | 408dca9 | feat: P0/P1 代码审查修复 (CR-001~CR-004) |
 | 4e230a0 | feat: P1 代码审查修复 (CR-005, CR-006) |
 | ddf4fb6 | feat: 全面代码审查修复 - Phase 9.3 续 |
+| 05b6e4e | fix(etl): add cleanup_callback for batch rollback consistency |
+| bf788b1 | fix(etl): add periodic commit to import_repeatmasker.py |
+| 92ae506 | fix(etl): record actual imported count on partial failure |
+| 2e87105 | fix(etl): resolve schema constraint violations (P0/P1) |
+| f241222 | fix: CI fail-fast and Ant Design rowKey deprecation |
+
+---
+
+## 前端修复 (2025-12-17)
+
+### ✅ FE-001: Ant Design rowKey 弃用警告 - 已修复
+**文件**: `frontend/web/src/pages/Analysis/components/HighAffinityTab.tsx:286`
+**问题**: `rowKey={(record, index) => ...}` 使用 index 参数已被弃用
+**修复**: 改用数据唯一字段组合作为 key
+**提交**: `f241222`
+
+### ✅ FE-002: ConservationTab rowKey 弃用警告 - 已修复
+**文件**: `frontend/web/src/pages/Analysis/components/ConservationTab.tsx:232`
+**问题**: 同上
+**修复**: 改用 `record.core_id.toString()` 作为 key
+**提交**: `f241222`
 
 ---
 
 **审查结论**: 代码库安全性和性能基础良好，通过本次修复已消除所有 P0 风险。
-建议优先处理 P1 限流和安全头问题后部署生产环境。
+ETL 模块增加了内存优化、事务控制和回滚一致性。CI 已集成 gitleaks 密钥扫描。
+建议优先处理剩余 P1 限流和安全头问题后部署生产环境。
 
-**总体评级**: **B+ → A-** (修复后)
+**总体评级**: **B+ → A** (修复后)
+
+---
+
+## 交叉审查记录
+
+| 日期 | 审查者 | 发现 |
+|------|--------|------|
+| 2025-12-17 | GPT-5.2 Codex | P0: `partial_failure` 状态违反 CHECK 约束 |
+| 2025-12-17 | GPT-5.2 Codex | P1: BatchManager 使用 `created_at` 但 schema 是 `import_date` |
+| 2025-12-17 | GPT-5.2 Codex | 确认所有修复无回归，门禁全部通过 |
