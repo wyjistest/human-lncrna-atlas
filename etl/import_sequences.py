@@ -190,24 +190,64 @@ def lookup_gene(gene_map: Dict[str, int], gene_id: str) -> Optional[int]:
     return None
 
 
-def get_regulation_map(conn, species_id: int) -> Dict[Tuple, int]:
+def get_regulation_map(conn, species_id: int, lookup_keys: Optional[List[Tuple]] = None) -> Dict[Tuple, int]:
     """
     获取 regulation 唯一键到 regulation_id 的映射
 
     Args:
         conn: 数据库连接
         species_id: 物种 ID
+        lookup_keys: 可选的查找键列表，用于过滤查询（内存优化）
+                     格式: [(lnc_id, tgt_id, lnc_start, lnc_end, dna_start, dna_end), ...]
 
     Returns:
         (lnc_id, tgt_id, lnc_start, lnc_end, dna_start, dna_end) -> regulation_id 映射
     """
     with get_cursor(conn) as cursor:
-        cursor.execute("""
-            SELECT regulation_id, lncrna_gene_id, target_gene_id,
-                   lncrna_start, lncrna_end, dna_start, dna_end
-            FROM regulations
-            WHERE species_id = %s
-        """, (species_id,))
+        if lookup_keys is not None and len(lookup_keys) > 0:
+            # Memory-optimized path: use temp table for filtered lookup
+            # This avoids loading ALL regulations into memory
+            cursor.execute("""
+                CREATE TEMP TABLE IF NOT EXISTS temp_lookup_keys (
+                    lncrna_gene_id INTEGER,
+                    target_gene_id INTEGER,
+                    lncrna_start INTEGER,
+                    lncrna_end INTEGER,
+                    dna_start INTEGER,
+                    dna_end INTEGER
+                ) ON COMMIT DELETE ROWS
+            """)
+
+            # Batch insert lookup keys into temp table
+            execute_batch(cursor, """
+                INSERT INTO temp_lookup_keys
+                    (lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, lookup_keys, page_size=5000)
+
+            # JOIN to get only matching regulations
+            cursor.execute("""
+                SELECT r.regulation_id, r.lncrna_gene_id, r.target_gene_id,
+                       r.lncrna_start, r.lncrna_end, r.dna_start, r.dna_end
+                FROM regulations r
+                INNER JOIN temp_lookup_keys t ON
+                    r.lncrna_gene_id = t.lncrna_gene_id AND
+                    r.target_gene_id = t.target_gene_id AND
+                    r.lncrna_start = t.lncrna_start AND
+                    r.lncrna_end = t.lncrna_end AND
+                    r.dna_start = t.dna_start AND
+                    r.dna_end = t.dna_end
+                WHERE r.species_id = %s
+            """, (species_id,))
+        else:
+            # Legacy path: load all regulations (for backward compatibility)
+            # WARNING: This can consume significant memory for large datasets
+            cursor.execute("""
+                SELECT regulation_id, lncrna_gene_id, target_gene_id,
+                       lncrna_start, lncrna_end, dna_start, dna_end
+                FROM regulations
+                WHERE species_id = %s
+            """, (species_id,))
 
         result = {}
         for row in cursor.fetchall():
@@ -215,6 +255,48 @@ def get_regulation_map(conn, species_id: int) -> Dict[Tuple, int]:
             key = (lnc_id, tgt_id, lnc_start, lnc_end, dna_start, dna_end)
             result[key] = reg_id
         return result
+
+
+def collect_lookup_keys(filepath: str, gene_map: Dict[str, int]) -> List[Tuple]:
+    """
+    从输入文件收集所有查找键（第一遍扫描）
+
+    Args:
+        filepath: 输入文件路径
+        gene_map: 基因映射字典
+
+    Returns:
+        查找键列表 [(lnc_gene_id, tgt_gene_id, lnc_start, lnc_end, dna_start, dna_end), ...]
+    """
+    keys = set()  # Use set to deduplicate
+
+    with open(filepath, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f, delimiter='\t')
+
+        for row in reader:
+            try:
+                lncrna_id = row.get('LncRNA_ID', '').strip()
+                target_id = row.get('Target_Gene_ID', '').strip()
+
+                # Get gene_ids
+                lnc_gene_id = lookup_gene(gene_map, lncrna_id)
+                tgt_gene_id = lookup_gene(gene_map, target_id)
+
+                if not lnc_gene_id or not tgt_gene_id:
+                    continue
+
+                # Get positions
+                lnc_start = int(row.get('LncRNA_Start', 0))
+                lnc_end = int(row.get('LncRNA_End', 0))
+                dna_start = int(row.get('DNA_Start', 0))
+                dna_end = int(row.get('DNA_End', 0))
+
+                keys.add((lnc_gene_id, tgt_gene_id, lnc_start, lnc_end, dna_start, dna_end))
+
+            except (ValueError, TypeError):
+                continue
+
+    return list(keys)
 
 
 def insert_sequences(conn, sequences: List[Tuple], dry_run: bool = False) -> int:
@@ -281,8 +363,13 @@ def process_file(
     gene_map = get_gene_id_map(conn, species_id)
     logger.info(f"  基因数: {len(gene_map)}")
 
-    logger.info("加载 regulation 映射...")
-    reg_map = get_regulation_map(conn, species_id)
+    # Memory-optimized: first pass to collect lookup keys, then query only matching regulations
+    logger.info("扫描输入文件收集查找键...")
+    lookup_keys = collect_lookup_keys(filepath, gene_map)
+    logger.info(f"  唯一查找键数: {len(lookup_keys)}")
+
+    logger.info("加载 regulation 映射（仅匹配项）...")
+    reg_map = get_regulation_map(conn, species_id, lookup_keys)
     logger.info(f"  Regulation 数: {len(reg_map)}")
 
     # 读取文件并匹配
