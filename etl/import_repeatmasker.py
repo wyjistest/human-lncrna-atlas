@@ -122,6 +122,17 @@ class RepeatMaskerImporter:
         self.conn.commit()
         cursor.close()
 
+    def _set_error_message(self, batch_id: int, message: str):
+        """Set error message for a batch"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE import_batches
+            SET error_message = %s
+            WHERE batch_id = %s
+        """, (message, batch_id))
+        self.conn.commit()
+        cursor.close()
+
     def _parse_repeatmasker_out(self, file_path: str) -> Generator[Dict, None, None]:
         """
         Parse RepeatMasker .out format
@@ -487,7 +498,14 @@ class RepeatMaskerImporter:
                             f"Partial data committed before failure: {actual_imported:,} records. "
                             f"To cleanup: DELETE FROM genomic_features WHERE batch_id = {batch_id}"
                         )
-                        self._update_batch(batch_id, 'partial_failure', actual_imported)
+                        # Use 'failed' status (CHECK constraint) with actual count for audit
+                        # Store cleanup hint in error_message via separate update
+                        self._update_batch(batch_id, 'failed', actual_imported)
+                        self._set_error_message(
+                            batch_id,
+                            f"PARTIAL_FAILURE: {actual_imported} records committed before error. "
+                            f"Cleanup: DELETE FROM genomic_features WHERE batch_id = {batch_id}"
+                        )
                     else:
                         self._update_batch(batch_id, 'failed', 0)
             raise

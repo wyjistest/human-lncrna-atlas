@@ -95,7 +95,7 @@ class BatchManager:
         with self.conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO import_batches
-                    (batch_name, batch_type, species_id, source_file, status, created_at)
+                    (batch_name, batch_type, species_id, source_file, status, import_date)
                 VALUES (%s, %s, %s, %s, 'in_progress', NOW())
                 RETURNING batch_id
             """, (self.batch_name, self.batch_type, self.species_id, self.source_file))
