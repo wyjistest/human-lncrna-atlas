@@ -257,7 +257,7 @@ export default function EpigeneticTab() {
         <Table
           columns={columns}
           dataSource={data?.data || []}
-          rowKey={(record, index) => `${record.regulation_id}-${record.mark_name}-${index}`}
+          rowKey={(record) => `${record.regulation_id}-${record.mark_name}-${record.peak_chr}-${record.peak_start}-${record.peak_end}`}
           pagination={{
             current: page,
             pageSize,

@@ -265,21 +265,32 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
 - `onConsoleLog` vitest 配置 → 只过滤 console 输出，不过滤 stderr
 - 自定义 JSDOM 环境 + VirtualConsole → jsdom 27.x API 变更，vitest 4.x 加载问题
 
-**最终解决方案**: 拦截 `process.stderr.write`
+**最终解决方案**: 拦截 `process.stderr.write`（带环境变量开关）
 
 ```typescript
 // test/setup.ts
-const originalStderrWrite = process.stderr.write.bind(process.stderr)
-process.stderr.write = (chunk: string | Uint8Array, ...args: unknown[]): boolean => {
-  const text = typeof chunk === 'string' ? chunk : chunk.toString()
-  if (text.includes('Could not parse CSS stylesheet')) {
-    return true // 抑制 CSS 解析错误
+// Set VITEST_SHOW_CSS_ERRORS=1 to see these errors for debugging
+const SUPPRESS_CSS_ERRORS = !process.env.VITEST_SHOW_CSS_ERRORS
+const SUPPRESSED_PATTERNS = ['Could not parse CSS stylesheet']
+
+if (SUPPRESS_CSS_ERRORS) {
+  const originalStderrWrite = process.stderr.write.bind(process.stderr)
+  process.stderr.write = (chunk: string | Uint8Array, ...args: unknown[]): boolean => {
+    const text = typeof chunk === 'string' ? chunk : chunk.toString()
+    if (SUPPRESSED_PATTERNS.some((pattern) => text.includes(pattern))) {
+      return true // Suppress known non-critical errors
+    }
+    return originalStderrWrite(chunk, ...(args as []))
   }
-  return originalStderrWrite(chunk, ...(args as []))
 }
 ```
 
-**教训**: JSDOM 错误直接写入 `process.stderr`，绕过了 `console.error` 和 vitest 的日志过滤机制。
+**调试模式**: 设置 `VITEST_SHOW_CSS_ERRORS=1` 可显示所有错误
+```bash
+VITEST_SHOW_CSS_ERRORS=1 npm run test:run
+```
+
+**教训**: JSDOM 错误直接写入 `process.stderr`，绕过了 `console.error` 和 vitest 的日志过滤机制。stderr 拦截需要环境变量开关以防止掩盖真实错误。
 
 ---
 

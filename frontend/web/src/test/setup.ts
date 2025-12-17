@@ -4,13 +4,19 @@ import { vi } from 'vitest'
 // Suppress JSDOM CSS parsing errors (Antd CSS-in-JS compatibility issue)
 // These errors occur because JSDOM doesn't support modern CSS features
 // They go to stderr directly, bypassing console.error
-const originalStderrWrite = process.stderr.write.bind(process.stderr)
-process.stderr.write = (chunk: string | Uint8Array, ...args: unknown[]): boolean => {
-  const text = typeof chunk === 'string' ? chunk : chunk.toString()
-  if (text.includes('Could not parse CSS stylesheet')) {
-    return true // Suppress CSS parsing errors
+// Set VITEST_SHOW_CSS_ERRORS=1 to see these errors for debugging
+const SUPPRESS_CSS_ERRORS = !process.env.VITEST_SHOW_CSS_ERRORS
+const SUPPRESSED_PATTERNS = ['Could not parse CSS stylesheet']
+
+if (SUPPRESS_CSS_ERRORS) {
+  const originalStderrWrite = process.stderr.write.bind(process.stderr)
+  process.stderr.write = (chunk: string | Uint8Array, ...args: unknown[]): boolean => {
+    const text = typeof chunk === 'string' ? chunk : chunk.toString()
+    if (SUPPRESSED_PATTERNS.some((pattern) => text.includes(pattern))) {
+      return true // Suppress known non-critical errors
+    }
+    return originalStderrWrite(chunk, ...(args as []))
   }
-  return originalStderrWrite(chunk, ...(args as []))
 }
 
 // Mock window.matchMedia (required by Antd)
