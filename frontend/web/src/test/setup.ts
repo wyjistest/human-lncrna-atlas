@@ -1,9 +1,17 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-// Note: "Could not parse CSS stylesheet" warnings from JSDOM are expected.
-// These occur because JSDOM doesn't fully support modern CSS features
-// used by Antd's CSS-in-JS runtime. They don't affect test results.
+// Suppress JSDOM CSS parsing errors (Antd CSS-in-JS compatibility issue)
+// These errors occur because JSDOM doesn't support modern CSS features
+// They go to stderr directly, bypassing console.error
+const originalStderrWrite = process.stderr.write.bind(process.stderr)
+process.stderr.write = (chunk: string | Uint8Array, ...args: unknown[]): boolean => {
+  const text = typeof chunk === 'string' ? chunk : chunk.toString()
+  if (text.includes('Could not parse CSS stylesheet')) {
+    return true // Suppress CSS parsing errors
+  }
+  return originalStderrWrite(chunk, ...(args as []))
+}
 
 // Mock window.matchMedia (required by Antd)
 Object.defineProperty(window, 'matchMedia', {

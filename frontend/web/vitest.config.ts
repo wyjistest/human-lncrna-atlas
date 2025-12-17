@@ -13,12 +13,13 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', 'src/test/'],
     },
-    // Filter JSDOM CSS warnings (doesn't fully suppress due to worker threads,
-    // but reduces noise). JSDOM doesn't support modern CSS used by Antd.
+    // Filter CSS parsing errors from console output (secondary layer)
+    // Primary suppression is in setup.ts via stderr interception
     onConsoleLog(log) {
       if (log.includes('Could not parse CSS stylesheet')) {
         return false
       }
+      return true
     },
   },
   resolve: {
