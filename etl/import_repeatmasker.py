@@ -477,9 +477,19 @@ class RepeatMaskerImporter:
         except Exception as e:
             logger.error(f"Import failed: {e}")
             if not dry_run:
-                self.conn.rollback()
+                self.conn.rollback()  # Only rolls back uncommitted batches
                 if batch_id:
-                    self._update_batch(batch_id, 'failed', 0)
+                    # Record actual imported count for cleanup/resume purposes
+                    # With commit_every > 0, some data may have been committed before failure
+                    actual_imported = self.stats.get('imported', 0)
+                    if actual_imported > 0:
+                        logger.warning(
+                            f"Partial data committed before failure: {actual_imported:,} records. "
+                            f"To cleanup: DELETE FROM genomic_features WHERE batch_id = {batch_id}"
+                        )
+                        self._update_batch(batch_id, 'partial_failure', actual_imported)
+                    else:
+                        self._update_batch(batch_id, 'failed', 0)
             raise
 
     def print_stats(self):
