@@ -378,6 +378,7 @@ class RepeatMaskerImporter:
         file_format: str = 'out',
         batch_name: Optional[str] = None,
         batch_size: int = 5000,
+        commit_every: int = 10,
         dry_run: bool = False,
         chromosome_filter: Optional[str] = None,
     ):
@@ -390,6 +391,8 @@ class RepeatMaskerImporter:
             file_format: Input format (out, bed, tsv)
             batch_name: Optional batch name
             batch_size: Number of records per batch insert
+            commit_every: Commit transaction after every N batch inserts (default: 10)
+                          Set to 0 to commit only at the end (old behavior, not recommended)
             dry_run: If True, don't actually insert data
             chromosome_filter: Optional chromosome filter (e.g., 'chr1')
         """
@@ -426,6 +429,7 @@ class RepeatMaskerImporter:
 
         # Process records
         features = []
+        batch_insert_count = 0  # Track batch inserts for periodic commits
         try:
             for record in parser:
                 self.stats['total_lines'] += 1
@@ -440,6 +444,13 @@ class RepeatMaskerImporter:
                 if len(features) >= batch_size:
                     if not dry_run:
                         self._batch_insert(features, species_id, batch_id)
+                        batch_insert_count += 1
+
+                        # Periodic commit to avoid large transaction / WAL pressure
+                        if commit_every > 0 and batch_insert_count % commit_every == 0:
+                            self.conn.commit()
+                            logger.info(f"Committed {self.stats['imported']:,} records "
+                                      f"({batch_insert_count} batches)")
                     else:
                         self.stats['imported'] += len(features)
                     features = []
@@ -456,7 +467,7 @@ class RepeatMaskerImporter:
                 else:
                     self.stats['imported'] += len(features)
 
-            # Commit transaction
+            # Final commit for any uncommitted data
             if not dry_run:
                 self.conn.commit()
                 self._update_batch(batch_id, 'completed', self.stats['imported'])
@@ -522,6 +533,8 @@ Examples:
     parser.add_argument('--batch-name', help='Custom batch name')
     parser.add_argument('--batch-size', type=int, default=5000,
                        help='Batch insert size (default: 5000)')
+    parser.add_argument('--commit-every', type=int, default=10,
+                       help='Commit after every N batch inserts (default: 10, 0=end only)')
     parser.add_argument('--chr', dest='chromosome',
                        help='Only import specific chromosome (e.g., chr1)')
     parser.add_argument('--dry-run', action='store_true',
@@ -562,6 +575,7 @@ Examples:
             file_format=args.format,
             batch_name=args.batch_name,
             batch_size=args.batch_size,
+            commit_every=args.commit_every,
             dry_run=args.dry_run,
             chromosome_filter=args.chromosome,
         )
