@@ -101,6 +101,56 @@ if (loading) return <Loading />
 
 ---
 
+## pytest 测试
+
+### 问题：pytest marker 过滤不阻止模块导入
+
+**现象**: 运行 `pytest -m unit` 时，即使集成测试被过滤掉，仍然报 `ModuleNotFoundError`
+
+```
+collected 180 items / 2 errors / 166 deselected / 14 selected
+
+ERROR collecting tests/test_api_smoke.py
+ModuleNotFoundError: No module named 'requests'
+```
+
+**原因**: pytest 的 `-m` 参数只过滤**运行**哪些测试，不跳过**导入**。收集阶段会导入所有测试模块以发现 `@pytest.mark.xxx` 标记，然后才决定运行哪些。
+
+**流程**:
+```
+1. pytest 发现所有 test_*.py 文件
+2. 导入每个模块（包括顶层 import 语句）  ← 这里会报错
+3. 收集所有带 @pytest.mark 的测试函数
+4. 按 -m 参数过滤
+5. 运行过滤后的测试
+```
+
+**解决方案**:
+
+1. **推荐**: 在 `requirements.txt` 中包含所有测试依赖（即使是集成测试专用的）
+   ```
+   # 测试
+   pytest==7.4.3
+   httpx==0.25.2
+   requests>=2.31.0  # 集成测试使用，但收集阶段需要
+   ```
+
+2. **备选**: 使用 `--ignore` 排除特定文件（但这会绕过 marker 机制）
+   ```bash
+   pytest -m unit --ignore=tests/test_api_smoke.py
+   ```
+
+3. **延迟导入**: 在测试函数内部导入（不推荐，代码冗余）
+   ```python
+   def test_something():
+       import requests  # 延迟导入
+       ...
+   ```
+
+**教训**: marker 系统是**运行时过滤**，不是**收集时过滤**。所有测试文件的顶层代码都会执行。
+
+---
+
 ## SQLAlchemy 注意点
 
 ### 问题：布尔比较
@@ -322,4 +372,4 @@ from app.core.config import settings  # noqa: E402
 
 ---
 
-*文档更新: 2025-12-15*
+*文档更新: 2025-12-17*
