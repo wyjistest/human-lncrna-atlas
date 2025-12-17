@@ -254,6 +254,35 @@ HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
 
 ---
 
+### 问题：JSDOM CSS 解析警告
+
+**现象**: Vitest 运行时出现大量 `Could not parse CSS stylesheet` 警告
+
+**原因**: JSDOM 不支持 Antd CSS-in-JS 使用的现代 CSS 特性（如 `:where()`, `@layer` 等）
+
+**尝试过但失败的方案**:
+- `console.error` 拦截 → JSDOM 错误不走 console
+- `onConsoleLog` vitest 配置 → 只过滤 console 输出，不过滤 stderr
+- 自定义 JSDOM 环境 + VirtualConsole → jsdom 27.x API 变更，vitest 4.x 加载问题
+
+**最终解决方案**: 拦截 `process.stderr.write`
+
+```typescript
+// test/setup.ts
+const originalStderrWrite = process.stderr.write.bind(process.stderr)
+process.stderr.write = (chunk: string | Uint8Array, ...args: unknown[]): boolean => {
+  const text = typeof chunk === 'string' ? chunk : chunk.toString()
+  if (text.includes('Could not parse CSS stylesheet')) {
+    return true // 抑制 CSS 解析错误
+  }
+  return originalStderrWrite(chunk, ...(args as []))
+}
+```
+
+**教训**: JSDOM 错误直接写入 `process.stderr`，绕过了 `console.error` 和 vitest 的日志过滤机制。
+
+---
+
 ## 安全相关
 
 ### 问题：X-Forwarded-For 伪造
@@ -412,4 +441,4 @@ echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, CanvasRendere
 
 ---
 
-*文档更新: 2025-12-17*
+*文档更新: 2025-12-17 (Phase 9.3)*
