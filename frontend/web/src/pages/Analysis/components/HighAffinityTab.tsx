@@ -283,7 +283,7 @@ export default function HighAffinityTab() {
         <Table
           columns={columns}
           dataSource={data?.data || []}
-          rowKey={(record, index) => `${record.lncrna_gene_id}-${record.target_gene_id}-${index}`}
+          rowKey={(record) => `${record.lncrna_gene_id}-${record.target_gene_id}-${record.species_id}-${record.start_in_genome}-${record.end_in_genome}`}
           pagination={{
             current: page,
             pageSize,

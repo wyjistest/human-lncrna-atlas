@@ -229,7 +229,7 @@ export default function ConservationTab() {
         <Table
           columns={columns}
           dataSource={data?.data || []}
-          rowKey={(record, index) => `${record.core_id}-${index}`}
+          rowKey={(record) => record.core_id.toString()}
           pagination={{
             current: page,
             pageSize,
