@@ -209,6 +209,46 @@ response.headers["Content-Security-Policy"] = "default-src 'self';"
 
 ---
 
+## ETL 改进项 (Backlog)
+
+### 🔴 ETL-001: import_sequences.py 内存风险 (P1)
+**文件**: `etl/import_sequences.py:193,285`
+**问题**: 全量加载 regulations 表到内存建立映射，数据量大时 OOM 风险
+**建议**: 改用临时表 + JOIN 的数据库侧匹配/写入
+**工作量**: 4h
+
+### 🔴 ETL-002: BatchManager 回滚覆盖不完整 (P1)
+**文件**: `etl/templates/batch_manager.py:120`
+**问题**: 回滚逻辑仅覆盖 regulations/sequences，复用到其他 batch_type 会数据残留
+**建议**: 显式按 batch_type 定义清理策略，或让每个 importer 注入 cleanup 函数
+**工作量**: 2h
+
+### 🔴 ETL-003: RepeatMasker 大事务风险 (P1)
+**文件**: `etl/import_repeatmasker.py:459`
+**问题**: 整批提交，海量数据导致长事务/WAL 压力
+**建议**: 支持按批提交 + 失败后按 batch_id 清理/续跑
+**工作量**: 3h
+
+### 🟡 ETL-004: import_ucsc_rmsk.py JSON 注入风险 (P2)
+**文件**: `etl/import_ucsc_rmsk.py:146`
+**问题**: 使用 f-string 手拼 JSON 字符串，遇到引号等字符可能生成非法 JSON
+**建议**: 改用 `psycopg2.extras.Json` 或 `json.dumps()`
+**工作量**: 30min
+
+### 🟡 ETL-005: 依赖版本混用 (P2)
+**文件**: `frontend/backend/requirements.txt:3`
+**问题**: 混用 `==` 与 `>=`，测试/科学计算依赖混在运行时依赖
+**建议**: 拆分 requirements.txt / requirements-dev.txt，引入 lock/constraints
+**工作量**: 1h
+
+### 🟡 ETL-006: CI Secret 扫描门禁 (P2)
+**文件**: `SECURITY.md:46`
+**问题**: Secret 扫描仅在文档中建议，未实际集成到 CI
+**建议**: 在 GitHub Actions 中添加 gitleaks 扫描步骤
+**工作量**: 30min
+
+---
+
 ## 提交记录
 
 | Commit | 描述 |
