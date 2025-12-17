@@ -99,7 +99,7 @@ psql: 致命错误: 角色 "amax" 不存在
 psql: 致命错误: 用户 "amax" Password 认证失败
 ```
 **修复**:
-1. 设置密码: `ALTER USER amax WITH PASSWORD '19950622_Wyj';`
+1. 设置密码: `ALTER USER amax WITH PASSWORD '<YOUR_SECURE_PASSWORD>';`
 2. 配置.pgpass文件（权限600）
 3. 修改pg_hba.conf为md5认证
 
@@ -441,7 +441,7 @@ export DB_NAME="lncrna_production"
 ```bash
 # .pgpass文件位置
 cat ~/.pgpass
-# 格式: localhost:5432:*:amax:19950622_Wyj
+# 格式: localhost:5432:*:amax:<YOUR_PASSWORD>
 
 # 权限必须是600
 chmod 600 ~/.pgpass
@@ -457,7 +457,7 @@ chmod 600 ~/.pgpass
    - 安装来源: apt-archive.postgresql.org (Ubuntu 20.04归档仓库)
    - 服务状态: active
    - 用户: amax（拥有超级权限）
-   - 密码: 19950622_Wyj
+   - 密码: <YOUR_SECURE_PASSWORD>
 
 2. ✅ **端到端测试8/8通过**
    - 测试数据库: lncrna_e2e_test
