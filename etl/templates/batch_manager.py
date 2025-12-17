@@ -15,7 +15,7 @@
 import os
 import psycopg2
 from psycopg2 import sql
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Callable
 import logging
 import re
 
@@ -47,7 +47,8 @@ class BatchManager:
     """
 
     def __init__(self, connection, batch_name: str, batch_type: str,
-                 species_id: Optional[int] = None, source_file: Optional[str] = None):
+                 species_id: Optional[int] = None, source_file: Optional[str] = None,
+                 cleanup_callback: Optional[Callable[[int, 'psycopg2.extensions.cursor'], None]] = None):
         """
         初始化批次管理器
 
@@ -57,6 +58,8 @@ class BatchManager:
             batch_type: 批次类型（regulations, traits, genes, repeatmasker等）
             species_id: 物种ID（如果适用）
             source_file: 源文件路径
+            cleanup_callback: 自定义回滚清理函数，签名: (batch_id, cursor) -> None
+                              用于非 regulations 类型的批次清理
         """
         self.conn = connection
         self.batch_name = batch_name
@@ -65,6 +68,7 @@ class BatchManager:
         self.source_file = source_file
         self.batch_id: Optional[int] = None
         self.record_count = 0
+        self.cleanup_callback = cleanup_callback
 
     def __enter__(self):
         """上下文管理器入口 - 创建批次"""
@@ -125,20 +129,34 @@ class BatchManager:
 
         try:
             with self.conn.cursor() as cur:
-                # 1. 先删除sequences表数据（必须在删除regulations之前）
-                cur.execute("""
-                    DELETE FROM sequences
-                    WHERE regulation_id IN (
-                        SELECT regulation_id FROM regulations WHERE batch_id = %s
+                if self.cleanup_callback is not None:
+                    # Use custom cleanup callback
+                    logger.info(f"使用自定义清理函数回滚批次 {self.batch_id}")
+                    self.cleanup_callback(self.batch_id, cur)
+                elif self.batch_type == 'regulations':
+                    # Default cleanup for regulations batch type
+                    # 1. 先删除sequences表数据（必须在删除regulations之前）
+                    cur.execute("""
+                        DELETE FROM sequences
+                        WHERE regulation_id IN (
+                            SELECT regulation_id FROM regulations WHERE batch_id = %s
+                        )
+                    """, (self.batch_id,))
+                    deleted_seqs = cur.rowcount
+
+                    # 2. 再删除regulations表数据
+                    cur.execute("DELETE FROM regulations WHERE batch_id = %s", (self.batch_id,))
+                    deleted_regs = cur.rowcount
+                    logger.info(f"删除 {deleted_seqs} sequences, {deleted_regs} regulations")
+                else:
+                    # Non-regulations batch type without cleanup callback
+                    # Only mark batch as failed, warn about potential data residue
+                    logger.warning(
+                        f"批次类型 '{self.batch_type}' 无自定义清理函数，"
+                        f"可能存在数据残留。请使用 cleanup_callback 参数定义清理逻辑。"
                     )
-                """, (self.batch_id,))
-                deleted_seqs = cur.rowcount
 
-                # 2. 再删除regulations表数据
-                cur.execute("DELETE FROM regulations WHERE batch_id = %s", (self.batch_id,))
-                deleted_regs = cur.rowcount
-
-                # 3. 标记批次失败
+                # Mark batch as failed
                 cur.execute("""
                     UPDATE import_batches
                     SET status = 'failed',
@@ -148,8 +166,7 @@ class BatchManager:
                 """, (self.batch_id,))
 
                 self.conn.commit()
-                logger.info(f"批次 {self.batch_id} 回滚完成: "
-                           f"删除 {deleted_seqs} sequences, {deleted_regs} regulations")
+                logger.info(f"批次 {self.batch_id} 回滚完成")
 
         except Exception as e:
             logger.error(f"回滚批次 {self.batch_id} 失败: {e}")
