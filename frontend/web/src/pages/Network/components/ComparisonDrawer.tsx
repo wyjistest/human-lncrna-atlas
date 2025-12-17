@@ -70,7 +70,7 @@ export const ComparisonDrawer = ({
             )}
             <Table
               dataSource={speciesData.targets}
-              rowKey={(record: SpeciesTargetGene, index?: number) => `${record.target_gene_id}-${record.target_core_id}-${index ?? 0}`}
+              rowKey={(record: SpeciesTargetGene) => `${record.target_gene_id}-${record.target_core_id}`}
               size="small"
               pagination={{ pageSize: 20, showSizeChanger: true }}
               columns={[
