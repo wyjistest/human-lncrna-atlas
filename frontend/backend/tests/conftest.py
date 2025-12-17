@@ -106,23 +106,24 @@ def validate_single_response(data: dict, schema: type) -> Any:
 
 
 # ============== 常用测试数据 ==============
+# 可通过环境变量配置，支持不同环境/数据集
 
 @pytest.fixture
 def known_gene_id() -> int:
     """已知存在的基因 ID（用于详情测试）"""
-    return 17276  # 从现有测试中获取
+    return int(os.getenv("TEST_KNOWN_GENE_ID", "17276"))
 
 
 @pytest.fixture
 def known_regulation_id() -> int:
     """已知存在的调控关系 ID"""
-    return 804941
+    return int(os.getenv("TEST_KNOWN_REGULATION_ID", "804941"))
 
 
 @pytest.fixture
 def known_disease_id() -> int:
     """已知存在的疾病 ID"""
-    return 1
+    return int(os.getenv("TEST_KNOWN_DISEASE_ID", "1"))
 
 
 # ============== Schema Fixtures（方便测试使用） ==============

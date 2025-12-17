@@ -22,20 +22,20 @@ echo ""
 check_services() {
     echo -e "${YELLOW}检查服务状态...${NC}"
 
-    # 检查后端
-    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+    # 检查后端 (-f: fail on HTTP errors, -sS: silent but show errors)
+    if curl -fsS http://localhost:8000/health > /dev/null 2>&1; then
         echo -e "  后端 (8000): ${GREEN}运行中${NC}"
     else
-        echo -e "  后端 (8000): ${RED}未运行${NC}"
+        echo -e "  后端 (8000): ${RED}未运行或返回错误${NC}"
         echo -e "  ${YELLOW}请先启动后端: cd frontend/backend && python3 -m uvicorn main:app --port 8000${NC}"
         return 1
     fi
 
-    # 检查前端
-    if curl -s http://localhost:5173 > /dev/null 2>&1; then
+    # 检查前端 (-f: fail on HTTP errors like 502, -sS: silent but show errors)
+    if curl -fsS http://localhost:5173 > /dev/null 2>&1; then
         echo -e "  前端 (5173): ${GREEN}运行中${NC}"
     else
-        echo -e "  前端 (5173): ${RED}未运行${NC}"
+        echo -e "  前端 (5173): ${RED}未运行或返回错误${NC}"
         echo -e "  ${YELLOW}请先启动前端: cd frontend/web && npm run dev${NC}"
         return 1
     fi
@@ -90,7 +90,7 @@ run_e2e_tests() {
 main() {
     local failed=0
 
-    case "${1:-all}" in
+    case "${1:-smoke}" in
         backend)
             check_services || exit 1
             run_backend_tests || failed=1
@@ -102,7 +102,12 @@ main() {
             check_services || exit 1
             run_e2e_tests || failed=1
             ;;
+        smoke)
+            # 默认: 仅运行无外部依赖的单元测试
+            run_frontend_unit_tests || failed=1
+            ;;
         all)
+            # 完整测试: 需要后端和前端服务运行
             check_services || exit 1
             echo ""
             run_backend_tests || failed=1
@@ -112,12 +117,13 @@ main() {
             run_e2e_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [backend|unit|e2e|all]"
+            echo "用法: $0 [smoke|unit|backend|e2e|all]"
             echo ""
-            echo "  backend  - 运行后端 API 合同测试"
+            echo "  smoke    - 运行前端单元测试（默认，无外部依赖）"
             echo "  unit     - 运行前端单元测试"
-            echo "  e2e      - 运行前端 E2E 测试"
-            echo "  all      - 运行所有测试（默认）"
+            echo "  backend  - 运行后端 API 合同测试（需要服务运行）"
+            echo "  e2e      - 运行前端 E2E 测试（需要服务运行）"
+            echo "  all      - 运行所有测试（需要服务运行）"
             exit 1
             ;;
     esac

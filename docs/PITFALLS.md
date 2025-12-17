@@ -372,4 +372,44 @@ from app.core.config import settings  # noqa: E402
 
 ---
 
+## 前端性能优化
+
+### 建议：大型依赖按需引入
+
+**现状**: `vite.config.ts` 已配置 `manualChunks` 拆分，但某些 chunk 仍偏大：
+
+| Chunk | 大小 | 优化方向 |
+|-------|------|----------|
+| antd-vendor | ~450KB | 按组件引入 + babel-plugin-import |
+| echarts-core | ~800KB | 按图表类型引入 (echarts/charts) |
+| igv-vendor | ~600KB | 已延迟加载，可接受 |
+
+**antd 按需引入示例**:
+```typescript
+// ❌ 全量引入
+import { Button, Table, Form } from 'antd'
+
+// ✅ 按需引入 (需配置 babel-plugin-import)
+import Button from 'antd/es/button'
+import Table from 'antd/es/table'
+```
+
+**echarts 按需引入示例**:
+```typescript
+// ❌ 全量引入
+import * as echarts from 'echarts'
+
+// ✅ 按需引入
+import * as echarts from 'echarts/core'
+import { BarChart, LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, CanvasRenderer])
+```
+
+**注意**: 按需引入需要修改现有组件代码，建议在需要显著优化首屏加载时实施。
+
+---
+
 *文档更新: 2025-12-17*
