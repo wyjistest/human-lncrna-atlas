@@ -23,6 +23,7 @@ Usage:
 """
 
 import argparse
+import json
 from datetime import datetime
 import psycopg2
 from psycopg2.extras import execute_values
@@ -142,8 +143,12 @@ def import_data(conn, input_file, species_id, track_id, batch_id, batch_size=100
                 record['repeat_name'],
                 record['strand'],
                 record['sw_score'],
-                # JSONB attributes
-                f'{{"repeat_class": "{record["repeat_class"]}", "repeat_family": "{record["repeat_family"]}", "divergence": {record["divergence"]}}}',
+                # JSONB attributes - use json.dumps() for proper escaping
+                json.dumps({
+                    "repeat_class": record["repeat_class"],
+                    "repeat_family": record["repeat_family"],
+                    "divergence": record["divergence"]
+                }),
                 batch_id
             )
             batch_data.append(row)
