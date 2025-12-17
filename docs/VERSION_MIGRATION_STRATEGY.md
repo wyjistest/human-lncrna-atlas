@@ -330,7 +330,7 @@ jobs:
 
       - name: 测试全新安装
         run: |
-          export DB_PASSWORD=test
+          export DB_PASSWORD="${{ secrets.DB_PASSWORD }}"
           ./scripts/init_db.sh
 
       - name: 测试迁移脚本
