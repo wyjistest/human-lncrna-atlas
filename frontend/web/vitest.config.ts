@@ -13,9 +13,13 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', 'src/test/'],
     },
-    // Note: "Could not parse CSS stylesheet" warnings from JSDOM are expected
-    // and don't affect test results. JSDOM doesn't fully support modern CSS
-    // features used by Antd's CSS-in-JS. Suppressing requires custom environment.
+    // Filter JSDOM CSS warnings (doesn't fully suppress due to worker threads,
+    // but reduces noise). JSDOM doesn't support modern CSS used by Antd.
+    onConsoleLog(log) {
+      if (log.includes('Could not parse CSS stylesheet')) {
+        return false
+      }
+    },
   },
   resolve: {
     alias: {

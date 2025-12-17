@@ -138,12 +138,12 @@ main() {
         *)
             echo "用法: $0 [smoke|unit|backend-unit|backend|e2e|all]"
             echo ""
-            echo "  smoke       - 运行所有单元测试（默认，无外部依赖）"
-            echo "  unit        - 运行前端单元测试"
-            echo "  backend-unit- 运行后端单元测试 (pytest -m unit)"
-            echo "  backend     - 运行后端 API 合同测试（需要服务运行）"
-            echo "  e2e         - 运行前端 E2E 测试（需要服务运行）"
-            echo "  all         - 运行所有测试（需要服务运行）"
+            echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
+            echo "  unit         - 运行前端单元测试"
+            echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
+            echo "  backend      - 运行后端 API 合同测试（需要服务运行）"
+            echo "  e2e          - 运行前端 E2E 测试（需要服务运行）"
+            echo "  all          - 运行所有测试（需要服务运行）"
             exit 1
             ;;
     esac
