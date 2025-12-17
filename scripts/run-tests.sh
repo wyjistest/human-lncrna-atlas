@@ -44,16 +44,30 @@ check_services() {
     return 0
 }
 
-# 运行后端测试
+# 运行后端 API 合同测试 (需要服务运行)
 run_backend_tests() {
-    echo -e "${YELLOW}运行后端 API 测试...${NC}"
+    echo -e "${YELLOW}运行后端 API 合同测试...${NC}"
     cd "$PROJECT_ROOT/frontend/backend"
 
     if python3 -m pytest tests/test_api_contracts.py -v --tb=short; then
-        echo -e "${GREEN}后端测试通过!${NC}"
+        echo -e "${GREEN}后端 API 测试通过!${NC}"
         return 0
     else
-        echo -e "${RED}后端测试失败${NC}"
+        echo -e "${RED}后端 API 测试失败${NC}"
+        return 1
+    fi
+}
+
+# 运行后端单元测试 (无外部依赖)
+run_backend_unit_tests() {
+    echo -e "${YELLOW}运行后端单元测试 (pytest -m unit)...${NC}"
+    cd "$PROJECT_ROOT/frontend/backend"
+
+    if python3 -m pytest -m unit -v --tb=short; then
+        echo -e "${GREEN}后端单元测试通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}后端单元测试失败${NC}"
         return 1
     fi
 }
@@ -95,6 +109,9 @@ main() {
             check_services || exit 1
             run_backend_tests || failed=1
             ;;
+        backend-unit)
+            run_backend_unit_tests || failed=1
+            ;;
         unit)
             run_frontend_unit_tests || failed=1
             ;;
@@ -103,7 +120,9 @@ main() {
             run_e2e_tests || failed=1
             ;;
         smoke)
-            # 默认: 仅运行无外部依赖的单元测试
+            # 默认: 运行所有无外部依赖的单元测试
+            run_backend_unit_tests || failed=1
+            echo ""
             run_frontend_unit_tests || failed=1
             ;;
         all)
@@ -117,13 +136,14 @@ main() {
             run_e2e_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|unit|backend|e2e|all]"
+            echo "用法: $0 [smoke|unit|backend-unit|backend|e2e|all]"
             echo ""
-            echo "  smoke    - 运行前端单元测试（默认，无外部依赖）"
-            echo "  unit     - 运行前端单元测试"
-            echo "  backend  - 运行后端 API 合同测试（需要服务运行）"
-            echo "  e2e      - 运行前端 E2E 测试（需要服务运行）"
-            echo "  all      - 运行所有测试（需要服务运行）"
+            echo "  smoke       - 运行所有单元测试（默认，无外部依赖）"
+            echo "  unit        - 运行前端单元测试"
+            echo "  backend-unit- 运行后端单元测试 (pytest -m unit)"
+            echo "  backend     - 运行后端 API 合同测试（需要服务运行）"
+            echo "  e2e         - 运行前端 E2E 测试（需要服务运行）"
+            echo "  all         - 运行所有测试（需要服务运行）"
             exit 1
             ;;
     esac

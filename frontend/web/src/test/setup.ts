@@ -1,16 +1,9 @@
 import '@testing-library/jest-dom'
 import { vi } from 'vitest'
 
-// Suppress JSDOM CSS parsing warnings ("Could not parse CSS stylesheet")
-// JSDOM doesn't fully support CSS parsing, especially for modern CSS features
-const originalConsoleError = console.error
-console.error = (...args: unknown[]) => {
-  const message = args[0]
-  if (typeof message === 'string' && message.includes('Could not parse CSS stylesheet')) {
-    return // Suppress CSS parsing warnings
-  }
-  originalConsoleError.apply(console, args)
-}
+// Note: "Could not parse CSS stylesheet" warnings from JSDOM are expected.
+// These occur because JSDOM doesn't fully support modern CSS features
+// used by Antd's CSS-in-JS runtime. They don't affect test results.
 
 // Mock window.matchMedia (required by Antd)
 Object.defineProperty(window, 'matchMedia', {
