@@ -123,9 +123,25 @@ def _validate_security_config() -> None:
     # Fail-Fast: 存在致命错误时拒绝启动
     if fatal_errors:
         if allow_insecure:
-            logger.warning(
-                "🚨 SECURITY_ALLOW_INSECURE=true - Bypassing security checks. "
-                "DO NOT USE IN PRODUCTION!"
+            # 极醒目警告：生产环境误配置此变量将导致严重安全漏洞
+            insecure_warning = """
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  🚨🚨🚨 SECURITY_ALLOW_INSECURE=true 已启用 🚨🚨🚨
+║
+║  ⚠️  所有安全检查已被绕过！当前风险：
+║      - Admin API 可能无需认证即可访问
+║      - 限流功能可能被完全禁用
+║      - 系统对 DoS 攻击和未授权访问毫无防护
+║
+║  🔴 如果这是生产环境，请立即停止服务并移除此环境变量！
+║
+║  ✅ 仅在本地开发/测试环境使用此配置。
+╚══════════════════════════════════════════════════════════════════════════════╝
+"""
+            logger.warning(insecure_warning)
+            # 额外记录到 ERROR 级别确保被监控系统捕获
+            logger.error(
+                "INSECURE_MODE_ACTIVE: Security checks bypassed via SECURITY_ALLOW_INSECURE=true"
             )
         else:
             error_summary = "; ".join(fatal_errors)
@@ -221,6 +237,8 @@ async def add_security_headers(request: Request, call_next):
     - X-XSS-Protection: 启用浏览器 XSS 过滤（旧版浏览器）
     - Referrer-Policy: 控制 Referer 头发送策略
     - Permissions-Policy: 限制浏览器功能（如地理位置、摄像头）
+    - Strict-Transport-Security: 强制 HTTPS（需配置 ENABLE_HSTS=true）
+    - Content-Security-Policy: 限制资源加载来源（API 严格模式）
     """
     response = await call_next(request)
 
@@ -238,6 +256,24 @@ async def add_security_headers(request: Request, call_next):
 
     # 限制浏览器功能（API 不需要这些功能）
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+
+    # HSTS - 仅在配置启用时添加（需要 HTTPS 已完全配置）
+    if settings.ENABLE_HSTS:
+        hsts_value = f"max-age={settings.HSTS_MAX_AGE}"
+        if settings.HSTS_INCLUDE_SUBDOMAINS:
+            hsts_value += "; includeSubDomains"
+        if settings.HSTS_PRELOAD:
+            hsts_value += "; preload"
+        response.headers["Strict-Transport-Security"] = hsts_value
+
+    # CSP - API 严格策略（禁止内联脚本、eval、外部资源）
+    # API 返回 JSON 数据，不需要加载任何外部资源
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'none'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'none'; "
+        "form-action 'none'"
+    )
 
     return response
 
@@ -387,9 +423,43 @@ if GENOMES_DIR and os.path.exists(GENOMES_DIR):
     # 创建独立的 FastAPI 子应用用于静态文件服务
     # 使用 Starlette CORSMiddleware 包装，代替自定义 CORSStaticFiles 实现
     from fastapi import FastAPI as SubFastAPI
+    from starlette.types import ASGIApp as StarletteASGIApp
 
     # 创建静态文件子应用
     genomes_app = SubFastAPI()
+
+    # 安全头中间件（静态文件版）- 添加基本安全保护
+    class StaticSecurityHeadersMiddleware:
+        """为静态文件服务添加安全响应头"""
+
+        def __init__(self, app: StarletteASGIApp):
+            self.app = app
+
+        async def __call__(self, scope, receive, send):
+            if scope["type"] != "http":
+                await self.app(scope, receive, send)
+                return
+
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start":
+                    headers = list(message.get("headers", []))
+                    # 添加基本安全头
+                    headers.extend([
+                        (b"x-content-type-options", b"nosniff"),
+                        (b"x-frame-options", b"DENY"),
+                        (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                        # 静态文件的 CSP：仅允许自身
+                        (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
+                        # 缓存控制：基因组文件不常变化，允许缓存
+                        (b"cache-control", b"public, max-age=86400"),
+                    ])
+                    message = {**message, "headers": headers}
+                await send(message)
+
+            await self.app(scope, receive, send_wrapper)
+
+    # 添加安全头中间件（先添加的后执行，所以安全头在 CORS 之后添加）
+    genomes_app.add_middleware(StaticSecurityHeadersMiddleware)
 
     # 为子应用添加 CORS 中间件（使用标准 Starlette 实现）
     genomes_app.add_middleware(

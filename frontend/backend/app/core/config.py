@@ -178,6 +178,30 @@ class Settings(BaseSettings):
         description="Allow private IPs to bypass rate limiting (dev only, keep False in production)"
     )
 
+    # HSTS (HTTP Strict Transport Security)
+    # Only enable when HTTPS is fully configured - this tells browsers to ONLY use HTTPS
+    # SECURITY NOTE: Once enabled with preload, it's very difficult to disable
+    ENABLE_HSTS: bool = Field(
+        default=False,
+        validation_alias="ENABLE_HSTS",
+        description="Enable HSTS header (only enable when HTTPS is fully configured)"
+    )
+    HSTS_MAX_AGE: int = Field(
+        default=31536000,  # 1 year
+        validation_alias="HSTS_MAX_AGE",
+        description="HSTS max-age in seconds (default: 1 year)"
+    )
+    HSTS_INCLUDE_SUBDOMAINS: bool = Field(
+        default=True,
+        validation_alias="HSTS_INCLUDE_SUBDOMAINS",
+        description="Include subdomains in HSTS policy"
+    )
+    HSTS_PRELOAD: bool = Field(
+        default=False,
+        validation_alias="HSTS_PRELOAD",
+        description="Add preload directive (only after testing, hard to undo)"
+    )
+
     # IGV Genome Files Directory
     # Path to directory containing genome reference files for IGV.js browser
     # If not set or directory doesn't exist, IGV static file service will be disabled

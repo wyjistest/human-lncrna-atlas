@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.6 |
+| 版本 | Phase 9.7 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-18 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -149,6 +149,11 @@ npx playwright show-report
 | REQUEST_LOG_SAMPLE_RATE | 日志采样率 0.0-1.0 (默认 1.0) |
 | SECURITY_ALLOW_INSECURE | 跳过安全检查 (仅开发环境，默认 false) ⚠️ |
 | QUERY_TIMEOUT | SQL 查询超时秒数 (默认 30) |
+| ENABLE_HSTS | 启用 HSTS 头 (仅 HTTPS 就绪后，默认 false) |
+| HSTS_MAX_AGE | HSTS 有效期秒数 (默认 31536000 = 1年) |
+| HSTS_INCLUDE_SUBDOMAINS | HSTS 包含子域名 (默认 true) |
+| HSTS_PRELOAD | HSTS preload 指令 (默认 false，谨慎启用) |
+| CORS_ORIGINS | CORS 允许的来源 (JSON 数组格式) |
 
 ## 生产环境安全配置
 
@@ -204,7 +209,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.3 | 全面代码审查 + 安全/性能修复 | 2025-12-16 |
 | 9.4 | 安全加固 (限流 + 启动验证 + 文档) | 2025-12-18 |
 | 9.5 | Fail-Fast 安全启动 + ETL 断点续传 | 2025-12-18 |
-| **9.6** | **NULL 安全去重 + 缓存键修复 + MSW 健壮性** | **2025-12-18** |
+| 9.6 | NULL 安全去重 + 缓存键修复 + MSW 健壮性 | 2025-12-18 |
+| **9.7** | **安全头加固 (HSTS/CSP) + 日志脱敏 + 静态服务安全** | **2025-12-18** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

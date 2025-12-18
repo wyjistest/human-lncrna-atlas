@@ -8,11 +8,15 @@ Starlette 文档警告 BaseHTTPMiddleware 在处理 StreamingResponse 时有局�
 - REQUEST_LOG_ENABLED: 是否启用请求日志 (默认 true)
 - REQUEST_LOG_SLOW_THRESHOLD_MS: 仅记录慢请求阈值（毫秒），0 表示记录全部
 - REQUEST_LOG_SAMPLE_RATE: 请求日志采样率 0.0-1.0 (默认 1.0 = 100%)
+
+安全特性:
+- 敏感查询参数自动遮蔽（api_key, token, password 等）
 """
 import random
 import time
 import logging
 from typing import List, Tuple
+from urllib.parse import parse_qs, urlencode
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
@@ -29,10 +33,52 @@ class LoggingMiddleware:
     - 不缓冲响应体
     - 更低的内存开销
     - 可配置：启用/禁用、慢请求阈值、采样率
+    - 自动遮蔽敏感查询参数
     """
 
     # 跳过日志记录的路径前缀
     SKIP_PATHS: List[str] = ["/genomes", "/metrics", "/health"]
+
+    # 敏感查询参数关键词（包含这些子串的参数将被遮蔽）
+    SENSITIVE_PARAMS: List[str] = [
+        "api_key", "apikey", "api-key",
+        "token", "access_token", "auth_token",
+        "password", "passwd", "pwd",
+        "secret", "credential",
+        "authorization", "auth",
+        "key", "private",
+    ]
+
+    @staticmethod
+    def _sanitize_query_string(query_string: str) -> str:
+        """
+        遮蔽查询字符串中的敏感参数值
+
+        Args:
+            query_string: 原始查询字符串（不含 ?）
+
+        Returns:
+            遮蔽敏感值后的查询字符串
+        """
+        if not query_string:
+            return ""
+
+        try:
+            params = parse_qs(query_string, keep_blank_values=True)
+            sanitized = {}
+
+            for key, values in params.items():
+                key_lower = key.lower()
+                # 检查参数名是否包含敏感关键词
+                if any(sensitive in key_lower for sensitive in LoggingMiddleware.SENSITIVE_PARAMS):
+                    sanitized[key] = ["***MASKED***"] * len(values)
+                else:
+                    sanitized[key] = values
+
+            return urlencode(sanitized, doseq=True)
+        except Exception:
+            # 解析失败时返回安全提示
+            return "***PARSE_ERROR***"
 
     def __init__(self, app: ASGIApp):
         self.app = app
@@ -88,7 +134,9 @@ class LoggingMiddleware:
         # 获取请求信息
         method = scope.get("method", "UNKNOWN")
         query_string = scope.get("query_string", b"").decode(errors="replace")
-        url = f"{path}?{query_string}" if query_string else path
+        # 遮蔽敏感查询参数后用于日志记录
+        safe_query = self._sanitize_query_string(query_string)
+        url = f"{path}?{safe_query}" if safe_query else path
 
         # 获取客户端 IP
         client = scope.get("client")
