@@ -94,3 +94,6 @@ notebooks/results/
 
 # Claude Code plugins
 .codex/
+
+# Local development (not for GitHub)
+LOCAL_DEV.md
