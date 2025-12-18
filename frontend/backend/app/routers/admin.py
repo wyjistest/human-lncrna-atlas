@@ -11,6 +11,8 @@ Phase 3 增强：系统资源监控、告警、响应时间百分位
 - 严格模式：ADMIN_REQUIRE_API_KEY=true 时无条件要求 API Key
 """
 import os
+import re
+import secrets
 import time
 import logging
 from datetime import datetime
@@ -76,13 +78,19 @@ async def verify_admin_access(
 
     # 严格模式：必须提供正确的 API Key
     if settings.ADMIN_REQUIRE_API_KEY:
-        if not settings.ADMIN_API_KEY:
+        # SECURITY: 使用 get_secret_value() 获取真实 API Key
+        admin_key = settings.ADMIN_API_KEY.get_secret_value() if settings.ADMIN_API_KEY else None
+        if not admin_key:
             logger.error("ADMIN_REQUIRE_API_KEY is True but ADMIN_API_KEY is not configured")
             raise HTTPException(
                 status_code=500,
                 detail={"error": "SERVER_CONFIG_ERROR", "message": "Admin API key not configured"}
             )
-        if x_admin_api_key == settings.ADMIN_API_KEY:
+        # SECURITY: 使用 secrets.compare_digest 防止时序攻击
+        if x_admin_api_key and secrets.compare_digest(
+            x_admin_api_key.encode('utf-8'),
+            admin_key.encode('utf-8')
+        ):
             logger.debug(f"Admin API access granted via API Key (strict mode) from {client_ip}")
             return
         logger.warning(f"Admin API access denied (strict mode): invalid or missing API Key from {client_ip}")
@@ -96,13 +104,28 @@ async def verify_admin_access(
         )
 
     # 普通模式：检查 API Key（如果配置了且提供了）
-    if settings.ADMIN_API_KEY:
-        if x_admin_api_key == settings.ADMIN_API_KEY:
+    # SECURITY: 使用 get_secret_value() 获取真实 API Key
+    admin_key = settings.ADMIN_API_KEY.get_secret_value() if settings.ADMIN_API_KEY else None
+    if admin_key:
+        # SECURITY: 使用 secrets.compare_digest 防止时序攻击
+        if x_admin_api_key and secrets.compare_digest(
+            x_admin_api_key.encode('utf-8'),
+            admin_key.encode('utf-8')
+        ):
             logger.debug(f"Admin API access granted via API Key from {client_ip}")
             return
-        # API Key 配置了但提供的值不正确，记录警告后继续检查 IP
+        # SECURITY: 提供了错误的 API Key 时直接拒绝，不继续 IP 检查
+        # 这避免了攻击者通过提供错误 Key 绕过 Key 验证走 IP 放行
         if x_admin_api_key:
-            logger.warning(f"Invalid Admin API Key from {client_ip}")
+            logger.warning(f"Invalid Admin API Key from {client_ip}, rejecting request")
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "ACCESS_DENIED",
+                    "message": "Invalid API Key provided",
+                    "client_ip": client_ip,
+                }
+            )
 
     # 检查 IP 白名单
     allowed_ips = settings.ADMIN_ALLOWED_IPS
@@ -699,15 +722,43 @@ async def clear_cache(request: Request) -> dict:
     }
 
 
+# SECURITY: 允许的缓存命名空间白名单
+ALLOWED_CACHE_NAMESPACES = {
+    "regulations",
+    "genes",
+    "stats",
+    "export",
+    "conservation",
+    "chipseq",
+    "network",
+    "diseases",
+    "features",
+    "igv",
+    "analysis",
+    "visualization",
+}
+
+# SECURITY: 命名空间格式验证（仅允许字母数字和下划线/连字符）
+NAMESPACE_PATTERN = re.compile(r'^[a-z0-9_-]{1,32}$')
+
+
 @router.post(
     "/cache/invalidate/{namespace}",
     summary="按命名空间失效缓存",
     description="""
-    使指定命名空间的缓存失效。命名空间示例：
+    使指定命名空间的缓存失效。允许的命名空间：
     - regulations - 调控关系相关缓存
     - genes - 基因相关缓存
     - stats - 统计数据缓存
     - export - 导出相关缓存
+    - conservation - 保守性分析缓存
+    - chipseq - ChIP-seq 数据缓存
+    - network - 网络可视化缓存
+    - diseases - 疾病关联缓存
+    - features - 基因组特征缓存
+    - igv - IGV 浏览器缓存
+    - analysis - 分析结果缓存
+    - visualization - 可视化数据缓存
     """,
 )
 @rate_limit("5/minute")
@@ -716,11 +767,34 @@ async def invalidate_cache_namespace(request: Request, namespace: str) -> dict:
     按命名空间失效缓存
 
     Args:
-        namespace: 缓存命名空间（如 regulations, genes, stats）
+        namespace: 缓存命名空间（必须在白名单中）
 
     Returns:
         删除的缓存条目数量
+
+    Raises:
+        HTTPException: 400 如果命名空间无效或不在白名单中
     """
+    # SECURITY: 验证 namespace 格式（防止通配符和特殊字符注入）
+    if not NAMESPACE_PATTERN.match(namespace):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "INVALID_NAMESPACE",
+                "message": "Namespace must be 1-32 lowercase alphanumeric characters, underscores, or hyphens",
+            }
+        )
+
+    # SECURITY: 验证 namespace 在白名单中
+    if namespace not in ALLOWED_CACHE_NAMESPACES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "INVALID_NAMESPACE",
+                "message": f"Namespace '{namespace}' is not allowed. Allowed: {sorted(ALLOWED_CACHE_NAMESPACES)}",
+            }
+        )
+
     deleted = cache.invalidate(namespace)
     logger.info(f"Cache namespace '{namespace}' invalidated by admin: {deleted} entries deleted")
     return {

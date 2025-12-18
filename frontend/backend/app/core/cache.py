@@ -123,11 +123,13 @@ class RedisCache:
             return
 
         try:
+            # SECURITY: 使用 get_secret_value() 获取真实密码（SecretStr 类型）
+            redis_password = settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None
             self._client = redis.Redis(
                 host=settings.REDIS_HOST,
                 port=settings.REDIS_PORT,
                 db=settings.REDIS_DB,
-                password=settings.REDIS_PASSWORD,
+                password=redis_password,
                 decode_responses=True,
                 socket_timeout=10,  # 读写超时（增加容错性，减少网络抖动时的缓存失效）
                 socket_connect_timeout=5,  # 连接建立超时

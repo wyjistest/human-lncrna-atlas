@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Phase 9.8: Codex 安全审查** (2025-12-18)
+  - **P0 Critical**: `/metrics` 端点从 OpenAPI schema 隐藏 (`include_in_schema=False`)
+  - **P1 High**: Admin API Key 时序攻击防护 - 使用 `secrets.compare_digest()` 常量时间比较
+  - **P1 High**: 缓存命名空间注入防护 - 添加 `ALLOWED_CACHE_NAMESPACES` 白名单 + 正则验证
+  - **P1 High**: Redis 密码 SecretStr 修复 - `cache.py` 使用 `get_secret_value()`
+  - **P2 Medium**: 敏感字段保护 - `DATABASE_PASSWORD`, `REDIS_PASSWORD`, `ADMIN_API_KEY` 改用 `SecretStr` 类型
+  - **P2 Medium**: 输入验证加固 - `lncrna_chipseq_overlap.py` 添加长度限制和逗号分隔项数验证
+  - 新增 `safe_database_url` 属性用于日志脱敏
+  - 涉及文件: `main.py`, `admin.py`, `config.py`, `cache.py`, `lncrna_chipseq_overlap.py`
+
 ### Fixed
 - **Phase 9.3: 代码审查修复** (2025-12-15)
   - 全局异常返回结构：统一为 `{detail: {...}}` 格式与前端约定一致

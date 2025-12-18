@@ -77,7 +77,9 @@ def _validate_security_config() -> None:
 
     # 1. Admin API Key 配置检查
     if settings.ADMIN_REQUIRE_API_KEY:
-        if not settings.ADMIN_API_KEY:
+        # SECURITY: 使用 get_secret_value() 检查 API Key 是否真正配置
+        admin_key = settings.ADMIN_API_KEY.get_secret_value() if settings.ADMIN_API_KEY else None
+        if not admin_key:
             fatal_errors.append(
                 "ADMIN_REQUIRE_API_KEY=true but ADMIN_API_KEY is not set. "
                 "Generate a key: openssl rand -hex 32"
@@ -311,7 +313,9 @@ if PROMETHEUS_AVAILABLE and Instrumentator:
     instrumentator.instrument(app)
 
     # 暴露 /metrics 端点
-    instrumentator.expose(app, endpoint="/metrics", include_in_schema=True, tags=["monitoring"])
+    # SECURITY: 设置 include_in_schema=False 避免在 OpenAPI 文档中暴露
+    # 生产环境应通过网关 ACL 或内网访问控制进一步保护此端点
+    instrumentator.expose(app, endpoint="/metrics", include_in_schema=False)
 
     logger.info("Prometheus metrics enabled at /metrics endpoint")
 else:

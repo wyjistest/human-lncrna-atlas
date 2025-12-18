@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Optional, List, Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 # 计算 .env 文件的绝对路径（相对于 backend 目录）
 # 这样无论从哪个目录启动应用，都能正确加载 .env
@@ -34,7 +34,8 @@ class Settings(BaseSettings):
     DATABASE_HOST: str = Field(default="localhost", validation_alias="DB_HOST")
     DATABASE_PORT: int = Field(default=5432, validation_alias="DB_PORT")
     DATABASE_USER: str = Field(default="amax", validation_alias="DB_USER")
-    DATABASE_PASSWORD: str = Field(default="", validation_alias="DB_PASSWORD")
+    # SECURITY: 使用 SecretStr 保护密码，避免在日志/异常中泄露
+    DATABASE_PASSWORD: SecretStr = Field(default=SecretStr(""), validation_alias="DB_PASSWORD")
     DATABASE_NAME: str = Field(default="lncrna_production", validation_alias="DB_NAME")
 
     # 数据库连接池配置
@@ -63,7 +64,8 @@ class Settings(BaseSettings):
     REDIS_HOST: str = Field(default="localhost", validation_alias="REDIS_HOST")
     REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT")
     REDIS_DB: int = Field(default=0, validation_alias="REDIS_DB")
-    REDIS_PASSWORD: Optional[str] = Field(default=None, validation_alias="REDIS_PASSWORD")
+    # SECURITY: 使用 SecretStr 保护 Redis 密码
+    REDIS_PASSWORD: Optional[SecretStr] = Field(default=None, validation_alias="REDIS_PASSWORD")
 
     # CORS配置（支持环境变量 CORS_ORIGINS，JSON 数组格式）
     # 默认值仅包含 localhost，生产环境请通过 CORS_ORIGINS 环境变量配置实际域名
@@ -138,7 +140,8 @@ class Settings(BaseSettings):
     ALERT_THRESHOLDS: AlertThresholds = AlertThresholds()
 
     # Admin API 安全配置
-    ADMIN_API_KEY: Optional[str] = Field(default=None, validation_alias="ADMIN_API_KEY")
+    # SECURITY: 使用 SecretStr 保护 Admin API Key
+    ADMIN_API_KEY: Optional[SecretStr] = Field(default=None, validation_alias="ADMIN_API_KEY")
     ADMIN_ALLOWED_IPS: list = Field(
         default=["127.0.0.1", "localhost", "::1"],
         description="允许访问 Admin API 的 IP 地址白名单"
@@ -214,8 +217,19 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """构建数据库连接URL"""
-        if self.DATABASE_PASSWORD:
-            return f"postgresql://{self.DATABASE_USER}:{self.DATABASE_PASSWORD}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        # SECURITY: 使用 get_secret_value() 获取真实密码
+        password = self.DATABASE_PASSWORD.get_secret_value() if self.DATABASE_PASSWORD else ""
+        if password:
+            return f"postgresql://{self.DATABASE_USER}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        else:
+            return f"postgresql://{self.DATABASE_USER}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+
+    @property
+    def safe_database_url(self) -> str:
+        """构建脱敏的数据库连接URL（用于日志）"""
+        password = self.DATABASE_PASSWORD.get_secret_value() if self.DATABASE_PASSWORD else ""
+        if password:
+            return f"postgresql://{self.DATABASE_USER}:***@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
         else:
             return f"postgresql://{self.DATABASE_USER}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
 
@@ -225,8 +239,10 @@ class Settings(BaseSettings):
     @property
     def redis_url(self) -> str:
         """构建Redis连接URL"""
-        if self.REDIS_PASSWORD:
-            return f"redis://:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        # SECURITY: 使用 get_secret_value() 获取真实密码
+        password = self.REDIS_PASSWORD.get_secret_value() if self.REDIS_PASSWORD else None
+        if password:
+            return f"redis://:{password}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         else:
             return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 

@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
 
 DecimalAsFloat = Annotated[
     Decimal,
@@ -50,14 +50,35 @@ class OverlapSortOrder(str, Enum):
         return None
 
 
+# SECURITY: 输入限制常量
+MAX_COMMA_SEPARATED_ITEMS = 20  # 逗号分隔列表最大项数
+MAX_ITEM_LENGTH = 50  # 单项最大长度
+MAX_FIELD_LENGTH = 500  # 字段总长度限制
+CHROMOSOME_PATTERN = r'^chr([1-9]|1[0-9]|2[0-2]|X|Y|M|MT)$'  # 染色体格式验证
+
+
 class OverlapFilters(BaseModel):
     """Query parameters for lncRNA-ChIP-seq overlap analysis"""
 
     lncrna_gene_id: Optional[int] = Field(None, description="Filter by specific lncRNA gene ID")
     target_gene_id: Optional[int] = Field(None, description="Filter by specific target gene ID")
-    mark_type: Optional[str] = Field(None, description="Filter by mark type(s), comma-separated (e.g., 'H3K27me3,H3K4me3')")
-    cell_type: Optional[str] = Field(None, description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878')")
-    chromosome: Optional[str] = Field(None, description="Filter by chromosome (e.g., 'chr1')")
+    # SECURITY: 添加长度限制防止 DoS
+    mark_type: Optional[str] = Field(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by mark type(s), comma-separated (e.g., 'H3K27me3,H3K4me3'), max 20 items"
+    )
+    cell_type: Optional[str] = Field(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878'), max 20 items"
+    )
+    chromosome: Optional[str] = Field(
+        None,
+        max_length=10,
+        pattern=CHROMOSOME_PATTERN,
+        description="Filter by chromosome (e.g., 'chr1', 'chrX')"
+    )
     min_overlap_length: Optional[int] = Field(None, ge=1, description="Minimum overlap length in bp")
     min_binding_affinity: Optional[float] = Field(None, ge=0, description="Minimum binding affinity score")
     min_peak_strength: Optional[float] = Field(None, ge=0, description="Minimum peak fold enrichment")
@@ -72,6 +93,21 @@ class OverlapFilters(BaseModel):
         default=OverlapSortOrder.desc,
         description="Sort order (asc or desc)",
     )
+
+    # SECURITY: 验证逗号分隔字段的项数限制
+    @field_validator('mark_type', 'cell_type', mode='after')
+    @classmethod
+    def validate_comma_separated_items(cls, v: Optional[str]) -> Optional[str]:
+        """验证逗号分隔字段不超过最大项数"""
+        if v is None:
+            return v
+        items = [item.strip() for item in v.split(',') if item.strip()]
+        if len(items) > MAX_COMMA_SEPARATED_ITEMS:
+            raise ValueError(f"Too many items: maximum {MAX_COMMA_SEPARATED_ITEMS} allowed, got {len(items)}")
+        for item in items:
+            if len(item) > MAX_ITEM_LENGTH:
+                raise ValueError(f"Item too long: maximum {MAX_ITEM_LENGTH} characters, got {len(item)}")
+        return v
 
     model_config = ConfigDict(from_attributes=True)
 

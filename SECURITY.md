@@ -87,6 +87,52 @@ RATE_LIMIT_BYPASS_PRIVATE=false
 - Input validation via Pydantic schemas
 - SQL injection prevention via parameterized queries
 
+### Security Hardening (Phase 9.8)
+
+The following security measures were implemented based on Codex security audit:
+
+#### Timing Attack Protection
+Admin API key comparison uses `secrets.compare_digest()` for constant-time comparison:
+```python
+# Prevents timing attacks on API key validation
+import secrets
+if secrets.compare_digest(provided_key.encode(), expected_key.encode()):
+    # Key is valid
+```
+
+#### Sensitive Data Protection
+All sensitive configuration uses `pydantic.SecretStr` to prevent accidental exposure:
+- `DATABASE_PASSWORD`
+- `REDIS_PASSWORD`
+- `ADMIN_API_KEY`
+
+SecretStr prevents sensitive data from appearing in:
+- Log output
+- Exception messages
+- `repr()` calls
+- JSON serialization
+
+#### Cache Namespace Injection Prevention
+Cache clear operations validate namespaces against a whitelist:
+```python
+ALLOWED_CACHE_NAMESPACES = {
+    "regulations", "genes", "stats", "export", "conservation",
+    "chipseq", "network", "diseases", "features", "igv",
+    "analysis", "visualization",
+}
+NAMESPACE_PATTERN = re.compile(r'^[a-z0-9_-]{1,32}$')
+```
+
+#### Input Validation Limits
+API endpoints enforce strict input limits to prevent DoS attacks:
+- `MAX_COMMA_SEPARATED_ITEMS = 20` - Maximum items in comma-separated lists
+- `MAX_ITEM_LENGTH = 50` - Maximum length per item
+- `MAX_FIELD_LENGTH = 500` - Maximum total field length
+- Chromosome format validation via regex pattern
+
+#### Metrics Endpoint Protection
+The `/metrics` endpoint is hidden from OpenAPI schema (`include_in_schema=False`) to reduce attack surface. Additional network-level ACL protection is recommended in production.
+
 ## Incident Response
 
 If credentials are accidentally exposed:
@@ -116,4 +162,4 @@ npm audit
 
 ---
 
-*Last updated: 2025-12-17*
+*Last updated: 2025-12-18*

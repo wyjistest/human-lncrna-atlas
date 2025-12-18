@@ -16,6 +16,7 @@ def test_settings_env_aliases(monkeypatch):
     assert settings.DATABASE_HOST == "db.example.com"
     assert settings.DATABASE_PORT == 5433
     assert settings.DATABASE_USER == "test_user"
-    assert settings.DATABASE_PASSWORD == "test_password"
+    # DATABASE_PASSWORD is now SecretStr - use get_secret_value() to compare
+    assert settings.DATABASE_PASSWORD.get_secret_value() == "test_password"
     assert settings.DATABASE_NAME == "test_db"
 
