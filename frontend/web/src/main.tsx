@@ -98,8 +98,12 @@ async function enableMocking() {
   console.warn('[MSW] Started successfully')
 }
 
-// 确保 MSW 启动完成后再挂载 App
-enableMocking().then(() => {
+/**
+ * 渲染应用
+ *
+ * 独立函数确保即使 MSW 初始化失败，应用也能正常挂载
+ */
+function renderApp() {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <QueryClientProvider client={queryClient}>
@@ -109,4 +113,16 @@ enableMocking().then(() => {
       </QueryClientProvider>
     </StrictMode>,
   )
-})
+}
+
+// 确保 MSW 启动完成后再挂载 App
+// 添加错误处理：MSW 失败不应阻止应用启动
+enableMocking()
+  .then(() => {
+    renderApp()
+  })
+  .catch((error) => {
+    // MSW 是可选的开发工具，其失败不应阻止应用启动
+    console.warn('[MSW] Failed to initialize, continuing without mocking:', error)
+    renderApp()
+  })

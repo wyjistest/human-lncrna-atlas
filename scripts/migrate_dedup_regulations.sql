@@ -3,6 +3,8 @@
 -- ============================================================================
 -- 用途：在已存在重复数据的数据库上安全创建唯一索引
 --
+-- 要求：PostgreSQL 15+ (使用 NULLS NOT DISTINCT 特性)
+--
 -- 运行方式：
 --   psql -U amax -d lncrna_production -f scripts/migrate_dedup_regulations.sql
 --
@@ -11,13 +13,26 @@
 --   2. 建议在低峰期执行（会锁表）
 --   3. 执行时间取决于数据量（80万条约需 1-2 分钟）
 --
--- 修复历史 (2025-12-13):
---   - 使用 keep_mapping 表替代重复 JOIN，确保唯一映射
---   - 先 INSERT 缺失的 sequences 行，再 UPDATE 合并
---   - 使用 NULLIF 处理空字符串（'' 视为缺失）
+-- 修复历史:
+--   2025-12-13: 使用 keep_mapping 表替代重复 JOIN，确保唯一映射
+--   2025-12-18: 添加 NULLS NOT DISTINCT 确保 NULL 值也参与去重
 -- ============================================================================
 
 BEGIN;
+
+-- Step 0: 检查 PostgreSQL 版本（需要 >= 15）
+DO $$
+DECLARE
+    pg_version integer;
+BEGIN
+    SELECT current_setting('server_version_num')::integer INTO pg_version;
+    IF pg_version < 150000 THEN
+        RAISE EXCEPTION 'PostgreSQL 15+ required for NULLS NOT DISTINCT. Current version: %',
+                        current_setting('server_version');
+    ELSE
+        RAISE NOTICE 'PostgreSQL version check passed: %', current_setting('server_version');
+    END IF;
+END $$;
 
 -- Step 1: 创建临时表记录保留的记录和唯一键映射
 -- 包含唯一键列以便后续精确匹配
@@ -133,10 +148,12 @@ BEGIN
     RAISE NOTICE 'Deleted % duplicate regulation records', deleted_count;
 END $$;
 
--- Step 8: 创建唯一索引（如果不存在）
+-- Step 8: 创建 NULL 安全唯一索引
+-- NULLS NOT DISTINCT 确保 NULL 值也参与去重（PG15+ 特性）
 DROP INDEX IF EXISTS idx_regulations_unique_key;
 CREATE UNIQUE INDEX idx_regulations_unique_key
-ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end);
+ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end)
+NULLS NOT DISTINCT;
 
 -- Step 9: 清理临时表
 DROP TABLE IF EXISTS keep_mapping;

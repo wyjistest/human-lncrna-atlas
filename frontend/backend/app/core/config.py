@@ -144,13 +144,13 @@ class Settings(BaseSettings):
         description="允许访问 Admin API 的 IP 地址白名单"
     )
     # 严格模式：启用后无条件要求 API Key，不再信任私网 IP 自动放行
-    # ⚠️ 生产环境必须设为 true 并配置 ADMIN_API_KEY
-    # 默认 false 仅用于开发环境快速调试
+    # ⚠️ 生产安全：默认 true，要求配置 ADMIN_API_KEY
+    # 开发环境可设为 false 或使用 SECURITY_ALLOW_INSECURE=true 绕过检查
     ADMIN_REQUIRE_API_KEY: bool = Field(
-        default=False,
+        default=True,
         validation_alias="ADMIN_REQUIRE_API_KEY",
-        description="⚠️ PRODUCTION: Set to true and configure ADMIN_API_KEY. "
-                    "When false, private IPs can access admin endpoints without authentication."
+        description="⚠️ SECURITY: Defaults to true. Requires ADMIN_API_KEY to be configured. "
+                    "Set to false ONLY for local development with SECURITY_ALLOW_INSECURE=true."
     )
 
     # Trusted Proxies for X-Forwarded-For header validation

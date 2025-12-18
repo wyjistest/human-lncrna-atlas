@@ -58,6 +58,45 @@ class RegulationsImporter:
             logger.error(f"数据库连接失败: {e}")
             raise
 
+    def _check_required_index(self) -> bool:
+        """
+        检查 ON CONFLICT 所需的唯一索引是否存在
+
+        Returns:
+            True 如果索引存在，否则抛出异常
+        """
+        index_name = "idx_regulations_unique_key"
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT 1 FROM pg_indexes
+            WHERE indexname = %s
+        """, (index_name,))
+        exists = cursor.fetchone() is not None
+        cursor.close()
+
+        if not exists:
+            error_msg = f"""
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  ❌ 缺少必需的唯一索引: {index_name}
+║
+║  ETL 使用 IS NOT DISTINCT FROM 进行去重，需要此索引支持。
+║
+║  请先运行迁移脚本创建 NULL 安全索引 (需 PostgreSQL 15+):
+║    psql -U amax -d lncrna_production -f etl/migrations/002_fix_regulations_unique_null_safe.sql
+║
+║  或手动创建 (需 PostgreSQL 15+):
+║    CREATE UNIQUE INDEX IF NOT EXISTS {index_name}
+║    ON regulations (species_id, lncrna_gene_id, target_gene_id,
+║                    lncrna_start, lncrna_end, dna_start, dna_end)
+║    NULLS NOT DISTINCT;
+╚══════════════════════════════════════════════════════════════════════════════╝
+"""
+            logger.error(error_msg)
+            raise RuntimeError(f"Missing required index: {index_name}")
+
+        logger.info(f"✅ 唯一索引检查通过: {index_name}")
+        return True
+
     def disconnect(self):
         """关闭数据库连接"""
         if self.conn:
@@ -224,6 +263,10 @@ class RegulationsImporter:
         # 列校验（快速失败）
         self._validate_columns(file_path)
         logger.info("列校验通过")
+
+        # 索引校验（快速失败）
+        # ON CONFLICT DO NOTHING 依赖 idx_regulations_unique_key 索引
+        self._check_required_index()
 
         if skip_rows > 0:
             logger.info(f"断点续传模式：跳过前 {skip_rows} 行")
@@ -559,10 +602,11 @@ class RegulationsImporter:
                         WHERE r.species_id = t.species_id
                           AND r.lncrna_gene_id = t.lncrna_gene_id
                           AND r.target_gene_id = t.target_gene_id
-                          AND r.lncrna_start = t.lncrna_start
-                          AND r.lncrna_end = t.lncrna_end
-                          AND r.dna_start = t.dna_start
-                          AND r.dna_end = t.dna_end
+                          -- NULL 安全比较：IS NOT DISTINCT FROM 将 NULL 视为相等
+                          AND r.lncrna_start IS NOT DISTINCT FROM t.lncrna_start
+                          AND r.lncrna_end IS NOT DISTINCT FROM t.lncrna_end
+                          AND r.dna_start IS NOT DISTINCT FROM t.dna_start
+                          AND r.dna_end IS NOT DISTINCT FROM t.dna_end
                     )
                     RETURNING regulation_id, species_id, lncrna_gene_id, target_gene_id,
                               lncrna_start, lncrna_end, dna_start, dna_end
@@ -574,10 +618,11 @@ class RegulationsImporter:
                     i.species_id = d.species_id
                     AND i.lncrna_gene_id = d.lncrna_gene_id
                     AND i.target_gene_id = d.target_gene_id
-                    AND i.lncrna_start = d.lncrna_start
-                    AND i.lncrna_end = d.lncrna_end
-                    AND i.dna_start = d.dna_start
-                    AND i.dna_end = d.dna_end
+                    -- NULL 安全比较：IS NOT DISTINCT FROM 将 NULL 视为相等
+                    AND i.lncrna_start IS NOT DISTINCT FROM d.lncrna_start
+                    AND i.lncrna_end IS NOT DISTINCT FROM d.lncrna_end
+                    AND i.dna_start IS NOT DISTINCT FROM d.dna_start
+                    AND i.dna_end IS NOT DISTINCT FROM d.dna_end
                 )
             """)
 

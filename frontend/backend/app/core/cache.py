@@ -440,14 +440,52 @@ cache = CacheService()
 
 # ============== 装饰器 ==============
 
+def _is_hashable(obj: Any) -> bool:
+    """检查对象是否可哈希"""
+    try:
+        hash(obj)
+        return True
+    except TypeError:
+        return False
+
+
+def _should_exclude_arg(obj: Any) -> bool:
+    """
+    判断参数是否应从缓存键中排除
+
+    排除条件：
+    - 数据库连接/Session 对象
+    - Request 对象
+    - 不可哈希的对象
+    """
+    # 按类型名排除常见不可缓存对象
+    type_name = type(obj).__name__
+    excluded_types = {"Session", "Request", "Connection", "Engine", "scoped_session"}
+    if type_name in excluded_types:
+        return True
+
+    # 排除不可哈希的对象
+    if not _is_hashable(obj):
+        return True
+
+    return False
+
+
 def cached(namespace: str, ttl: int = None):
     """
     缓存装饰器（同步函数）
 
+    注意：会将可哈希的位置参数和关键字参数都纳入缓存键生成。
+    数据库连接、Request 等不可哈希对象会自动排除。
+
     Usage:
         @cached("stats:overview", ttl=3600)
-        def get_overview_stats(db):
+        def get_overview_stats(db, species_id: int):
             return {...}
+
+        # 以下两种调用会生成相同的缓存键：
+        get_overview_stats(db, 1)
+        get_overview_stats(db, species_id=1)
     """
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
@@ -455,9 +493,26 @@ def cached(namespace: str, ttl: int = None):
             if not cache.enabled:
                 return func(*args, **kwargs)
 
-            # 生成缓存键（过滤掉非业务参数，如 db / request）
+            # 生成缓存键：同时考虑 args 和 kwargs
+            # 过滤掉非业务参数（db/request）和不可哈希对象
             excluded_keys = {"db", "request"}
-            key_params = {k: v for k, v in kwargs.items() if k not in excluded_keys}
+
+            # 处理位置参数：过滤不可缓存的对象，保留可哈希参数
+            hashable_args = tuple(
+                arg for arg in args
+                if not _should_exclude_arg(arg)
+            )
+
+            # 处理关键字参数：过滤排除的键和不可哈希值
+            key_params = {
+                k: v for k, v in kwargs.items()
+                if k not in excluded_keys and not _should_exclude_arg(v)
+            }
+
+            # 将位置参数也纳入 key 生成（使用特殊前缀避免与 kwargs 冲突）
+            if hashable_args:
+                key_params["__args__"] = hashable_args
+
             key = cache._make_key(namespace, **key_params)
 
             # 尝试获取缓存
@@ -484,9 +539,11 @@ def cache_response(expire: int = 300):
     """
     异步缓存装饰器（兼容旧接口）
 
+    注意：会将可哈希的位置参数和关键字参数都纳入缓存键生成。
+
     Usage:
         @cache_response(expire=300)
-        async def get_data():
+        async def get_data(species_id: int):
             return {...}
     """
     def decorator(func):
@@ -496,7 +553,22 @@ def cache_response(expire: int = 300):
                 return await func(*args, **kwargs)
 
             excluded_keys = {"db", "request"}
-            key_params = {k: v for k, v in kwargs.items() if k not in excluded_keys}
+
+            # 处理位置参数
+            hashable_args = tuple(
+                arg for arg in args
+                if not _should_exclude_arg(arg)
+            )
+
+            # 处理关键字参数
+            key_params = {
+                k: v for k, v in kwargs.items()
+                if k not in excluded_keys and not _should_exclude_arg(v)
+            }
+
+            if hashable_args:
+                key_params["__args__"] = hashable_args
+
             key = cache._make_key(func.__name__, **key_params)
 
             cached_value = cache.get(key)

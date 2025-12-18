@@ -146,6 +146,27 @@ create_log_dir() {
     log_info "日志目录: $LOG_DIR"
 }
 
+wait_for_health() {
+    # 带重试的健康检查
+    # 参数: $1=URL $2=服务名 $3=最大重试次数 $4=重试间隔秒数
+    local url="$1"
+    local service_name="$2"
+    local max_retries="${3:-10}"
+    local retry_interval="${4:-2}"
+    local attempt=1
+
+    log_info "等待 $service_name 健康检查..."
+    while [ $attempt -le $max_retries ]; do
+        if curl -s --max-time 5 "$url" > /dev/null 2>&1; then
+            return 0
+        fi
+        log_info "健康检查 [$attempt/$max_retries]... (等待 ${retry_interval}s)"
+        sleep $retry_interval
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
 start_backend() {
     log_step "启动后端服务..."
 
@@ -177,16 +198,17 @@ start_backend() {
     local backend_pid=$!
     echo $backend_pid > "$LOG_DIR/backend.pid"
 
-    # 等待启动
-    sleep 2
-
-    # 验证
-    if curl -s "http://localhost:$BACKEND_PORT/health" > /dev/null 2>&1; then
+    # 带重试的健康检查（最多 10 次，每次间隔 2 秒，共 20 秒超时）
+    if wait_for_health "http://localhost:$BACKEND_PORT/health" "后端" 10 2; then
         log_success "后端服务启动成功 (PID: $backend_pid)"
         log_info "API 文档: http://localhost:$BACKEND_PORT/docs"
     else
-        log_warning "后端服务启动中，请稍后检查..."
-        log_info "查看日志: tail -f $LOG_DIR/backend.log"
+        log_error "后端服务健康检查失败！"
+        log_error "可能原因: 数据库连接失败、端口被占用、配置错误"
+        log_error "查看日志: tail -f $LOG_DIR/backend.log"
+        log_error "最后 20 行日志:"
+        tail -20 "$LOG_DIR/backend.log" 2>/dev/null || true
+        return 1
     fi
 }
 
@@ -299,12 +321,23 @@ main() {
     check_environment
     create_log_dir
 
+    local has_failure=0
+
     if [ $frontend_only -eq 0 ]; then
-        start_backend
+        if ! start_backend; then
+            has_failure=1
+        fi
     fi
 
     if [ $backend_only -eq 0 ]; then
         start_frontend
+    fi
+
+    # 如果有服务启动失败，返回非零退出码
+    if [ $has_failure -eq 1 ]; then
+        echo ""
+        log_error "部分服务启动失败，请检查日志"
+        exit 1
     fi
 
     echo ""

@@ -286,11 +286,16 @@ CREATE INDEX idx_reg_location ON regulations(target_chromosome, target_start, ta
 -- 【重要】唯一约束用于ETL去重（ON CONFLICT DO NOTHING）
 -- 该约束确保同一物种、同一lncRNA-target对、同一位置的调控关系只有一条记录
 --
+-- ⚠️ NULL 安全：使用 NULLS NOT DISTINCT (PostgreSQL 15+) 确保 NULL 值也参与去重
+--   - lncrna_start/lncrna_end/dna_start/dna_end 允许为 NULL（表示位置未知）
+--   - 默认情况下 NULL != NULL，会导致重复行
+--   - NULLS NOT DISTINCT 将 NULL 视为相等值进行去重
+--
 -- ⚠️ 迁移注意：此索引仅用于新库初始化。
--- 对于存量数据库，请运行 scripts/migrate_dedup_regulations.sql 迁移脚本。
--- 该脚本会：1) 合并重复记录的 sequences 2) 删除重复行 3) 创建唯一索引
+-- 对于存量数据库，请运行 etl/migrations/002_fix_regulations_unique_null_safe.sql 迁移脚本。
 CREATE UNIQUE INDEX idx_regulations_unique_key
-ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end);
+ON regulations (species_id, lncrna_gene_id, target_gene_id, lncrna_start, lncrna_end, dna_start, dna_end)
+NULLS NOT DISTINCT;
 
 -- ============================================================================
 -- 10. 序列表（分离存储，按需加载）

@@ -4,9 +4,10 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.5 |
+| 版本 | Phase 9.6 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-18 |
+| 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
 ## 项目概述
@@ -202,7 +203,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.2 | Ruff Lint 全面修复 (106 issues) | 2025-12-15 |
 | 9.3 | 全面代码审查 + 安全/性能修复 | 2025-12-16 |
 | 9.4 | 安全加固 (限流 + 启动验证 + 文档) | 2025-12-18 |
-| **9.5** | **Fail-Fast 安全启动 + ETL 断点续传** | **2025-12-18** |
+| 9.5 | Fail-Fast 安全启动 + ETL 断点续传 | 2025-12-18 |
+| **9.6** | **NULL 安全去重 + 缓存键修复 + MSW 健壮性** | **2025-12-18** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -224,7 +226,8 @@ DB_POOL_MAX_OVERFLOW=20
 | Phase 详细历史 | `docs/phases/PHASE_HISTORY.md` |
 | 项目状态报告 | `docs/PROJECT_STATUS_REPORT.md` |
 | **数据库 Schema** | `frontend/backend/docs/SCHEMA.md` |
-| **数据库迁移** | `frontend/backend/migrations/README.md` |
+| **数据库迁移** | `etl/migrations/002_fix_regulations_unique_null_safe.sql` |
+| **存量数据去重** | `scripts/migrate_dedup_regulations.sql` |
 | **代码审查报告** | `frontend/backend/CODE_REVIEW_REPORT_2025-12-16.md` |
 | API 文档 | http://localhost:8000/docs |
 | Jupyter 使用指南 | `notebooks/README.md` |

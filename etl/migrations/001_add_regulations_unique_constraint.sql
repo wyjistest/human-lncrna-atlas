@@ -2,12 +2,13 @@
 -- Description: Add unique constraint to regulations table for deduplication support
 -- Date: 2025-12-02
 --
--- ⚠️ DEPRECATED: Use scripts/migrate_dedup_regulations.sql instead
--- This script only creates the index. The newer script also:
---   - Deduplicates existing data safely
---   - Migrates sequences data before deleting duplicates
---   - Handles NULL values with IS NOT DISTINCT FROM
---   - Handles empty strings with NULLIF
+-- ⚠️ DEPRECATED: 请使用以下迁移脚本替代：
+--   - 存量数据去重: scripts/migrate_dedup_regulations.sql
+--   - 仅更新索引: etl/migrations/002_fix_regulations_unique_null_safe.sql
+--
+-- 此脚本已过时，原因：
+--   - 不支持 NULLS NOT DISTINCT（需 PG15+）
+--   - NULL 值可能导致重复行
 --
 -- This migration adds a unique constraint on the key columns that define
 -- a unique regulation record. This enables ON CONFLICT DO NOTHING in the
