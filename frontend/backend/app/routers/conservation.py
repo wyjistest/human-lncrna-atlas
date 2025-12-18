@@ -17,7 +17,7 @@ from sqlalchemy import func, distinct, String
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
-from app.core.utils import escape_like_pattern
+from app.core.utils import escape_like_pattern, compute_conservation_map
 from app.models import CoreGene, Gene, Regulation, Species
 from app.schemas.conservation import (
     SPECIES_MAP,
@@ -45,44 +45,8 @@ router = APIRouter(prefix="/conservation", tags=["conservation"])
 
 
 # =============================================================================
-# Helper Functions (reusing logic from network.py)
+# Helper Functions
 # =============================================================================
-def compute_conservation_map(core_ids: list, db: Session) -> Dict[int, tuple]:
-    """
-    Compute conservation data for a list of core_ids
-    Returns: {core_id: (conservation_label, conservation_count)}
-
-    Based on network.py:compute_conservation_map()
-    """
-    if not core_ids:
-        return {}
-
-    # Batch query: get species presence for all core_ids
-    species_presence_query = db.query(Gene.core_id, Gene.species_id).filter(
-        Gene.core_id.in_(core_ids)
-    ).distinct()
-
-    # Build a map: core_id -> set of species_ids
-    species_map: Dict[int, Set[int]] = {}
-    for core_id, species_id in species_presence_query.all():
-        if core_id not in species_map:
-            species_map[core_id] = set()
-        species_map[core_id].add(species_id)
-
-    # Convert to conservation labels
-    result = {}
-    for core_id in core_ids:
-        present_species = species_map.get(core_id, set())
-        conservation_label = "".join(
-            "1" if sid in present_species else "0"
-            for sid in SPECIES_IDS  # [1, 2, 3, 4]
-        )
-        conservation_count = len(present_species)
-        result[core_id] = (conservation_label, conservation_count)
-
-    return result
-
-
 def get_lncrna_core_ids(db: Session) -> List[int]:
     """Get all lncRNA core_ids from the database."""
     return [

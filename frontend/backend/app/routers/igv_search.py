@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.utils import escape_like_pattern
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species, Gene
 from app.schemas.igv import (
@@ -45,12 +46,6 @@ def search_genes_for_igv(
     Returns:
         匹配的基因列表，包含定位所需的完整信息
     """
-    import re
-
-    def escape_like_pattern(value: str) -> str:
-        """转义 LIKE 模式中的特殊字符"""
-        return re.sub(r'([%_\\])', r'\\\1', value)
-
     # 构建查询
     query = (
         db.query(
@@ -181,10 +176,6 @@ def search_locus_for_igv(
         )
 
     # 2. 尝试基因名/Ensembl ID 搜索
-    def escape_like_pattern(value: str) -> str:
-        """转义 LIKE 模式中的特殊字符"""
-        return re.sub(r'([%_\\])', r'\\\1', value)
-
     # 构建基因查询
     query = (
         db.query(
@@ -290,12 +281,6 @@ def autocomplete_genes(
     Returns:
         匹配的基因列表，包含基因名、染色体、位置、物种信息
     """
-    import re
-
-    def escape_like_pattern(value: str) -> str:
-        """转义 LIKE 模式中的特殊字符"""
-        return re.sub(r'([%_\\])', r'\\\1', value)
-
     logger.info(f"Gene autocomplete: q={q}, species_id={species_id}, limit={limit}")
 
     # 构建基础查询

@@ -11,6 +11,7 @@
 
 import { apiClient } from './client'
 import { API_BASE_URL } from '@/config/api'
+import { openInNewTab } from '@/utils/safeWindow'
 import type {
   MarkType,
   ChIPSeqFilters,
@@ -115,7 +116,7 @@ export const chipseqApi = {
     const url = `${API_BASE_URL}/api/v1/features/chipseq/genes/${geneId}/export${
       queryString ? `?${queryString}` : ''
     }`
-    window.open(url, '_blank')
+    openInNewTab(url)
   },
 
   /**
@@ -129,7 +130,7 @@ export const chipseqApi = {
     params.append('format', 'csv')
 
     const url = `${API_BASE_URL}/api/v1/features/chipseq/genes/${geneId}/compare/export?${params.toString()}`
-    window.open(url, '_blank')
+    openInNewTab(url)
   },
 
   /**

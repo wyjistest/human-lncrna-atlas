@@ -6,45 +6,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, case, or_, and_
 
 from app.core.database import get_db
+from app.core.utils import compute_conservation_map
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Regulation, Gene, CoreGene, TraitGeneAssociation, Trait, Ontology, Species
 from app.schemas.regulation import NetworkData, NetworkNode, NetworkEdge
 
 router = APIRouter(prefix="/network", tags=["network"])
-
-
-def compute_conservation_map(core_ids: list, db: Session) -> Dict[int, tuple]:
-    """
-    Compute conservation data for a list of core_ids
-    Returns: {core_id: (conservation_label, conservation_count)}
-    """
-    if not core_ids:
-        return {}
-
-    # Batch query: get species presence for all core_ids
-    species_presence_query = db.query(Gene.core_id, Gene.species_id).filter(
-        Gene.core_id.in_(core_ids)
-    ).distinct()
-
-    # Build a map: core_id -> set of species_ids
-    species_map: Dict[int, Set[int]] = {}
-    for core_id, species_id in species_presence_query.all():
-        if core_id not in species_map:
-            species_map[core_id] = set()
-        species_map[core_id].add(species_id)
-
-    # Convert to conservation labels
-    result = {}
-    for core_id in core_ids:
-        present_species = species_map.get(core_id, set())
-        conservation_label = "".join(
-            "1" if sid in present_species else "0"
-            for sid in [1, 2, 3, 4]  # Species: 1=human, 2=chimp, 3=macaque, 4=marmoset
-        )
-        conservation_count = len(present_species)
-        result[core_id] = (conservation_label, conservation_count)
-
-    return result
 
 
 @router.get("/available-combinations")

@@ -49,7 +49,7 @@ MAX_EXPORT_LIMIT = 50000
 def export_to_streaming_format(
     row_iterator: Iterator[Dict[str, Any]],
     fieldnames: List[str],
-    format: str,
+    output_format: str,
     filename: str,
     *,
     array_fields: Optional[List[str]] = None,
@@ -60,7 +60,7 @@ def export_to_streaming_format(
     Args:
         row_iterator: 数据行迭代器（生成器）
         fieldnames: 列名列表
-        format: 导出格式 (csv/excel)
+        output_format: 导出格式 (csv/excel)
         filename: 文件名（不含扩展名）
         array_fields: 需要转换为逗号分隔字符串的数组字段
 
@@ -83,14 +83,14 @@ def export_to_streaming_format(
         for row in row_iterator:
             yield transform_arrays(row)
 
-    if format == "csv":
+    if output_format == "csv":
         return stream_csv_response(
             transformed_rows(),
             fieldnames,
             f"{filename}.csv",
         )
 
-    elif format == "excel":
+    elif output_format == "excel":
         return stream_excel_response(
             transformed_rows(),
             fieldnames,
@@ -98,7 +98,7 @@ def export_to_streaming_format(
         )
 
     else:
-        raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
+        raise HTTPException(status_code=400, detail=f"Unsupported format: {output_format}")
 
 
 # ============================================================================
@@ -112,7 +112,7 @@ def export_high_affinity(
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力 (BA)"),
     species_id: Optional[int] = Query(None, description="物种 ID 筛选 (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    format: str = Query("json", description="导出格式 (json/csv/excel)"),
+    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -133,7 +133,7 @@ def export_high_affinity(
     **性能**: 10000 条记录 < 5s
     **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
-    logger.info(f"[EXPORT] high-affinity: min_ba={min_ba}, species_id={species_id}, limit={limit}, format={format}")
+    logger.info(f"[EXPORT] high-affinity: min_ba={min_ba}, species_id={species_id}, limit={limit}, output_format={output_format}")
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -173,7 +173,7 @@ def export_high_affinity(
     ]
 
     # CSV/Excel: 使用流式输出
-    if format in ("csv", "excel"):
+    if output_format in ("csv", "excel"):
         result = db.execute(sql, {
             "min_ba": min_ba,
             "species_id": species_id,
@@ -182,7 +182,7 @@ def export_high_affinity(
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,
-            format,
+            output_format,
             "high_affinity_regulations",
         )
 
@@ -198,7 +198,7 @@ def export_high_affinity(
         "min_ba": min_ba,
         "species_id": species_id,
         "limit": limit,
-        "format": format
+        "format": output_format
     }
 
     return HighAffinityExportResponse(
@@ -218,7 +218,7 @@ def export_conservation(
     request: Request,
     min_species_count: int = Query(2, ge=1, le=4, description="最少保守物种数"),
     limit: int = Query(5000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    format: str = Query("json", description="导出格式 (json/csv/excel)"),
+    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -240,7 +240,7 @@ def export_conservation(
     **性能**: 5000 条记录 < 3s
     **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
-    logger.info(f"[EXPORT] conservation: min_species_count={min_species_count}, limit={limit}, format={format}")
+    logger.info(f"[EXPORT] conservation: min_species_count={min_species_count}, limit={limit}, output_format={output_format}")
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -282,7 +282,7 @@ def export_conservation(
     ]
 
     # CSV/Excel: 使用流式输出
-    if format in ("csv", "excel"):
+    if output_format in ("csv", "excel"):
         result = db.execute(sql, {
             "min_species_count": min_species_count,
             "limit": limit
@@ -290,7 +290,7 @@ def export_conservation(
         return export_to_streaming_format(
             create_db_row_generator(result, transform=transform_conservation_row),
             fieldnames,
-            format,
+            output_format,
             "conservation_lncrnas",
             array_fields=["lncrna_names", "conserved_targets"],
         )
@@ -305,7 +305,7 @@ def export_conservation(
     query_params = {
         "min_species_count": min_species_count,
         "limit": limit,
-        "format": format
+        "format": output_format
     }
 
     return ConservationExportResponse(
@@ -329,7 +329,7 @@ def export_chipseq_overlaps(
     ),
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    format: str = Query("json", description="导出格式 (json/csv/excel)"),
+    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -359,7 +359,7 @@ def export_chipseq_overlaps(
     **性能**: 10000 条记录 < 5s（使用物化视图 mv_lncrna_chipseq_overlaps）
     **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
-    logger.info(f"[EXPORT] chipseq-overlaps: mark_names={mark_names}, min_ba={min_ba}, limit={limit}, format={format}")
+    logger.info(f"[EXPORT] chipseq-overlaps: mark_names={mark_names}, min_ba={min_ba}, limit={limit}, output_format={output_format}")
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -405,7 +405,7 @@ def export_chipseq_overlaps(
     ]
 
     # CSV/Excel: 使用流式输出
-    if format in ("csv", "excel"):
+    if output_format in ("csv", "excel"):
         result = db.execute(sql, {
             "mark_names": mark_names,
             "min_ba": min_ba,
@@ -414,7 +414,7 @@ def export_chipseq_overlaps(
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,
-            format,
+            output_format,
             "chipseq_overlaps",
         )
 
@@ -430,7 +430,7 @@ def export_chipseq_overlaps(
         "mark_names": mark_names,
         "min_ba": min_ba,
         "limit": limit,
-        "format": format
+        "format": output_format
     }
 
     return ChipseqOverlapExportResponse(
@@ -453,7 +453,7 @@ def export_disease_network(
         description="疾病/性状名称（模糊搜索，如 'diabetes', 'cancer'）"
     ),
     limit: int = Query(5000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回边数"),
-    format: str = Query("json", description="导出格式 (仅支持 json，网络数据不适合 CSV)"),
+    output_format: str = Query("json", alias="format", description="导出格式 (仅支持 json，网络数据不适合 CSV)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -494,7 +494,7 @@ def export_disease_network(
 
     **性能**: 5000 条边 < 5s
     """
-    logger.info(f"[EXPORT] disease-network: trait_name={trait_name}, limit={limit}, format={format}")
+    logger.info(f"[EXPORT] disease-network: trait_name={trait_name}, limit={limit}, output_format={output_format}")
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -503,7 +503,7 @@ def export_disease_network(
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
         )
 
-    if format != "json":
+    if output_format != "json":
         raise HTTPException(
             status_code=400,
             detail="Disease network export only supports JSON format (network data structure)"
@@ -639,7 +639,7 @@ def export_disease_network(
     query_params = {
         "trait_name": trait_name,
         "limit": limit,
-        "format": format
+        "format": output_format
     }
 
     logger.info(f"[EXPORT] disease-network: {len(nodes)} nodes, {len(edges)} edges")
@@ -681,7 +681,7 @@ def export_regulations(
     lncrna_gene_name: Optional[str] = Query(None, description="lncRNA 基因名（模糊搜索）"),
     target_gene_name: Optional[str] = Query(None, description="靶基因名（模糊搜索）"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    format: Literal["json", "csv", "excel"] = Query("json", description="导出格式 (json/csv/excel)"),
+    output_format: Literal["json", "csv", "excel"] = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -716,7 +716,7 @@ def export_regulations(
         f"[EXPORT] regulations: min_ba={min_ba}, max_ba={max_ba}, "
         f"species_ids={species_ids}, chromosomes={chromosomes}, "
         f"lncrna={lncrna_gene_name}, target={target_gene_name}, "
-        f"limit={limit}, format={format}"
+        f"limit={limit}, output_format={output_format}"
     )
 
     # 验证参数
@@ -795,12 +795,12 @@ def export_regulations(
     ]
 
     # CSV/Excel: 使用流式输出
-    if format in ("csv", "excel"):
+    if output_format in ("csv", "excel"):
         result = db.execute(sql, params)
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,
-            format,
+            output_format,
             "regulations_export",
         )
 
@@ -816,7 +816,7 @@ def export_regulations(
         "lncrna_gene_name": lncrna_gene_name,
         "target_gene_name": target_gene_name,
         "limit": limit,
-        "format": format
+        "format": output_format
     }
 
     return RegulationsExportResponse(

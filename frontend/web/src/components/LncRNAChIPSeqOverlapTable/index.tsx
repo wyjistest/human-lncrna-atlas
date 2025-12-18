@@ -86,6 +86,7 @@ import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
 import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/features'
 import { genomeApi, type IGVTrackConfig } from '@/api/genome'
 import { API_BASE_URL } from '@/config/api'
+import { openInNewTab } from '@/utils/safeWindow'
 import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 
@@ -724,11 +725,11 @@ export function LncRNAChIPSeqOverlapTable({
 
         const exportUrl = `${API_BASE_URL}/api/v1/lncrna-chipseq-overlap/export?${params.toString()}`
 
-        // Open in new window
-        const newWindow = window.open(exportUrl, '_blank')
+        // Open in new window (secure, with tabnabbing protection)
+        const result = openInNewTab(exportUrl)
 
         // Check if popup was blocked
-        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        if (result.blocked) {
           message.warning({
             content: t('export.popupBlocked', 'Please allow popups to download the file, or try right-clicking and "Save As"'),
             key: 'export',

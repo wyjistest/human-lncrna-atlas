@@ -22,6 +22,7 @@
  */
 import { apiClient } from './client'
 import { API_BASE_URL } from '@/config/api'
+import { openInNewTab } from '@/utils/safeWindow'
 import type {
   RepeatMaskerResponse,
   RepeatMaskerFilters,
@@ -172,7 +173,7 @@ export const featuresApi = {
 
     const queryString = params.toString()
     const url = `${API_BASE_URL}/api/v1/features/genes/${geneId}/repeats/export${queryString ? `?${queryString}` : ''}`
-    window.open(url, '_blank')
+    openInNewTab(url)
   },
 
   // =============================================================================

@@ -13,6 +13,7 @@
 
 import { apiClient } from './client'
 import { API_BASE_URL } from '@/config/api'
+import { openInNewTab } from '@/utils/safeWindow'
 import type {
   OverlapFilters,
   OverlapResponse,
@@ -114,7 +115,7 @@ export const lncRNAChIPSeqOverlapApi = {
     params.append('format', format)
 
     const url = `${API_BASE_URL}/api/v1/lncrna-chipseq-overlap/export?${params.toString()}`
-    window.open(url, '_blank')
+    openInNewTab(url)
   },
 
   /**
