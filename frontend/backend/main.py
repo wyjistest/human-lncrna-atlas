@@ -420,7 +420,8 @@ app.include_router(analysis.router, prefix=settings.API_V1_PREFIX)  # Phase 6.0-
 app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sankey 流向图可视化 API
 
 # 挂载静态文件服务（用于 IGV.js 基因组文件）
-# 使用独立的 FastAPI 子应用，完全绕过主应用的中间件（解决 BaseHTTPMiddleware 兼容性问题）
+# 使用独立的 FastAPI 子应用，绕过主应用的 LoggingMiddleware（解决 BaseHTTPMiddleware 兼容性问题）
+# 注意：子应用有自己的安全头中间件 (StaticSecurityHeadersMiddleware)，与主应用安全头独立
 # GENOMES_DIR 通过 Settings 加载，支持 .env 文件配置
 GENOMES_DIR = settings.GENOMES_DIR
 

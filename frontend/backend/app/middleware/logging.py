@@ -20,6 +20,7 @@ from urllib.parse import parse_qs, urlencode
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
+from app.core.ip_utils import is_trusted_proxy
 
 logger = logging.getLogger("api")
 
@@ -48,6 +49,35 @@ class LoggingMiddleware:
         "authorization", "auth",
         "key", "private",
     ]
+
+    @staticmethod
+    def _get_client_ip(scope: Scope) -> str:
+        """
+        获取用于日志记录的客户端 IP。
+
+        反向代理场景：仅当 direct_ip 属于 settings.TRUSTED_PROXIES 时，才信任 X-Forwarded-For。
+        这样可避免攻击者伪造 X-Forwarded-For 造成日志误导。
+        """
+        client = scope.get("client")
+        direct_ip = client[0] if client else "unknown"
+
+        if direct_ip == "unknown":
+            return direct_ip
+
+        try:
+            if is_trusted_proxy(direct_ip):
+                for header_key, header_value in scope.get("headers", []) or []:
+                    if header_key == b"x-forwarded-for":
+                        forwarded_for = header_value.decode(errors="replace").strip()
+                        if forwarded_for:
+                            real_ip = forwarded_for.split(",")[0].strip()
+                            return real_ip or direct_ip
+                        break
+        except Exception:
+            # 日志中间件必须“绝不影响主请求链路”
+            return direct_ip
+
+        return direct_ip
 
     @staticmethod
     def _sanitize_query_string(query_string: str) -> str:
@@ -139,8 +169,7 @@ class LoggingMiddleware:
         url = f"{path}?{safe_query}" if safe_query else path
 
         # 获取客户端 IP
-        client = scope.get("client")
-        client_ip = client[0] if client else "unknown"
+        client_ip = self._get_client_ip(scope)
 
         # 状态码存储
         status_code: int = 0
