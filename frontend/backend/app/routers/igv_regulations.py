@@ -5,11 +5,12 @@ IGV调控轨道路由
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species
 from app.core.igv_stream_generators import generate_bed_stream, generate_bedpe_stream
 
@@ -19,7 +20,9 @@ router = APIRouter()
 
 
 @router.get("/tracks/regulations/{species_id}.bed")
+@rate_limit("60/minute")
 def get_regulations_bed(
+    request: Request,
     species_id: int,
     chr: Optional[str] = Query(None, description="染色体过滤，如 chr1"),
     # IGV.js webservice 轨道会传递浮点坐标（像素换算），这里兼容 float 并向下取整
@@ -103,7 +106,9 @@ def get_regulations_bed(
 
 
 @router.get("/tracks/interactions/{species_id}.bedpe")
+@rate_limit("60/minute")
 def get_interactions_bedpe(
+    request: Request,
     species_id: int,
     chr: Optional[str] = Query(None, description="染色体过滤，如 chr1"),
     # IGV.js webservice 轨道会传递浮点坐标（像素换算），这里兼容 float 并向下取整

@@ -163,9 +163,49 @@ class RegulationsImporter:
         self.conn.commit()
         cursor.close()
 
+    def _set_batch_error(self, batch_id: int, error_message: str):
+        """设置批次错误信息（用于断点续传提示）"""
+        cursor = self.conn.cursor()
+        # 使用 notes 字段存储错误详情
+        cursor.execute("""
+            UPDATE import_batches
+            SET notes = %s
+            WHERE batch_id = %s
+        """, (error_message, batch_id))
+        self.conn.commit()
+        cursor.close()
+
+    def _validate_columns(self, file_path: str) -> None:
+        """
+        验证文件必需列是否存在
+
+        Args:
+            file_path: TSV 文件路径
+
+        Raises:
+            ValueError: 缺少必需列时抛出异常
+        """
+        required_columns = [
+            'LncRNA_ID', 'Target_Gene_ID', 'Best_Avg_BA',
+            'Best_Peak_Chr', 'Best_Peak_Start', 'Best_Peak_End'
+        ]
+
+        with open(file_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            if reader.fieldnames is None:
+                raise ValueError(f"文件无法读取表头: {file_path}")
+
+            missing = set(required_columns) - set(reader.fieldnames)
+            if missing:
+                raise ValueError(
+                    f"文件缺少必需列: {missing}\n"
+                    f"文件列: {reader.fieldnames}"
+                )
+
     def import_file(self, file_path: str, batch_name: Optional[str] = None,
                    species_code: Optional[str] = None, dry_run: bool = False,
-                   store_sequences: bool = False, batch_size: int = 5000):
+                   store_sequences: bool = False, batch_size: int = 5000,
+                   commit_every: int = 50000, skip_rows: int = 0):
         """
         导入单个regulations文件
 
@@ -176,8 +216,17 @@ class RegulationsImporter:
             dry_run: 试运行模式
             store_sequences: 是否存储序列数据到sequences表
             batch_size: 批量插入大小
+            commit_every: 每多少条记录提交一次事务（默认50000，设为0禁用周期提交）
+            skip_rows: 跳过前N行（用于断点续传，默认0）
         """
         logger.info(f"开始导入文件: {file_path}")
+
+        # 列校验（快速失败）
+        self._validate_columns(file_path)
+        logger.info("列校验通过")
+
+        if skip_rows > 0:
+            logger.info(f"断点续传模式：跳过前 {skip_rows} 行")
 
         # 加载物种映射
         self._load_species_map()
@@ -185,6 +234,8 @@ class RegulationsImporter:
         # 批次管理变量
         batch_id = None
         detected_species_id = None
+        committed_count = 0  # 已提交的记录数（用于断点续传）
+        current_row = 0  # 当前处理的行号
 
         if not batch_name:
             batch_name = f"Regulations Import {Path(file_path).stem}"
@@ -198,7 +249,12 @@ class RegulationsImporter:
                 reader = csv.DictReader(f, delimiter='\t')
 
                 for i, row in enumerate(reader, 1):
+                    current_row = i  # 追踪当前行号
                     self.stats['total_rows'] += 1
+
+                    # 断点续传：跳过已处理的行
+                    if i <= skip_rows:
+                        continue
 
                     try:
                         # 获取物种ID
@@ -290,11 +346,20 @@ class RegulationsImporter:
                     if i % 10000 == 0:
                         logger.info(f"已读取 {i} 行, 有效={len(regulations)}, 跳过={self.stats['skipped_rows']}")
 
-                    # 批量插入（减少内存占用），但不提交事务
+                    # 批量插入（减少内存占用）
                     if len(regulations) >= batch_size and not dry_run:
                         self._batch_insert(regulations, sequences if store_sequences else None, batch_id)
                         regulations = []
                         sequences = []
+
+                    # 周期性提交（创建检查点）
+                    if commit_every > 0 and not dry_run:
+                        records_since_commit = self.stats['regulations_inserted'] - committed_count
+                        if records_since_commit >= commit_every:
+                            self.conn.commit()
+                            committed_count = self.stats['regulations_inserted']
+                            self._update_batch(batch_id, 'in_progress', committed_count)
+                            logger.info(f"检查点: 已提交 {committed_count} 条记录 (当前行: {current_row})")
 
             logger.info(f"文件读取完成: 总行数={self.stats['total_rows']}, "
                        f"待插入={len(regulations)}, 跳过={self.stats['skipped_rows']}, "
@@ -327,16 +392,23 @@ class RegulationsImporter:
                        f"sequences={self.stats['sequences_inserted']}")
 
         except Exception as e:
-            # 异常时回滚事务并标记批次失败
-            logger.error(f"导入过程出错: {e}")
+            # 异常时回滚未提交事务并标记批次失败
+            logger.error(f"导入过程出错 (行 {current_row}): {e}")
             if not dry_run:
                 self.conn.rollback()
-                logger.info("事务已回滚")
+                logger.info(f"事务已回滚（仅未提交部分，已提交 {committed_count} 条）")
 
-                # 标记批次失败
+                # 标记批次失败，记录已提交数量和断点信息
                 if batch_id is not None:
-                    self._update_batch(batch_id, 'failed', 0)
+                    self._update_batch(batch_id, 'failed', committed_count)
+                    # 设置错误详情，包含断点续传提示
+                    error_detail = (
+                        f"PARTIAL_IMPORT: {committed_count} records committed before error at row {current_row}. "
+                        f"Resume with: --skip-rows={current_row - 1}"
+                    )
+                    self._set_batch_error(batch_id, error_detail)
                     logger.info(f"批次 {batch_id} 已标记为失败")
+                    logger.info(f"断点续传提示: python import_regulations.py --file {file_path} --skip-rows={current_row - 1}")
             raise
 
     def _batch_insert(self, regulations: List[Dict], sequences: Optional[List[Dict]], batch_id: Optional[int]):
@@ -603,6 +675,10 @@ def main():
     parser.add_argument('--password', help='数据库密码（可选，使用.pgpass）')
     parser.add_argument('--store-sequences', action='store_true', help='是否存储序列数据')
     parser.add_argument('--batch-size', type=int, default=5000, help='批量插入大小')
+    parser.add_argument('--commit-every', type=int, default=50000,
+                       help='每多少条记录提交一次（创建检查点，默认50000，0=最后统一提交）')
+    parser.add_argument('--skip-rows', type=int, default=0,
+                       help='跳过前N行（用于断点续传）')
     parser.add_argument('--dry-run', action='store_true', help='试运行模式')
 
     args = parser.parse_args()
@@ -628,7 +704,9 @@ def main():
             species_code=args.species,
             dry_run=args.dry_run,
             store_sequences=args.store_sequences,
-            batch_size=args.batch_size
+            batch_size=args.batch_size,
+            commit_every=args.commit_every,
+            skip_rows=args.skip_rows
         )
 
         importer.print_stats()

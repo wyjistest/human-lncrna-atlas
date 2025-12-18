@@ -17,11 +17,12 @@ Phase 9.3 改进：
 """
 import logging
 from typing import List, Optional, Dict, Any, Iterator, Generator, Literal
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.export import (
     HighAffinityExportResponse,
     ConservationExportResponse,
@@ -105,7 +106,9 @@ def export_to_streaming_format(
 # ============================================================================
 
 @router.get("/high-affinity", response_model=HighAffinityExportResponse)
+@rate_limit("5/minute")
 def export_high_affinity(
+    request: Request,
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力 (BA)"),
     species_id: Optional[int] = Query(None, description="物种 ID 筛选 (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
@@ -210,7 +213,9 @@ def export_high_affinity(
 # ============================================================================
 
 @router.get("/conservation", response_model=ConservationExportResponse)
+@rate_limit("5/minute")
 def export_conservation(
+    request: Request,
     min_species_count: int = Query(2, ge=1, le=4, description="最少保守物种数"),
     limit: int = Query(5000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
     format: str = Query("json", description="导出格式 (json/csv/excel)"),
@@ -315,7 +320,9 @@ def export_conservation(
 # ============================================================================
 
 @router.get("/chipseq-overlaps", response_model=ChipseqOverlapExportResponse)
+@rate_limit("5/minute")
 def export_chipseq_overlaps(
+    request: Request,
     mark_names: List[str] = Query(
         default=["H3K4me3", "H3K27me3"],
         description="组蛋白标记列表（支持多个，如 H3K4me3, H3K27me3, H3K27ac）"
@@ -438,7 +445,9 @@ def export_chipseq_overlaps(
 # ============================================================================
 
 @router.get("/disease-network", response_model=DiseaseNetworkExportResponse)
+@rate_limit("5/minute")
 def export_disease_network(
+    request: Request,
     trait_name: Optional[str] = Query(
         None,
         description="疾病/性状名称（模糊搜索，如 'diabetes', 'cancer'）"
@@ -662,7 +671,9 @@ def export_disease_network(
         },
     },
 )
+@rate_limit("5/minute")
 def export_regulations(
+    request: Request,
     min_ba: Optional[float] = Query(None, ge=0, description="最小结合亲和力 (BA)"),
     max_ba: Optional[float] = Query(None, ge=0, description="最大结合亲和力 (BA)"),
     species_ids: Optional[str] = Query(None, description="物种 ID 列表（逗号分隔，如 '1,2,3'）"),

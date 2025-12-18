@@ -5,10 +5,11 @@ IGV搜索路由
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species, Gene
 from app.schemas.igv import (
     IGVSearchResult,
@@ -22,7 +23,9 @@ router = APIRouter()
 
 
 @router.get("/search")
+@rate_limit("60/minute")
 def search_genes_for_igv(
+    request: Request,
     q: str = Query(..., min_length=1, description="搜索关键词（基因名或 Ensembl ID）"),
     species_id: Optional[int] = Query(None, description="物种 ID 过滤"),
     limit: int = Query(20, ge=1, le=100, description="返回结果数量限制"),
@@ -118,7 +121,9 @@ def search_genes_for_igv(
 
 
 @router.get("/locus")
+@rate_limit("60/minute")
 def search_locus_for_igv(
+    request: Request,
     q: str = Query(..., min_length=1, description="搜索关键词（基因名、Ensembl ID 或染色体坐标）"),
     species_id: Optional[int] = Query(None, description="物种 ID 过滤"),
     db: Session = Depends(get_db),
@@ -258,7 +263,9 @@ def search_locus_for_igv(
 
 
 @router.get("/autocomplete", response_model=GeneAutocompleteResponse)
+@rate_limit("60/minute")
 def autocomplete_genes(
+    request: Request,
     q: str = Query(..., min_length=1, description="搜索关键词（基因名前缀）"),
     species_id: Optional[int] = Query(None, description="物种 ID 过滤"),
     limit: int = Query(10, ge=1, le=50, description="返回结果数量限制"),

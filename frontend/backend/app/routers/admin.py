@@ -25,6 +25,7 @@ from app.core.database import engine
 from app.core.cache import cache
 from app.core.config import settings, AlertThresholds
 from app.core.ip_utils import get_client_ip, is_private_ip
+from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.monitoring import (
     MetricsResponse,
     RequestMetrics,
@@ -564,6 +565,7 @@ def calculate_percentiles(response_times: deque) -> Optional[PercentileMetrics]:
     此端点主要提供健康检查和系统资源监控。
     """,
 )
+@rate_limit("10/minute")
 async def get_metrics(request: Request) -> MetricsResponse:
     """
     获取系统监控指标
@@ -663,7 +665,8 @@ async def get_metrics(request: Request) -> MetricsResponse:
     summary="获取缓存统计",
     description="返回缓存命中率、后端类型和使用情况",
 )
-async def get_cache_stats() -> dict:
+@rate_limit("10/minute")
+async def get_cache_stats(request: Request) -> dict:
     """
     获取缓存统计信息
 
@@ -678,7 +681,8 @@ async def get_cache_stats() -> dict:
     summary="清空全部缓存",
     description="清空所有 lncrna: 前缀的缓存。操作不可撤销。",
 )
-async def clear_cache() -> dict:
+@rate_limit("2/minute")
+async def clear_cache(request: Request) -> dict:
     """
     清空全部缓存
 
@@ -706,7 +710,8 @@ async def clear_cache() -> dict:
     - export - 导出相关缓存
     """,
 )
-async def invalidate_cache_namespace(namespace: str) -> dict:
+@rate_limit("5/minute")
+async def invalidate_cache_namespace(request: Request, namespace: str) -> dict:
     """
     按命名空间失效缓存
 

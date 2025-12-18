@@ -5,11 +5,12 @@ Provides endpoints for RepeatMasker annotations and other genomic features
 import logging
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, cast, Float
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Gene, GenomicFeature, FeatureTrack, Species
 from app.core.igv_utils import get_repeatmasker_track_id as _get_repeatmasker_track_id
 from app.schemas.features import (
@@ -47,7 +48,9 @@ def get_repeatmasker_track_id(db: Session) -> int:
 # =============================================================================
 
 @router.get("/tracks", response_model=List[FeatureTrackResponse])
+@rate_limit("30/minute")
 def list_feature_tracks(
+    request: Request,
     category: Optional[str] = Query(None, description="Filter by track category"),
     active_only: bool = Query(True, description="Only return active tracks"),
     db: Session = Depends(get_db),
@@ -68,7 +71,9 @@ def list_feature_tracks(
 
 # NOTE: /tracks/stats must be defined BEFORE /tracks/{track_id} to avoid routing conflict
 @router.get("/tracks/stats", response_model=List[FeatureTrackStats])
+@rate_limit("30/minute")
 def get_feature_track_statistics(
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """
@@ -115,7 +120,9 @@ def get_feature_track_statistics(
 
 
 @router.get("/tracks/{track_id}", response_model=FeatureTrackResponse)
+@rate_limit("30/minute")
 def get_feature_track(
+    request: Request,
     track_id: int,
     db: Session = Depends(get_db),
 ):
@@ -133,7 +140,9 @@ def get_feature_track(
 # =============================================================================
 
 @router.get("/genes/{gene_id}/repeats", response_model=RepeatMaskerResponse)
+@rate_limit("30/minute")
 def get_gene_repeats(
+    request: Request,
     gene_id: int,
     repeat_class: Optional[str] = Query(None, description="Filter by repeat class (LINE, SINE, LTR, DNA, etc.)"),
     repeat_family: Optional[str] = Query(None, description="Filter by repeat family (L1, Alu, etc.)"),
@@ -220,7 +229,9 @@ def get_gene_repeats(
 
 
 @router.get("/genes/{gene_id}/repeats/stats", response_model=GeneRepeatSummary)
+@rate_limit("30/minute")
 def get_gene_repeat_stats(
+    request: Request,
     gene_id: int,
     flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000, description="Flanking region size in bp"),
     db: Session = Depends(get_db),
@@ -373,7 +384,9 @@ def get_gene_repeat_stats(
 # =============================================================================
 
 @router.get("/repeats/{species_id}", response_model=RepeatMaskerResponse)
+@rate_limit("30/minute")
 def get_repeats_by_region(
+    request: Request,
     species_id: int,
     chromosome: str = Query(..., description="Chromosome name"),
     start: int = Query(..., ge=0, description="Region start position"),
@@ -444,7 +457,9 @@ def get_repeats_by_region(
 # =============================================================================
 
 @router.get("/repeats/{species_id}/classes", response_model=List[str])
+@rate_limit("30/minute")
 def get_repeat_classes(
+    request: Request,
     species_id: int,
     db: Session = Depends(get_db),
 ):
@@ -474,7 +489,9 @@ def get_repeat_classes(
 
 
 @router.get("/repeats/{species_id}/families", response_model=List[str])
+@rate_limit("30/minute")
 def get_repeat_families(
+    request: Request,
     species_id: int,
     repeat_class: Optional[str] = Query(None, description="Filter by repeat class"),
     db: Session = Depends(get_db),

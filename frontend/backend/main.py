@@ -53,6 +53,89 @@ except ImportError:
 logger = setup_logging(settings.LOG_LEVEL)
 
 
+def _validate_security_config() -> None:
+    """
+    启动时安全配置验证 (Fail-Fast)
+
+    检查项：
+    1. ADMIN_REQUIRE_API_KEY=true 但 ADMIN_API_KEY 未设置 → FATAL
+    2. ADMIN_REQUIRE_API_KEY=false → FATAL (生产风险)
+    3. slowapi 不可用 → FATAL (限流禁用)
+    4. 连接池配置过小 → WARNING
+
+    开发模式绕过：
+    设置 SECURITY_ALLOW_INSECURE=true 可跳过 fail-fast（仅限开发环境）
+
+    Raises:
+        RuntimeError: 当存在致命安全配置错误且未启用开发模式时
+    """
+    # 检查是否允许不安全配置（仅限开发环境）
+    allow_insecure = os.environ.get("SECURITY_ALLOW_INSECURE", "").lower() == "true"
+
+    fatal_errors = []
+    warnings = []
+
+    # 1. Admin API Key 配置检查
+    if settings.ADMIN_REQUIRE_API_KEY:
+        if not settings.ADMIN_API_KEY:
+            fatal_errors.append(
+                "ADMIN_REQUIRE_API_KEY=true but ADMIN_API_KEY is not set. "
+                "Generate a key: openssl rand -hex 32"
+            )
+    else:
+        # 非严格模式视为致命错误（生产环境必须启用 API Key）
+        fatal_errors.append(
+            "ADMIN_REQUIRE_API_KEY=false - Admin API allows unauthenticated access from private IPs. "
+            "Set ADMIN_REQUIRE_API_KEY=true and ADMIN_API_KEY for production."
+        )
+
+    # 2. slowapi 可用性检查（硬依赖）
+    if not SLOWAPI_AVAILABLE:
+        fatal_errors.append(
+            "slowapi is not available - rate limiting is DISABLED for all endpoints. "
+            "Install slowapi: pip install slowapi"
+        )
+
+    # 3. 连接池配置检查（仅警告）
+    pool_total = settings.DB_POOL_SIZE + settings.DB_POOL_MAX_OVERFLOW
+    if pool_total < 20:
+        warnings.append(
+            f"Database pool size ({settings.DB_POOL_SIZE}+{settings.DB_POOL_MAX_OVERFLOW}={pool_total}) "
+            f"may be insufficient for high concurrency. Consider increasing to 20+."
+        )
+
+    # 输出警告
+    for warning in warnings:
+        logger.warning(f"⚠️  Security Warning: {warning}")
+
+    # 输出致命错误
+    for error in fatal_errors:
+        logger.error(f"❌ FATAL Security Error: {error}")
+
+    # 汇总日志
+    if fatal_errors or warnings:
+        logger.info(
+            f"🔒 Security validation: {len(fatal_errors)} fatal errors, {len(warnings)} warnings"
+        )
+    else:
+        logger.info("🔒 Security validation: All checks passed")
+
+    # Fail-Fast: 存在致命错误时拒绝启动
+    if fatal_errors:
+        if allow_insecure:
+            logger.warning(
+                "🚨 SECURITY_ALLOW_INSECURE=true - Bypassing security checks. "
+                "DO NOT USE IN PRODUCTION!"
+            )
+        else:
+            error_summary = "; ".join(fatal_errors)
+            raise RuntimeError(
+                f"Security validation failed - refusing to start. "
+                f"Errors: {error_summary}. "
+                f"Set SECURITY_ALLOW_INSECURE=true to bypass (development only)."
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
@@ -60,6 +143,9 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info("=" * 60)
+
+    # 安全配置验证
+    _validate_security_config()
 
     # 初始化应用启动时间（用于 admin metrics uptime 计算）
     app.state.start_time = time.time()

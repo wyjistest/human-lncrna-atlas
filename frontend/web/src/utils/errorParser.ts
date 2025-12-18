@@ -1,11 +1,24 @@
 import { AxiosError } from 'axios'
 
 /**
+ * 错误类型分类
+ */
+export type ErrorType =
+  | 'network'      // 网络错误（无响应）
+  | 'timeout'      // 请求超时
+  | 'validation'   // 4xx 客户端/验证错误
+  | 'rate_limit'   // 429 限流
+  | 'server'       // 5xx 服务端错误
+  | 'unknown'      // 未知错误
+
+/**
  * 错误信息解析结果
  */
 export interface ParsedError {
   /** 用户友好的错误消息 */
   message: string
+  /** 错误类型分类 */
+  type: ErrorType
   /** 错误 ID（如果后端返回了） */
   errorId?: string
   /** HTTP 状态码 */
@@ -21,11 +34,22 @@ export interface ParsedError {
  * - Pydantic 验证：{detail: [{msg: "..."}]}
  * - 字符串：{detail: "error message"}
  */
+/**
+ * 根据状态码确定错误类型
+ */
+function getErrorTypeFromStatus(status: number): ErrorType {
+  if (status === 429) return 'rate_limit'
+  if (status >= 400 && status < 500) return 'validation'
+  if (status >= 500) return 'server'
+  return 'unknown'
+}
+
 export function parseError(error: unknown): ParsedError {
   // 处理 AxiosError
   if (error instanceof AxiosError && error.response) {
     const { status, data } = error.response
     const detail = data?.detail
+    const errorType = getErrorTypeFromStatus(status)
 
     // 处理 detail 为对象的情况（包括脱敏格式和 Admin 错误）
     if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
@@ -36,6 +60,7 @@ export function parseError(error: unknown): ParsedError {
       if ('message' in detail && typeof detail.message === 'string') {
         return {
           message: errorId ? `${detail.message} [${errorId}]` : detail.message,
+          type: errorType,
           errorId,
           statusCode: status,
         }
@@ -44,6 +69,7 @@ export function parseError(error: unknown): ParsedError {
       if ('error' in detail && typeof detail.error === 'string') {
         return {
           message: errorId ? `${detail.error} [${errorId}]` : detail.error,
+          type: errorType,
           errorId,
           statusCode: status,
         }
@@ -52,6 +78,7 @@ export function parseError(error: unknown): ParsedError {
       try {
         return {
           message: JSON.stringify(detail),
+          type: errorType,
           errorId,
           statusCode: status,
         }
@@ -68,6 +95,7 @@ export function parseError(error: unknown): ParsedError {
         .join(', ')
       return {
         message: messages || 'Validation error',
+        type: 'validation',
         statusCode: status,
       }
     }
@@ -84,14 +112,20 @@ export function parseError(error: unknown): ParsedError {
 
     return {
       message: detail || defaultMessages[status] || 'Request failed',
+      type: errorType,
       statusCode: status,
     }
   }
 
   // 处理网络错误（请求已发出但没有响应）
   if (error instanceof AxiosError && error.request) {
+    // 检查是否为超时错误
+    const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout')
     return {
-      message: 'Network error, please check your connection',
+      message: isTimeout
+        ? 'Request timed out, please try again'
+        : 'Network error, please check your connection',
+      type: isTimeout ? 'timeout' : 'network',
     }
   }
 
@@ -99,6 +133,7 @@ export function parseError(error: unknown): ParsedError {
   if (error instanceof Error) {
     return {
       message: error.message,
+      type: 'unknown',
     }
   }
 
@@ -106,12 +141,14 @@ export function parseError(error: unknown): ParsedError {
   if (typeof error === 'string') {
     return {
       message: error,
+      type: 'unknown',
     }
   }
 
   // 未知错误类型
   return {
     message: 'An unexpected error occurred',
+    type: 'unknown',
   }
 }
 

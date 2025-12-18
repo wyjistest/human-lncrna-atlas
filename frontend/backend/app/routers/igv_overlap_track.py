@@ -15,9 +15,11 @@ from __future__ import annotations
 import logging
 from typing import Optional, Generator
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
+
+from app.routers.chipseq_rate_limit import rate_limit
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -194,7 +196,9 @@ def _generate_overlap_bed6_stream(
 
 
 @router.get("/overlap-track")
+@rate_limit("60/minute")
 def get_overlap_track(
+    request: Request,
     chr: Optional[str] = Query(None, description="IGV.js 标准染色体参数，如 chr1 或 1"),
     chromosome: Optional[str] = Query(None, description="chr 的别名参数，如 chr22 或 22"),
     start: int = Query(..., ge=0, description="区域起点 (0-based)"),

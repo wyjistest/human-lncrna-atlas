@@ -4,9 +4,9 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.3 |
+| 版本 | Phase 9.5 |
 | 状态 | 🟢 生产就绪 |
-| 更新 | 2025-12-16 |
+| 更新 | 2025-12-18 |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
 ## 项目概述
@@ -146,6 +146,47 @@ npx playwright show-report
 | REQUEST_LOG_ENABLED | 启用请求日志 (默认 true) |
 | REQUEST_LOG_SLOW_THRESHOLD_MS | 慢请求阈值毫秒 (0=全部) |
 | REQUEST_LOG_SAMPLE_RATE | 日志采样率 0.0-1.0 (默认 1.0) |
+| SECURITY_ALLOW_INSECURE | 跳过安全检查 (仅开发环境，默认 false) ⚠️ |
+| QUERY_TIMEOUT | SQL 查询超时秒数 (默认 30) |
+
+## 生产环境安全配置
+
+⚠️ **启动时安全验证 (Fail-Fast)**
+
+后端在启动时会执行安全配置验证。若检测到致命错误，应用将 **拒绝启动**：
+
+| 检查项 | 行为 |
+|--------|------|
+| `ADMIN_REQUIRE_API_KEY=false` | FATAL - 拒绝启动 |
+| `ADMIN_REQUIRE_API_KEY=true` 但无 `ADMIN_API_KEY` | FATAL - 拒绝启动 |
+| slowapi 未安装 | FATAL - 拒绝启动 |
+| 连接池过小 (< 20) | WARNING - 仅警告 |
+
+**开发环境绕过**：设置 `SECURITY_ALLOW_INSECURE=true` 可跳过 fail-fast（生产环境禁止使用）
+
+```bash
+# 生产环境必需配置
+ADMIN_REQUIRE_API_KEY=true
+ADMIN_API_KEY=$(openssl rand -hex 32)
+
+# 确保 slowapi 已安装
+pip install slowapi
+
+# 高并发建议
+DB_POOL_SIZE=10
+DB_POOL_MAX_OVERFLOW=20
+```
+
+**限流策略**:
+| 端点类型 | 限制 | 说明 |
+|---------|------|------|
+| Admin API | 2-10/min | 最严格，防止暴力破解 |
+| 数据导出 | 5/min | 资源密集型操作 |
+| 统计/保守性/特征 | 30/min | 通常有缓存 |
+| IGV 可视化 | 60/min | 交互式浏览需要 |
+| ChIP-seq | 30/min | 大数据量查询 |
+
+**启动验证**: 后端启动时会自动检查安全配置，不安全配置会输出 WARNING/ERROR 日志。
 
 ## 版本里程碑
 
@@ -159,7 +200,9 @@ npx playwright show-report
 | 9.0 | 高级可视化 (Chord/聚类热力图) | 2025-12-15 |
 | 9.1 | ESLint 警告清零 (135→0) | 2025-12-15 |
 | 9.2 | Ruff Lint 全面修复 (106 issues) | 2025-12-15 |
-| **9.3** | **全面代码审查 + 安全/性能修复** | **2025-12-16** |
+| 9.3 | 全面代码审查 + 安全/性能修复 | 2025-12-16 |
+| 9.4 | 安全加固 (限流 + 启动验证 + 文档) | 2025-12-18 |
+| **9.5** | **Fail-Fast 安全启动 + ETL 断点续传** | **2025-12-18** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

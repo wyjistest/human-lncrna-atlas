@@ -10,11 +10,12 @@ Endpoints:
 """
 from typing import Optional, List, Dict, Set
 from collections import defaultdict
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, distinct, String
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
 from app.core.utils import escape_like_pattern
 from app.models import CoreGene, Gene, Regulation, Species
@@ -174,7 +175,8 @@ def _build_conserved_regulation_items(results: list, db: Session) -> List[Conser
 # Endpoint 1: Overview Statistics
 # =============================================================================
 @router.get("/overview", response_model=ConservationSummary)
-def get_conservation_overview(db: Session = Depends(get_db)):
+@rate_limit("30/minute")
+def get_conservation_overview(request: Request, db: Session = Depends(get_db)):
     """
     Get conservation overview statistics.
 
@@ -313,7 +315,8 @@ def get_conservation_overview(db: Session = Depends(get_db)):
 # Endpoint 2: Conservation Matrix (for Heatmap)
 # =============================================================================
 @router.get("/matrix", response_model=ConservationMatrix)
-def get_conservation_matrix(db: Session = Depends(get_db)):
+@rate_limit("30/minute")
+def get_conservation_matrix(request: Request, db: Session = Depends(get_db)):
     """
     Get species-to-species conservation matrix for heatmap visualization.
 
@@ -453,7 +456,9 @@ def get_conservation_matrix(db: Session = Depends(get_db)):
 # Endpoint 3: Conserved Regulations List (Paginated)
 # =============================================================================
 @router.get("/regulations", response_model=ConservedRegulationList)
+@rate_limit("30/minute")
 def get_conserved_regulations(
+    request: Request,
     min_species: int = Query(2, ge=2, le=4, description="Minimum number of species"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=10, le=200, description="Items per page"),
@@ -548,7 +553,9 @@ def get_conserved_regulations(
 # Endpoint 4: Venn Diagram Data
 # =============================================================================
 @router.get("/venn")
+@rate_limit("30/minute")
 def get_venn_data(
+    request: Request,
     data_type: str = Query("lncrna", description="Data type: 'lncrna' or 'regulation'"),
     db: Session = Depends(get_db),
 ):
@@ -657,7 +664,9 @@ def get_venn_data(
 # Endpoint 5: Single LncRNA Conservation Detail
 # =============================================================================
 @router.get("/lncrna/{core_id}")
+@rate_limit("30/minute")
 def get_lncrna_conservation(
+    request: Request,
     core_id: int,
     db: Session = Depends(get_db),
 ):

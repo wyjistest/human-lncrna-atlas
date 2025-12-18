@@ -8,11 +8,12 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
 from app.models import Species, Gene, Regulation, EpigeneticMarkType, ChIPSeqExperiment
 from app.core.igv_utils import get_genome_reference, get_chipseq_mark_color
@@ -51,7 +52,9 @@ router.include_router(overlap_track_router)
 
 
 @router.get("/config/{species_id}", response_model=IGVConfigResponse)
+@rate_limit("60/minute")
 def get_igv_config(
+    request: Request,
     species_id: int,
     db: Session = Depends(get_db),
 ):
@@ -173,7 +176,8 @@ def get_igv_config(
 
 
 @router.get("/genomes", response_model=list[SpeciesGenomeInfo])
-def list_available_genomes(db: Session = Depends(get_db)):
+@rate_limit("60/minute")
+def list_available_genomes(request: Request, db: Session = Depends(get_db)):
     """
     列出所有可用的基因组配置
 
@@ -214,7 +218,9 @@ def list_available_genomes(db: Session = Depends(get_db)):
 
 
 @router.get("/config/gene/{gene_name}", response_model=IGVConfigResponse)
+@rate_limit("60/minute")
 def get_igv_config_for_gene(
+    request: Request,
     gene_name: str,
     padding: int = Query(50000, ge=0, le=500000, description="基因两侧扩展区域(bp)"),
     include_chipseq: bool = Query(False, description="Include ChIP-seq tracks"),
@@ -465,7 +471,9 @@ def get_igv_config_for_gene(
 
 
 @router.get("/tracks/regulations/{species_id}/count")
+@rate_limit("60/minute")
 def get_regulations_count(
+    request: Request,
     species_id: int,
     chr: Optional[str] = Query(None, description="染色体过滤"),
     start: Optional[int] = Query(None, ge=0, description="起始位置"),

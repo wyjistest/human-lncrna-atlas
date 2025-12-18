@@ -5,10 +5,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query'
-import { message } from 'antd'
 import './index.css'
 import App from './App.tsx'
-import { getErrorMessage } from '@/utils/errorParser'
+import { parseError } from '@/utils/errorParser'
+import { throttledMessage } from '@/utils/throttledMessage'
 
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -17,7 +17,12 @@ const queryClient = new QueryClient({
       if (query.meta?.skipGlobalErrorHandler) {
         return
       }
-      message.error(getErrorMessage(error))
+      // 使用带错误类型感知的节流消息队列
+      // - 网络/超时错误: 10秒内只显示一次
+      // - 限流错误(429): 30秒内只显示一次
+      // - 验证/服务端错误: 标准节流 (2秒去重, 5秒窗口内最多3条)
+      const parsed = parseError(error)
+      throttledMessage.showError(parsed)
     },
   }),
   mutationCache: new MutationCache({
@@ -26,7 +31,8 @@ const queryClient = new QueryClient({
       if (mutation.meta?.skipGlobalErrorHandler) {
         return
       }
-      message.error(getErrorMessage(error))
+      const parsed = parseError(error)
+      throttledMessage.showError(parsed)
     },
   }),
   defaultOptions: {

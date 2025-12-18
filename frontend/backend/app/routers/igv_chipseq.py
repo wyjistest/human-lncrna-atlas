@@ -6,11 +6,12 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
 from app.models import Species, ChIPSeqExperiment, EpigeneticMarkType
 from app.core.igv_stream_generators import (
@@ -35,7 +36,9 @@ router = APIRouter()
 # =============================================================================
 
 @router.get("/tracks/chipseq/{species_id}.bed")
+@rate_limit("60/minute")
 def get_chipseq_bed(
+    request: Request,
     species_id: int,
     mark_type: str = Query(..., description="Mark type, e.g., H3K27me3"),
     chromosome: Optional[str] = Query(None, description="Filter by chromosome, e.g., chr1"),
@@ -177,7 +180,9 @@ def get_chipseq_bed(
 
 
 @router.get("/config/chipseq/{species_id}", response_model=IGVConfigResponse)
+@rate_limit("60/minute")
 def get_igv_chipseq_config(
+    request: Request,
     species_id: int,
     mark_types: Optional[str] = Query(
         None,

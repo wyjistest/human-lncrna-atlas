@@ -5,12 +5,13 @@ IGV RepeatMasker轨道路由
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species, GenomicFeature
 from app.core.igv_stream_generators import generate_repeatmasker_bed_stream
 from app.core.igv_utils import get_repeatmasker_track_id
@@ -26,7 +27,9 @@ router = APIRouter()
 
 
 @router.get("/tracks/repeatmasker/{species_id}.bed")
+@rate_limit("60/minute")
 def get_repeatmasker_bed(
+    request: Request,
     species_id: int,
     chr: Optional[str] = Query(None, description="Chromosome filter, e.g., chr1"),
     start: Optional[int] = Query(None, ge=0, description="Start position (0-based)"),
@@ -108,7 +111,9 @@ def get_repeatmasker_bed(
 
 
 @router.get("/tracks/repeatmasker/{species_id}/count")
+@rate_limit("60/minute")
 def get_repeatmasker_count(
+    request: Request,
     species_id: int,
     chr: Optional[str] = Query(None, description="Chromosome filter"),
     start: Optional[int] = Query(None, ge=0, description="Start position"),
@@ -182,7 +187,9 @@ def get_repeatmasker_count(
 
 
 @router.get("/config/repeatmasker/{species_id}")
+@rate_limit("60/minute")
 def get_repeatmasker_igv_config(
+    request: Request,
     species_id: int,
     display_mode: str = Query(
         "SQUISHED",
@@ -278,7 +285,9 @@ def get_repeatmasker_igv_config(
 
 
 @router.get("/config/repeatmasker-classes/{species_id}")
+@rate_limit("60/minute")
 def get_repeatmasker_class_tracks(
+    request: Request,
     species_id: int,
     db: Session = Depends(get_db),
 ):

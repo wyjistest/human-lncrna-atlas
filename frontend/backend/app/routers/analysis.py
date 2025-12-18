@@ -14,11 +14,12 @@ Phase 6.0-C: 为 Analysis Results 页面提供聚合统计数据
 - 单次 API 调用获取所有摘要数据
 """
 import logging
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
 from app.schemas.analysis import (
     AnalysisSummaryResponse,
@@ -35,7 +36,8 @@ router = APIRouter(prefix="/analysis", tags=["analysis"])
 
 
 @router.get("/summary", response_model=AnalysisSummaryResponse)
-def get_analysis_summary(db: Session = Depends(get_db)):
+@rate_limit("30/minute")
+def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     """
     获取分析结果综合摘要（缓存 1 小时）
 

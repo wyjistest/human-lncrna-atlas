@@ -1,10 +1,11 @@
 """统计信息API路由"""
 from typing import List
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, desc, case
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
 from app.models import (
     Species,
@@ -29,7 +30,8 @@ router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 @router.get("/overview", response_model=OverviewStats)
-def get_overview_stats(db: Session = Depends(get_db)):
+@rate_limit("30/minute")
+def get_overview_stats(request: Request, db: Session = Depends(get_db)):
     """
     获取全局概览统计（缓存 1 小时）
     """
@@ -121,7 +123,9 @@ def get_overview_stats(db: Session = Depends(get_db)):
 
 
 @router.get("/top-genes", response_model=List[TopGene])
+@rate_limit("30/minute")
 def get_top_genes(
+    request: Request,
     limit: int = Query(10, ge=1, le=100, description="返回数量"),
     gene_type: str = Query(None, description="基因类型过滤"),
     db: Session = Depends(get_db),
@@ -184,7 +188,9 @@ def get_top_genes(
 
 
 @router.get("/top-diseases", response_model=List[TopDisease])
+@rate_limit("30/minute")
 def get_top_diseases(
+    request: Request,
     limit: int = Query(10, ge=1, le=100, description="返回数量"),
     db: Session = Depends(get_db),
 ):
@@ -241,7 +247,9 @@ def get_top_diseases(
 
 
 @router.get("/conserved-regulations", response_model=List[ConservedRegulation])
+@rate_limit("30/minute")
 def get_conserved_regulations(
+    request: Request,
     min_species: int = Query(2, ge=2, le=4, description="最少保守物种数"),
     limit: int = Query(100, ge=1, le=1000, description="返回数量"),
     db: Session = Depends(get_db),
@@ -308,7 +316,8 @@ def get_conserved_regulations(
 
 
 @router.get("/ba-range", response_model=BARange)
-def get_ba_range(db: Session = Depends(get_db)):
+@rate_limit("30/minute")
+def get_ba_range(request: Request, db: Session = Depends(get_db)):
     """
     获取结合亲和力范围（缓存 1 小时）
     用于前端动态设置筛选器范围
@@ -340,7 +349,9 @@ def get_ba_range(db: Session = Depends(get_db)):
 
 
 @router.get("/detailed", response_model=DetailedStats)
+@rate_limit("30/minute")
 def get_detailed_stats(
+    request: Request,
     buckets: int = Query(10, ge=5, le=50, description="BA分布直方图桶数"),
     top_limit: int = Query(10, ge=1, le=100, description="Top lncRNA数量"),
     db: Session = Depends(get_db),
@@ -476,7 +487,8 @@ def get_detailed_stats(
 
 
 @router.get("/cache-status")
-def get_cache_status():
+@rate_limit("30/minute")
+def get_cache_status(request: Request):
     """
     获取缓存状态信息
     """
