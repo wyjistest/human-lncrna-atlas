@@ -267,13 +267,18 @@ async def add_security_headers(request: Request, call_next):
         response.headers["Strict-Transport-Security"] = hsts_value
 
     # CSP - API 严格策略（禁止内联脚本、eval、外部资源）
-    # API 返回 JSON 数据，不需要加载任何外部资源
-    response.headers["Content-Security-Policy"] = (
-        "default-src 'none'; "
-        "frame-ancestors 'none'; "
-        "base-uri 'none'; "
-        "form-action 'none'"
-    )
+    # API 返回 JSON/文本数据，不需要加载任何外部资源。
+    #
+    # ⚠️ 注意：FastAPI 的 Swagger UI (/docs) 与 ReDoc (/redoc) 需要加载 JS/CSS。
+    # 若对文档页面也设置 `default-src 'none'`，浏览器会阻止资源加载，导致交互式文档不可用。
+    path = request.url.path
+    if not (path.startswith("/docs") or path.startswith("/redoc")):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'none'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'none'; "
+            "form-action 'none'"
+        )
 
     return response
 
