@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.utils import escape_like_pattern
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.export import (
     HighAffinityExportResponse,
@@ -49,6 +50,26 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 # 最大导出数量限制（防止内存溢出）
 MAX_EXPORT_LIMIT = 50000
+
+
+def is_effective_like_filter(value: Optional[str]) -> bool:
+    """
+    判断 LIKE 过滤条件是否有效（能有效缩小结果集）。
+
+    无效情况：
+    - None 或空字符串
+    - 纯空白字符
+    - 纯通配符（如 '%', '%%', '_', '%_', '___' 等）
+
+    转义后再判断：如果输入是 'dia%betes' 这种混合值，
+    转义后是 'dia\\%betes'，包含非通配符字符，是有效过滤。
+    """
+    if not value or not value.strip():
+        return False
+
+    # 移除所有 LIKE 通配符后检查是否还有内容
+    stripped = value.replace('%', '').replace('_', '').strip()
+    return len(stripped) > 0
 
 
 def export_to_streaming_format(
@@ -527,16 +548,21 @@ def export_disease_network(
         )
 
     # P0 修复：防止无过滤条件的全表扫描
-    # 当未提供 trait_name 或为空字符串时，限制返回数量以避免内存溢出
-    # 注意：空字符串也被视为未提供过滤条件，防止 ?trait_name= 绕过保护
-    if not trait_name or not trait_name.strip():
+    # 当未提供有效 trait_name 过滤时，限制返回数量以避免内存溢出
+    # 注意：空字符串、纯通配符（%、_）都视为未提供有效过滤，防止绕过保护
+    # Phase 9.13: 使用 is_effective_like_filter 检测通配符绕过攻击
+    if not is_effective_like_filter(trait_name):
         effective_limit = min(limit, 500)  # 无过滤时最多返回 500 条
         logger.warning(
-            f"[EXPORT] disease-network: No trait_name filter provided, "
-            f"limiting to {effective_limit} rows (requested: {limit})"
+            f"[EXPORT] disease-network: No effective trait_name filter provided "
+            f"(value={trait_name!r}), limiting to {effective_limit} rows (requested: {limit})"
         )
+        # 无效过滤时传递 None，避免纯通配符查询
+        escaped_trait_name = None
     else:
         effective_limit = limit
+        # 转义 trait_name 防止通配符注入
+        escaped_trait_name = escape_like_pattern(trait_name)
 
     nodes = []
     edges = []
@@ -555,12 +581,12 @@ def export_disease_network(
         FROM trait_gene_associations tga
         JOIN traits t ON tga.trait_id = t.trait_id
         JOIN genes g ON tga.core_id = g.core_id
-        WHERE (:trait_name IS NULL OR t.trait_name ILIKE '%' || :trait_name || '%')
+        WHERE (:trait_name IS NULL OR t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\')
         LIMIT :limit
     """)
 
     disease_gene_result = db.execute(disease_gene_sql, {
-        "trait_name": trait_name,
+        "trait_name": escaped_trait_name,
         "limit": effective_limit
     })
 

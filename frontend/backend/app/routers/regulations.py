@@ -217,16 +217,42 @@ def _build_regulation_list_query(db: Session):
     return query, LncRNAGene, TargetGene
 
 
-def _parse_ids(ids_str: str, param_name: str) -> list[int]:
-    """解析逗号分隔的 ID 字符串，返回整数列表"""
+def _parse_ids(ids_str: str, param_name: str, *, raise_on_empty: bool = True) -> list[int]:
+    """
+    解析逗号分隔的 ID 字符串，返回整数列表。
+
+    Phase 9.13: 添加 raise_on_empty 参数防止静默回退。
+    当用户提供了 IDs 参数但全部解析失败时，返回 400 而非静默忽略过滤条件。
+
+    Args:
+        ids_str: 逗号分隔的 ID 字符串
+        param_name: 参数名（用于错误消息）
+        raise_on_empty: 如果解析结果为空是否抛出异常（默认 True）
+
+    Returns:
+        解析成功的整数列表
+
+    Raises:
+        HTTPException: 当 raise_on_empty=True 且解析结果为空时
+    """
     result = []
+    invalid_values = []
     for x in ids_str.split(","):
         x = x.strip()
         if x:
             try:
                 result.append(int(x))
             except ValueError:
+                invalid_values.append(x)
                 logger.warning(f"Invalid {param_name} value: {x}")
+
+    # Phase 9.13: 如果全部解析失败且用户确实提供了值，抛出 400 错误
+    if raise_on_empty and not result and invalid_values:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {param_name} format. All values are invalid: {invalid_values}"
+        )
+
     return result
 
 

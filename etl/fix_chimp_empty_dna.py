@@ -21,12 +21,19 @@ from psycopg2.extras import execute_batch
 # 配置 - 优先使用环境变量
 DNA_DIR = os.environ.get('CHIMP_DNA_DIR', './data/chimp/8chimpManualProPromoterSeq/')
 BATCH_FILE = os.environ.get('CHIMP_BATCH_FILE', './data/chimp_batch_BA50.txt')
+
+# Phase 9.13: 添加 DB_PASSWORD 支持，解决在启用密码的生产库中无法运行的问题
+# 如果未设置 DB_PASSWORD 且需要密码认证，可使用 .pgpass 文件或 PGPASSWORD 环境变量
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'localhost'),
     'port': int(os.environ.get('DB_PORT', '5432')),
     'user': os.environ.get('DB_USER', 'amax'),
+    'password': os.environ.get('DB_PASSWORD', ''),  # 空字符串时 psycopg2 会尝试 .pgpass
     'dbname': os.environ.get('DB_NAME', 'lncrna_production')
 }
+# 如果密码为空，移除该键以允许 .pgpass 或 trust 认证生效
+if not DB_CONFIG['password']:
+    del DB_CONFIG['password']
 
 
 def load_dna_files(dna_dir):

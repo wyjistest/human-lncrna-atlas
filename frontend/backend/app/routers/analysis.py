@@ -164,6 +164,7 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     # ========================================================================
     # 3. Epigenetic Analysis (ChIP-seq overlaps)
     # ========================================================================
+    # Phase 9.13: 添加 MV 缺失时的降级处理，避免整页 500 错误
     epigenetic_sql = text("""
         SELECT
             COUNT(*) as total_overlaps,
@@ -174,23 +175,36 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         GROUP BY mt.mark_name, o.cell_type
     """)
 
-    epi_results = db.execute(epigenetic_sql).fetchall()
-
     by_mark = {}
     by_cell_type = {}
     total_overlaps = 0
 
-    for row in epi_results:
-        count = row.total_overlaps or 0
-        total_overlaps += count
+    try:
+        epi_results = db.execute(epigenetic_sql).fetchall()
 
-        # Aggregate by mark
-        mark = row.mark_name
-        by_mark[mark] = by_mark.get(mark, 0) + count
+        for row in epi_results:
+            count = row.total_overlaps or 0
+            total_overlaps += count
 
-        # Aggregate by cell type
-        cell = row.cell_type
-        by_cell_type[cell] = by_cell_type.get(cell, 0) + count
+            # Aggregate by mark
+            mark = row.mark_name
+            by_mark[mark] = by_mark.get(mark, 0) + count
+
+            # Aggregate by cell type
+            cell = row.cell_type
+            by_cell_type[cell] = by_cell_type.get(cell, 0) + count
+
+    except Exception as e:
+        # MV 不存在或查询失败时，降级为空数据（不阻塞其他分析模块）
+        logger.warning(
+            f"[ANALYSIS] Epigenetic analysis failed (MV may not exist): {e}. "
+            "Returning empty epigenetic data. "
+            "Consider running: CREATE MATERIALIZED VIEW mv_lncrna_chipseq_overlaps ..."
+        )
+        # 保持默认的空值
+        by_mark = {}
+        by_cell_type = {}
+        total_overlaps = 0
 
     epigenetic = EpigeneticAnalysis(
         total_overlaps=total_overlaps,

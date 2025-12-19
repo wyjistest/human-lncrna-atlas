@@ -170,6 +170,36 @@ npx playwright show-report
 
 **开发环境绕过**：设置 `SECURITY_ALLOW_INSECURE=true` 可跳过 fail-fast（生产环境禁止使用）
 
+### ⚠️ 前端 Admin API Key 安全风险 (Phase 9.13)
+
+前端通过 `VITE_ADMIN_API_KEY` 环境变量注入 Admin API Key，该 Key 会嵌入构建产物中。
+
+| 部署场景 | 风险 | 建议方案 |
+|---------|------|----------|
+| **内网/VPN 部署** | 低 | 可使用 `VITE_ADMIN_API_KEY` |
+| **公网部署 (CDN)** | **高** ❌ | 禁止使用！Key 会泄露 |
+| **公网部署 (反代)** | 中 | 由 Nginx 注入 `X-Admin-API-Key` 头 |
+| **公网部署 (完整)** | 低 | 后端实现会话式认证替代 |
+
+**安全的 Nginx 配置示例**:
+```nginx
+location /api/v1/admin {
+    # 仅内网可访问，或配合 IP 白名单
+    allow 10.0.0.0/8;
+    allow 192.168.0.0/16;
+    deny all;
+
+    # 由 Nginx 注入 Admin Key，前端无需配置
+    proxy_set_header X-Admin-API-Key "your-secure-key-here";
+    proxy_pass http://backend:8000;
+}
+```
+
+**检查清单**:
+- [ ] 公网部署时确认 `VITE_ADMIN_API_KEY` 未设置
+- [ ] 使用反向代理限制 Admin 端点访问
+- [ ] 或实现后端会话认证替代 API Key
+
 ```bash
 # 生产环境必需配置
 ADMIN_REQUIRE_API_KEY=true
@@ -215,7 +245,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.9 | Codex 代码审查修复: Tabnabbing 防护 + 代码去重 + Builtin 遮蔽修复 | 2025-12-18 |
 | 9.10 | XSS 全面防护: ECharts tooltip escapeHtml (26+ 处) + /metrics 认证 + 区域大小限制 | 2025-12-19 |
 | 9.11 | Codex 安全审查修复: Admin UI 认证 + ChIP-seq max_rows/max_overlaps 内存保护 + JSONL 流式 + 共享验证器 | 2025-12-19 |
-| **9.12** | **Codex DoS 防护: compare 端点 marks/cell_types 数量限制 + MV 缓存 TTL + /genomes 目录边界文档** | **2025-12-19** |
+| 9.12 | Codex DoS 防护: compare 端点 marks/cell_types 数量限制 + MV 缓存 TTL + /genomes 目录边界文档 | 2025-12-19 |
+| **9.13** | **安全审查修复: LIKE 通配符绕过防护 + species_ids 解析验证 + MV 降级处理 + ETL 密码支持 + Admin Key 文档** | **2025-12-20** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

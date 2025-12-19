@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.utils import escape_like_pattern
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.visualization import (
     SankeyResponse,
@@ -109,6 +110,10 @@ def get_sankey_data(
         f"trait_name={trait_name}, limit={limit}"
     )
 
+    # Phase 9.13: 转义 trait_name 中的 LIKE 通配符，防止意外匹配
+    # 如 trait_name="type%" 会被转义为 "type\%"，只匹配字面量 "type%"
+    escaped_trait_name = escape_like_pattern(trait_name) if trait_name else None
+
     # ========================================================================
     # Step 1: 查询三层数据（使用聚合去重）
     # ========================================================================
@@ -143,7 +148,7 @@ def get_sankey_data(
                 COUNT(*) as association_count
             FROM trait_gene_associations tga
             JOIN traits t ON tga.trait_id = t.trait_id
-            WHERE (:trait_name IS NULL OR t.trait_name ILIKE '%' || :trait_name || '%')
+            WHERE (:trait_name IS NULL OR t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\')
             GROUP BY tga.core_id, t.trait_id, t.trait_name
         )
         -- 连接两层数据
@@ -170,7 +175,7 @@ def get_sankey_data(
         {
             "species_id": species_id,
             "min_ba": min_ba,
-            "trait_name": trait_name,
+            "trait_name": escaped_trait_name,
             "limit": limit,
         },
     )
