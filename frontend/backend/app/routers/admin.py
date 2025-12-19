@@ -803,3 +803,44 @@ async def invalidate_cache_namespace(request: Request, namespace: str) -> dict:
         "deleted": deleted,
         "message": f"Invalidated {deleted} entries in namespace '{namespace}'",
     }
+
+
+# ============================================================================
+# Materialized View Cache Management (Phase 9.12)
+# ============================================================================
+
+
+@router.post(
+    "/mv-cache/reset",
+    summary="重置物化视图可用性缓存",
+    description="""
+    重置 MV 可用性检测的进程级缓存。
+
+    在以下场景后调用：
+    - 创建新的物化视图
+    - 刷新物化视图
+    - 物化视图结构变更
+
+    这会强制下次查询重新检测 MV 可用性，而不是等待 TTL（5分钟）过期。
+    """,
+)
+@rate_limit("10/minute")
+async def reset_mv_cache(request: Request) -> dict:
+    """
+    重置物化视图可用性缓存
+
+    Returns:
+        重置状态信息
+    """
+    from app.routers.lncrna_chipseq_overlap import reset_mv_cache as reset_overlap_mv_cache
+    from app.routers.igv_overlap_track import reset_mv_cache as reset_igv_mv_cache
+
+    reset_overlap_mv_cache()
+    reset_igv_mv_cache()
+
+    logger.info("Materialized view caches reset by admin")
+    return {
+        "status": "success",
+        "message": "Materialized view availability caches reset. Next query will re-check MV status.",
+        "affected_caches": ["lncrna_chipseq_overlap", "igv_overlap_track"],
+    }

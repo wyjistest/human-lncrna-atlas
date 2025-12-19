@@ -489,6 +489,15 @@ app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sanke
 # 使用独立的 FastAPI 子应用，绕过主应用的 LoggingMiddleware（解决 BaseHTTPMiddleware 兼容性问题）
 # 注意：子应用有自己的安全头中间件 (StaticSecurityHeadersMiddleware)，与主应用安全头独立
 # GENOMES_DIR 通过 Settings 加载，支持 .env 文件配置
+#
+# ⚠️ SECURITY WARNING (Phase 9.12):
+#   /genomes 端点会暴露 GENOMES_DIR 下的所有文件（递归）。
+#   请确保该目录仅包含公开的基因组数据文件（.fa, .fai, .cytoband 等）。
+#   不要在 GENOMES_DIR 中放置：
+#   - 配置文件（.env, .yaml, credentials）
+#   - 私有数据或敏感信息
+#   - 可执行文件或脚本
+#   建议使用专用目录，如 /data/genomes/，不与其他数据混放。
 GENOMES_DIR = settings.GENOMES_DIR
 
 if GENOMES_DIR and os.path.exists(GENOMES_DIR):

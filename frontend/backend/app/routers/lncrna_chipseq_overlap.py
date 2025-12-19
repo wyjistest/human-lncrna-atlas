@@ -72,8 +72,23 @@ DEFAULT_QUERY_CHROMOSOME = 'chr22'
 # Materialized view name
 MV_LNCRNA_CHIPSEQ_OVERLAPS = 'mv_lncrna_chipseq_overlaps'
 
+# Phase 9.12: MV 可用性缓存增加 TTL，避免运行中创建/刷新 MV 后长期走 fallback
+MV_CACHE_TTL_SECONDS = 300  # 5 minutes
+
 # Cache for materialized view availability check (avoid repeated DB queries)
-_mv_available_cache = {'checked': False, 'available': False}
+_mv_available_cache = {'checked': False, 'available': False, 'checked_at': 0.0}
+
+
+def reset_mv_cache():
+    """
+    Reset materialized view availability cache.
+
+    Call this after creating/refreshing the MV to force re-check on next query.
+    Can be triggered via admin endpoint.
+    """
+    global _mv_available_cache
+    _mv_available_cache = {'checked': False, 'available': False, 'checked_at': 0.0}
+    logger.info("Materialized view cache reset")
 
 # CSV export columns (in order)
 CSV_EXPORT_COLUMNS = [
@@ -102,7 +117,8 @@ def check_materialized_view_exists(db: Session) -> bool:
     """
     Check if the materialized view mv_lncrna_chipseq_overlaps exists and is populated.
 
-    Uses caching to avoid repeated database queries within the same application lifecycle.
+    Uses caching with TTL to avoid repeated database queries while still detecting
+    MV creation/refresh during runtime (Phase 9.12).
 
     Args:
         db: Database session
@@ -112,9 +128,13 @@ def check_materialized_view_exists(db: Session) -> bool:
     """
     global _mv_available_cache
 
-    # Return cached result if already checked
+    # Return cached result if still valid (within TTL)
     if _mv_available_cache['checked']:
-        return _mv_available_cache['available']
+        elapsed = time.time() - _mv_available_cache['checked_at']
+        if elapsed < MV_CACHE_TTL_SECONDS:
+            return _mv_available_cache['available']
+        # TTL expired, re-check
+        logger.debug(f"MV cache TTL expired ({elapsed:.1f}s), re-checking...")
 
     try:
         # Check if materialized view exists and is populated
@@ -134,11 +154,13 @@ def check_materialized_view_exists(db: Session) -> bool:
         if result and result.relispopulated:
             _mv_available_cache['checked'] = True
             _mv_available_cache['available'] = True
+            _mv_available_cache['checked_at'] = time.time()
             logger.info(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' is available and populated")
             return True
         else:
             _mv_available_cache['checked'] = True
             _mv_available_cache['available'] = False
+            _mv_available_cache['checked_at'] = time.time()
             if result:
                 logger.warning(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' exists but is not populated")
             else:

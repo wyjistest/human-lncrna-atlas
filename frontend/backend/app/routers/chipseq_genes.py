@@ -15,6 +15,11 @@ from sqlalchemy import text
 from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
+from app.core.validators import parse_comma_list
+
+# Phase 9.12: 比较端点的最大项数限制（与 heatmap 一致）
+MAX_COMPARE_MARKS = 10
+MAX_COMPARE_CELL_TYPES = 10
 from app.models import Gene
 from app.schemas.chipseq import (
     GeneChIPSeqResponse,
@@ -381,12 +386,12 @@ def compare_gene_marks(
     - Generalized pairwise overlap detection
     - Overlap statistics summary
     """
-    # 1. Parse marks
-    mark_list = [m.strip() for m in marks.split(",") if m.strip()]
-    if len(mark_list) < 2:
+    # 1. Parse marks (Phase 9.12: 使用共享验证器，限制最大数量防止 O(n²) DoS)
+    mark_list = parse_comma_list(marks, max_items=MAX_COMPARE_MARKS, param_name="marks")
+    if not mark_list or len(mark_list) < 2:
         raise HTTPException(
             status_code=400,
-            detail="At least 2 marks are required for comparison"
+            detail=f"2-{MAX_COMPARE_MARKS} marks are required for comparison"
         )
 
     # 2. Query gene
@@ -601,12 +606,12 @@ def compare_gene_cell_lines(
     - Find conserved epigenetic marks across cell types
     - Compare chromatin states between differentiated and stem cells
     """
-    # 1. Parse and validate cell types
-    cell_type_list = [c.strip() for c in cell_types.split(",") if c.strip()]
-    if len(cell_type_list) < 2:
+    # 1. Parse and validate cell types (Phase 9.12: 使用共享验证器，限制最大数量防止 O(n²) DoS)
+    cell_type_list = parse_comma_list(cell_types, max_items=MAX_COMPARE_CELL_TYPES, param_name="cell_types")
+    if not cell_type_list or len(cell_type_list) < 2:
         raise HTTPException(
             status_code=400,
-            detail="At least 2 cell types are required for comparison"
+            detail=f"2-{MAX_COMPARE_CELL_TYPES} cell types are required for comparison"
         )
 
     # 2. Query gene

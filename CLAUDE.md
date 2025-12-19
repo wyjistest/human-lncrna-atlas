@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.11 |
+| 版本 | Phase 9.12 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-19 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -214,7 +214,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.8 | Codex 安全审查: 时序攻击防护 + SecretStr + 输入验证 | 2025-12-18 |
 | 9.9 | Codex 代码审查修复: Tabnabbing 防护 + 代码去重 + Builtin 遮蔽修复 | 2025-12-18 |
 | 9.10 | XSS 全面防护: ECharts tooltip escapeHtml (26+ 处) + /metrics 认证 + 区域大小限制 | 2025-12-19 |
-| **9.11** | **Codex 安全审查修复: Admin UI 认证 + ChIP-seq max_rows/max_overlaps 内存保护 + JSONL 流式 + 共享验证器** | **2025-12-19** |
+| 9.11 | Codex 安全审查修复: Admin UI 认证 + ChIP-seq max_rows/max_overlaps 内存保护 + JSONL 流式 + 共享验证器 | 2025-12-19 |
+| **9.12** | **Codex DoS 防护: compare 端点 marks/cell_types 数量限制 + MV 缓存 TTL + /genomes 目录边界文档** | **2025-12-19** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

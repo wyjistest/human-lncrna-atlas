@@ -13,6 +13,7 @@ IGV Overlap Track 路由
 from __future__ import annotations
 
 import logging
+import time
 from typing import Optional, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -39,8 +40,23 @@ MAX_LIMIT = 200_000
 # overlap 物化视图名称（由后端 SQL/ETL 构建）
 MV_LNCRNA_CHIPSEQ_OVERLAPS = "mv_lncrna_chipseq_overlaps"
 
+# Phase 9.12: MV 可用性缓存增加 TTL，避免运行中创建/刷新 MV 后长期走 fallback
+MV_CACHE_TTL_SECONDS = 300  # 5 minutes
+
 # 缓存 MV 可用性检查，避免重复访问 pg_class
-_mv_available_cache = {"checked": False, "available": False}
+_mv_available_cache = {"checked": False, "available": False, "checked_at": 0.0}
+
+
+def reset_mv_cache():
+    """
+    重置 MV 可用性缓存。
+
+    在创建/刷新 MV 后调用，强制下次查询重新检测。
+    可通过 admin 端点触发。
+    """
+    global _mv_available_cache
+    _mv_available_cache = {"checked": False, "available": False, "checked_at": 0.0}
+    logger.info("IGV overlap MV cache reset")
 
 
 def _normalize_chr(raw: str) -> str:
@@ -58,15 +74,22 @@ def _check_mv_available(db: Session) -> bool:
     检查 mv_lncrna_chipseq_overlaps 是否存在且已填充。
 
     仅 PostgreSQL 支持该检查；其他 dialect 直接视为不可用。
+    Phase 9.12: 添加 TTL 支持，避免运行中创建 MV 后长期走 fallback。
     """
     global _mv_available_cache
+
+    # Return cached result if still valid (within TTL)
     if _mv_available_cache["checked"]:
-        return _mv_available_cache["available"]
+        elapsed = time.time() - _mv_available_cache["checked_at"]
+        if elapsed < MV_CACHE_TTL_SECONDS:
+            return _mv_available_cache["available"]
+        # TTL expired, re-check
+        logger.debug(f"MV cache TTL expired ({elapsed:.1f}s), re-checking...")
 
     try:
         bind = db.get_bind()
         if not bind or bind.dialect.name != "postgresql":
-            _mv_available_cache = {"checked": True, "available": False}
+            _mv_available_cache = {"checked": True, "available": False, "checked_at": time.time()}
             return False
 
         sql = text(
@@ -81,10 +104,10 @@ def _check_mv_available(db: Session) -> bool:
         )
         row = db.execute(sql, {"mv_name": MV_LNCRNA_CHIPSEQ_OVERLAPS}).fetchone()
         available = bool(row and getattr(row, "relispopulated", False))
-        _mv_available_cache = {"checked": True, "available": available}
+        _mv_available_cache = {"checked": True, "available": available, "checked_at": time.time()}
         return available
     except Exception:
-        _mv_available_cache = {"checked": True, "available": False}
+        _mv_available_cache = {"checked": True, "available": False, "checked_at": time.time()}
         return False
 
 
