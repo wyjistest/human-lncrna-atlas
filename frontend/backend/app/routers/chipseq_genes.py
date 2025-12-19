@@ -18,8 +18,8 @@ from app.core.exceptions import sanitize_db_error
 from app.core.validators import parse_comma_list
 
 # Phase 9.12: 比较端点的最大项数限制（与 heatmap 一致）
-MAX_COMPARE_MARKS = 10
-MAX_COMPARE_CELL_TYPES = 10
+MAX_COMPARE_MARKS = 8  # 与 heatmap marks 限制一致
+MAX_COMPARE_CELL_TYPES = 10  # 与 heatmap cell_types 限制一致
 from app.models import Gene
 from app.schemas.chipseq import (
     GeneChIPSeqResponse,
