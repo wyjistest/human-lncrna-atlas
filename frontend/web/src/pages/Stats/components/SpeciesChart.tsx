@@ -11,6 +11,7 @@ import type { ECOption } from '@/utils/echarts'
 import type { DetailedStatsResponse } from '@/types'
 import { getChartToolbox } from '@/utils/chart-export'
 import { createSpeciesTranslator } from '@/utils/species'
+import { escapeHtml } from '@/utils/escapeHtml'
 
 interface SpeciesChartProps {
   data: DetailedStatsResponse['species_distribution']
@@ -37,7 +38,10 @@ export function SpeciesChart({ data }: SpeciesChartProps) {
 
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: {c} ({d}%)'
+      formatter: (params: unknown) => {
+        const p = params as { name: string; value: number; percent: number }
+        return `${escapeHtml(p.name)}: ${p.value.toLocaleString()} (${p.percent.toFixed(1)}%)`
+      }
     },
 
     legend: {

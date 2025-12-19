@@ -150,7 +150,7 @@ def get_conservation_overview(request: Request, db: Session = Depends(get_db)):
     Cached for 1 hour.
     """
     # Try cache first
-    cache_key = cache._make_key("conservation:overview")
+    cache_key = cache.make_key("conservation:overview")
     cached = cache.get(cache_key)
     if cached is not None:
         return ConservationSummary(**cached)
@@ -292,7 +292,7 @@ def get_conservation_matrix(request: Request, db: Session = Depends(get_db)):
     Cached for 1 hour.
     """
     # Try cache first
-    cache_key = cache._make_key("conservation:matrix")
+    cache_key = cache.make_key("conservation:matrix")
     cached = cache.get(cache_key)
     if cached is not None:
         return ConservationMatrix(**cached)
@@ -546,7 +546,7 @@ def get_venn_data(
         )
 
     # Try cache
-    cache_key = cache._make_key(f"conservation:venn:{data_type}")
+    cache_key = cache.make_key(f"conservation:venn:{data_type}")
     cached = cache.get(cache_key)
     if cached is not None:
         return cached

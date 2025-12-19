@@ -44,11 +44,7 @@ import { conservationApi } from '@/api/conservation'
 import { SpeciesSelector } from './components/SpeciesSelector'
 import { ConservationMatrix } from './components/ConservationMatrix'
 import { ConservationDetailsDrawer } from './components/ConservationDetailsDrawer'
-import type {
-  ConservedRegulation,
-  ConservationMatrixData,
-  ConservationOverview
-} from '@/types/conservationPage'
+import type { ConservedRegulation } from '@/types/conservationPage'
 import { CONSERVATION_SPECIES } from '@/types/conservationPage'
 import { CONSERVATION_COLORS, getConservationCategory } from '@/types/conservation'
 
@@ -62,77 +58,6 @@ const SPECIES_TAG_COLORS: Record<number, string> = {
   2: 'green',     // Chimpanzee
   3: 'orange',    // Macaque
   4: 'magenta'    // Marmoset
-}
-
-/**
- * Generate mock data for demonstration when API is not available
- */
-const generateMockOverview = (): ConservationOverview => ({
-  total_conserved: 156789,
-  four_species: 12345,
-  three_species: 34567,
-  two_species: 109877,
-  by_combination: []
-})
-
-const generateMockMatrix = (speciesIds: number[]): ConservationMatrixData => {
-  const speciesNames = speciesIds.map(id =>
-    CONSERVATION_SPECIES.find(s => s.id === id)?.name || `Species ${id}`
-  )
-
-  // Generate symmetric matrix with random values
-  const size = speciesIds.length
-  const matrix: number[][] = Array(size).fill(null).map(() => Array(size).fill(0))
-
-  for (let i = 0; i < size; i++) {
-    for (let j = i; j < size; j++) {
-      const value = i === j
-        ? Math.floor(Math.random() * 100000 + 50000)
-        : Math.floor(Math.random() * 50000 + 5000)
-      matrix[i][j] = value
-      matrix[j][i] = value
-    }
-  }
-
-  const flatValues = matrix.flat()
-  return {
-    species: speciesIds,
-    species_names: speciesNames,
-    matrix,
-    max_value: Math.max(...flatValues),
-    min_value: Math.min(...flatValues)
-  }
-}
-
-const generateMockRegulations = (page: number, pageSize: number): ConservedRegulation[] => {
-  const regulations: ConservedRegulation[] = []
-  const lncrnaNames = ['MALAT1', 'NEAT1', 'XIST', 'HOTAIR', 'H19', 'MEG3', 'GAS5', 'ANRIL']
-  const targetNames = ['TP53', 'MYC', 'BRCA1', 'EGFR', 'KRAS', 'AKT1', 'BCL2', 'PTEN']
-
-  for (let i = 0; i < pageSize; i++) {
-    const speciesCount = Math.floor(Math.random() * 3) + 2 // 2-4 species
-    const speciesIds = [1, 2, 3, 4].slice(0, speciesCount)
-    const label = speciesIds.map((_, idx) => idx < speciesCount ? '1' : '0').join('')
-
-    regulations.push({
-      core_id: (page - 1) * pageSize + i + 1,
-      lncrna_gene_name: lncrnaNames[Math.floor(Math.random() * lncrnaNames.length)],
-      lncrna_ensembl_id: `ENSG${String(Math.floor(Math.random() * 1000000)).padStart(11, '0')}`,
-      target_gene_name: targetNames[Math.floor(Math.random() * targetNames.length)],
-      target_ensembl_id: `ENSG${String(Math.floor(Math.random() * 1000000)).padStart(11, '0')}`,
-      conservation_label: label.padEnd(4, '0'),
-      species_count: speciesCount,
-      species_ids: speciesIds,
-      avg_binding_affinity: Math.random() * 100,
-      species_binding_affinities: speciesIds.map(id => ({
-        species_id: id,
-        species_name: CONSERVATION_SPECIES.find(s => s.id === id)?.name || '',
-        binding_affinity: Math.random() * 100
-      }))
-    })
-  }
-
-  return regulations
 }
 
 /**
@@ -154,7 +79,7 @@ export default function Conservation() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedPair, setSelectedPair] = useState<{ speciesX: number; speciesY: number; value: number } | null>(null)
 
-  // API Queries with fallback to mock data
+  // API Queries - errors propagate to ErrorState component
   const {
     data: overviewData,
     isLoading: overviewLoading,
@@ -162,27 +87,21 @@ export default function Conservation() {
   } = useQuery({
     queryKey: ['conservation-overview', selectedSpecies],
     queryFn: async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const apiData: any = await conservationApi.getOverview(selectedSpecies)
-        // Transform backend format to frontend expected format
-        const distribution = apiData.distribution || []
-        const getCountByLevel = (level: number) =>
-          distribution.find((d: { conservation_count: number }) => d.conservation_count === level)?.regulation_count || 0
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiData: any = await conservationApi.getOverview(selectedSpecies)
+      // Transform backend format to frontend expected format
+      const distribution = apiData.distribution || []
+      const getCountByLevel = (level: number) =>
+        distribution.find((d: { conservation_count: number }) => d.conservation_count === level)?.regulation_count || 0
 
-        return {
-          total_conserved: distribution
-            .filter((d: { conservation_count: number }) => d.conservation_count >= 2)
-            .reduce((sum: number, d: { regulation_count: number }) => sum + d.regulation_count, 0),
-          four_species: getCountByLevel(4),
-          three_species: getCountByLevel(3),
-          two_species: getCountByLevel(2),
-          by_combination: apiData.top_combinations || []
-        }
-      } catch (error) {
-        // Fallback to mock data if API is not available
-        console.warn('Conservation API not available, using mock data', error)
-        return generateMockOverview()
+      return {
+        total_conserved: distribution
+          .filter((d: { conservation_count: number }) => d.conservation_count >= 2)
+          .reduce((sum: number, d: { regulation_count: number }) => sum + d.regulation_count, 0),
+        four_species: getCountByLevel(4),
+        three_species: getCountByLevel(3),
+        two_species: getCountByLevel(2),
+        by_combination: apiData.top_combinations || []
       }
     },
     staleTime: 5 * 60 * 1000 // 5 minutes
@@ -195,29 +114,23 @@ export default function Conservation() {
   } = useQuery({
     queryKey: ['conservation-matrix', selectedSpecies],
     queryFn: async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const apiData: any = await conservationApi.getMatrix(selectedSpecies)
-        // Transform backend format to frontend expected format
-        const speciesInfo = apiData.species || []
-        const matrix = apiData.regulation_matrix || apiData.lncrna_matrix || []
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiData: any = await conservationApi.getMatrix(selectedSpecies)
+      // Transform backend format to frontend expected format
+      const speciesInfo = apiData.species || []
+      const matrix = apiData.regulation_matrix || apiData.lncrna_matrix || []
 
-        // Calculate min/max values
-        const flatValues = matrix.flat().filter((v: number) => typeof v === 'number')
-        const maxValue = flatValues.length > 0 ? Math.max(...flatValues) : 0
-        const minValue = flatValues.length > 0 ? Math.min(...flatValues) : 0
+      // Calculate min/max values
+      const flatValues = matrix.flat().filter((v: number) => typeof v === 'number')
+      const maxValue = flatValues.length > 0 ? Math.max(...flatValues) : 0
+      const minValue = flatValues.length > 0 ? Math.min(...flatValues) : 0
 
-        return {
-          species: speciesInfo.map((s: { id: number }) => s.id),
-          species_names: speciesInfo.map((s: { name: string }) => s.name),
-          matrix,
-          max_value: maxValue,
-          min_value: minValue
-        }
-      } catch (error) {
-        // Fallback to mock data
-        console.warn('Conservation matrix API not available, using mock data', error)
-        return generateMockMatrix(selectedSpecies)
+      return {
+        species: speciesInfo.map((s: { id: number }) => s.id),
+        species_names: speciesInfo.map((s: { name: string }) => s.name),
+        matrix,
+        max_value: maxValue,
+        min_value: minValue
       }
     },
     enabled: selectedSpecies.length >= 2,
@@ -230,30 +143,15 @@ export default function Conservation() {
     error: regulationsError
   } = useQuery({
     queryKey: ['conservation-regulations', selectedSpecies, page, pageSize, minConservation, minBA, lncrnaSearch, targetSearch],
-    queryFn: async () => {
-      try {
-        return await conservationApi.getConservedRegulations({
-          species_ids: selectedSpecies,
-          page,
-          page_size: pageSize,
-          min_conservation: minConservation,
-          min_ba: minBA > 0 ? minBA : undefined,
-          lncrna_gene_name: lncrnaSearch || undefined,
-          target_gene_name: targetSearch || undefined
-        })
-      } catch (error) {
-        // Fallback to mock data
-        console.warn('Conservation regulations API not available, using mock data', error)
-        const items = generateMockRegulations(page, pageSize)
-        return {
-          items,
-          total: 1000,
-          page,
-          page_size: pageSize,
-          pages: Math.ceil(1000 / pageSize)
-        }
-      }
-    },
+    queryFn: () => conservationApi.getConservedRegulations({
+      species_ids: selectedSpecies,
+      page,
+      page_size: pageSize,
+      min_conservation: minConservation,
+      min_ba: minBA > 0 ? minBA : undefined,
+      lncrna_gene_name: lncrnaSearch || undefined,
+      target_gene_name: targetSearch || undefined
+    }),
     enabled: selectedSpecies.length >= 2,
     staleTime: 2 * 60 * 1000
   })
@@ -388,8 +286,8 @@ export default function Conservation() {
     return <LoadingState />
   }
 
-  // Error state
-  if (overviewError && matrixError && regulationsError) {
+  // Error state - show if ANY query failed
+  if (overviewError || matrixError || regulationsError) {
     return <ErrorState error={overviewError || matrixError || regulationsError} />
   }
 

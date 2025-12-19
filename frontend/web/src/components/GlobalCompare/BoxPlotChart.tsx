@@ -14,6 +14,7 @@
  */
 
 import { useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import { Empty } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -133,7 +134,7 @@ export function BoxPlotChart({
             const markName = markConfig?.displayName || markData.mark_type
 
             return [
-              `<strong>${markName}</strong>`,
+              `<strong>${escapeHtml(markName)}</strong>`,
               `${t('charts.boxplot.max', 'Max')}: ${formatValue(max)}`,
               `${t('charts.boxplot.q3', 'Q3 (75%)')}: ${formatValue(q3)}`,
               `${t('charts.boxplot.median', 'Median')}: ${formatValue(median)}`,

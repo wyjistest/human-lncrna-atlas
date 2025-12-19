@@ -11,6 +11,7 @@
  */
 
 import { useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import { Row, Col, Card, Empty, Statistic, Space, Typography } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -68,7 +69,7 @@ function PeakCountChart({
           const arr = params as TooltipFormatterParams[]
           const p = arr[0]
           const config = getMarkConfig(p.name as MarkType)
-          return `<strong>${config.displayName}</strong><br/>Peaks: ${(p.value as number).toLocaleString()}`
+          return `<strong>${escapeHtml(config.displayName)}</strong><br/>Peaks: ${(p.value as number).toLocaleString()}`
         },
       },
       xAxis: {
@@ -179,7 +180,7 @@ function SignalComparisonChart({
           const avgVal = (arr[0]?.value as number) ?? 0
           const maxVal = (arr[1]?.value as number) ?? 0
           return [
-            `<strong>${markName}</strong>`,
+            `<strong>${escapeHtml(String(markName))}</strong>`,
             `${t('detail.chipseq.avgFoldEnrichment', 'Avg Fold Enrichment')}: ${avgVal.toFixed(2)}x`,
             `${t('detail.chipseq.maxFoldEnrichment', 'Max Fold Enrichment')}: ${maxVal.toFixed(2)}x`,
           ].join('<br/>')
@@ -410,7 +411,7 @@ function FoldEnrichmentChart({
         formatter: (params: unknown) => {
           const arr = params as TooltipFormatterParams[]
           const p = arr[0]
-          return `${p.name}: ${(p.value as number).toFixed(2)}x`
+          return `${escapeHtml(String(p.name))}: ${(p.value as number).toFixed(2)}x`
         },
       },
       xAxis: {
@@ -616,7 +617,7 @@ function PeakWidthDistributionChart({
           const p = params as BoxplotParams
           const [min, q1, median, q3, max] = p.value
           return [
-            `<strong>${p.name}</strong>`,
+            `<strong>${escapeHtml(String(p.name))}</strong>`,
             `Max: ${max.toFixed(0)} bp`,
             `Q3 (75%): ${q3.toFixed(0)} bp`,
             `Median: ${median.toFixed(0)} bp`,
@@ -725,9 +726,9 @@ function OverlapHeatmapChart({
           const dataArr = Array.isArray(p.data) ? p.data : p.data.value
           const [x, y, value] = dataArr
           if (value === -1) {
-            return `${markLabels[x]}: Self`
+            return `${escapeHtml(markLabels[x])}: Self`
           }
-          return `${markLabels[x]} & ${markLabels[y]}: ${value} regions`
+          return `${escapeHtml(markLabels[x])} & ${escapeHtml(markLabels[y])}: ${value} regions`
         },
       },
       grid: {

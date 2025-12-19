@@ -18,6 +18,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import echarts from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { HighAffinityRecord } from '@/api/analysis'
 import type { TooltipFormatterParams } from '@/types/echarts'
@@ -68,7 +69,7 @@ export default function HighAffinityTab() {
           const p = paramsArr[0]
           const value = p.value as number
           const baRange = `${minValue + p.dataIndex * binSize}-${minValue + (p.dataIndex + 1) * binSize}`
-          return `BA Range: ${baRange}<br/>Count: ${value}`
+          return `BA Range: ${escapeHtml(baRange)}<br/>Count: ${value}`
         },
       },
       xAxis: {

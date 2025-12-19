@@ -4,6 +4,7 @@
  */
 
 import { useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import { Table } from 'antd'
 import { LinkOutlined } from '@ant-design/icons'
@@ -55,8 +56,8 @@ export function TopLncRNAChart({ data }: TopLncRNAChartProps) {
       formatter: (params: unknown) => {
         const p = (params as { name: string; value: number; data: { species: string } }[])[0]
         return `
-          <strong>${p.name}</strong><br/>
-          ${speciesLabel}: ${p.data.species}<br/>
+          <strong>${escapeHtml(p.name)}</strong><br/>
+          ${speciesLabel}: ${escapeHtml(p.data.species)}<br/>
           ${regulationCountLabel}: ${p.value.toLocaleString()}
         `
       }

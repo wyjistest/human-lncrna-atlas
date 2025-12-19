@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { escapeHtml } from '@/utils/escapeHtml'
 import { getCellTypeColor, getCellTypeLabel, CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import { getMarkConfig, MARK_CONFIGS } from '@/config/markConfigs'
 import type { HeatmapMetricType, MarkType } from '@/types/chipseq'
@@ -274,8 +275,8 @@ export function BatchHeatmapMatrix({
           const markLabel = markConfig?.displayName || markName
 
           const lines = [
-            `<strong>${yLabel}</strong>`,
-            `<strong>${markLabel}</strong>`,
+            `<strong>${escapeHtml(yLabel)}</strong>`,
+            `<strong>${escapeHtml(markLabel)}</strong>`,
             `<br/>${getMetricLabel(metric, t)}: <strong>${formatMetricValue(value, metric)}</strong>`,
           ]
 

@@ -14,6 +14,7 @@
  */
 
 import { useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import { Empty } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -205,7 +206,7 @@ export function RadarCompareChart({
           const originalValues = p.data.originalValues
 
           const lines = [
-            `<strong>${markName}</strong>`,
+            `<strong>${escapeHtml(markName)}</strong>`,
             `${t('charts.radar.peakCount', 'Peaks')}: ${formatNumber(originalValues.total_peaks)}`,
             `${t('charts.radar.avgSignal', 'Avg Signal')}: ${originalValues.avg_signal.toFixed(2)}`,
             `${t('charts.radar.coverage', 'Coverage')}: ${formatNumber(originalValues.total_coverage_bp)} bp`,

@@ -14,6 +14,7 @@
  */
 
 import { useMemo, useState } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import { Empty, Space, Typography, Segmented } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -180,8 +181,9 @@ export function GlobalBarChart({
           const markData = sortedData[markIndex]
           const markConfig = getMarkConfig(markData.mark_type)
 
+          const markDisplayName = escapeHtml(markConfig?.displayName || markData.mark_type)
           const lines = [
-            `<strong>${markConfig?.displayName || markData.mark_type}</strong>`,
+            `<strong>${markDisplayName}</strong>`,
             '',
             `${t('charts.bar.totalPeaks', 'Peaks')}: ${markData.total_peaks.toLocaleString()}`,
             `${t('charts.bar.geneCount', 'Genes')}: ${markData.gene_count.toLocaleString()}`,

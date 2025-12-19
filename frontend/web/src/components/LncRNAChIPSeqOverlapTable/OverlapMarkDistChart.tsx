@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { escapeHtml } from '@/utils/escapeHtml'
 import { getMarkColor, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 import type { TooltipFormatterParams, BarParams } from '@/types/echarts'
@@ -97,7 +98,7 @@ export function OverlapMarkDistChart({
           const dataItem = sortedData.find((d) => d.mark_type === markType)
 
           const lines = [
-            `<strong>${displayName}</strong>`,
+            `<strong>${escapeHtml(displayName)}</strong>`,
             `${t('charts.overlapCount', 'Overlaps')}: ${(p.value ?? 0).toLocaleString()}`,
           ]
 

@@ -238,7 +238,9 @@ def export_comparison(
 
 
 @router.get("/genes/{gene_id}/overlaps/export")
+@rate_limit("5/minute")
 def export_overlaps_bed(
+    request: Request,
     gene_id: int,
     marks: str = Query(
         ...,

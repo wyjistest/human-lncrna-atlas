@@ -55,7 +55,9 @@ router = APIRouter()
 
 
 @router.get("/genes/{gene_id}", response_model=GeneChIPSeqResponse)
+@rate_limit("30/minute")
 def get_gene_chipseq(
+    request: Request,
     gene_id: int,
     mark_type: Optional[str] = Query(
         None,

@@ -16,6 +16,7 @@
  */
 
 import { useMemo, useRef, useEffect } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsInstance } from 'echarts-for-react'
 import { Card, Row, Col, Statistic, Space, Tag, Segmented, Empty, Typography } from 'antd'
@@ -215,8 +216,8 @@ export function CellLineHeatmapMatrix({
           const markLabel = markConfig?.displayName || mark
 
           const lines = [
-            `<strong>${cellLabel || cellType}</strong>`,
-            `<strong>${markLabel}</strong>`,
+            `<strong>${escapeHtml(cellLabel || cellType)}</strong>`,
+            `<strong>${escapeHtml(markLabel)}</strong>`,
             `<br/>${getMetricLabel(metric, t)}: <strong>${formatMetricValue(value, metric)}</strong>`,
           ]
 

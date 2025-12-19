@@ -9,6 +9,7 @@
  */
 
 import { useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
 import { DendrogramSVG, type DendrogramData } from './DendrogramSVG'
@@ -103,7 +104,7 @@ export function ClusteredHeatmap({
           const p = params as HeatmapParams
           const [colIdx, rowIdx, value] = p.value
           return `
-            <strong>${rowLabels[rowIdx]} × ${colLabels[colIdx]}</strong><br/>
+            <strong>${escapeHtml(rowLabels[rowIdx])} × ${escapeHtml(colLabels[colIdx])}</strong><br/>
             Value: <strong>${(value ?? 0).toFixed(2)}</strong>
           `
         },

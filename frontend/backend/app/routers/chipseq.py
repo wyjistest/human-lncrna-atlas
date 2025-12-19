@@ -9,7 +9,7 @@ Phase 2.5 Enhancements:
 主路由文件，保留全局配置并整合子路由
 """
 import logging
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -51,7 +51,9 @@ router.include_router(export_router)
 # =============================================================================
 
 @router.get("/stats", response_model=ChIPSeqGlobalStats)
+@rate_limit("30/minute")
 def get_global_stats(
+    request: Request,
     db: Session = Depends(get_db),
 ):
     """

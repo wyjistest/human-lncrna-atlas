@@ -17,6 +17,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import echarts from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { DiseaseNetworkNode, DiseaseNetworkEdge } from '@/api/analysis'
 
@@ -70,7 +71,8 @@ export default function DiseaseTab() {
           if (p.dataType === 'edge') {
             return `Weight: ${p.value?.toFixed(2) || '-'}`
           }
-          return `${p.name} (${p.data?.category === 0 ? 'Disease' : p.data?.category === 1 ? 'Gene' : 'lncRNA'})`
+          const categoryLabel = p.data?.category === 0 ? 'Disease' : p.data?.category === 1 ? 'Gene' : 'lncRNA'
+          return `${escapeHtml(p.name || '')} (${categoryLabel})`
         },
       },
       legend: {

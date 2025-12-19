@@ -14,6 +14,7 @@
  */
 
 import { useState, useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import {
   Card,
   Row,
@@ -160,12 +161,12 @@ export default function SankeyFlow() {
             const targetName = idToName.get(targetId) || targetId
             const value = params.data.value ?? 0
             return `
-              <strong>${sourceName} → ${targetName}</strong><br/>
+              <strong>${escapeHtml(sourceName)} → ${escapeHtml(targetName)}</strong><br/>
               ${t('sankey.flowValue', 'Flow Value')}: <strong>${value.toFixed(2)}</strong>
             `
           } else {
             const nodeName = idToName.get(params.name) || params.name
-            return `<strong>${nodeName}</strong>`
+            return `<strong>${escapeHtml(nodeName)}</strong>`
           }
         },
       },

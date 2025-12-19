@@ -4,11 +4,12 @@ ChIP-seq Mark Types API Router
 """
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species
 from app.schemas.chipseq import (
     EpigeneticMarkTypeResponse,
@@ -20,7 +21,9 @@ router = APIRouter()
 
 
 @router.get("/marks", response_model=List[EpigeneticMarkTypeResponse])
+@rate_limit("30/minute")
 def list_mark_types(
+    request: Request,
     category: Optional[str] = Query(None, description="Filter by mark category"),
     active_only: bool = Query(True, description="Only return active marks"),
     db: Session = Depends(get_db),
@@ -72,7 +75,9 @@ def list_mark_types(
 
 # NOTE: /marks/relationships must be defined BEFORE /marks/{species_id} to avoid routing conflict
 @router.get("/marks/relationships", response_model=List[MarkRelationshipResponse])
+@rate_limit("30/minute")
 def get_mark_relationships(
+    request: Request,
     relationship_type: Optional[str] = Query(None, description="Filter by relationship type"),
     db: Session = Depends(get_db),
 ):
@@ -112,7 +117,9 @@ def get_mark_relationships(
 
 
 @router.get("/marks/{species_id}", response_model=AvailableMarksResponse)
+@rate_limit("30/minute")
 def get_available_marks_for_species(
+    request: Request,
     species_id: int,
     db: Session = Depends(get_db),
 ):

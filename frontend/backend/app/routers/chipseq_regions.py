@@ -4,11 +4,12 @@ ChIP-seq Regions API Router
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species
 from app.utils.chipseq_db import parse_mark_types
 from app.schemas.chipseq import (
@@ -18,9 +19,15 @@ from app.schemas.chipseq import (
 
 router = APIRouter()
 
+# Maximum region size in base pairs (10 Mb)
+# Prevents excessive queries that could time out or consume too many resources
+MAX_REGION_SIZE_BP = 10_000_000
+
 
 @router.get("/regions/{species_id}", response_model=ChIPSeqPaginatedResponse)
+@rate_limit("30/minute")
 def get_peaks_by_region(
+    request: Request,
     species_id: int,
     chromosome: str = Query(..., description="Chromosome name"),
     start: int = Query(..., ge=0, description="Region start position"),
@@ -36,6 +43,7 @@ def get_peaks_by_region(
     Get ChIP-seq peaks for a specific genomic region
 
     Useful for browser-like views and custom region queries.
+    Maximum region size is 10 Mb to prevent excessive queries.
     """
     # Validate species
     species = db.query(Species).filter(Species.species_id == species_id).first()
@@ -44,6 +52,15 @@ def get_peaks_by_region(
 
     if end <= start:
         raise HTTPException(status_code=400, detail="end must be greater than start")
+
+    # Validate region size to prevent excessive queries
+    region_size = end - start
+    if region_size > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Region size ({region_size:,} bp) exceeds maximum allowed ({MAX_REGION_SIZE_BP:,} bp). "
+                   f"Please narrow your region to 10 Mb or less."
+        )
 
     mark_types = parse_mark_types(mark_type)
 

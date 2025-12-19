@@ -10,6 +10,7 @@
  */
 
 import { useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import { Row, Col, Card, Statistic, Space, Typography, Tag, Segmented, Empty } from 'antd'
 import { useTranslation } from 'react-i18next'
@@ -184,7 +185,7 @@ export function CellLineHeatmap({
           const formattedValue = formatMetricValue(value, metric)
           const label = isZh ? cellConfig?.labelZh : cellConfig?.label
           return [
-            `<strong>${label || cellType}</strong>`,
+            `<strong>${escapeHtml(label || cellType)}</strong>`,
             `<br/>`,
             `${metricOptions.find((o) => o.value === metric)?.label}: <strong>${formattedValue}</strong>`,
           ].join('')
@@ -297,7 +298,7 @@ export function CellLineHeatmap({
           const cellConfig = CELL_TYPE_CONFIGS[cellType]
           const label = isZh ? cellConfig?.labelZh : cellConfig?.label
           return [
-            `<strong>${label || cellType}</strong>`,
+            `<strong>${escapeHtml(label || cellType)}</strong>`,
             `<br/>`,
             `${metricOptions.find((o) => o.value === metric)?.label}: <strong>${formatMetricValue(p.value as number, metric)}</strong>`,
           ].join('')

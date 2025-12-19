@@ -374,6 +374,25 @@ class CacheService:
 
     # ============== 新增：缓存键生成辅助方法 ==============
 
+    def make_key(self, namespace: str, **kwargs) -> str:
+        """
+        生成缓存键（公共 API）
+
+        Args:
+            namespace: 命名空间（如 "stats:overview", "conservation:matrix"）
+            **kwargs: 用于生成唯一键的参数
+
+        Returns:
+            带前缀的规范化缓存键
+
+        Example:
+            >>> cache.make_key("stats:overview")
+            'lncrna:stats:overview'
+            >>> cache.make_key("genes:list", species_id=1, page=1)
+            'lncrna:genes:list:abc123def4'
+        """
+        return self._make_key(namespace, **kwargs)
+
     def make_list_key(self, endpoint: str, **params) -> str:
         """
         生成列表查询的缓存键

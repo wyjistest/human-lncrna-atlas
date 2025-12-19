@@ -4,9 +4,9 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.9 |
+| 版本 | Phase 9.10 |
 | 状态 | 🟢 生产就绪 |
-| 更新 | 2025-12-18 |
+| 更新 | 2025-12-19 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
@@ -212,7 +212,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.6 | NULL 安全去重 + 缓存键修复 + MSW 健壮性 | 2025-12-18 |
 | 9.7 | 安全头加固 (HSTS/CSP) + 日志脱敏 + 静态服务安全 | 2025-12-18 |
 | 9.8 | Codex 安全审查: 时序攻击防护 + SecretStr + 输入验证 | 2025-12-18 |
-| **9.9** | **Codex 代码审查修复: Tabnabbing 防护 + 代码去重 + Builtin 遮蔽修复** | **2025-12-18** |
+| 9.9 | Codex 代码审查修复: Tabnabbing 防护 + 代码去重 + Builtin 遮蔽修复 | 2025-12-18 |
+| **9.10** | **XSS 全面防护: ECharts tooltip escapeHtml (26+ 处) + /metrics 认证 + 区域大小限制** | **2025-12-19** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

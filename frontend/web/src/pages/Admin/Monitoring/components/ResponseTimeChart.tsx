@@ -9,6 +9,7 @@ import { Empty } from 'antd'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import type { ResponseTimeDistribution } from '@/types/monitoring'
+import { escapeHtml } from '@/utils/escapeHtml'
 
 interface ResponseTimeChartProps {
   data?: ResponseTimeDistribution
@@ -40,7 +41,7 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
         },
         formatter: (params: unknown) => {
           const p = (params as { name: string; value: number }[])[0]
-          return `${p.name}<br/>Requests: ${p.value.toLocaleString()}`
+          return `${escapeHtml(p.name)}<br/>Requests: ${p.value.toLocaleString()}`
         }
       },
 

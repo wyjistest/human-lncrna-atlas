@@ -65,7 +65,7 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     **性能**: 缓存命中时 < 10ms，缓存未命中时 < 500ms
     """
     # 尝试从缓存获取
-    cache_key = cache._make_key("analysis:summary")
+    cache_key = cache.make_key("analysis:summary")
     cached = cache.get(cache_key)
     if cached is not None:
         logger.info("[CACHE HIT] analysis:summary")

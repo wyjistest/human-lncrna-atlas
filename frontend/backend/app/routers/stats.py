@@ -36,7 +36,7 @@ def get_overview_stats(request: Request, db: Session = Depends(get_db)):
     获取全局概览统计（缓存 1 小时）
     """
     # 尝试从缓存获取
-    cache_key = cache._make_key("stats:overview")
+    cache_key = cache.make_key("stats:overview")
     cached = cache.get(cache_key)
     if cached is not None:
         return OverviewStats(**cached)
@@ -134,7 +134,7 @@ def get_top_genes(
     获取Top基因（按调控关系数量排序，缓存 1 小时）
     """
     # 构建缓存键（包含参数）
-    cache_key = cache._make_key(f"stats:top-genes:{limit}:{gene_type or 'all'}")
+    cache_key = cache.make_key(f"stats:top-genes:{limit}:{gene_type or 'all'}")
 
     # 尝试从缓存获取
     cached = cache.get(cache_key)
@@ -198,7 +198,7 @@ def get_top_diseases(
     获取Top疾病（按关联基因数量排序，缓存 1 小时）
     """
     # 缓存键
-    cache_key = cache._make_key(f"stats:top-diseases:{limit}")
+    cache_key = cache.make_key(f"stats:top-diseases:{limit}")
 
     # 尝试从缓存获取
     cached = cache.get(cache_key)
@@ -259,7 +259,7 @@ def get_conserved_regulations(
     优化版：使用批量查询避免N+1问题
     """
     # 缓存键
-    cache_key = cache._make_key(f"stats:conserved:{min_species}:{limit}")
+    cache_key = cache.make_key(f"stats:conserved:{min_species}:{limit}")
 
     # 尝试从缓存获取
     cached = cache.get(cache_key)
@@ -323,7 +323,7 @@ def get_ba_range(request: Request, db: Session = Depends(get_db)):
     用于前端动态设置筛选器范围
     """
     # 尝试从缓存获取
-    cache_key = cache._make_key("stats:ba-range")
+    cache_key = cache.make_key("stats:ba-range")
     cached = cache.get(cache_key)
     if cached is not None:
         return BARange(**cached)
@@ -361,7 +361,7 @@ def get_detailed_stats(
     包含物种分布、BA分布直方图、Top lncRNA
     """
     # 缓存键
-    cache_key = cache._make_key(f"stats:detailed:{buckets}:{top_limit}")
+    cache_key = cache.make_key(f"stats:detailed:{buckets}:{top_limit}")
 
     # 尝试从缓存获取
     cached = cache.get(cache_key)

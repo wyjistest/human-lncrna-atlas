@@ -4,11 +4,12 @@ ChIP-seq Experiments API Router
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.routers.chipseq_rate_limit import rate_limit
 from app.utils.chipseq_db import parse_mark_types
 from app.schemas.chipseq import (
     ChIPSeqExperimentListResponse,
@@ -19,7 +20,9 @@ router = APIRouter()
 
 
 @router.get("/experiments", response_model=ChIPSeqExperimentListResponse)
+@rate_limit("30/minute")
 def list_experiments(
+    request: Request,
     species_id: Optional[int] = Query(None, description="Filter by species"),
     mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated"),
     mark_category: Optional[str] = Query(None, description="Filter by mark category"),
@@ -134,7 +137,9 @@ def list_experiments(
 
 
 @router.get("/experiments/{experiment_id}", response_model=ChIPSeqExperimentResponse)
+@rate_limit("30/minute")
 def get_experiment(
+    request: Request,
     experiment_id: int,
     db: Session = Depends(get_db),
 ):

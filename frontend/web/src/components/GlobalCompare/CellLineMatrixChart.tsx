@@ -14,6 +14,7 @@
  */
 
 import { useMemo, useRef, useEffect } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsInstance } from 'echarts-for-react'
 import { Empty, Space, Typography, Segmented, Spin } from 'antd'
@@ -214,8 +215,8 @@ export function CellLineMatrixChart({
           )
 
           const lines = [
-            `<strong>${cellDisplayName}</strong>`,
-            `${t('charts.matrix.mark', 'Mark')}: ${markDisplayName}`,
+            `<strong>${escapeHtml(cellDisplayName)}</strong>`,
+            `${t('charts.matrix.mark', 'Mark')}: ${escapeHtml(markDisplayName)}`,
             '',
             `<strong>${metricOptions.find((m) => m.value === metric)?.label}</strong>: ${formatMetricValue(value, metric)}`,
           ]

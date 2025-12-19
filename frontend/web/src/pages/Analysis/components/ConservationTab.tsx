@@ -17,6 +17,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import echarts from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { ConservationRecord } from '@/api/analysis'
 
@@ -54,7 +55,10 @@ export default function ConservationTab() {
       toolbox: getChartToolbox('conservation-distribution', t('common.export')),
       tooltip: {
         trigger: 'item',
-        formatter: '{b}: {c} ({d}%)',
+        formatter: (params: unknown) => {
+          const p = params as { name: string; value: number; percent: number }
+          return `${escapeHtml(p.name)}: ${p.value.toLocaleString()} (${p.percent.toFixed(1)}%)`
+        },
       },
       legend: {
         orient: 'vertical',

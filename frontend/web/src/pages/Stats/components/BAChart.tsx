@@ -4,6 +4,7 @@
  */
 
 import { useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
@@ -45,7 +46,7 @@ export function BAChart({ data }: BAChartProps) {
       },
       formatter: (params: unknown) => {
         const p = (params as { name: string; value: number }[])[0]
-        return `BA: ${p.name}<br/>${regulationCountLabel}: ${p.value.toLocaleString()}`
+        return `BA: ${escapeHtml(p.name)}<br/>${regulationCountLabel}: ${p.value.toLocaleString()}`
       }
     },
 

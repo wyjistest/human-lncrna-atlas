@@ -9,6 +9,7 @@ import { Empty } from 'antd'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import type { ErrorTrend } from '@/types/monitoring'
+import { escapeHtml } from '@/utils/escapeHtml'
 
 interface ErrorTrendChartProps {
   data?: ErrorTrend
@@ -26,7 +27,7 @@ export function ErrorTrendChart({ data }: ErrorTrendChartProps) {
         formatter: (params: unknown) => {
           const p = (params as { name: string; value: number }[])[0]
           const percentage = (p.value * 100).toFixed(3)
-          return `${p.name}<br/>Error Rate: ${percentage}%`
+          return `${escapeHtml(p.name)}<br/>Error Rate: ${percentage}%`
         }
       },
 

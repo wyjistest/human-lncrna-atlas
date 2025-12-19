@@ -41,7 +41,7 @@ def get_disease_options(
     - 按 trait_name 排序
     """
     # 生成缓存键
-    cache_key = cache._make_key("diseases:options")
+    cache_key = cache.make_key("diseases:options")
 
     # 尝试从缓存获取
     cached = cache.get(cache_key)

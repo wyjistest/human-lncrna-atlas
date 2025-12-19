@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { escapeHtml } from '@/utils/escapeHtml'
 import { getCellTypeColor, getCellTypeLabel } from '@/config/cellTypeConfigs'
 import type { PieParams } from '@/types/echarts'
 
@@ -95,7 +96,7 @@ export function OverlapCellTypeChart({
           const displayName = getCellTypeLabel(cellType, i18n.language)
           const percentage = ((p.value / total) * 100).toFixed(1)
           return [
-            `<strong>${displayName}</strong>`,
+            `<strong>${escapeHtml(displayName)}</strong>`,
             `${t('charts.overlapCount', 'Overlaps')}: ${p.value.toLocaleString()}`,
             `${t('charts.percentage', 'Percentage')}: ${percentage}%`,
           ].join('<br/>')

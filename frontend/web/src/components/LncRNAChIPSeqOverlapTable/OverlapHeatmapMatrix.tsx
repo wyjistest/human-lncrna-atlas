@@ -17,6 +17,7 @@
  */
 
 import { useMemo, useState, useRef, useEffect } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsInstance } from 'echarts-for-react'
 import {
@@ -296,8 +297,8 @@ export function OverlapHeatmapMatrix({
           const yDisplayLabel = getValueLabel(yLabel, yAxis, i18n.language)
 
           const lines = [
-            `<strong>${getAxisLabel(yAxis, t)}</strong>: ${yDisplayLabel}`,
-            `<strong>${getAxisLabel(xAxis, t)}</strong>: ${xDisplayLabel}`,
+            `<strong>${getAxisLabel(yAxis, t)}</strong>: ${escapeHtml(yDisplayLabel)}`,
+            `<strong>${getAxisLabel(xAxis, t)}</strong>: ${escapeHtml(xDisplayLabel)}`,
             `<br/><strong>${getMetricLabel(metric, t)}</strong>: ${formatMetricValue(value, metric)}`,
           ]
 

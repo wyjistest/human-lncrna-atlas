@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useRef, useMemo } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import { Card, Empty, Spin } from 'antd'
 import { useTranslation } from 'react-i18next'
 import * as echarts from 'echarts'
@@ -104,7 +105,7 @@ export function ConservationMatrix({
           const yName = speciesNames[value[1]]
           const count = value[2] ?? 0
           return `
-            <strong>${xName} - ${yName}</strong><br/>
+            <strong>${escapeHtml(xName)} - ${escapeHtml(yName)}</strong><br/>
             ${t('matrix.sharedRegulations', 'Shared Regulations')}: <strong>${count.toLocaleString()}</strong>
           `
         }

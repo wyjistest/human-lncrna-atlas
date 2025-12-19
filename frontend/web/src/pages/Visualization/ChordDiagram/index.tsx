@@ -14,6 +14,7 @@
  */
 
 import { useState, useMemo, useRef } from 'react'
+import { escapeHtml } from '@/utils/escapeHtml'
 import {
   Card,
   Row,
@@ -163,14 +164,14 @@ export default function ChordDiagram() {
             const targetName = idToName.get(targetId) || targetId
             const value = params.data.value ?? 0
             return `
-              <strong>${sourceName} ←→ ${targetName}</strong><br/>
+              <strong>${escapeHtml(sourceName)} ←→ ${escapeHtml(targetName)}</strong><br/>
               ${t('chord.bindingAffinity', 'Binding Affinity')}: <strong>${value.toFixed(2)}</strong>
             `
           } else {
             const nodeName = idToName.get(params.name) || params.name
             const nodeData = chordData.nodes.find((n: ChordNode) => n.id === params.name)
             return `
-              <strong>${nodeName}</strong><br/>
+              <strong>${escapeHtml(nodeName)}</strong><br/>
               ${t('chord.category', 'Category')}: ${nodeData?.category === 'lncrna' ? 'LncRNA' : 'Gene'}<br/>
               ${t('chord.connections', 'Connections')}: ${nodeData?.value.toFixed(0) || 0}
             `
