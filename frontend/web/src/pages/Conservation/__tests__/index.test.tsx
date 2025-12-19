@@ -261,10 +261,12 @@ describe('Conservation Page', () => {
 
       render(<Conservation />, { wrapper: createWrapper() })
 
-      // The component falls back to mock data, so it should still render
+      // The component should show ErrorState with error message
       await waitFor(() => {
-        expect(screen.getByText('Cross-Species Conservation Analysis')).toBeInTheDocument()
+        expect(screen.getByText('Loading Failed')).toBeInTheDocument()
       })
+      // Verify error message is displayed
+      expect(screen.getByText('Network error')).toBeInTheDocument()
     })
   })
 
