@@ -1,6 +1,8 @@
 """
 IGV ChIP-seq轨道路由
 提供ChIP-seq峰的BED格式数据导出和配置
+
+Phase 9.11: 使用共享验证器进行输入验证
 """
 import logging
 import os
@@ -13,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
+from app.core.validators import parse_comma_list
 from app.models import Species, ChIPSeqExperiment, EpigeneticMarkType
 from app.core.igv_stream_generators import (
     generate_chipseq_bed_stream,
@@ -222,10 +225,8 @@ def get_igv_chipseq_config(
             detail=f"IGV configuration not available for species: {species.display_name}"
         )
 
-    # Parse requested mark types
-    requested_marks = None
-    if mark_types:
-        requested_marks = [m.strip() for m in mark_types.split(",") if m.strip()]
+    # Parse requested mark types (Phase 9.11: 使用共享验证器)
+    requested_marks = parse_comma_list(mark_types, param_name="mark_types")
 
     # Query available marks for this species
 

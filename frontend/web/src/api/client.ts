@@ -5,7 +5,7 @@
  * 参见 src/main.tsx 中的 queryClient 配置
  */
 import axios from 'axios';
-import { API_BASE_URL, API_TIMEOUT } from '@/config/api';
+import { API_BASE_URL, API_TIMEOUT, ADMIN_API_KEY } from '@/config/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -18,7 +18,16 @@ export const apiClient = axios.create({
 // 请求拦截器
 apiClient.interceptors.request.use(
   (config) => {
-    // 可以在这里添加 token 等认证信息
+    // ⚠️ SECURITY WARNING ⚠️
+    // Admin API Key 通过前端环境变量注入，会随构建产物暴露。
+    // 仅适用于以下场景：
+    //   1. Admin 页面仅在内网/VPN 访问
+    //   2. 使用反向代理（如 Nginx）注入 X-Admin-API-Key
+    //   3. 开发/测试环境
+    // 生产公网环境建议使用后端会话式鉴权替代。
+    if (config.url?.includes('/admin') && ADMIN_API_KEY) {
+      config.headers['X-Admin-API-Key'] = ADMIN_API_KEY;
+    }
     return config;
   },
   (error) => {

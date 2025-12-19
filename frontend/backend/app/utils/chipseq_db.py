@@ -1,11 +1,15 @@
 """
 ChIP-seq Database Query Utilities
 数据库查询辅助函数
+
+Phase 9.11: 使用共享验证器进行输入验证
 """
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from fastapi import HTTPException
+
+from app.core.validators import parse_comma_list
 
 
 def get_chipseq_track_id(db: Session) -> int:
@@ -36,7 +40,10 @@ def get_mark_type_id(db: Session, mark_name: str) -> int:
 
 
 def parse_mark_types(mark_type_param: Optional[str]) -> Optional[List[str]]:
-    """Parse comma-separated mark types into a list"""
-    if not mark_type_param:
-        return None
-    return [m.strip() for m in mark_type_param.split(",") if m.strip()]
+    """Parse comma-separated mark types into a list (with validation)
+
+    Phase 9.11: 使用共享验证器，统一输入验证逻辑
+    - 限制最大项数（防止 DoS）
+    - 限制单项长度
+    """
+    return parse_comma_list(mark_type_param, param_name="mark_type")

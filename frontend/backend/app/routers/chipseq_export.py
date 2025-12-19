@@ -1,6 +1,19 @@
 """
 ChIP-seq Export API Router
 数据导出功能端点
+
+Phase 9.11 改进:
+- include_overlaps 默认关闭（资源密集型操作）
+- 添加 marks 数量限制（最多 10 个）
+- CSV/TSV 输出添加公式注入防护
+- max_rows 参数限制 SQL 查询返回的 peak 数量（默认 10000，最大 50000）
+- max_overlaps 参数限制重叠计算数量（默认 10000，最大 50000），防止 O(n²) 内存爆炸
+- JSON 输出包含 peaks_truncated/overlaps_truncated 标志，指示数据是否被截断
+
+内存保护策略:
+  1. SQL LIMIT :max_rows 在数据库层面限制 peak 数量
+  2. max_overlaps 在计算层面限制重叠对数量（early-break）
+  3. 使用共享验证器限制 marks 数量和长度
 """
 import io
 import csv
@@ -13,8 +26,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.validators import MAX_EXPORT_MARKS, parse_comma_list
 from app.models import Gene
 from app.schemas.chipseq import ExportFormat
+from app.utils.streaming_export import sanitize_csv_value
 
 # 从共享模块导入 rate_limit 装饰器（避免与主路由形成循环依赖）
 from app.routers.chipseq_rate_limit import rate_limit, DEFAULT_FLANKING_REGION
@@ -61,7 +76,9 @@ def export_comparison(
     ),
     flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
-    include_overlaps: bool = Query(True, description="Include overlap data"),
+    include_overlaps: bool = Query(False, description="Include overlap data (resource-intensive, disabled by default)"),
+    max_rows: int = Query(10000, ge=1, le=50000, description="Maximum number of peaks to return (prevents memory issues)"),
+    max_overlaps: int = Query(10000, ge=1, le=50000, description="Maximum number of overlaps to compute (prevents O(n²) explosion)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -77,8 +94,9 @@ def export_comparison(
     ```
     """
     # Get comparison data (reuse existing logic)
-    mark_list = [m.strip() for m in marks.split(",") if m.strip()]
-    if len(mark_list) < 2:
+    # Phase 9.11: 使用共享验证器，统一输入长度/项数限制
+    mark_list = parse_comma_list(marks, max_items=MAX_EXPORT_MARKS, param_name="marks")
+    if not mark_list or len(mark_list) < 2:
         raise HTTPException(
             status_code=400,
             detail="At least 2 marks are required for comparison"
@@ -98,7 +116,7 @@ def export_comparison(
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
-    # Query peaks
+    # Query peaks (Phase 9.11: 添加 LIMIT 防止内存溢出)
     query = text("""
         SELECT
             p.peak_id,
@@ -122,6 +140,7 @@ def export_comparison(
           AND m.mark_name = ANY(:mark_list)
           AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
         ORDER BY m.mark_name, p.peak_start
+        LIMIT :max_rows
     """)
 
     rows = db.execute(query, {
@@ -131,6 +150,7 @@ def export_comparison(
         "region_end": region_end,
         "mark_list": mark_list,
         "max_qvalue": max_qvalue,
+        "max_rows": max_rows,
     }).fetchall()
 
     # Prepare data for export
@@ -157,12 +177,19 @@ def export_comparison(
             marks_data[mark_name] = []
         marks_data[mark_name].append(peak_dict)
 
-    # Calculate overlaps if requested
+    # Calculate overlaps if requested (Phase 9.11: max_overlaps 防止 O(n²) 内存爆炸)
     overlaps_data = []
+    overlaps_truncated = False
     if include_overlaps and len(marks_data) >= 2:
         mark_names = list(marks_data.keys())
         for mark_1, mark_2 in combinations(mark_names, 2):
+            if len(overlaps_data) >= max_overlaps:
+                overlaps_truncated = True
+                break
             for p1, p2 in _iter_overlapping_peak_pairs(marks_data[mark_1], marks_data[mark_2]):
+                if len(overlaps_data) >= max_overlaps:
+                    overlaps_truncated = True
+                    break
                 overlap_start = max(p1["peak_start"], p2["peak_start"])
                 overlap_end = min(p1["peak_end"], p2["peak_end"])
                 overlaps_data.append({
@@ -175,8 +202,11 @@ def export_comparison(
                     "mark_1_peak_id": p1["peak_id"],
                     "mark_2_peak_id": p2["peak_id"],
                 })
+            if overlaps_truncated:
+                break
 
     # Generate output based on format
+    peaks_truncated = len(peaks_data) >= max_rows
     if format == ExportFormat.json:
         import json
         output = json.dumps({
@@ -186,7 +216,9 @@ def export_comparison(
             "region_start": region_start,
             "region_end": region_end,
             "peaks": peaks_data,
+            "peaks_truncated": peaks_truncated,
             "overlaps": overlaps_data if include_overlaps else None,
+            "overlaps_truncated": overlaps_truncated if include_overlaps else None,
         }, indent=2)
         media_type = "application/json"
         filename = f"chipseq_compare_{gene_id}.json"
@@ -204,10 +236,16 @@ def export_comparison(
         ])
         for peak in peaks_data:
             writer.writerow([
-                peak["peak_id"], peak["mark_type"], peak["mark_category"],
-                peak["chromosome"], peak["peak_start"], peak["peak_end"],
-                peak["summit_position"], peak["fold_enrichment"],
-                peak["qvalue"], peak["peak_width"]
+                sanitize_csv_value(peak["peak_id"]),
+                sanitize_csv_value(peak["mark_type"]),
+                sanitize_csv_value(peak["mark_category"]),
+                sanitize_csv_value(peak["chromosome"]),
+                sanitize_csv_value(peak["peak_start"]),
+                sanitize_csv_value(peak["peak_end"]),
+                sanitize_csv_value(peak["summit_position"]),
+                sanitize_csv_value(peak["fold_enrichment"]),
+                sanitize_csv_value(peak["qvalue"]),
+                sanitize_csv_value(peak["peak_width"])
             ])
 
         # Write overlaps section if requested
@@ -220,9 +258,14 @@ def export_comparison(
             ])
             for overlap in overlaps_data:
                 writer.writerow([
-                    overlap["chromosome"], overlap["start"], overlap["end"],
-                    overlap["length"], overlap["mark_1"], overlap["mark_2"],
-                    overlap["mark_1_peak_id"], overlap["mark_2_peak_id"]
+                    sanitize_csv_value(overlap["chromosome"]),
+                    sanitize_csv_value(overlap["start"]),
+                    sanitize_csv_value(overlap["end"]),
+                    sanitize_csv_value(overlap["length"]),
+                    sanitize_csv_value(overlap["mark_1"]),
+                    sanitize_csv_value(overlap["mark_2"]),
+                    sanitize_csv_value(overlap["mark_1_peak_id"]),
+                    sanitize_csv_value(overlap["mark_2_peak_id"])
                 ])
 
         output = output.getvalue()
@@ -257,6 +300,8 @@ def export_overlaps_bed(
         description="Filter by specific mark pair (e.g., 'H3K4me3:H3K27me3')"
     ),
     min_overlap_bp: int = Query(0, ge=0, description="Minimum overlap length"),
+    max_rows: int = Query(10000, ge=1, le=50000, description="Maximum number of peaks to query (prevents memory issues)"),
+    max_overlaps: int = Query(10000, ge=1, le=50000, description="Maximum number of overlaps to compute (prevents O(n²) explosion)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -270,8 +315,9 @@ def export_overlaps_bed(
     GET /features/chipseq/genes/12345/overlaps/export?marks=H3K27me3,H3K4me3&format=bed
     ```
     """
-    mark_list = [m.strip() for m in marks.split(",") if m.strip()]
-    if len(mark_list) < 2:
+    # Phase 9.11: 使用共享验证器，统一输入长度/项数限制
+    mark_list = parse_comma_list(marks, max_items=MAX_EXPORT_MARKS, param_name="marks")
+    if not mark_list or len(mark_list) < 2:
         raise HTTPException(
             status_code=400,
             detail="At least 2 marks are required for overlap detection"
@@ -291,7 +337,7 @@ def export_overlaps_bed(
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
-    # Query peaks
+    # Query peaks (Phase 9.11: 添加 LIMIT 防止内存溢出)
     query = text("""
         SELECT
             p.peak_id,
@@ -310,6 +356,7 @@ def export_overlaps_bed(
           AND m.mark_name = ANY(:mark_list)
           AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
         ORDER BY m.mark_name, p.peak_start
+        LIMIT :max_rows
     """)
 
     rows = db.execute(query, {
@@ -319,6 +366,7 @@ def export_overlaps_bed(
         "region_end": region_end,
         "mark_list": mark_list,
         "max_qvalue": max_qvalue,
+        "max_rows": max_rows,
     }).fetchall()
 
     # Group by mark
@@ -333,8 +381,9 @@ def export_overlaps_bed(
             "peak_end": row[4],
         })
 
-    # Find overlaps
+    # Find overlaps (Phase 9.11: max_overlaps 防止 O(n²) 内存爆炸)
     overlaps = []
+    overlaps_truncated = False
     mark_names = list(marks_data.keys())
 
     # Parse mark_pair filter if provided
@@ -343,11 +392,18 @@ def export_overlaps_bed(
         filter_marks = set(mark_pair.split(":"))
 
     for mark_1, mark_2 in combinations(mark_names, 2):
+        if len(overlaps) >= max_overlaps:
+            overlaps_truncated = True
+            break
+
         # Apply mark pair filter
         if filter_marks and {mark_1, mark_2} != filter_marks:
             continue
 
         for p1, p2 in _iter_overlapping_peak_pairs(marks_data[mark_1], marks_data[mark_2]):
+            if len(overlaps) >= max_overlaps:
+                overlaps_truncated = True
+                break
             overlap_start = max(p1["peak_start"], p2["peak_start"])
             overlap_end = min(p1["peak_end"], p2["peak_end"])
             overlap_length = overlap_end - overlap_start
@@ -364,6 +420,8 @@ def export_overlaps_bed(
                     "mark_2": mark_2,
                     "length": overlap_length,
                 })
+        if overlaps_truncated:
+            break
 
     # Sort by position
     overlaps.sort(key=lambda x: (x["chromosome"], x["start"]))
@@ -384,6 +442,7 @@ def export_overlaps_bed(
             "gene_id": gene_id,
             "gene_name": gene.gene_name,
             "overlaps": overlaps,
+            "overlaps_truncated": overlaps_truncated,
         }, indent=2))
         media_type = "application/json"
         filename = f"chipseq_overlaps_{gene_id}.json"
@@ -395,8 +454,13 @@ def export_overlaps_bed(
         writer.writerow(["chromosome", "start", "end", "name", "length", "mark_1", "mark_2"])
         for o in overlaps:
             writer.writerow([
-                o["chromosome"], o["start"], o["end"], o["name"],
-                o["length"], o["mark_1"], o["mark_2"]
+                sanitize_csv_value(o["chromosome"]),
+                sanitize_csv_value(o["start"]),
+                sanitize_csv_value(o["end"]),
+                sanitize_csv_value(o["name"]),
+                sanitize_csv_value(o["length"]),
+                sanitize_csv_value(o["mark_1"]),
+                sanitize_csv_value(o["mark_2"])
             ])
         media_type = "text/csv" if format == ExportFormat.csv else "text/tab-separated-values"
         ext = "csv" if format == ExportFormat.csv else "tsv"

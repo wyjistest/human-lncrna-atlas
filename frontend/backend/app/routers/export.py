@@ -6,14 +6,18 @@ Phase 6.0-A: 为 Jupyter Notebook 数据分析提供便捷的数据导出 API
 - JSON (默认)
 - CSV (逗号分隔) - 真流式输出，内存占用 O(1)
 - Excel (.xlsx) - write_only 模式，减少内存峰值
+- JSONL (Phase 9.11) - 流式 JSON Lines，避免大数据集内存峰值
 
 性能优化:
 - 使用 LIMIT 限制返回数量（最大 50000）
-- 真流式响应：逐行生成 CSV，不在内存中保存完整数据集
+- 真流式响应：逐行生成 CSV/JSONL，不在内存中保存完整数据集
 - 复用数据库连接池
 
 Phase 9.3 改进：
 - CR-005: 修复伪流式输出问题，改用生成器逐行 yield
+
+Phase 9.11 改进：
+- 添加 JSONL 流式输出格式，解决 JSON 导出内存峰值问题
 """
 import logging
 from typing import List, Optional, Dict, Any, Iterator, Generator, Literal
@@ -35,6 +39,7 @@ from app.schemas.export import (
 from app.utils.streaming_export import (
     stream_csv_response,
     stream_excel_response,
+    stream_jsonl_response,
     create_db_row_generator,
 )
 
@@ -70,7 +75,7 @@ def export_to_streaming_format(
     Note:
         JSON 格式不使用此函数，直接返回 Pydantic 响应模型
     """
-    # 可选：转换数组字段为字符串
+    # 可选：转换数组字段为字符串（仅用于 CSV/Excel，JSONL 保持数组原样）
     def transform_arrays(row: Dict[str, Any]) -> Dict[str, Any]:
         if array_fields:
             for field in array_fields:
@@ -78,10 +83,15 @@ def export_to_streaming_format(
                     row[field] = ", ".join(str(v) for v in row[field] if v is not None)
         return row
 
-    # 包装迭代器以应用转换
+    # 包装迭代器以应用转换（仅用于 CSV/Excel）
     def transformed_rows() -> Generator[Dict[str, Any], None, None]:
         for row in row_iterator:
             yield transform_arrays(row)
+
+    # 原始行迭代器（用于 JSONL，保持数组结构）
+    def raw_rows() -> Generator[Dict[str, Any], None, None]:
+        for row in row_iterator:
+            yield row
 
     if output_format == "csv":
         return stream_csv_response(
@@ -95,6 +105,13 @@ def export_to_streaming_format(
             transformed_rows(),
             fieldnames,
             f"{filename}.xlsx",
+        )
+
+    elif output_format == "jsonl":
+        # Phase 9.11: JSONL 流式输出，保持数组原样（不扁平化）
+        return stream_jsonl_response(
+            raw_rows(),
+            f"{filename}.jsonl",
         )
 
     else:
@@ -112,7 +129,7 @@ def export_high_affinity(
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力 (BA)"),
     species_id: Optional[int] = Query(None, description="物种 ID 筛选 (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
+    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -173,7 +190,7 @@ def export_high_affinity(
     ]
 
     # CSV/Excel: 使用流式输出
-    if output_format in ("csv", "excel"):
+    if output_format in ("csv", "excel", "jsonl"):
         result = db.execute(sql, {
             "min_ba": min_ba,
             "species_id": species_id,
@@ -218,7 +235,7 @@ def export_conservation(
     request: Request,
     min_species_count: int = Query(2, ge=1, le=4, description="最少保守物种数"),
     limit: int = Query(5000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
+    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -282,7 +299,7 @@ def export_conservation(
     ]
 
     # CSV/Excel: 使用流式输出
-    if output_format in ("csv", "excel"):
+    if output_format in ("csv", "excel", "jsonl"):
         result = db.execute(sql, {
             "min_species_count": min_species_count,
             "limit": limit
@@ -329,7 +346,7 @@ def export_chipseq_overlaps(
     ),
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
+    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -405,7 +422,7 @@ def export_chipseq_overlaps(
     ]
 
     # CSV/Excel: 使用流式输出
-    if output_format in ("csv", "excel"):
+    if output_format in ("csv", "excel", "jsonl"):
         result = db.execute(sql, {
             "mark_names": mark_names,
             "min_ba": min_ba,
@@ -681,7 +698,7 @@ def export_regulations(
     lncrna_gene_name: Optional[str] = Query(None, description="lncRNA 基因名（模糊搜索）"),
     target_gene_name: Optional[str] = Query(None, description="靶基因名（模糊搜索）"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    output_format: Literal["json", "csv", "excel"] = Query("json", alias="format", description="导出格式 (json/csv/excel)"),
+    output_format: Literal["json", "csv", "excel", "jsonl"] = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -795,7 +812,7 @@ def export_regulations(
     ]
 
     # CSV/Excel: 使用流式输出
-    if output_format in ("csv", "excel"):
+    if output_format in ("csv", "excel", "jsonl"):
         result = db.execute(sql, params)
         return export_to_streaming_format(
             create_db_row_generator(result),

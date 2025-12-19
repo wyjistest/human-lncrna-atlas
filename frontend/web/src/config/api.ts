@@ -28,3 +28,16 @@ export const API_V1_URL = `${API_BASE_URL}${API_V1_PREFIX}`;
  * Default request timeout in milliseconds
  */
 export const API_TIMEOUT = 30000;
+
+/**
+ * Admin API Key for authenticated admin endpoints.
+ * Required when backend has ADMIN_REQUIRE_API_KEY=true (production default)
+ * Set via VITE_ADMIN_API_KEY environment variable
+ *
+ * ⚠️ SECURITY WARNING ⚠️
+ * This key is embedded in the frontend build. Only use when:
+ * - Admin page is restricted to internal network/VPN, OR
+ * - Reverse proxy injects X-Admin-API-Key header instead
+ * For public deployments, use backend session-based auth.
+ */
+export const ADMIN_API_KEY = import.meta.env.VITE_ADMIN_API_KEY || '';
