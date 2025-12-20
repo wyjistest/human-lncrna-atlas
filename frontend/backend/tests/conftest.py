@@ -189,3 +189,80 @@ class APIAssertions:
 def api_assert() -> APIAssertions:
     """API 断言辅助"""
     return APIAssertions()
+
+
+# ============== 安全测试 Fixtures ==============
+
+@pytest.fixture
+def security_test_patterns() -> dict:
+    """
+    返回常见的安全测试输入模式
+
+    用于参数化测试各种安全边界情况
+    """
+    return {
+        "like_wildcards": [
+            "%", "%%", "%%%",
+            "_", "__", "___",
+            "%_", "_%", "%_%",
+        ],
+        "sql_injection": [
+            "'; DROP TABLE users; --",
+            "1 OR 1=1",
+            "1; SELECT * FROM passwords",
+            "' OR '1'='1",
+            "1; DELETE FROM regulations; --",
+        ],
+        "invalid_ids": [
+            "abc", "null", "undefined", "NaN",
+            "1.5", "true", "false",
+            "[1,2]", '{"id":1}',
+        ],
+        "special_chars": [
+            "\\", "'", '"',
+            "<script>", "{{", "}}",
+            "\x00", "\n", "\r\n",
+        ],
+        "unicode": [
+            "糖尿病", "émoji", "🧬",
+            "\u0000", "\uffff",
+        ],
+    }
+
+
+@pytest.fixture
+def expect_no_500_error():
+    """
+    断言响应不是 500 错误的辅助函数
+
+    用法:
+        response = api_client.get("/some/endpoint")
+        expect_no_500_error(response)
+    """
+    def _assert(response: httpx.Response, context: str = ""):
+        msg = f"不应返回 500 错误"
+        if context:
+            msg = f"{context}: {msg}"
+        assert response.status_code != 500, \
+            f"{msg}，实际: {response.status_code}，响应: {response.text[:300]}"
+        return response
+    return _assert
+
+
+@pytest.fixture
+def expect_client_error():
+    """
+    断言响应是客户端错误 (4xx) 的辅助函数
+
+    用法:
+        response = api_client.get("/some/endpoint", params={"invalid": "param"})
+        expect_client_error(response)
+    """
+    def _assert(response: httpx.Response, context: str = ""):
+        msg = f"应返回 4xx 客户端错误"
+        if context:
+            msg = f"{context}: {msg}"
+        assert 400 <= response.status_code < 500, \
+            f"{msg}，实际: {response.status_code}"
+        return response
+    return _assert

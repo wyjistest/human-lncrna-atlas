@@ -246,9 +246,29 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.10 | XSS 全面防护: ECharts tooltip escapeHtml (26+ 处) + /metrics 认证 + 区域大小限制 | 2025-12-19 |
 | 9.11 | Codex 安全审查修复: Admin UI 认证 + ChIP-seq max_rows/max_overlaps 内存保护 + JSONL 流式 + 共享验证器 | 2025-12-19 |
 | 9.12 | Codex DoS 防护: compare 端点 marks/cell_types 数量限制 + MV 缓存 TTL + /genomes 目录边界文档 | 2025-12-19 |
-| **9.13** | **安全审查修复: LIKE 通配符绕过防护 + species_ids 解析验证 + MV 降级处理 + ETL 密码支持 + Admin Key 文档** | **2025-12-20** |
+| **9.13** | **安全审查修复: LIKE 通配符绕过防护 + species_ids 解析验证 + MV 降级处理 + ETL 密码支持 + 103 项安全测试** | **2025-12-20** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
+
+## 安全测试覆盖
+
+| 测试文件 | 测试数 | 覆盖范围 |
+|---------|--------|----------|
+| `test_security_like_filter.py` | 51 | LIKE 通配符防护 + Sankey 转义 |
+| `test_security_input_validation.py` | 33 | species_ids 解析验证 + SQL 注入防护 |
+| `test_security_mv_graceful.py` | 19 | MV 降级处理 + 响应完整性 |
+
+**运行测试**:
+```bash
+# 所有安全测试（单元 + 集成）
+pytest tests/test_security*.py -v
+
+# 仅单元测试（67 个，无需后端）
+pytest tests/test_security*.py -v -m unit
+
+# 仅集成测试（36 个，需后端运行）
+pytest tests/test_security*.py -v -m integration
+```
 
 ## 核心 API 端点
 
