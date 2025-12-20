@@ -49,7 +49,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/export", tags=["export"])
 
 # 最大导出数量限制（防止内存溢出）
-MAX_EXPORT_LIMIT = 50000
+MAX_EXPORT_LIMIT = 50000  # CSV/Excel/JSONL 流式输出可支持大数据集
+MAX_JSON_LIMIT = 5000     # JSON 模式全量加载进内存，限制为 5000 条
 
 
 def is_effective_like_filter(value: Optional[str]) -> bool:
@@ -753,7 +754,10 @@ def export_regulations(
     - num_peaks: 峰数量
 
     **性能**: 10000 条记录 < 5s
-    **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
+    **内存优化**:
+    - JSON 模式: 全量加载进内存，限制 5000 条（大数据集请使用 jsonl 格式）
+    - CSV/JSONL: 真流式 O(1)
+    - Excel: write_only 模式降低内存峰值
     """
     logger.info(
         f"[EXPORT] regulations: min_ba={min_ba}, max_ba={max_ba}, "
@@ -767,6 +771,16 @@ def export_regulations(
         raise HTTPException(
             status_code=400,
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
+        )
+
+    # JSON 模式独立限制（防止内存峰值）
+    if output_format == "json" and limit > MAX_JSON_LIMIT:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"JSON format is limited to {MAX_JSON_LIMIT} records due to memory constraints. "
+                f"For larger datasets, please use 'jsonl' (JSON Lines) format which supports up to {MAX_EXPORT_LIMIT} records."
+            )
         )
 
     # 解析逗号分隔的参数

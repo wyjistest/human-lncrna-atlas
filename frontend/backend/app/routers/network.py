@@ -531,27 +531,46 @@ def compare_species_networks(
     # 对每个物种构建网络
     species_networks = {}
 
+    # 批量查询所有同源基因的调控关系（修复 N+1 查询问题）
+    gene_ids = [gene_id for gene_id, _ in ortholog_genes]
+
+    # 单次查询获取所有调控关系
+    all_regulations = (
+        db.query(Regulation, Gene, CoreGene)
+        .join(Gene, Regulation.target_gene_id == Gene.gene_id)
+        .join(CoreGene, Gene.core_id == CoreGene.core_id)
+        .filter(Regulation.lncrna_gene_id.in_(gene_ids))
+        .filter(Regulation.binding_affinity >= min_ba)
+        .order_by(Regulation.lncrna_gene_id, Regulation.binding_affinity.desc())
+        .all()
+    )
+
+    # 单次查询获取每个基因的总调控关系数
+    count_results = (
+        db.query(
+            Regulation.lncrna_gene_id,
+            func.count(Regulation.regulation_id).label("total_count")
+        )
+        .filter(Regulation.lncrna_gene_id.in_(gene_ids))
+        .filter(Regulation.binding_affinity >= min_ba)
+        .group_by(Regulation.lncrna_gene_id)
+        .all()
+    )
+
+    # 构建 gene_id -> total_count 映射
+    count_map = {gene_id: total_count for gene_id, total_count in count_results}
+
+    # 按 gene_id 分组调控关系
+    from itertools import groupby
+    regulations_by_gene = {
+        gene_id: list(group)
+        for gene_id, group in groupby(all_regulations, key=lambda x: x[0].lncrna_gene_id)
+    }
+
+    # 为每个物种构建网络数据
     for gene_id, species_id in ortholog_genes:
-        # 查询该基因的调控关系（添加排序和限制）
-        regulations_query = (
-            db.query(Regulation, Gene, CoreGene)
-            .join(Gene, Regulation.target_gene_id == Gene.gene_id)
-            .join(CoreGene, Gene.core_id == CoreGene.core_id)
-            .filter(Regulation.lncrna_gene_id == gene_id)
-            .filter(Regulation.binding_affinity >= min_ba)
-            .order_by(Regulation.binding_affinity.desc())
-            .limit(max_targets_per_species)
-        )
-
-        regulations = regulations_query.all()
-
-        # 查询该物种的总调控关系数（用于统计）
-        total_count = (
-            db.query(func.count(Regulation.regulation_id))
-            .filter(Regulation.lncrna_gene_id == gene_id)
-            .filter(Regulation.binding_affinity >= min_ba)
-            .scalar()
-        )
+        regulations = regulations_by_gene.get(gene_id, [])[:max_targets_per_species]
+        total_count = count_map.get(gene_id, 0)
 
         targets = [
             {
