@@ -128,6 +128,11 @@ class BatchManager:
             return
 
         try:
+            # Phase 9.15: 先重置事务状态，防止在 aborted 事务中执行 SQL 失败
+            # PostgreSQL 在事务错误后进入 aborted 状态，后续 SQL 会报错
+            # "current transaction is aborted, commands ignored until end of transaction block"
+            self.conn.rollback()
+
             with self.conn.cursor() as cur:
                 if self.cleanup_callback is not None:
                     # Use custom cleanup callback

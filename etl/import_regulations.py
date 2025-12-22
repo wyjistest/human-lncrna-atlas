@@ -202,15 +202,15 @@ class RegulationsImporter:
         self.conn.commit()
         cursor.close()
 
-    def _set_batch_error(self, batch_id: int, error_message: str):
+    def _set_batch_error(self, batch_id: int, error_msg: str):
         """设置批次错误信息（用于断点续传提示）"""
         cursor = self.conn.cursor()
-        # 使用 notes 字段存储错误详情
+        # Phase 9.15: 修复字段名，schema 中为 error_message 而非 notes
         cursor.execute("""
             UPDATE import_batches
-            SET notes = %s
+            SET error_message = %s
             WHERE batch_id = %s
-        """, (error_message, batch_id))
+        """, (error_msg, batch_id))
         self.conn.commit()
         cursor.close()
 

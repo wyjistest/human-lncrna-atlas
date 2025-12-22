@@ -151,7 +151,7 @@ def export_high_affinity(
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力 (BA)"),
     species_id: Optional[int] = Query(None, description="物种 ID 筛选 (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
+    output_format: Literal["json", "csv", "excel", "jsonl"] = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -257,7 +257,7 @@ def export_conservation(
     request: Request,
     min_species_count: int = Query(2, ge=1, le=4, description="最少保守物种数"),
     limit: int = Query(5000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
+    output_format: Literal["json", "csv", "excel", "jsonl"] = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -368,7 +368,7 @@ def export_chipseq_overlaps(
     ),
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
-    output_format: str = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
+    output_format: Literal["json", "csv", "excel", "jsonl"] = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -492,7 +492,7 @@ def export_disease_network(
         description="疾病/性状名称（模糊搜索，如 'diabetes', 'cancer'）"
     ),
     limit: int = Query(5000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回边数"),
-    output_format: str = Query("json", alias="format", description="导出格式 (仅支持 json，网络数据不适合 CSV)"),
+    output_format: Literal["json"] = Query("json", alias="format", description="导出格式 (仅支持 json，网络数据不适合 CSV)"),
     db: Session = Depends(get_db),
 ):
     """

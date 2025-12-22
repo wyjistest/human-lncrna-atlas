@@ -4,9 +4,9 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.14 |
+| 版本 | Phase 9.15 |
 | 状态 | 🟢 生产就绪 |
-| 更新 | 2025-12-20 |
+| 更新 | 2025-12-22 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
@@ -247,7 +247,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.11 | Codex 安全审查修复: Admin UI 认证 + ChIP-seq max_rows/max_overlaps 内存保护 + JSONL 流式 + 共享验证器 | 2025-12-19 |
 | 9.12 | Codex DoS 防护: compare 端点 marks/cell_types 数量限制 + MV 缓存 TTL + /genomes 目录边界文档 | 2025-12-19 |
 | 9.13 | 安全审查修复: LIKE 通配符绕过防护 + species_ids 解析验证 + MV 降级处理 + ETL 密码支持 + 103 项安全测试 | 2025-12-20 |
-| **9.14** | **性能优化: export_regulations JSON 内存限制 (5000 条) + cross-species N+1 查询优化 (2N → 2 查询)** | **2025-12-20** |
+| 9.14 | 性能优化: export_regulations JSON 内存限制 (5000 条) + cross-species N+1 查询优化 (2N → 2 查询) | 2025-12-20 |
+| **9.15** | **Codex 安全审查修复: DoS 防护 (列表参数限制) + ETL 字段修正 + BatchManager 事务状态 + 枚举参数强约束** | **2025-12-22** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

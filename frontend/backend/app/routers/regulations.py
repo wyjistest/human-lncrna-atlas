@@ -1,5 +1,6 @@
 """调控关系API路由"""
 import logging
+import re
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, aliased
@@ -9,6 +10,7 @@ from math import ceil
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
+from app.core.validators import parse_int_list, parse_comma_list, MAX_COMMA_SEPARATED_ITEMS
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Regulation, Gene, Species, Sequence
 from app.schemas.regulation import (
@@ -221,6 +223,11 @@ def _parse_ids(ids_str: str, param_name: str, *, raise_on_empty: bool = True) ->
     """
     解析逗号分隔的 ID 字符串，返回整数列表。
 
+    .. deprecated:: Phase 9.15
+        此函数已弃用，请使用 `app.core.validators.parse_int_list` 替代。
+        parse_int_list 提供更全面的安全验证（项数限制、长度限制）。
+        保留此函数仅为向后兼容测试用例。
+
     Phase 9.13: 添加 raise_on_empty 参数防止静默回退。
     当用户提供了 IDs 参数但全部解析失败时，返回 400 而非静默忽略过滤条件。
 
@@ -337,8 +344,9 @@ def list_regulations(
     query, LncRNAGene, TargetGene = _build_regulation_list_query(db)
 
     # 物种筛选：优先使用数组参数
+    # Phase 9.15: 使用安全验证器防止 DoS 攻击（限制项数和长度）
     if species_ids:
-        ids = _parse_ids(species_ids, "species_ids")
+        ids = parse_int_list(species_ids, param_name="species_ids")
         if ids:
             query = query.filter(Regulation.species_id.in_(ids))
     elif species_id:
@@ -366,10 +374,21 @@ def list_regulations(
         query = query.filter(Regulation.binding_affinity <= max_ba)
 
     # 染色体筛选：优先使用数组参数
+    # Phase 9.15: 使用安全验证器防止 DoS 攻击，并校验染色体格式
     if chromosomes:
-        chrs = [x.strip() for x in chromosomes.split(",") if x.strip()]
+        chrs = parse_comma_list(chromosomes, param_name="chromosomes")
         if chrs:
-            query = query.filter(Regulation.target_chromosome.in_(chrs))
+            # 校验染色体格式 (chr1-chr22, chrX, chrY, chrM)
+            chr_pattern = re.compile(r'^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$', re.IGNORECASE)
+            invalid_chrs = [c for c in chrs if not chr_pattern.match(c)]
+            if invalid_chrs:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid chromosome format: {invalid_chrs[:5]}. Expected format: chr1, chr2, ..., chr22, chrX, chrY, chrM"
+                )
+            # 规范化为小写并去重，确保与数据库一致且减少 IN 参数
+            chrs_normalized = list({c.lower() for c in chrs})
+            query = query.filter(Regulation.target_chromosome.in_(chrs_normalized))
     elif chromosome:
         query = query.filter(Regulation.target_chromosome == chromosome)
 
