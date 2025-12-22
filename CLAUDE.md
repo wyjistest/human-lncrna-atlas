@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.15 |
+| 版本 | Phase 9.16 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-22 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -248,7 +248,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.12 | Codex DoS 防护: compare 端点 marks/cell_types 数量限制 + MV 缓存 TTL + /genomes 目录边界文档 | 2025-12-19 |
 | 9.13 | 安全审查修复: LIKE 通配符绕过防护 + species_ids 解析验证 + MV 降级处理 + ETL 密码支持 + 103 项安全测试 | 2025-12-20 |
 | 9.14 | 性能优化: export_regulations JSON 内存限制 (5000 条) + cross-species N+1 查询优化 (2N → 2 查询) | 2025-12-20 |
-| **9.15** | **Codex 安全审查修复: DoS 防护 (列表参数限制) + ETL 字段修正 + BatchManager 事务状态 + 枚举参数强约束** | **2025-12-22** |
+| 9.15 | Codex 安全审查修复: DoS 防护 (列表参数限制) + ETL 字段修正 + BatchManager 事务状态 + 枚举参数强约束 | 2025-12-22 |
+| **9.16** | **Codex 代码审查修复: Admin Key 安全警告 + /genomes 白名单 + CORS 收敛 + 日志轮转 + main.py 模块化重构** | **2025-12-22** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

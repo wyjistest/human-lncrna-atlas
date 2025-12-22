@@ -219,48 +219,8 @@ def _build_regulation_list_query(db: Session):
     return query, LncRNAGene, TargetGene
 
 
-def _parse_ids(ids_str: str, param_name: str, *, raise_on_empty: bool = True) -> list[int]:
-    """
-    解析逗号分隔的 ID 字符串，返回整数列表。
-
-    .. deprecated:: Phase 9.15
-        此函数已弃用，请使用 `app.core.validators.parse_int_list` 替代。
-        parse_int_list 提供更全面的安全验证（项数限制、长度限制）。
-        保留此函数仅为向后兼容测试用例。
-
-    Phase 9.13: 添加 raise_on_empty 参数防止静默回退。
-    当用户提供了 IDs 参数但全部解析失败时，返回 400 而非静默忽略过滤条件。
-
-    Args:
-        ids_str: 逗号分隔的 ID 字符串
-        param_name: 参数名（用于错误消息）
-        raise_on_empty: 如果解析结果为空是否抛出异常（默认 True）
-
-    Returns:
-        解析成功的整数列表
-
-    Raises:
-        HTTPException: 当 raise_on_empty=True 且解析结果为空时
-    """
-    result = []
-    invalid_values = []
-    for x in ids_str.split(","):
-        x = x.strip()
-        if x:
-            try:
-                result.append(int(x))
-            except ValueError:
-                invalid_values.append(x)
-                logger.warning(f"Invalid {param_name} value: {x}")
-
-    # Phase 9.13: 如果全部解析失败且用户确实提供了值，抛出 400 错误
-    if raise_on_empty and not result and invalid_values:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid {param_name} format. All values are invalid: {invalid_values}"
-        )
-
-    return result
+# Phase 9.15: _parse_ids() 已删除，使用 parse_int_list() 替代
+# 详见 app.core.validators.parse_int_list
 
 
 def _normalize_list_param(value: str | None) -> str | None:
@@ -297,11 +257,11 @@ def list_regulations(
     species_ids: Optional[str] = Query(None, description="物种ID列表（逗号分隔，如: 1,2,3）"),
     lncrna_gene_id: Optional[int] = Query(None, description="lncRNA基因ID"),
     target_gene_id: Optional[int] = Query(None, description="靶基因ID"),
-    lncrna_gene_name: Optional[str] = Query(None, description="lncRNA基因名（模糊搜索）"),
-    target_gene_name: Optional[str] = Query(None, description="靶基因名（模糊搜索）"),
+    lncrna_gene_name: Optional[str] = Query(None, max_length=100, description="lncRNA基因名（模糊搜索）"),
+    target_gene_name: Optional[str] = Query(None, max_length=100, description="靶基因名（模糊搜索）"),
     min_ba: Optional[float] = Query(None, ge=0, description="最小结合亲和力"),
     max_ba: Optional[float] = Query(None, ge=0, description="最大结合亲和力"),
-    chromosome: Optional[str] = Query(None, description="靶基因染色体（单个）"),
+    chromosome: Optional[str] = Query(None, max_length=30, description="靶基因染色体（单个）"),
     chromosomes: Optional[str] = Query(None, description="染色体列表（逗号分隔，如: chr1,chr2）"),
     db: Session = Depends(get_db),
 ):

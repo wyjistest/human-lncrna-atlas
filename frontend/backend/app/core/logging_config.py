@@ -1,9 +1,13 @@
 """
 日志配置
+
+Phase 9.16: 添加日志轮转支持
+参考: Codex 代码审查 - FileHandler 无 rotation 可能导致磁盘占满
 """
 import logging
 import os
 import sys
+from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 # 日志目录
@@ -12,25 +16,63 @@ _BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 LOG_DIR = Path(os.getenv("LOG_DIR", str(_BACKEND_DIR / "logs")))
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
+# 日志轮转配置（可通过环境变量覆盖）
+# LOG_ROTATION_WHEN: 轮转时间单位 (S=秒, M=分钟, H=小时, D=天, midnight=午夜)
+# LOG_ROTATION_INTERVAL: 轮转间隔
+# LOG_ROTATION_BACKUP_COUNT: 保留的备份文件数量
+LOG_ROTATION_WHEN = os.getenv("LOG_ROTATION_WHEN", "midnight")
+LOG_ROTATION_INTERVAL = int(os.getenv("LOG_ROTATION_INTERVAL", "1"))
+LOG_ROTATION_BACKUP_COUNT = int(os.getenv("LOG_ROTATION_BACKUP_COUNT", "30"))
+
+# 是否输出到文件（生产环境可能使用 stdout + 平台收集）
+LOG_TO_FILE = os.getenv("LOG_TO_FILE", "true").lower() == "true"
+
 
 def setup_logging(log_level: str = "INFO"):
-    """配置日志系统"""
+    """
+    配置日志系统
+
+    日志策略:
+    - 始终输出到 stdout（便于容器/平台收集）
+    - 可选输出到文件（带轮转），通过 LOG_TO_FILE=true 启用
+
+    环境变量:
+    - LOG_DIR: 日志目录（默认 backend/logs/）
+    - LOG_TO_FILE: 是否输出到文件（默认 true）
+    - LOG_ROTATION_WHEN: 轮转时间单位（默认 midnight）
+    - LOG_ROTATION_INTERVAL: 轮转间隔（默认 1）
+    - LOG_ROTATION_BACKUP_COUNT: 保留备份数（默认 30 天）
+    """
 
     # 日志格式
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
+
+    handlers = [
+        # 控制台输出（始终启用）
+        logging.StreamHandler(sys.stdout),
+    ]
+
+    # 文件输出（可选，带轮转）
+    if LOG_TO_FILE:
+        file_handler = TimedRotatingFileHandler(
+            filename=LOG_DIR / "api.log",
+            when=LOG_ROTATION_WHEN,
+            interval=LOG_ROTATION_INTERVAL,
+            backupCount=LOG_ROTATION_BACKUP_COUNT,
+            encoding="utf-8",
+        )
+        file_handler.setFormatter(logging.Formatter(log_format, date_format))
+        # 轮转后的文件名格式: api.log.2025-12-22
+        file_handler.suffix = "%Y-%m-%d"
+        handlers.append(file_handler)
 
     # 配置根日志
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format=log_format,
         datefmt=date_format,
-        handlers=[
-            # 控制台输出
-            logging.StreamHandler(sys.stdout),
-            # 文件输出
-            logging.FileHandler(LOG_DIR / "api.log"),
-        ],
+        handlers=handlers,
     )
 
     # 配置API日志
@@ -39,5 +81,12 @@ def setup_logging(log_level: str = "INFO"):
 
     # 配置数据库日志（只记录警告和错误）
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+
+    # 日志启动信息
+    if LOG_TO_FILE:
+        api_logger.info(
+            f"Log rotation enabled: when={LOG_ROTATION_WHEN}, "
+            f"interval={LOG_ROTATION_INTERVAL}, backupCount={LOG_ROTATION_BACKUP_COUNT}"
+        )
 
     return api_logger

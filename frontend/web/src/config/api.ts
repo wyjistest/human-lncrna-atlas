@@ -39,5 +39,18 @@ export const API_TIMEOUT = 30000;
  * - Admin page is restricted to internal network/VPN, OR
  * - Reverse proxy injects X-Admin-API-Key header instead
  * For public deployments, use backend session-based auth.
+ *
+ * @see docs/SECURITY_DEPLOYMENT.md for secure deployment patterns
  */
 export const ADMIN_API_KEY = import.meta.env.VITE_ADMIN_API_KEY || '';
+
+// Phase 9.16: Runtime security check - warn if Admin Key is exposed in production build
+if (import.meta.env.PROD && ADMIN_API_KEY) {
+  console.warn(
+    '%c⚠️ SECURITY WARNING: Admin API Key is embedded in production build!\n' +
+    'This key can be extracted by anyone with access to the frontend.\n' +
+    'For public deployments, use reverse proxy injection or session-based auth.\n' +
+    'See: docs/SECURITY_DEPLOYMENT.md',
+    'color: red; font-weight: bold; font-size: 14px;'
+  );
+}

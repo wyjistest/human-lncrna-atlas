@@ -720,10 +720,10 @@ def export_regulations(
     request: Request,
     min_ba: Optional[float] = Query(None, ge=0, description="最小结合亲和力 (BA)"),
     max_ba: Optional[float] = Query(None, ge=0, description="最大结合亲和力 (BA)"),
-    species_ids: Optional[str] = Query(None, description="物种 ID 列表（逗号分隔，如 '1,2,3'）"),
-    chromosomes: Optional[str] = Query(None, description="染色体列表（逗号分隔，如 'chr1,chr2'）"),
-    lncrna_gene_name: Optional[str] = Query(None, description="lncRNA 基因名（模糊搜索）"),
-    target_gene_name: Optional[str] = Query(None, description="靶基因名（模糊搜索）"),
+    species_ids: Optional[str] = Query(None, max_length=50, description="物种 ID 列表（逗号分隔，如 '1,2,3'）"),
+    chromosomes: Optional[str] = Query(None, max_length=500, description="染色体列表（逗号分隔，如 'chr1,chr2'）"),
+    lncrna_gene_name: Optional[str] = Query(None, max_length=100, description="lncRNA 基因名（模糊搜索）"),
+    target_gene_name: Optional[str] = Query(None, max_length=100, description="靶基因名（模糊搜索）"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
     output_format: Literal["json", "csv", "excel", "jsonl"] = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),
@@ -799,12 +799,14 @@ def export_regulations(
     conditions = []
     params = {"limit": limit}
 
+    # Phase 9.16: 移除 CAST，直接比较 DECIMAL 类型，允许 PostgreSQL 使用索引
+    # 参考: Codex 代码审查 - CAST(... AS FLOAT) 会阻止索引使用
     if min_ba is not None:
-        conditions.append("CAST(r.binding_affinity AS FLOAT) >= :min_ba")
+        conditions.append("r.binding_affinity >= :min_ba")
         params["min_ba"] = min_ba
 
     if max_ba is not None:
-        conditions.append("CAST(r.binding_affinity AS FLOAT) <= :max_ba")
+        conditions.append("r.binding_affinity <= :max_ba")
         params["max_ba"] = max_ba
 
     if species_id_list:

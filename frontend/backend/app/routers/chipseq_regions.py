@@ -37,6 +37,9 @@ def get_peaks_by_region(
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
+    # Phase 9.16: 可选 COUNT(*) 查询，提升拖动/浏览场景性能
+    # 参考: Codex 代码审查 - COUNT(*) 在高频请求场景是性能热点
+    include_total: bool = Query(True, description="Include total count (set false for faster scrolling)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -64,31 +67,33 @@ def get_peaks_by_region(
 
     mark_types = parse_mark_types(mark_type)
 
-    # Count query
-    count_query = text("""
-        SELECT COUNT(*)
-        FROM chipseq_peaks p
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE p.species_id = :species_id
-          AND p.chromosome = :chromosome
-          AND p.peak_start < :end
-          AND p.peak_end > :start
-          AND e.is_active = TRUE
-          AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
-          AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
-    """)
+    # Phase 9.16: 条件性 COUNT 查询 - 当 include_total=false 时跳过
+    total = 0
+    if include_total:
+        count_query = text("""
+            SELECT COUNT(*)
+            FROM chipseq_peaks p
+            JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+            WHERE p.species_id = :species_id
+              AND p.chromosome = :chromosome
+              AND p.peak_start < :end
+              AND p.peak_end > :start
+              AND e.is_active = TRUE
+              AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
+              AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
+              AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+        """)
 
-    total = db.execute(count_query, {
-        "species_id": species_id,
-        "chromosome": chromosome,
-        "start": start,
-        "end": end,
-        "mark_types": mark_types,
-        "min_fold_enrichment": min_fold_enrichment,
-        "max_qvalue": max_qvalue,
-    }).scalar() or 0
+        total = db.execute(count_query, {
+            "species_id": species_id,
+            "chromosome": chromosome,
+            "start": start,
+            "end": end,
+            "mark_types": mark_types,
+            "min_fold_enrichment": min_fold_enrichment,
+            "max_qvalue": max_qvalue,
+        }).scalar() or 0
 
     # Data query
     offset = (page - 1) * page_size

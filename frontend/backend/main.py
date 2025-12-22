@@ -1,10 +1,13 @@
 """
 Human LncRNA Atlas - FastAPI Backend
 跨物种lncRNA调控网络数据库 API
+
+Phase 9.16: 模块化重构
+- 安全中间件提取到 app/middleware/security/
+- 基因组文件服务提取到 app/mounts/genomes.py
 """
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import os
@@ -22,7 +25,8 @@ from app.core.config import settings  # noqa: E402
 from app.core.database import init_db, close_db  # noqa: E402
 from app.core.logging_config import setup_logging  # noqa: E402
 from app.core.exceptions import sanitize_internal_error  # noqa: E402
-from app.middleware.logging import LoggingMiddleware  # noqa: E402
+from app.middleware import LoggingMiddleware, add_security_headers, metrics_auth_middleware  # noqa: E402
+from app.mounts import mount_genomes_app  # noqa: E402
 from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization  # noqa: E402
 from app.schemas.common import HealthResponse  # noqa: E402
 
@@ -220,130 +224,26 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Phase 9.16: 收敛 CORS 配置，仅允许实际需要的方法和头
+    # 参考: Codex 代码审查 - 避免 allow_methods/headers=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Admin-API-Key",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+    ],
 )
 
 
 # ============================================================================
-# Security Headers Middleware
+# Security Middleware Registration
+# Phase 9.16: 安全中间件已提取到 app/middleware/security/
 # ============================================================================
-@app.middleware("http")
-async def add_security_headers(request: Request, call_next):
-    """
-    添加安全响应头，防御常见 Web 攻击
-
-    Headers:
-    - X-Content-Type-Options: 防止 MIME 类型嗅探
-    - X-Frame-Options: 防止点击劫持（Clickjacking）
-    - X-XSS-Protection: 启用浏览器 XSS 过滤（旧版浏览器）
-    - Referrer-Policy: 控制 Referer 头发送策略
-    - Permissions-Policy: 限制浏览器功能（如地理位置、摄像头）
-    - Strict-Transport-Security: 强制 HTTPS（需配置 ENABLE_HSTS=true）
-    - Content-Security-Policy: 限制资源加载来源（API 严格模式）
-    """
-    response = await call_next(request)
-
-    # 防止 MIME 类型嗅探
-    response.headers["X-Content-Type-Options"] = "nosniff"
-
-    # 防止点击劫持（API 不需要在 iframe 中嵌入）
-    response.headers["X-Frame-Options"] = "DENY"
-
-    # XSS 保护（主要针对旧版浏览器）
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-
-    # 控制 Referer 发送策略
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-
-    # 限制浏览器功能（API 不需要这些功能）
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-
-    # HSTS - 仅在配置启用时添加（需要 HTTPS 已完全配置）
-    if settings.ENABLE_HSTS:
-        hsts_value = f"max-age={settings.HSTS_MAX_AGE}"
-        if settings.HSTS_INCLUDE_SUBDOMAINS:
-            hsts_value += "; includeSubDomains"
-        if settings.HSTS_PRELOAD:
-            hsts_value += "; preload"
-        response.headers["Strict-Transport-Security"] = hsts_value
-
-    # CSP - API 严格策略（禁止内联脚本、eval、外部资源）
-    # API 返回 JSON/文本数据，不需要加载任何外部资源。
-    #
-    # ⚠️ 注意：FastAPI 的 Swagger UI (/docs) 与 ReDoc (/redoc) 需要加载 JS/CSS。
-    # 若对文档页面也设置 `default-src 'none'`，浏览器会阻止资源加载，导致交互式文档不可用。
-    path = request.url.path
-    if not (path.startswith("/docs") or path.startswith("/redoc")):
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; "
-            "frame-ancestors 'none'; "
-            "base-uri 'none'; "
-            "form-action 'none'"
-        )
-
-    return response
-
-
-# ============================================================================
-# Prometheus /metrics Endpoint Authentication Middleware
-# ============================================================================
-@app.middleware("http")
-async def metrics_auth_middleware(request: Request, call_next):
-    """
-    保护 Prometheus /metrics 端点，要求 API Key 认证
-
-    此中间件在 prometheus-fastapi-instrumentator 的 /metrics 端点之前执行，
-    确保只有经过认证的请求才能访问指标数据。
-
-    认证方式：
-    - 严格模式 (ADMIN_REQUIRE_API_KEY=true): 必须提供 X-Admin-API-Key
-    - 普通模式: 私有 IP 可跳过认证
-
-    安全原因：
-    - Prometheus /metrics 端点可暴露敏感运行时指标（请求量、延迟、错误率等）
-    - 攻击者可利用这些信息进行针对性攻击（如在高负载时发起 DDoS）
-    """
-    # 只拦截 /metrics 路径（Prometheus 端点）
-    if request.url.path == "/metrics":
-        import secrets
-        from app.core.ip_utils import get_client_ip, is_private_ip
-
-        client_ip = get_client_ip(request)
-        api_key = request.headers.get("X-Admin-API-Key")
-
-        # 获取配置的 Admin API Key
-        admin_key = None
-        if settings.ADMIN_API_KEY:
-            admin_key = settings.ADMIN_API_KEY.get_secret_value()
-
-        # 严格模式：必须提供正确的 API Key
-        if settings.ADMIN_REQUIRE_API_KEY:
-            if not admin_key:
-                return JSONResponse(
-                    status_code=500,
-                    content={"error": "SERVER_CONFIG_ERROR", "message": "Admin API key not configured"}
-                )
-            if api_key and secrets.compare_digest(api_key.encode('utf-8'), admin_key.encode('utf-8')):
-                return await call_next(request)
-            return JSONResponse(
-                status_code=403,
-                content={"error": "ACCESS_DENIED", "message": "Valid X-Admin-API-Key required for /metrics"}
-            )
-
-        # 普通模式：有效 API Key 或私有 IP 可访问
-        if api_key and admin_key:
-            if secrets.compare_digest(api_key.encode('utf-8'), admin_key.encode('utf-8')):
-                return await call_next(request)
-        if is_private_ip(client_ip):
-            return await call_next(request)
-
-        return JSONResponse(
-            status_code=403,
-            content={"error": "ACCESS_DENIED", "message": "Admin access required for /metrics"}
-        )
-
-    return await call_next(request)
+app.middleware("http")(add_security_headers)
+app.middleware("http")(metrics_auth_middleware)
 
 
 # ============================================================================
@@ -485,82 +385,11 @@ app.include_router(export.router, prefix=settings.API_V1_PREFIX)  # Phase 6.0-A:
 app.include_router(analysis.router, prefix=settings.API_V1_PREFIX)  # Phase 6.0-C: 分析结果 API
 app.include_router(visualization.router, prefix=settings.API_V1_PREFIX)  # Sankey 流向图可视化 API
 
-# 挂载静态文件服务（用于 IGV.js 基因组文件）
-# 使用独立的 FastAPI 子应用，绕过主应用的 LoggingMiddleware（解决 BaseHTTPMiddleware 兼容性问题）
-# 注意：子应用有自己的安全头中间件 (StaticSecurityHeadersMiddleware)，与主应用安全头独立
-# GENOMES_DIR 通过 Settings 加载，支持 .env 文件配置
-#
-# ⚠️ SECURITY WARNING (Phase 9.12):
-#   /genomes 端点会暴露 GENOMES_DIR 下的所有文件（递归）。
-#   请确保该目录仅包含公开的基因组数据文件（.fa, .fai, .cytoband 等）。
-#   不要在 GENOMES_DIR 中放置：
-#   - 配置文件（.env, .yaml, credentials）
-#   - 私有数据或敏感信息
-#   - 可执行文件或脚本
-#   建议使用专用目录，如 /data/genomes/，不与其他数据混放。
-GENOMES_DIR = settings.GENOMES_DIR
-
-if GENOMES_DIR and os.path.exists(GENOMES_DIR):
-    # 创建独立的 FastAPI 子应用用于静态文件服务
-    # 使用 Starlette CORSMiddleware 包装，代替自定义 CORSStaticFiles 实现
-    from fastapi import FastAPI as SubFastAPI
-    from starlette.types import ASGIApp as StarletteASGIApp
-
-    # 创建静态文件子应用
-    genomes_app = SubFastAPI()
-
-    # 安全头中间件（静态文件版）- 添加基本安全保护
-    class StaticSecurityHeadersMiddleware:
-        """为静态文件服务添加安全响应头"""
-
-        def __init__(self, app: StarletteASGIApp):
-            self.app = app
-
-        async def __call__(self, scope, receive, send):
-            if scope["type"] != "http":
-                await self.app(scope, receive, send)
-                return
-
-            async def send_wrapper(message):
-                if message["type"] == "http.response.start":
-                    headers = list(message.get("headers", []))
-                    # 添加基本安全头
-                    headers.extend([
-                        (b"x-content-type-options", b"nosniff"),
-                        (b"x-frame-options", b"DENY"),
-                        (b"referrer-policy", b"strict-origin-when-cross-origin"),
-                        # 静态文件的 CSP：仅允许自身
-                        (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"),
-                        # 缓存控制：基因组文件不常变化，允许缓存
-                        (b"cache-control", b"public, max-age=86400"),
-                    ])
-                    message = {**message, "headers": headers}
-                await send(message)
-
-            await self.app(scope, receive, send_wrapper)
-
-    # 添加安全头中间件（先添加的后执行，所以安全头在 CORS 之后添加）
-    genomes_app.add_middleware(StaticSecurityHeadersMiddleware)
-
-    # 为子应用添加 CORS 中间件（使用标准 Starlette 实现）
-    genomes_app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["GET", "HEAD", "OPTIONS"],
-        allow_headers=["Range", "Content-Type"],
-        expose_headers=["Content-Length", "Content-Range", "Accept-Ranges"],
-    )
-
-    # 挂载静态文件到子应用根路径
-    genomes_app.mount("/", StaticFiles(directory=GENOMES_DIR), name="genomes_static")
-
-    # 将子应用挂载到主应用
-    app.mount("/genomes", genomes_app)
-
-    logger.info(f"Genome file service enabled: /genomes -> {GENOMES_DIR}")
-else:
-    logger.warning("GENOMES_DIR not set or does not exist, genome file service disabled")
+# ============================================================================
+# Genome Static File Service
+# Phase 9.16: 已提取到 app/mounts/genomes.py
+# ============================================================================
+mount_genomes_app(app)
 
 
 if __name__ == "__main__":
