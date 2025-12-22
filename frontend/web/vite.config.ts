@@ -10,11 +10,12 @@ export default defineConfig(({ mode }) => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // Remove console.* and debugger statements in production builds
-  // Note: drop: ['console'] removes ALL console methods including console.error
-  // This is intentional for production to reduce bundle size and prevent info leaks
+  // Phase 9.17: 生产环境只删除 console.log/debug/info，保留 warn/error
+  // console.warn/error 用于显示安全警告和错误信息，不应被删除
+  // 参考: Codex 代码审查 - api.ts 的 Admin Key 警告在生产环境永远不显示
   esbuild: mode === 'production' ? {
-    drop: ['console', 'debugger'],
+    drop: ['debugger'],
+    pure: ['console.log', 'console.debug', 'console.info'],  // 移除 log/debug/info，保留 warn/error
   } : {},
   build: {
     minify: 'esbuild',  // Use esbuild (faster)

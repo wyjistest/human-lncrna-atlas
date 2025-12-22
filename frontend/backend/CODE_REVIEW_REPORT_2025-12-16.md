@@ -1,9 +1,9 @@
 # Human LncRNA Atlas 代码审查报告
 
-**审查日期**: 2025-12-16 (更新: 2025-12-17)
+**审查日期**: 2025-12-16 (更新: 2025-12-22)
 **审查范围**: frontend/backend + ETL 全仓代码
 **审查者**: Claude Code (Opus 4.5) + GPT-5.2 Codex (交叉审查)
-**版本**: Phase 9.3
+**版本**: Phase 9.17
 
 ---
 
@@ -295,3 +295,44 @@ ETL 模块增加了内存优化、事务控制和回滚一致性。CI 已集成 
 | 2025-12-17 | GPT-5.2 Codex | P0: `partial_failure` 状态违反 CHECK 约束 |
 | 2025-12-17 | GPT-5.2 Codex | P1: BatchManager 使用 `created_at` 但 schema 是 `import_date` |
 | 2025-12-17 | GPT-5.2 Codex | 确认所有修复无回归，门禁全部通过 |
+| 2025-12-22 | GPT-5.2 Codex | P0: export LIKE 转义缺失 + DB URL 密码未编码 |
+| 2025-12-22 | GPT-5.2 Codex | P1: 日志目录创建崩溃 + 前端 console 全删 |
+| 2025-12-22 | GPT-5.2 Codex | 二次审查: Redis quote_plus → quote + handler try-except |
+
+---
+
+## Phase 9.17 Codex 代码审查修复 (2025-12-22)
+
+### ✅ I1: LIKE 转义缺失 (P0)
+**文件**: `app/routers/export.py:813-821`
+**问题**: `/export/regulations` 的 `lncrna_gene_name`/`target_gene_name` 缺少 LIKE 转义，攻击者可用 `%` 通配符触发全表扫描 DoS
+**修复**:
+- 添加 `escape_like_pattern()` 转义 `%`、`_`、`\`
+- 添加 `ESCAPE '\\'` 子句
+- 使用 `parse_int_list`/`parse_comma_list` 替换手动解析
+- 添加 `.strip()` 检查拒绝纯空白输入
+
+### ✅ I2: DB URL 密码未 URL 编码 (P0)
+**文件**: `app/core/config.py:220-239,253-268`
+**问题**: 密码含 `@:/#%` 等特殊字符时连接失败
+**修复**:
+- PostgreSQL: 使用 `sqlalchemy.engine.URL.create()` 自动编码
+- Redis: 使用 `quote(password, safe='')` (非 `quote_plus`，避免空格编码为 `+`)
+
+### ✅ I3: 日志目录创建崩溃 (P1)
+**文件**: `app/core/logging_config.py:58-94`
+**问题**: 模块导入时创建目录，只读文件系统会崩溃
+**修复**:
+- 延迟 `mkdir` 到 `setup_logging()` 内
+- 添加双层 try-except: mkdir + handler 初始化
+- 失败时优雅降级为 stdout-only 日志
+
+### ✅ I0: 前端 console 全删 (P1)
+**文件**: `frontend/web/vite.config.ts:13-19`
+**问题**: `drop: ['console']` 删除所有 console 包括 warn/error，安全警告静默丢失
+**修复**: 改用 `pure: ['console.log', 'console.debug', 'console.info']` 保留 warn/error
+
+---
+
+**Phase 9.17 审查结论**: 修复 2 个 P0 安全漏洞 (LIKE 注入 + URL 编码) 和 2 个 P1 稳定性问题。
+代码已通过单元测试 (39/39) 和前端构建验证。

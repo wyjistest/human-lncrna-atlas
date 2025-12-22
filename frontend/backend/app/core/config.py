@@ -4,8 +4,10 @@
 import json
 from pathlib import Path
 from typing import Optional, List, Any
+from urllib.parse import quote, quote_plus
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BaseModel, Field, SecretStr, field_validator
+from sqlalchemy.engine import URL
 
 # 计算 .env 文件的绝对路径（相对于 backend 目录）
 # 这样无论从哪个目录启动应用，都能正确加载 .env
@@ -39,15 +41,16 @@ class Settings(BaseSettings):
     DATABASE_NAME: str = Field(default="lncrna_production", validation_alias="DB_NAME")
 
     # 数据库连接池配置
+    # P1-004 优化: 增加默认连接池大小以支持生产环境并发
     DB_POOL_SIZE: int = Field(
-        default=5,
+        default=10,
         validation_alias="DB_POOL_SIZE",
-        description="连接池大小 (默认 5)"
+        description="连接池大小 (默认 10，生产环境建议 20)"
     )
     DB_POOL_MAX_OVERFLOW: int = Field(
-        default=10,
+        default=20,
         validation_alias="DB_POOL_MAX_OVERFLOW",
-        description="超出 pool_size 后最多创建的连接数 (默认 10)"
+        description="超出 pool_size 后最多创建的连接数 (默认 20，生产环境建议 30)"
     )
     DB_POOL_TIMEOUT: int = Field(
         default=30,
@@ -216,13 +219,24 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """构建数据库连接URL"""
+        """构建数据库连接URL
+
+        Phase 9.17: 使用 SQLAlchemy URL.create() 构建 URL
+        解决密码中包含 @:/#% 等特殊字符导致连接失败的问题
+        """
         # SECURITY: 使用 get_secret_value() 获取真实密码
-        password = self.DATABASE_PASSWORD.get_secret_value() if self.DATABASE_PASSWORD else ""
-        if password:
-            return f"postgresql://{self.DATABASE_USER}:{password}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
-        else:
-            return f"postgresql://{self.DATABASE_USER}@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        password = self.DATABASE_PASSWORD.get_secret_value() if self.DATABASE_PASSWORD else None
+
+        # 使用 SQLAlchemy URL.create() 自动处理特殊字符编码
+        url_obj = URL.create(
+            drivername="postgresql",
+            username=self.DATABASE_USER,
+            password=password if password else None,
+            host=self.DATABASE_HOST,
+            port=self.DATABASE_PORT,
+            database=self.DATABASE_NAME,
+        )
+        return str(url_obj)
 
     @property
     def safe_database_url(self) -> str:
@@ -238,11 +252,18 @@ class Settings(BaseSettings):
 
     @property
     def redis_url(self) -> str:
-        """构建Redis连接URL"""
+        """构建Redis连接URL
+
+        Phase 9.17: 使用 quote(safe='') 编码密码中的特殊字符
+        """
         # SECURITY: 使用 get_secret_value() 获取真实密码
         password = self.REDIS_PASSWORD.get_secret_value() if self.REDIS_PASSWORD else None
         if password:
-            return f"redis://:{password}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+            # URL 编码密码中的特殊字符 (@:/#%)
+            # 使用 quote(safe='') 而非 quote_plus，因为 quote_plus 把空格编码为 +
+            # 但在 URL userinfo 部分，+ 不会被还原为空格 (RFC 3986)
+            encoded_password = quote(password, safe='')
+            return f"redis://:{encoded_password}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         else:
             return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
 

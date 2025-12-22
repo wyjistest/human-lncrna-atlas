@@ -27,6 +27,7 @@ from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.utils import escape_like_pattern
+from app.core.validators import parse_int_list, parse_comma_list
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.export import (
     HighAffinityExportResponse,
@@ -783,17 +784,9 @@ def export_regulations(
             )
         )
 
-    # 解析逗号分隔的参数
-    species_id_list = None
-    if species_ids:
-        try:
-            species_id_list = [int(s.strip()) for s in species_ids.split(",") if s.strip()]
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid species_ids format")
-
-    chromosome_list = None
-    if chromosomes:
-        chromosome_list = [c.strip() for c in chromosomes.split(",") if c.strip()]
+    # Phase 9.17: 使用共享验证器解析逗号分隔参数（统一项数/长度限制，防止 DoS）
+    species_id_list = parse_int_list(species_ids, param_name="species_ids")
+    chromosome_list = parse_comma_list(chromosomes, param_name="chromosomes")
 
     # 构建动态 SQL（使用参数化查询防止 SQL 注入）
     conditions = []
@@ -817,13 +810,15 @@ def export_regulations(
         conditions.append("r.target_chromosome = ANY(:chromosomes)")
         params["chromosomes"] = chromosome_list
 
-    if lncrna_gene_name:
-        conditions.append("lnc.gene_name ILIKE '%' || :lncrna_name || '%'")
-        params["lncrna_name"] = lncrna_gene_name
+    # Phase 9.17: LIKE 模式转义，防止通配符绕过导致全表扫描 DoS
+    # 同时检查 .strip() 避免纯空白字符串被当作有效过滤条件
+    if lncrna_gene_name and lncrna_gene_name.strip():
+        conditions.append("lnc.gene_name ILIKE '%' || :lncrna_name || '%' ESCAPE '\\'")
+        params["lncrna_name"] = escape_like_pattern(lncrna_gene_name.strip())
 
-    if target_gene_name:
-        conditions.append("tgt.gene_name ILIKE '%' || :target_name || '%'")
-        params["target_name"] = target_gene_name
+    if target_gene_name and target_gene_name.strip():
+        conditions.append("tgt.gene_name ILIKE '%' || :target_name || '%' ESCAPE '\\'")
+        params["target_name"] = escape_like_pattern(target_gene_name.strip())
 
     where_clause = " AND ".join(conditions) if conditions else "1=1"
 
