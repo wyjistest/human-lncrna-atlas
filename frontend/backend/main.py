@@ -9,6 +9,7 @@ Phase 9.16: 模块化重构
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import os
 import time
@@ -74,7 +75,18 @@ def _validate_security_config() -> None:
         RuntimeError: 当存在致命安全配置错误且未启用开发模式时
     """
     # 检查是否允许不安全配置（仅限开发环境）
-    allow_insecure = os.environ.get("SECURITY_ALLOW_INSECURE", "").lower() == "true"
+    # Phase 9.19: 生产环境硬拒绝 SECURITY_ALLOW_INSECURE
+    allow_insecure_env = os.environ.get("SECURITY_ALLOW_INSECURE", "").lower() == "true"
+    if settings.is_production and allow_insecure_env:
+        logger.error(
+            "❌ FATAL: SECURITY_ALLOW_INSECURE=true is FORBIDDEN in production (ENV=production). "
+            "Remove this environment variable or set ENV=development."
+        )
+        raise RuntimeError(
+            "SECURITY_ALLOW_INSECURE=true is not allowed in production environment. "
+            "Remove SECURITY_ALLOW_INSECURE or set ENV=development."
+        )
+    allow_insecure = allow_insecure_env and not settings.is_production
 
     fatal_errors = []
     warnings = []
@@ -102,7 +114,28 @@ def _validate_security_config() -> None:
             "Install slowapi: pip install slowapi"
         )
 
-    # 3. 连接池配置检查（仅警告）
+    # 3. TRUSTED_HOSTS 生产环境检查（Phase 9.19）
+    # 生产环境不应仅使用 localhost 默认值，否则所有外部请求返回 400
+    # Phase 9.19 补强：空列表也 fail-fast（会绕过 TrustedHostMiddleware）
+    if settings.is_production:
+        if not settings.TRUSTED_HOSTS:
+            # 空列表会完全禁用 TrustedHostMiddleware，失去 Host Header 防护
+            fatal_errors.append(
+                "TRUSTED_HOSTS is empty in production. "
+                "This disables TrustedHostMiddleware and Host Header attack protection. "
+                "Configure TRUSTED_HOSTS with your actual domain(s), e.g., ['example.com', '*.example.com']"
+            )
+        else:
+            localhost_only_hosts = {"localhost", "127.0.0.1", "::1", "*.localhost"}
+            configured_hosts = set(settings.TRUSTED_HOSTS)
+            if configured_hosts.issubset(localhost_only_hosts):
+                fatal_errors.append(
+                    f"TRUSTED_HOSTS only contains localhost values {list(configured_hosts)} in production. "
+                    "This will reject ALL external requests with HTTP 400. "
+                    "Add your actual domain(s) to TRUSTED_HOSTS, e.g., ['example.com', '*.example.com']"
+                )
+
+    # 4. 连接池配置检查（仅警告）
     pool_total = settings.DB_POOL_SIZE + settings.DB_POOL_MAX_OVERFLOW
     if pool_total < 20:
         warnings.append(
@@ -176,11 +209,22 @@ async def lifespan(app: FastAPI):
     # 注意：详细请求指标请使用 Prometheus /metrics 端点
     app.state.metrics_data = {}
 
-    # 初始化数据库连接
-    if init_db():
-        logger.info("✅ 应用启动成功")
+    # 初始化数据库连接（Phase 9.18 - Codex审查修复：生产环境fail-fast）
+    db_connected = init_db()
+    if db_connected:
+        logger.info("✅ 数据库连接成功")
     else:
-        logger.error("❌ 数据库连接失败，但应用仍会启动")
+        if settings.is_production:
+            # 生产环境：数据库连接失败时拒绝启动
+            raise RuntimeError(
+                "Database connection failed in production environment. "
+                "Set ENV=development to allow startup without database."
+            )
+        else:
+            # 开发环境：警告但继续启动
+            logger.warning("⚠️ 数据库连接失败，开发模式下应用仍会启动")
+
+    logger.info(f"✅ 应用启动成功 (ENV={settings.ENV})")
 
     yield
 
@@ -237,6 +281,17 @@ app.add_middleware(
     ],
 )
 
+
+# ============================================================================
+# TrustedHost Middleware (Phase 9.18 - Codex审查修复)
+# 防止 HTTP Host Header 攻击，仅允许配置的 Host 访问
+# ============================================================================
+if settings.TRUSTED_HOSTS:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=settings.TRUSTED_HOSTS,
+    )
+    logger.info(f"TrustedHostMiddleware enabled with hosts: {settings.TRUSTED_HOSTS}")
 
 # ============================================================================
 # Security Middleware Registration

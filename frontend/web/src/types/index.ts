@@ -5,6 +5,10 @@
  * 禁止直接从 './api' 或 './api-extensions' 导入
  */
 
+// 引入 React Query 全局类型扩展（Phase 9.18）
+// 该文件注册 defaultError: unknown，强制显式错误类型收窄
+import './react-query.d'
+
 // 导出 OpenAPI 自动生成的类型
 export * from './api'
 

@@ -32,6 +32,20 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     API_V1_PREFIX: str = "/api/v1"
 
+    # 环境模式配置（Phase 9.18 - Codex审查修复）
+    # production: 严格模式，DB连接失败时拒绝启动
+    # development: 宽松模式，DB连接失败时仍启动（方便开发调试）
+    ENV: str = Field(
+        default="development",
+        validation_alias="ENV",
+        description="运行环境: production | development (默认 development)"
+    )
+
+    @property
+    def is_production(self) -> bool:
+        """判断是否为生产环境"""
+        return self.ENV.lower() in ("production", "prod")
+
     # 数据库配置
     DATABASE_HOST: str = Field(default="localhost", validation_alias="DB_HOST")
     DATABASE_PORT: int = Field(default=5432, validation_alias="DB_PORT")
@@ -90,23 +104,195 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, v: Any) -> List[str]:
         """
-        解析 CORS_ORIGINS 配置
+        解析并验证 CORS_ORIGINS 配置
 
         支持两种格式：
         1. JSON 数组字符串: '["http://localhost:5173", "http://example.com"]'
         2. 已解析的列表（来自代码默认值）
+
+        安全校验（Phase 9.18 - Codex审查修复）：
+        - 禁止通配符 '*'（与 allow_credentials=true 不兼容且不安全）
+        - 强制要求 http:// 或 https:// scheme
+        - 拒绝空 scheme 或格式错误的 URL
         """
+        from urllib.parse import urlparse
+
+        def validate_origin(origin: str) -> str:
+            """
+            验证单个 origin URL 的安全性
+
+            Phase 9.19 增强校验（Codex审查修复）：
+            - 禁止通配符 '*'
+            - 强制 http/https scheme
+            - 禁止 path/query/fragment（浏览器 Origin 头不包含这些）
+            - 禁止 userinfo（user:pass@host 可能泄露凭据到日志）
+            """
+            origin = str(origin).strip()
+
+            # 禁止通配符
+            if origin == "*":
+                raise ValueError(
+                    "CORS_ORIGINS: Wildcard '*' is not allowed with allow_credentials=true. "
+                    "Please specify explicit origins."
+                )
+
+            # 解析 URL
+            parsed = urlparse(origin)
+
+            # 强制要求 scheme
+            if not parsed.scheme:
+                raise ValueError(
+                    f"CORS_ORIGINS: Origin '{origin}' is missing scheme. "
+                    "Must be http:// or https://"
+                )
+
+            # 仅允许 http/https scheme
+            if parsed.scheme not in ("http", "https"):
+                raise ValueError(
+                    f"CORS_ORIGINS: Origin '{origin}' has invalid scheme '{parsed.scheme}'. "
+                    "Only http:// and https:// are allowed."
+                )
+
+            # 强制要求 host
+            if not parsed.netloc:
+                raise ValueError(
+                    f"CORS_ORIGINS: Origin '{origin}' is missing host."
+                )
+
+            # Phase 9.19: 禁止 userinfo（user:pass@host 格式）
+            # 安全风险：凭据可能泄露到日志中
+            if parsed.username or parsed.password:
+                raise ValueError(
+                    f"CORS_ORIGINS: Origin '{origin}' contains userinfo (username/password). "
+                    "This is not allowed for security reasons."
+                )
+
+            # Phase 9.19: 禁止 path/query/fragment
+            # 浏览器发送的 Origin 头只包含 scheme + host + port，不包含 path
+            # 配置带 path 的 origin 永远不会匹配，属于误配置
+            if parsed.path and parsed.path != "/":
+                raise ValueError(
+                    f"CORS_ORIGINS: Origin '{origin}' contains a path '{parsed.path}'. "
+                    "Browser Origin headers never include paths. Remove the path."
+                )
+            if parsed.query:
+                raise ValueError(
+                    f"CORS_ORIGINS: Origin '{origin}' contains a query string. "
+                    "Browser Origin headers never include query strings. Remove it."
+                )
+            if parsed.fragment:
+                raise ValueError(
+                    f"CORS_ORIGINS: Origin '{origin}' contains a fragment. "
+                    "Browser Origin headers never include fragments. Remove it."
+                )
+
+            # 返回规范化的 origin（去除尾部斜杠）
+            normalized = f"{parsed.scheme}://{parsed.netloc}"
+            return normalized
+
+        # 解析输入
+        origins: List[str]
+        if isinstance(v, str):
+            try:
+                parsed = json.loads(v)
+                if not isinstance(parsed, list):
+                    raise ValueError("CORS_ORIGINS must be a JSON array")
+                origins = [str(item) for item in parsed]
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON in CORS_ORIGINS: {e}")
+        elif isinstance(v, list):
+            origins = v
+        else:
+            raise ValueError(f"CORS_ORIGINS must be a list or JSON string, got {type(v)}")
+
+        # 验证每个 origin
+        validated_origins = [validate_origin(o) for o in origins]
+
+        return validated_origins
+
+    # TrustedHost 配置（Phase 9.18 - Codex审查修复）
+    # 防止 HTTP Host Header 攻击
+    # 默认允许 localhost 和通配符（开发环境），生产环境应配置实际域名
+    TRUSTED_HOSTS: List[str] = Field(
+        default=["localhost", "127.0.0.1", "*.localhost"],
+        validation_alias="TRUSTED_HOSTS",
+        description="允许的 Host 头列表，支持通配符如 '*.example.com'"
+    )
+
+    @field_validator("TRUSTED_HOSTS", mode="before")
+    @classmethod
+    def parse_trusted_hosts(cls, v: Any) -> List[str]:
+        """
+        解析并验证 TRUSTED_HOSTS 配置
+
+        Phase 9.19 增强校验（Codex审查修复）：
+        - 禁止 http:// 或 https:// 前缀（应为纯主机名）
+        - 禁止单独的 '*' 通配符（允许所有主机，危险）
+        - 验证主机名格式
+        """
+        import re
+
+        def validate_host(host: str) -> str:
+            """验证单个 host 条目"""
+            host = str(host).strip()
+
+            if not host:
+                raise ValueError("TRUSTED_HOSTS: Empty host entry is not allowed.")
+
+            # 禁止 URL 格式（应为纯主机名，不含 scheme）
+            if host.startswith(("http://", "https://", "//")):
+                raise ValueError(
+                    f"TRUSTED_HOSTS: '{host}' should be a hostname, not a URL. "
+                    "Remove the scheme (http:// or https://). Example: 'example.com'"
+                )
+
+            # 禁止单独的 '*' 通配符（允许所有主机，安全风险）
+            if host == "*":
+                raise ValueError(
+                    "TRUSTED_HOSTS: Wildcard '*' alone is not allowed as it accepts all hosts. "
+                    "Use specific domains like '*.example.com' or 'api.example.com'."
+                )
+
+            # 验证通配符格式（只允许 *.domain.com 形式）
+            if "*" in host:
+                # 通配符只能在开头，且必须是 *.something 格式
+                if not re.match(r"^\*\.[a-zA-Z0-9]", host):
+                    raise ValueError(
+                        f"TRUSTED_HOSTS: Invalid wildcard pattern '{host}'. "
+                        "Wildcards must be at the start: '*.example.com'"
+                    )
+
+            # 基本主机名格式验证（允许通配符、字母、数字、点、连字符）
+            # 移除开头的 *. 后验证剩余部分
+            check_host = host[2:] if host.startswith("*.") else host
+            if check_host and not re.match(r"^[a-zA-Z0-9]([a-zA-Z0-9\-\.]*[a-zA-Z0-9])?$", check_host):
+                # 允许单字符主机名如 "localhost"
+                if len(check_host) > 1 or not check_host.isalnum():
+                    raise ValueError(
+                        f"TRUSTED_HOSTS: '{host}' contains invalid characters. "
+                        "Use only letters, numbers, dots, and hyphens."
+                    )
+
+            return host
+
+        # 解析输入
+        hosts: List[str]
         if isinstance(v, str):
             try:
                 parsed = json.loads(v)
                 if isinstance(parsed, list):
-                    return [str(item) for item in parsed]
-                raise ValueError("CORS_ORIGINS must be a JSON array")
+                    hosts = [str(item).strip() for item in parsed if item]
+                else:
+                    raise ValueError("TRUSTED_HOSTS must be a JSON array")
             except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in CORS_ORIGINS: {e}")
-        if isinstance(v, list):
-            return v
-        raise ValueError(f"CORS_ORIGINS must be a list or JSON string, got {type(v)}")
+                raise ValueError(f"Invalid JSON in TRUSTED_HOSTS: {e}")
+        elif isinstance(v, list):
+            hosts = [str(item).strip() for item in v if item]
+        else:
+            raise ValueError(f"TRUSTED_HOSTS must be a list or JSON string, got {type(v)}")
+
+        # 验证每个 host
+        return [validate_host(h) for h in hosts]
 
     # 缓存配置
     CACHE_TTL: int = Field(default=3600, validation_alias="CACHE_TTL")  # 缓存时间（秒）

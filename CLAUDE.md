@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.17 |
+| 版本 | Phase 9.19 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-22 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -131,6 +131,7 @@ npx playwright show-report
 
 | 变量 | 说明 |
 |------|------|
+| ENV | 运行环境: production / development (默认 development) |
 | DB_HOST | PostgreSQL 主机 (默认 localhost) |
 | DB_PORT | PostgreSQL 端口 (默认 5432) |
 | DB_USER | 数据库用户 |
@@ -153,7 +154,8 @@ npx playwright show-report
 | HSTS_MAX_AGE | HSTS 有效期秒数 (默认 31536000 = 1年) |
 | HSTS_INCLUDE_SUBDOMAINS | HSTS 包含子域名 (默认 true) |
 | HSTS_PRELOAD | HSTS preload 指令 (默认 false，谨慎启用) |
-| CORS_ORIGINS | CORS 允许的来源 (JSON 数组格式) |
+| CORS_ORIGINS | CORS 允许的来源 (JSON 数组, 需完整 URL 如 http://localhost:5173) |
+| TRUSTED_HOSTS | 允许的 Host 头 (JSON 数组, 支持 *.example.com 通配符) |
 
 ## 生产环境安全配置
 
@@ -166,6 +168,11 @@ npx playwright show-report
 | `ADMIN_REQUIRE_API_KEY=false` | FATAL - 拒绝启动 |
 | `ADMIN_REQUIRE_API_KEY=true` 但无 `ADMIN_API_KEY` | FATAL - 拒绝启动 |
 | slowapi 未安装 | FATAL - 拒绝启动 |
+| `SECURITY_ALLOW_INSECURE=true` (ENV=production) | FATAL - 拒绝启动 (Phase 9.19) |
+| `TRUSTED_HOSTS` 为空 (ENV=production) | FATAL - 拒绝启动 (Phase 9.19) |
+| `TRUSTED_HOSTS` 仅含 localhost (ENV=production) | FATAL - 拒绝启动 (Phase 9.19) |
+| 数据库连接失败 (ENV=production) | FATAL - 拒绝启动 |
+| 数据库连接失败 (ENV=development) | WARNING - 允许启动 |
 | 连接池过小 (< 20) | WARNING - 仅警告 |
 
 **开发环境绕过**：设置 `SECURITY_ALLOW_INSECURE=true` 可跳过 fail-fast（生产环境禁止使用）
@@ -250,7 +257,9 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.14 | 性能优化: export_regulations JSON 内存限制 (5000 条) + cross-species N+1 查询优化 (2N → 2 查询) | 2025-12-20 |
 | 9.15 | Codex 安全审查修复: DoS 防护 (列表参数限制) + ETL 字段修正 + BatchManager 事务状态 + 枚举参数强约束 | 2025-12-22 |
 | 9.16 | Codex 代码审查修复: Admin Key 安全警告 + /genomes 白名单 + CORS 收敛 + 日志轮转 + main.py 模块化重构 | 2025-12-22 |
-| **9.17** | **Codex 二次审查修复: LIKE 转义防护 + URL.create() 密码编码 + 日志优雅降级 + console.info 移除** | **2025-12-22** |
+| 9.17 | Codex 二次审查修复: LIKE 转义防护 + URL.create() 密码编码 + 日志优雅降级 + console.info 移除 | 2025-12-22 |
+| 9.18 | Codex 三次审查修复: CORS URL 校验 + TrustedHostMiddleware + 生产 DB fail-fast + TS 错误类型注册 | 2025-12-22 |
+| **9.19** | **Codex 四次审查修复: CORS 增强校验 (path/userinfo) + TRUSTED_HOSTS 格式/空列表校验 + 生产 SECURITY_ALLOW_INSECURE 硬拒绝 + 27 集成测试** | **2025-12-22** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -261,6 +270,7 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_security_like_filter.py` | 51 | LIKE 通配符防护 + Sankey 转义 |
 | `test_security_input_validation.py` | 33 | species_ids 解析验证 + SQL 注入防护 |
 | `test_security_mv_graceful.py` | 19 | MV 降级处理 + 响应完整性 |
+| `test_phase_9_19_validation.py` | 27 | CORS/TRUSTED_HOSTS 校验 + 生产环境 fail-fast (集成测试) |
 
 **运行测试**:
 ```bash
