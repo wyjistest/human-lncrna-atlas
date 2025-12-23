@@ -1,6 +1,18 @@
 # Security Deployment Guide
 
-Phase 9.16: 安全部署指南
+Phase 9.20: 安全部署指南（Codex 审查增强版）
+
+## ⚠️ 重要：默认安全部署模式
+
+**强烈推荐使用反向代理注入模式**，而不是在前端配置 `VITE_ADMIN_API_KEY`。
+
+```bash
+# ❌ 不推荐 - 前端配置 Key（仅限内网）
+VITE_ADMIN_API_KEY=your-key-here
+
+# ✅ 推荐 - 不配置，由 Nginx 注入
+# (前端不设置 VITE_ADMIN_API_KEY)
+```
 
 ## Admin API 认证
 
@@ -14,12 +26,12 @@ Phase 9.16: 安全部署指南
 
 | 场景 | 风险 | 推荐方案 |
 |------|------|----------|
-| 内网/VPN 部署 | 低 | 可使用 `VITE_ADMIN_API_KEY` |
-| 公网部署 (CDN) | **高** | **禁止使用**，Key 会泄露 |
-| 公网部署 (反代) | 中 | 由 Nginx 注入 Header |
+| **公网部署 (反代)** | 低 | **✅ 默认推荐：Nginx 注入 Header** |
 | 公网部署 (完整) | 低 | 后端实现会话式认证 |
+| 内网/VPN 部署 | 低 | 可使用 `VITE_ADMIN_API_KEY` |
+| 公网部署 (CDN) | **高** | **❌ 禁止使用**，Key 会泄露 |
 
-### 方案 1: 反向代理注入 (推荐)
+### 方案 1: 反向代理注入 (✅ 默认推荐)
 
 让 Nginx/Traefik 在服务端侧注入 Admin Key，前端不配置 `VITE_ADMIN_API_KEY`。
 

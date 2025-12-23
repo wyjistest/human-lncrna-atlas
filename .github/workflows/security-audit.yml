@@ -1,0 +1,160 @@
+# ============================================================================
+# Security Audit Workflow
+# Phase 9.20 - Codex Review Enhancement
+# ============================================================================
+# 运行依赖安全审计 (pip-audit + npm audit)
+# 触发条件: PR 到 main 分支、每周定时运行
+#
+# 安全说明: 此工作流不使用任何用户可控输入 (issue title, PR body 等)
+# 所有变量均为 GitHub Actions 内部状态
+
+name: Security Audit
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  schedule:
+    # 每周一 UTC 02:00 (北京时间 10:00)
+    - cron: '0 2 * * 1'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  # ============================================================================
+  # Python 依赖安全审计
+  # ============================================================================
+  python-audit:
+    name: Python Dependencies Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: frontend/backend/requirements*.txt
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit
+        run: |
+          echo "::group::pip-audit results"
+          pip-audit -r requirements.txt --progress-spinner off \
+            --desc on \
+            --format markdown \
+            --output pip-audit-report.md || true
+          echo "::endgroup::"
+
+          # 输出报告内容
+          if [ -f pip-audit-report.md ]; then
+            cat pip-audit-report.md
+          fi
+
+          # 严格模式: 发现漏洞时失败
+          pip-audit -r requirements.txt --strict --progress-spinner off
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-audit-report
+          path: frontend/backend/pip-audit-report.md
+          retention-days: 30
+
+  # ============================================================================
+  # Node.js 依赖安全审计
+  # ============================================================================
+  npm-audit:
+    name: NPM Dependencies Audit
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: |
+          echo "::group::npm audit results"
+          # 生成 JSON 报告
+          npm audit --json > npm-audit-report.json 2>&1 || true
+
+          # 人类可读格式输出
+          npm audit --audit-level=moderate || true
+          echo "::endgroup::"
+
+          # 严格模式: high/critical 漏洞时失败
+          npm audit --audit-level=high
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: frontend/web/npm-audit-report.json
+          retention-days: 30
+
+  # ============================================================================
+  # 汇总报告
+  # ============================================================================
+  summary:
+    name: Audit Summary
+    needs: [python-audit, npm-audit]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate summary
+        # 使用环境变量传递 job results，避免直接在 shell 中展开
+        env:
+          PYTHON_RESULT: ${{ needs.python-audit.result }}
+          NPM_RESULT: ${{ needs.npm-audit.result }}
+        run: |
+          echo "## Security Audit Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$PYTHON_RESULT" = "success" ]; then
+            echo "- :white_check_mark: Python dependencies: **PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- :x: Python dependencies: **FAIL** - vulnerabilities found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$NPM_RESULT" = "success" ]; then
+            echo "- :white_check_mark: NPM dependencies: **PASS**" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- :x: NPM dependencies: **FAIL** - vulnerabilities found" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "_Audit reports available as artifacts._" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if any audit failed
+        env:
+          PYTHON_RESULT: ${{ needs.python-audit.result }}
+          NPM_RESULT: ${{ needs.npm-audit.result }}
+        run: |
+          if [ "$PYTHON_RESULT" = "failure" ] || [ "$NPM_RESULT" = "failure" ]; then
+            echo "::error::Security vulnerabilities detected. See audit reports for details."
+            exit 1
+          fi

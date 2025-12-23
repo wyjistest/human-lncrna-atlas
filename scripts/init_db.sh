@@ -113,8 +113,9 @@ check_prerequisites() {
         exit 1
     fi
 
-    if [ "$INSTALL_EXTENSION_LAYER" = "yes" ] && [ ! -f "$SCHEMA_DIR/02_extension.sql" ]; then
-        log_error "找不到扩展层Schema文件: $SCHEMA_DIR/02_extension.sql"
+    # Phase 9.20: 02_extension.sql 已弃用，使用 04_extension_phase2.sql
+    if [ "$INSTALL_EXTENSION_LAYER" = "yes" ] && [ ! -f "$SCHEMA_DIR/04_extension_phase2.sql" ]; then
+        log_error "找不到扩展层Schema文件: $SCHEMA_DIR/04_extension_phase2.sql"
         exit 1
     fi
 
@@ -167,9 +168,17 @@ execute_core_schema() {
 
 execute_extension_schema() {
     if [ "$INSTALL_EXTENSION_LAYER" = "yes" ]; then
-        log_info "执行扩展层Schema (02_extension.sql)..."
-        run_psql "$DB_NAME" -f "$SCHEMA_DIR/02_extension.sql"
+        # Phase 9.20: 使用 04_extension_phase2.sql 替代已弃用的 02_extension.sql
+        log_info "执行扩展层Schema (04_extension_phase2.sql)..."
+        run_psql "$DB_NAME" -f "$SCHEMA_DIR/04_extension_phase2.sql"
         log_success "扩展层Schema执行完成"
+
+        # Phase 9.20 Codex 审查修复: MV 依赖 ChIP-seq schema，不应自动执行
+        # 物化视图需要在 chipseq_schema.sql 执行后单独运行
+        if [ -f "$SCHEMA_DIR/05_mv_lncrna_chipseq_overlaps.sql" ]; then
+            log_warning "物化视图 (05_mv_lncrna_chipseq_overlaps.sql) 需在 ChIP-seq schema 后手动执行"
+            log_info "  执行顺序: chipseq_schema.sql → 05_mv_lncrna_chipseq_overlaps.sql"
+        fi
     else
         log_info "跳过扩展层Schema（设置 INSTALL_EXTENSION_LAYER=yes 以安装）"
     fi
@@ -196,20 +205,20 @@ verify_installation() {
     log_success "核心层验证通过: $core_table_count 张表"
 
     # 检查扩展层（如果安装了）
+    # Phase 9.20 Codex 审查修复: 04_extension_phase2.sql 只创建 feature_tracks 和 genomic_features
     if [ "$INSTALL_EXTENSION_LAYER" = "yes" ]; then
-        local expected_ext_tables=5
+        local expected_ext_tables=2
         local ext_table_count=$(run_psql "$DB_NAME" -tAc "
             SELECT COUNT(*) FROM information_schema.tables
             WHERE table_schema = 'public'
-              AND table_name IN ('feature_tracks', 'genomic_features', 'feature_gene_links',
-                                  'experiments', 'experiment_features')
+              AND table_name IN ('feature_tracks', 'genomic_features')
         ")
 
         if [ "$ext_table_count" -ne "$expected_ext_tables" ]; then
             log_error "扩展层表数量不正确: 预期 $expected_ext_tables, 实际 $ext_table_count"
             exit 1
         fi
-        log_success "扩展层验证通过: $ext_table_count 张表"
+        log_success "扩展层验证通过: $ext_table_count 张表 (feature_tracks, genomic_features)"
     fi
 
     # 检查species表是否有4行数据

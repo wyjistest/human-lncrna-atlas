@@ -10,7 +10,10 @@ schema/
 │   ├── 03_sample_data.sql   # 示例数据 (开发/测试)
 │   ├── 04_extension_phase2.sql  # 扩展表 (可选)
 │   └── 05_mv_lncrna_chipseq_overlaps.sql  # 物化视图
-└── migrations/              # 增量迁移脚本
+├── migrations/              # 增量迁移脚本
+│
+└── (另见) frontend/backend/sql/
+    └── chipseq_schema.sql   # ChIP-seq 表观遗传学扩展 (可选)
 ```
 
 ## 执行顺序
@@ -21,13 +24,16 @@ schema/
 # 1. 必需 - 核心表
 psql -d lncrna_production -f schema/v2.3/01_core.sql
 
-# 2. 可选 - 扩展功能 (RepeatMasker, ChIP-seq)
+# 2. 可选 - 扩展功能 (RepeatMasker 基础)
 psql -d lncrna_production -f schema/v2.3/04_extension_phase2.sql
 
-# 3. 可选 - 物化视图 (用于预计算重叠)
+# 3. 可选 - ChIP-seq 表观遗传学扩展 (分区表、mark types)
+psql -d lncrna_production -f frontend/backend/sql/chipseq_schema.sql
+
+# 4. 可选 - 物化视图 (用于预计算重叠，需先完成步骤 2-3)
 psql -d lncrna_production -f schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql
 
-# 4. 仅开发 - 示例数据
+# 5. 仅开发 - 示例数据
 psql -d lncrna_production -f schema/v2.3/03_sample_data.sql
 ```
 
@@ -46,6 +52,7 @@ psql -d lncrna_production -f schema/v2.3/03_sample_data.sql
 | 03_sample_data.sql | v2.3 | ✅ 当前 | 开发测试数据 |
 | 04_extension_phase2.sql | v2.3.1 | ✅ 当前 | IF NOT EXISTS 安全版 |
 | 05_mv_lncrna_chipseq_overlaps.sql | v2.3 | ✅ 当前 | ChIP-seq 重叠物化视图 |
+| frontend/backend/sql/chipseq_schema.sql | v1.0 | ✅ 当前 | ChIP-seq 表观遗传学扩展 |
 
 ## 迁移说明
 

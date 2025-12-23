@@ -336,11 +336,12 @@ class RegulationsImporter:
                             continue
 
                         # 解析数据
+                        # Phase 9.20: 使用 _normalize_chromosome 确保染色体字段大小写一致
                         regulation_data = {
                             'species_id': species_id,
                             'lncrna_gene_id': lncrna_gene_id,
                             'target_gene_id': target_gene_id,
-                            'target_chromosome': row.get('Best_Peak_Chr', '').strip() or None,
+                            'target_chromosome': self._normalize_chromosome(row.get('Best_Peak_Chr')),
                             'target_start': self._safe_int(row.get('Target_Region_Start')),
                             'target_end': self._safe_int(row.get('Target_Region_End')),
                             'tfo_file': row.get('File', '').strip() or None,
@@ -350,7 +351,7 @@ class RegulationsImporter:
                             'best_peak_num': self._safe_int(row.get('Best_Peak_Num')),
                             'best_avg_ba': self._safe_float(row.get('Best_Avg_BA')),
                             'best_num_sites': self._safe_int(row.get('Best_Num_Sites')),
-                            'best_peak_chr': row.get('Best_Peak_Chr', '').strip() or None,
+                            'best_peak_chr': self._normalize_chromosome(row.get('Best_Peak_Chr')),
                             'best_peak_start': self._safe_int(row.get('Best_Peak_Start')),
                             'best_peak_end': self._safe_int(row.get('Best_Peak_End')),
                             'best_site_ba': self._safe_float(row.get('Best_Site_BA')),
@@ -686,6 +687,26 @@ class RegulationsImporter:
             return float(value) if value and str(value).strip() else None
         except (ValueError, TypeError):
             return None
+
+    def _normalize_chromosome(self, value: Optional[str]) -> Optional[str]:
+        """
+        规范化染色体名称（Phase 9.20 - Codex 审查修复）
+
+        统一为小写格式，确保 ETL 入库与 API 查询一致：
+        - "Chr1" -> "chr1"
+        - "chrM" -> "chrm"
+        - "CHR_X" -> "chr_x"
+
+        Args:
+            value: 原始染色体名称
+
+        Returns:
+            规范化后的染色体名称（小写），或 None
+        """
+        if not value:
+            return None
+        normalized = str(value).strip().lower()
+        return normalized if normalized else None
 
     def print_stats(self):
         """打印导入统计"""

@@ -157,16 +157,29 @@ CREATE TABLE IF NOT EXISTS chipseq_peaks (
     CONSTRAINT chk_strand CHECK (strand IN ('+', '-', '.'))
 ) PARTITION BY LIST (species_id);
 
+-- ============================================================================
 -- Create partitions for known species
+-- Species IDs defined in schema/v2.3/01_core.sql:
+--   Human=1, Chimp=2, Macaque=3, Marmoset=4
+-- ============================================================================
+
 -- Human (species_id = 1)
 CREATE TABLE IF NOT EXISTS chipseq_peaks_human PARTITION OF chipseq_peaks
     FOR VALUES IN (1);
 
--- Mouse (species_id = 2)
-CREATE TABLE IF NOT EXISTS chipseq_peaks_mouse PARTITION OF chipseq_peaks
+-- Chimp (species_id = 2) - 黑猩猩
+CREATE TABLE IF NOT EXISTS chipseq_peaks_chimp PARTITION OF chipseq_peaks
     FOR VALUES IN (2);
 
--- Default partition for other species
+-- Macaque (species_id = 3) - 猕猴
+CREATE TABLE IF NOT EXISTS chipseq_peaks_macaque PARTITION OF chipseq_peaks
+    FOR VALUES IN (3);
+
+-- Marmoset (species_id = 4) - 狨猴
+CREATE TABLE IF NOT EXISTS chipseq_peaks_marmoset PARTITION OF chipseq_peaks
+    FOR VALUES IN (4);
+
+-- Default partition for future species or unknown data
 CREATE TABLE IF NOT EXISTS chipseq_peaks_default PARTITION OF chipseq_peaks
     DEFAULT;
 
