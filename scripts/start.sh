@@ -7,7 +7,7 @@
 # 用途: 启动前后端服务，支持开发和生产模式
 # ==============================================================================
 
-set -e  # 遇到错误立即退出
+set -euo pipefail  # 遇到错误立即退出（含未定义变量与管道失败）
 
 # ==============================================================================
 # 配置区域（可通过环境变量覆盖）
@@ -110,6 +110,11 @@ check_environment() {
         has_error=1
     fi
 
+    # curl 是健康检查与启动确认的硬依赖
+    if ! check_command curl; then
+        has_error=1
+    fi
+
     # 检查目录
     if [ ! -d "$BACKEND_DIR" ]; then
         log_error "后端目录不存在: $BACKEND_DIR"
@@ -123,10 +128,14 @@ check_environment() {
 
     # 检查数据库连接
     log_info "检查数据库连接..."
-    if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" &> /dev/null; then
-        log_info "数据库连接: OK"
+    if command -v pg_isready > /dev/null 2>&1; then
+        if pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" &> /dev/null; then
+            log_info "数据库连接: OK"
+        else
+            log_warning "数据库连接失败，后端可能无法正常工作"
+        fi
     else
-        log_warning "数据库连接失败，后端可能无法正常工作"
+        log_warning "pg_isready 未安装，跳过数据库就绪检查（仅影响提示，不影响启动）"
     fi
 
     if [ $has_error -eq 1 ]; then
@@ -288,6 +297,11 @@ main() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             -m|--mode)
+                if [ $# -lt 2 ]; then
+                    log_error "--mode 需要参数: dev 或 prod"
+                    show_usage
+                    exit 1
+                fi
                 MODE="$2"
                 shift 2
                 ;;

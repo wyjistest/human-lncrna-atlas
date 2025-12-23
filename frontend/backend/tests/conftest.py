@@ -10,6 +10,23 @@ import os
 # 添加项目根目录到 path，以便导入 app 模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+@pytest.fixture(scope="session", autouse=True)
+def _install_uvloop_policy() -> None:
+    """
+    为测试安装 uvloop 事件循环策略（如果可用）。
+
+    说明：
+    - 部分环境下（例如受限沙箱/特定 asyncio 实现）默认事件循环在跨线程唤醒上可能不稳定，
+      会导致 FastAPI/Starlette 的同步路由（threadpool）或 TestClient 请求卡死。
+    - uvicorn[standard] 通常会带上 uvloop；此处在测试侧显式启用，以提升稳定性与性能。
+    """
+    try:
+        import uvloop  # type: ignore
+    except Exception:
+        return
+
+    uvloop.install()
+
 from app.schemas.gene import GeneListItem, GeneDetail
 from app.schemas.regulation import RegulationListItem, RegulationDetail
 from app.schemas.stats import OverviewStats

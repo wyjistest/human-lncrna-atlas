@@ -6,9 +6,15 @@ Phase 9.16: 模块化重构
 - 安全中间件提取到 app/middleware/security/
 - 基因组文件服务提取到 app/mounts/genomes.py
 """
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.exception_handlers import (
+    http_exception_handler as default_http_exception_handler,
+    request_validation_exception_handler as default_validation_exception_handler,
+)
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import os
@@ -339,7 +345,28 @@ else:
     logger.warning("prometheus-fastapi-instrumentator not available, /metrics endpoint disabled")
 
 
-# 全局异常处理
+# ============================================================================
+# Preserve default exception handlers (avoid 404/422 being caught by generic handler)
+# Ref: FastAPI docs - handling-errors.md (reuse default handlers)
+# ============================================================================
+@app.exception_handler(StarletteHTTPException)
+async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return await default_http_exception_handler(request, exc)
+
+
+@app.exception_handler(HTTPException)
+async def fastapi_http_exception_handler(request: Request, exc: HTTPException):
+    return await default_http_exception_handler(request, exc)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return await default_validation_exception_handler(request, exc)
+
+
+# ============================================================================
+# Global exception handler (sanitized 500s)
+# ============================================================================
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """

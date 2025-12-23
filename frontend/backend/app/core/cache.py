@@ -220,6 +220,8 @@ class CacheService:
         self._memory = MemoryCache()
         self._hits = 0
         self._misses = 0
+        # 统计字段在多线程环境下可能被并发更新，仅用于监控但仍需保证一致性
+        self._stats_lock = threading.Lock()
 
     @property
     def backend(self) -> str:
@@ -254,9 +256,11 @@ class CacheService:
             value = self._memory.get(key)
 
         if value is not None:
-            self._hits += 1
+            with self._stats_lock:
+                self._hits += 1
         else:
-            self._misses += 1
+            with self._stats_lock:
+                self._misses += 1
 
         return value
 
@@ -344,13 +348,16 @@ class CacheService:
 
     def get_stats(self) -> dict:
         """获取缓存统计"""
-        total = self._hits + self._misses
-        hit_rate = (self._hits / max(total, 1)) * 100
+        with self._stats_lock:
+            hits = self._hits
+            misses = self._misses
+        total = hits + misses
+        hit_rate = (hits / max(total, 1)) * 100
         stats = {
             "backend": self.backend,
             "enabled": self.enabled,
-            "hits": self._hits,
-            "misses": self._misses,
+            "hits": hits,
+            "misses": misses,
             "total_requests": total,
             "hit_rate": f"{hit_rate:.1f}%",
             "hit_rate_pct": round(hit_rate, 2),
@@ -369,8 +376,9 @@ class CacheService:
 
     def reset_stats(self) -> None:
         """重置统计计数器（用于监控周期性重置）"""
-        self._hits = 0
-        self._misses = 0
+        with self._stats_lock:
+            self._hits = 0
+            self._misses = 0
 
     # ============== 新增：缓存键生成辅助方法 ==============
 

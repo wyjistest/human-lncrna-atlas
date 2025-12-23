@@ -2,7 +2,7 @@
 # Human LncRNA Atlas - 测试运行脚本
 # 运行所有测试（需要后端和前端服务已启动）
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
@@ -18,9 +18,19 @@ echo "  Human LncRNA Atlas - 测试套件"
 echo "=========================================="
 echo ""
 
+require_cmd() {
+    local cmd="$1"
+    if ! command -v "$cmd" > /dev/null 2>&1; then
+        echo -e "${RED}缺少依赖命令: ${cmd}${NC}"
+        return 1
+    fi
+    return 0
+}
+
 # 检查服务状态
 check_services() {
     echo -e "${YELLOW}检查服务状态...${NC}"
+    require_cmd curl || return 1
 
     # 检查后端 (-f: fail on HTTP errors, -sS: silent but show errors)
     if curl -fsS http://localhost:8000/health > /dev/null 2>&1; then
@@ -47,6 +57,7 @@ check_services() {
 # 运行后端 API 合同测试 (需要服务运行)
 run_backend_tests() {
     echo -e "${YELLOW}运行后端 API 合同测试...${NC}"
+    require_cmd python3 || return 1
     cd "$PROJECT_ROOT/frontend/backend"
 
     if python3 -m pytest tests/test_api_contracts.py -v --tb=short; then
@@ -61,6 +72,7 @@ run_backend_tests() {
 # 运行后端单元测试 (无外部依赖)
 run_backend_unit_tests() {
     echo -e "${YELLOW}运行后端单元测试 (pytest -m unit)...${NC}"
+    require_cmd python3 || return 1
     cd "$PROJECT_ROOT/frontend/backend"
 
     if python3 -m pytest -m unit -v --tb=short; then
@@ -75,6 +87,7 @@ run_backend_unit_tests() {
 # 运行前端单元测试
 run_frontend_unit_tests() {
     echo -e "${YELLOW}运行前端单元测试...${NC}"
+    require_cmd npm || return 1
     cd "$PROJECT_ROOT/frontend/web"
 
     if npm run test:run; then
@@ -89,6 +102,7 @@ run_frontend_unit_tests() {
 # 运行 E2E 测试
 run_e2e_tests() {
     echo -e "${YELLOW}运行 E2E 测试...${NC}"
+    require_cmd npm || return 1
     cd "$PROJECT_ROOT/frontend/web"
 
     if npm run test:e2e; then
