@@ -301,5 +301,5 @@ COMMENT ON FUNCTION check_mv_lncrna_chipseq_overlaps_status() IS
 \echo '  - Status: SELECT * FROM check_mv_lncrna_chipseq_overlaps_status();'
 \echo ''
 \echo 'For scheduled refresh, add to crontab:'
-\echo '  0 3 * * 0 psql -d lncrna_atlas -c "SELECT refresh_lncrna_chipseq_overlaps();"'
+\echo '  0 3 * * 0 psql -d lncrna_production -c "SELECT refresh_lncrna_chipseq_overlaps();"'
 \echo '========================================='

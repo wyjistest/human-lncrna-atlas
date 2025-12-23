@@ -730,7 +730,7 @@ Examples:
     # Database options
     parser.add_argument('--db-host', default='localhost')
     parser.add_argument('--db-port', type=int, default=5432)
-    parser.add_argument('--db-name', default='lncrna_atlas')
+    parser.add_argument('--db-name', default='lncrna_production')
     parser.add_argument('--db-user', default='postgres')
     parser.add_argument('--db-password', default='')
 

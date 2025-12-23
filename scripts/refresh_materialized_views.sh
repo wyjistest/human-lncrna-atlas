@@ -11,7 +11,7 @@
 #   -f, --full          Use full refresh (blocking but faster)
 #   -s, --status        Show status only, don't refresh
 #   -v, --verbose       Verbose output
-#   -d, --database      Database name (default: lncrna_atlas)
+#   -d, --database      Database name (default: lncrna_production)
 #   -H, --host          Database host (default: localhost)
 #   -p, --port          Database port (default: 5432)
 #   -U, --user          Database user (default: postgres)
@@ -29,7 +29,7 @@
 set -e
 
 # Default configuration
-DB_NAME="${PGDATABASE:-lncrna_atlas}"
+DB_NAME="${PGDATABASE:-lncrna_production}"
 DB_HOST="${PGHOST:-localhost}"
 DB_PORT="${PGPORT:-5432}"
 DB_USER="${PGUSER:-postgres}"

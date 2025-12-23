@@ -96,10 +96,10 @@
 - **测试**: pytest + httpx
 
 ### 前端
-- **框架**: React 18 + TypeScript + Vite
-- **UI**: Ant Design 5
+- **框架**: React 19 + TypeScript + Vite
+- **UI**: Ant Design 6
 - **状态**: TanStack Query (React Query)
-- **路由**: React Router v6
+- **路由**: React Router v7
 - **图表**: ECharts
 - **网络图**: Cytoscape.js
 - **基因组**: IGV.js

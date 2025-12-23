@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.21 |
+| 版本 | Phase 9.22 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-23 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -261,7 +261,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.18 | Codex 三次审查修复: CORS URL 校验 + TrustedHostMiddleware + 生产 DB fail-fast + TS 错误类型注册 | 2025-12-22 |
 | 9.19 | Codex 四次审查修复: CORS 增强校验 (path/userinfo) + TRUSTED_HOSTS 格式/空列表校验 + 生产 SECURITY_ALLOW_INSECURE 硬拒绝 + 27 集成测试 | 2025-12-22 |
 | 9.20 | Codex 五次审查修复: ChIP-seq 分区表命名 + CI 安全审计 (pip-audit/npm audit) + 测试层优化 (slow marker) + init_db.sh 验证修正 | 2025-12-23 |
-| **9.21** | **Codex 六次审查修复: 异常处理防回归 (HTTPException) + 缓存统计线程安全 + uvloop 测试稳定性 + 脚本健壮性增强** | **2025-12-23** |
+| 9.21 | Codex 六次审查修复: 异常处理防回归 (HTTPException) + 缓存统计线程安全 + uvloop 测试稳定性 + 脚本健壮性增强 | 2025-12-23 |
+| **9.22** | **Codex 七次审查修复: MV 缓存重复定义修复 + SQLAlchemy Builder 重构 + diseases count 优化 + 文档版本更新 + DB 名统一 + IGV 类型去重** | **2025-12-23** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

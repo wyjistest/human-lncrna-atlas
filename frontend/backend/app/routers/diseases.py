@@ -82,7 +82,7 @@ def list_diseases(
     """
     获取疾病-Ontology关联列表（支持分页和过滤）
     """
-    # 查询Trait-Ontology唯一组合
+    # 查询 Trait-Ontology 唯一组合（包含统计字段，用于列表展示）
     query = (
         db.query(
             Trait.trait_id,
@@ -118,6 +118,19 @@ def list_diseases(
         )
     )
 
+    # 计数查询：只统计唯一组合，不计算聚合字段（性能优化）
+    count_query = (
+        db.query(
+            Trait.trait_id,
+            Ontology.ontology_id,
+            TraitGeneAssociation.evidence_species_id,
+        )
+        .join(TraitGeneAssociation, Trait.trait_id == TraitGeneAssociation.trait_id)
+        .join(Ontology, TraitGeneAssociation.ontology_id == Ontology.ontology_id)
+        .join(CoreGene, TraitGeneAssociation.core_id == CoreGene.core_id)
+        .distinct()
+    )
+
     # 应用过滤（转义特殊字符防止意外匹配）
     if search:
         escaped = escape_like_pattern(search)
@@ -126,9 +139,14 @@ def list_diseases(
             (Trait.trait_name.ilike(search_pattern, escape='\\')) |
             (Ontology.ontology_name.ilike(search_pattern, escape='\\'))
         )
+        count_query = count_query.filter(
+            (Trait.trait_name.ilike(search_pattern, escape='\\')) |
+            (Ontology.ontology_name.ilike(search_pattern, escape='\\'))
+        )
 
-    # 总数
-    total = query.count()
+    # 总数（缓存 + 去掉 ORDER BY，避免慢 count）
+    count_cache_key = cache.make_key("diseases:list:count", search=search)
+    total = cache.get_cached_count(count_query, count_cache_key)
 
     # 分页（添加 ORDER BY 确保分页稳定性）
     offset = (page - 1) * page_size

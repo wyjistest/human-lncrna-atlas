@@ -22,12 +22,13 @@ Phase 9.11 改进：
 import logging
 from typing import List, Optional, Dict, Any, Iterator, Generator, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import Float, cast, select, text
+from sqlalchemy.orm import Session, aliased
 
 from app.core.database import get_db
 from app.core.utils import escape_like_pattern
 from app.core.validators import parse_int_list, parse_comma_list
+from app.models import Gene, Regulation, Species
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.export import (
     HighAffinityExportResponse,
@@ -139,6 +140,66 @@ def export_to_streaming_format(
 
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported format: {output_format}")
+
+
+def build_regulations_export_stmt(
+    *,
+    min_ba: Optional[float],
+    max_ba: Optional[float],
+    species_id_list: Optional[List[int]],
+    chromosome_list: Optional[List[str]],
+    lncrna_gene_name: Optional[str],
+    target_gene_name: Optional[str],
+    limit: int,
+):
+    """
+    构建 regulations 导出查询（SQLAlchemy 表达式）。
+
+    目的：
+    - 替代动态 SQL 字符串拼接，降低维护与注入风险
+    - 统一参数化与 LIKE 转义策略（防止通配符绕过导致全表扫描）
+    """
+    lnc = aliased(Gene)
+    tgt = aliased(Gene)
+
+    stmt = (
+        select(
+            Regulation.regulation_id,
+            lnc.gene_name.label("lncrna_gene_name"),
+            tgt.gene_name.label("target_gene_name"),
+            Species.display_name.label("species_name"),
+            Regulation.target_chromosome,
+            Regulation.target_start,
+            Regulation.target_end,
+            cast(Regulation.binding_affinity, Float).label("binding_affinity"),
+            Regulation.num_peaks,
+        )
+        .select_from(Regulation)
+        .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
+        .join(tgt, Regulation.target_gene_id == tgt.gene_id)
+        .join(Species, Regulation.species_id == Species.species_id)
+    )
+
+    if min_ba is not None:
+        stmt = stmt.where(Regulation.binding_affinity >= min_ba)
+    if max_ba is not None:
+        stmt = stmt.where(Regulation.binding_affinity <= max_ba)
+
+    if species_id_list:
+        stmt = stmt.where(Regulation.species_id.in_(species_id_list))
+
+    if chromosome_list:
+        stmt = stmt.where(Regulation.target_chromosome.in_(chromosome_list))
+
+    if lncrna_gene_name and lncrna_gene_name.strip():
+        pattern = f"%{escape_like_pattern(lncrna_gene_name.strip())}%"
+        stmt = stmt.where(lnc.gene_name.ilike(pattern, escape="\\"))
+
+    if target_gene_name and target_gene_name.strip():
+        pattern = f"%{escape_like_pattern(target_gene_name.strip())}%"
+        stmt = stmt.where(tgt.gene_name.ilike(pattern, escape="\\"))
+
+    return stmt.order_by(Regulation.binding_affinity.desc().nullslast()).limit(limit)
 
 
 # ============================================================================
@@ -788,59 +849,15 @@ def export_regulations(
     species_id_list = parse_int_list(species_ids, param_name="species_ids")
     chromosome_list = parse_comma_list(chromosomes, param_name="chromosomes")
 
-    # 构建动态 SQL（使用参数化查询防止 SQL 注入）
-    conditions = []
-    params = {"limit": limit}
-
-    # Phase 9.16: 移除 CAST，直接比较 DECIMAL 类型，允许 PostgreSQL 使用索引
-    # 参考: Codex 代码审查 - CAST(... AS FLOAT) 会阻止索引使用
-    if min_ba is not None:
-        conditions.append("r.binding_affinity >= :min_ba")
-        params["min_ba"] = min_ba
-
-    if max_ba is not None:
-        conditions.append("r.binding_affinity <= :max_ba")
-        params["max_ba"] = max_ba
-
-    if species_id_list:
-        conditions.append("r.species_id = ANY(:species_ids)")
-        params["species_ids"] = species_id_list
-
-    if chromosome_list:
-        conditions.append("r.target_chromosome = ANY(:chromosomes)")
-        params["chromosomes"] = chromosome_list
-
-    # Phase 9.17: LIKE 模式转义，防止通配符绕过导致全表扫描 DoS
-    # 同时检查 .strip() 避免纯空白字符串被当作有效过滤条件
-    if lncrna_gene_name and lncrna_gene_name.strip():
-        conditions.append("lnc.gene_name ILIKE '%' || :lncrna_name || '%' ESCAPE '\\'")
-        params["lncrna_name"] = escape_like_pattern(lncrna_gene_name.strip())
-
-    if target_gene_name and target_gene_name.strip():
-        conditions.append("tgt.gene_name ILIKE '%' || :target_name || '%' ESCAPE '\\'")
-        params["target_name"] = escape_like_pattern(target_gene_name.strip())
-
-    where_clause = " AND ".join(conditions) if conditions else "1=1"
-
-    sql = text(f"""
-        SELECT
-            r.regulation_id,
-            lnc.gene_name as lncrna_gene_name,
-            tgt.gene_name as target_gene_name,
-            s.display_name as species_name,
-            r.target_chromosome,
-            r.target_start,
-            r.target_end,
-            CAST(r.binding_affinity AS FLOAT) as binding_affinity,
-            r.num_peaks
-        FROM regulations r
-        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
-        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
-        JOIN species s ON r.species_id = s.species_id
-        WHERE {where_clause}
-        ORDER BY r.binding_affinity DESC NULLS LAST
-        LIMIT :limit
-    """)
+    stmt = build_regulations_export_stmt(
+        min_ba=min_ba,
+        max_ba=max_ba,
+        species_id_list=species_id_list,
+        chromosome_list=chromosome_list,
+        lncrna_gene_name=lncrna_gene_name,
+        target_gene_name=target_gene_name,
+        limit=limit,
+    )
 
     # 定义列名（用于流式导出）
     fieldnames = [
@@ -850,7 +867,7 @@ def export_regulations(
 
     # CSV/Excel: 使用流式输出
     if output_format in ("csv", "excel", "jsonl"):
-        result = db.execute(sql, params)
+        result = db.execute(stmt)
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,
@@ -859,7 +876,7 @@ def export_regulations(
         )
 
     # JSON: 标准响应
-    result = db.execute(sql, params)
+    result = db.execute(stmt)
     data = [dict(row._mapping) for row in result]
 
     query_params = {

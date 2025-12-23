@@ -138,6 +138,11 @@ def check_materialized_view_exists(db: Session) -> bool:
         logger.debug(f"MV cache TTL expired ({elapsed:.1f}s), re-checking...")
 
     try:
+        bind = db.get_bind()
+        if not bind or bind.dialect.name != "postgresql":
+            _mv_available_cache = {'checked': True, 'available': False, 'checked_at': time.time()}
+            return False
+
         # Check if materialized view exists and is populated
         check_sql = text("""
             SELECT
@@ -170,16 +175,8 @@ def check_materialized_view_exists(db: Session) -> bool:
 
     except Exception as e:
         logger.error(f"Error checking materialized view: {e}")
-        _mv_available_cache['checked'] = True
-        _mv_available_cache['available'] = False
+        _mv_available_cache = {'checked': True, 'available': False, 'checked_at': time.time()}
         return False
-
-
-def reset_mv_cache():
-    """Reset the materialized view availability cache. Call this after creating/dropping the MV."""
-    global _mv_available_cache
-    _mv_available_cache = {'checked': False, 'available': False}
-    logger.info("Materialized view cache reset")
 
 
 def get_lncrna_chipseq_overlaps_from_mv(
