@@ -241,13 +241,36 @@ def get_regulation_map(conn, species_id: int, lookup_keys: Optional[List[Tuple]]
             """, (species_id,))
         else:
             # Legacy path: load all regulations (for backward compatibility)
-            # WARNING: This can consume significant memory for large datasets
-            cursor.execute("""
-                SELECT regulation_id, lncrna_gene_id, target_gene_id,
-                       lncrna_start, lncrna_end, dna_start, dna_end
-                FROM regulations
-                WHERE species_id = %s
-            """, (species_id,))
+            # SECURITY/PERF: This can consume significant memory for large datasets.
+            # To prevent accidental OOM, legacy mode must be enabled explicitly via CLI flag.
+            raise RuntimeError(
+                "Legacy regulation map loading is disabled by default (safety). "
+                "Re-run with --legacy to enable the load-all path."
+            )
+
+        result = {}
+        for row in cursor.fetchall():
+            reg_id, lnc_id, tgt_id, lnc_start, lnc_end, dna_start, dna_end = row
+            key = (lnc_id, tgt_id, lnc_start, lnc_end, dna_start, dna_end)
+            result[key] = reg_id
+        return result
+
+
+def get_regulation_map_legacy(conn, species_id: int) -> Dict[Tuple, int]:
+    """
+    Legacy: Load all regulations into memory for a species.
+
+    WARNING:
+    This may consume significant memory for large datasets.
+    Only use when absolutely necessary (enabled via --legacy).
+    """
+    with get_cursor(conn) as cursor:
+        cursor.execute("""
+            SELECT regulation_id, lncrna_gene_id, target_gene_id,
+                   lncrna_start, lncrna_end, dna_start, dna_end
+            FROM regulations
+            WHERE species_id = %s
+        """, (species_id,))
 
         result = {}
         for row in cursor.fetchall():
@@ -332,7 +355,9 @@ def process_file(
     species_id: int,
     filepath: str,
     batch_size: int = 5000,
-    dry_run: bool = False
+    dry_run: bool = False,
+    *,
+    allow_legacy: bool = False,
 ) -> Dict[str, int]:
     """
     处理单个源文件，导入序列数据
@@ -369,7 +394,22 @@ def process_file(
     logger.info(f"  唯一查找键数: {len(lookup_keys)}")
 
     logger.info("加载 regulation 映射（仅匹配项）...")
-    reg_map = get_regulation_map(conn, species_id, lookup_keys)
+    reg_map: Dict[Tuple, int]
+    if lookup_keys:
+        reg_map = get_regulation_map(conn, species_id, lookup_keys)
+    else:
+        if allow_legacy:
+            logger.warning(
+                "⚠️ Legacy mode enabled: lookup_keys is empty, loading ALL regulations into memory. "
+                "This may consume significant memory."
+            )
+            reg_map = get_regulation_map_legacy(conn, species_id)
+        else:
+            logger.warning(
+                "No lookup keys found; skipping legacy load-all path (disabled by default). "
+                "Use --legacy to enable legacy loading if you really need it."
+            )
+            reg_map = {}
     logger.info(f"  Regulation 数: {len(reg_map)}")
 
     # 读取文件并匹配
@@ -472,6 +512,9 @@ def main():
 
   # 预览模式
   python3 import_sequences.py --species 1 --dry-run
+
+  # 显式启用 legacy（会加载全量 regulations，可能导致 OOM，慎用）
+  python3 import_sequences.py --species 1 --legacy
         """
     )
 
@@ -488,6 +531,11 @@ def main():
     parser.add_argument('--file', type=str, help='指定源文件路径（覆盖默认路径）')
     parser.add_argument('--batch-size', type=int, default=5000, help='批量插入大小 (默认: 5000)')
     parser.add_argument('--dry-run', action='store_true', help='预览模式，不实际导入数据')
+    parser.add_argument(
+        '--legacy',
+        action='store_true',
+        help='启用 legacy 模式：当无法生成 lookup_keys 时加载全量 regulations（可能高内存/慢，慎用）',
+    )
 
     args = parser.parse_args()
 
@@ -544,7 +592,14 @@ def main():
             # 处理指定物种
             filepath = source_files.get(args.species)
             if filepath and os.path.exists(filepath):
-                stats = process_file(conn, args.species, filepath, args.batch_size, args.dry_run)
+                stats = process_file(
+                    conn,
+                    args.species,
+                    filepath,
+                    args.batch_size,
+                    args.dry_run,
+                    allow_legacy=args.legacy,
+                )
                 for key in total_stats:
                     total_stats[key] += stats.get(key, 0)
             else:
@@ -554,7 +609,14 @@ def main():
             # 处理所有物种
             for species_id, filepath in source_files.items():
                 if os.path.exists(filepath):
-                    stats = process_file(conn, species_id, filepath, args.batch_size, args.dry_run)
+                    stats = process_file(
+                        conn,
+                        species_id,
+                        filepath,
+                        args.batch_size,
+                        args.dry_run,
+                        allow_legacy=args.legacy,
+                    )
                     for key in total_stats:
                         total_stats[key] += stats.get(key, 0)
                 else:

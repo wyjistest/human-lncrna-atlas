@@ -9,6 +9,8 @@ from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
 
+from app.core.validators import MAX_COMMA_SEPARATED_ITEMS, MAX_ITEM_LENGTH, MAX_FIELD_LENGTH
+
 DecimalAsFloat = Annotated[
     Decimal,
     PlainSerializer(lambda v: float(v), return_type=float, when_used="json"),
@@ -50,11 +52,8 @@ class OverlapSortOrder(str, Enum):
         return None
 
 
-# SECURITY: 输入限制常量
-MAX_COMMA_SEPARATED_ITEMS = 20  # 逗号分隔列表最大项数
-MAX_ITEM_LENGTH = 50  # 单项最大长度
-MAX_FIELD_LENGTH = 500  # 字段总长度限制
-CHROMOSOME_PATTERN = r'^chr([1-9]|1[0-9]|2[0-2]|X|Y|M|MT)$'  # 染色体格式验证
+# SECURITY: 染色体格式验证
+CHROMOSOME_PATTERN = r'^chr([1-9]|1[0-9]|2[0-2]|X|Y|M|MT)$'
 
 
 class OverlapFilters(BaseModel):

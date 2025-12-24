@@ -1,9 +1,21 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  // SECURITY: Disallow embedding Admin API Key into production bundles.
+  // Any VITE_* env var is statically embedded into dist/ by Vite.
+  const env = loadEnv(mode, process.cwd(), '')
+  const adminKey = (env.VITE_ADMIN_API_KEY || '').trim()
+  if (mode === 'production' && adminKey) {
+    throw new Error(
+      'SECURITY: VITE_ADMIN_API_KEY must NOT be set for production builds. ' +
+      'Use reverse proxy injection (recommended) or backend auth instead.'
+    )
+  }
+
+  return ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -53,4 +65,5 @@ export default defineConfig(({ mode }) => ({
     // Increase warning limit slightly since we now have more fine-grained chunks
     chunkSizeWarningLimit: 650,
   },
-}))
+  })
+})

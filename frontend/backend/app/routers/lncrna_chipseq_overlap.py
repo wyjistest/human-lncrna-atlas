@@ -35,6 +35,8 @@ from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
 from app.core.validators import parse_comma_list, MAX_FIELD_LENGTH
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
+from app.utils.http_headers import content_disposition_attachment
+from app.utils.streaming_export import sanitize_csv_value
 
 # ============================================================================
 # Rate Limiting Setup (reuse shared module from chipseq_rate_limit)
@@ -1159,12 +1161,15 @@ def format_csv_row(row: dict) -> str:
     # Extract values in column order
     values = []
     for col in CSV_EXPORT_COLUMNS:
-        value = row.get(col)
+        raw_value = row.get(col)
         # Convert None to empty string
-        if value is None:
+        if raw_value is None:
             values.append('')
-        else:
-            values.append(str(value))
+            continue
+
+        # SECURITY: CSV 公式注入防护（仅对字符串做前缀转义，数值类型保持原样）
+        safe_value = sanitize_csv_value(raw_value)
+        values.append(str(safe_value))
 
     # Use StringIO and csv.writer for proper CSV escaping
     output = StringIO()
@@ -1525,7 +1530,8 @@ def export_lncrna_chipseq_overlaps(
         export_stream,
         media_type=media_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+            "Content-Disposition": content_disposition_attachment(filename),
             "Content-Type": f"{media_type}; charset=utf-8",
         }
     )

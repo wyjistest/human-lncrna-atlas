@@ -176,10 +176,12 @@ def get_conservation_overview(request: Request, db: Session = Depends(get_db)):
     # Count by conservation level and combination
     level_counts: Dict[int, int] = defaultdict(int)
     combination_counts: Dict[str, int] = defaultdict(int)
+    core_ids_by_level: Dict[int, List[int]] = defaultdict(list)
 
     for core_id, (label, count) in conservation_map.items():
         level_counts[count] += 1
         combination_counts[label] += 1
+        core_ids_by_level[count].append(core_id)
 
     # Get total regulations count
     total_regulations = db.query(func.count(Regulation.regulation_id)).scalar() or 0
@@ -191,23 +193,16 @@ def get_conservation_overview(request: Request, db: Session = Depends(get_db)):
         percentage = (lncrna_count / total_lncrnas * 100) if total_lncrnas > 0 else 0
 
         # Count regulations for lncRNAs at this conservation level
-        core_ids_at_level = [
-            cid for cid, (_, cnt) in conservation_map.items() if cnt == level
-        ]
+        core_ids_at_level = core_ids_by_level.get(level, [])
 
         if core_ids_at_level:
-            # Get gene_ids for these core_ids
-            gene_ids = [
-                row[0] for row in
-                db.query(Gene.gene_id)
-                .filter(Gene.core_id.in_(core_ids_at_level))
-                .all()
-            ]
+            # PERFORMANCE: 用 JOIN + 子条件替代 .all() 拉取 gene_ids 到 Python 再 in_(list)
             reg_count = (
                 db.query(func.count(Regulation.regulation_id))
-                .filter(Regulation.lncrna_gene_id.in_(gene_ids))
+                .join(Gene, Regulation.lncrna_gene_id == Gene.gene_id)
+                .filter(Gene.core_id.in_(core_ids_at_level))
                 .scalar() or 0
-            ) if gene_ids else 0
+            )
         else:
             reg_count = 0
 

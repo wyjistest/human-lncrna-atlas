@@ -4,7 +4,7 @@
 import json
 from pathlib import Path
 from typing import Optional, List, Any
-from urllib.parse import quote, quote_plus
+from urllib.parse import quote
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from sqlalchemy.engine import URL

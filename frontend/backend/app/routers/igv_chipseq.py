@@ -28,6 +28,7 @@ from app.config.igv_genomes import (
     GENE_ANNOTATION_TRACKS,
 )
 from app.schemas.igv import IGVTrack, IGVConfigResponse, IGVConfig, IGVSearchConfig
+from app.utils.http_headers import content_disposition_attachment
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +143,8 @@ def get_chipseq_bed(
             empty_stream,
             media_type="text/plain",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename}"',
+                # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+                "Content-Disposition": content_disposition_attachment(filename),
                 "Content-Type": "text/plain; charset=utf-8",
             },
         )
@@ -176,7 +178,8 @@ def get_chipseq_bed(
         bed_stream,
         media_type="text/plain",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+            "Content-Disposition": content_disposition_attachment(filename),
             "Content-Type": "text/plain; charset=utf-8",
         },
     )
@@ -376,4 +379,3 @@ def get_igv_chipseq_config(
 # =============================================================================
 # lncRNA-ChIP-seq Overlap Track Endpoint
 # =============================================================================
-

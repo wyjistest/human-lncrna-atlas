@@ -25,7 +25,11 @@ apiClient.interceptors.request.use(
     //   2. 使用反向代理（如 Nginx）注入 X-Admin-API-Key
     //   3. 开发/测试环境
     // 生产公网环境建议使用后端会话式鉴权替代。
-    if (config.url?.includes('/admin') && ADMIN_API_KEY) {
+    const isAdminRequest = config.url?.includes('/admin')
+
+    // SECURITY: Only allow frontend-provided Admin API Key in DEV builds.
+    // Production builds must rely on reverse proxy injection or backend auth.
+    if (isAdminRequest && import.meta.env.DEV && ADMIN_API_KEY) {
       config.headers['X-Admin-API-Key'] = ADMIN_API_KEY;
     }
     return config;

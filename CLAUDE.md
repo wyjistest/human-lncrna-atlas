@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.25 |
+| 版本 | Phase 9.26 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-24 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -265,7 +265,8 @@ DB_POOL_MAX_OVERFLOW=20
 | **9.22** | **Codex 七次审查修复: MV 缓存重复定义修复 + SQLAlchemy Builder 重构 + diseases count 优化 + 文档版本更新 + DB 名统一 + IGV 类型去重** | **2025-12-23** |
 | **9.23** | **Codex 八次审查修复: /genomes BigBed 白名单 (.bb/.bigbed) + /statistics 和 /export DoS 防护 (parse_comma_list 输入限制)** | **2025-12-24** |
 | 9.24 | Codex 九次审查修复: MV 缓存线程安全 (app/core/mv_cache.py) + MV 查询异常自动 fallback + time.monotonic() + FastAPI>=0.118.0 + Docker 安全部署方案 | 2025-12-24 |
-| **9.25** | **Codex 十次审查修复: slowapi Redis 分布式限流 + 前端 CI Admin Key 护栏 + /genomes 白名单对齐 + main.py reload 防误用 + 缓存返回类型一致性** | **2025-12-24** |
+| 9.25 | Codex 十次审查修复: slowapi Redis 分布式限流 + 前端 CI Admin Key 护栏 + /genomes 白名单对齐 + main.py reload 防误用 + 缓存返回类型一致性 | 2025-12-24 |
+| **9.26** | **Codex 十一次审查修复: 响应头注入防护 (sanitize_filename + RFC 5987) + Admin Key 三道闸 (代码/构建/CI) + CSV 公式注入防护 + Conservation JOIN 优化 + /genes/options 分页 + ETL --legacy 显式启用 + SQL 聚合下推** | **2025-12-24** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -279,6 +280,7 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_phase_9_19_validation.py` | 27 | CORS/TRUSTED_HOSTS 校验 + 生产环境 fail-fast (集成测试) |
 | `test_phase_9_23_fixes.py` | 15 | BigBed 白名单 + parse_comma_list DoS 防护 |
 | `test_mv_cache_thread_safety.py` | 13 | MV 缓存线程安全 + TTL + 并发读写 (Phase 9.24) |
+| `test_security_content_disposition.py` | 2 | Content-Disposition 响应头注入防护 (Phase 9.26) |
 
 **运行测试**:
 ```bash

@@ -7,7 +7,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, cast, Float
+from sqlalchemy import func, and_, cast, Float, case
 
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
@@ -274,10 +274,134 @@ def get_gene_repeat_stats(
         GenomicFeature.feature_end > region_start,
     ]
 
-    # 5. Get all repeats in the region for statistics
-    features = db.query(GenomicFeature).filter(and_(*base_conditions)).all()
+    # 5a. 兼容性：非 PostgreSQL（例如 SQLite demo）不一定支持 JSONB/->>/~ 等表达式
+    # 生产数据与分区表使用 PostgreSQL，本分支仅用于本地/演示环境降级。
+    bind = db.get_bind()
+    if not bind or bind.dialect.name != "postgresql":
+        features = db.query(GenomicFeature).filter(and_(*base_conditions)).all()
 
-    if not features:
+        if not features:
+            return GeneRepeatSummary(
+                gene_id=gene_id,
+                gene_name=gene.gene_name or "Unknown",
+                chromosome=gene.chromosome,
+                gene_start=gene.gene_start,
+                gene_end=gene.gene_end,
+                region_start=region_start,
+                region_end=region_end,
+                stats=RepeatStats(
+                    total_count=0,
+                    total_length=0,
+                    coverage_percentage=0.0,
+                    class_distribution=[],
+                    family_distribution=[],
+                    avg_divergence=0.0,
+                    min_divergence=0.0,
+                    max_divergence=0.0,
+                ),
+            )
+
+        total_count = len(features)
+        total_length = 0
+        class_counts = {}
+        family_counts = {}
+        divergences = []
+
+        for f in features:
+            start = max(f.feature_start, region_start)
+            end = min(f.feature_end, region_end)
+            total_length += (end - start)
+
+            attrs = f.attributes or {}
+            repeat_class = attrs.get("repeat_class", "Unknown")
+            repeat_family = attrs.get("repeat_family", "Unknown")
+
+            class_counts[repeat_class] = class_counts.get(repeat_class, 0) + 1
+            family_key = (repeat_family, repeat_class)
+            family_counts[family_key] = family_counts.get(family_key, 0) + 1
+
+            divergence = attrs.get("divergence")
+            if divergence is not None:
+                try:
+                    divergences.append(float(divergence))
+                except (TypeError, ValueError):
+                    pass
+
+        coverage_percentage = (total_length / region_length * 100) if region_length > 0 else 0.0
+        class_distribution = [
+            RepeatClassDistribution(
+                repeat_class=cls,
+                count=count,
+                percentage=(count / total_count * 100) if total_count > 0 else 0.0,
+            )
+            for cls, count in sorted(class_counts.items(), key=lambda x: -x[1])
+        ]
+        family_distribution = [
+            RepeatFamilyDistribution(
+                repeat_family=family,
+                repeat_class=cls,
+                count=count,
+                percentage=(count / total_count * 100) if total_count > 0 else 0.0,
+            )
+            for (family, cls), count in sorted(family_counts.items(), key=lambda x: -x[1])[:10]
+        ]
+        avg_divergence = sum(divergences) / len(divergences) if divergences else 0.0
+        min_divergence = min(divergences) if divergences else 0.0
+        max_divergence = max(divergences) if divergences else 0.0
+
+        return GeneRepeatSummary(
+            gene_id=gene_id,
+            gene_name=gene.gene_name or "Unknown",
+            chromosome=gene.chromosome,
+            gene_start=gene.gene_start,
+            gene_end=gene.gene_end,
+            region_start=region_start,
+            region_end=region_end,
+            stats=RepeatStats(
+                total_count=total_count,
+                total_length=total_length,
+                coverage_percentage=round(coverage_percentage, 2),
+                class_distribution=class_distribution,
+                family_distribution=family_distribution,
+                avg_divergence=round(avg_divergence, 2),
+                min_divergence=round(min_divergence, 2),
+                max_divergence=round(max_divergence, 2),
+            ),
+        )
+
+    # 5. 聚合统计下推到 SQL：避免把整个区域的 repeats 全量加载到 Python 内存
+    repeat_class_expr = func.coalesce(GenomicFeature.attributes["repeat_class"].astext, "Unknown")
+    repeat_family_expr = func.coalesce(GenomicFeature.attributes["repeat_family"].astext, "Unknown")
+
+    # Overlap length clipped to region boundaries (feature already overlaps region by base_conditions)
+    overlap_length_expr = (
+        func.least(GenomicFeature.feature_end, region_end)
+        - func.greatest(GenomicFeature.feature_start, region_start)
+    )
+
+    # Divergence may be stored as string/number in JSONB; guard cast to avoid SQL errors on bad data.
+    divergence_text = GenomicFeature.attributes["divergence"].astext
+    divergence_numeric = case(
+        (divergence_text.op("~")(r"^-?\d+(\.\d+)?$"), cast(divergence_text, Float)),
+        else_=None,
+    )
+
+    summary = (
+        db.query(
+            func.count(GenomicFeature.feature_id).label("total_count"),
+            func.coalesce(func.sum(overlap_length_expr), 0).label("total_length"),
+            func.avg(divergence_numeric).label("avg_divergence"),
+            func.min(divergence_numeric).label("min_divergence"),
+            func.max(divergence_numeric).label("max_divergence"),
+        )
+        .filter(and_(*base_conditions))
+        .one()
+    )
+
+    total_count = int(summary.total_count or 0)
+    total_length = int(summary.total_length or 0)
+
+    if total_count == 0:
         # Return empty stats if no repeats found
         return GeneRepeatSummary(
             gene_id=gene_id,
@@ -299,35 +423,31 @@ def get_gene_repeat_stats(
             )
         )
 
-    # 6. Calculate statistics
-    total_count = len(features)
+    # Class distribution
+    class_rows = (
+        db.query(
+            repeat_class_expr.label("repeat_class"),
+            func.count(GenomicFeature.feature_id).label("count"),
+        )
+        .filter(and_(*base_conditions))
+        .group_by(repeat_class_expr)
+        .order_by(func.count(GenomicFeature.feature_id).desc())
+        .all()
+    )
 
-    # Calculate total length (clipped to region boundaries)
-    total_length = 0
-    class_counts = {}
-    family_counts = {}
-    divergences = []
-
-    for f in features:
-        # Clip feature to region boundaries
-        start = max(f.feature_start, region_start)
-        end = min(f.feature_end, region_end)
-        total_length += (end - start)
-
-        # Count by class and family
-        attrs = f.attributes or {}
-        repeat_class = attrs.get('repeat_class', 'Unknown')
-        repeat_family = attrs.get('repeat_family', 'Unknown')
-
-        class_counts[repeat_class] = class_counts.get(repeat_class, 0) + 1
-
-        family_key = (repeat_family, repeat_class)
-        family_counts[family_key] = family_counts.get(family_key, 0) + 1
-
-        # Collect divergence values
-        divergence = attrs.get('divergence')
-        if divergence is not None:
-            divergences.append(float(divergence))
+    # Family distribution (top 10)
+    family_rows = (
+        db.query(
+            repeat_family_expr.label("repeat_family"),
+            repeat_class_expr.label("repeat_class"),
+            func.count(GenomicFeature.feature_id).label("count"),
+        )
+        .filter(and_(*base_conditions))
+        .group_by(repeat_family_expr, repeat_class_expr)
+        .order_by(func.count(GenomicFeature.feature_id).desc())
+        .limit(10)
+        .all()
+    )
 
     # Calculate coverage percentage
     coverage_percentage = (total_length / region_length * 100) if region_length > 0 else 0.0
@@ -335,28 +455,28 @@ def get_gene_repeat_stats(
     # Build class distribution
     class_distribution = [
         RepeatClassDistribution(
-            repeat_class=cls,
-            count=count,
-            percentage=(count / total_count * 100) if total_count > 0 else 0.0
+            repeat_class=row.repeat_class,
+            count=row.count,
+            percentage=(row.count / total_count * 100) if total_count > 0 else 0.0
         )
-        for cls, count in sorted(class_counts.items(), key=lambda x: -x[1])
+        for row in class_rows
     ]
 
     # Build family distribution (top 10)
     family_distribution = [
         RepeatFamilyDistribution(
-            repeat_family=family,
-            repeat_class=cls,
-            count=count,
-            percentage=(count / total_count * 100) if total_count > 0 else 0.0
+            repeat_family=row.repeat_family,
+            repeat_class=row.repeat_class,
+            count=row.count,
+            percentage=(row.count / total_count * 100) if total_count > 0 else 0.0
         )
-        for (family, cls), count in sorted(family_counts.items(), key=lambda x: -x[1])[:10]
+        for row in family_rows
     ]
 
     # Calculate divergence statistics
-    avg_divergence = sum(divergences) / len(divergences) if divergences else 0.0
-    min_divergence = min(divergences) if divergences else 0.0
-    max_divergence = max(divergences) if divergences else 0.0
+    avg_divergence = float(summary.avg_divergence) if summary.avg_divergence is not None else 0.0
+    min_divergence = float(summary.min_divergence) if summary.min_divergence is not None else 0.0
+    max_divergence = float(summary.max_divergence) if summary.max_divergence is not None else 0.0
 
     return GeneRepeatSummary(
         gene_id=gene_id,

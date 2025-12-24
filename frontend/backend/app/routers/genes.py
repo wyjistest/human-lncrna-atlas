@@ -29,6 +29,18 @@ def get_gene_options(
     request: Request,  # Required for rate limiting
     species_id: Optional[int] = Query(None, description="物种ID过滤"),
     gene_type: Optional[str] = Query(None, description="基因类型过滤（lncRNA/protein_coding）"),
+    q: Optional[str] = Query(
+        None,
+        min_length=1,
+        max_length=100,
+        description="可选搜索关键词（gene_name / gene_ensembl_id 模糊匹配，建议用于 typeahead）",
+    ),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        le=2000,
+        description="可选返回上限（用于大列表下拉框分页/分批加载，最大 2000）",
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -48,13 +60,13 @@ def get_gene_options(
     Returns:
         GeneOptionsResponse: 包含基因选项列表
     """
-    # 构建缓存键
-    cache_key = cache.make_options_key("genes", species_id=species_id, gene_type=gene_type)
-
-    # 尝试从缓存读取
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return cached
+    # 仅“全量 options”使用缓存：避免为每个 q/limit 组合生成大量缓存键
+    use_cache = (q is None and limit is None)
+    if use_cache:
+        cache_key = cache.make_options_key("genes", species_id=species_id, gene_type=gene_type)
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
     # 查询数据库（只查询必要字段）
     query = db.query(
@@ -74,6 +86,27 @@ def get_gene_options(
     if species_id:
         query = query.filter(Gene.species_id == species_id)
 
+    # 可选搜索（用于 typeahead）
+    if q:
+        keyword = q.strip()
+        if keyword:
+            escaped = escape_like_pattern(keyword)
+            pattern = f"%{escaped}%"
+            query = query.filter(
+                or_(
+                    Gene.gene_name.ilike(pattern, escape="\\"),
+                    Gene.gene_ensembl_id.ilike(pattern, escape="\\"),
+                )
+            )
+
+    # 可选 limit：如果提供搜索但未指定 limit，给一个保守默认值避免大返回
+    effective_limit = limit
+    if q and effective_limit is None:
+        effective_limit = 200
+
+    if effective_limit is not None:
+        query = query.limit(effective_limit)
+
     # 执行查询并排序
     genes = query.order_by(Gene.gene_name).all()
 
@@ -92,7 +125,8 @@ def get_gene_options(
     }
 
     # 写入缓存（30 分钟 = 1800 秒）
-    cache.set(cache_key, result, 1800)
+    if use_cache:
+        cache.set(cache_key, result, 1800)
 
     return result
 

@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species
 from app.core.igv_stream_generators import generate_bed_stream, generate_bedpe_stream
+from app.utils.http_headers import content_disposition_attachment
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,8 @@ def get_regulations_bed(
         bed_stream,
         media_type="text/plain",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+            "Content-Disposition": content_disposition_attachment(filename),
             "Content-Type": "text/plain; charset=utf-8",
         },
     )
@@ -188,7 +190,8 @@ def get_interactions_bedpe(
         bedpe_stream,
         media_type="text/plain",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+            "Content-Disposition": content_disposition_attachment(filename),
             "Content-Type": "text/plain; charset=utf-8",
         },
     )
