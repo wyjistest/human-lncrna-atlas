@@ -124,7 +124,7 @@ def import_data(conn, input_file, species_id, track_id, batch_id, batch_size=100
 
     print(f"Reading {input_file}...")
 
-    with open(input_file, 'r') as f:
+    with open(input_file, 'r', encoding='utf-8') as f:
         for line_num, line in enumerate(f, 1):
             if limit > 0 and line_num > limit:
                 break

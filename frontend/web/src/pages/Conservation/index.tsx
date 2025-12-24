@@ -85,10 +85,9 @@ export default function Conservation() {
     isLoading: overviewLoading,
     error: overviewError
   } = useQuery({
-    queryKey: ['conservation-overview', selectedSpecies],
+    queryKey: ['conservation-overview'],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiData: any = await conservationApi.getOverview(selectedSpecies)
+      const apiData = await conservationApi.getOverview()
       // Transform backend format to frontend expected format
       const distribution = apiData.distribution || []
       const getCountByLevel = (level: number) =>
@@ -108,34 +107,50 @@ export default function Conservation() {
   })
 
   const {
-    data: matrixData,
+    data: matrixApiData,
     isLoading: matrixLoading,
     error: matrixError
   } = useQuery({
-    queryKey: ['conservation-matrix', selectedSpecies],
-    queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiData: any = await conservationApi.getMatrix(selectedSpecies)
-      // Transform backend format to frontend expected format
-      const speciesInfo = apiData.species || []
-      const matrix = apiData.regulation_matrix || apiData.lncrna_matrix || []
-
-      // Calculate min/max values
-      const flatValues = matrix.flat().filter((v: number) => typeof v === 'number')
-      const maxValue = flatValues.length > 0 ? Math.max(...flatValues) : 0
-      const minValue = flatValues.length > 0 ? Math.min(...flatValues) : 0
-
-      return {
-        species: speciesInfo.map((s: { id: number }) => s.id),
-        species_names: speciesInfo.map((s: { name: string }) => s.name),
-        matrix,
-        max_value: maxValue,
-        min_value: minValue
-      }
-    },
+    queryKey: ['conservation-matrix'],
+    queryFn: () => conservationApi.getMatrix([1, 2, 3, 4]),
     enabled: selectedSpecies.length >= 2,
     staleTime: 5 * 60 * 1000
   })
+
+  const matrixData = useMemo(() => {
+    if (!matrixApiData) return null
+
+    // Transform backend format to frontend expected format
+    const speciesInfo = matrixApiData.species || []
+
+    // Preserve backend ordering (Human -> Chimp -> Macaque -> Marmoset), but filter to selected species
+    const selectedOrdered = speciesInfo
+      .map(s => s.id)
+      .filter(id => selectedSpecies.includes(id))
+
+    const nameById = new Map(speciesInfo.map(s => [s.id, s.name] as const))
+    const indexById = new Map(speciesInfo.map((s, idx) => [s.id, idx] as const))
+
+    const indices = selectedOrdered
+      .map(id => indexById.get(id))
+      .filter((idx): idx is number => idx !== undefined)
+
+    const sourceMatrix = matrixApiData.regulation_matrix || []
+    const matrix = indices.map(i => indices.map(j => sourceMatrix[i]?.[j] ?? 0))
+
+    // Calculate min/max values
+    const flatValues = matrix.flat().filter((v): v is number => typeof v === 'number')
+    const maxValue = flatValues.length > 0 ? Math.max(...flatValues) : 0
+    const minValue = flatValues.length > 0 ? Math.min(...flatValues) : 0
+
+    return {
+      species: selectedOrdered,
+      species_names: selectedOrdered.map(id => nameById.get(id) ?? String(id)),
+      matrix,
+      max_value: maxValue,
+      min_value: minValue
+    }
+  }, [matrixApiData, selectedSpecies])
 
   const {
     data: regulationsData,

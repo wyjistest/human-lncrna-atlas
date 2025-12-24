@@ -53,7 +53,7 @@ def load_dna_files(dna_dir):
             filepath = os.path.join(dna_dir, filename)
 
             # 读取文件获取header中的实际坐标
-            with open(filepath, 'r') as f:
+            with open(filepath, 'r', encoding='utf-8') as f:
                 header = f.readline().strip()
                 sequence = ''.join(line.strip() for line in f if not line.startswith('>'))
 
@@ -145,7 +145,7 @@ def main():
     import csv
 
     empty_records = []
-    with open(BATCH_FILE, 'r') as f:
+    with open(BATCH_FILE, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f, delimiter='\t')
         for row in reader:
             dna_seq = row.get('DNA_Sequence', '').strip()

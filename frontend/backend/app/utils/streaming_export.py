@@ -34,6 +34,8 @@ from typing import Any, Callable, Dict, Generator, Iterator, List, Optional
 
 from fastapi.responses import StreamingResponse
 
+from app.utils.http_headers import content_disposition_attachment
+
 
 # CSV 公式注入防护正则：匹配以 =, +, -, @, \t, \r 开头的字符串
 _CSV_FORMULA_PATTERN = re.compile(r'^[=+\-@\t\r]')
@@ -151,7 +153,8 @@ def stream_csv_response(
     return StreamingResponse(
         stream_csv_rows(rows, fieldnames, delimiter=delimiter),
         media_type=media_type,
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+        headers={"Content-Disposition": content_disposition_attachment(filename)},
     )
 
 
@@ -196,7 +199,8 @@ def stream_jsonl_response(
     return StreamingResponse(
         stream_jsonl_rows(rows),
         media_type="application/x-ndjson",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+        headers={"Content-Disposition": content_disposition_attachment(filename)},
     )
 
 
@@ -259,7 +263,8 @@ def stream_excel_response(
     return StreamingResponse(
         buffer,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+        headers={"Content-Disposition": content_disposition_attachment(filename)},
     )
 
 

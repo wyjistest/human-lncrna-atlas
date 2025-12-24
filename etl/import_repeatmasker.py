@@ -140,7 +140,7 @@ class RepeatMaskerImporter:
         Format (space-delimited, variable whitespace):
         SW score | perc div | perc del | perc ins | query seq | begin | end | (left) | + | repeat | class/family | begin | end | (left) | ID
         """
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             # Skip header lines
             for i, line in enumerate(f):
                 line = line.strip()
@@ -225,7 +225,7 @@ class RepeatMaskerImporter:
         Or minimal:
         chr  start  end  name  score  strand  repeat_class/family  divergence
         """
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             for i, line in enumerate(f):
                 line = line.strip()
 
@@ -302,7 +302,7 @@ class RepeatMaskerImporter:
         """
         import csv
 
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f, delimiter='\t')
 
             for i, row in enumerate(reader):

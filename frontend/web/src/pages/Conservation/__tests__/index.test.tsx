@@ -92,24 +92,50 @@ import { conservationApi } from '@/api/conservation'
 
 // Mock data
 const mockOverview = {
-  total_conserved: 156789,
-  four_species: 12345,
-  three_species: 34567,
-  two_species: 109877,
-  by_combination: [],
+  total_lncrnas: 200000,
+  total_regulations: 800000,
+  distribution: [
+    { conservation_count: 1, lncrna_count: 0, regulation_count: 0, percentage: 0 },
+    { conservation_count: 2, lncrna_count: 0, regulation_count: 109877, percentage: 0 },
+    { conservation_count: 3, lncrna_count: 0, regulation_count: 34567, percentage: 0 },
+    { conservation_count: 4, lncrna_count: 0, regulation_count: 12345, percentage: 0 },
+  ],
+  top_combinations: [],
+  fully_conserved_count: 0,
+  primate_specific_count: 0,
 }
 
 const mockMatrix = {
-  species: [1, 2, 3, 4],
-  species_names: ['Human', 'Chimpanzee', 'Macaque', 'Marmoset'],
-  matrix: [
+  species: [
+    { id: 1, name: 'Human' },
+    { id: 2, name: 'Chimpanzee' },
+    { id: 3, name: 'Macaque' },
+    { id: 4, name: 'Marmoset' },
+  ],
+  lncrna_matrix: [
     [100000, 50000, 40000, 30000],
     [50000, 80000, 35000, 25000],
     [40000, 35000, 70000, 20000],
     [30000, 25000, 20000, 60000],
   ],
-  max_value: 100000,
-  min_value: 20000,
+  regulation_matrix: [
+    [100000, 50000, 40000, 30000],
+    [50000, 80000, 35000, 25000],
+    [40000, 35000, 70000, 20000],
+    [30000, 25000, 20000, 60000],
+  ],
+  jaccard_matrix: [
+    [1, 0.5, 0.4, 0.3],
+    [0.5, 1, 0.35, 0.25],
+    [0.4, 0.35, 1, 0.2],
+    [0.3, 0.25, 0.2, 1],
+  ],
+  diagonal_totals: {
+    '1': 100000,
+    '2': 80000,
+    '3': 70000,
+    '4': 60000,
+  },
 }
 
 const mockRegulations = {
@@ -150,7 +176,8 @@ const mockRegulations = {
   total: 100,
   page: 1,
   page_size: 20,
-  pages: 5,
+  total_pages: 5,
+  min_species: 2,
 }
 
 // Test wrapper with providers

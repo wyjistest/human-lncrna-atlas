@@ -129,11 +129,10 @@ export type VisualMapFormatterParams = number | [number, number]
 
 /**
  * Visual Map formatter 函数类型
- * ECharts 内置类型定义不完整，需要类型断言
- * 注意：使用时需要 `as unknown as VisualMapFormatter` 模式
+ * ECharts 的类型定义在不同版本间可能不一致，统一收敛为项目内常用签名。
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type VisualMapFormatter = any
+type OptionDataValue = string | number | Date | null | undefined
+export type VisualMapFormatter = (min: OptionDataValue, max?: OptionDataValue) => string
 
 /**
  * ECharts click 事件参数

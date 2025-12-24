@@ -69,6 +69,7 @@ export function ConservationMatrix({
     }
 
     return {
+      speciesIds: data.species,
       speciesNames: data.species_names,
       heatmapData,
       maxValue: data.max_value,
@@ -85,7 +86,7 @@ export function ConservationMatrix({
       chartInstance.current = echarts.init(chartRef.current)
     }
 
-    const { speciesNames, heatmapData, maxValue, minValue } = chartData
+    const { speciesIds, speciesNames, heatmapData, maxValue, minValue } = chartData
 
     const option: EChartsOption = {
       title: {
@@ -197,19 +198,21 @@ export function ConservationMatrix({
     chartInstance.current.setOption(option, true)
 
     // Add click event listener
+    // IMPORTANT: remove previous handler to avoid duplicate callbacks & memory leaks
+    chartInstance.current.off('click')
     if (onCellClick) {
-      chartInstance.current.on('click', (params: unknown) => {
+      const handleClick = (params: unknown) => {
         const p = params as HeatmapParams & { componentType?: string; seriesType?: string }
         if (p.componentType === 'series' && p.seriesType === 'heatmap') {
           const [x, y, value] = p.value
-          onCellClick(x, y, value ?? 0)
+          const speciesX = speciesIds[x]
+          const speciesY = speciesIds[y]
+          if (speciesX !== undefined && speciesY !== undefined) {
+            onCellClick(speciesX, speciesY, value ?? 0)
+          }
         }
-      })
-    }
-
-    // Cleanup on unmount
-    return () => {
-      // Don't destroy here, just clear option to avoid memory issues
+      }
+      chartInstance.current.on('click', handleClick)
     }
   }, [chartData, title, t, onCellClick])
 

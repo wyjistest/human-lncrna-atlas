@@ -15,11 +15,15 @@ import re
 import secrets
 import time
 import logging
+import shutil
 from datetime import datetime
 from typing import Literal, Optional
 from collections import defaultdict, deque
 
-import psutil
+try:
+    import psutil  # type: ignore
+except ImportError:  # pragma: no cover
+    psutil = None  # type: ignore[assignment]
 from fastapi import APIRouter, Request, Depends, HTTPException, Header
 from sqlalchemy import text
 
@@ -376,6 +380,29 @@ def get_system_metrics() -> SystemMetrics:
     Returns:
         SystemMetrics: 系统资源指标对象
     """
+    # psutil 非必需依赖：缺失时返回降级的系统指标，避免 Admin 路由导入失败导致应用无法启动
+    if psutil is None:  # pragma: no cover
+        logger.warning("psutil is not installed; returning degraded system metrics (zeros)")
+
+        try:
+            disk = shutil.disk_usage("/")
+            total_gb = disk.total / 1024 / 1024 / 1024
+            used_gb = disk.used / 1024 / 1024 / 1024
+            disk_info = SystemDisk(
+                used_gb=round(used_gb, 2),
+                total_gb=round(total_gb, 2),
+                percent=round((used_gb / total_gb * 100) if total_gb > 0 else 0.0, 2),
+            )
+        except Exception:
+            disk_info = SystemDisk(used_gb=0, total_gb=0, percent=0)
+
+        return SystemMetrics(
+            cpu_percent=0.0,
+            memory=SystemMemory(used_mb=0, total_mb=0, percent=0),
+            disk=disk_info,
+            process=ProcessInfo(cpu_percent=0, memory_mb=0),
+        )
+
     # CPU 使用率（非阻塞模式）
     try:
         cpu_percent = psutil.cpu_percent(interval=None)

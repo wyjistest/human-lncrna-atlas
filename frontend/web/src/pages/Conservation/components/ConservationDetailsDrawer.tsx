@@ -52,10 +52,10 @@ export function ConservationDetailsDrawer({
 
   // Get species names
   const speciesXName = speciesPair
-    ? CONSERVATION_SPECIES.find(s => s.id === speciesPair.speciesX + 1)?.name || 'Unknown'
+    ? CONSERVATION_SPECIES.find(s => s.id === speciesPair.speciesX)?.name || 'Unknown'
     : ''
   const speciesYName = speciesPair
-    ? CONSERVATION_SPECIES.find(s => s.id === speciesPair.speciesY + 1)?.name || 'Unknown'
+    ? CONSERVATION_SPECIES.find(s => s.id === speciesPair.speciesY)?.name || 'Unknown'
     : ''
 
   // Query shared regulations
@@ -68,7 +68,7 @@ export function ConservationDetailsDrawer({
       if (!speciesPair) return null
 
       // Query regulations that exist in both species
-      const speciesIds = [speciesPair.speciesX + 1, speciesPair.speciesY + 1]
+      const speciesIds = [speciesPair.speciesX, speciesPair.speciesY]
       return await conservationApi.getConservedRegulations({
         species_ids: speciesIds,
         min_conservation: 2, // Must be in at least 2 species
@@ -115,16 +115,16 @@ export function ConservationDetailsDrawer({
       width: 120,
       render: (_: unknown, record: ConservedRegulation) => {
         const ba = record.species_binding_affinities?.find(
-          s => s.species_id === (speciesPair?.speciesX ?? 0) + 1
+          s => s.species_id === (speciesPair?.speciesX ?? 0)
         )?.binding_affinity
         return ba?.toFixed(2) ?? '-'
       },
       sorter: (a, b) => {
         const baA = a.species_binding_affinities?.find(
-          s => s.species_id === (speciesPair?.speciesX ?? 0) + 1
+          s => s.species_id === (speciesPair?.speciesX ?? 0)
         )?.binding_affinity ?? 0
         const baB = b.species_binding_affinities?.find(
-          s => s.species_id === (speciesPair?.speciesX ?? 0) + 1
+          s => s.species_id === (speciesPair?.speciesX ?? 0)
         )?.binding_affinity ?? 0
         return baA - baB
       }
@@ -135,16 +135,16 @@ export function ConservationDetailsDrawer({
       width: 120,
       render: (_: unknown, record: ConservedRegulation) => {
         const ba = record.species_binding_affinities?.find(
-          s => s.species_id === (speciesPair?.speciesY ?? 0) + 1
+          s => s.species_id === (speciesPair?.speciesY ?? 0)
         )?.binding_affinity
         return ba?.toFixed(2) ?? '-'
       },
       sorter: (a, b) => {
         const baA = a.species_binding_affinities?.find(
-          s => s.species_id === (speciesPair?.speciesY ?? 0) + 1
+          s => s.species_id === (speciesPair?.speciesY ?? 0)
         )?.binding_affinity ?? 0
         const baB = b.species_binding_affinities?.find(
-          s => s.species_id === (speciesPair?.speciesY ?? 0) + 1
+          s => s.species_id === (speciesPair?.speciesY ?? 0)
         )?.binding_affinity ?? 0
         return baA - baB
       }

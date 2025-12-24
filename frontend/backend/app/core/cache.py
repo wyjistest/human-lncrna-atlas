@@ -13,7 +13,7 @@ import hashlib
 import logging
 import time
 import threading
-from typing import Any, Optional, Callable, TypeVar, Tuple
+from typing import Any, Optional, Callable, TypeVar, Tuple, TYPE_CHECKING
 from functools import wraps
 
 try:
@@ -23,6 +23,9 @@ try:
 except ImportError:
     REDIS_AVAILABLE = False
     RedisError = Exception
+
+if TYPE_CHECKING:  # pragma: no cover
+    import redis as redis_types  # noqa: F401
 
 from app.core.config import settings
 
@@ -114,7 +117,8 @@ class RedisCache:
     """Redis 缓存实现"""
 
     def __init__(self):
-        self._client: Optional[redis.Redis] = None
+        # NOTE: redis 是可选依赖；使用字符串注解避免在 ImportError 场景下触发 NameError
+        self._client: Optional["redis.Redis"] = None
         self._connect()
 
     def _connect(self):

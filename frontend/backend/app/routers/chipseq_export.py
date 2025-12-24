@@ -29,6 +29,7 @@ from app.core.database import get_db
 from app.core.validators import MAX_EXPORT_MARKS, parse_comma_list
 from app.models import Gene
 from app.schemas.chipseq import ExportFormat
+from app.utils.http_headers import content_disposition_attachment
 from app.utils.streaming_export import sanitize_csv_value
 
 # 从共享模块导入 rate_limit 装饰器（避免与主路由形成循环依赖）
@@ -276,7 +277,8 @@ def export_comparison(
     return StreamingResponse(
         io.BytesIO(output.encode("utf-8")),
         media_type=media_type,
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+        headers={"Content-Disposition": content_disposition_attachment(filename)},
     )
 
 
@@ -469,5 +471,6 @@ def export_overlaps_bed(
     return StreamingResponse(
         io.BytesIO(output.getvalue().encode("utf-8")),
         media_type=media_type,
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+        headers={"Content-Disposition": content_disposition_attachment(filename)},
     )

@@ -19,12 +19,14 @@
 
 import { apiClient } from './client'
 import type {
-  ConservationOverview,
-  ConservationMatrixData,
-  ConservedRegulationsResponse,
-  ConservationQueryParams,
-  VennDiagramData
+  ConservationQueryParams
 } from '@/types/conservationPage'
+import type {
+  ConservationSummaryResponse,
+  ConservationMatrixResponse,
+  ConservedRegulationListResponse,
+  ConservationVennResponse,
+} from '@/types/conservationApi'
 
 /**
  * Conservation API endpoints
@@ -67,12 +69,12 @@ export const conservationApi = {
    *
    * @see ConservationOverview type for response structure
    */
-  getOverview: async (speciesIds?: number[]): Promise<ConservationOverview> => {
+  getOverview: async (speciesIds?: number[]): Promise<ConservationSummaryResponse> => {
     const params: Record<string, string> = {}
     if (speciesIds && speciesIds.length > 0) {
       params.species_ids = speciesIds.join(',')
     }
-    const response = await apiClient.get<ConservationOverview>(
+    const response = await apiClient.get<ConservationSummaryResponse>(
       '/api/v1/conservation/overview',
       { params }
     )
@@ -117,8 +119,8 @@ export const conservationApi = {
    *
    * @see ConservationMatrix component for rendering
    */
-  getMatrix: async (speciesIds: number[]): Promise<ConservationMatrixData> => {
-    const response = await apiClient.get<ConservationMatrixData>(
+  getMatrix: async (speciesIds: number[]): Promise<ConservationMatrixResponse> => {
+    const response = await apiClient.get<ConservationMatrixResponse>(
       '/api/v1/conservation/matrix',
       { params: { species_ids: speciesIds.join(',') } }
     )
@@ -186,7 +188,7 @@ export const conservationApi = {
    */
   getConservedRegulations: async (
     params: ConservationQueryParams
-  ): Promise<ConservedRegulationsResponse> => {
+  ): Promise<ConservedRegulationListResponse> => {
     const apiParams: Record<string, string | number> = {
       page: params.page || 1,
       page_size: params.page_size || 20
@@ -208,7 +210,7 @@ export const conservationApi = {
       apiParams.target_gene_name = params.target_gene_name
     }
 
-    const response = await apiClient.get<ConservedRegulationsResponse>(
+    const response = await apiClient.get<ConservedRegulationListResponse>(
       '/api/v1/conservation/regulations',
       { params: apiParams }
     )
@@ -242,10 +244,12 @@ export const conservationApi = {
    *
    * @see VennDiagramData type for response structure
    */
-  getVennData: async (speciesIds: number[]): Promise<VennDiagramData> => {
-    const response = await apiClient.get<VennDiagramData>(
+  getVennData: async (
+    dataType: 'lncrna' | 'regulation' = 'lncrna'
+  ): Promise<ConservationVennResponse> => {
+    const response = await apiClient.get<ConservationVennResponse>(
       '/api/v1/conservation/venn',
-      { params: { species_ids: speciesIds.join(',') } }
+      { params: { data_type: dataType } }
     )
     return response.data
   },

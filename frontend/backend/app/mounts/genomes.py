@@ -6,6 +6,7 @@ Phase 9.16: 从 main.py 提取
 """
 import logging
 import os
+from pathlib import PurePosixPath
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,9 +42,49 @@ class GenomeFileWhitelistMiddleware:
     def __init__(self, app: StarletteASGIApp):
         self.app = app
 
+    @staticmethod
+    def _is_safe_static_path(path: str) -> bool:
+        """
+        Best-effort path safety checks (defense-in-depth).
+
+        Notes:
+        - Starlette StaticFiles already prevents directory traversal outside the mount directory.
+        - These checks further reduce the chance of accidental sensitive file exposure (e.g., dotfiles)
+          and block suspicious paths early.
+        """
+        # Null byte / backslash are never expected in URL paths for this service.
+        if "\x00" in path or "\\" in path:
+            return False
+
+        parts = PurePosixPath(path).parts
+        for part in parts:
+            # PurePosixPath('/a').parts -> ('/', 'a')
+            if part in ("", "/"):
+                continue
+
+            # Explicit traversal segments (even though StaticFiles should handle these).
+            if part in (".", ".."):
+                return False
+
+            # Dotfiles / hidden directories (avoid accidental exposure like ".env.gz").
+            if part.startswith("."):
+                return False
+
+        return True
+
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             path = scope.get("path", "")
+
+            if path and path != "/" and not self._is_safe_static_path(path):
+                response = StarletteResponse(
+                    content=b"Forbidden: Invalid path",
+                    status_code=403,
+                    media_type="text/plain",
+                )
+                await response(scope, receive, send)
+                return
+
             # 获取文件扩展名（支持 .chrom.sizes 等复合扩展名）
             path_lower = path.lower()
             allowed = False

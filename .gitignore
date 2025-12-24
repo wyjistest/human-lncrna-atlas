@@ -94,6 +94,8 @@ notebooks/results/
 
 # Claude Code plugins
 .codex/
+.codex-session
+.claude-session
 
 # Local development (not for GitHub)
 LOCAL_DEV.md

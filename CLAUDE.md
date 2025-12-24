@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.26 |
+| 版本 | Phase 9.27 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-24 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -266,7 +266,8 @@ DB_POOL_MAX_OVERFLOW=20
 | **9.23** | **Codex 八次审查修复: /genomes BigBed 白名单 (.bb/.bigbed) + /statistics 和 /export DoS 防护 (parse_comma_list 输入限制)** | **2025-12-24** |
 | 9.24 | Codex 九次审查修复: MV 缓存线程安全 (app/core/mv_cache.py) + MV 查询异常自动 fallback + time.monotonic() + FastAPI>=0.118.0 + Docker 安全部署方案 | 2025-12-24 |
 | 9.25 | Codex 十次审查修复: slowapi Redis 分布式限流 + 前端 CI Admin Key 护栏 + /genomes 白名单对齐 + main.py reload 防误用 + 缓存返回类型一致性 | 2025-12-24 |
-| **9.26** | **Codex 十一次审查修复: 响应头注入防护 (sanitize_filename + RFC 5987) + Admin Key 三道闸 (代码/构建/CI) + CSV 公式注入防护 + Conservation JOIN 优化 + /genes/options 分页 + ETL --legacy 显式启用 + SQL 聚合下推** | **2025-12-24** |
+| 9.26 | Codex 十一次审查修复: 响应头注入防护 (sanitize_filename + RFC 5987) + Admin Key 三道闸 (代码/构建/CI) + CSV 公式注入防护 + Conservation JOIN 优化 + /genes/options 分页 + ETL --legacy 显式启用 + SQL 聚合下推 | 2025-12-24 |
+| **9.27** | **Codex 十二次审查修复: /genomes 路径遍历深度防御 (dotfile/traversal 阻断) + 可选依赖优雅降级 (psutil/redis) + 前端类型重构 (conservationApi.ts 分离) + Middleware 顺序修正 + 7 项新增安全测试** | **2025-12-24** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

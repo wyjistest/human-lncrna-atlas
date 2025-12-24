@@ -325,8 +325,8 @@ if settings.TRUSTED_HOSTS:
 # Security Middleware Registration
 # Phase 9.16: 安全中间件已提取到 app/middleware/security/
 # ============================================================================
-app.middleware("http")(add_security_headers)
 app.middleware("http")(metrics_auth_middleware)
+app.middleware("http")(add_security_headers)
 
 
 # ============================================================================
