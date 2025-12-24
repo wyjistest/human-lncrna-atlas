@@ -1,6 +1,7 @@
 # Web框架
-# 注意：fastapi>=0.115.0 修复了 PYSEC-2024-38，并自动拉取安全版本的 starlette (>=0.47.2)
-fastapi>=0.115.0
+# 注意：fastapi>=0.118.0 修复了 StreamingResponse 中 yield 依赖的生命周期问题
+# (依赖清理可能早于流式发送完成)，并包含 PYSEC-2024-38 的安全修复
+fastapi>=0.118.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.5.0
 

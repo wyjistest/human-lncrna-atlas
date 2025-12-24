@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.23 |
+| 版本 | Phase 9.24 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-24 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -264,6 +264,7 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.21 | Codex 六次审查修复: 异常处理防回归 (HTTPException) + 缓存统计线程安全 + uvloop 测试稳定性 + 脚本健壮性增强 | 2025-12-23 |
 | **9.22** | **Codex 七次审查修复: MV 缓存重复定义修复 + SQLAlchemy Builder 重构 + diseases count 优化 + 文档版本更新 + DB 名统一 + IGV 类型去重** | **2025-12-23** |
 | **9.23** | **Codex 八次审查修复: /genomes BigBed 白名单 (.bb/.bigbed) + /statistics 和 /export DoS 防护 (parse_comma_list 输入限制)** | **2025-12-24** |
+| **9.24** | **Codex 九次审查修复: MV 缓存线程安全 (app/core/mv_cache.py) + MV 查询异常自动 fallback + time.monotonic() + FastAPI>=0.118.0 + Docker 安全部署方案** | **2025-12-24** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -276,6 +277,7 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_security_mv_graceful.py` | 19 | MV 降级处理 + 响应完整性 |
 | `test_phase_9_19_validation.py` | 27 | CORS/TRUSTED_HOSTS 校验 + 生产环境 fail-fast (集成测试) |
 | `test_phase_9_23_fixes.py` | 15 | BigBed 白名单 + parse_comma_list DoS 防护 |
+| `test_mv_cache_thread_safety.py` | 13 | MV 缓存线程安全 + TTL + 并发读写 (Phase 9.24) |
 
 **运行测试**:
 ```bash

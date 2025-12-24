@@ -34,6 +34,7 @@ from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
 from app.core.validators import parse_comma_list, MAX_FIELD_LENGTH
+from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
 
 # ============================================================================
 # Rate Limiting Setup (reuse shared module from chipseq_rate_limit)
@@ -74,11 +75,8 @@ DEFAULT_QUERY_CHROMOSOME = 'chr22'
 # Materialized view name
 MV_LNCRNA_CHIPSEQ_OVERLAPS = 'mv_lncrna_chipseq_overlaps'
 
-# Phase 9.12: MV 可用性缓存增加 TTL，避免运行中创建/刷新 MV 后长期走 fallback
-MV_CACHE_TTL_SECONDS = 300  # 5 minutes
-
-# Cache for materialized view availability check (avoid repeated DB queries)
-_mv_available_cache = {'checked': False, 'available': False, 'checked_at': 0.0}
+# Phase 9.24: MV cache moved to app.core.mv_cache for thread-safety and code reuse
+# Old module-level cache and check functions removed (see mv_cache.py)
 
 
 def reset_mv_cache():
@@ -87,10 +85,28 @@ def reset_mv_cache():
 
     Call this after creating/refreshing the MV to force re-check on next query.
     Can be triggered via admin endpoint.
+
+    Phase 9.24: Delegates to centralized thread-safe cache.
     """
-    global _mv_available_cache
-    _mv_available_cache = {'checked': False, 'available': False, 'checked_at': 0.0}
-    logger.info("Materialized view cache reset")
+    mv_cache.reset()
+
+
+def check_materialized_view_exists(db: Session) -> bool:
+    """
+    Check if the materialized view mv_lncrna_chipseq_overlaps exists and is populated.
+
+    Uses caching with TTL to avoid repeated database queries while still detecting
+    MV creation/refresh during runtime (Phase 9.12).
+
+    Phase 9.24: Delegates to centralized thread-safe cache.
+
+    Args:
+        db: Database session
+
+    Returns:
+        True if materialized view exists and is populated, False otherwise
+    """
+    return mv_cache.is_available(db)
 
 # CSV export columns (in order)
 CSV_EXPORT_COLUMNS = [
@@ -113,71 +129,6 @@ def parse_comma_separated(value: Optional[str]) -> Optional[List[str]]:
     if not value:
         return None
     return [item.strip() for item in value.split(',') if item.strip()]
-
-
-def check_materialized_view_exists(db: Session) -> bool:
-    """
-    Check if the materialized view mv_lncrna_chipseq_overlaps exists and is populated.
-
-    Uses caching with TTL to avoid repeated database queries while still detecting
-    MV creation/refresh during runtime (Phase 9.12).
-
-    Args:
-        db: Database session
-
-    Returns:
-        True if materialized view exists and is populated, False otherwise
-    """
-    global _mv_available_cache
-
-    # Return cached result if still valid (within TTL)
-    if _mv_available_cache['checked']:
-        elapsed = time.time() - _mv_available_cache['checked_at']
-        if elapsed < MV_CACHE_TTL_SECONDS:
-            return _mv_available_cache['available']
-        # TTL expired, re-check
-        logger.debug(f"MV cache TTL expired ({elapsed:.1f}s), re-checking...")
-
-    try:
-        bind = db.get_bind()
-        if not bind or bind.dialect.name != "postgresql":
-            _mv_available_cache = {'checked': True, 'available': False, 'checked_at': time.time()}
-            return False
-
-        # Check if materialized view exists and is populated
-        check_sql = text("""
-            SELECT
-                c.relname,
-                c.relispopulated
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relkind = 'm'  -- materialized view
-              AND n.nspname = 'public'
-              AND c.relname = :mv_name
-        """)
-
-        result = db.execute(check_sql, {"mv_name": MV_LNCRNA_CHIPSEQ_OVERLAPS}).fetchone()
-
-        if result and result.relispopulated:
-            _mv_available_cache['checked'] = True
-            _mv_available_cache['available'] = True
-            _mv_available_cache['checked_at'] = time.time()
-            logger.info(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' is available and populated")
-            return True
-        else:
-            _mv_available_cache['checked'] = True
-            _mv_available_cache['available'] = False
-            _mv_available_cache['checked_at'] = time.time()
-            if result:
-                logger.warning(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' exists but is not populated")
-            else:
-                logger.info(f"Materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}' does not exist")
-            return False
-
-    except Exception as e:
-        logger.error(f"Error checking materialized view: {e}")
-        _mv_available_cache = {'checked': True, 'available': False, 'checked_at': time.time()}
-        return False
 
 
 def get_lncrna_chipseq_overlaps_from_mv(
@@ -607,8 +558,18 @@ def get_lncrna_chipseq_overlaps(
     )
 
     # Execute query using appropriate method
+    # Phase 9.24: Add error handling for MV queries - auto-fallback if MV dropped during TTL
     if use_materialized_view:
-        items, total = get_lncrna_chipseq_overlaps_from_mv(db, filters)
+        try:
+            items, total = get_lncrna_chipseq_overlaps_from_mv(db, filters)
+        except Exception as e:
+            if is_mv_missing_error(e):
+                logger.warning(f"MV query failed (MV may have been dropped), falling back to join query: {e}")
+                mv_cache.reset()
+                use_materialized_view = False
+                items, total = get_lncrna_chipseq_overlaps_query(db, filters)
+            else:
+                raise
     else:
         items, total = get_lncrna_chipseq_overlaps_query(db, filters)
 

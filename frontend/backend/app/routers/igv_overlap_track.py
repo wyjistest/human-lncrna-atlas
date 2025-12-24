@@ -13,7 +13,6 @@ IGV Overlap Track 路由
 from __future__ import annotations
 
 import logging
-import time
 from typing import Optional, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -25,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
+from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +40,8 @@ MAX_LIMIT = 200_000
 # overlap 物化视图名称（由后端 SQL/ETL 构建）
 MV_LNCRNA_CHIPSEQ_OVERLAPS = "mv_lncrna_chipseq_overlaps"
 
-# Phase 9.12: MV 可用性缓存增加 TTL，避免运行中创建/刷新 MV 后长期走 fallback
-MV_CACHE_TTL_SECONDS = 300  # 5 minutes
-
-# 缓存 MV 可用性检查，避免重复访问 pg_class
-_mv_available_cache = {"checked": False, "available": False, "checked_at": 0.0}
+# Phase 9.24: MV cache moved to app.core.mv_cache for thread-safety and code reuse
+# Old module-level cache and check functions removed (see mv_cache.py)
 
 
 def reset_mv_cache():
@@ -53,10 +50,21 @@ def reset_mv_cache():
 
     在创建/刷新 MV 后调用，强制下次查询重新检测。
     可通过 admin 端点触发。
+
+    Phase 9.24: Delegates to centralized thread-safe cache.
     """
-    global _mv_available_cache
-    _mv_available_cache = {"checked": False, "available": False, "checked_at": 0.0}
-    logger.info("IGV overlap MV cache reset")
+    mv_cache.reset()
+
+
+def _check_mv_available(db: Session) -> bool:
+    """
+    检查 mv_lncrna_chipseq_overlaps 是否存在且已填充。
+
+    仅 PostgreSQL 支持该检查；其他 dialect 直接视为不可用。
+    Phase 9.12: 添加 TTL 支持，避免运行中创建 MV 后长期走 fallback。
+    Phase 9.24: Delegates to centralized thread-safe cache.
+    """
+    return mv_cache.is_available(db)
 
 
 def _normalize_chr(raw: str) -> str:
@@ -67,48 +75,6 @@ def _normalize_chr(raw: str) -> str:
     if value.lower().startswith("chr"):
         return f"chr{value[3:]}"
     return f"chr{value}"
-
-
-def _check_mv_available(db: Session) -> bool:
-    """
-    检查 mv_lncrna_chipseq_overlaps 是否存在且已填充。
-
-    仅 PostgreSQL 支持该检查；其他 dialect 直接视为不可用。
-    Phase 9.12: 添加 TTL 支持，避免运行中创建 MV 后长期走 fallback。
-    """
-    global _mv_available_cache
-
-    # Return cached result if still valid (within TTL)
-    if _mv_available_cache["checked"]:
-        elapsed = time.time() - _mv_available_cache["checked_at"]
-        if elapsed < MV_CACHE_TTL_SECONDS:
-            return _mv_available_cache["available"]
-        # TTL expired, re-check
-        logger.debug(f"MV cache TTL expired ({elapsed:.1f}s), re-checking...")
-
-    try:
-        bind = db.get_bind()
-        if not bind or bind.dialect.name != "postgresql":
-            _mv_available_cache = {"checked": True, "available": False, "checked_at": time.time()}
-            return False
-
-        sql = text(
-            """
-            SELECT c.relname, c.relispopulated
-            FROM pg_class c
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            WHERE c.relkind = 'm'
-              AND n.nspname = 'public'
-              AND c.relname = :mv_name
-            """
-        )
-        row = db.execute(sql, {"mv_name": MV_LNCRNA_CHIPSEQ_OVERLAPS}).fetchone()
-        available = bool(row and getattr(row, "relispopulated", False))
-        _mv_available_cache = {"checked": True, "available": available, "checked_at": time.time()}
-        return available
-    except Exception:
-        _mv_available_cache = {"checked": True, "available": False, "checked_at": time.time()}
-        return False
 
 
 def _generate_overlap_bed6_stream(
@@ -125,66 +91,67 @@ def _generate_overlap_bed6_stream(
     生成 overlap BED6 数据流。
 
     name 字段包含 mark_type，便于前端与测试做快速校验。
+
+    Phase 9.24: Added MV error handling - auto-fallback if MV dropped during TTL.
     """
     use_mv = _check_mv_available(db)
 
-    if use_mv:
-        sql = text(
-            """
-            SELECT
-                chromosome,
-                overlap_start,
-                overlap_end,
-                lncrna_name,
-                target_gene_name,
-                mark_name AS mark_type,
-                cell_type,
-                binding_affinity
-            FROM mv_lncrna_chipseq_overlaps
-            WHERE chromosome = :chromosome
-              AND overlap_start < :end
-              AND overlap_end > :start
-              AND (:mark_type IS NULL OR mark_name = :mark_type)
-              AND (:min_ba IS NULL OR binding_affinity >= :min_ba)
-            ORDER BY overlap_start
-            LIMIT :limit
-            """
-        )
-    else:
-        # fallback：无 MV 时使用原始 join（仅在小窗口内使用，受 MAX_REGION_SIZE_BP 保护）
-        sql = text(
-            """
-            SELECT
-                r.best_peak_chr AS chromosome,
-                GREATEST(r.best_peak_start, p.peak_start) AS overlap_start,
-                LEAST(r.best_peak_end, p.peak_end) AS overlap_end,
-                lnc.gene_name AS lncrna_name,
-                tgt.gene_name AS target_gene_name,
-                m.mark_name AS mark_type,
-                e.cell_type,
-                r.binding_affinity
-            FROM regulations r
-            JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
-            JOIN genes tgt ON r.target_gene_id = tgt.gene_id
-            JOIN chipseq_peaks_human p ON
-                r.species_id = p.species_id
-                AND r.best_peak_chr = p.chromosome
-                AND r.best_peak_start < p.peak_end
-                AND r.best_peak_end > p.peak_start
-            JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-            WHERE
-                r.species_id = 1
-                AND e.is_active = TRUE
-                AND r.best_peak_chr = :chromosome
-                AND r.best_peak_start < :end
-                AND r.best_peak_end > :start
-                AND (:mark_type IS NULL OR m.mark_name = :mark_type)
-                AND (:min_ba IS NULL OR r.binding_affinity >= :min_ba)
-            ORDER BY overlap_start
-            LIMIT :limit
-            """
-        )
+    mv_sql = text(
+        """
+        SELECT
+            chromosome,
+            overlap_start,
+            overlap_end,
+            lncrna_name,
+            target_gene_name,
+            mark_name AS mark_type,
+            cell_type,
+            binding_affinity
+        FROM mv_lncrna_chipseq_overlaps
+        WHERE chromosome = :chromosome
+          AND overlap_start < :end
+          AND overlap_end > :start
+          AND (:mark_type IS NULL OR mark_name = :mark_type)
+          AND (:min_ba IS NULL OR binding_affinity >= :min_ba)
+        ORDER BY overlap_start
+        LIMIT :limit
+        """
+    )
+
+    # fallback：无 MV 时使用原始 join（仅在小窗口内使用，受 MAX_REGION_SIZE_BP 保护）
+    fallback_sql = text(
+        """
+        SELECT
+            r.best_peak_chr AS chromosome,
+            GREATEST(r.best_peak_start, p.peak_start) AS overlap_start,
+            LEAST(r.best_peak_end, p.peak_end) AS overlap_end,
+            lnc.gene_name AS lncrna_name,
+            tgt.gene_name AS target_gene_name,
+            m.mark_name AS mark_type,
+            e.cell_type,
+            r.binding_affinity
+        FROM regulations r
+        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
+        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
+        JOIN chipseq_peaks_human p ON
+            r.species_id = p.species_id
+            AND r.best_peak_chr = p.chromosome
+            AND r.best_peak_start < p.peak_end
+            AND r.best_peak_end > p.peak_start
+        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
+        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+        WHERE
+            r.species_id = 1
+            AND e.is_active = TRUE
+            AND r.best_peak_chr = :chromosome
+            AND r.best_peak_start < :end
+            AND r.best_peak_end > :start
+            AND (:mark_type IS NULL OR m.mark_name = :mark_type)
+            AND (:min_ba IS NULL OR r.binding_affinity >= :min_ba)
+        ORDER BY overlap_start
+        LIMIT :limit
+        """
+    )
 
     params = {
         "chromosome": chromosome,
@@ -195,7 +162,19 @@ def _generate_overlap_bed6_stream(
         "limit": limit,
     }
 
-    result = db.execute(sql.execution_options(stream_results=True), params)
+    # Select SQL based on MV availability
+    sql = mv_sql if use_mv else fallback_sql
+
+    try:
+        result = db.execute(sql.execution_options(stream_results=True), params)
+    except Exception as e:
+        # Phase 9.24: If MV query fails due to missing MV, reset cache and try fallback
+        if use_mv and is_mv_missing_error(e):
+            logger.warning(f"MV query failed (MV may have been dropped), falling back to join query: {e}")
+            mv_cache.reset()
+            result = db.execute(fallback_sql.execution_options(stream_results=True), params)
+        else:
+            raise
 
     for row in result:
         chr_name = row.chromosome

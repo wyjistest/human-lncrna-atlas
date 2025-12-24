@@ -2,14 +2,15 @@
 lncRNA-ChIP-seq overlap MV 可用性缓存单元测试
 
 覆盖点（P0）：
-- reset_mv_cache 不应出现重复定义覆盖导致的缓存键缺失
-- check_materialized_view_exists 在非 PostgreSQL 环境应优雅降级
+- 路由层 reset_mv_cache 应正确重置集中式 MV 缓存状态（Phase 9.24）
+- check_materialized_view_exists 在非 PostgreSQL 环境应优雅降级（不访问 pg_class）
 - TTL 缓存命中时不重复访问数据库
 
 运行：
     pytest tests/test_lncrna_chipseq_overlap_mv_cache_unit.py -v -m unit
 """
 
+import importlib
 from types import SimpleNamespace
 
 import pytest
@@ -43,38 +44,59 @@ class _CountingSession:
         return _DummyResult(SimpleNamespace(relname="mv_lncrna_chipseq_overlaps", relispopulated=self._mv_populated))
 
 
-def test_reset_mv_cache_has_checked_at_key():
+def _install_test_cache(monkeypatch, *, ttl_seconds: int = 300):
+    """
+    在路由模块内注入独立的 MaterializedViewCache，避免污染全局 singleton。
+    """
+    from app.core.mv_cache import MaterializedViewCache
     from app.routers import lncrna_chipseq_overlap as mod
+
+    cache = MaterializedViewCache(mv_name="mv_lncrna_chipseq_overlaps", ttl_seconds=ttl_seconds)
+    monkeypatch.setattr(mod, "mv_cache", cache, raising=True)
+    mod.reset_mv_cache()
+    return mod, cache
+
+
+def test_reset_mv_cache_resets_core_cache(monkeypatch):
+    mod, cache = _install_test_cache(monkeypatch)
+
+    db = _CountingSession(dialect_name="postgresql", mv_populated=True)
+    assert mod.check_materialized_view_exists(db) is True
+    assert cache.get_status()["checked"] is True
 
     mod.reset_mv_cache()
 
-    assert mod._mv_available_cache["checked"] is False
-    assert mod._mv_available_cache["available"] is False
-    assert "checked_at" in mod._mv_available_cache
+    status = cache.get_status()
+    assert status["checked"] is False
+    assert status["available"] is False
+    assert status["checked_at"] == 0.0
 
 
 def test_check_mv_non_postgresql_graceful(monkeypatch):
-    from app.routers import lncrna_chipseq_overlap as mod
+    mod, cache = _install_test_cache(monkeypatch)
 
     # 固定时间，避免测试依赖真实时钟
-    monkeypatch.setattr(mod, "time", SimpleNamespace(time=lambda: 1000.0))
-
-    mod.reset_mv_cache()
+    # Phase 9.24: 使用 monotonic 替代 time（更稳定，不受系统时钟影响）
+    mv_cache_mod = importlib.import_module("app.core.mv_cache")
+    monkeypatch.setattr(mv_cache_mod, "time", SimpleNamespace(monotonic=lambda: 1000.0))
     db = _CountingSession(dialect_name="sqlite", mv_populated=False)
 
     assert mod.check_materialized_view_exists(db) is False
     assert db.execute_calls == 0, "非 PostgreSQL 不应查询 pg_class"
-    assert mod._mv_available_cache == {"checked": True, "available": False, "checked_at": 1000.0}
+    status = cache.get_status()
+    assert status["checked"] is True
+    assert status["available"] is False
+    assert status["checked_at"] == 1000.0
 
 
 def test_check_mv_cache_ttl_hit_skips_db(monkeypatch):
-    from app.routers import lncrna_chipseq_overlap as mod
+    mod, _cache = _install_test_cache(monkeypatch)
 
     # 第一次检查：1000s；第二次检查：1001s（仍在 TTL=300s 内）
+    # Phase 9.24: 使用 monotonic 替代 time
     times = iter([1000.0, 1001.0])
-    monkeypatch.setattr(mod, "time", SimpleNamespace(time=lambda: next(times)))
-
-    mod.reset_mv_cache()
+    mv_cache_mod = importlib.import_module("app.core.mv_cache")
+    monkeypatch.setattr(mv_cache_mod, "time", SimpleNamespace(monotonic=lambda: next(times)))
     db = _CountingSession(dialect_name="postgresql", mv_populated=True)
 
     assert mod.check_materialized_view_exists(db) is True
@@ -86,12 +108,12 @@ def test_check_mv_cache_ttl_hit_skips_db(monkeypatch):
 
 
 def test_reset_forces_recheck(monkeypatch):
-    from app.routers import lncrna_chipseq_overlap as mod
+    mod, _cache = _install_test_cache(monkeypatch)
 
+    # Phase 9.24: 使用 monotonic 替代 time
     times = iter([1000.0, 1001.0, 1002.0])
-    monkeypatch.setattr(mod, "time", SimpleNamespace(time=lambda: next(times)))
-
-    mod.reset_mv_cache()
+    mv_cache_mod = importlib.import_module("app.core.mv_cache")
+    monkeypatch.setattr(mv_cache_mod, "time", SimpleNamespace(monotonic=lambda: next(times)))
     db = _CountingSession(dialect_name="postgresql", mv_populated=False)
 
     assert mod.check_materialized_view_exists(db) is False
