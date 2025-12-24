@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.24 |
+| 版本 | Phase 9.25 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-24 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -264,7 +264,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.21 | Codex 六次审查修复: 异常处理防回归 (HTTPException) + 缓存统计线程安全 + uvloop 测试稳定性 + 脚本健壮性增强 | 2025-12-23 |
 | **9.22** | **Codex 七次审查修复: MV 缓存重复定义修复 + SQLAlchemy Builder 重构 + diseases count 优化 + 文档版本更新 + DB 名统一 + IGV 类型去重** | **2025-12-23** |
 | **9.23** | **Codex 八次审查修复: /genomes BigBed 白名单 (.bb/.bigbed) + /statistics 和 /export DoS 防护 (parse_comma_list 输入限制)** | **2025-12-24** |
-| **9.24** | **Codex 九次审查修复: MV 缓存线程安全 (app/core/mv_cache.py) + MV 查询异常自动 fallback + time.monotonic() + FastAPI>=0.118.0 + Docker 安全部署方案** | **2025-12-24** |
+| 9.24 | Codex 九次审查修复: MV 缓存线程安全 (app/core/mv_cache.py) + MV 查询异常自动 fallback + time.monotonic() + FastAPI>=0.118.0 + Docker 安全部署方案 | 2025-12-24 |
+| **9.25** | **Codex 十次审查修复: slowapi Redis 分布式限流 + 前端 CI Admin Key 护栏 + /genomes 白名单对齐 + main.py reload 防误用 + 缓存返回类型一致性** | **2025-12-24** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

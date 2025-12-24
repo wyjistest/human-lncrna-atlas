@@ -299,6 +299,7 @@ class TestSecurityValidationIntegration:
         monkeypatch.setenv("TRUSTED_HOSTS", '["localhost", "example.com", "*.example.com"]')
         monkeypatch.setenv("ADMIN_API_KEY", "test-key-for-testing")
         monkeypatch.setenv("ADMIN_REQUIRE_API_KEY", "true")
+        monkeypatch.setenv("RATELIMIT_STORAGE_URL", "redis://localhost:6379/1")
 
         _validate_security_config = _reload_and_get_validate_func()
 

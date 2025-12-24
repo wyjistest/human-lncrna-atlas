@@ -25,7 +25,7 @@ ALLOWED_GENOME_EXTENSIONS = {
     '.fai',                    # FASTA 索引
     '.gz', '.bgz',             # 压缩文件
     '.tbi', '.csi',            # Tabix 索引
-    '.cytoband', '.txt',       # 染色体带型
+    '.cytoband', '.cytoband.txt',  # 染色体带型（避免泛 .txt 放行）
     '.sizes', '.chrom.sizes',  # 染色体大小
     '.2bit',                   # 2bit 格式
     '.bed', '.bedgraph',       # BED 格式

@@ -370,6 +370,17 @@ class Settings(BaseSettings):
         description="Allow private IPs to bypass rate limiting (dev only, keep False in production)"
     )
 
+    RATELIMIT_STORAGE_URL: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias="RATELIMIT_STORAGE_URL",
+        description="SlowAPI storage backend URI (recommended: Redis) for distributed rate limiting"
+    )
+    RATELIMIT_KEY_PREFIX: str = Field(
+        default="lncrna_atlas",
+        validation_alias="RATELIMIT_KEY_PREFIX",
+        description="Prefix for SlowAPI rate limit keys (helps avoid collisions)"
+    )
+
     # HSTS (HTTP Strict Transport Security)
     # Only enable when HTTPS is fully configured - this tells browsers to ONLY use HTTPS
     # SECURITY NOTE: Once enabled with preload, it's very difficult to disable
@@ -452,6 +463,16 @@ class Settings(BaseSettings):
             return f"redis://:{encoded_password}@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         else:
             return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    @property
+    def ratelimit_storage_url(self) -> Optional[str]:
+        """
+        获取 SlowAPI 限流存储 URL（解密 SecretStr）。
+
+        Returns:
+            storage uri 字符串或 None（未配置）
+        """
+        return self.RATELIMIT_STORAGE_URL.get_secret_value() if self.RATELIMIT_STORAGE_URL else None
 
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE),  # 使用绝对路径，支持从任意目录启动

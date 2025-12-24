@@ -17,6 +17,7 @@ from functools import wraps
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from app.core.config import settings
 from app.core.ip_utils import get_rate_limit_key, should_bypass_rate_limit
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,11 @@ except ImportError:  # pragma: no cover - 依赖缺失时走降级逻辑
 
 if SLOWAPI_AVAILABLE and Limiter:
     # 使用自定义 key_func 确保反向代理场景下正确识别真实客户端 IP
-    limiter = Limiter(key_func=get_rate_limit_key)
+    limiter = Limiter(
+        key_func=get_rate_limit_key,
+        storage_uri=settings.ratelimit_storage_url,
+        key_prefix=settings.RATELIMIT_KEY_PREFIX,
+    )
     chipseq_limiter = limiter
 else:
     limiter = None
@@ -116,4 +121,3 @@ __all__ = [
     "rate_limit",
     "rate_limit_exceeded_handler",
 ]
-

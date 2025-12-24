@@ -154,6 +154,30 @@ jobs:
         working-directory: frontend/web
         run: npm ci
 
+      - name: Security guard - disallow embedded Admin API Key in CI production build
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # P0 SECURITY: Never allow VITE_ADMIN_API_KEY in CI production builds.
+          # Vite will embed it into the JS bundle, and the key can be extracted from dist/.
+          if [ -n "${VITE_ADMIN_API_KEY:-}" ]; then
+            echo "::error::VITE_ADMIN_API_KEY is set in CI environment. Refusing to build production bundle."
+            echo "::error::Use reverse proxy injection (recommended) or session-based auth instead."
+            exit 1
+          fi
+
+          # Also guard against accidentally committed env files (should not happen, but fail fast).
+          for f in .env .env.production .env.local .env.*.local; do
+            if [ -f "$f" ]; then
+              value="$(grep -E '^[[:space:]]*VITE_ADMIN_API_KEY=' "$f" | head -n 1 | cut -d= -f2- || true)"
+              if [ -n "${value:-}" ]; then
+                echo "::error::Found non-empty VITE_ADMIN_API_KEY in $f. Refusing to build production bundle."
+                exit 1
+              fi
+            fi
+          done
+
       - name: Build
         working-directory: frontend/web
         run: npm run build

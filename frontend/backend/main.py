@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Human LncRNA Atlas - FastAPI Backend
 跨物种lncRNA调控网络数据库 API
@@ -119,6 +120,27 @@ def _validate_security_config() -> None:
             "slowapi is not available - rate limiting is DISABLED for all endpoints. "
             "Install slowapi: pip install slowapi"
         )
+
+    if settings.is_production:
+        storage_url = settings.ratelimit_storage_url or ""
+        if not storage_url:
+            fatal_errors.append(
+                "RATELIMIT_STORAGE_URL is not set in production. "
+                "SlowAPI defaults to memory:// which is NOT shared across workers. "
+                "Configure Redis, e.g. RATELIMIT_STORAGE_URL=redis://:password@redis:6379/1"
+            )
+        else:
+            normalized = storage_url.strip().lower()
+            if normalized.startswith("memory://"):
+                fatal_errors.append(
+                    "RATELIMIT_STORAGE_URL=memory:// is not allowed in production. "
+                    "Use Redis for distributed rate limiting."
+                )
+            elif not normalized.startswith(("redis://", "rediss://", "redis+unix://", "redis+cluster://")):
+                fatal_errors.append(
+                    f"RATELIMIT_STORAGE_URL uses unsupported scheme in production: {storage_url!r}. "
+                    "Use Redis storage, e.g. redis://:password@redis:6379/1"
+                )
 
     # 3. TRUSTED_HOSTS 生产环境检查（Phase 9.19）
     # 生产环境不应仅使用 localhost 默认值，否则所有外部请求返回 400
@@ -481,6 +503,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=not settings.is_production,
         log_level="info",
     )

@@ -332,7 +332,7 @@ class CacheService:
         # 存入缓存
         self.set(key, cache_data, ttl)
 
-        return result
+        return cache_data
 
     def _serialize(self, data: Any) -> Any:
         """将数据转换为可序列化的格式"""
@@ -558,7 +558,7 @@ def cached(namespace: str, ttl: int = None):
             cache_data = cache._serialize(result)
             cache.set(key, cache_data, ttl or cache.TTL_LIST)
 
-            return result
+            return cache_data
 
         return wrapper
     return decorator
@@ -608,7 +608,7 @@ def cache_response(expire: int = 300):
             cache_data = cache._serialize(result)
             cache.set(key, cache_data, expire)
 
-            return result
+            return cache_data
 
         return wrapper
     return decorator
