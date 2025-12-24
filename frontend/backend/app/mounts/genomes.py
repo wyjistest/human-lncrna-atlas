@@ -19,6 +19,7 @@ logger = logging.getLogger("api")
 
 # Phase 9.16: 文件扩展名白名单 - 防止暴露非基因组文件
 # 参考: Codex 代码审查 - /genomes 安全加固
+# Phase 9.23: 添加 .bb/.bigbed (BigBed 格式) - 修复 IGV.js bigBed 资源 403 问题
 ALLOWED_GENOME_EXTENSIONS = {
     '.fa', '.fasta', '.fna',  # 基因组序列
     '.fai',                    # FASTA 索引
@@ -28,6 +29,7 @@ ALLOWED_GENOME_EXTENSIONS = {
     '.sizes', '.chrom.sizes',  # 染色体大小
     '.2bit',                   # 2bit 格式
     '.bed', '.bedgraph',       # BED 格式
+    '.bb', '.bigbed',          # BigBed 格式 (Phase 9.23)
     '.gff', '.gff3', '.gtf',   # 注释文件
     '.bw', '.bigwig',          # BigWig
 }

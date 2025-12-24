@@ -33,6 +33,7 @@ from io import StringIO
 from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
+from app.core.validators import parse_comma_list, MAX_FIELD_LENGTH
 
 # ============================================================================
 # Rate Limiting Setup (reuse shared module from chipseq_rate_limit)
@@ -634,8 +635,17 @@ def get_overlap_statistics(
     request: Request,  # Required for rate limiting
     lncrna_gene_id: Optional[int] = Query(None, description="Filter by specific lncRNA gene ID"),
     target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
-    mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated"),
-    cell_type: Optional[str] = Query(None, description="Filter by cell type(s), comma-separated"),
+    # Phase 9.23: 添加 max_length 限制，防止 DoS 攻击
+    mark_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by mark type(s), comma-separated (max 20 items)"
+    ),
+    cell_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by cell type(s), comma-separated (max 20 items)"
+    ),
     chromosome: Optional[str] = Query(None, description="Filter by chromosome"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity"),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value"),
@@ -679,9 +689,9 @@ def get_overlap_statistics(
     if default_filter_applied:
         logger.info(f"Statistics: No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
 
-    # Parse comma-separated filters
-    mark_types_array = parse_comma_separated(mark_type)
-    cell_types_array = parse_comma_separated(cell_type)
+    # Phase 9.23: 使用统一的 parse_comma_list 验证，防止 DoS 攻击
+    mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
+    cell_types_array = parse_comma_list(cell_type, param_name="cell_type")
 
     # Base WHERE clause for all queries
     base_where = """
@@ -1254,9 +1264,9 @@ def generate_overlap_export(
         # CSV header row
         yield format_csv_row({col: col for col in CSV_EXPORT_COLUMNS})
 
-    # Parse comma-separated filters
-    mark_types_array = parse_comma_separated(mark_type)
-    cell_types_array = parse_comma_separated(cell_type)
+    # Phase 9.23: 使用统一的 parse_comma_list 验证，防止 DoS 攻击
+    mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
+    cell_types_array = parse_comma_list(cell_type, param_name="cell_type")
 
     # Build main query (reuse logic from get_lncrna_chipseq_overlaps_query)
     data_sql = text("""
@@ -1399,8 +1409,17 @@ def export_lncrna_chipseq_overlaps(
     format: Literal['bed', 'csv'] = Query('bed', description="Export format: 'bed' (BED6) or 'csv'"),
     lncrna_gene_id: Optional[int] = Query(None, description="Filter by specific lncRNA gene ID"),
     target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
-    mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated (e.g., 'H3K27me3,H3K4me3')"),
-    cell_type: Optional[str] = Query(None, description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878')"),
+    # Phase 9.23: 添加 max_length 限制，防止 DoS 攻击
+    mark_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by mark type(s), comma-separated (e.g., 'H3K27me3,H3K4me3', max 20 items)"
+    ),
+    cell_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878', max 20 items)"
+    ),
     chromosome: Optional[str] = Query(None, description="Filter by chromosome (e.g., 'chr1')"),
     min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity score"),
