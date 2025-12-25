@@ -23,10 +23,10 @@ python migrations/run_migrations.py
 
 ## Creating New Migrations
 
-1. Create file with next number: `003_your_description.sql`
+1. Create file with next number: `004_your_description.sql`
 2. Add header comment:
    ```sql
-   -- Migration: 003_your_description
+   -- Migration: 004_your_description
    -- Description: Brief description of changes
    -- Created: YYYY-MM-DD
    -- Idempotent: Yes/No
@@ -40,6 +40,7 @@ python migrations/run_migrations.py
 |------|-------------|
 | `001_pg_trgm_indexes.sql` | GIN indexes for ILIKE pattern matching |
 | `002_regulation_indexes.sql` | Performance indexes for regulations table |
+| `003_regulations_best_peak_indexes.sql` | best_peak location indexes for overlap/IGV queries |
 
 ## Production Deployment
 
@@ -50,7 +51,9 @@ Migrations containing `CREATE INDEX` (without `CONCURRENTLY`) will **LOCK the ta
 **Safe Options:**
 1. **Empty Database**: Run migrations before importing data (no blocking)
 2. **Maintenance Window**: Apply during scheduled downtime
-3. **CONCURRENTLY**: Manually run index creation with `CONCURRENTLY` keyword (see migration file comments)
+3. **CONCURRENTLY**: Prefer `CREATE INDEX CONCURRENTLY` on live databases (non-blocking)
+   - Option A: Run manually via `psql`
+   - Option B: Put `CONCURRENTLY` statements into a migration file; the runner auto-detects and runs them in `AUTOCOMMIT` mode (outside a transaction)
 
 ```bash
 # 1. Check current status
@@ -63,8 +66,12 @@ python migrations/run_migrations.py --dry-run
 python migrations/run_migrations.py
 
 # 3b. For LIVE database with data (SAFE - No Locking):
-# Manually run CONCURRENTLY version from migration file
+# Option A: Manually run CONCURRENTLY version (see migration file comments)
 psql -U user -d dbname -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_name ON table(col);"
+
+# Option B: Create a migration using CONCURRENTLY and run the migration runner
+# (the runner will automatically switch to AUTOCOMMIT for that migration file)
+# python migrations/run_migrations.py
 
 # 4. Verify indexes created
 psql -d lncrna_production -c "\\di+ idx_*"

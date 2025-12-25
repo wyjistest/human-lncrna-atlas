@@ -243,8 +243,20 @@ def export_high_affinity(
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
         )
 
+    where_clauses = ["r.binding_affinity >= :min_ba"]
+    params = {
+        "min_ba": min_ba,
+        "limit": limit,
+    }
+    if species_id is not None:
+        where_clauses.append("r.species_id = :species_id")
+        params["species_id"] = species_id
+
+    where_sql = " AND ".join(where_clauses)
+
     # 构建 SQL 查询
-    sql = text("""
+    sql = text(
+        f"""
         SELECT
             r.lncrna_gene_id,
             lnc.gene_name as lncrna_name,
@@ -260,11 +272,11 @@ def export_high_affinity(
         JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
         JOIN genes tgt ON r.target_gene_id = tgt.gene_id
         JOIN species s ON r.species_id = s.species_id
-        WHERE r.binding_affinity >= :min_ba
-          AND (:species_id IS NULL OR r.species_id = :species_id)
+        WHERE {where_sql}
         ORDER BY r.binding_affinity DESC
         LIMIT :limit
-    """)
+        """  # noqa: S608
+    )
 
     # 定义列名（用于流式导出）
     fieldnames = [
@@ -275,11 +287,7 @@ def export_high_affinity(
 
     # CSV/Excel: 使用流式输出
     if output_format in ("csv", "excel", "jsonl"):
-        result = db.execute(sql, {
-            "min_ba": min_ba,
-            "species_id": species_id,
-            "limit": limit
-        })
+        result = db.execute(sql, params)
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,
@@ -288,11 +296,7 @@ def export_high_affinity(
         )
 
     # JSON: 标准响应（需要 total 字段）
-    result = db.execute(sql, {
-        "min_ba": min_ba,
-        "species_id": species_id,
-        "limit": limit
-    })
+    result = db.execute(sql, params)
     data = [dict(row._mapping) for row in result]
 
     query_params = {
@@ -634,7 +638,10 @@ def export_disease_network(
     # ========================================================================
     # Step 1: 查询疾病-基因边
     # ========================================================================
-    disease_gene_sql = text("""
+    disease_where_sql = "t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\'" if escaped_trait_name else "TRUE"
+
+    disease_gene_sql = text(
+        f"""
         SELECT
             t.trait_name,
             t.trait_id,
@@ -644,14 +651,16 @@ def export_disease_network(
         FROM trait_gene_associations tga
         JOIN traits t ON tga.trait_id = t.trait_id
         JOIN genes g ON tga.core_id = g.core_id
-        WHERE (:trait_name IS NULL OR t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\')
+        WHERE {disease_where_sql}
         LIMIT :limit
-    """)
+        """  # noqa: S608
+    )
 
-    disease_gene_result = db.execute(disease_gene_sql, {
-        "trait_name": escaped_trait_name,
-        "limit": effective_limit
-    })
+    disease_gene_params = {"limit": effective_limit}
+    if escaped_trait_name:
+        disease_gene_params["trait_name"] = escaped_trait_name
+
+    disease_gene_result = db.execute(disease_gene_sql, disease_gene_params)
 
     # 收集基因 ID（用于后续查询调控关系）
     gene_ids = set()

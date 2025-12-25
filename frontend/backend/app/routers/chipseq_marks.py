@@ -34,7 +34,17 @@ def list_mark_types(
     Returns the complete list of supported histone modifications with their
     properties, colors, and biological functions.
     """
-    query = text("""
+    where_clauses = []
+    params = {}
+    if category is not None:
+        where_clauses.append("mark_category = :category")
+        params["category"] = category
+    if active_only:
+        where_clauses.append("is_active = TRUE")
+    where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
+
+    query = text(
+        f"""
         SELECT
             mark_type_id,
             mark_name,
@@ -48,12 +58,12 @@ def list_mark_types(
             is_active,
             sort_order
         FROM epigenetic_mark_types
-        WHERE (:category IS NULL OR mark_category = :category)
-          AND (:active_only = FALSE OR is_active = TRUE)
+        WHERE {where_sql}
         ORDER BY sort_order, mark_name
-    """)
+        """  # noqa: S608
+    )
 
-    rows = db.execute(query, {"category": category, "active_only": active_only}).fetchall()
+    rows = db.execute(query, params).fetchall()
 
     return [
         EpigeneticMarkTypeResponse(
@@ -86,7 +96,10 @@ def get_mark_relationships(
 
     Returns pairs of marks that have biological relationships (bivalent, antagonistic, etc.)
     """
-    query = text("""
+    where_sql = "r.relationship_type = :relationship_type" if relationship_type is not None else "TRUE"
+
+    query = text(
+        f"""
         SELECT
             r.relationship_id,
             m1.mark_name as mark_1,
@@ -97,11 +110,13 @@ def get_mark_relationships(
         FROM mark_relationships r
         JOIN epigenetic_mark_types m1 ON r.mark_type_id_1 = m1.mark_type_id
         JOIN epigenetic_mark_types m2 ON r.mark_type_id_2 = m2.mark_type_id
-        WHERE :relationship_type IS NULL OR r.relationship_type = :relationship_type
+        WHERE {where_sql}
         ORDER BY r.relationship_type, m1.mark_name
-    """)
+        """  # noqa: S608
+    )
 
-    rows = db.execute(query, {"relationship_type": relationship_type}).fetchall()
+    params = {"relationship_type": relationship_type} if relationship_type is not None else {}
+    rows = db.execute(query, params).fetchall()
 
     return [
         MarkRelationshipResponse(

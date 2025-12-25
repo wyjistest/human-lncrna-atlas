@@ -233,6 +233,9 @@ def list_genes(
         query = query.having(func.count(Regulation.regulation_id) >= min_regulation_count)
 
     # 总记录数（使用缓存）
+    # 性能优化：避免对包含 GROUP BY/聚合字段的主查询直接做 count()。
+    # - 无 has_regulation/min_regulation_count 时：直接统计 genes（不 JOIN regulations，不 GROUP BY）
+    # - 有 HAVING 条件时：仅按 gene_id 分组，减少 GROUP BY 列数量
     count_cache_key = cache.make_list_key(
         "genes",
         gene_type=gene_type,
@@ -242,7 +245,62 @@ def list_genes(
         has_regulation=has_regulation,
         min_regulation_count=min_regulation_count,
     )
-    total = cache.get_cached_count(query, count_cache_key)
+
+    if has_regulation is None and min_regulation_count is None:
+        count_query = (
+            db.query(Gene.gene_id)
+            .outerjoin(CoreGene, Gene.core_id == CoreGene.core_id)
+        )
+
+        if gene_type:
+            count_query = count_query.filter(CoreGene.gene_type == gene_type)
+        if species_id:
+            count_query = count_query.filter(Gene.species_id == species_id)
+        if chromosome:
+            count_query = count_query.filter(Gene.chromosome == chromosome)
+        if search:
+            escaped = escape_like_pattern(search)
+            search_pattern = f"%{escaped}%"
+            count_query = count_query.filter(
+                or_(
+                    Gene.gene_name.ilike(search_pattern, escape='\\'),
+                    Gene.gene_ensembl_id.ilike(search_pattern, escape='\\'),
+                )
+            )
+    else:
+        count_query = (
+            db.query(Gene.gene_id)
+            .outerjoin(CoreGene, Gene.core_id == CoreGene.core_id)
+            .outerjoin(Regulation, Regulation.lncrna_gene_id == Gene.gene_id)
+            .group_by(Gene.gene_id)
+        )
+
+        if gene_type:
+            count_query = count_query.filter(CoreGene.gene_type == gene_type)
+        if species_id:
+            count_query = count_query.filter(Gene.species_id == species_id)
+        if chromosome:
+            count_query = count_query.filter(Gene.chromosome == chromosome)
+        if search:
+            escaped = escape_like_pattern(search)
+            search_pattern = f"%{escaped}%"
+            count_query = count_query.filter(
+                or_(
+                    Gene.gene_name.ilike(search_pattern, escape='\\'),
+                    Gene.gene_ensembl_id.ilike(search_pattern, escape='\\'),
+                )
+            )
+
+        if has_regulation is not None:
+            if has_regulation:
+                count_query = count_query.having(func.count(Regulation.regulation_id) > 0)
+            else:
+                count_query = count_query.having(func.count(Regulation.regulation_id) == 0)
+
+        if min_regulation_count is not None:
+            count_query = count_query.having(func.count(Regulation.regulation_id) >= min_regulation_count)
+
+    total = cache.get_cached_count(count_query, count_cache_key)
 
     # 分页（添加 ORDER BY 确保分页稳定性）
     offset = (page - 1) * page_size

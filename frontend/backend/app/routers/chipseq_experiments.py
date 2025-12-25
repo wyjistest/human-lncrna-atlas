@@ -40,58 +40,113 @@ def list_experiments(
     """
     mark_types = parse_mark_types(mark_type)
 
-    # Build query
-    query = text("""
-        WITH experiment_counts AS (
-            SELECT experiment_id, COUNT(*) as peak_count
-            FROM chipseq_peaks
-            GROUP BY experiment_id
+    where_clauses = []
+    params = {}
+
+    if species_id is not None:
+        where_clauses.append("e.species_id = :species_id")
+        params["species_id"] = species_id
+
+    if mark_types is not None:
+        where_clauses.append("m.mark_name = ANY(:mark_types)")
+        params["mark_types"] = mark_types
+
+    if mark_category is not None:
+        where_clauses.append("m.mark_category = :mark_category")
+        params["mark_category"] = mark_category
+
+    if cell_type is not None:
+        where_clauses.append("e.cell_type ILIKE '%' || :cell_type || '%'")
+        params["cell_type"] = cell_type
+
+    if source_database is not None:
+        where_clauses.append("e.source_database = :source_database")
+        params["source_database"] = source_database
+
+    if active_only:
+        where_clauses.append("e.is_active = TRUE")
+
+    where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
+
+    # Avoid scanning the full chipseq_peaks table for all experiments:
+    # only compute peak_count for experiments in the current page.
+    query = text(
+        f"""
+        WITH filtered_experiments AS (
+            SELECT
+                e.experiment_id,
+                e.experiment_name,
+                e.species_id,
+                s.species_code,
+                m.mark_name,
+                m.mark_category,
+                m.display_color,
+                e.cell_type,
+                e.tissue_type,
+                e.cell_line,
+                e.treatment,
+                e.source_database,
+                e.source_accession,
+                e.peak_caller,
+                e.reference_genome,
+                e.total_reads,
+                e.mapped_reads,
+                e.frip_score,
+                e.is_active,
+                e.created_at
+            FROM chipseq_experiments e
+            JOIN species s ON e.species_id = s.species_id
+            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
+            WHERE {where_sql}
+        ),
+        paged_experiments AS (
+            SELECT
+                *,
+                COUNT(*) OVER() as total_count
+            FROM filtered_experiments
+            ORDER BY created_at DESC
+            LIMIT :limit OFFSET :offset
+        ),
+        peak_counts AS (
+            SELECT
+                p.experiment_id,
+                COUNT(*) as peak_count
+            FROM chipseq_peaks p
+            WHERE p.experiment_id IN (SELECT experiment_id FROM paged_experiments)
+            GROUP BY p.experiment_id
         )
         SELECT
-            e.experiment_id,
-            e.experiment_name,
-            e.species_id,
-            s.species_code,
-            m.mark_name,
-            m.mark_category,
-            m.display_color,
-            e.cell_type,
-            e.tissue_type,
-            e.cell_line,
-            e.treatment,
-            e.source_database,
-            e.source_accession,
-            e.peak_caller,
-            e.reference_genome,
-            e.total_reads,
-            e.mapped_reads,
-            e.frip_score,
-            e.is_active,
-            e.created_at,
-            COALESCE(ec.peak_count, 0) as peak_count,
-            COUNT(*) OVER() as total_count
-        FROM chipseq_experiments e
-        JOIN species s ON e.species_id = s.species_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        LEFT JOIN experiment_counts ec ON e.experiment_id = ec.experiment_id
-        WHERE (:species_id IS NULL OR e.species_id = :species_id)
-          AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
-          AND (:mark_category IS NULL OR m.mark_category = :mark_category)
-          AND (:cell_type IS NULL OR e.cell_type ILIKE '%' || :cell_type || '%')
-          AND (:source_database IS NULL OR e.source_database = :source_database)
-          AND (:active_only = FALSE OR e.is_active = TRUE)
-        ORDER BY e.created_at DESC
-        LIMIT :limit OFFSET :offset
-    """)
+            pe.experiment_id,
+            pe.experiment_name,
+            pe.species_id,
+            pe.species_code,
+            pe.mark_name,
+            pe.mark_category,
+            pe.display_color,
+            pe.cell_type,
+            pe.tissue_type,
+            pe.cell_line,
+            pe.treatment,
+            pe.source_database,
+            pe.source_accession,
+            pe.peak_caller,
+            pe.reference_genome,
+            pe.total_reads,
+            pe.mapped_reads,
+            pe.frip_score,
+            pe.is_active,
+            pe.created_at,
+            COALESCE(pc.peak_count, 0) as peak_count,
+            pe.total_count
+        FROM paged_experiments pe
+        LEFT JOIN peak_counts pc ON pe.experiment_id = pc.experiment_id
+        ORDER BY pe.created_at DESC
+        """  # noqa: S608
+    )
 
     offset = (page - 1) * page_size
     rows = db.execute(query, {
-        "species_id": species_id,
-        "mark_types": mark_types,
-        "mark_category": mark_category,
-        "cell_type": cell_type,
-        "source_database": source_database,
-        "active_only": active_only,
+        **params,
         "limit": page_size,
         "offset": offset,
     }).fetchall()

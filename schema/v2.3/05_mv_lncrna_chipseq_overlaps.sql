@@ -120,6 +120,15 @@ CREATE INDEX IF NOT EXISTS idx_mv_overlap_chr
 CREATE INDEX IF NOT EXISTS idx_mv_overlap_chr_pos
     ON mv_lncrna_chipseq_overlaps(chromosome, overlap_start, overlap_end);
 
+-- Range overlap index for region queries (e.g. IGV overlap-track)
+-- NOTE: Requires btree_gist extension for composite GiST on chromosome + range.
+-- chipseq_schema.sql enables it; ensure it's installed before creating this MV.
+CREATE INDEX IF NOT EXISTS idx_mv_overlap_range
+    ON mv_lncrna_chipseq_overlaps USING GIST (
+        chromosome,
+        int8range(overlap_start, overlap_end, '[)')
+    );
+
 -- Gene filters
 CREATE INDEX IF NOT EXISTS idx_mv_overlap_lncrna
     ON mv_lncrna_chipseq_overlaps(lncrna_gene_id);

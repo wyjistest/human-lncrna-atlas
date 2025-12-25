@@ -88,6 +88,20 @@ class MemoryCache:
         with self._lock:
             return self._cache.pop(key, None) is not None
 
+    def delete_prefix(self, prefix: str) -> int:
+        """
+        Delete all keys starting with a prefix (best-effort).
+
+        Used by CacheService.invalidate() when Redis is unavailable and we fall back to memory cache.
+        """
+        if not prefix:
+            return 0
+        with self._lock:
+            keys_to_delete = [k for k in self._cache.keys() if k.startswith(prefix)]
+            for k in keys_to_delete:
+                del self._cache[k]
+            return len(keys_to_delete)
+
     def clear(self) -> int:
         with self._lock:
             count = len(self._cache)
@@ -268,7 +282,7 @@ class CacheService:
 
         return value
 
-    def set(self, key: str, value: Any, ttl: int = None) -> bool:
+    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """设置缓存"""
         if not self.enabled:
             return False
@@ -291,7 +305,14 @@ class CacheService:
         pattern = f"{self.PREFIX}{namespace}:*"
         if self._redis.connected:
             return self._redis.delete_pattern(pattern)
-        return 0
+        # Memory fallback: delete both namespace root and hashed keys.
+        # Examples:
+        # - lncrna:stats:overview
+        # - lncrna:genes:list:<hash>
+        deleted = 0
+        deleted += 1 if self._memory.delete(f"{self.PREFIX}{namespace}") else 0
+        deleted += self._memory.delete_prefix(f"{self.PREFIX}{namespace}:")
+        return deleted
 
     def clear_all(self) -> int:
         """清除所有缓存"""
@@ -448,9 +469,32 @@ class CacheService:
             >>> cache_key = cache.make_list_key("regulations", species_id=1, page=1)
             >>> total = cache.get_cached_count(query, cache_key)
         """
+
+        def _count_query(q) -> int:
+            """
+            Count rows for a SQLAlchemy Query with a safe fast-path.
+
+            - For grouped/distinct queries, fall back to Query.count() semantics.
+            - For simple queries, use COUNT(*) without wrapping the full query as a subquery.
+            """
+            q = q.order_by(None)
+            try:
+                has_group_by = bool(getattr(q, "_group_by_clauses", None))
+                has_distinct = bool(getattr(q, "_distinct", False))
+                has_limit = getattr(q, "_limit_clause", None) is not None
+                has_offset = getattr(q, "_offset_clause", None) is not None
+            except Exception:
+                return int(q.count())
+
+            if has_group_by or has_distinct or has_limit or has_offset:
+                return int(q.count())
+
+            from sqlalchemy import func
+
+            return int(q.with_entities(func.count()).scalar() or 0)
+
         if not self.enabled:
-            # Remove ORDER BY for more efficient COUNT SQL
-            return query.order_by(None).count()
+            return _count_query(query)
 
         # 尝试从缓存获取
         cached = self.get(cache_key)
@@ -459,9 +503,8 @@ class CacheService:
             return cached
 
         # 计算并缓存
-        # Remove ORDER BY for more efficient COUNT SQL
         logger.debug(f"[CACHE MISS] count: {cache_key}")
-        count = query.order_by(None).count()
+        count = _count_query(query)
         self.set(cache_key, count, self.TTL_COUNT)
 
         return count

@@ -109,14 +109,15 @@ def get_chipseq_bed(
     # Check if experiments exist for this species/mark combination
     has_data = False
     if mark_type_obj:
-        experiment_count = (
-            db.query(ChIPSeqExperiment)
+        # 仅需判断是否存在数据：用 LIMIT 1 替代 COUNT(*)，减少数据库开销
+        experiment = (
+            db.query(ChIPSeqExperiment.experiment_id)
             .filter(ChIPSeqExperiment.species_id == species_id)
             .filter(ChIPSeqExperiment.mark_type_id == mark_type_obj.mark_type_id)
             .filter(ChIPSeqExperiment.is_active.is_(True))
-            .count()
+            .first()
         )
-        has_data = experiment_count > 0
+        has_data = experiment is not None
 
     # Build filename
     filename = f"chipseq_{mark_type}_species{species_id}"

@@ -4,6 +4,13 @@
 -- ============================================================================
 
 -- ============================================================================
+-- 0. REQUIRED EXTENSIONS
+-- ============================================================================
+-- btree_gist is required for the composite GiST index on (species_id, chromosome, int8range(...)).
+-- If you don't have permission to CREATE EXTENSION, ask your DBA to enable it for this database.
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
+-- ============================================================================
 -- 1. MARK TYPES REFERENCE TABLE (Static Configuration)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS epigenetic_mark_types (
@@ -196,7 +203,7 @@ CREATE INDEX IF NOT EXISTS idx_chipseq_peaks_range
     ON chipseq_peaks USING GIST (
         species_id,
         chromosome,
-        int8range(peak_start, peak_end, '[]')
+        int8range(peak_start, peak_end, '[)')
     );
 
 -- Experiment + location queries

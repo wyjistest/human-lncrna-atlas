@@ -152,6 +152,8 @@ check_environment() {
 
 create_log_dir() {
     mkdir -p "$LOG_DIR"
+    # SECURITY: 尽量避免日志目录被其他用户读取（尤其在共享机器/多用户环境）
+    chmod 700 "$LOG_DIR" 2>/dev/null || true
     log_info "日志目录: $LOG_DIR"
 }
 
@@ -166,7 +168,9 @@ wait_for_health() {
 
     log_info "等待 $service_name 健康检查..."
     while [ $attempt -le $max_retries ]; do
-        if curl -s --max-time 5 "$url" > /dev/null 2>&1; then
+        # -f: HTTP 4xx/5xx 视为失败；避免把错误页当作“健康”
+        # -sS: 静默但保留错误信息（这里重定向到 /dev/null，仅靠退出码判断）
+        if curl -fsS --max-time 5 "$url" > /dev/null 2>&1; then
             return 0
         fi
         log_info "健康检查 [$attempt/$max_retries]... (等待 ${retry_interval}s)"
@@ -188,6 +192,9 @@ start_backend() {
     fi
 
     # 启动服务
+    # SECURITY: 预创建日志文件并收紧权限，避免默认 umask 导致日志可被其他用户读取
+    touch "$LOG_DIR/backend.log"
+    chmod 600 "$LOG_DIR/backend.log" 2>/dev/null || true
     if [ "$MODE" = "prod" ]; then
         log_info "生产模式启动..."
         nohup python3 -m uvicorn main:app \
@@ -235,10 +242,18 @@ start_frontend() {
     # 检查依赖
     if [ ! -d "node_modules" ]; then
         log_info "安装前端依赖..."
-        npm install
+        # 使用 lockfile 的确定性安装，避免 npm install 产生依赖漂移（供应链/可复现性风险）
+        if [ -f "package-lock.json" ]; then
+            npm ci
+        else
+            npm install
+        fi
     fi
 
     # 启动服务
+    # SECURITY: 预创建日志文件并收紧权限，避免默认 umask 导致日志可被其他用户读取
+    touch "$LOG_DIR/frontend.log"
+    chmod 600 "$LOG_DIR/frontend.log" 2>/dev/null || true
     if [ "$MODE" = "prod" ]; then
         log_info "生产模式: 构建并预览..."
         npm run build

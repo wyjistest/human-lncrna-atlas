@@ -7,8 +7,11 @@
 # 用途: 自动化创建数据库、安装扩展、执行DDL、验证完整性
 # ==============================================================================
 
-set -e  # 遇到错误立即退出
-set -u  # 使用未定义变量时报错
+# 遇到错误立即退出（含未定义变量与管道失败）
+# -e: 任意命令失败即退出
+# -u: 使用未定义变量即退出
+# -o pipefail: 管道中任意环节失败即退出（避免 psql | grep 静默失败）
+set -euo pipefail
 
 # ==============================================================================
 # 配置区域（可通过环境变量覆盖）
@@ -56,18 +59,34 @@ run_psql() {
     local db="$1"
     shift
     if [ -n "$DB_PASSWORD" ]; then
-        PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
+        PGPASSWORD="$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
     else
-        psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
+        psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
     fi
 }
 
 # 执行psql命令（连接postgres数据库）
 run_psql_postgres() {
     if [ -n "$DB_PASSWORD" ]; then
-        PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
+        PGPASSWORD="$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
     else
-        psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
+        psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
+    fi
+}
+
+# SECURITY: 限制用于 SQL 标识符/字符串拼接的输入，避免脚本被异常值破坏
+validate_identifier() {
+    local name="$1"
+    local value="$2"
+    if [[ -z "$value" ]]; then
+        log_error "$name 不能为空"
+        exit 1
+    fi
+    # 当前脚本会将 DB_NAME/DB_USER 直接拼接进 SQL（未加引号），因此仅允许安全字符。
+    # 如需使用特殊字符，请改为 psql 变量方式并使用 :\"var\" 引用。
+    if [[ ! "$value" =~ ^[a-zA-Z0-9_]+$ ]]; then
+        log_error "$name 包含非法字符: '$value'（仅允许字母/数字/下划线）"
+        exit 1
     fi
 }
 
@@ -106,6 +125,19 @@ check_prerequisites() {
     log_info "检查依赖..."
     check_command psql
     check_command md5sum
+
+    # 基本输入校验（避免 SQL/命令拼接异常）
+    validate_identifier "DB_NAME" "$DB_NAME"
+    validate_identifier "DB_USER" "$DB_USER"
+
+    # 尽早测试数据库连接，避免后续流程在中途才失败
+    log_info "测试 PostgreSQL 连接..."
+    if ! run_psql_postgres -tAc "SELECT 1" > /dev/null 2>&1; then
+        log_error "无法连接 PostgreSQL：$DB_HOST:$DB_PORT (user=$DB_USER, db=postgres)"
+        log_error "请检查：PostgreSQL 是否运行、连接参数、认证方式（必要时设置 DB_PASSWORD 或 ~/.pgpass）"
+        exit 1
+    fi
+    log_success "PostgreSQL 连接正常"
 
     # 检查schema文件存在性
     if [ ! -f "$SCHEMA_DIR/01_core.sql" ]; then

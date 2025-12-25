@@ -67,37 +67,59 @@ def get_peaks_by_region(
 
     mark_types = parse_mark_types(mark_type)
 
+    is_postgresql = db.get_bind().dialect.name == "postgresql"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:start, :end, '[)')"
+        if is_postgresql
+        else "p.peak_start < :end AND p.peak_end > :start"
+    )
+
+    where_clauses = [
+        "p.species_id = :species_id",
+        "p.chromosome = :chromosome",
+        region_predicate,
+        "e.is_active = TRUE",
+    ]
+    params = {
+        "species_id": species_id,
+        "chromosome": chromosome,
+        "start": start,
+        "end": end,
+    }
+
+    if mark_types is not None:
+        where_clauses.append("m.mark_name = ANY(:mark_types)")
+        params["mark_types"] = mark_types
+
+    if min_fold_enrichment is not None:
+        where_clauses.append("p.fold_enrichment >= :min_fold_enrichment")
+        params["min_fold_enrichment"] = min_fold_enrichment
+
+    if max_qvalue is not None:
+        where_clauses.append("(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)")
+        params["max_qvalue"] = max_qvalue
+
+    where_sql = " AND ".join(where_clauses)
+
     # Phase 9.16: 条件性 COUNT 查询 - 当 include_total=false 时跳过
     total = 0
     if include_total:
-        count_query = text("""
+        count_query = text(
+            f"""
             SELECT COUNT(*)
             FROM chipseq_peaks p
             JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
             JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-            WHERE p.species_id = :species_id
-              AND p.chromosome = :chromosome
-              AND p.peak_start < :end
-              AND p.peak_end > :start
-              AND e.is_active = TRUE
-              AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
-              AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
-              AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
-        """)
+            WHERE {where_sql}
+            """  # noqa: S608
+        )
 
-        total = db.execute(count_query, {
-            "species_id": species_id,
-            "chromosome": chromosome,
-            "start": start,
-            "end": end,
-            "mark_types": mark_types,
-            "min_fold_enrichment": min_fold_enrichment,
-            "max_qvalue": max_qvalue,
-        }).scalar() or 0
+        total = db.execute(count_query, params).scalar() or 0
 
     # Data query
     offset = (page - 1) * page_size
-    data_query = text("""
+    data_query = text(
+        f"""
         SELECT
             p.peak_id,
             p.experiment_id,
@@ -121,26 +143,14 @@ def get_peaks_by_region(
         FROM chipseq_peaks p
         JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE p.species_id = :species_id
-          AND p.chromosome = :chromosome
-          AND p.peak_start < :end
-          AND p.peak_end > :start
-          AND e.is_active = TRUE
-          AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
-          AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+        WHERE {where_sql}
         ORDER BY p.peak_start
         LIMIT :limit OFFSET :offset
-    """)
+        """  # noqa: S608
+    )
 
     rows = db.execute(data_query, {
-        "species_id": species_id,
-        "chromosome": chromosome,
-        "start": start,
-        "end": end,
-        "mark_types": mark_types,
-        "min_fold_enrichment": min_fold_enrichment,
-        "max_qvalue": max_qvalue,
+        **params,
         "limit": page_size,
         "offset": offset,
     }).fetchall()

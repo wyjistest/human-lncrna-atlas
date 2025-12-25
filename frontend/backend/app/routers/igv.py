@@ -10,7 +10,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
@@ -499,9 +499,9 @@ def get_regulations_count(
     if not species:
         raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
 
-    # 构建查询
+    # 仅需计数：使用 func.count 避免 Query.count() 生成子查询带来的额外开销
     query = (
-        db.query(Regulation)
+        db.query(func.count(Regulation.regulation_id))
         .filter(Regulation.species_id == species_id)
         .filter(Regulation.best_peak_chr.isnot(None))
     )
@@ -518,7 +518,7 @@ def get_regulations_count(
                 )
             )
 
-    count = query.count()
+    count = query.scalar() or 0
 
     return {
         "success": True,

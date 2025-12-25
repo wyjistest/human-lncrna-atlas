@@ -42,6 +42,7 @@ psql -d lncrna_production -f schema/v2.3/03_sample_data.sql
 - **不要执行** `02_extension.sql` (已弃用)
 - **不要执行** `03_sample_data.sql` (仅测试用)
 - 物化视图需要在数据导入后执行
+- 执行 `frontend/backend/sql/chipseq_schema.sql` 前请确认已启用 `btree_gist` 扩展（用于复合 GiST 索引）：`CREATE EXTENSION IF NOT EXISTS btree_gist;`
 
 ## 版本说明
 

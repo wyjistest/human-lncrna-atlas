@@ -9,13 +9,18 @@ Usage:
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 
 
-def import_single_experiment(exp_config: dict, options: dict) -> dict:
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_IMPORT_SCRIPT = _SCRIPT_DIR / "import_chipseq.py"
+
+
+def import_single_experiment(exp_config: dict, options: dict, db_options: dict) -> dict:
     """
     Import a single ChIP-seq experiment.
 
@@ -56,21 +61,23 @@ def import_single_experiment(exp_config: dict, options: dict) -> dict:
         }
 
     # Read metadata to build command arguments
-    with open(metadata_file) as f:
+    with open(metadata_file, encoding="utf-8") as f:
         metadata = json.load(f)
 
     experiment_name = f"{mark_type}_{cell_line}_{metadata.get('encode_accession', 'TEST')}"
 
-    # Build command using individual arguments
+    # Build command using individual arguments (shell=False, avoids command injection).
     cmd = [
-        'python3', 'scripts/import_chipseq.py',
+        'python3', str(_IMPORT_SCRIPT),
         '--input', str(peaks_file),
         '--mark-type', mark_type,
         '--species', 'human',
         '--experiment-name', experiment_name,
         '--batch-size', str(options.get('batch_size', 10000)),
-        '--db-name', 'lncrna_production',
-        '--db-user', 'amax',
+        '--db-host', str(db_options['host']),
+        '--db-port', str(db_options['port']),
+        '--db-name', str(db_options['name']),
+        '--db-user', str(db_options['user']),
     ]
 
     # Add metadata fields as command arguments
@@ -148,7 +155,15 @@ def import_single_experiment(exp_config: dict, options: dict) -> dict:
         }
 
 
-def batch_import(config_file: Path, parallel: int = 1):
+def batch_import(
+    config_file: Path,
+    parallel: int = 1,
+    *,
+    db_host: str,
+    db_port: int,
+    db_name: str,
+    db_user: str,
+):
     """
     Import multiple experiments in parallel.
 
@@ -156,11 +171,17 @@ def batch_import(config_file: Path, parallel: int = 1):
         config_file: Path to JSON configuration file
         parallel: Number of parallel imports (default: 1 for sequential)
     """
-    with open(config_file) as f:
+    with open(config_file, encoding="utf-8") as f:
         config = json.load(f)
 
     experiments = config.get('experiments', [])
     options = config.get('options', {})
+    db_options = {
+        "host": db_host,
+        "port": db_port,
+        "name": db_name,
+        "user": db_user,
+    }
 
     if not experiments:
         print('Error: No experiments in configuration file')
@@ -181,13 +202,13 @@ def batch_import(config_file: Path, parallel: int = 1):
         # Sequential import
         for i, exp in enumerate(experiments, 1):
             print(f'\n--- Experiment {i}/{len(experiments)} ---')
-            result = import_single_experiment(exp, options)
+            result = import_single_experiment(exp, options, db_options)
             results.append(result)
     else:
         # Parallel import
         with ThreadPoolExecutor(max_workers=parallel) as executor:
             futures = {
-                executor.submit(import_single_experiment, exp, options): exp
+                executor.submit(import_single_experiment, exp, options, db_options): exp
                 for exp in experiments
             }
 
@@ -239,7 +260,19 @@ def batch_import(config_file: Path, parallel: int = 1):
 
         try:
             subprocess.run(
-                ["psql", "-U", "amax", "-d", "lncrna_production", "-c", refresh_sql],
+                [
+                    "psql",
+                    "-h",
+                    db_options["host"],
+                    "-p",
+                    str(db_options["port"]),
+                    "-U",
+                    db_options["user"],
+                    "-d",
+                    db_options["name"],
+                    "-c",
+                    refresh_sql,
+                ],
                 check=True,
                 text=True,
             )
@@ -258,6 +291,27 @@ def parse_args():
     parser.add_argument('config_file', help='Path to batch import JSON config file')
     parser.add_argument('--parallel', type=int, default=1,
                         help='Number of parallel imports (default: 1 for sequential)')
+    parser.add_argument(
+        '--db-host',
+        default=os.getenv("DB_HOST", "localhost"),
+        help='Database host (default: env DB_HOST or localhost)',
+    )
+    parser.add_argument(
+        '--db-port',
+        type=int,
+        default=int(os.getenv("DB_PORT", "5432")),
+        help='Database port (default: env DB_PORT or 5432)',
+    )
+    parser.add_argument(
+        '--db-name',
+        default=os.getenv("DB_NAME", "lncrna_production"),
+        help='Database name (default: env DB_NAME or lncrna_production)',
+    )
+    parser.add_argument(
+        '--db-user',
+        default=os.getenv("DB_USER", "amax"),
+        help='Database user (default: env DB_USER or amax)',
+    )
     return parser.parse_args()
 
 
@@ -270,7 +324,14 @@ def main():
         print(f'Error: Config file not found: {config_file}')
         return 1
 
-    return batch_import(config_file, args.parallel)
+    return batch_import(
+        config_file,
+        args.parallel,
+        db_host=args.db_host,
+        db_port=args.db_port,
+        db_name=args.db_name,
+        db_user=args.db_user,
+    )
 
 
 if __name__ == '__main__':

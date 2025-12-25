@@ -117,8 +117,16 @@ def export_comparison(
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
+    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
+        if db.get_bind().dialect.name == "postgresql"
+        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    )
+
     # Query peaks (Phase 9.11: 添加 LIMIT 防止内存溢出)
-    query = text("""
+    query = text(
+        f"""
         SELECT
             p.peak_id,
             m.mark_name,
@@ -135,14 +143,14 @@ def export_comparison(
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
         WHERE p.species_id = :species_id
           AND p.chromosome = :chromosome
-          AND p.peak_start < :region_end
-          AND p.peak_end > :region_start
+          AND {region_predicate}
           AND e.is_active = TRUE
           AND m.mark_name = ANY(:mark_list)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND {qvalue_clause}
         ORDER BY m.mark_name, p.peak_start
         LIMIT :max_rows
-    """)
+        """  # noqa: S608
+    )
 
     rows = db.execute(query, {
         "species_id": gene.species_id,
@@ -339,8 +347,16 @@ def export_overlaps_bed(
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
+    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
+        if db.get_bind().dialect.name == "postgresql"
+        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    )
+
     # Query peaks (Phase 9.11: 添加 LIMIT 防止内存溢出)
-    query = text("""
+    query = text(
+        f"""
         SELECT
             p.peak_id,
             m.mark_name,
@@ -352,14 +368,14 @@ def export_overlaps_bed(
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
         WHERE p.species_id = :species_id
           AND p.chromosome = :chromosome
-          AND p.peak_start < :region_end
-          AND p.peak_end > :region_start
+          AND {region_predicate}
           AND e.is_active = TRUE
           AND m.mark_name = ANY(:mark_list)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND {qvalue_clause}
         ORDER BY m.mark_name, p.peak_start
         LIMIT :max_rows
-    """)
+        """  # noqa: S608
+    )
 
     rows = db.execute(query, {
         "species_id": gene.species_id,

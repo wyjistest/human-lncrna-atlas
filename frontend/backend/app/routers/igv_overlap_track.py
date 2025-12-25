@@ -96,8 +96,25 @@ def _generate_overlap_bed6_stream(
     """
     use_mv = _check_mv_available(db)
 
+    is_postgresql = db.get_bind().dialect.name == "postgresql"
+    mv_region_predicate = (
+        "int8range(overlap_start, overlap_end, '[)') && int8range(:start, :end, '[)')"
+        if is_postgresql
+        else "overlap_start < :end AND overlap_end > :start"
+    )
+
+    mv_where_clauses = [
+        "chromosome = :chromosome",
+        mv_region_predicate,
+    ]
+    if mark_type is not None:
+        mv_where_clauses.append("mark_name = :mark_type")
+    if min_ba is not None:
+        mv_where_clauses.append("binding_affinity >= :min_ba")
+    mv_where_sql = " AND ".join(mv_where_clauses)
+
     mv_sql = text(
-        """
+        f"""
         SELECT
             chromosome,
             overlap_start,
@@ -108,19 +125,35 @@ def _generate_overlap_bed6_stream(
             cell_type,
             binding_affinity
         FROM mv_lncrna_chipseq_overlaps
-        WHERE chromosome = :chromosome
-          AND overlap_start < :end
-          AND overlap_end > :start
-          AND (:mark_type IS NULL OR mark_name = :mark_type)
-          AND (:min_ba IS NULL OR binding_affinity >= :min_ba)
+        WHERE {mv_where_sql}
         ORDER BY overlap_start
         LIMIT :limit
-        """
+        """  # noqa: S608
     )
 
     # fallback：无 MV 时使用原始 join（仅在小窗口内使用，受 MAX_REGION_SIZE_BP 保护）
+    fallback_where_clauses = [
+        "r.species_id = 1",
+        "e.is_active = TRUE",
+        "r.best_peak_chr = :chromosome",
+        "r.best_peak_start < :end",
+        "r.best_peak_end > :start",
+    ]
+    # 重要：必须同时限制 peak 与 region 重叠，否则会返回“peak 与 best_peak 相交但不在 region 内”的特征
+    peak_region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:start, :end, '[)')"
+        if is_postgresql
+        else "p.peak_start < :end AND p.peak_end > :start"
+    )
+    fallback_where_clauses.append(peak_region_predicate)
+    if mark_type is not None:
+        fallback_where_clauses.append("m.mark_name = :mark_type")
+    if min_ba is not None:
+        fallback_where_clauses.append("r.binding_affinity >= :min_ba")
+    fallback_where_sql = " AND ".join(fallback_where_clauses)
+
     fallback_sql = text(
-        """
+        f"""
         SELECT
             r.best_peak_chr AS chromosome,
             GREATEST(r.best_peak_start, p.peak_start) AS overlap_start,
@@ -140,17 +173,10 @@ def _generate_overlap_bed6_stream(
             AND r.best_peak_end > p.peak_start
         JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE
-            r.species_id = 1
-            AND e.is_active = TRUE
-            AND r.best_peak_chr = :chromosome
-            AND r.best_peak_start < :end
-            AND r.best_peak_end > :start
-            AND (:mark_type IS NULL OR m.mark_name = :mark_type)
-            AND (:min_ba IS NULL OR r.binding_affinity >= :min_ba)
+        WHERE {fallback_where_sql}
         ORDER BY overlap_start
         LIMIT :limit
-        """
+        """  # noqa: S608
     )
 
     params = {
@@ -257,4 +283,3 @@ def get_overlap_track(
         )
     except Exception as e:
         raise sanitize_db_error(e, logger)
-

@@ -119,7 +119,10 @@ def get_sankey_data(
     # ========================================================================
     # 使用 GROUP BY 聚合，避免重复连接
     # 同时计算平均 BA 和流经记录数
-    sql = text("""
+    trait_where_sql = "t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\'" if escaped_trait_name else "TRUE"
+
+    sql = text(
+        f"""
         WITH regulation_agg AS (
             -- 聚合 lncRNA -> Gene 调控关系（去重 + 计算平均 BA）
             SELECT
@@ -148,7 +151,7 @@ def get_sankey_data(
                 COUNT(*) as association_count
             FROM trait_gene_associations tga
             JOIN traits t ON tga.trait_id = t.trait_id
-            WHERE (:trait_name IS NULL OR t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\')
+            WHERE {trait_where_sql}
             GROUP BY tga.core_id, t.trait_id, t.trait_name
         )
         -- 连接两层数据
@@ -168,7 +171,8 @@ def get_sankey_data(
         JOIN disease_agg da ON ra.target_core_id = da.core_id
         ORDER BY ra.avg_ba DESC, da.avg_pvalue ASC
         LIMIT :limit
-    """)
+        """  # noqa: S608
+    )
 
     result = db.execute(
         sql,

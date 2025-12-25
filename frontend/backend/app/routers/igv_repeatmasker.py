@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
@@ -154,8 +154,9 @@ def get_repeatmasker_count(
         }
 
     # Build query
+    # 仅需计数：使用 func.count 避免 Query.count() 生成子查询带来的额外开销
     query = (
-        db.query(GenomicFeature)
+        db.query(func.count(GenomicFeature.feature_id))
         .filter(GenomicFeature.track_id == track_id)
         .filter(GenomicFeature.species_id == species_id)
     )
@@ -172,7 +173,7 @@ def get_repeatmasker_count(
                 )
             )
 
-    count = query.count()
+    count = query.scalar() or 0
 
     return {
         "success": True,

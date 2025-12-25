@@ -29,7 +29,9 @@ async def metrics_auth_middleware(request: Request, call_next):
     - 攻击者可利用这些信息进行针对性攻击（如在高负载时发起 DDoS）
     """
     # 只拦截 /metrics 路径（Prometheus 端点）
-    if request.url.path == "/metrics":
+    # Phase 9.24: 兼容反向代理 root_path 或尾随斜杠场景（如 /api/metrics 或 /metrics/）
+    path = (request.url.path or "").rstrip("/")
+    if path.endswith("/metrics"):
         client_ip = get_client_ip(request)
         api_key = request.headers.get("X-Admin-API-Key")
 

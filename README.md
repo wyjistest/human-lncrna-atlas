@@ -92,7 +92,7 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 ```bash
 cd frontend/web
-npm install
+npm ci
 npm run dev -- --host 0.0.0.0
 ```
 

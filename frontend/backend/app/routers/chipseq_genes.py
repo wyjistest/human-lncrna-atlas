@@ -126,7 +126,49 @@ def get_gene_chipseq(
     mark_types = parse_mark_types(mark_type)
 
     # 4. Build and execute query
-    query = text("""
+    is_postgresql = db.get_bind().dialect.name == "postgresql"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
+        if is_postgresql
+        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    )
+
+    where_clauses = [
+        "p.species_id = :species_id",
+        "p.chromosome = :chromosome",
+        region_predicate,
+        "e.is_active = TRUE",
+    ]
+    params = {
+        "species_id": gene.species_id,
+        "chromosome": gene.chromosome,
+        "region_start": region_start,
+        "region_end": region_end,
+        "gene_start": gene.gene_start,
+        "gene_end": gene.gene_end,
+        "tss": tss,
+        "strand": gene.strand or '+',
+    }
+    if mark_types is not None:
+        where_clauses.append("m.mark_name = ANY(:mark_types)")
+        params["mark_types"] = mark_types
+    if mark_category is not None:
+        where_clauses.append("m.mark_category = :mark_category")
+        params["mark_category"] = mark_category
+    if experiment_id is not None:
+        where_clauses.append("e.experiment_id = :experiment_id")
+        params["experiment_id"] = experiment_id
+    if min_fold_enrichment is not None:
+        where_clauses.append("p.fold_enrichment >= :min_fold_enrichment")
+        params["min_fold_enrichment"] = min_fold_enrichment
+    if max_qvalue is not None:
+        where_clauses.append("(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)")
+        params["max_qvalue"] = max_qvalue
+
+    where_sql = " AND ".join(where_clauses)
+
+    query = text(
+        f"""
         SELECT
             p.peak_id,
             p.experiment_id,
@@ -158,34 +200,12 @@ def get_gene_chipseq(
         FROM chipseq_peaks p
         JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE p.species_id = :species_id
-          AND p.chromosome = :chromosome
-          AND p.peak_start < :region_end
-          AND p.peak_end > :region_start
-          AND e.is_active = TRUE
-          AND (:mark_types IS NULL OR m.mark_name = ANY(:mark_types))
-          AND (:mark_category IS NULL OR m.mark_category = :mark_category)
-          AND (:experiment_id IS NULL OR e.experiment_id = :experiment_id)
-          AND (:min_fold_enrichment IS NULL OR p.fold_enrichment >= :min_fold_enrichment)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+        WHERE {where_sql}
         ORDER BY m.sort_order, m.mark_name, p.fold_enrichment DESC
-    """)
+        """  # noqa: S608
+    )
 
-    rows = db.execute(query, {
-        "species_id": gene.species_id,
-        "chromosome": gene.chromosome,
-        "region_start": region_start,
-        "region_end": region_end,
-        "gene_start": gene.gene_start,
-        "gene_end": gene.gene_end,
-        "tss": tss,
-        "strand": gene.strand or '+',
-        "mark_types": mark_types,
-        "mark_category": mark_category,
-        "experiment_id": experiment_id,
-        "min_fold_enrichment": min_fold_enrichment,
-        "max_qvalue": max_qvalue,
-    }).fetchall()
+    rows = db.execute(query, params).fetchall()
 
     # 5. Group by mark type
     marks_dict = {}
@@ -261,7 +281,15 @@ def get_gene_chipseq_summary(
     region_length = region_end - region_start
 
     # 2. Query summary stats per mark
-    query = text("""
+    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
+        if db.get_bind().dialect.name == "postgresql"
+        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    )
+
+    query = text(
+        f"""
         SELECT
             m.mark_name,
             m.mark_category,
@@ -283,13 +311,13 @@ def get_gene_chipseq_summary(
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
         WHERE p.species_id = :species_id
           AND p.chromosome = :chromosome
-          AND p.peak_start < :region_end
-          AND p.peak_end > :region_start
+          AND {region_predicate}
           AND e.is_active = TRUE
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND {qvalue_clause}
         GROUP BY m.mark_name, m.mark_category
         ORDER BY m.mark_category, m.mark_name
-    """)
+        """  # noqa: S608
+    )
 
     rows = db.execute(query, {
         "species_id": gene.species_id,
@@ -410,7 +438,15 @@ def compare_gene_marks(
     region_end = gene.gene_end + flanking
 
     # 3. Query peaks for each mark with peak_width
-    query = text("""
+    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
+        if db.get_bind().dialect.name == "postgresql"
+        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    )
+
+    query = text(
+        f"""
         SELECT
             p.peak_id,
             m.mark_name,
@@ -428,13 +464,13 @@ def compare_gene_marks(
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
         WHERE p.species_id = :species_id
           AND p.chromosome = :chromosome
-          AND p.peak_start < :region_end
-          AND p.peak_end > :region_start
+          AND {region_predicate}
           AND e.is_active = TRUE
           AND m.mark_name = ANY(:mark_list)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND {qvalue_clause}
         ORDER BY m.mark_name, p.peak_start
-    """)
+        """  # noqa: S608
+    )
 
     rows = db.execute(query, {
         "species_id": gene.species_id,
@@ -630,7 +666,15 @@ def compare_gene_cell_lines(
     region_end = gene.gene_end + flanking
 
     # 3. Query peaks for each cell type
-    query = text("""
+    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
+        if db.get_bind().dialect.name == "postgresql"
+        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    )
+
+    query = text(
+        f"""
         SELECT
             e.cell_type,
             e.cell_line,
@@ -649,14 +693,14 @@ def compare_gene_cell_lines(
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
         WHERE p.species_id = :species_id
           AND p.chromosome = :chromosome
-          AND p.peak_start < :region_end
-          AND p.peak_end > :region_start
+          AND {region_predicate}
           AND e.is_active = TRUE
           AND m.mark_name = :mark_type
           AND e.cell_type = ANY(:cell_types)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND {qvalue_clause}
         ORDER BY e.cell_type, p.peak_start
-    """)
+        """  # noqa: S608
+    )
 
     rows = db.execute(query, {
         "species_id": gene.species_id,
@@ -893,7 +937,15 @@ def get_gene_heatmap_matrix(
     region_end = gene.gene_end + flanking
 
     # 3. Single SQL query for all combinations
-    query = text("""
+    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
+    region_predicate = (
+        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
+        if db.get_bind().dialect.name == "postgresql"
+        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    )
+
+    query = text(
+        f"""
         SELECT
             e.cell_type,
             m.mark_name,
@@ -908,14 +960,14 @@ def get_gene_heatmap_matrix(
         JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
         WHERE p.species_id = :species_id
           AND p.chromosome = :chromosome
-          AND p.peak_start < :region_end
-          AND p.peak_end > :region_start
+          AND {region_predicate}
           AND e.is_active = TRUE
           AND m.mark_name = ANY(:marks)
           AND e.cell_type = ANY(:cell_types)
-          AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+          AND {qvalue_clause}
         ORDER BY e.cell_type, m.mark_name
-    """)
+        """  # noqa: S608
+    )
 
     rows = db.execute(query, {
         "species_id": gene.species_id,
@@ -1217,6 +1269,7 @@ def get_batch_gene_heatmap_matrix(
 
     # 4. Single aggregated query for all genes (avoid N+1 queries)
     values_clause = ",\n        ".join(gene_regions_values)
+    qvalue_predicate = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if request.max_qvalue is not None else "TRUE"
     # 该 SQL 仅动态拼接参数占位符（:gene_id_0 ...），不包含任何用户输入，用于避免 N+1 查询。
     # ruff(S608) 会对动态 SQL 拼接做保守告警，这里仅注入受控的占位符字符串。
     query_sql = (
@@ -1225,7 +1278,7 @@ def get_batch_gene_heatmap_matrix(
             VALUES
         """
         + values_clause
-        + """
+        + f"""
         )
         SELECT
             gr.gene_id,
@@ -1258,7 +1311,7 @@ def get_batch_gene_heatmap_matrix(
             e.is_active = TRUE
             AND m.mark_name = ANY(:marks)
             AND e.cell_type = ANY(:cell_types)
-            AND (:max_qvalue IS NULL OR p.qvalue IS NULL OR p.qvalue <= :max_qvalue)
+            AND {qvalue_predicate}
         GROUP BY gr.gene_id, e.cell_type, m.mark_name
         ORDER BY gr.gene_id, e.cell_type, m.mark_name
         """

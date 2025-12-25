@@ -25,11 +25,54 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
 from sqlalchemy.exc import SQLAlchemyError
 
 
-def get_database_url() -> str:
-    """Get database URL from environment."""
+_NON_TRANSACTIONAL_STATEMENT_PATTERNS = (
+    # These PostgreSQL statements are not allowed inside a transaction block.
+    re.compile(r"^\\s*CREATE\\s+INDEX\\s+CONCURRENTLY\\b", re.IGNORECASE),
+    re.compile(r"^\\s*DROP\\s+INDEX\\s+CONCURRENTLY\\b", re.IGNORECASE),
+    re.compile(r"^\\s*REFRESH\\s+MATERIALIZED\\s+VIEW\\s+CONCURRENTLY\\b", re.IGNORECASE),
+    re.compile(r"^\\s*VACUUM\\b", re.IGNORECASE),
+    re.compile(r"^\\s*REINDEX\\b", re.IGNORECASE),
+    re.compile(r"^\\s*CLUSTER\\b", re.IGNORECASE),
+)
+
+
+def _strip_sql_comments(sql: str) -> str:
+    """Remove SQL comments for simple statement parsing.
+
+    This is intentionally simple (sufficient for our migration files).
+    """
+    # Remove /* ... */ block comments
+    sql = re.sub(r"/\\*.*?\\*/", "", sql, flags=re.DOTALL)
+    # Remove -- ... single-line comments
+    sql = re.sub(r"--.*?$", "", sql, flags=re.MULTILINE)
+    return sql
+
+
+def _split_sql_statements(sql: str) -> list[str]:
+    """Split a SQL script into individual statements.
+
+    NOTE: This is a simple splitter based on semicolons. It is suitable for
+    our migration files (DDL/index scripts) and is not intended to parse
+    complex procedural SQL with embedded semicolons.
+    """
+    return [stmt.strip() for stmt in sql.split(";") if stmt.strip()]
+
+
+def _requires_autocommit(statements: list[str]) -> bool:
+    """Return True if any statement must run outside a transaction."""
+    for statement in statements:
+        for pattern in _NON_TRANSACTIONAL_STATEMENT_PATTERNS:
+            if pattern.search(statement):
+                return True
+    return False
+
+
+def get_database_url() -> URL:
+    """Get database URL from environment (safe for special characters)."""
     # Try to load from .env file
     env_path = Path(__file__).parent.parent / ".env"
     if env_path.exists():
@@ -46,12 +89,20 @@ def get_database_url() -> str:
     password = os.environ.get("DB_PASSWORD", "")
     dbname = os.environ.get("DB_NAME", "lncrna_production")
 
-    return f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+    # Use SQLAlchemy URL.create() to handle special characters in passwords.
+    return URL.create(
+        drivername="postgresql+psycopg2",
+        username=user,
+        password=password if password else None,
+        host=host,
+        port=int(port) if port else None,
+        database=dbname,
+    )
 
 
 def ensure_migrations_table(engine) -> None:
     """Create schema_migrations table if it doesn't exist."""
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS schema_migrations (
                 version VARCHAR(255) PRIMARY KEY,
@@ -59,7 +110,6 @@ def ensure_migrations_table(engine) -> None:
                 description TEXT
             )
         """))
-        conn.commit()
 
 
 def get_applied_migrations(engine) -> set:
@@ -94,28 +144,61 @@ def apply_migration(engine, version: str, sql_file: Path, dry_run: bool = False)
                 description = line.replace("-- Description:", "").strip()
                 break
 
+    statements = _split_sql_statements(_strip_sql_comments(content))
+    requires_autocommit = _requires_autocommit(statements)
+
     print(f"  Applying {sql_file.name}...")
     if description:
         print(f"    Description: {description}")
+    if requires_autocommit:
+        print("    Mode: AUTOCOMMIT (contains non-transactional statements)")
 
     if dry_run:
-        print("    [DRY RUN] Would execute SQL")
+        print(f"    [DRY RUN] Would execute {len(statements)} statement(s)")
         return True
 
     try:
-        with engine.connect() as conn:
-            # Execute migration SQL
-            conn.execute(text(content))
+        if not statements:
+            print("    No SQL statements found. Marking as applied.")
+            with engine.begin() as conn:
+                conn.execute(
+                    text("""
+                        INSERT INTO schema_migrations (version, description)
+                        VALUES (:version, :description)
+                    """),
+                    {"version": version, "description": description},
+                )
+            print("    Applied successfully")
+            return True
 
-            # Record migration as applied
-            conn.execute(
-                text("""
-                    INSERT INTO schema_migrations (version, description)
-                    VALUES (:version, :description)
-                """),
-                {"version": version, "description": description},
-            )
-            conn.commit()
+        if requires_autocommit:
+            # Non-transactional migrations (e.g., CREATE INDEX CONCURRENTLY)
+            with engine.connect() as conn:
+                autocommit_conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+
+                for statement in statements:
+                    autocommit_conn.exec_driver_sql(statement)
+
+                autocommit_conn.execute(
+                    text("""
+                        INSERT INTO schema_migrations (version, description)
+                        VALUES (:version, :description)
+                    """),
+                    {"version": version, "description": description},
+                )
+        else:
+            # Transactional migrations (default)
+            with engine.begin() as conn:
+                for statement in statements:
+                    conn.exec_driver_sql(statement)
+
+                conn.execute(
+                    text("""
+                        INSERT INTO schema_migrations (version, description)
+                        VALUES (:version, :description)
+                    """),
+                    {"version": version, "description": description},
+                )
 
         print(f"    Applied successfully")
         return True
@@ -151,7 +234,7 @@ def main():
 
     # Get database connection
     db_url = get_database_url()
-    print(f"Database: {db_url.split('@')[1] if '@' in db_url else db_url}")
+    print(f"Database: {db_url.render_as_string(hide_password=True)}")
 
     try:
         engine = create_engine(db_url)

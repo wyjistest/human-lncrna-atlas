@@ -18,7 +18,7 @@ React frontend for the Human LncRNA Atlas database and visualization platform.
 
 ```bash
 # Install dependencies
-npm install
+npm ci
 
 # Start development server
 npm run dev

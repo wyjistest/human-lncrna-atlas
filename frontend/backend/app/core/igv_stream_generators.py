@@ -4,7 +4,7 @@ IGV数据流生成器
 """
 from typing import Optional, Generator
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from app.models import (
     Regulation,
@@ -223,6 +223,8 @@ def generate_bedpe_stream(
 
         # 输出 BEDPE 8列格式行
         yield f"{chr1}\t{start1}\t{end1}\t{chr2}\t{start2}\t{end2}\t{name}\t{score}\n"
+
+
 def generate_repeatmasker_bed_stream(
     db: Session,
     species_id: int,
@@ -242,9 +244,16 @@ def generate_repeatmasker_bed_stream(
     if not track_id:
         return
 
-    # Build query
+    # Build query (select only required columns to reduce IO/memory)
     query = (
-        db.query(GenomicFeature)
+        db.query(
+            GenomicFeature.chromosome,
+            GenomicFeature.feature_start,
+            GenomicFeature.feature_end,
+            GenomicFeature.feature_name,
+            GenomicFeature.strand,
+            GenomicFeature.attributes,
+        )
         .filter(GenomicFeature.track_id == track_id)
         .filter(GenomicFeature.species_id == species_id)
     )
@@ -264,40 +273,32 @@ def generate_repeatmasker_bed_stream(
     # Order by chromosome and position
     query = query.order_by(GenomicFeature.chromosome, GenomicFeature.feature_start)
 
-    # Stream data in batches
+    # Stream results without OFFSET scans (better for large tables / long streams)
     batch_size = 10000
-    offset = 0
+    streaming_query = query.execution_options(stream_results=True).yield_per(batch_size)
 
-    while True:
-        batch = query.offset(offset).limit(batch_size).all()
-        if not batch:
-            break
+    for row in streaming_query:
+        # BED coordinates are 0-based, half-open
+        chr_name = row.chromosome
+        start = row.feature_start
+        end = row.feature_end
 
-        for feature in batch:
-            # BED coordinates are 0-based, half-open
-            chr_name = feature.chromosome
-            start = feature.feature_start
-            end = feature.feature_end
+        # Feature name
+        name = row.feature_name or "repeat"
 
-            # Feature name
-            name = feature.feature_name or "repeat"
+        # Score: convert divergence to 0-1000 scale
+        # Lower divergence = more conserved = higher score
+        attrs = row.attributes or {}
+        divergence = attrs.get("divergence", 50)
+        # Score = 1000 - (divergence * 20), clamped to 0-1000
+        score = max(0, min(1000, int(1000 - float(divergence) * 20)))
 
-            # Score: convert divergence to 0-1000 scale
-            # Lower divergence = more conserved = higher score
-            attrs = feature.attributes or {}
-            divergence = attrs.get('divergence', 50)
-            # Score = 1000 - (divergence * 20), clamped to 0-1000
-            score = max(0, min(1000, int(1000 - float(divergence) * 20)))
+        # Strand
+        strand = row.strand or "."
 
-            # Strand
-            strand = feature.strand or '.'
+        yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
 
-            yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
 
-        offset += batch_size
-
-        if len(batch) < batch_size:
-            break
 def generate_chipseq_bed_stream(
     db: Session,
     species_id: int,
@@ -329,24 +330,23 @@ def generate_chipseq_bed_stream(
     if not mark_type_obj:
         return
 
-    # Get experiment IDs for this mark and species
-    experiment_ids = (
-        db.query(ChIPSeqExperiment.experiment_id)
+    # Build query for peaks
+    query = (
+        db.query(
+            ChIPSeqPeak.chromosome,
+            ChIPSeqPeak.peak_start,
+            ChIPSeqPeak.peak_end,
+            ChIPSeqPeak.peak_name,
+            ChIPSeqPeak.fold_enrichment,
+            ChIPSeqPeak.strand,
+            ChIPSeqPeak.neg_log10_pvalue,
+            ChIPSeqPeak.neg_log10_qvalue,
+        )
+        .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+        .filter(ChIPSeqPeak.species_id == species_id)
         .filter(ChIPSeqExperiment.species_id == species_id)
         .filter(ChIPSeqExperiment.mark_type_id == mark_type_obj.mark_type_id)
         .filter(ChIPSeqExperiment.is_active.is_(True))
-        .all()
-    )
-    exp_ids = [e.experiment_id for e in experiment_ids]
-
-    if not exp_ids:
-        return
-
-    # Build query for peaks
-    query = (
-        db.query(ChIPSeqPeak)
-        .filter(ChIPSeqPeak.species_id == species_id)
-        .filter(ChIPSeqPeak.experiment_id.in_(exp_ids))
     )
 
     # Region filter
@@ -355,71 +355,65 @@ def generate_chipseq_bed_stream(
 
         if start_filter is not None and end_filter is not None:
             # Region overlap: peak overlaps with [start_filter, end_filter)
-            query = query.filter(
-                and_(
-                    ChIPSeqPeak.peak_start < end_filter,
-                    ChIPSeqPeak.peak_end > start_filter,
+            # PostgreSQL: Use range overlap to leverage GiST index on int8range(peak_start, peak_end, '[)')
+            is_postgresql = db.get_bind().dialect.name == "postgresql"
+            if is_postgresql:
+                query = query.filter(
+                    func.int8range(ChIPSeqPeak.peak_start, ChIPSeqPeak.peak_end, "[)")
+                    .op("&&")(func.int8range(start_filter, end_filter, "[)"))
                 )
-            )
+            else:
+                query = query.filter(
+                    and_(
+                        ChIPSeqPeak.peak_start < end_filter,
+                        ChIPSeqPeak.peak_end > start_filter,
+                    )
+                )
 
     # Order by chromosome and position
     query = query.order_by(ChIPSeqPeak.chromosome, ChIPSeqPeak.peak_start)
 
-    # Stream data in batches
+    # Stream results without OFFSET scans
     batch_size = 10000
-    offset = 0
+    streaming_query = query.execution_options(stream_results=True).yield_per(batch_size)
     peak_counter = 0
 
-    while True:
-        batch = query.offset(offset).limit(batch_size).all()
-        if not batch:
-            break
+    for row in streaming_query:
+        peak_counter += 1
 
-        for peak in batch:
-            peak_counter += 1
-
-            # Check max_records limit
-            if max_records is not None and peak_counter > max_records:
-                return
-
-            # BED coordinates
-            chr_name = peak.chromosome
-            start = peak.peak_start
-            end = peak.peak_end
-
-            # Name field
-            name = peak.peak_name or f"{mark_type}_peak{peak_counter}"
-
-            # Score: convert fold_enrichment to 0-1000 scale
-            # Typical fold_enrichment ranges from 1 to 50+
-            fe = float(peak.fold_enrichment) if peak.fold_enrichment else 1.0
-            score = min(1000, max(0, int(fe * 20)))  # Scale: fe * 20, max 1000
-
-            # Strand (ChIP-seq peaks typically don't have strand info)
-            strand = peak.strand or "."
-
-            # Signal value (fold_enrichment)
-            signal_value = f"{fe:.4f}" if fe else "0"
-
-            # pValue (-log10)
-            p_val = float(peak.neg_log10_pvalue) if peak.neg_log10_pvalue else 0
-            p_value_str = f"{p_val:.4f}"
-
-            # qValue (-log10)
-            q_val = float(peak.neg_log10_qvalue) if peak.neg_log10_qvalue else 0
-            q_value_str = f"{q_val:.4f}"
-
-            # Output BED9 format line
-            yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\t{signal_value}\t{p_value_str}\t{q_value_str}\n"
-
-        offset += batch_size
-
-        # Check max_records limit after batch
-        if max_records is not None and peak_counter >= max_records:
+        # Check max_records limit
+        if max_records is not None and peak_counter > max_records:
             return
 
-        if len(batch) < batch_size:
-            break
+        # BED coordinates
+        chr_name = row.chromosome
+        start = row.peak_start
+        end = row.peak_end
+
+        # Name field
+        name = row.peak_name or f"{mark_type}_peak{peak_counter}"
+
+        # Score: convert fold_enrichment to 0-1000 scale
+        # Typical fold_enrichment ranges from 1 to 50+
+        fe = float(row.fold_enrichment) if row.fold_enrichment else 1.0
+        score = min(1000, max(0, int(fe * 20)))  # Scale: fe * 20, max 1000
+
+        # Strand (ChIP-seq peaks typically don't have strand info)
+        strand = row.strand or "."
+
+        # Signal value (fold_enrichment)
+        signal_value = f"{fe:.4f}" if fe else "0"
+
+        # pValue (-log10)
+        p_val = float(row.neg_log10_pvalue) if row.neg_log10_pvalue else 0
+        p_value_str = f"{p_val:.4f}"
+
+        # qValue (-log10)
+        q_val = float(row.neg_log10_qvalue) if row.neg_log10_qvalue else 0
+        q_value_str = f"{q_val:.4f}"
+
+        # Output BED9 format line
+        yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\t{signal_value}\t{p_value_str}\t{q_value_str}\n"
 
 
 def generate_empty_chipseq_bed_stream(
