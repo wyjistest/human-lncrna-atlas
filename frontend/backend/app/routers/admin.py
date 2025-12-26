@@ -64,8 +64,8 @@ async def verify_admin_access(
     1. 严格模式 (ADMIN_REQUIRE_API_KEY=true): 必须提供正确的 API Key
     2. 普通模式:
        a. 如果提供了正确的 API Key，立即授权访问
-       b. 如果提供了错误的 API Key，记录警告但继续检查 IP
-       c. 如果客户端 IP 在白名单或为私有/内网地址，授权访问
+       b. 如果提供了错误的 API Key，直接拒绝（避免绕过 Key 验证回退到 IP 放行）
+       c. 如果未提供 API Key，且客户端 IP 在白名单或为私有/内网地址，授权访问
        d. 所有检查都失败则拒绝访问
 
     生产环境强烈建议启用 ADMIN_REQUIRE_API_KEY，防止反向代理场景下

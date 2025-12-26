@@ -233,7 +233,15 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
 
   // Handle export
   const handleExport = () => {
-    featuresApi.exportRepeatsToBED(geneId, filters)
+    const result = featuresApi.exportRepeatsToBED(geneId, filters)
+    if (result.blocked) {
+      const msg =
+        result.reason === 'invalid_url'
+          ? tCommon('error.invalidUrl', 'Invalid download URL')
+          : tCommon('error.popupBlocked', 'Popup blocked, please allow popups to download')
+      message.warning(msg)
+      return
+    }
     message.success(t('detail.repeats.exportSuccess'))
   }
 

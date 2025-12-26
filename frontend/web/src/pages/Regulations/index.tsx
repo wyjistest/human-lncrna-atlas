@@ -144,7 +144,12 @@ export default function Regulations() {
       format,
       total,
       (current, total) => {
-        setExportProgress(Math.round((current / total) * 100))
+        if (!total || total <= 0) {
+          setExportProgress(0)
+          return
+        }
+        const percent = Math.round((current / total) * 100)
+        setExportProgress(Math.min(100, Math.max(0, percent)))
       }
     )
 

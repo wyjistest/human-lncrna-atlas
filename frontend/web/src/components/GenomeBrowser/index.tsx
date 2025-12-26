@@ -185,8 +185,10 @@ const GenomeBrowser = memo(({
             console.warn('Error removing previous IGV browser:', e)
           }
           browserRef.current = null
-          // Clear loaded ChIP-seq marks since the browser is being reinitialized
+          // Clear loaded/pending ChIP-seq marks since the browser is being reinitialized
           loadedChipseqMarksRef.current.clear()
+          pendingChipseqMarksRef.current.clear()
+          desiredChipseqMarksRef.current.clear()
         }
         if (cancelled) return
 
@@ -423,19 +425,23 @@ const GenomeBrowser = memo(({
 
   // Track ChIP-seq marks that are currently loaded
   const loadedChipseqMarksRef = useRef<Set<string>>(new Set())
+  // Track ChIP-seq marks that are currently loading (to prevent duplicate loads)
+  const pendingChipseqMarksRef = useRef<Set<string>>(new Set())
+  // Track the latest desired marks (used to avoid race conditions on async load completion)
+  const desiredChipseqMarksRef = useRef<Set<string>>(new Set())
 
   // Dynamically manage ChIP-seq tracks without reinitializing browser
   useEffect(() => {
     if (!browserRef.current) return
 
     const browser = browserRef.current
-    const currentMarks = new Set(showChIPSeq ? chipseqMarks : [])
+    const desiredMarks = showChIPSeq ? chipseqMarks : []
+    const currentMarks = new Set(desiredMarks)
+    desiredChipseqMarksRef.current = currentMarks
     const loadedMarks = loadedChipseqMarksRef.current
+    const pendingMarks = pendingChipseqMarksRef.current
 
-    // Remove tracks that are no longer selected
-    const marksToRemove = [...loadedMarks].filter(mark => !currentMarks.has(mark))
-    marksToRemove.forEach(mark => {
-      const trackName = `ChIP-seq: ${mark}`
+    const removeTrackByName = (trackName: string) => {
       try {
         // IGV.js removeTrackByName API
         const trackToRemove = browser.trackViews?.find(
@@ -444,18 +450,25 @@ const GenomeBrowser = memo(({
         if (trackToRemove) {
           browser.removeTrack(trackToRemove.track)
         }
-        loadedMarks.delete(mark)
       } catch (e) {
         console.warn(`Failed to remove track ${trackName}:`, e)
       }
+    }
+
+    // Remove tracks that are no longer selected
+    const marksToRemove = [...loadedMarks].filter(mark => !currentMarks.has(mark))
+    marksToRemove.forEach(mark => {
+      removeTrackByName(`ChIP-seq: ${mark}`)
+      loadedMarks.delete(mark)
     })
 
     // Add tracks that are newly selected
-    const marksToAdd = [...currentMarks].filter(mark => !loadedMarks.has(mark))
-    marksToAdd.forEach((mark, index) => {
-      // IMPORTANT: Add to loadedMarks BEFORE async loadTrack to prevent race condition
-      // If useEffect re-runs before loadTrack completes, we don't want duplicate loads
-      loadedMarks.add(mark)
+    desiredMarks.forEach((mark, index) => {
+      if (loadedMarks.has(mark) || pendingMarks.has(mark)) {
+        return
+      }
+
+      pendingMarks.add(mark)
 
       // DNase-HS uses pre-built bigBed file for better performance
       // Other marks use dynamic BED API with region filtering
@@ -492,11 +505,27 @@ const GenomeBrowser = memo(({
         }
       }
 
-      browser.loadTrack(trackConfig).catch((e) => {
-        console.warn(`Failed to load track for ${mark}:`, e)
-        // Remove from loadedMarks on failure so user can retry
-        loadedMarks.delete(mark)
-      })
+      browser.loadTrack(trackConfig)
+        .then(() => {
+          pendingMarks.delete(mark)
+
+          // Browser instance changed/unmounted, ignore.
+          if (browserRef.current !== browser) {
+            return
+          }
+
+          // If user toggled off while loading, remove the loaded track to avoid orphan tracks.
+          if (!desiredChipseqMarksRef.current.has(mark)) {
+            removeTrackByName(`ChIP-seq: ${mark}`)
+            return
+          }
+
+          loadedMarks.add(mark)
+        })
+        .catch((e) => {
+          pendingMarks.delete(mark)
+          console.warn(`Failed to load track for ${mark}:`, e)
+        })
     })
   }, [showChIPSeq, chipseqMarks, speciesId])
 

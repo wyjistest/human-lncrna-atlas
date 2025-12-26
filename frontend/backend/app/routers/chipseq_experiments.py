@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
+from app.core.utils import escape_like_pattern
 from app.core.validators import compute_pagination_offset
 from app.routers.chipseq_rate_limit import rate_limit
 from app.utils.chipseq_db import parse_mark_types
@@ -61,8 +62,11 @@ def list_experiments(
         params["mark_category"] = mark_category
 
     if cell_type is not None:
-        where_clauses.append("e.cell_type ILIKE '%' || :cell_type || '%'")
-        params["cell_type"] = cell_type
+        # SECURITY/PERF: 统一 LIKE 转义，避免通配符绕过导致意外全表扫描
+        cell_type_stripped = cell_type.strip()
+        if cell_type_stripped:
+            where_clauses.append("e.cell_type ILIKE '%' || :cell_type || '%' ESCAPE '\\\\'")
+            params["cell_type"] = escape_like_pattern(cell_type_stripped)
 
     if source_database is not None:
         where_clauses.append("e.source_database = :source_database")

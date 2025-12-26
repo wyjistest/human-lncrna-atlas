@@ -99,7 +99,7 @@
       "classDistribution": "类型分布",
       "repeatClass": "重复类型",
       "noRepeats": "该基因区域未发现重复序列",
-      "exportSuccess": "BED 文件导出成功",
+      "exportSuccess": "导出已开始",
       "exportBED": "导出 BED"
     },
     "chipseq": {

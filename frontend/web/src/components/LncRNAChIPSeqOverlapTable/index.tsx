@@ -739,8 +739,11 @@ export function LncRNAChIPSeqOverlapTable({
 
         // Check if popup was blocked
         if (result.blocked) {
+          const content = result.reason === 'invalid_url'
+            ? t('export.invalidUrl', 'Invalid export URL. Please check your filters and try again.')
+            : t('export.popupBlocked', 'Please allow popups to download the file, or try right-clicking and "Save As"')
           message.warning({
-            content: t('export.popupBlocked', 'Please allow popups to download the file, or try right-clicking and "Save As"'),
+            content,
             key: 'export',
             duration: 5
           })

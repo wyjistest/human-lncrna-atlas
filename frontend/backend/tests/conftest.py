@@ -1,14 +1,16 @@
 """
 测试配置和共享 Fixtures
 """
-import pytest
-import httpx
-from typing import Generator, Any
-import sys
 import os
+import sys
+from typing import Any, Generator
+
+import httpx
+import pytest
 
 # 添加项目根目录到 path，以便导入 app 模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _install_uvloop_policy() -> None:
@@ -27,6 +29,7 @@ def _install_uvloop_policy() -> None:
 
     uvloop.install()
 
+
 from app.schemas.gene import GeneListItem, GeneDetail
 from app.schemas.regulation import RegulationListItem, RegulationDetail
 from app.schemas.stats import OverviewStats
@@ -36,6 +39,68 @@ from app.schemas.stats import OverviewStats
 
 BASE_URL = os.getenv("TEST_API_URL", "http://localhost:8000")
 API_PREFIX = "/api/v1"
+
+
+def _truthy_env(name: str) -> bool:
+    value = os.getenv(name, "").strip().lower()
+    return value in {"1", "true", "yes", "y", "on"}
+
+
+def pytest_configure(config: pytest.Config) -> None:  # pragma: no cover
+    """
+    Register custom markers even when pytest.ini is not discovered (e.g. running pytest from repo root).
+    This prevents PytestUnknownMarkWarning noise and keeps marker semantics consistent.
+    """
+    config.addinivalue_line(
+        "markers",
+        "unit: Pure unit tests - no external dependencies (database, network)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "integration: Integration tests - require running database/server",
+    )
+    config.addinivalue_line(
+        "markers",
+        "performance: Performance benchmarks - may take longer to run",
+    )
+    config.addinivalue_line(
+        "markers",
+        "slow: Tests that take > 5 seconds (use -m 'not slow' to skip)",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """
+    Make `pytest` runnable out-of-the-box by skipping integration/performance tests unless explicitly enabled.
+
+    Rationale:
+    - integration tests depend on an externally running API server + database,
+      and will fail in constrained/CI environments by default.
+    - performance tests are intentionally heavier and should be opt-in.
+    """
+    run_integration = _truthy_env("RUN_INTEGRATION_TESTS")
+    run_performance = _truthy_env("RUN_PERFORMANCE_TESTS")
+
+    # If a custom API URL is provided, assume integration tests are intended.
+    if os.getenv("TEST_API_URL"):
+        run_integration = True
+
+    for item in items:
+        if "integration" in item.keywords and not run_integration:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason=(
+                        "Integration tests are opt-in. "
+                        "Set RUN_INTEGRATION_TESTS=1 (and ensure TEST_API_URL points to a running API)."
+                    )
+                )
+            )
+        if "performance" in item.keywords and not run_performance:
+            item.add_marker(
+                pytest.mark.skip(
+                    reason="Performance tests are opt-in. Set RUN_PERFORMANCE_TESTS=1 to enable."
+                )
+            )
 
 
 # ============== HTTP Client Fixtures ==============
@@ -183,14 +248,16 @@ class APIAssertions:
     @staticmethod
     def assert_successful_response(response: httpx.Response, expected_status: int = 200):
         """断言响应成功"""
-        assert response.status_code == expected_status, \
+        assert response.status_code == expected_status, (
             f"期望状态码 {expected_status}，实际 {response.status_code}，响应: {response.text[:500]}"
+        )
 
     @staticmethod
     def assert_json_response(response: httpx.Response) -> dict:
         """断言响应是有效 JSON 并返回"""
-        assert "application/json" in response.headers.get("content-type", ""), \
+        assert "application/json" in response.headers.get("content-type", ""), (
             f"响应不是 JSON，Content-Type: {response.headers.get('content-type')}"
+        )
         return response.json()
 
     @staticmethod
@@ -198,8 +265,7 @@ class APIAssertions:
         """断言分页参数正确"""
         assert data["page"] == page, f"页码应为 {page}，实际 {data['page']}"
         assert data["page_size"] == page_size, f"页大小应为 {page_size}，实际 {data['page_size']}"
-        assert len(data["items"]) <= page_size, \
-            f"返回项数 {len(data['items'])} 超过页大小 {page_size}"
+        assert len(data["items"]) <= page_size, f"返回项数 {len(data['items'])} 超过页大小 {page_size}"
 
 
 @pytest.fixture
@@ -256,13 +322,16 @@ def expect_no_500_error():
         response = api_client.get("/some/endpoint")
         expect_no_500_error(response)
     """
+
     def _assert(response: httpx.Response, context: str = ""):
-        msg = f"不应返回 500 错误"
+        msg = "不应返回 500 错误"
         if context:
             msg = f"{context}: {msg}"
-        assert response.status_code != 500, \
+        assert response.status_code != 500, (
             f"{msg}，实际: {response.status_code}，响应: {response.text[:300]}"
+        )
         return response
+
     return _assert
 
 
@@ -275,11 +344,13 @@ def expect_client_error():
         response = api_client.get("/some/endpoint", params={"invalid": "param"})
         expect_client_error(response)
     """
+
     def _assert(response: httpx.Response, context: str = ""):
-        msg = f"应返回 4xx 客户端错误"
+        msg = "应返回 4xx 客户端错误"
         if context:
             msg = f"{context}: {msg}"
-        assert 400 <= response.status_code < 500, \
-            f"{msg}，实际: {response.status_code}"
+        assert 400 <= response.status_code < 500, f"{msg}，实际: {response.status_code}"
         return response
+
     return _assert
+

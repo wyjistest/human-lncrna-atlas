@@ -21,6 +21,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
 from app.core.ip_utils import is_trusted_proxy
+from app.core.utils import sanitize_for_log
 
 logger = logging.getLogger("api")
 
@@ -187,7 +188,11 @@ class LoggingMiddleware:
         query_string = scope.get("query_string", b"").decode(errors="replace")
         # 遮蔽敏感查询参数后用于日志记录
         safe_query = self._sanitize_query_string(query_string)
-        url = f"{path}?{safe_query}" if safe_query else path
+        log_path = sanitize_for_log(
+            path,
+            max_length=self._max_url_length if self._max_url_length > 0 else 0,
+        )
+        url = f"{log_path}?{safe_query}" if safe_query else log_path
         url = self._truncate_for_log(url, self._max_url_length)
 
         # 获取客户端 IP

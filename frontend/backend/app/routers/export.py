@@ -24,9 +24,9 @@ from typing import List, Optional, Dict, Any, Iterator, Generator, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import Float, cast, select, text
 from sqlalchemy.orm import Session, aliased
-
+	
 from app.core.database import get_db
-from app.core.utils import escape_like_pattern
+from app.core.utils import escape_like_pattern, sanitize_for_log
 from app.core.validators import parse_int_list, parse_comma_list
 from app.models import Gene, Regulation, Species
 from app.routers.chipseq_rate_limit import rate_limit
@@ -234,7 +234,13 @@ def export_high_affinity(
     **性能**: 10000 条记录 < 5s
     **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
-    logger.info(f"[EXPORT] high-affinity: min_ba={min_ba}, species_id={species_id}, limit={limit}, output_format={output_format}")
+    logger.info(
+        "[EXPORT] high-affinity: min_ba=%s, species_id=%s, limit=%s, output_format=%s",
+        min_ba,
+        species_id,
+        limit,
+        output_format,
+    )
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -243,40 +249,31 @@ def export_high_affinity(
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
         )
 
-    where_clauses = ["r.binding_affinity >= :min_ba"]
-    params = {
-        "min_ba": min_ba,
-        "limit": limit,
-    }
-    if species_id is not None:
-        where_clauses.append("r.species_id = :species_id")
-        params["species_id"] = species_id
+    lnc = aliased(Gene)
+    tgt = aliased(Gene)
 
-    where_sql = " AND ".join(where_clauses)
-
-    # 构建 SQL 查询
-    sql = text(
-        f"""
-        SELECT
-            r.lncrna_gene_id,
-            lnc.gene_name as lncrna_name,
-            r.target_gene_id,
-            tgt.gene_name as target_name,
-            r.binding_affinity,
-            r.species_id,
-            s.display_name as species_name,
-            r.target_chromosome as chr,
-            r.target_start as start_in_genome,
-            r.target_end as end_in_genome
-        FROM regulations r
-        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
-        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
-        JOIN species s ON r.species_id = s.species_id
-        WHERE {where_sql}
-        ORDER BY r.binding_affinity DESC
-        LIMIT :limit
-        """  # noqa: S608
+    stmt = (
+        select(
+            Regulation.lncrna_gene_id,
+            lnc.gene_name.label("lncrna_name"),
+            Regulation.target_gene_id,
+            tgt.gene_name.label("target_name"),
+            cast(Regulation.binding_affinity, Float).label("binding_affinity"),
+            Regulation.species_id,
+            Species.display_name.label("species_name"),
+            Regulation.target_chromosome.label("chr"),
+            Regulation.target_start.label("start_in_genome"),
+            Regulation.target_end.label("end_in_genome"),
+        )
+        .select_from(Regulation)
+        .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
+        .join(tgt, Regulation.target_gene_id == tgt.gene_id)
+        .join(Species, Regulation.species_id == Species.species_id)
+        .where(Regulation.binding_affinity >= min_ba)
     )
+    if species_id is not None:
+        stmt = stmt.where(Regulation.species_id == species_id)
+    stmt = stmt.order_by(Regulation.binding_affinity.desc().nullslast()).limit(limit)
 
     # 定义列名（用于流式导出）
     fieldnames = [
@@ -287,7 +284,7 @@ def export_high_affinity(
 
     # CSV/Excel: 使用流式输出
     if output_format in ("csv", "excel", "jsonl"):
-        result = db.execute(sql, params)
+        result = db.execute(stmt)
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,
@@ -296,7 +293,7 @@ def export_high_affinity(
         )
 
     # JSON: 标准响应（需要 total 字段）
-    result = db.execute(sql, params)
+    result = db.execute(stmt)
     data = [dict(row._mapping) for row in result]
 
     query_params = {
@@ -345,7 +342,12 @@ def export_conservation(
     **性能**: 5000 条记录 < 3s
     **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
-    logger.info(f"[EXPORT] conservation: min_species_count={min_species_count}, limit={limit}, output_format={output_format}")
+    logger.info(
+        "[EXPORT] conservation: min_species_count=%s, limit=%s, output_format=%s",
+        min_species_count,
+        limit,
+        output_format,
+    )
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -464,7 +466,13 @@ def export_chipseq_overlaps(
     **性能**: 10000 条记录 < 5s（使用物化视图 mv_lncrna_chipseq_overlaps）
     **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
-    logger.info(f"[EXPORT] chipseq-overlaps: mark_names={mark_names}, min_ba={min_ba}, limit={limit}, output_format={output_format}")
+    logger.info(
+        "[EXPORT] chipseq-overlaps: mark_names=%s, min_ba=%s, limit=%s, output_format=%s",
+        sanitize_for_log(mark_names, max_length=500),
+        min_ba,
+        limit,
+        output_format,
+    )
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -599,7 +607,12 @@ def export_disease_network(
 
     **性能**: 5000 条边 < 5s
     """
-    logger.info(f"[EXPORT] disease-network: trait_name={trait_name}, limit={limit}, output_format={output_format}")
+    logger.info(
+        "[EXPORT] disease-network: trait_name=%s, limit=%s, output_format=%s",
+        sanitize_for_log(trait_name, max_length=200),
+        limit,
+        output_format,
+    )
 
     # 验证参数
     if limit > MAX_EXPORT_LIMIT:
@@ -831,10 +844,15 @@ def export_regulations(
     - Excel: write_only 模式降低内存峰值
     """
     logger.info(
-        f"[EXPORT] regulations: min_ba={min_ba}, max_ba={max_ba}, "
-        f"species_ids={species_ids}, chromosomes={chromosomes}, "
-        f"lncrna={lncrna_gene_name}, target={target_gene_name}, "
-        f"limit={limit}, output_format={output_format}"
+        "[EXPORT] regulations: min_ba=%s, max_ba=%s, species_ids=%s, chromosomes=%s, lncrna=%s, target=%s, limit=%s, output_format=%s",
+        min_ba,
+        max_ba,
+        sanitize_for_log(species_ids, max_length=200),
+        sanitize_for_log(chromosomes, max_length=500),
+        sanitize_for_log(lncrna_gene_name, max_length=200),
+        sanitize_for_log(target_gene_name, max_length=200),
+        limit,
+        output_format,
     )
 
     # 验证参数

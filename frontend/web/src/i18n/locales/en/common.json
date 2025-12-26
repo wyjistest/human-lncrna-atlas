@@ -35,6 +35,8 @@
   "error": {
     "unknown": "Unknown error",
     "loadFailed": "Failed to load",
+    "popupBlocked": "Popup blocked, please allow popups to download",
+    "invalidUrl": "Invalid URL",
     "retry": "Retry"
   },
   "link": {

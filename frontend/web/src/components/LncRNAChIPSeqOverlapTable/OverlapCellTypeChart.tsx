@@ -94,7 +94,7 @@ export function OverlapCellTypeChart({
           const p = params as PieParams
           const cellType = p.name
           const displayName = getCellTypeLabel(cellType, i18n.language)
-          const percentage = ((p.value / total) * 100).toFixed(1)
+          const percentage = total > 0 ? ((p.value / total) * 100).toFixed(1) : '0.0'
           return [
             `<strong>${escapeHtml(displayName)}</strong>`,
             `${t('charts.overlapCount', 'Overlaps')}: ${p.value.toLocaleString()}`,
@@ -110,7 +110,7 @@ export function OverlapCellTypeChart({
           const item = sortedData.find((d) => d.cell_type === name)
           const displayName = getCellTypeLabel(name, i18n.language)
           if (item) {
-            const percentage = ((item.count / total) * 100).toFixed(1)
+            const percentage = total > 0 ? ((item.count / total) * 100).toFixed(1) : '0.0'
             return `${displayName} (${percentage}%)`
           }
           return displayName
@@ -144,7 +144,7 @@ export function OverlapCellTypeChart({
             show: true,
             formatter: (params: unknown) => {
               const p = params as PieParams
-              const percentage = ((p.value / total) * 100).toFixed(1)
+              const percentage = total > 0 ? ((p.value / total) * 100).toFixed(1) : '0.0'
               if (parseFloat(percentage) < 5) {
                 return '' // Hide labels for small slices
               }

@@ -34,6 +34,7 @@ from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
 from app.core.validators import MAX_FIELD_LENGTH, compute_pagination_offset, parse_comma_list
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
+from app.utils.bed import sanitize_bed_field
 from app.utils.http_headers import content_disposition_attachment
 from app.utils.streaming_export import sanitize_csv_value
 
@@ -1224,7 +1225,7 @@ def format_bed_row(row: dict) -> str:
     lncrna = row.get('lncrna_name', 'unknown')
     target = row.get('target_gene_name', 'unknown')
     mark = row.get('mark_type', 'unknown')
-    name = f"{lncrna}_{target}_{mark}"
+    name = sanitize_bed_field(f"{lncrna}_{target}_{mark}")
 
     # Convert binding_affinity (0-100 scale) to BED score (0-1000)
     binding_affinity = float(row.get('binding_affinity', 0))

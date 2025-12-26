@@ -22,7 +22,7 @@
  */
 import { apiClient } from './client'
 import { API_BASE_URL } from '@/config/api'
-import { openInNewTab } from '@/utils/safeWindow'
+import { openDownloadUrl, type SafeWindowResult } from '@/utils/safeWindow'
 import type {
   RepeatMaskerResponse,
   RepeatMaskerFilters,
@@ -164,7 +164,7 @@ export const featuresApi = {
    *   })
    * }
    */
-  exportRepeatsToBED: (geneId: number, filters?: RepeatMaskerFilters) => {
+  exportRepeatsToBED: (geneId: number, filters?: RepeatMaskerFilters): SafeWindowResult => {
     const params = new URLSearchParams()
 
     if (filters?.repeat_class) params.append('repeat_class', filters.repeat_class)
@@ -174,7 +174,7 @@ export const featuresApi = {
 
     const queryString = params.toString()
     const url = `${API_BASE_URL}/api/v1/features/genes/${geneId}/repeats/export${queryString ? `?${queryString}` : ''}`
-    openInNewTab(url)
+    return openDownloadUrl(url)
   },
 
   // =============================================================================

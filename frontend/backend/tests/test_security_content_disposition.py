@@ -39,6 +39,17 @@ def test_content_disposition_attachment_is_safe_and_rfc5987():
     assert "filename*=" in header_value
 
 
+def test_content_disposition_filename_star_preserves_unicode():
+    raw = "报告🚀.csv"
+    header_value = content_disposition_attachment(raw)
+
+    # RFC 5987 part should be percent-encoded UTF-8 (Chinese + emoji)
+    assert "filename*=" in header_value
+    assert "UTF-8''" in header_value
+    assert "%E6%8A%A5%E5%91%8A" in header_value  # 报告
+    assert "%F0%9F%9A%80" in header_value  # 🚀
+
+
 def test_streaming_export_responses_use_safe_content_disposition():
     raw = 'evil"\r\nSet-Cookie: pwn=1.csv'
 

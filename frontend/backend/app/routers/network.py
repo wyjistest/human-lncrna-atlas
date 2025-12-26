@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, or_, and_
 
+from app.core.cache import cache
 from app.core.database import get_db
 from app.core.utils import compute_conservation_map
 from app.routers.chipseq_rate_limit import rate_limit
@@ -29,6 +30,11 @@ def get_available_combinations(
     """
     获取有网络数据的疾病-Ontology组合列表
     """
+    cache_key = cache.make_key("network:available-combinations", species_id=species_id)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     query = (
         db.query(
             TraitGeneAssociation.trait_id,
@@ -54,7 +60,7 @@ def get_available_combinations(
         .all()
     )
 
-    return {
+    result = {
         "combinations": [
             {
                 "trait_id": c.trait_id,
@@ -65,6 +71,8 @@ def get_available_combinations(
             for c in combinations
         ]
     }
+    cache.set(cache_key, result, cache.TTL_STATS)
+    return result
 
 
 @router.get("/disease", response_model=NetworkData)

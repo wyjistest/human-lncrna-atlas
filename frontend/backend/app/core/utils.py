@@ -19,6 +19,39 @@ def escape_like_pattern(value: str) -> str:
     return re.sub(r'([%_\\])', r'\\\1', value)
 
 
+_LOG_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def sanitize_for_log(value: object, *, max_length: int = 200) -> str:
+    """
+    Sanitize potentially user-controlled values for safe logging.
+
+    Security goals:
+    - Prevent log injection / log forging (strip control characters like CR/LF/TAB/ESC).
+    - Bound log size to avoid unbounded growth from large inputs.
+
+    Args:
+        value: Any value to be logged.
+        max_length: Maximum length of the sanitized string (<=0 means no limit).
+
+    Returns:
+        A sanitized string safe for log lines.
+    """
+    if value is None:
+        return ""
+
+    text = str(value)
+    text = _LOG_CONTROL_CHARS_RE.sub(" ", text).strip()
+
+    if max_length <= 0 or len(text) <= max_length:
+        return text
+
+    suffix = "...[TRUNC]"
+    if max_length <= len(suffix):
+        return text[:max_length]
+    return text[: max_length - len(suffix)] + suffix
+
+
 def compute_conservation_map(core_ids: List[int], db: "Session") -> Dict[int, tuple]:
     """
     Compute conservation data for a list of core_ids.

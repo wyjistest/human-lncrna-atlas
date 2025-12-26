@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
+from app.utils.bed import sanitize_bed_field
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ def _generate_overlap_bed6_stream(
             cell_type = row.cell_type or "unknown_cell"
 
             # name: 保持简洁但包含 mark_type，满足 IGV 与测试场景
-            name = f"{lncrna}->{target}|{mark}|{cell_type}"
+            name = sanitize_bed_field(f"{lncrna}->{target}|{mark}|{cell_type}")
 
             # score: 使用与 regulations BED 一致的 BA 缩放策略
             ba = float(row.binding_affinity) if row.binding_affinity else 0.0
@@ -242,11 +243,11 @@ def _execute_overlap_query(
 @rate_limit("60/minute")
 def get_overlap_track(
     request: Request,
-    chr: Optional[str] = Query(None, description="IGV.js 标准染色体参数，如 chr1 或 1"),
-    chromosome: Optional[str] = Query(None, description="chr 的别名参数，如 chr22 或 22"),
+    chr: Optional[str] = Query(None, max_length=64, description="IGV.js 标准染色体参数，如 chr1 或 1"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="chr 的别名参数，如 chr22 或 22"),
     start: int = Query(..., ge=0, description="区域起点 (0-based)"),
     end: int = Query(..., ge=0, description="区域终点"),
-    mark_type: Optional[str] = Query(None, description="可选：按组蛋白标记过滤，如 H3K27me3"),
+    mark_type: Optional[str] = Query(None, max_length=64, description="可选：按组蛋白标记过滤，如 H3K27me3"),
     min_ba: Optional[float] = Query(None, ge=0, description="可选：最小结合亲和力阈值"),
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="最大返回条目数（防止 IGV 一次拉取过多数据）"),
     db: Session = Depends(get_db),

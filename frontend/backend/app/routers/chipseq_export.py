@@ -31,6 +31,7 @@ from app.core.exceptions import sanitize_db_error
 from app.core.validators import MAX_EXPORT_MARKS, parse_comma_list
 from app.models import Gene
 from app.schemas.chipseq import ExportFormat
+from app.utils.bed import sanitize_bed_track_attr
 from app.utils.http_headers import content_disposition_attachment
 from app.utils.streaming_export import sanitize_csv_value
 
@@ -463,7 +464,10 @@ def export_overlaps_bed(
     if format == ExportFormat.bed:
         output = io.StringIO()
         # BED header (optional track line)
-        output.write(f"track name=\"ChIP-seq_Overlaps_{gene_id}\" description=\"Overlapping regions for gene {gene.gene_name}\"\n")
+        safe_gene_name = sanitize_bed_track_attr(gene.gene_name or "unknown")
+        output.write(
+            f"track name=\"ChIP-seq_Overlaps_{gene_id}\" description=\"Overlapping regions for gene {safe_gene_name}\"\n"
+        )
         for o in overlaps:
             output.write(f"{o['chromosome']}\t{o['start']}\t{o['end']}\t{o['name']}\t{o['score']}\t{o['strand']}\n")
         media_type = "text/plain"

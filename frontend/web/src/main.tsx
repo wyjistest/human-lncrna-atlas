@@ -40,7 +40,17 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5分钟内数据视为新鲜，不会触发后台重新获取
       gcTime: 10 * 60 * 1000,   // 10分钟后垃圾回收未使用的缓存（v5 中 cacheTime 改名为 gcTime）
       refetchOnWindowFocus: false, // 禁用窗口聚焦时自动重新获取，减少不必要的请求
-      retry: 1,
+      // Retry strategy: be conservative and type-aware.
+      // - Do not retry validation (4xx) or rate limit (429)
+      // - Retry once for transient errors (network/timeout/5xx/unknown)
+      retry: (failureCount, error) => {
+        const parsed = parseError(error)
+        if (parsed.type === 'canceled') return false
+        if (parsed.type === 'validation') return false
+        if (parsed.type === 'rate_limit') return false
+        return failureCount < 1
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8000),
     },
   },
 })

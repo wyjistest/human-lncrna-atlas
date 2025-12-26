@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.30 |
+| 版本 | Phase 9.31 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-26 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -271,7 +271,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.27 | Codex 十二次审查修复: /genomes 路径遍历深度防御 (dotfile/traversal 阻断) + 可选依赖优雅降级 (psutil/redis) + 前端类型重构 (conservationApi.ts 分离) + Middleware 顺序修正 + 7 项新增安全测试 | 2025-12-24 |
 | 9.28 | Codex 十三次审查修复: 内存缓存 invalidate() 修复 (delete_prefix) + /metrics 路径匹配兼容 root_path + batch_import_chipseq.py 硬编码移除 | 2025-12-24 |
 | 9.29 | Codex 十四次审查修复: init_db.sh fail-fast (pipefail + ON_ERROR_STOP) + start.sh 健康检查修正 (curl -fsS) + npm ci 统一 + IGV 计数查询优化 (func.count) + 日志权限收紧 + DB 索引迁移脚本 | 2025-12-25 |
-| **9.30** | **Codex 十五次审查修复 (6 轮 47 项): XSS tooltip 转义 + CI 权限收紧 + SQL 参数化 + ETL 断点续传 + DB CHECK 约束 + 前端内存泄漏修复 + API 参数校验 + 请求取消机制 + 缓存 Prometheus 指标 + a11y 可访问性 + 全局 unhandledrejection + 依赖安全审计** | **2025-12-26** |
+| 9.30 | Codex 十五次审查修复 (6 轮 47 项): XSS tooltip 转义 + CI 权限收紧 + SQL 参数化 + ETL 断点续传 + DB CHECK 约束 + 前端内存泄漏修复 + API 参数校验 + 请求取消机制 + 缓存 Prometheus 指标 + a11y 可访问性 + 全局 unhandledrejection + 依赖安全审计 | 2025-12-26 |
+| **9.31** | **Codex 十六至二十次审查修复 (5 轮 17 项): 测试分层默认跳过集成测试 + ILIKE 转义防护 + SQL 参数化重构 + URL 协议白名单 + BED 字段/track 清理 + API 参数长度限制 + 缓存优化 + /metrics 鉴权一致性 + 日志注入防护 + React Query 智能重试 + 除零保护 + RFC5987 Unicode 文件名 + IGV track 竞态修复 + RepeatMasker 导出安全 + a11y aria-label** | **2025-12-26** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

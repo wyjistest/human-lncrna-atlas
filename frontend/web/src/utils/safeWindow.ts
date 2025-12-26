@@ -10,11 +10,32 @@
 /**
  * Result of opening a new window
  */
+export type SafeWindowBlockReason = 'popup_blocked' | 'invalid_url' | 'no_window'
+
 export interface SafeWindowResult {
   /** The opened window reference, or null if blocked */
   window: Window | null
   /** Whether the popup was blocked by the browser */
   blocked: boolean
+  /** Optional reason when blocked=true (best-effort) */
+  reason?: SafeWindowBlockReason
+}
+
+const MAX_URL_LENGTH = 8192
+const ALLOWED_PROTOCOLS = new Set(['http:', 'https:', 'blob:'])
+
+function isSafeUrlToOpen(rawUrl: string): boolean {
+  const url = rawUrl.trim()
+  if (!url) return false
+  if (url.length > MAX_URL_LENGTH) return false
+  if (/[\r\n\0]/.test(url)) return false
+  if (typeof window === 'undefined') return false
+  try {
+    const resolved = new URL(url, window.location.href)
+    return ALLOWED_PROTOCOLS.has(resolved.protocol)
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -35,6 +56,15 @@ export interface SafeWindowResult {
  * ```
  */
 export const openInNewTab = (url: string): SafeWindowResult => {
+  if (typeof window === 'undefined') {
+    return { window: null, blocked: true, reason: 'no_window' }
+  }
+
+  if (!isSafeUrlToOpen(url)) {
+    console.warn('[safeWindow] Blocked opening unsafe URL:', url)
+    return { window: null, blocked: true, reason: 'invalid_url' }
+  }
+
   // Open with noopener,noreferrer to prevent tabnabbing
   const newWindow = window.open(url, '_blank', 'noopener,noreferrer')
 
@@ -49,6 +79,7 @@ export const openInNewTab = (url: string): SafeWindowResult => {
   return {
     window: newWindow,
     blocked,
+    reason: blocked ? 'popup_blocked' : undefined,
   }
 }
 

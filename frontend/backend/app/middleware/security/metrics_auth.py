@@ -4,6 +4,7 @@ Prometheus /metrics Endpoint Authentication Middleware
 Phase 9.16: 从 main.py 提取
 保护 Prometheus /metrics 端点，要求 API Key 认证
 """
+import logging
 import secrets
 
 from fastapi import Request
@@ -11,6 +12,8 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.ip_utils import get_client_ip, is_private_ip
+
+logger = logging.getLogger(__name__)
 
 
 async def metrics_auth_middleware(request: Request, call_next):
@@ -49,15 +52,24 @@ async def metrics_auth_middleware(request: Request, call_next):
                 )
             if api_key and secrets.compare_digest(api_key.encode('utf-8'), admin_key.encode('utf-8')):
                 return await call_next(request)
+
+            if api_key:
+                logger.warning("Invalid Admin API Key for /metrics from %s (strict mode)", client_ip)
             return JSONResponse(
                 status_code=403,
                 content={"error": "ACCESS_DENIED", "message": "Valid X-Admin-API-Key required for /metrics"}
             )
 
         # 普通模式：有效 API Key 或私有 IP 可访问
-        if api_key and admin_key:
+        # SECURITY: 若配置了 admin_key 且客户端提供了错误的 API Key，则直接拒绝（不回退到私网放行）
+        if admin_key and api_key:
             if secrets.compare_digest(api_key.encode('utf-8'), admin_key.encode('utf-8')):
                 return await call_next(request)
+            logger.warning("Invalid Admin API Key for /metrics from %s", client_ip)
+            return JSONResponse(
+                status_code=403,
+                content={"error": "ACCESS_DENIED", "message": "Invalid API Key provided"},
+            )
         if is_private_ip(client_ip):
             return await call_next(request)
 

@@ -325,6 +325,7 @@ export const OrthologBrowser: React.FC<OrthologBrowserProps> = ({
               type="text"
               size="small"
               icon={<EyeOutlined />}
+              aria-label={t('ortholog.viewRegulations')}
               onClick={(e) => {
                 e.stopPropagation()
                 handleViewRegulations(record)
@@ -336,6 +337,7 @@ export const OrthologBrowser: React.FC<OrthologBrowserProps> = ({
               type="text"
               size="small"
               icon={<ArrowRightOutlined />}
+              aria-label={t('ortholog.goToDetail')}
               onClick={(e) => {
                 e.stopPropagation()
                 handleNavigate(record.gene_id)

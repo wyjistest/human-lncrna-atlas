@@ -99,7 +99,7 @@
       "classDistribution": "Class Distribution",
       "repeatClass": "Repeat Class",
       "noRepeats": "No repeat elements found in this gene region",
-      "exportSuccess": "BED file export successful",
+      "exportSuccess": "Export started",
       "exportBED": "Export BED"
     },
     "chipseq": {

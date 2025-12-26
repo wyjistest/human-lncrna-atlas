@@ -35,6 +35,8 @@
   "error": {
     "unknown": "未知错误",
     "loadFailed": "加载失败",
+    "popupBlocked": "弹窗被阻止，请允许弹窗后重试下载",
+    "invalidUrl": "下载地址无效",
     "retry": "重试"
   },
   "link": {
