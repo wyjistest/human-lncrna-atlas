@@ -12,12 +12,74 @@ Admin 鉴权和限流模块共用此实现，避免策略分叉。
 
 import ipaddress
 import logging
+import re
+from typing import Optional
 
 from fastapi import Request
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+_XFF_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def parse_x_forwarded_for(forwarded_for: str) -> Optional[str]:
+    """
+    Parse and validate the first IP from an X-Forwarded-For header value.
+
+    Security goals:
+    - Prevent log injection / header smuggling via control characters.
+    - Ensure downstream auth / rate limiting uses a real IP address.
+
+    Notes:
+    - Only the first entry is considered (original client IP): "client, proxy1, proxy2".
+    - Best-effort support for common non-standard formats like:
+      - "1.2.3.4:1234" (IPv4 with port)
+      - "[2001:db8::1]:1234" (IPv6 with port)
+    """
+    if not forwarded_for:
+        return None
+
+    # Avoid spending time on extremely large headers.
+    raw = forwarded_for[:512]
+
+    first = raw.split(",")[0]
+    first = _XFF_CONTROL_CHARS_RE.sub(" ", first).strip()
+    if not first:
+        return None
+
+    # Some proxies accidentally forward "Forwarded: for=..." into XFF.
+    if first.lower().startswith("for="):
+        first = first[4:].strip()
+
+    # Trim surrounding quotes.
+    first = first.strip().strip('"').strip("'").strip()
+    if not first:
+        return None
+
+    # If there is trailing junk after the IP (e.g. after control chars), keep the first token.
+    parts = first.split()
+    if parts:
+        first = parts[0]
+
+    # IPv6 with port: [2001:db8::1]:1234
+    if first.startswith("[") and "]" in first:
+        first = first[1:first.index("]")]
+    else:
+        # IPv4 with port: 1.2.3.4:1234
+        if first.count(":") == 1 and "." in first:
+            host, port = first.split(":", 1)
+            if port.isdigit():
+                first = host
+
+    try:
+        ip = ipaddress.ip_address(first)
+    except ValueError:
+        return None
+
+    return str(ip)
 
 
 def is_private_ip(ip_str: str) -> bool:
@@ -99,10 +161,10 @@ def get_client_ip(request: Request) -> str:
     if is_trusted_proxy(direct_ip):
         forwarded_for = request.headers.get("X-Forwarded-For")
         if forwarded_for:
-            # 取第一个 IP（客户端原始 IP）
-            client_ip = forwarded_for.split(",")[0].strip()
-            logger.debug(f"Trusted proxy {direct_ip}, using X-Forwarded-For: {client_ip}")
-            return client_ip
+            client_ip = parse_x_forwarded_for(forwarded_for)
+            if client_ip:
+                logger.debug("Trusted proxy %s, using X-Forwarded-For: %s", direct_ip, client_ip)
+                return client_ip
 
     # 直接连接场景或不信任的代理
     return direct_ip
@@ -151,4 +213,5 @@ __all__ = [
     "get_client_ip",
     "get_rate_limit_key",
     "should_bypass_rate_limit",
+    "parse_x_forwarded_for",
 ]

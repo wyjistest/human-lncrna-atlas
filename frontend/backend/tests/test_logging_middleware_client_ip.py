@@ -37,6 +37,15 @@ def test_get_client_ip_missing_client_returns_unknown():
     assert LoggingMiddleware._get_client_ip(scope) == "unknown"
 
 
+def test_get_client_ip_trusted_proxy_strips_control_chars_from_x_forwarded_for():
+    scope = _make_scope(
+        client_ip="127.0.0.1",
+        headers=[(b"x-forwarded-for", b"8.8.8.8\r\nINJECT, 1.1.1.1")],
+    )
+    # Should extract the real IP and ignore injected control characters/junk.
+    assert LoggingMiddleware._get_client_ip(scope) == "8.8.8.8"
+
+
 def test_truncate_for_log_keeps_short_text():
     text = "/api/v1/genes?species_id=1"
     assert LoggingMiddleware._truncate_for_log(text, 2048) == text

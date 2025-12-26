@@ -302,7 +302,22 @@ def get_lncrna_chipseq_overlaps_from_mv(
         """  # noqa: S608
     )
 
-    # Calculate offset
+    # Cache COUNT(*) separately (hot path for pagination).
+    count_cache_key = cache.make_key(
+        "overlap:list_count",
+        source="mv",
+        lncrna_gene_id=filters.lncrna_gene_id,
+        target_gene_id=filters.target_gene_id,
+        chromosome=filters.chromosome,
+        mark_types=mark_types_array,
+        cell_types=cell_types_array,
+        min_binding_affinity=filters.min_binding_affinity,
+        min_peak_strength=filters.min_peak_strength,
+        max_qvalue=filters.max_qvalue,
+        min_overlap_length=filters.min_overlap_length,
+    )
+
+    # Calculate offset (not part of count cache key)
     offset = compute_pagination_offset(filters.page, filters.page_size)
 
     params.update(
@@ -313,9 +328,14 @@ def get_lncrna_chipseq_overlaps_from_mv(
     )
 
     try:
-        # Get total count
-        count_result = db.execute(count_sql, params).fetchone()
-        total = count_result[0] if count_result else 0
+        # Get total count (cached)
+        cached_total = cache.get(count_cache_key)
+        if cached_total is not None:
+            total = int(cached_total)
+        else:
+            count_result = db.execute(count_sql, params).fetchone()
+            total = int(count_result[0] if count_result else 0)
+            cache.set(count_cache_key, total, cache.TTL_COUNT)
 
         # Get data
         results = db.execute(data_sql, params).fetchall()
@@ -466,7 +486,22 @@ def get_lncrna_chipseq_overlaps_query(
         """  # noqa: S608
     )
 
-    # Calculate offset
+    # Cache COUNT(*) separately (hot path for pagination).
+    count_cache_key = cache.make_key(
+        "overlap:list_count",
+        source="join",
+        lncrna_gene_id=filters.lncrna_gene_id,
+        target_gene_id=filters.target_gene_id,
+        chromosome=filters.chromosome,
+        mark_types=mark_types_array,
+        cell_types=cell_types_array,
+        min_binding_affinity=filters.min_binding_affinity,
+        min_peak_strength=filters.min_peak_strength,
+        max_qvalue=filters.max_qvalue,
+        min_overlap_length=filters.min_overlap_length,
+    )
+
+    # Calculate offset (not part of count cache key)
     offset = compute_pagination_offset(filters.page, filters.page_size)
 
     params.update(
@@ -477,9 +512,14 @@ def get_lncrna_chipseq_overlaps_query(
     )
 
     try:
-        # Get total count
-        count_result = db.execute(count_sql, params).fetchone()
-        total = count_result[0] if count_result else 0
+        # Get total count (cached)
+        cached_total = cache.get(count_cache_key)
+        if cached_total is not None:
+            total = int(cached_total)
+        else:
+            count_result = db.execute(count_sql, params).fetchone()
+            total = int(count_result[0] if count_result else 0)
+            cache.set(count_cache_key, total, cache.TTL_COUNT)
 
         # Get data
         results = db.execute(data_sql, params).fetchall()

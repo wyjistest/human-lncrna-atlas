@@ -20,7 +20,7 @@ from urllib.parse import parse_qs, urlencode
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
-from app.core.ip_utils import is_trusted_proxy
+from app.core.ip_utils import is_trusted_proxy, parse_x_forwarded_for
 from app.core.utils import sanitize_for_log
 
 logger = logging.getLogger("api")
@@ -69,10 +69,10 @@ class LoggingMiddleware:
             if is_trusted_proxy(direct_ip):
                 for header_key, header_value in scope.get("headers", []) or []:
                     if header_key == b"x-forwarded-for":
-                        forwarded_for = header_value.decode(errors="replace").strip()
-                        if forwarded_for:
-                            real_ip = forwarded_for.split(",")[0].strip()
-                            return real_ip or direct_ip
+                        forwarded_for = header_value.decode(errors="replace")
+                        real_ip = parse_x_forwarded_for(forwarded_for)
+                        if real_ip:
+                            return real_ip
                         break
         except Exception:
             # 日志中间件必须“绝不影响主请求链路”
@@ -196,7 +196,8 @@ class LoggingMiddleware:
         url = self._truncate_for_log(url, self._max_url_length)
 
         # 获取客户端 IP
-        client_ip = self._get_client_ip(scope)
+        # SECURITY: 防止 log injection，确保 IP 字段不包含控制字符且长度受限。
+        client_ip = sanitize_for_log(self._get_client_ip(scope), max_length=100)
 
         # 状态码存储
         status_code: int = 0
