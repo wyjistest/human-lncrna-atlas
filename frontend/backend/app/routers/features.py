@@ -5,12 +5,13 @@ Provides endpoints for RepeatMasker annotations and other genomic features
 import logging
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, cast, Float, case
 
+from app.core.cache import cache
 from app.core.database import get_db
-from app.core.validators import compute_pagination_offset
+from app.core.validators import compute_pagination_offset, normalize_optional_str
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Gene, GenomicFeature, FeatureTrack, Species
 from app.core.igv_utils import get_repeatmasker_track_id as _get_repeatmasker_track_id
@@ -504,31 +505,60 @@ def get_gene_repeat_stats(
 # Region-based RepeatMasker Endpoints
 # =============================================================================
 
+# Maximum region size in base pairs (10 Mb)
+# Prevents excessive queries that could time out or consume too many resources
+MAX_REGION_SIZE_BP = 10_000_000
+
 @router.get("/repeats/{species_id}", response_model=RepeatMaskerResponse)
 @rate_limit("30/minute")
 def get_repeats_by_region(
     request: Request,
-    species_id: int,
-    chromosome: str = Query(..., description="Chromosome name"),
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
+    chromosome: str = Query(..., max_length=50, description="Chromosome name"),
     start: int = Query(..., ge=0, description="Region start position"),
     end: int = Query(..., ge=0, description="Region end position"),
-    repeat_class: Optional[str] = Query(None, description="Filter by repeat class"),
-    repeat_family: Optional[str] = Query(None, description="Filter by repeat family"),
+    repeat_class: Optional[str] = Query(None, max_length=100, description="Filter by repeat class"),
+    repeat_family: Optional[str] = Query(None, max_length=100, description="Filter by repeat family"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(100, ge=1, le=1000, description="Items per page"),
+    # Phase 9.39: 可选 COUNT(*) 查询，提升拖动/浏览场景性能
+    # 当 include_total=false 时跳过 COUNT(*)，避免频繁 scroll 时的性能热点
+    include_total: bool = Query(True, description="Include total count (set false for faster scrolling)"),
     db: Session = Depends(get_db),
 ):
     """
     Get RepeatMasker annotations for a specific genomic region
+
+    Notes:
+    - Maximum region size is 10 Mb to prevent excessive queries.
+    - When include_total=false, the response sets total=0 (and total_pages=0) to skip COUNT(*) for faster scrolling.
     """
-    # Validate species
-    species = db.query(Species).filter(Species.species_id == species_id).first()
-    if not species:
-        raise HTTPException(status_code=404, detail="Species not found")
+    normalized_chromosome = normalize_optional_str(chromosome)
+    normalized_repeat_class = normalize_optional_str(repeat_class)
+    normalized_repeat_family = normalize_optional_str(repeat_family)
+
+    if not normalized_chromosome:
+        raise HTTPException(status_code=400, detail="chromosome must not be blank")
 
     # Validate region
     if end <= start:
         raise HTTPException(status_code=400, detail="end must be greater than start")
+
+    # Validate region size to prevent excessive queries
+    region_size = end - start
+    if region_size > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Region size ({region_size:,} bp) exceeds maximum allowed ({MAX_REGION_SIZE_BP:,} bp). "
+                "Please narrow your region to 10 Mb or less."
+            ),
+        )
+
+    # Validate species
+    species = db.query(Species).filter(Species.species_id == species_id).first()
+    if not species:
+        raise HTTPException(status_code=404, detail="Species not found")
 
     # Get track_id
     track_id = get_repeatmasker_track_id(db)
@@ -537,20 +567,25 @@ def get_repeats_by_region(
     conditions = [
         GenomicFeature.track_id == track_id,
         GenomicFeature.species_id == species_id,
-        GenomicFeature.chromosome == chromosome,
+        GenomicFeature.chromosome == normalized_chromosome,
         GenomicFeature.feature_start < end,
         GenomicFeature.feature_end > start,
     ]
 
-    if repeat_class:
-        conditions.append(GenomicFeature.attributes['repeat_class'].astext == repeat_class)
-    if repeat_family:
-        conditions.append(GenomicFeature.attributes['repeat_family'].astext == repeat_family)
+    if normalized_repeat_class:
+        conditions.append(GenomicFeature.attributes['repeat_class'].astext == normalized_repeat_class)
+    if normalized_repeat_family:
+        conditions.append(GenomicFeature.attributes['repeat_family'].astext == normalized_repeat_family)
 
     # Get total count
-    total = db.query(func.count(GenomicFeature.feature_id)).filter(
-        and_(*conditions)
-    ).scalar() or 0
+    total = 0
+    if include_total:
+        total = (
+            db.query(func.count(GenomicFeature.feature_id))
+            .filter(and_(*conditions))
+            .scalar()
+            or 0
+        )
 
     # Paginated query
     offset = compute_pagination_offset(page, page_size)
@@ -581,12 +616,17 @@ def get_repeats_by_region(
 @rate_limit("30/minute")
 def get_repeat_classes(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     db: Session = Depends(get_db),
 ):
     """
     Get list of unique repeat classes for a species
     """
+    cache_key = cache.make_key("repeatmasker:classes", species_id=species_id)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # Validate species
     species = db.query(Species).filter(Species.species_id == species_id).first()
     if not species:
@@ -606,6 +646,7 @@ def get_repeat_classes(
     )
 
     classes = sorted([r.repeat_class for r in result if r.repeat_class])
+    cache.set(cache_key, classes, cache.TTL_STATS)
     return classes
 
 
@@ -613,13 +654,23 @@ def get_repeat_classes(
 @rate_limit("30/minute")
 def get_repeat_families(
     request: Request,
-    species_id: int,
-    repeat_class: Optional[str] = Query(None, description="Filter by repeat class"),
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
+    repeat_class: Optional[str] = Query(None, max_length=100, description="Filter by repeat class"),
     db: Session = Depends(get_db),
 ):
     """
     Get list of unique repeat families for a species
     """
+    normalized_repeat_class = normalize_optional_str(repeat_class)
+    cache_key = cache.make_key(
+        "repeatmasker:families",
+        species_id=species_id,
+        repeat_class=normalized_repeat_class,
+    )
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # Validate species
     species = db.query(Species).filter(Species.species_id == species_id).first()
     if not species:
@@ -636,10 +687,11 @@ def get_repeat_families(
         )
     )
 
-    if repeat_class:
-        query = query.filter(GenomicFeature.attributes['repeat_class'].astext == repeat_class)
+    if normalized_repeat_class:
+        query = query.filter(GenomicFeature.attributes['repeat_class'].astext == normalized_repeat_class)
 
     result = query.distinct().all()
 
     families = sorted([r.repeat_family for r in result if r.repeat_family])
+    cache.set(cache_key, families, cache.TTL_STATS)
     return families
