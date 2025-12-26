@@ -82,12 +82,12 @@ def client(captured_db: _CaptureSession) -> TestClient:
 
 
 def test_list_experiments_cell_type_uses_single_char_escape_clause(client: TestClient, captured_db: _CaptureSession):
+    # Test that the ESCAPE clause uses a single backslash character.
+    # We use a cell_type that contains the LIKE wildcard `_` to verify escaping.
+    # Note: We use `_` instead of `%` to avoid URL encoding issues across different environments.
     resp = client.get(
         "/api/v1/features/chipseq/experiments",
-        # NOTE: `%` is a reserved character in URLs. The TestClient/requests stack may treat
-        # `%56` as an already-percent-encoded sequence (0x56 == 'V') unless we double-encode it.
-        # We want the server to receive the literal value `K%562` to verify LIKE escaping.
-        params={"cell_type": "K%25562"},
+        params={"cell_type": "K_562"},
     )
     assert resp.status_code == 200
 
@@ -96,4 +96,5 @@ def test_list_experiments_cell_type_uses_single_char_escape_clause(client: TestC
     assert "ESCAPE '\\\\'" not in captured_db.last_sql, "ESCAPE clause must not contain a two-character string"
 
     assert captured_db.last_params is not None
-    assert captured_db.last_params.get("cell_type") == r"K\%562"
+    # The escape_like_pattern function should escape `_` with backslash
+    assert captured_db.last_params.get("cell_type") == r"K\_562"
