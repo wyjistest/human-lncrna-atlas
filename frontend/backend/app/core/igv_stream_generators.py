@@ -15,6 +15,7 @@ from app.models import (
     EpigeneticMarkType,
 )
 from app.core.igv_utils import get_repeatmasker_track_id
+from app.utils.bed import sanitize_bed_field, sanitize_bed_track_attr
 
 
 def generate_bed_stream(
@@ -91,7 +92,8 @@ def generate_bed_stream(
         # 构建 name 字段
         lncrna = row.lncrna_name or "unknown_lncRNA"
         target = row.target_name or "unknown_target"
-        name = f"{lncrna}->{target}"
+        # SECURITY: 防止控制字符破坏 BED/TSV 结构（tab/newline/null 等）
+        name = sanitize_bed_field(f"{lncrna}->{target}")
 
         # 转换 binding_affinity 到 BED score (0-1000)
         # 原始值范围假设是 0-100，需要放大 10 倍
@@ -214,7 +216,8 @@ def generate_bedpe_stream(
         # 构建 name 字段 (使用 | 分隔符)
         lncrna = row.lncrna_name or "unknown_lncRNA"
         target = row.target_name or "unknown_target"
-        name = f"{lncrna}|{target}"
+        # SECURITY: 防止控制字符破坏 BED/TSV 结构（tab/newline/null 等）
+        name = sanitize_bed_field(f"{lncrna}|{target}")
 
         # 转换 binding_affinity 到 BEDPE score (0-1000)
         # 原始值范围假设是 0-100，需要放大 10 倍
@@ -284,7 +287,8 @@ def generate_repeatmasker_bed_stream(
         end = row.feature_end
 
         # Feature name
-        name = row.feature_name or "repeat"
+        # SECURITY: 防止控制字符破坏 BED/TSV 结构（tab/newline/null 等）
+        name = sanitize_bed_field(row.feature_name or "repeat")
 
         # Score: convert divergence to 0-1000 scale
         # Lower divergence = more conserved = higher score
@@ -391,7 +395,8 @@ def generate_chipseq_bed_stream(
         end = row.peak_end
 
         # Name field
-        name = row.peak_name or f"{mark_type}_peak{peak_counter}"
+        # SECURITY: 防止控制字符破坏 BED/TSV 结构（tab/newline/null 等）
+        name = sanitize_bed_field(row.peak_name or f"{mark_type}_peak{peak_counter}")
 
         # Score: convert fold_enrichment to 0-1000 scale
         # Typical fold_enrichment ranges from 1 to 50+
@@ -430,6 +435,9 @@ def generate_empty_chipseq_bed_stream(
         mark_type: The mark type name (e.g., H3K9me3)
         species_name: Species display name for the header
     """
+    # SECURITY: 清理 track header 属性值，避免引号/控制字符破坏解析
+    safe_mark_type = sanitize_bed_track_attr(mark_type)
+    safe_species_name = sanitize_bed_track_attr(species_name)
     # BED track header comment
-    yield f"# track name=\"ChIP-seq: {mark_type}\" description=\"No data available for {species_name}\"\n"
+    yield f"# track name=\"ChIP-seq: {safe_mark_type}\" description=\"No data available for {safe_species_name}\"\n"
     # No data rows - file ends here

@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.utils import sanitize_for_log
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species
 from app.core.igv_stream_generators import generate_bed_stream, generate_bedpe_stream
@@ -74,7 +75,14 @@ def get_regulations_bed(
             detail="start must be less than end"
         )
 
-    logger.info(f"BED export requested: species={species_id}, chr={chr}, start={start_int}, end={end_int}, lncrna={lncrna}")
+    logger.info(
+        "BED export requested: species=%s, chr=%s, start=%s, end=%s, lncrna=%s",
+        species_id,
+        sanitize_for_log(chr),
+        start_int,
+        end_int,
+        sanitize_for_log(lncrna),
+    )
 
     # 生成 BED 数据流
     bed_stream = generate_bed_stream(
@@ -164,7 +172,14 @@ def get_interactions_bedpe(
             detail="start must be less than end"
         )
 
-    logger.info(f"BEDPE export requested: species={species_id}, chr={chr}, start={start_int}, end={end_int}, lncrna={lncrna}")
+    logger.info(
+        "BEDPE export requested: species=%s, chr=%s, start=%s, end=%s, lncrna=%s",
+        species_id,
+        sanitize_for_log(chr),
+        start_int,
+        end_int,
+        sanitize_for_log(lncrna),
+    )
 
     # 生成 BEDPE 数据流
     bedpe_stream = generate_bedpe_stream(

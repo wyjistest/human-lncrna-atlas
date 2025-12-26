@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.utils import escape_like_pattern
+from app.core.utils import escape_like_pattern, sanitize_for_log
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species, Gene
 from app.schemas.igv import (
@@ -153,7 +153,11 @@ def search_locus_for_igv(
     """
     import re
 
-    logger.info(f"IGV locus search: q={q}, species_id={species_id}")
+    logger.info(
+        "IGV locus search: q=%s, species_id=%s",
+        sanitize_for_log(q),
+        species_id,
+    )
 
     # 1. 首先尝试解析染色体坐标格式
     # 支持格式: chr1:100-200, chr1:100,000-200,000, chrX:1000-2000
@@ -166,7 +170,12 @@ def search_locus_for_igv(
         start = int(locus_match.group(2).replace(',', ''))
         end = int(locus_match.group(3).replace(',', ''))
 
-        logger.info(f"Parsed locus: {chromosome}:{start}-{end}")
+        logger.info(
+            "Parsed locus: %s:%s-%s",
+            sanitize_for_log(chromosome),
+            start,
+            end,
+        )
 
         return IGVSearchResult(
             chromosome=chromosome,
@@ -203,7 +212,7 @@ def search_locus_for_igv(
     ).first()
 
     if exact_result:
-        logger.info(f"Found exact match: {exact_result.gene_name}")
+        logger.info("Found exact match: %s", sanitize_for_log(exact_result.gene_name))
         return IGVSearchResult(
             chromosome=exact_result.chromosome,
             start=exact_result.gene_start,
@@ -221,7 +230,7 @@ def search_locus_for_igv(
     ).order_by(Gene.gene_name.asc()).first()
 
     if prefix_result:
-        logger.info(f"Found prefix match: {prefix_result.gene_name}")
+        logger.info("Found prefix match: %s", sanitize_for_log(prefix_result.gene_name))
         return IGVSearchResult(
             chromosome=prefix_result.chromosome,
             start=prefix_result.gene_start,
@@ -237,7 +246,7 @@ def search_locus_for_igv(
     ).order_by(Gene.gene_name.asc()).first()
 
     if contains_result:
-        logger.info(f"Found contains match: {contains_result.gene_name}")
+        logger.info("Found contains match: %s", sanitize_for_log(contains_result.gene_name))
         return IGVSearchResult(
             chromosome=contains_result.chromosome,
             start=contains_result.gene_start,
@@ -246,7 +255,7 @@ def search_locus_for_igv(
         )
 
     # 未找到任何匹配
-    logger.warning(f"No match found for: {q}")
+    logger.warning("No match found for: %s", sanitize_for_log(q))
     raise HTTPException(
         status_code=404,
         detail=f"No gene or locus found matching '{q}'"
@@ -281,7 +290,12 @@ def autocomplete_genes(
     Returns:
         匹配的基因列表，包含基因名、染色体、位置、物种信息
     """
-    logger.info(f"Gene autocomplete: q={q}, species_id={species_id}, limit={limit}")
+    logger.info(
+        "Gene autocomplete: q=%s, species_id=%s, limit=%s",
+        sanitize_for_log(q),
+        species_id,
+        limit,
+    )
 
     # 构建基础查询
     base_query = (
@@ -365,7 +379,11 @@ def autocomplete_genes(
         for r in results
     ]
 
-    logger.info(f"Autocomplete found {len(data)} results for '{q}'")
+    logger.info(
+        "Autocomplete found %s results for %s",
+        len(data),
+        sanitize_for_log(q),
+    )
 
     return GeneAutocompleteResponse(
         success=True,

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 
 from app.core.database import get_db
+from app.core.utils import sanitize_for_log
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species, GenomicFeature
 from app.core.igv_stream_generators import generate_repeatmasker_bed_stream
@@ -82,7 +83,13 @@ def get_repeatmasker_bed(
             detail="start must be less than end"
         )
 
-    logger.info(f"RepeatMasker BED export: species={species_id}, chr={chr}, start={start}, end={end}")
+    logger.info(
+        "RepeatMasker BED export: species=%s, chr=%s, start=%s, end=%s",
+        species_id,
+        sanitize_for_log(chr),
+        start,
+        end,
+    )
 
     # Generate BED stream
     bed_stream = generate_repeatmasker_bed_stream(
