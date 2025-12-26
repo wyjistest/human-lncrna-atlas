@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
+from app.core.cache import cache, cached
 from app.core.database import get_db
 from app.schemas.chipseq import ChIPSeqGlobalStats, ChIPSeqMarkStats
 from app.routers.chipseq_rate_limit import (
@@ -52,6 +53,7 @@ router.include_router(export_router)
 
 @router.get("/stats", response_model=ChIPSeqGlobalStats)
 @rate_limit("30/minute")
+@cached("chipseq:global_stats", ttl=cache.TTL_STATS)
 def get_global_stats(
     request: Request,
     db: Session = Depends(get_db),

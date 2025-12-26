@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
+from app.core.cache import cache
 from app.core.database import get_db
+from app.core.validators import normalize_optional_str
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species
 from app.schemas.chipseq import (
@@ -24,7 +26,7 @@ router = APIRouter()
 @rate_limit("30/minute")
 def list_mark_types(
     request: Request,
-    category: Optional[str] = Query(None, description="Filter by mark category"),
+    category: Optional[str] = Query(None, max_length=100, description="Filter by mark category"),
     active_only: bool = Query(True, description="Only return active marks"),
     db: Session = Depends(get_db),
 ):
@@ -34,11 +36,21 @@ def list_mark_types(
     Returns the complete list of supported histone modifications with their
     properties, colors, and biological functions.
     """
+    normalized_category = normalize_optional_str(category)
+    cache_key = cache.make_key(
+        "chipseq:mark_types",
+        category=normalized_category,
+        active_only=active_only,
+    )
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
     where_clauses = []
     params = {}
-    if category is not None:
+    if normalized_category is not None:
         where_clauses.append("mark_category = :category")
-        params["category"] = category
+        params["category"] = normalized_category
     if active_only:
         where_clauses.append("is_active = TRUE")
     where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
@@ -65,7 +77,7 @@ def list_mark_types(
 
     rows = db.execute(query, params).fetchall()
 
-    return [
+    result = [
         EpigeneticMarkTypeResponse(
             mark_type_id=row[0],
             mark_name=row[1],
@@ -81,6 +93,8 @@ def list_mark_types(
         )
         for row in rows
     ]
+    cache.set(cache_key, [item.model_dump() for item in result], cache.TTL_STATS)
+    return result
 
 
 # NOTE: /marks/relationships must be defined BEFORE /marks/{species_id} to avoid routing conflict
@@ -88,7 +102,7 @@ def list_mark_types(
 @rate_limit("30/minute")
 def get_mark_relationships(
     request: Request,
-    relationship_type: Optional[str] = Query(None, description="Filter by relationship type"),
+    relationship_type: Optional[str] = Query(None, max_length=100, description="Filter by relationship type"),
     db: Session = Depends(get_db),
 ):
     """
@@ -96,7 +110,16 @@ def get_mark_relationships(
 
     Returns pairs of marks that have biological relationships (bivalent, antagonistic, etc.)
     """
-    where_sql = "r.relationship_type = :relationship_type" if relationship_type is not None else "TRUE"
+    normalized_relationship_type = normalize_optional_str(relationship_type)
+    cache_key = cache.make_key(
+        "chipseq:mark_relationships",
+        relationship_type=normalized_relationship_type,
+    )
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
+    where_sql = "r.relationship_type = :relationship_type" if normalized_relationship_type is not None else "TRUE"
 
     query = text(
         f"""
@@ -115,10 +138,14 @@ def get_mark_relationships(
         """  # noqa: S608
     )
 
-    params = {"relationship_type": relationship_type} if relationship_type is not None else {}
+    params = (
+        {"relationship_type": normalized_relationship_type}
+        if normalized_relationship_type is not None
+        else {}
+    )
     rows = db.execute(query, params).fetchall()
 
-    return [
+    result = [
         MarkRelationshipResponse(
             relationship_id=row[0],
             mark_1=row[1],
@@ -129,6 +156,8 @@ def get_mark_relationships(
         )
         for row in rows
     ]
+    cache.set(cache_key, [item.model_dump() for item in result], cache.TTL_STATS)
+    return result
 
 
 @router.get("/marks/{species_id}", response_model=AvailableMarksResponse)
@@ -143,6 +172,11 @@ def get_available_marks_for_species(
 
     Returns marks with at least one experiment/peak for the species.
     """
+    cache_key = cache.make_key("chipseq:available_marks", species_id=species_id)
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
     # Validate species
     species = db.query(Species).filter(Species.species_id == species_id).first()
     if not species:
@@ -198,10 +232,12 @@ def get_available_marks_for_species(
         total_experiments += row[11]
         total_peaks += row[12] or 0
 
-    return AvailableMarksResponse(
+    result = AvailableMarksResponse(
         species_id=species_id,
         species_code=species.species_code,
         marks=marks,
         total_experiments=total_experiments,
         total_peaks=total_peaks,
     )
+    cache.set(cache_key, result.model_dump(), cache.TTL_STATS)
+    return result

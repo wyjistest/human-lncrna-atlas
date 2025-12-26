@@ -81,6 +81,11 @@ def get_feature_track_statistics(
     """
     Get statistics for all feature tracks (feature counts by species)
     """
+    cache_key = cache.make_key("features:track_stats")
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
     # Query feature counts grouped by track and species
     stats_query = (
         db.query(
@@ -118,7 +123,9 @@ def get_feature_track_statistics(
             track_stats[track_id]['species_stats'][row.species_code] = row.count
             track_stats[track_id]['total_features'] += row.count
 
-    return [FeatureTrackStats(**stats) for stats in track_stats.values()]
+    result = [FeatureTrackStats(**stats) for stats in track_stats.values()]
+    cache.set(cache_key, [item.model_dump() for item in result], cache.TTL_STATS)
+    return result
 
 
 @router.get("/tracks/{track_id}", response_model=FeatureTrackResponse)
@@ -146,13 +153,22 @@ def get_feature_track(
 def get_gene_repeats(
     request: Request,
     gene_id: int,
-    repeat_class: Optional[str] = Query(None, description="Filter by repeat class (LINE, SINE, LTR, DNA, etc.)"),
-    repeat_family: Optional[str] = Query(None, description="Filter by repeat family (L1, Alu, etc.)"),
+    repeat_class: Optional[str] = Query(
+        None,
+        max_length=100,
+        description="Filter by repeat class (LINE, SINE, LTR, DNA, etc.)",
+    ),
+    repeat_family: Optional[str] = Query(
+        None,
+        max_length=100,
+        description="Filter by repeat family (L1, Alu, etc.)",
+    ),
     min_divergence: Optional[float] = Query(None, ge=0, le=100, description="Minimum divergence percentage"),
     max_divergence: Optional[float] = Query(None, ge=0, le=100, description="Maximum divergence percentage"),
     flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000, description="Flanking region size in bp"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=500, description="Items per page"),
+    include_total: bool = Query(True, description="Include total count (set false for faster scrolling)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -160,6 +176,10 @@ def get_gene_repeats(
 
     Returns repeat elements that overlap with the gene region including flanking regions.
     Default flanking region is 10kb on each side.
+
+    Notes:
+    - Maximum region size is 10 Mb to prevent excessive queries.
+    - When include_total=false, the response sets total=0 (and total_pages=0) to skip COUNT(*) for faster scrolling.
     """
     # 1. Query gene information
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
@@ -173,12 +193,24 @@ def get_gene_repeats(
             detail=f"Gene {gene_id} has no coordinate information"
         )
 
-    # 3. Get RepeatMasker track_id
-    track_id = get_repeatmasker_track_id(db)
-
-    # 4. Calculate query region
+    # 3. Calculate query region
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
+    region_size = region_end - region_start
+    if region_size > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Region size ({region_size:,} bp) exceeds maximum allowed ({MAX_REGION_SIZE_BP:,} bp). "
+                "Please narrow your region or reduce flanking."
+            ),
+        )
+
+    # 4. Get RepeatMasker track_id
+    track_id = get_repeatmasker_track_id(db)
+
+    normalized_repeat_class = normalize_optional_str(repeat_class)
+    normalized_repeat_family = normalize_optional_str(repeat_family)
 
     # 5. Build query conditions
     conditions = [
@@ -190,10 +222,10 @@ def get_gene_repeats(
     ]
 
     # Apply filters
-    if repeat_class:
-        conditions.append(GenomicFeature.attributes['repeat_class'].astext == repeat_class)
-    if repeat_family:
-        conditions.append(GenomicFeature.attributes['repeat_family'].astext == repeat_family)
+    if normalized_repeat_class:
+        conditions.append(GenomicFeature.attributes['repeat_class'].astext == normalized_repeat_class)
+    if normalized_repeat_family:
+        conditions.append(GenomicFeature.attributes['repeat_family'].astext == normalized_repeat_family)
     if min_divergence is not None:
         conditions.append(
             cast(GenomicFeature.attributes['divergence'].astext, Float) >= min_divergence
@@ -204,9 +236,14 @@ def get_gene_repeats(
         )
 
     # 5. Get total count
-    total = db.query(func.count(GenomicFeature.feature_id)).filter(
-        and_(*conditions)
-    ).scalar() or 0
+    total = 0
+    if include_total:
+        total = (
+            db.query(func.count(GenomicFeature.feature_id))
+            .filter(and_(*conditions))
+            .scalar()
+            or 0
+        )
 
     # 6. Paginated query
     offset = compute_pagination_offset(page, page_size)
@@ -246,6 +283,9 @@ def get_gene_repeat_stats(
     - Coverage percentage
     - Distribution by repeat class and family
     - Divergence statistics
+
+    Notes:
+    - Maximum region size is 10 Mb to prevent excessive queries.
     """
     # 1. Query gene information
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
@@ -259,13 +299,21 @@ def get_gene_repeat_stats(
             detail=f"Gene {gene_id} has no coordinate information"
         )
 
-    # 3. Get RepeatMasker track_id
-    track_id = get_repeatmasker_track_id(db)
-
-    # 4. Calculate query region
+    # 3. Calculate query region
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
     region_length = region_end - region_start
+    if region_length > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Region size ({region_length:,} bp) exceeds maximum allowed ({MAX_REGION_SIZE_BP:,} bp). "
+                "Please narrow your region or reduce flanking."
+            ),
+        )
+
+    # 4. Get RepeatMasker track_id
+    track_id = get_repeatmasker_track_id(db)
 
     # 5. Base query conditions
     base_conditions = [
