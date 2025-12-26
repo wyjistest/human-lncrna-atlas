@@ -321,6 +321,15 @@ class Settings(BaseSettings):
         validation_alias="REQUEST_LOG_SAMPLE_RATE",
         description="请求日志采样率 0.0-1.0 (默认 1.0 = 100%)"
     )
+    REQUEST_LOG_MAX_URL_LENGTH: int = Field(
+        default=2048,
+        validation_alias="REQUEST_LOG_MAX_URL_LENGTH",
+        description=(
+            "请求日志中记录的 URL 最大长度（防止超长查询字符串导致日志膨胀/DoS）。"
+            "0 表示不限制。"
+        ),
+        ge=0,
+    )
 
     # 性能配置
     QUERY_TIMEOUT: int = Field(default=30, validation_alias="QUERY_TIMEOUT")  # 查询超时（秒）

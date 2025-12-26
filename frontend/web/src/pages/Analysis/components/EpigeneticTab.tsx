@@ -17,6 +17,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import echarts from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { ChIPSeqOverlapRecord } from '@/api/analysis'
 
@@ -29,33 +30,30 @@ const HISTONE_MARKS = [
   { value: 'H3K27me3', label: 'H3K27me3', color: '#722ed1', type: 'repressive' },
 ]
 
+const ALL_HISTONE_MARK_VALUES = HISTONE_MARKS.map((mark) => mark.value)
+
 export default function EpigeneticTab() {
   const { t } = useTranslation('analysis')
 
   const [selectedMarks, setSelectedMarks] = useState<string[]>([])
   const [page, setPage] = useState(1)
   const pageSize = 20
+  const effectiveMarks = selectedMarks.length > 0 ? selectedMarks : ALL_HISTONE_MARK_VALUES
 
   // Fetch summary and data
   const { data: summary } = useAnalysisSummary()
   const { data, isLoading, error, refetch } = useEpigeneticData({
-    mark_names: selectedMarks.length > 0 ? selectedMarks : undefined,
+    mark_names: effectiveMarks,
     limit: 500,
-    offset: (page - 1) * pageSize,
   })
 
   // Mark distribution chart
   const markDistributionOption: ECOption = useMemo(() => {
-    if (!data?.data) return {}
+    const byMark = summary?.epigenetic.by_mark
+    if (!byMark) return {}
 
-    // Count by mark
-    const markCounts = data.data.reduce((acc, record) => {
-      acc[record.mark_name] = (acc[record.mark_name] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-
-    const marks = Object.keys(markCounts).sort()
-    const counts = marks.map((mark) => markCounts[mark])
+    const marks = effectiveMarks
+    const counts = marks.map((mark) => byMark[mark] || 0)
 
     return {
       title: {
@@ -63,11 +61,21 @@ export default function EpigeneticTab() {
         left: 'center',
         textStyle: { fontSize: 16, fontWeight: 'bold' },
       },
-      toolbox: getChartToolbox('mark-distribution', t('common.export')),
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-      },
+	      toolbox: getChartToolbox('mark-distribution', t('common.export')),
+	      tooltip: {
+	        trigger: 'axis',
+	        axisPointer: { type: 'shadow' },
+	        // SECURITY: ECharts tooltip 默认使用 HTML 渲染，必须对不可信字段做转义防止 XSS
+	        formatter: (params: unknown) => {
+	          const arr = Array.isArray(params) ? params : [params]
+	          const p = arr[0] as { name?: unknown; value?: unknown } | undefined
+	          if (!p) return ''
+	          const name = escapeHtml(String(p.name ?? ''))
+	          const value = typeof p.value === 'number' ? p.value : Number(p.value)
+	          const displayValue = Number.isFinite(value) ? value.toLocaleString() : escapeHtml(String(p.value ?? ''))
+	          return `<strong>${name}</strong><br/>Overlap Count: ${displayValue}`
+	        },
+	      },
       xAxis: {
         type: 'category',
         data: marks,
@@ -92,7 +100,7 @@ export default function EpigeneticTab() {
       ],
       grid: { bottom: 80, left: 60, right: 40 },
     }
-  }, [data, t])
+  }, [effectiveMarks, summary, t])
 
   // Table columns
   const columns = [
@@ -235,7 +243,10 @@ export default function EpigeneticTab() {
             mode="multiple"
             style={{ minWidth: 250 }}
             value={selectedMarks}
-            onChange={setSelectedMarks}
+            onChange={(value) => {
+              setSelectedMarks(value)
+              setPage(1)
+            }}
             placeholder="Select marks"
             maxTagCount={2}
           >

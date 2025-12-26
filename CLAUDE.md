@@ -4,9 +4,9 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.29 |
+| 版本 | Phase 9.30 |
 | 状态 | 🟢 生产就绪 |
-| 更新 | 2025-12-25 |
+| 更新 | 2025-12-26 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
@@ -137,8 +137,8 @@ npx playwright show-report
 | DB_USER | 数据库用户 |
 | DB_PASSWORD | 数据库密码 |
 | DB_NAME | 数据库名称 (默认 lncrna_production) |
-| DB_POOL_SIZE | 连接池大小 (默认 5) |
-| DB_POOL_MAX_OVERFLOW | 连接池溢出 (默认 10) |
+| DB_POOL_SIZE | 连接池大小 (默认 10) |
+| DB_POOL_MAX_OVERFLOW | 连接池溢出 (默认 20) |
 | REDIS_HOST | Redis 主机 (默认 localhost) |
 | GENOMES_DIR | 基因组文件目录 (IGV.js) |
 | ADMIN_API_KEY | Admin API 密钥 (生产环境必需) |
@@ -148,6 +148,7 @@ npx playwright show-report
 | REQUEST_LOG_ENABLED | 启用请求日志 (默认 true) |
 | REQUEST_LOG_SLOW_THRESHOLD_MS | 慢请求阈值毫秒 (0=全部) |
 | REQUEST_LOG_SAMPLE_RATE | 日志采样率 0.0-1.0 (默认 1.0) |
+| REQUEST_LOG_MAX_URL_LENGTH | 请求日志 URL 最大长度 (默认 2048，0=不限制) |
 | SECURITY_ALLOW_INSECURE | 跳过安全检查 (仅开发环境，默认 false) ⚠️ |
 | QUERY_TIMEOUT | SQL 查询超时秒数 (默认 30) |
 | ENABLE_HSTS | 启用 HSTS 头 (仅 HTTPS 就绪后，默认 false) |
@@ -269,7 +270,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.26 | Codex 十一次审查修复: 响应头注入防护 (sanitize_filename + RFC 5987) + Admin Key 三道闸 (代码/构建/CI) + CSV 公式注入防护 + Conservation JOIN 优化 + /genes/options 分页 + ETL --legacy 显式启用 + SQL 聚合下推 | 2025-12-24 |
 | 9.27 | Codex 十二次审查修复: /genomes 路径遍历深度防御 (dotfile/traversal 阻断) + 可选依赖优雅降级 (psutil/redis) + 前端类型重构 (conservationApi.ts 分离) + Middleware 顺序修正 + 7 项新增安全测试 | 2025-12-24 |
 | 9.28 | Codex 十三次审查修复: 内存缓存 invalidate() 修复 (delete_prefix) + /metrics 路径匹配兼容 root_path + batch_import_chipseq.py 硬编码移除 | 2025-12-24 |
-| **9.29** | **Codex 十四次审查修复: init_db.sh fail-fast (pipefail + ON_ERROR_STOP) + start.sh 健康检查修正 (curl -fsS) + npm ci 统一 + IGV 计数查询优化 (func.count) + 日志权限收紧 + DB 索引迁移脚本** | **2025-12-25** |
+| 9.29 | Codex 十四次审查修复: init_db.sh fail-fast (pipefail + ON_ERROR_STOP) + start.sh 健康检查修正 (curl -fsS) + npm ci 统一 + IGV 计数查询优化 (func.count) + 日志权限收紧 + DB 索引迁移脚本 | 2025-12-25 |
+| **9.30** | **Codex 十五次审查修复 (6 轮 47 项): XSS tooltip 转义 + CI 权限收紧 + SQL 参数化 + ETL 断点续传 + DB CHECK 约束 + 前端内存泄漏修复 + API 参数校验 + 请求取消机制 + 缓存 Prometheus 指标 + a11y 可访问性 + 全局 unhandledrejection + 依赖安全审计** | **2025-12-26** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -284,6 +286,9 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_phase_9_23_fixes.py` | 15 | BigBed 白名单 + parse_comma_list DoS 防护 |
 | `test_mv_cache_thread_safety.py` | 13 | MV 缓存线程安全 + TTL + 并发读写 (Phase 9.24) |
 | `test_security_content_disposition.py` | 2 | Content-Disposition 响应头注入防护 (Phase 9.26) |
+| `test_security_headers_middleware_unit.py` | - | HTTP 安全头中间件 (Phase 9.30) |
+| `test_etl_repeatmasker_resume_unit.py` | - | ETL 断点续传 (Phase 9.30) |
+| `test_etl_batch_manager_error_message_unit.py` | - | BatchManager 错误消息 (Phase 9.30) |
 
 **运行测试**:
 ```bash

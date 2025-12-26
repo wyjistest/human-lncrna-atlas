@@ -102,16 +102,16 @@ const GenomeBrowser = memo(({
     refetch: refetchConfig
   } = useQuery<IGVConfig>({
     queryKey,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       // If geneName is provided, use gene-specific API
       if (geneName) {
-        const res = await genomeApi.getIGVConfigForGene(geneName, padding)
+        const res = await genomeApi.getIGVConfigForGene(geneName, padding, signal)
         // API response format: { success: true, data: IGVConfig, message: string }
         // res.data is axios response data, res.data.data is the actual IGVConfig
         return res.data.data
       }
       // Otherwise use species-wide API
-      const res = await genomeApi.getIGVConfig(speciesId)
+      const res = await genomeApi.getIGVConfig(speciesId, signal)
       return res.data.data
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
@@ -120,12 +120,22 @@ const GenomeBrowser = memo(({
 
   // Load IGV.js module
   useEffect(() => {
+    let cancelled = false
+
     loadIGV()
-      .then(() => setIsIGVLoaded(true))
+      .then(() => {
+        if (cancelled) return
+        setIsIGVLoaded(true)
+      })
       .catch((err) => {
+        if (cancelled) return
         console.error('Failed to load IGV.js:', err)
         setIgvError(err)
       })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Store onLocusChange in ref to avoid dependency issues
@@ -160,9 +170,12 @@ const GenomeBrowser = memo(({
   useEffect(() => {
     if (!isIGVLoaded || !config || !containerRef.current) return
 
+    let cancelled = false
+
     const initBrowser = async () => {
       try {
         const igv = await loadIGV()
+        if (cancelled) return
 
         // Clean up existing browser instance
         if (browserRef.current) {
@@ -175,6 +188,7 @@ const GenomeBrowser = memo(({
           // Clear loaded ChIP-seq marks since the browser is being reinitialized
           loadedChipseqMarksRef.current.clear()
         }
+        if (cancelled) return
 
         // Clear container safely by removing all child nodes
         if (containerRef.current) {
@@ -182,6 +196,7 @@ const GenomeBrowser = memo(({
             containerRef.current.removeChild(containerRef.current.firstChild)
           }
         }
+        if (cancelled || !containerRef.current) return
 
         // Build browser options from backend config
         // Support two modes:
@@ -265,7 +280,15 @@ const GenomeBrowser = memo(({
         // to avoid reinitializing the entire browser when marks change
 
         // Create new browser instance
-        const browser = await igv.createBrowser(containerRef.current!, options)
+        const browser = await igv.createBrowser(containerRef.current, options)
+        if (cancelled) {
+          try {
+            igv.removeBrowser(browser)
+          } catch (e) {
+            console.warn('Error removing IGV browser after cancellation:', e)
+          }
+          return
+        }
         browserRef.current = browser
 
         // For built-in genomes (like hg19), IGV.js may default to "all" view
@@ -371,8 +394,11 @@ const GenomeBrowser = memo(({
           onBrowserReadyRef.current(handle)
         }
 
-        setIgvError(null)
+        if (!cancelled) {
+          setIgvError(null)
+        }
       } catch (err) {
+        if (cancelled) return
         console.error('Failed to initialize IGV browser:', err)
         setIgvError(err as Error)
         message.error(tRef.current('initError'))
@@ -383,6 +409,7 @@ const GenomeBrowser = memo(({
 
     // Cleanup on unmount or config change
     return () => {
+      cancelled = true
       if (browserRef.current && igvModule) {
         try {
           igvModule.removeBrowser(browserRef.current)

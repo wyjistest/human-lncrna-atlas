@@ -86,6 +86,12 @@ class DiseaseOption(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class DiseaseOptionsResponse(BaseModel):
+    """疾病/性状选项响应（轻量级，用于下拉列表）"""
+
+    traits: list[DiseaseOption]
+
+
 class TraitFilter(BaseModel):
     """疾病/性状过滤条件"""
 

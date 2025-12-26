@@ -47,6 +47,8 @@ const ERROR_STRATEGIES: Record<ErrorType, ErrorStrategy> = {
   network: { showToast: true, minInterval: 10000, countsAgainstLimit: false },
   // Timeout errors: similar to network
   timeout: { showToast: true, minInterval: 10000, countsAgainstLimit: false },
+  // Canceled requests: silent (navigation/unmount/refetch cancellation)
+  canceled: { showToast: false, minInterval: 0, countsAgainstLimit: false },
   // Rate limit: show once per 30s (user should wait anyway)
   rate_limit: { showToast: true, minInterval: 30000, countsAgainstLimit: false },
   // Validation errors: show normally, user needs to fix input
@@ -76,6 +78,11 @@ class ThrottledMessageQueue {
   showError(parsed: ParsedError): void {
     const now = Date.now()
     const strategy = ERROR_STRATEGIES[parsed.type]
+
+    // Silent types (e.g. canceled requests)
+    if (!strategy.showToast) {
+      return
+    }
 
     // Cleanup old entries
     this.cleanupOldEntries(now)

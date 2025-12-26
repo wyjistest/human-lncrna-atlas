@@ -209,7 +209,7 @@ describe('useGenes', () => {
       })
 
       expect(result.current.data).toEqual(mockGeneListResponse.data)
-      expect(mockGenesApiList).toHaveBeenCalledWith({ page: 1, page_size: 20 })
+      expect(mockGenesApiList).toHaveBeenCalledWith({ page: 1, page_size: 20 }, expect.anything())
     })
 
     it('handles API errors gracefully', async () => {
@@ -242,7 +242,7 @@ describe('useGenes', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGenesApiList).toHaveBeenCalledWith({ page: 1, species_id: 1 })
+      expect(mockGenesApiList).toHaveBeenCalledWith({ page: 1, species_id: 1 }, expect.anything())
     })
 
     it('supports search parameter', async () => {
@@ -258,7 +258,7 @@ describe('useGenes', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGenesApiList).toHaveBeenCalledWith({ page: 1, search: 'BRCA1' })
+      expect(mockGenesApiList).toHaveBeenCalledWith({ page: 1, search: 'BRCA1' }, expect.anything())
     })
   })
 
@@ -274,7 +274,7 @@ describe('useGenes', () => {
 
       // Wait for the API to be called (prefetch is fire-and-forget)
       await waitFor(() => {
-        expect(mockGenesApiList).toHaveBeenCalledWith({ page: 2, page_size: 20 })
+        expect(mockGenesApiList).toHaveBeenCalledWith({ page: 2, page_size: 20 }, expect.anything())
       })
     })
   })
@@ -291,7 +291,7 @@ describe('useGenes', () => {
       })
 
       expect(result.current.data).toEqual(mockGeneDetailResponse.data)
-      expect(mockGenesApiDetail).toHaveBeenCalledWith(1)
+      expect(mockGenesApiDetail).toHaveBeenCalledWith(1, expect.anything())
     })
 
     it('does not fetch when geneId is falsy', async () => {
@@ -337,7 +337,7 @@ describe('useGenes', () => {
         lncrna_gene_id: 1,
         page: 1,
         page_size: 20,
-      })
+      }, expect.anything())
     })
 
     it('uses default pagination when params not provided', async () => {
@@ -354,7 +354,7 @@ describe('useGenes', () => {
         lncrna_gene_id: 1,
         page: 1,
         page_size: 20,
-      })
+      }, expect.anything())
     })
 
     it('does not fetch when geneId is falsy', async () => {
@@ -378,7 +378,7 @@ describe('useGenes', () => {
       })
 
       expect(result.current.data).toEqual(mockDiseasesResponse.data)
-      expect(mockDiseasesApiGetGeneAssociations).toHaveBeenCalledWith(1)
+      expect(mockDiseasesApiGetGeneAssociations).toHaveBeenCalledWith(1, expect.anything())
     })
 
     it('does not fetch when geneId is falsy', async () => {
@@ -402,7 +402,7 @@ describe('useGenes', () => {
       })
 
       expect(result.current.data).toEqual(mockOrthologsResponse.data)
-      expect(mockGenesApiGetOrthologs).toHaveBeenCalledWith(1)
+      expect(mockGenesApiGetOrthologs).toHaveBeenCalledWith(1, expect.anything())
     })
 
     it('does not fetch when geneId is 0 or negative', async () => {

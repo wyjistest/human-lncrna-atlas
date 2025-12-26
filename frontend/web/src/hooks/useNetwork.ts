@@ -5,9 +5,9 @@ import { queryKeys } from './queryKeys'
 export const useNetwork = (geneId: number | null, params?: Parameters<typeof networkApi.getGeneNetwork>[1]) => {
   return useQuery({
     queryKey: queryKeys.network.gene(geneId, params as Record<string, unknown>),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!geneId) return null
-      const { data } = await networkApi.getGeneNetwork(geneId, params)
+      const { data } = await networkApi.getGeneNetwork(geneId, params, signal)
       return data
     },
     enabled: !!geneId,

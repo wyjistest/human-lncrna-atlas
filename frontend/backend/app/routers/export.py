@@ -211,7 +211,7 @@ def build_regulations_export_stmt(
 def export_high_affinity(
     request: Request,
     min_ba: float = Query(100.0, ge=0, description="最小结合亲和力 (BA)"),
-    species_id: Optional[int] = Query(None, description="物种 ID 筛选 (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种 ID 筛选 (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     limit: int = Query(10000, ge=1, le=MAX_EXPORT_LIMIT, description="最大返回数量"),
     output_format: Literal["json", "csv", "excel", "jsonl"] = Query("json", alias="format", description="导出格式 (json/csv/excel/jsonl)"),
     db: Session = Depends(get_db),

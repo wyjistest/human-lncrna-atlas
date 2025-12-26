@@ -96,9 +96,9 @@ export const NetworkCard = memo(({
   // 获取基因详情
   const { data: geneDetail, isLoading: detailLoading } = useQuery<GeneDetail | null>({
     queryKey: ['gene-detail', selectedGeneId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!selectedGeneId) return null
-      const res = await networkApi.getGeneDetail(selectedGeneId)
+      const res = await networkApi.getGeneDetail(selectedGeneId, signal)
       return res.data
     },
     enabled: !!selectedGeneId && detailDrawerOpen
@@ -107,12 +107,12 @@ export const NetworkCard = memo(({
   // Cross-species comparison query
   const { data: comparisonData, isLoading: comparisonLoading, error: comparisonError } = useQuery({
     queryKey: ['species-comparison', selectedLncrnaForComparison?.geneId],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!selectedLncrnaForComparison?.geneId) return null
       const res = await networkApi.compareSpecies(selectedLncrnaForComparison.geneId, {
         min_ba: 0,
         max_targets_per_species: 100
-      })
+      }, signal)
       return res.data
     },
     enabled: !!selectedLncrnaForComparison && comparisonDrawerOpen
@@ -443,7 +443,7 @@ export const NetworkCard = memo(({
     } else {
       setSearchResults([])
     }
-  }, [searchTerm])
+  }, [searchTerm, data, minBA, nodeTypeFilter, minDegree, currentLayout])
 
   const handleSearch = (value: string) => {
     setSearchTerm(value)

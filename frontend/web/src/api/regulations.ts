@@ -81,14 +81,14 @@ export const regulationsApi = {
    * - min_ba / max_ba: BA 范围筛选
    * - lncrna_gene_name / target_gene_name: 基因名模糊搜索
    */
-  list: (params: RegulationFilterParams) =>
-    apiClient.get<PaginatedResponse<RegulationListItem>>('/api/v1/regulations', { params }),
+  list: (params: RegulationFilterParams, signal?: AbortSignal) =>
+    apiClient.get<PaginatedResponse<RegulationListItem>>('/api/v1/regulations', { params, signal }),
 
   /**
    * 获取调控关系详情（包含序列数据）
    */
-  getDetail: (regulationId: number) =>
-    apiClient.get<RegulationDetail>(`/api/v1/regulations/${regulationId}`),
+  getDetail: (regulationId: number, signal?: AbortSignal) =>
+    apiClient.get<RegulationDetail>(`/api/v1/regulations/${regulationId}`, { signal }),
 
   /**
    * 获取 lncRNA 选项列表（轻量级 API）
@@ -148,10 +148,10 @@ export const regulationsApi = {
    */
   getLncRNAOptions: async (params?: {
     species_id?: number
-  }): Promise<LncRNAOptionsResponse> => {
+  }, signal?: AbortSignal): Promise<LncRNAOptionsResponse> => {
     const response = await apiClient.get<LncRNAOptionsResponse>(
       '/api/v1/regulations/lncrna-options',
-      { params }
+      { params, signal }
     )
     return response.data
   },
@@ -214,10 +214,10 @@ export const regulationsApi = {
    */
   getTargetOptions: async (params?: {
     species_id?: number
-  }): Promise<TargetOptionsResponse> => {
+  }, signal?: AbortSignal): Promise<TargetOptionsResponse> => {
     const response = await apiClient.get<TargetOptionsResponse>(
       '/api/v1/regulations/target-options',
-      { params }
+      { params, signal }
     )
     return response.data
   }

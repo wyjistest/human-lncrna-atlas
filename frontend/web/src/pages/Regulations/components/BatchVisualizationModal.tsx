@@ -81,6 +81,7 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
   const { t, i18n } = useTranslation('regulations')
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<Core | null>(null)
+  const layoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [loading, setLoading] = useState(false)
   const [nodeCount, setNodeCount] = useState(0)
   const [edgeCount, setEdgeCount] = useState(0)
@@ -229,6 +230,10 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
 
     return () => {
       clearTimeout(timer)
+      if (layoutTimerRef.current) {
+        clearTimeout(layoutTimerRef.current)
+        layoutTimerRef.current = null
+      }
       if (cyRef.current) {
         cyRef.current.destroy()
         cyRef.current = null
@@ -243,9 +248,13 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
       setLoading(true)
       cyRef.current.layout(LAYOUT_CONFIGS[newLayout]).run()
       // 布局完成后取消 loading
-      setTimeout(() => {
+      if (layoutTimerRef.current) {
+        clearTimeout(layoutTimerRef.current)
+      }
+      layoutTimerRef.current = setTimeout(() => {
         setLoading(false)
         cyRef.current?.fit()
+        layoutTimerRef.current = null
       }, 100)
     }
   }

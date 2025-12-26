@@ -37,6 +37,10 @@ class TestEpigeneticDataStructure:
         assert epi.total_overlaps == 0
         assert epi.by_mark == {}
         assert epi.by_cell_type == {}
+        # Phase 9.29+：补齐统计卡片字段默认值
+        assert epi.bivalent_domains == 0
+        assert epi.active_marks == 0
+        assert epi.repressive_marks == 0
 
     @pytest.mark.unit
     def test_epigenetic_with_data(self):
@@ -97,6 +101,8 @@ class TestEpigeneticDataStructure:
         assert response.conservation is not None
         assert response.epigenetic is not None
         assert response.disease is not None
+        # Phase 9.29+：新增字段默认值保持可用
+        assert response.disease.avg_connections == 0.0
 
 
 class TestMVGracefulDegradationLogic:

@@ -78,6 +78,42 @@ def _normalize_chr(raw: str) -> str:
 
 
 def _generate_overlap_bed6_stream(
+    result,
+) -> Generator[str, None, None]:
+    """
+    生成 overlap BED6 数据流。
+
+    name 字段包含 mark_type，便于前端与测试做快速校验。
+
+    Phase 9.24: Added MV error handling - auto-fallback if MV dropped during TTL.
+    """
+    close = getattr(result, "close", None)
+    try:
+        for row in result:
+            chr_name = row.chromosome
+            overlap_start = int(row.overlap_start)
+            overlap_end = int(row.overlap_end)
+
+            lncrna = row.lncrna_name or "unknown_lncRNA"
+            target = row.target_gene_name or "unknown_target"
+            mark = row.mark_type or "unknown_mark"
+            cell_type = row.cell_type or "unknown_cell"
+
+            # name: 保持简洁但包含 mark_type，满足 IGV 与测试场景
+            name = f"{lncrna}->{target}|{mark}|{cell_type}"
+
+            # score: 使用与 regulations BED 一致的 BA 缩放策略
+            ba = float(row.binding_affinity) if row.binding_affinity else 0.0
+            score = min(1000, max(0, int(ba * 10)))
+
+            strand = "."
+            yield f"{chr_name}\t{overlap_start}\t{overlap_end}\t{name}\t{score}\t{strand}\n"
+    finally:
+        if callable(close):
+            close()
+
+
+def _execute_overlap_query(
     db: Session,
     chromosome: str,
     start: int,
@@ -86,13 +122,13 @@ def _generate_overlap_bed6_stream(
     mark_type: Optional[str],
     min_ba: Optional[float],
     limit: int,
-) -> Generator[str, None, None]:
+):
     """
-    生成 overlap BED6 数据流。
+    执行 overlap 查询并返回可迭代 result。
 
-    name 字段包含 mark_type，便于前端与测试做快速校验。
-
-    Phase 9.24: Added MV error handling - auto-fallback if MV dropped during TTL.
+    设计：
+    - 在返回 StreamingResponse 之前完成 db.execute()，确保 DB 执行期错误可被标准化为 sanitize_db_error
+    - 若 MV 在 TTL 窗口内被删除，自动 reset 缓存并回退到 join 查询
     """
     use_mv = _check_mv_available(db)
 
@@ -188,39 +224,18 @@ def _generate_overlap_bed6_stream(
         "limit": limit,
     }
 
-    # Select SQL based on MV availability
     sql = mv_sql if use_mv else fallback_sql
-
     try:
-        result = db.execute(sql.execution_options(stream_results=True), params)
+        return db.execute(sql.execution_options(stream_results=True), params)
     except Exception as e:
-        # Phase 9.24: If MV query fails due to missing MV, reset cache and try fallback
         if use_mv and is_mv_missing_error(e):
             logger.warning(f"MV query failed (MV may have been dropped), falling back to join query: {e}")
             mv_cache.reset()
-            result = db.execute(fallback_sql.execution_options(stream_results=True), params)
-        else:
-            raise
-
-    for row in result:
-        chr_name = row.chromosome
-        overlap_start = int(row.overlap_start)
-        overlap_end = int(row.overlap_end)
-
-        lncrna = row.lncrna_name or "unknown_lncRNA"
-        target = row.target_gene_name or "unknown_target"
-        mark = row.mark_type or "unknown_mark"
-        cell_type = row.cell_type or "unknown_cell"
-
-        # name: 保持简洁但包含 mark_type，满足 IGV 与测试场景
-        name = f"{lncrna}->{target}|{mark}|{cell_type}"
-
-        # score: 使用与 regulations BED 一致的 BA 缩放策略
-        ba = float(row.binding_affinity) if row.binding_affinity else 0.0
-        score = min(1000, max(0, int(ba * 10)))
-
-        strand = "."
-        yield f"{chr_name}\t{overlap_start}\t{overlap_end}\t{name}\t{score}\t{strand}\n"
+            try:
+                return db.execute(fallback_sql.execution_options(stream_results=True), params)
+            except Exception as fallback_error:
+                raise sanitize_db_error(fallback_error, logger)
+        raise sanitize_db_error(e, logger)
 
 
 @router.get("/overlap-track")
@@ -264,22 +279,20 @@ def get_overlap_track(
         limit,
     )
 
-    try:
-        stream = _generate_overlap_bed6_stream(
-            db,
-            norm_chr,
-            start,
-            end,
-            mark_type=mark_type,
-            min_ba=min_ba,
-            limit=limit,
-        )
-        return StreamingResponse(
-            stream,
-            media_type="text/plain",
-            headers={
-                "Content-Type": "text/plain; charset=utf-8",
-            },
-        )
-    except Exception as e:
-        raise sanitize_db_error(e, logger)
+    result = _execute_overlap_query(
+        db,
+        norm_chr,
+        start,
+        end,
+        mark_type=mark_type,
+        min_ba=min_ba,
+        limit=limit,
+    )
+
+    return StreamingResponse(
+        _generate_overlap_bed6_stream(result),
+        media_type="text/plain",
+        headers={
+            "Content-Type": "text/plain; charset=utf-8",
+        },
+    )

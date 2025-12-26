@@ -103,6 +103,7 @@ class Gene(Base):
         UniqueConstraint("species_id", "gene_ensembl_id", name="genes_species_id_gene_ensembl_id_key"),
         CheckConstraint("gene_end > gene_start", name="genes_check"),
         CheckConstraint("gene_start >= 0", name="genes_gene_start_check"),
+        CheckConstraint("strand IN ('+', '-', '.')", name="genes_strand_check"),
     )
 
 

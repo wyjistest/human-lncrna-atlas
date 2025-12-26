@@ -178,8 +178,8 @@ export const chordApi = {
    *   }),
    * })
    */
-  getChordData: async (params?: ChordQueryParams): Promise<ChordResponse> => {
-    const response = await apiClient.get('/api/v1/visualization/chord-data', { params })
+  getChordData: async (params?: ChordQueryParams, signal?: AbortSignal): Promise<ChordResponse> => {
+    const response = await apiClient.get('/api/v1/visualization/chord-data', { params, signal })
 
     // Transform backend response to frontend format
     const raw = response.data as ChordBackendResponse

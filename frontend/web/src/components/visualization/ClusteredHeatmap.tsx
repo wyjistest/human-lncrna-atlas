@@ -11,7 +11,8 @@
 import { useMemo } from 'react'
 import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
-import type { EChartsOption } from 'echarts'
+import echarts from '@/utils/echarts'
+import type { ECOption } from '@/utils/echarts'
 import { DendrogramSVG, type DendrogramData } from './DendrogramSVG'
 import type { HeatmapParams } from '@/types/echarts'
 
@@ -96,7 +97,7 @@ export function ClusteredHeatmap({
   }, [data])
 
   // ECharts heatmap option
-  const heatmapOption: EChartsOption = useMemo(() => {
+  const heatmapOption: ECOption = useMemo(() => {
     return {
       tooltip: {
         position: 'top',
@@ -222,6 +223,7 @@ export function ClusteredHeatmap({
         }}
       >
         <ReactECharts
+          echarts={echarts}
           option={heatmapOption}
           style={{ width: heatmapWidth, height: heatmapHeight }}
           onEvents={{

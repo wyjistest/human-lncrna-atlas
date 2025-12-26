@@ -2,13 +2,16 @@
 ChIP-seq Regions API Router
 区域基因组查询端点
 """
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.exceptions import sanitize_db_error
+from app.core.validators import compute_pagination_offset
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species
 from app.utils.chipseq_db import parse_mark_types
@@ -16,6 +19,8 @@ from app.schemas.chipseq import (
     ChIPSeqPaginatedResponse,
     ChIPSeqPeak,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -28,7 +33,7 @@ MAX_REGION_SIZE_BP = 10_000_000
 @rate_limit("30/minute")
 def get_peaks_by_region(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     chromosome: str = Query(..., description="Chromosome name"),
     start: int = Query(..., ge=0, description="Region start position"),
     end: int = Query(..., ge=0, description="Region end position"),
@@ -114,10 +119,13 @@ def get_peaks_by_region(
             """  # noqa: S608
         )
 
-        total = db.execute(count_query, params).scalar() or 0
+        try:
+            total = db.execute(count_query, params).scalar() or 0
+        except Exception as e:
+            raise sanitize_db_error(e, logger)
 
     # Data query
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     data_query = text(
         f"""
         SELECT
@@ -149,11 +157,17 @@ def get_peaks_by_region(
         """  # noqa: S608
     )
 
-    rows = db.execute(data_query, {
-        **params,
-        "limit": page_size,
-        "offset": offset,
-    }).fetchall()
+    try:
+        rows = db.execute(
+            data_query,
+            {
+                **params,
+                "limit": page_size,
+                "offset": offset,
+            },
+        ).fetchall()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     items = [
         ChIPSeqPeak(

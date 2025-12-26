@@ -10,7 +10,7 @@ from math import ceil
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
-from app.core.validators import parse_int_list, parse_comma_list, MAX_COMMA_SEPARATED_ITEMS
+from app.core.validators import compute_pagination_offset, parse_comma_list, parse_int_list
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Regulation, Gene, Species, Sequence
 from app.schemas.regulation import (
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/regulations", tags=["regulations"])
 @rate_limit("60/minute")
 def get_lncrna_options(
     request: Request,
-    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID过滤"),
     db: Session = Depends(get_db),
 ):
     """
@@ -112,7 +112,7 @@ def get_lncrna_options(
 @rate_limit("60/minute")
 def get_target_options(
     request: Request,
-    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID过滤"),
     db: Session = Depends(get_db),
 ):
     """
@@ -253,7 +253,7 @@ def list_regulations(
     request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    species_id: Optional[int] = Query(None, description="物种ID（单个）"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID（单个）"),
     species_ids: Optional[str] = Query(None, description="物种ID列表（逗号分隔，如: 1,2,3）"),
     lncrna_gene_id: Optional[int] = Query(None, description="lncRNA基因ID"),
     target_gene_id: Optional[int] = Query(None, description="靶基因ID"),
@@ -372,7 +372,7 @@ def list_regulations(
     total = cache.get_cached_count(query, count_cache_key)
 
     # 分页
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     items = query.offset(offset).limit(page_size).all()
 
     # 转换为响应模型
@@ -536,7 +536,7 @@ def get_gene_regulations(
     total = cache.get_cached_count(query, count_cache_key)
 
     # 分页
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     items = query.offset(offset).limit(page_size).all()
 
     regulation_list = [

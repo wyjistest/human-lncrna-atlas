@@ -30,9 +30,10 @@ export DB_PASSWORD="<secure-password>"
 export ADMIN_API_KEY="<random-32-char-key>"
 export REDIS_PASSWORD="<redis-password>"
 
-# Or use .env file (never commit!)
-cp .env.example .env
-# Edit .env with your values
+# Or use per-service .env files (never commit real values!)
+cp frontend/backend/.env.example frontend/backend/.env
+cp frontend/web/.env.example frontend/web/.env
+# Edit the copied files with your values
 ```
 
 ### Example Files

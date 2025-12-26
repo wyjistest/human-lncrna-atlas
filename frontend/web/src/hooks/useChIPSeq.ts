@@ -55,8 +55,8 @@ export function useChIPSeqPeaks(
 ) {
   return useQuery({
     queryKey: chipseqQueryKeys.peaks(geneId, filters),
-    queryFn: async (): Promise<ChIPSeqResponse> => {
-      const response = await chipseqApi.getGenePeaks(geneId, filters)
+    queryFn: async ({ signal }): Promise<ChIPSeqResponse> => {
+      const response = await chipseqApi.getGenePeaks(geneId, filters, signal)
       const rawData: GeneChIPSeqRawResponse = response.data
 
       // Get peaks for the selected mark type
@@ -127,8 +127,8 @@ export function useChIPSeqSummary(
 ) {
   return useQuery({
     queryKey: chipseqQueryKeys.summary(geneId, markType!),
-    queryFn: async (): Promise<ChIPSeqSummary> => {
-      const response = await chipseqApi.getGeneSummary(geneId, markType!)
+    queryFn: async ({ signal }): Promise<ChIPSeqSummary> => {
+      const response = await chipseqApi.getGeneSummary(geneId, markType!, signal)
       return response.data
     },
     staleTime: options?.staleTime ?? 30 * 60 * 1000,
@@ -156,8 +156,8 @@ export function useChIPSeqMarks(
 ) {
   return useQuery({
     queryKey: chipseqQueryKeys.availableMarks(speciesId),
-    queryFn: async (): Promise<AvailableMarksResponse> => {
-      const response = await chipseqApi.getAvailableMarks(speciesId)
+    queryFn: async ({ signal }): Promise<AvailableMarksResponse> => {
+      const response = await chipseqApi.getAvailableMarks(speciesId, signal)
       return response.data
     },
     staleTime: options?.staleTime ?? 60 * 60 * 1000, // 1 hour default (rarely changes)
@@ -189,8 +189,8 @@ export function useChIPSeqCompare(
 ) {
   return useQuery({
     queryKey: chipseqQueryKeys.compare(geneId, marks),
-    queryFn: async (): Promise<ChIPSeqCompareResponse> => {
-      const response = await chipseqApi.compareMarks(geneId, marks, flanking)
+    queryFn: async ({ signal }): Promise<ChIPSeqCompareResponse> => {
+      const response = await chipseqApi.compareMarks(geneId, marks, flanking, signal)
       const rawData: RawChIPSeqCompareResponse = response.data
 
       // Transform raw backend response to frontend expected format
@@ -273,8 +273,8 @@ export function usePrefetchChIPSeqPeaks() {
     (geneId: number, filters: ChIPSeqFilters) => {
       queryClient.prefetchQuery({
         queryKey: chipseqQueryKeys.peaks(geneId, filters),
-        queryFn: async (): Promise<ChIPSeqResponse> => {
-          const response = await chipseqApi.getGenePeaks(geneId, filters)
+        queryFn: async ({ signal }): Promise<ChIPSeqResponse> => {
+          const response = await chipseqApi.getGenePeaks(geneId, filters, signal)
           const rawData: GeneChIPSeqRawResponse = response.data
 
           // Get peaks for the selected mark type
@@ -449,9 +449,9 @@ export function useChIPSeqCellLineCompare(
 ) {
   return useQuery({
     queryKey: chipseqQueryKeys.compareCellLines(geneId, markType || 'H3K27me3', cellTypes),
-    queryFn: async (): Promise<CellLineComparisonResponse> => {
+    queryFn: async ({ signal }): Promise<CellLineComparisonResponse> => {
       if (!markType) throw new Error('Mark type is required')
-      const response = await chipseqApi.compareCellLines(geneId, markType, cellTypes, flanking)
+      const response = await chipseqApi.compareCellLines(geneId, markType, cellTypes, flanking, signal)
       return response.data
     },
     enabled: !!markType && cellTypes.length >= 2 && (options?.enabled ?? true),
@@ -490,8 +490,8 @@ export function useChIPSeqHeatmapMatrix(
 ) {
   return useQuery({
     queryKey: chipseqQueryKeys.heatmapMatrix(geneId, marks, cellTypes, metric),
-    queryFn: async (): Promise<HeatmapMatrixResponse> => {
-      const response = await chipseqApi.getHeatmapMatrix(geneId, marks, cellTypes, metric, flanking)
+    queryFn: async ({ signal }): Promise<HeatmapMatrixResponse> => {
+      const response = await chipseqApi.getHeatmapMatrix(geneId, marks, cellTypes, metric, flanking, signal)
       return response.data
     },
     enabled: marks.length >= 1 && cellTypes.length >= 1 && (options?.enabled ?? true),

@@ -8,6 +8,7 @@ from math import ceil
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
+from app.core.validators import compute_pagination_offset
 from app.models import Gene, CoreGene, Species, Regulation, TraitGeneAssociation
 from app.schemas.gene import (
     GeneDetail,
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/genes", tags=["genes"])
 @rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
 def get_gene_options(
     request: Request,  # Required for rate limiting
-    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID过滤"),
     gene_type: Optional[str] = Query(None, description="基因类型过滤（lncRNA/protein_coding）"),
     q: Optional[str] = Query(
         None,
@@ -160,7 +161,7 @@ def list_genes(
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(100, ge=1, le=1000, description="每页数量"),
     gene_type: Optional[str] = Query(None, description="基因类型（lncRNA/protein_coding）"),
-    species_id: Optional[int] = Query(None, description="物种ID"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID"),
     chromosome: Optional[str] = Query(None, description="染色体"),
     search: Optional[str] = Query(None, description="搜索关键词（基因名/ID）"),
     has_regulation: Optional[bool] = Query(None, description="是否有调控关系"),
@@ -303,7 +304,7 @@ def list_genes(
     total = cache.get_cached_count(count_query, count_cache_key)
 
     # 分页（添加 ORDER BY 确保分页稳定性）
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     items = query.order_by(Gene.gene_id).offset(offset).limit(page_size).all()
 
     # 转换为响应模型

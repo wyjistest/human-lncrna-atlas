@@ -43,8 +43,8 @@ export function useLncRNAChIPSeqOverlaps(
 ) {
   return useQuery<OverlapResponse, Error>({
     queryKey: overlapQueryKeys.overlaps(filters),
-    queryFn: async () => {
-      const response = await lncRNAChIPSeqOverlapApi.getOverlaps(filters)
+    queryFn: async ({ signal }) => {
+      const response = await lncRNAChIPSeqOverlapApi.getOverlaps(filters, signal)
       return response.data
     },
     staleTime: 30 * 60 * 1000,  // 30 minutes cache
@@ -77,8 +77,8 @@ export function useLncRNAChIPSeqOverlapSummary(
 ) {
   return useQuery<OverlapSummary, Error>({
     queryKey: overlapQueryKeys.summary(filters),
-    queryFn: async () => {
-      const response = await lncRNAChIPSeqOverlapApi.getSummary(filters)
+    queryFn: async ({ signal }) => {
+      const response = await lncRNAChIPSeqOverlapApi.getSummary(filters, signal)
       return response.data
     },
     staleTime: 30 * 60 * 1000,
@@ -115,8 +115,8 @@ export function usePrefetchOverlaps() {
     (filters: OverlapFilters) => {
       queryClient.prefetchQuery({
         queryKey: overlapQueryKeys.overlaps(filters),
-        queryFn: async () => {
-          const response = await lncRNAChIPSeqOverlapApi.getOverlaps(filters)
+        queryFn: async ({ signal }) => {
+          const response = await lncRNAChIPSeqOverlapApi.getOverlaps(filters, signal)
           return response.data
         },
         staleTime: 30 * 60 * 1000
@@ -238,8 +238,8 @@ export function useOverlapHeatmap(
 
   return useQuery<OverlapHeatmapData, Error>({
     queryKey: overlapQueryKeys.heatmap(params),
-    queryFn: async () => {
-      const response = await lncRNAChIPSeqOverlapApi.getHeatmap(params)
+    queryFn: async ({ signal }) => {
+      const response = await lncRNAChIPSeqOverlapApi.getHeatmap(params, signal)
       return response.data
     },
     staleTime: 30 * 60 * 1000,  // 30 minutes cache
@@ -296,7 +296,6 @@ export function useExportOverlaps(
     } catch (error) {
       console.error('Export failed:', error)
       message.error(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      throw error
     } finally {
       setIsExporting(false)
     }

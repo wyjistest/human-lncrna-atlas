@@ -39,6 +39,12 @@ async def add_security_headers(request: Request, call_next):
     # 限制浏览器功能（API 不需要这些功能）
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
 
+    # 关闭 DNS 预解析（减少隐私泄露面）
+    response.headers["X-DNS-Prefetch-Control"] = "off"
+
+    # 禁止旧式跨域策略文件（Flash/Adobe Reader 等遗留机制）
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
+
     # HSTS - 仅在配置启用时添加（需要 HTTPS 已完全配置）
     if settings.ENABLE_HSTS:
         hsts_value = f"max-age={settings.HSTS_MAX_AGE}"
@@ -53,7 +59,7 @@ async def add_security_headers(request: Request, call_next):
     #
     # ⚠️ 注意：FastAPI 的 Swagger UI (/docs) 与 ReDoc (/redoc) 需要加载 JS/CSS。
     # 若对文档页面也设置 `default-src 'none'`，浏览器会阻止资源加载，导致交互式文档不可用。
-    path = request.url.path
+    path = request.url.path or ""
     if not (path.startswith("/docs") or path.startswith("/redoc")):
         response.headers["Content-Security-Policy"] = (
             "default-src 'none'; "
@@ -61,5 +67,12 @@ async def add_security_headers(request: Request, call_next):
             "base-uri 'none'; "
             "form-action 'none'"
         )
+
+    # 对敏感端点显式禁用缓存（避免浏览器/中间代理缓存 Admin/metrics 输出）
+    normalized_path = path.rstrip("/")
+    admin_prefix = f"{settings.API_V1_PREFIX}/admin"
+    if normalized_path.endswith("/metrics") or normalized_path.startswith(admin_prefix):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
 
     return response

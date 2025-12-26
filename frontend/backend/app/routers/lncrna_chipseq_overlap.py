@@ -27,13 +27,12 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Tuple, Literal, Generator
 import logging
 import csv
-import time
 from io import StringIO
 
 from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
-from app.core.validators import parse_comma_list, MAX_FIELD_LENGTH
+from app.core.validators import MAX_FIELD_LENGTH, compute_pagination_offset, parse_comma_list
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
 from app.utils.http_headers import content_disposition_attachment
 from app.utils.streaming_export import sanitize_csv_value
@@ -310,7 +309,7 @@ def get_lncrna_chipseq_overlaps_from_mv(
     )
 
     # Calculate offset
-    offset = (filters.page - 1) * filters.page_size
+    offset = compute_pagination_offset(filters.page, filters.page_size)
 
     params.update(
         {
@@ -356,6 +355,9 @@ def get_lncrna_chipseq_overlaps_from_mv(
         return items, total
 
     except Exception as e:
+        # Allow MV-missing errors to propagate so the router can auto-fallback to join query.
+        if is_mv_missing_error(e):
+            raise
         raise sanitize_db_error(e, logger)
 
 
@@ -471,7 +473,7 @@ def get_lncrna_chipseq_overlaps_query(
     )
 
     # Calculate offset
-    offset = (filters.page - 1) * filters.page_size
+    offset = compute_pagination_offset(filters.page, filters.page_size)
 
     params.update(
         {

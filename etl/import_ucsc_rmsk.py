@@ -23,20 +23,30 @@ Usage:
 """
 
 import argparse
-import json
 from datetime import datetime
+import logging
+import os
+import sys
+from typing import Optional, Tuple
+
 import psycopg2
-from psycopg2.extras import execute_values
+from psycopg2.extras import execute_values, Json
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Import UCSC RepeatMasker data')
     parser.add_argument('input_file', help='Path to rmsk.txt file')
     parser.add_argument('--limit', type=int, default=0, help='Limit number of rows (0=all)')
     parser.add_argument('--batch-size', type=int, default=10000, help='Batch size for inserts')
+    parser.add_argument('--skip-lines', type=int, default=0, help='Skip first N lines (resume support)')
     parser.add_argument('--species', default='human', help='Species code')
-    parser.add_argument('--db', default='lncrna_production', help='Database name')
-    parser.add_argument('--user', default='amax', help='Database user')
-    parser.add_argument('--host', default='localhost', help='Database host')
+    parser.add_argument('--db', default=os.environ.get('DB_NAME', 'lncrna_production'), help='Database name')
+    parser.add_argument('--user', default=os.environ.get('DB_USER', 'amax'), help='Database user')
+    parser.add_argument('--host', default=os.environ.get('DB_HOST', 'localhost'), help='Database host')
+    parser.add_argument('--port', default=os.environ.get('DB_PORT', '5432'), help='Database port')
+    parser.add_argument('--password', default=os.environ.get('DB_PASSWORD', ''), help='Database password (optional)')
     return parser.parse_args()
 
 def get_species_id(conn, species_code):
@@ -76,19 +86,26 @@ def create_batch(conn, species_id, source_file):
         conn.commit()
         return batch_id
 
-def update_batch(conn, batch_id, status, record_count=None):
-    """Update batch status"""
+def update_batch(conn, batch_id, status, record_count: Optional[int] = None, error_message: Optional[str] = None):
+    """Update batch status (best-effort)"""
     with conn.cursor() as cur:
-        if status == 'completed':
+        if status in ('completed', 'failed'):
             cur.execute("""
                 UPDATE import_batches
-                SET status = %s, record_count = %s, completed_at = %s
+                SET status = %s,
+                    record_count = COALESCE(%s, record_count),
+                    error_message = COALESCE(%s, error_message),
+                    completed_at = %s
                 WHERE batch_id = %s
-            """, (status, record_count, datetime.now(), batch_id))
+            """, (status, record_count, error_message, datetime.now(), batch_id))
         else:
             cur.execute("""
-                UPDATE import_batches SET status = %s WHERE batch_id = %s
-            """, (status, batch_id))
+                UPDATE import_batches
+                SET status = %s,
+                    record_count = COALESCE(%s, record_count),
+                    error_message = COALESCE(%s, error_message)
+                WHERE batch_id = %s
+            """, (status, record_count, error_message, batch_id))
         conn.commit()
 
 def parse_rmsk_line(line):
@@ -109,8 +126,24 @@ def parse_rmsk_line(line):
         'repeat_family': fields[12]
     }
 
-def import_data(conn, input_file, species_id, track_id, batch_id, batch_size=10000, limit=0):
-    """Import RepeatMasker data"""
+def import_data(
+    conn,
+    input_file: str,
+    species_id: int,
+    track_id: int,
+    batch_id: int,
+    *,
+    batch_size: int = 10000,
+    limit: int = 0,
+    skip_lines: int = 0,
+    progress: Optional[dict] = None,
+) -> Tuple[int, int, int]:
+    """
+    Import RepeatMasker data.
+
+    Returns:
+        (total_imported, last_line_num, parse_errors)
+    """
 
     insert_sql = """
         INSERT INTO genomic_features
@@ -121,15 +154,33 @@ def import_data(conn, input_file, species_id, track_id, batch_id, batch_size=100
 
     total_imported = 0
     batch_data = []
+    parse_errors = 0
+    last_line_num = 0
 
-    print(f"Reading {input_file}...")
+    logger.info(f"Reading {input_file}...")
+    if skip_lines > 0:
+        logger.info(f"Resume mode: skipping first {skip_lines:,} lines")
 
     with open(input_file, 'r', encoding='utf-8') as f:
         for line_num, line in enumerate(f, 1):
+            last_line_num = line_num
+            if progress is not None:
+                progress["last_line_num"] = last_line_num
+            if skip_lines > 0 and line_num <= skip_lines:
+                continue
             if limit > 0 and line_num > limit:
                 break
 
-            record = parse_rmsk_line(line)
+            try:
+                record = parse_rmsk_line(line)
+            except (ValueError, TypeError):
+                parse_errors += 1
+                if progress is not None:
+                    progress["parse_errors"] = parse_errors
+                # Avoid spamming logs for huge files
+                if parse_errors <= 10:
+                    logger.warning(f"Parse failed at line {line_num}: {line[:120].rstrip()!r}")
+                continue
             if not record:
                 continue
 
@@ -143,8 +194,8 @@ def import_data(conn, input_file, species_id, track_id, batch_id, batch_size=100
                 record['repeat_name'],
                 record['strand'],
                 record['sw_score'],
-                # JSONB attributes - use json.dumps() for proper escaping
-                json.dumps({
+                # JSONB attributes - use Json adapter for correct escaping and typing
+                Json({
                     "repeat_class": record["repeat_class"],
                     "repeat_family": record["repeat_family"],
                     "divergence": record["divergence"]
@@ -159,7 +210,9 @@ def import_data(conn, input_file, species_id, track_id, batch_id, batch_size=100
                     execute_values(cur, insert_sql, batch_data, page_size=batch_size)
                 conn.commit()
                 total_imported += len(batch_data)
-                print(f"  Imported {total_imported:,} records...", end='\r')
+                if progress is not None:
+                    progress["total_imported"] = total_imported
+                logger.info(f"Imported {total_imported:,} records (line {line_num:,})")
                 batch_data = []
 
     # Insert remaining
@@ -168,9 +221,11 @@ def import_data(conn, input_file, species_id, track_id, batch_id, batch_size=100
             execute_values(cur, insert_sql, batch_data, page_size=batch_size)
         conn.commit()
         total_imported += len(batch_data)
+        if progress is not None:
+            progress["total_imported"] = total_imported
 
-    print(f"\n  Total imported: {total_imported:,} records")
-    return total_imported
+    logger.info(f"Total imported: {total_imported:,} records (parse_errors={parse_errors:,})")
+    return total_imported, last_line_num, parse_errors
 
 def main():
     args = parse_args()
@@ -185,12 +240,22 @@ def main():
         print(f"Limit: {args.limit:,} rows")
     print()
 
+    # Verify input file exists
+    if not os.path.exists(args.input_file):
+        print(f"\n ERROR: File not found: {args.input_file}")
+        sys.exit(1)
+
     # Connect to database
-    conn = psycopg2.connect(
-        dbname=args.db,
-        user=args.user,
-        host=args.host
-    )
+    db_config = {
+        "dbname": args.db,
+        "user": args.user,
+        "host": args.host,
+        "port": int(args.port),
+    }
+    # If password is empty, omit it to allow .pgpass / trust auth
+    if args.password:
+        db_config["password"] = args.password
+    conn = psycopg2.connect(**db_config)
 
     try:
         # Get IDs
@@ -204,8 +269,18 @@ def main():
 
         # Import data
         start_time = datetime.now()
-        total = import_data(conn, args.input_file, species_id, track_id, batch_id,
-                           args.batch_size, args.limit)
+        progress = {"total_imported": 0, "last_line_num": 0, "parse_errors": 0}
+        total, last_line_num, parse_errors = import_data(
+            conn,
+            args.input_file,
+            species_id,
+            track_id,
+            batch_id,
+            batch_size=args.batch_size,
+            limit=args.limit,
+            skip_lines=args.skip_lines,
+            progress=progress,
+        )
         elapsed = (datetime.now() - start_time).total_seconds()
 
         # Update batch status
@@ -215,14 +290,32 @@ def main():
         print("=" * 60)
         print("Import completed successfully!")
         print(f"  Records: {total:,}")
+        print(f"  Parse errors: {parse_errors:,}")
         print(f"  Time: {elapsed:.1f} seconds")
         print(f"  Speed: {total/elapsed:,.0f} records/second")
         print("=" * 60)
 
     except Exception as e:
         print(f"\n ERROR: {e}")
+        # Ensure the connection is not in aborted state before updating batch metadata
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+
         if 'batch_id' in locals():
-            update_batch(conn, batch_id, 'failed')
+            # Best-effort: record partial progress and a resume hint
+            imported = progress.get("total_imported", 0) if "progress" in locals() else 0
+            last_line_num = progress.get("last_line_num", 0) if "progress" in locals() else 0
+            resume_hint = (
+                f"PARTIAL_IMPORT: {imported} records committed before error. "
+                f"Resume: python import_ucsc_rmsk.py {args.input_file} "
+                f"--species {args.species} --skip-lines={max(last_line_num - 1, 0)}"
+            )
+            try:
+                update_batch(conn, batch_id, 'failed', record_count=imported, error_message=resume_hint)
+            except Exception as update_err:
+                logger.warning(f"Failed to update batch status after error: {update_err}")
         raise
     finally:
         conn.close()

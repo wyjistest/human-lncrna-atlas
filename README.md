@@ -77,7 +77,7 @@ human-lncrna-atlas/
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+
-- PostgreSQL 14+
+- PostgreSQL 15+
 - Redis (optional, for caching)
 
 ### Backend Setup

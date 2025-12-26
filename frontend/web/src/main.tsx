@@ -45,6 +45,14 @@ const queryClient = new QueryClient({
   },
 })
 
+// Global unhandled promise rejection handler
+// Prevents silent failures when a Promise is rejected without a catch handler.
+// Note: React Query errors are handled by QueryCache/MutationCache above.
+window.addEventListener('unhandledrejection', (event) => {
+  const parsed = parseError(event.reason)
+  throttledMessage.showError(parsed)
+})
+
 /**
  * MSW 启动逻辑（仅开发环境）
  *

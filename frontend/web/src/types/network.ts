@@ -5,15 +5,15 @@
 export interface GeneDetail {
   gene_id: number
   gene_name: string
-  gene_ensembl_id: string
+  gene_ensembl_id: string | null
   gene_type: 'lncRNA' | 'protein_coding'
   species_id: number
-  species_name: string
+  species_name: string | null
   chromosome: string | null
   gene_start: number | null
   gene_end: number | null
   strand: string | null
-  core_id: number
+  core_id: number | null
   conservation_label: string  // 保守性标签，如 "1000" 表示只在人类中存在
   conservation_count: number  // 保守物种数量
   connections: {
@@ -72,6 +72,7 @@ export interface SpeciesTargetGene {
 export interface SpeciesNetworkData {
   lncrna_gene_id: number
   species_id: number
+  species_name: string
   target_count: number
   total_target_count: number
   truncated: boolean
@@ -80,6 +81,7 @@ export interface SpeciesNetworkData {
 
 export interface SpeciesNetworkComparison {
   lncrna_core_id: number
+  species_names?: Record<string, string>
   species_networks: Record<number, SpeciesNetworkData>
   conserved_target_count: number
   conserved_targets: number[]

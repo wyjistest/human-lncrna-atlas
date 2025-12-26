@@ -54,8 +54,8 @@ export default function Network() {
   // 获取有网络数据的组合
   const { data: availableCombinations } = useQuery({
     queryKey: ['available-combinations'],
-    queryFn: async () => {
-      const res = await networkApi.getAvailableCombinations()
+    queryFn: async ({ signal }) => {
+      const res = await networkApi.getAvailableCombinations(undefined, signal)
       return res.data.combinations
     }
   })
@@ -68,7 +68,7 @@ export default function Network() {
     refetch: refetchDiseaseOptions
   } = useQuery({
     queryKey: ['disease-options'],
-    queryFn: diseasesApi.getOptions,
+    queryFn: ({ signal }) => diseasesApi.getOptions(signal),
     staleTime: 10 * 60 * 1000, // 10分钟缓存
   })
 
@@ -111,14 +111,14 @@ export default function Network() {
   const networkQueries = useQueries({
     queries: speciesIds.map(speciesId => ({
       queryKey: ['network', speciesId, traitId, ontologyId, queryTrigger],
-      queryFn: async () => {
+      queryFn: async ({ signal }) => {
         if (!traitId || !ontologyId) return null
         const res = await networkApi.getDiseaseNetwork({
           species_id: speciesId,
           trait_id: traitId,
           ontology_id: ontologyId,
           min_ba: 0
-        })
+        }, signal)
         return res.data
       },
       enabled: queryTrigger > 0 && !!traitId && !!ontologyId,

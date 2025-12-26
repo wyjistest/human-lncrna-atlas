@@ -73,7 +73,8 @@ export const networkApi = {
     min_ba?: number
     max_distance?: number
     depth?: number
-  }) => apiClient.get<APINetworkData>(`/api/v1/network/gene/${geneId}`, { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<APINetworkData>(`/api/v1/network/gene/${geneId}`, { params, signal }),
 
   /**
    * Compare regulatory networks across species for a lncRNA
@@ -122,9 +123,10 @@ export const networkApi = {
    * @see Network page Cross-Species Comparison drawer
    * @see OrthologBrowser component for related functionality
    */
-  compareSpecies: (lncrnaGeneId: number, params?: CompareParams) =>
+  compareSpecies: (lncrnaGeneId: number, params?: CompareParams, signal?: AbortSignal) =>
     apiClient.get<SpeciesNetworkComparison>('/api/v1/network/compare', {
-      params: { lncrna_gene_id: lncrnaGeneId, ...params }
+      params: { lncrna_gene_id: lncrnaGeneId, ...params },
+      signal
     }),
 
   /**
@@ -160,9 +162,10 @@ export const networkApi = {
    *
    * @see Network page disease filter implementation
    */
-  getAvailableCombinations: (speciesId?: number) =>
+  getAvailableCombinations: (speciesId?: number, signal?: AbortSignal) =>
     apiClient.get<AvailableCombinationsResponse>('/api/v1/network/available-combinations', {
-      params: speciesId ? { species_id: speciesId } : undefined
+      params: speciesId ? { species_id: speciesId } : undefined,
+      signal
     }),
 
   /**
@@ -219,8 +222,8 @@ export const networkApi = {
    * @see Network page disease network tab
    * @see Sankey Flow visualization for alternative disease view
    */
-  getDiseaseNetwork: (params: DiseaseNetworkParams) =>
-    apiClient.get<NetworkData>('/api/v1/network/disease', { params }),
+  getDiseaseNetwork: (params: DiseaseNetworkParams, signal?: AbortSignal) =>
+    apiClient.get<NetworkData>('/api/v1/network/disease', { params, signal }),
 
   /**
    * Get detailed gene information for network context
@@ -261,6 +264,6 @@ export const networkApi = {
    * @see Network page node detail panel
    * @see GeneDetail page for full gene information
    */
-  getGeneDetail: (geneId: number) =>
-    apiClient.get<GeneDetail>(`/api/v1/network/gene/${geneId}/detail`),
+  getGeneDetail: (geneId: number, signal?: AbortSignal) =>
+    apiClient.get<GeneDetail>(`/api/v1/network/gene/${geneId}/detail`, { signal }),
 }

@@ -123,3 +123,21 @@ def test_reset_forces_recheck(monkeypatch):
     mod.reset_mv_cache()
     assert mod.check_materialized_view_exists(db) is False
     assert db.execute_calls == 2
+
+
+def test_is_mv_missing_error_detection_is_strict():
+    """
+    is_mv_missing_error 应仅在错误信息明确包含 MV 名称且表示缺失时返回 True。
+
+    目的：避免将其他数据库错误误判为“MV 被删除”，从而错误地触发 fallback 并掩盖真实问题。
+    """
+    from app.core.mv_cache import is_mv_missing_error
+
+    assert is_mv_missing_error(Exception('relation "mv_lncrna_chipseq_overlaps" does not exist')) is True
+    assert is_mv_missing_error(Exception('UndefinedTable: relation "mv_lncrna_chipseq_overlaps" does not exist')) is True
+
+    # 不应误判：其他表缺失/其他 relation 关键字
+    assert is_mv_missing_error(Exception('relation "other_table" does not exist')) is False
+
+    # 不应误判：权限/其他错误（包含 MV 名但不是缺失）
+    assert is_mv_missing_error(Exception('permission denied for relation mv_lncrna_chipseq_overlaps')) is False

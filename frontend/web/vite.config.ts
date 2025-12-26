@@ -55,7 +55,10 @@ export default defineConfig(({ mode }) => {
           'igv-vendor': ['igv'],
 
           // Export utilities (loaded on demand)
-          'export-vendor': ['file-saver', 'jspdf', 'html2canvas', 'jszip'],
+          // Split to avoid one giant chunk (pdf libs are only needed for PDF export; jszip only for batch export).
+          'file-vendor': ['file-saver'],
+          'pdf-vendor': ['jspdf', 'html2canvas'],
+          'zip-vendor': ['jszip'],
 
           // i18n (loaded immediately)
           'i18n-vendor': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],

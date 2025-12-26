@@ -13,7 +13,7 @@
  * - Satellite: Orange (#CC6600)
  * - Other: Dark gray (#888888)
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Button } from 'antd'
 import { DownOutlined, UpOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -60,6 +60,8 @@ export const RepeatMaskerLegend: React.FC<RepeatMaskerLegendProps> = ({
 }) => {
   const { t } = useTranslation('genomeBrowser')
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  const contentId = useId()
+  const detailsId = `repeat-masker-legend-${contentId}`
 
   const containerStyle: React.CSSProperties = {
     ...getPositionStyles(position),
@@ -106,22 +108,30 @@ export const RepeatMaskerLegend: React.FC<RepeatMaskerLegendProps> = ({
   }
 
   const toggleCollapse = () => {
-    setCollapsed(!collapsed)
+    setCollapsed((prev) => !prev)
   }
 
   return (
     <div style={containerStyle}>
-      <div style={headerStyle} onClick={toggleCollapse}>
+      <Button
+        type="text"
+        onClick={toggleCollapse}
+        aria-expanded={!collapsed}
+        aria-controls={detailsId}
+        style={{
+          ...headerStyle,
+          width: '100%',
+          padding: 0,
+          height: 'auto',
+        }}
+      >
         <span>{t('repeatMaskerLegend.title')}</span>
-        <Button
-          type="text"
-          size="small"
-          icon={collapsed ? <DownOutlined /> : <UpOutlined />}
-          style={{ padding: '0 4px', height: 'auto', marginLeft: 8 }}
-        />
-      </div>
+        <span aria-hidden="true" style={{ marginLeft: 8 }}>
+          {collapsed ? <DownOutlined /> : <UpOutlined />}
+        </span>
+      </Button>
       {!collapsed && (
-        <div style={{ marginTop: 4 }}>
+        <div id={detailsId} style={{ marginTop: 4 }}>
           {REPEAT_CLASS_ORDER.map((repeatClass) => (
             <div key={repeatClass} style={itemStyle}>
               <div style={colorBoxStyle(REPEAT_CLASS_COLORS[repeatClass])} />

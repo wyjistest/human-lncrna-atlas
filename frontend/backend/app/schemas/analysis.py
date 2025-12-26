@@ -58,6 +58,10 @@ class EpigeneticAnalysis(BaseModel):
     total_overlaps: int = Field(description="总重叠数")
     by_mark: Dict[str, int] = Field(description="按组蛋白标记分组统计")
     by_cell_type: Dict[str, int] = Field(description="按细胞类型分组统计")
+    # Phase 9.29+：补齐前端统计卡片所需字段（向后兼容，提供默认值）
+    bivalent_domains: int = Field(default=0, description="Bivalent domains 重叠数（按 mark_category=bivalent_component 汇总）")
+    active_marks: int = Field(default=0, description="活跃标记重叠数（按 mark_category=activating 汇总）")
+    repressive_marks: int = Field(default=0, description="抑制标记重叠数（按 mark_category=repressive 汇总）")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,6 +76,8 @@ class DiseaseAnalysis(BaseModel):
     total_diseases: int = Field(description="总疾病数")
     total_lncrnas: int = Field(description="关联的 lncRNA 总数")
     total_genes: int = Field(description="关联的基因总数")
+    # Phase 9.29+：补齐前端统计卡片所需字段（向后兼容，提供默认值）
+    avg_connections: float = Field(default=0.0, description="平均每个疾病关联的基因数（trait_gene_associations）")
 
     model_config = ConfigDict(from_attributes=True)
 

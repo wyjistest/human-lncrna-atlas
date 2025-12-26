@@ -36,9 +36,10 @@ export const chipseqApi = {
    * Get available ChIP-seq marks for a species
    * @param speciesId - Species ID (default: 1 for Human)
    */
-  getAvailableMarks: (speciesId: number = 1) =>
+  getAvailableMarks: (speciesId: number = 1, signal?: AbortSignal) =>
     apiClient.get<AvailableMarksResponse>('/api/v1/features/chipseq/marks', {
       params: { species_id: speciesId },
+      signal,
     }),
 
   /**
@@ -46,7 +47,7 @@ export const chipseqApi = {
    * @param geneId - Gene ID
    * @param filters - Query filters including mark_type, pagination, and filtering options
    */
-  getGenePeaks: (geneId: number, filters?: ChIPSeqFilters) =>
+  getGenePeaks: (geneId: number, filters?: ChIPSeqFilters, signal?: AbortSignal) =>
     apiClient.get<GeneChIPSeqRawResponse>(`/api/v1/features/chipseq/genes/${geneId}`, {
       params: {
         mark_type: filters?.mark_type,
@@ -63,6 +64,7 @@ export const chipseqApi = {
         sort_by: filters?.sort_by,
         sort_order: filters?.sort_order,
       },
+      signal,
     }),
 
   /**
@@ -70,9 +72,10 @@ export const chipseqApi = {
    * @param geneId - Gene ID
    * @param markType - Histone modification mark type
    */
-  getGeneSummary: (geneId: number, markType: MarkType) =>
+  getGeneSummary: (geneId: number, markType: MarkType, signal?: AbortSignal) =>
     apiClient.get<ChIPSeqSummary>(`/api/v1/features/chipseq/genes/${geneId}/summary`, {
       params: { mark_type: markType },
+      signal,
     }),
 
   /**
@@ -81,12 +84,13 @@ export const chipseqApi = {
    * @param marks - Array of mark types to compare
    * @param flanking - Flanking region in bp (optional)
    */
-  compareMarks: (geneId: number, marks: MarkType[], flanking?: number) =>
+  compareMarks: (geneId: number, marks: MarkType[], flanking?: number, signal?: AbortSignal) =>
     apiClient.get<RawChIPSeqCompareResponse>(`/api/v1/features/chipseq/genes/${geneId}/compare`, {
       params: {
         marks: marks.join(','),
         flanking,
       },
+      signal,
     }),
 
   /**
@@ -144,7 +148,8 @@ export const chipseqApi = {
     geneId: number,
     markType: MarkType,
     cellTypes: string[],
-    flanking?: number
+    flanking?: number,
+    signal?: AbortSignal
   ) =>
     apiClient.get<CellLineComparisonResponse>(
       `/api/v1/features/chipseq/genes/${geneId}/compare-cell-lines`,
@@ -154,6 +159,7 @@ export const chipseqApi = {
           cell_types: cellTypes.join(','),
           flanking,
         },
+        signal,
       }
     ),
 
@@ -171,7 +177,8 @@ export const chipseqApi = {
     marks: MarkType[],
     cellTypes: string[],
     metric: HeatmapMetricType,
-    flanking?: number
+    flanking?: number,
+    signal?: AbortSignal
   ) =>
     apiClient.get<HeatmapMatrixResponse>(
       `/api/v1/features/chipseq/genes/${geneId}/heatmap-matrix`,
@@ -182,6 +189,7 @@ export const chipseqApi = {
           metric,
           flanking,
         },
+        signal,
       }
     ),
 
@@ -194,17 +202,21 @@ export const chipseqApi = {
    * Supports filtering by species, mark type, cell type, and data source
    * @param filters - Optional filter parameters
    */
-  listExperiments: (filters?: ChIPSeqExperimentFilters) =>
+  listExperiments: (filters?: ChIPSeqExperimentFilters, signal?: AbortSignal) =>
     apiClient.get<ChIPSeqExperimentListResponse>('/api/v1/features/chipseq/experiments', {
       params: filters,
+      signal,
     }),
 
   /**
    * Get details for a specific ChIP-seq experiment
    * @param experimentId - Experiment ID
    */
-  getExperiment: (experimentId: number) =>
-    apiClient.get<ChIPSeqExperiment>(`/api/v1/features/chipseq/experiments/${experimentId}`),
+  getExperiment: (experimentId: number, signal?: AbortSignal) =>
+    apiClient.get<ChIPSeqExperiment>(
+      `/api/v1/features/chipseq/experiments/${experimentId}`,
+      { signal }
+    ),
 
   // =============================================================================
   // Global Statistics API
@@ -215,8 +227,8 @@ export const chipseqApi = {
    * Returns overall counts and per-mark statistics
    * Uses materialized view for fast response
    */
-  getGlobalStats: () =>
-    apiClient.get<ChIPSeqGlobalStats>('/api/v1/features/chipseq/stats'),
+  getGlobalStats: (signal?: AbortSignal) =>
+    apiClient.get<ChIPSeqGlobalStats>('/api/v1/features/chipseq/stats', { signal }),
 }
 
 /**

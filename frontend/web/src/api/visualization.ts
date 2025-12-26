@@ -210,7 +210,7 @@ export const visualizationApi = {
    *
    * @param params - Query parameters for filtering and limiting results
    * @param params.species_id - Filter by species (1=Human, 2=Chimp, 3=Macaque, 4=Marmoset)
-   * @param params.min_ba - Minimum binding affinity threshold (default: 0)
+   * @param params.min_ba - Minimum binding affinity threshold (default: 100)
    * @param params.trait_name - Filter by disease/trait name (partial match)
    * @param params.limit - Maximum nodes to return (default: 100, max: 500)
    * @returns Promise with Sankey diagram data including nodes, links, and statistics
@@ -264,10 +264,10 @@ export const visualizationApi = {
    * @see ECharts Sankey documentation
    * @see Phase 5.3 Visualization documentation
    */
-  getSankeyData: async (params?: SankeyQueryParams): Promise<SankeyResponse> => {
+  getSankeyData: async (params?: SankeyQueryParams, signal?: AbortSignal): Promise<SankeyResponse> => {
     const response = await apiClient.get<BackendSankeyResponse>(
       '/api/v1/visualization/sankey-data',
-      { params }
+      { params, signal }
     )
 
     // Backend returns: { success, data: { nodes, links }, stats, query_params }

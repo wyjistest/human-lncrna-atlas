@@ -2,19 +2,24 @@
 ChIP-seq Experiments API Router
 管理ChIP-seq实验数据的端点
 """
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.exceptions import sanitize_db_error
+from app.core.validators import compute_pagination_offset
 from app.routers.chipseq_rate_limit import rate_limit
 from app.utils.chipseq_db import parse_mark_types
 from app.schemas.chipseq import (
     ChIPSeqExperimentListResponse,
     ChIPSeqExperimentResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -23,7 +28,7 @@ router = APIRouter()
 @rate_limit("30/minute")
 def list_experiments(
     request: Request,
-    species_id: Optional[int] = Query(None, description="Filter by species"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="Filter by species"),
     mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated"),
     mark_category: Optional[str] = Query(None, description="Filter by mark category"),
     cell_type: Optional[str] = Query(None, description="Filter by cell type"),
@@ -144,12 +149,18 @@ def list_experiments(
         """  # noqa: S608
     )
 
-    offset = (page - 1) * page_size
-    rows = db.execute(query, {
-        **params,
-        "limit": page_size,
-        "offset": offset,
-    }).fetchall()
+    offset = compute_pagination_offset(page, page_size)
+    try:
+        rows = db.execute(
+            query,
+            {
+                **params,
+                "limit": page_size,
+                "offset": offset,
+            },
+        ).fetchall()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     if not rows:
         return ChIPSeqExperimentListResponse(total=0, items=[], page=page, page_size=page_size)
@@ -195,7 +206,7 @@ def list_experiments(
 @rate_limit("30/minute")
 def get_experiment(
     request: Request,
-    experiment_id: int,
+    experiment_id: int = Path(..., ge=1, description="Experiment ID"),
     db: Session = Depends(get_db),
 ):
     """
@@ -237,7 +248,10 @@ def get_experiment(
         WHERE e.experiment_id = :experiment_id
     """)
 
-    row = db.execute(query, {"experiment_id": experiment_id}).fetchone()
+    try:
+        row = db.execute(query, {"experiment_id": experiment_id}).fetchone()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     if not row:
         raise HTTPException(status_code=404, detail="Experiment not found")

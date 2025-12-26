@@ -20,8 +20,8 @@ export function useDetailedStats(options: UseDetailedStatsOptions = {}) {
 
   return useQuery({
     queryKey: queryKeys.stats.detailed({ buckets, topLimit }),
-    queryFn: async () => {
-      const { data } = await statsApi.detailed({ buckets, top_limit: topLimit })
+    queryFn: async ({ signal }) => {
+      const { data } = await statsApi.detailed({ buckets, top_limit: topLimit }, signal)
       return data
     },
     staleTime: 10 * 60 * 1000  // 10分钟缓存
@@ -35,8 +35,8 @@ export function useDetailedStats(options: UseDetailedStatsOptions = {}) {
 export function useBARange() {
   return useQuery({
     queryKey: queryKeys.stats.baRange(),
-    queryFn: async () => {
-      const { data } = await statsApi.baRange()
+    queryFn: async ({ signal }) => {
+      const { data } = await statsApi.baRange(signal)
       return data
     },
     staleTime: 30 * 60 * 1000  // 30分钟缓存（BA范围不常变化）

@@ -24,6 +24,14 @@ except ImportError:
     REDIS_AVAILABLE = False
     RedisError = Exception
 
+# Prometheus client is an optional dependency (enabled when /metrics is available).
+try:
+    from prometheus_client import Counter, Gauge, REGISTRY  # type: ignore
+except ImportError:  # pragma: no cover
+    Counter = None  # type: ignore[assignment]
+    Gauge = None  # type: ignore[assignment]
+    REGISTRY = None  # type: ignore[assignment]
+
 if TYPE_CHECKING:  # pragma: no cover
     import redis as redis_types  # noqa: F401
 
@@ -32,6 +40,52 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
+
+# ============== Prometheus Metrics (optional) ==============
+
+def _get_existing_collector(name: str):
+    if REGISTRY is None:
+        return None
+    return getattr(REGISTRY, "_names_to_collectors", {}).get(name)
+
+
+def _safe_counter(name: str, documentation: str, labelnames: list[str] | None = None):
+    """
+    Create (or reuse) a Prometheus Counter safely.
+
+    In unit tests, modules may be re-imported and would otherwise trigger
+    "Duplicated timeseries in CollectorRegistry" errors.
+    """
+    if Counter is None:
+        return None
+    existing = _get_existing_collector(name)
+    if existing is not None:
+        return existing
+    try:
+        return Counter(name, documentation, labelnames or [])
+    except ValueError:
+        return _get_existing_collector(name)
+
+
+def _safe_gauge(name: str, documentation: str):
+    if Gauge is None:
+        return None
+    existing = _get_existing_collector(name)
+    if existing is not None:
+        return existing
+    try:
+        return Gauge(name, documentation)
+    except ValueError:
+        return _get_existing_collector(name)
+
+
+_CACHE_HITS_TOTAL = _safe_counter("lncrna_cache_hits", "Cache hits total", ["backend"])
+_CACHE_MISSES_TOTAL = _safe_counter("lncrna_cache_misses", "Cache misses total", ["backend"])
+_MEMORY_CACHE_SIZE = _safe_gauge("lncrna_memory_cache_size", "In-memory cache current size")
+_MEMORY_CACHE_EVICTIONS_TOTAL = _safe_counter(
+    "lncrna_memory_cache_evictions",
+    "In-memory cache evictions total",
+)
 
 
 # ============== 内存缓存（回退方案） ==============
@@ -52,6 +106,8 @@ class MemoryCache:
         self._lock = threading.Lock()
         # LRU 统计
         self._evictions = 0
+        if _MEMORY_CACHE_SIZE is not None:
+            _MEMORY_CACHE_SIZE.set(0)
 
     def get(self, key: str) -> Optional[Any]:
         with self._lock:
@@ -71,6 +127,8 @@ class MemoryCache:
             if key in self._cache:
                 self._cache[key] = (value, time.time() + ttl)
                 self._cache.move_to_end(key)
+                if _MEMORY_CACHE_SIZE is not None:
+                    _MEMORY_CACHE_SIZE.set(len(self._cache))
                 return True
 
             # 空间检查：先淘汰过期项，再按 LRU 淘汰
@@ -80,13 +138,20 @@ class MemoryCache:
                 # LRU 淘汰：从头部删除最久未使用的项
                 self._cache.popitem(last=False)
                 self._evictions += 1
+                if _MEMORY_CACHE_EVICTIONS_TOTAL is not None:
+                    _MEMORY_CACHE_EVICTIONS_TOTAL.inc()
 
             self._cache[key] = (value, time.time() + ttl)
+            if _MEMORY_CACHE_SIZE is not None:
+                _MEMORY_CACHE_SIZE.set(len(self._cache))
             return True
 
     def delete(self, key: str) -> bool:
         with self._lock:
-            return self._cache.pop(key, None) is not None
+            existed = self._cache.pop(key, None) is not None
+            if existed and _MEMORY_CACHE_SIZE is not None:
+                _MEMORY_CACHE_SIZE.set(len(self._cache))
+            return existed
 
     def delete_prefix(self, prefix: str) -> int:
         """
@@ -100,12 +165,16 @@ class MemoryCache:
             keys_to_delete = [k for k in self._cache.keys() if k.startswith(prefix)]
             for k in keys_to_delete:
                 del self._cache[k]
+            if keys_to_delete and _MEMORY_CACHE_SIZE is not None:
+                _MEMORY_CACHE_SIZE.set(len(self._cache))
             return len(keys_to_delete)
 
     def clear(self) -> int:
         with self._lock:
             count = len(self._cache)
             self._cache.clear()
+            if _MEMORY_CACHE_SIZE is not None:
+                _MEMORY_CACHE_SIZE.set(0)
             return count
 
     def _evict_expired(self):
@@ -114,6 +183,8 @@ class MemoryCache:
         expired = [k for k, (_, exp) in self._cache.items() if exp <= current]
         for k in expired:
             del self._cache[k]
+        if expired and _MEMORY_CACHE_SIZE is not None:
+            _MEMORY_CACHE_SIZE.set(len(self._cache))
 
     def get_stats(self) -> dict:
         """获取内存缓存统计"""
@@ -268,17 +339,20 @@ class CacheService:
             return None
 
         # 优先 Redis
-        if self._redis.connected:
-            value = self._redis.get(key)
-        else:
-            value = self._memory.get(key)
+        use_redis = self._redis.connected
+        backend = "redis" if use_redis else "memory"
+        value = self._redis.get(key) if use_redis else self._memory.get(key)
 
         if value is not None:
             with self._stats_lock:
                 self._hits += 1
+            if _CACHE_HITS_TOTAL is not None:
+                _CACHE_HITS_TOTAL.labels(backend=backend).inc()
         else:
             with self._stats_lock:
                 self._misses += 1
+            if _CACHE_MISSES_TOTAL is not None:
+                _CACHE_MISSES_TOTAL.labels(backend=backend).inc()
 
         return value
 

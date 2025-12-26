@@ -80,7 +80,8 @@ class BatchManager:
         if exc_type is not None:
             # 发生异常，回滚
             logger.error(f"批次 {self.batch_id} 导入失败: {exc_val}")
-            self._rollback_batch()
+            error_message = f"{exc_type.__name__}: {exc_val}" if exc_type else str(exc_val)
+            self._rollback_batch(error_message=error_message)
             return False  # 传播异常
         else:
             # 正常退出但未显式commit
@@ -114,6 +115,7 @@ class BatchManager:
                 UPDATE import_batches
                 SET status = 'completed',
                     record_count = %s,
+                    error_message = NULL,
                     completed_at = NOW()
                 WHERE batch_id = %s
             """, (self.record_count, self.batch_id))
@@ -121,7 +123,7 @@ class BatchManager:
             self.conn.commit()
             logger.info(f"批次 {self.batch_id} 完成，共导入 {self.record_count} 条记录")
 
-    def _rollback_batch(self):
+    def _rollback_batch(self, *, error_message: Optional[str] = None):
         """回滚批次 - 删除所有关联数据"""
         if self.batch_id is None:
             logger.warning("批次未创建，无需回滚")
@@ -160,15 +162,21 @@ class BatchManager:
                         f"批次类型 '{self.batch_type}' 无自定义清理函数，"
                         f"可能存在数据残留。请使用 cleanup_callback 参数定义清理逻辑。"
                     )
+                    if error_message:
+                        error_message = (
+                            f"{error_message} | WARNING: cleanup_callback missing for "
+                            f"batch_type={self.batch_type}, data may remain."
+                        )
 
                 # Mark batch as failed
                 cur.execute("""
                     UPDATE import_batches
                     SET status = 'failed',
                         record_count = 0,
+                        error_message = %s,
                         completed_at = NOW()
                     WHERE batch_id = %s
-                """, (self.batch_id,))
+                """, (error_message, self.batch_id))
 
                 self.conn.commit()
                 logger.info(f"批次 {self.batch_id} 回滚完成")

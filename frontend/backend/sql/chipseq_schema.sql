@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS epigenetic_mark_types (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT chk_mark_category CHECK (
-        mark_category IN ('repressive', 'activating', 'bivalent_component', 'structural', 'other')
+        mark_category IN ('repressive', 'activating', 'bivalent_component', 'open_chromatin', 'structural', 'other')
     )
 );
 

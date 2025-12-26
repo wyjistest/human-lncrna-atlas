@@ -11,8 +11,10 @@
  * - Development: http://localhost:8000 (default)
  * - Production: Set via VITE_API_BASE_URL environment variable
  */
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const RAW_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+// Normalize to avoid double slashes when joining paths (e.g. "https://example.com//api/v1")
+export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
 
 /**
  * API v1 prefix

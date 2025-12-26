@@ -43,7 +43,7 @@ export const lncRNAChIPSeqOverlapApi = {
    * })
    * ```
    */
-  getOverlaps: (filters: OverlapFilters) =>
+  getOverlaps: (filters: OverlapFilters, signal?: AbortSignal) =>
     apiClient.get<OverlapResponse>('/api/v1/lncrna-chipseq-overlap', {
       params: {
         lncrna_gene_id: filters.lncrna_gene_id,
@@ -59,7 +59,8 @@ export const lncRNAChIPSeqOverlapApi = {
         page_size: filters.page_size ?? 20,
         sort_by: filters.sort_by,
         sort_order: filters.sort_order,
-      }
+      },
+      signal
     }),
 
   /**
@@ -78,9 +79,10 @@ export const lncRNAChIPSeqOverlapApi = {
    * })
    * ```
    */
-  getSummary: (filters?: Partial<OverlapFilters>) =>
+  getSummary: (filters?: Partial<OverlapFilters>, signal?: AbortSignal) =>
     apiClient.get<OverlapSummary>('/api/v1/lncrna-chipseq-overlap/summary', {
-      params: filters
+      params: filters,
+      signal
     }),
 
   /**
@@ -122,26 +124,28 @@ export const lncRNAChIPSeqOverlapApi = {
    * Export overlaps to BED format (Phase 2)
    * @deprecated Use exportOverlaps() instead
    */
-  exportToBED: (filters: OverlapFilters) =>
+  exportToBED: (filters: OverlapFilters, signal?: AbortSignal) =>
     apiClient.get<string>('/api/v1/lncrna-chipseq-overlap/export', {
       params: {
         ...filters,
         format: 'bed'
       },
-      responseType: 'blob'
+      responseType: 'blob',
+      signal
     }),
 
   /**
    * Export overlaps to CSV format (Phase 2)
    * @deprecated Use exportOverlaps() instead
    */
-  exportToCSV: (filters: OverlapFilters) =>
+  exportToCSV: (filters: OverlapFilters, signal?: AbortSignal) =>
     apiClient.get<string>('/api/v1/lncrna-chipseq-overlap/export', {
       params: {
         ...filters,
         format: 'csv'
       },
-      responseType: 'blob'
+      responseType: 'blob',
+      signal
     }),
 
   /**
@@ -160,7 +164,7 @@ export const lncRNAChIPSeqOverlapApi = {
    * })
    * ```
    */
-  getHeatmap: (params: OverlapHeatmapParams) =>
+  getHeatmap: (params: OverlapHeatmapParams, signal?: AbortSignal) =>
     apiClient.get<OverlapHeatmapData>('/api/v1/lncrna-chipseq-overlap/heatmap', {
       params: {
         x_axis: params.x_axis,
@@ -170,7 +174,8 @@ export const lncRNAChIPSeqOverlapApi = {
         chromosome: params.chromosome,
         min_binding_affinity: params.min_binding_affinity,
         max_qvalue: params.max_qvalue,
-      }
+      },
+      signal
     }),
 }
 

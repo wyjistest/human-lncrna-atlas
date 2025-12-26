@@ -60,7 +60,7 @@ export default function VisualizationHub() {
     },
     {
       title: t('hub.chord.title', 'Chord Diagram'),
-      description: t('hub.chord.description', 'Circular relationship visualization (Coming Soon)'),
+      description: t('hub.chord.description', 'Circular relationship visualization (lncRNA ↔ Gene)'),
       path: '/visualization/chord',
       icon: <RadarChartOutlined style={{ fontSize: 48 }} />,
       color: '#722ed1',

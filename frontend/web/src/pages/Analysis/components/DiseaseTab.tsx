@@ -24,14 +24,25 @@ import type { DiseaseNetworkNode, DiseaseNetworkEdge } from '@/api/analysis'
 export default function DiseaseTab() {
   const { t } = useTranslation('analysis')
 
-  const [traitName, setTraitName] = useState<string>('')
+  const [traitNameInput, setTraitNameInput] = useState<string>('')
+  const [traitNameFilter, setTraitNameFilter] = useState<string | undefined>(undefined)
 
   // Fetch summary and data
   const { data: summary } = useAnalysisSummary()
   const { data, isLoading, error, refetch } = useDiseaseData({
-    trait_name: traitName || undefined,
+    trait_name: traitNameFilter,
     limit: 100,
   })
+
+  const applyTraitFilter = () => {
+    const trimmed = traitNameInput.trim()
+    const nextFilter = trimmed ? trimmed : undefined
+    if (nextFilter === traitNameFilter) {
+      refetch()
+      return
+    }
+    setTraitNameFilter(nextFilter)
+  }
 
   // Network preview chart
   const networkPreviewOption: ECOption = useMemo(() => {
@@ -206,12 +217,19 @@ export default function DiseaseTab() {
           <Input
             prefix={<SearchOutlined />}
             placeholder="Search disease/trait name"
-            value={traitName}
-            onChange={(e) => setTraitName(e.target.value)}
+            value={traitNameInput}
+            onChange={(e) => {
+              const value = e.target.value
+              setTraitNameInput(value)
+              if (!value.trim()) {
+                setTraitNameFilter(undefined)
+              }
+            }}
+            onPressEnter={applyTraitFilter}
             style={{ width: 300 }}
             allowClear
           />
-          <Button type="primary" onClick={() => refetch()}>
+          <Button type="primary" onClick={applyTraitFilter}>
             {t('common.refresh')}
           </Button>
           <Button icon={<DownloadOutlined />}>{t('common.exportCsv')}</Button>

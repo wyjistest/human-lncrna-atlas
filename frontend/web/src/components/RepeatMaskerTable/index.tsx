@@ -58,8 +58,8 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
     refetch
   } = useQuery({
     queryKey: ['gene-repeats', geneId, filters],
-    queryFn: async () => {
-      const response = await featuresApi.getGeneRepeats(geneId, filters)
+    queryFn: async ({ signal }) => {
+      const response = await featuresApi.getGeneRepeats(geneId, filters, signal)
       return response.data
     },
     staleTime: 30 * 60 * 1000, // 30 minutes
@@ -69,8 +69,8 @@ const RepeatMaskerTable: React.FC<RepeatMaskerTableProps> = ({ geneId }) => {
   // Query statistics
   const { data: statsData } = useQuery({
     queryKey: ['gene-repeat-stats', geneId],
-    queryFn: async () => {
-      const response = await featuresApi.getGeneRepeatStats(geneId)
+    queryFn: async ({ signal }) => {
+      const response = await featuresApi.getGeneRepeatStats(geneId, signal)
       return response.data
     },
     staleTime: 30 * 60 * 1000,

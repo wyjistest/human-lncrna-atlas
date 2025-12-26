@@ -139,8 +139,8 @@ export const genomeApi = {
    * @param speciesId - Species ID (1: Human, 2: Chimpanzee, 3: Macaque, 4: Marmoset)
    * @returns API response with IGVConfig wrapped in { success, data, message }
    */
-  getIGVConfig: (speciesId: number) =>
-    apiClient.get<ApiResponse<IGVConfig>>(`/api/v1/igv/config/${speciesId}`),
+  getIGVConfig: (speciesId: number, signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<IGVConfig>>(`/api/v1/igv/config/${speciesId}`, { signal }),
 
   /**
    * Get IGV configuration for a specific gene
@@ -149,9 +149,10 @@ export const genomeApi = {
    * @param padding - Padding around gene (default 50kb)
    * @returns API response with IGVConfig wrapped in { success, data, message }
    */
-  getIGVConfigForGene: (geneName: string, padding?: number) =>
+  getIGVConfigForGene: (geneName: string, padding?: number, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<IGVConfig>>(`/api/v1/igv/config/gene/${encodeURIComponent(geneName)}`, {
-      params: padding !== undefined ? { padding } : undefined
+      params: padding !== undefined ? { padding } : undefined,
+      signal
     }),
 
   /**
@@ -159,9 +160,10 @@ export const genomeApi = {
    * @param speciesId - Species ID
    * @param query - Gene name or Ensembl ID to search
    */
-  searchGene: (speciesId: number, query: string) =>
+  searchGene: (speciesId: number, query: string, signal?: AbortSignal) =>
     apiClient.get<GenomeSearchResult[]>('/api/v1/igv/search', {
-      params: { species_id: speciesId, query }
+      params: { species_id: speciesId, query },
+      signal
     }),
 
   /**
@@ -171,9 +173,10 @@ export const genomeApi = {
    * @param speciesId - Species ID (1: Human, 2: Chimpanzee, 3: Macaque, 4: Marmoset)
    * @param limit - Maximum number of results (default 10)
    */
-  autocompleteGene: (query: string, speciesId: number, limit: number = 10) =>
+  autocompleteGene: (query: string, speciesId: number, limit: number = 10, signal?: AbortSignal) =>
     apiClient.get<GeneAutocompleteResponse>('/api/v1/igv/autocomplete', {
-      params: { q: query, species_id: speciesId, limit }
+      params: { q: query, species_id: speciesId, limit },
+      signal
     }),
 
   /**
@@ -181,8 +184,8 @@ export const genomeApi = {
    * @param speciesId - Species ID (1: Human, 2: Chimpanzee, 3: Macaque, 4: Marmoset)
    * @returns API response with available marks and their metadata
    */
-  getChIPSeqMarks: (speciesId: number) =>
-    apiClient.get<ApiResponse<ChIPSeqMarksResponse>>(`/api/v1/igv/chipseq/marks/${speciesId}`),
+  getChIPSeqMarks: (speciesId: number, signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<ChIPSeqMarksResponse>>(`/api/v1/igv/chipseq/marks/${speciesId}`, { signal }),
 
   /**
    * Get IGV configuration with ChIP-seq tracks included
@@ -190,8 +193,9 @@ export const genomeApi = {
    * @param markTypes - Array of mark types to include (e.g., ['H3K27me3', 'H3K4me3'])
    * @returns API response with IGVConfig including ChIP-seq tracks
    */
-  getIGVConfigWithChIPSeq: (speciesId: number, markTypes: string[]) =>
+  getIGVConfigWithChIPSeq: (speciesId: number, markTypes: string[], signal?: AbortSignal) =>
     apiClient.get<ApiResponse<IGVConfig>>(`/api/v1/igv/config/chipseq/${speciesId}`, {
-      params: { mark_types: markTypes.join(',') }
+      params: { mark_types: markTypes.join(',') },
+      signal
     }),
 }

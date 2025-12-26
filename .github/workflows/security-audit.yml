@@ -20,6 +20,10 @@ on:
     - cron: '0 2 * * 1'
   workflow_dispatch:  # 允许手动触发
 
+# Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
+permissions:
+  contents: read
+
 jobs:
   # ============================================================================
   # Python 依赖安全审计

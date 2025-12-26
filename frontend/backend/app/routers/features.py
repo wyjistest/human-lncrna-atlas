@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, cast, Float, case
 
 from app.core.database import get_db
+from app.core.validators import compute_pagination_offset
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Gene, GenomicFeature, FeatureTrack, Species
 from app.core.igv_utils import get_repeatmasker_track_id as _get_repeatmasker_track_id
@@ -207,7 +208,7 @@ def get_gene_repeats(
     ).scalar() or 0
 
     # 6. Paginated query
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     features = (
         db.query(GenomicFeature)
         .filter(and_(*conditions))
@@ -552,7 +553,7 @@ def get_repeats_by_region(
     ).scalar() or 0
 
     # Paginated query
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     features = (
         db.query(GenomicFeature)
         .filter(and_(*conditions))

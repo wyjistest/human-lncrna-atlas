@@ -2,7 +2,7 @@
 数据库连接管理
 
 Performance and Security Features:
-- Connection pooling with QueuePool (PostgreSQL) or NullPool (SQLite)
+- Connection pooling with QueuePool (PostgreSQL) or StaticPool (SQLite)
 - Query timeout protection (30s default, PostgreSQL only)
 - Connection health checks (pool_pre_ping)
 - Automatic connection recycling
@@ -72,7 +72,7 @@ else:
 engine = create_engine(settings.database_url, **_engine_kwargs)
 
 
-# Event listener to set statement_timeout on each connection checkout (PostgreSQL only)
+# Event listener to set statement_timeout on each new DBAPI connection (PostgreSQL only)
 if _is_postgresql:
     @event.listens_for(engine, "connect")
     def set_statement_timeout(dbapi_connection, connection_record):

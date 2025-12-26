@@ -39,10 +39,51 @@ MAX_FIELD_LENGTH = 500
 # 导出相关的更严格限制
 MAX_EXPORT_MARKS = 10  # 导出端点最多允许的 marks 数量
 
+# 分页相关的更严格限制
+# SECURITY/PERF: 防止恶意构造超大 OFFSET 导致慢查询/DoS（深分页通常应改用更窄的过滤或导出接口）
+MAX_PAGINATION_OFFSET = 1_000_000
+
 
 # ============================================================================
 # 验证函数
 # ============================================================================
+
+def compute_pagination_offset(
+    page: int,
+    page_size: int,
+    *,
+    max_offset: int = MAX_PAGINATION_OFFSET,
+    param_name: str = "page",
+) -> int:
+    """
+    计算并验证分页 offset。
+
+    目的：
+    - 防止恶意构造超大 page/page_size 组合导致数据库执行极大 OFFSET（慢查询/资源消耗）
+    - 保持路由实现一致，逐步替换散落的 `(page - 1) * page_size` 计算
+
+    Raises:
+        HTTPException(400): 当 offset 超过 max_offset
+    """
+    offset = (page - 1) * page_size
+    if offset > max_offset:
+        logger.warning(
+            "Pagination offset too large: %s=%s, page_size=%s -> offset=%s (max=%s)",
+            param_name,
+            page,
+            page_size,
+            offset,
+            max_offset,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Pagination offset too large (max offset {max_offset}). "
+                "Please narrow your filters or use export endpoints for large result sets."
+            ),
+        )
+    return offset
+
 
 def parse_comma_list(
     value: Optional[str],
@@ -214,6 +255,8 @@ __all__ = [
     "MAX_ITEM_LENGTH",
     "MAX_FIELD_LENGTH",
     "MAX_EXPORT_MARKS",
+    "MAX_PAGINATION_OFFSET",
+    "compute_pagination_offset",
     "parse_comma_list",
     "validate_comma_list",
     "parse_int_list",

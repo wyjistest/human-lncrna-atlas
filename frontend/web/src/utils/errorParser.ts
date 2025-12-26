@@ -6,6 +6,7 @@ import { AxiosError } from 'axios'
 export type ErrorType =
   | 'network'      // 网络错误（无响应）
   | 'timeout'      // 请求超时
+  | 'canceled'     // 请求被取消（AbortController / axios cancel）
   | 'validation'   // 4xx 客户端/验证错误
   | 'rate_limit'   // 429 限流
   | 'server'       // 5xx 服务端错误
@@ -45,88 +46,101 @@ function getErrorTypeFromStatus(status: number): ErrorType {
 }
 
 export function parseError(error: unknown): ParsedError {
-  // 处理 AxiosError
-  if (error instanceof AxiosError && error.response) {
-    const { status, data } = error.response
-    const detail = data?.detail
-    const errorType = getErrorTypeFromStatus(status)
-
-    // 处理 detail 为对象的情况（包括脱敏格式和 Admin 错误）
-    if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
-      // 提取 error_id（如果存在）用于调试追踪
-      const errorId = 'error_id' in detail ? String(detail.error_id) : undefined
-
-      // 优先使用 message 字段
-      if ('message' in detail && typeof detail.message === 'string') {
-        return {
-          message: errorId ? `${detail.message} [${errorId}]` : detail.message,
-          type: errorType,
-          errorId,
-          statusCode: status,
-        }
-      }
-      // 其次使用 error 字段
-      if ('error' in detail && typeof detail.error === 'string') {
-        return {
-          message: errorId ? `${detail.error} [${errorId}]` : detail.error,
-          type: errorType,
-          errorId,
-          statusCode: status,
-        }
-      }
-      // 最后尝试 JSON 序列化（避免显示 [object Object]）
-      try {
-        return {
-          message: JSON.stringify(detail),
-          type: errorType,
-          errorId,
-          statusCode: status,
-        }
-      } catch {
-        // Fall through to default handling
-      }
+  // 处理 AxiosError（包括取消/超时/网络/服务端）
+  if (error instanceof AxiosError) {
+    // Axios v1 取消：error.code === 'ERR_CANCELED'
+    // 这类“错误”通常来自组件卸载/查询失效，不应打扰用户。
+    if (error.code === 'ERR_CANCELED' || error.name === 'CanceledError') {
+      return { message: 'Request canceled', type: 'canceled' }
     }
 
-    // 处理 Pydantic 验证错误（数组格式）
-    if (Array.isArray(detail)) {
-      const messages = detail
-        .map((e: { msg?: string; message?: string }) => e.msg || e.message)
-        .filter(Boolean)
-        .join(', ')
+    if (error.response) {
+      const { status, data } = error.response
+      const detail = data?.detail
+      const errorType = getErrorTypeFromStatus(status)
+
+      // 处理 detail 为对象的情况（包括脱敏格式和 Admin 错误）
+      if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
+        // 提取 error_id（如果存在）用于调试追踪
+        const errorId = 'error_id' in detail ? String(detail.error_id) : undefined
+
+        // 优先使用 message 字段
+        if ('message' in detail && typeof detail.message === 'string') {
+          return {
+            message: errorId ? `${detail.message} [${errorId}]` : detail.message,
+            type: errorType,
+            errorId,
+            statusCode: status,
+          }
+        }
+        // 其次使用 error 字段
+        if ('error' in detail && typeof detail.error === 'string') {
+          return {
+            message: errorId ? `${detail.error} [${errorId}]` : detail.error,
+            type: errorType,
+            errorId,
+            statusCode: status,
+          }
+        }
+        // 最后尝试 JSON 序列化（避免显示 [object Object]）
+        try {
+          return {
+            message: JSON.stringify(detail),
+            type: errorType,
+            errorId,
+            statusCode: status,
+          }
+        } catch {
+          // Fall through to default handling
+        }
+      }
+
+      // 处理 Pydantic 验证错误（数组格式）
+      if (Array.isArray(detail)) {
+        const messages = detail
+          .map((e: { msg?: string; message?: string }) => e.msg || e.message)
+          .filter(Boolean)
+          .join(', ')
+        return {
+          message: messages || 'Validation error',
+          type: 'validation',
+          statusCode: status,
+        }
+      }
+
+      // 处理字符串 detail 或根据状态码返回默认消息
+      const defaultMessages: Record<number, string> = {
+        400: 'Invalid request parameters',
+        403: 'Access denied',
+        404: 'Resource not found',
+        422: 'Validation error',
+        429: 'Too many requests, please try later',
+        500: 'Server error',
+      }
+
       return {
-        message: messages || 'Validation error',
-        type: 'validation',
+        message: detail || defaultMessages[status] || 'Request failed',
+        type: errorType,
         statusCode: status,
       }
     }
 
-    // 处理字符串 detail 或根据状态码返回默认消息
-    const defaultMessages: Record<number, string> = {
-      400: 'Invalid request parameters',
-      403: 'Access denied',
-      404: 'Resource not found',
-      422: 'Validation error',
-      429: 'Too many requests, please try later',
-      500: 'Server error',
-    }
-
-    return {
-      message: detail || defaultMessages[status] || 'Request failed',
-      type: errorType,
-      statusCode: status,
+    // 处理网络错误（请求已发出但没有响应）
+    if (error.request) {
+      // 检查是否为超时错误
+      const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout')
+      return {
+        message: isTimeout
+          ? 'Request timed out, please try again'
+          : 'Network error, please check your connection',
+        type: isTimeout ? 'timeout' : 'network',
+      }
     }
   }
 
-  // 处理网络错误（请求已发出但没有响应）
-  if (error instanceof AxiosError && error.request) {
-    // 检查是否为超时错误
-    const isTimeout = error.code === 'ECONNABORTED' || error.message.includes('timeout')
-    return {
-      message: isTimeout
-        ? 'Request timed out, please try again'
-        : 'Network error, please check your connection',
-      type: isTimeout ? 'timeout' : 'network',
-    }
+  // 处理 fetch/DOM AbortError（兜底：即使未来不用 axios 也能静默取消）
+  if (error instanceof Error && error.name === 'AbortError') {
+    return { message: 'Request canceled', type: 'canceled' }
   }
 
   // 处理普通 Error 对象

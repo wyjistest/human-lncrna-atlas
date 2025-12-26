@@ -346,7 +346,8 @@ describe('Conservation Page', () => {
         expect(conservationApi.getConservedRegulations).toHaveBeenCalledWith(
           expect.objectContaining({
             lncrna_gene_name: 'NEAT',
-          })
+          }),
+          expect.any(AbortSignal)
         )
       })
     })
@@ -366,7 +367,8 @@ describe('Conservation Page', () => {
         expect(conservationApi.getConservedRegulations).toHaveBeenCalledWith(
           expect.objectContaining({
             target_gene_name: 'MYC',
-          })
+          }),
+          expect.any(AbortSignal)
         )
       })
     })
@@ -395,7 +397,7 @@ describe('Conservation Page', () => {
       render(<Conservation />, { wrapper: createWrapper() })
 
       await waitFor(() => {
-        expect(conservationApi.getMatrix).toHaveBeenCalledWith([1, 2, 3, 4])
+        expect(conservationApi.getMatrix).toHaveBeenCalledWith([1, 2, 3, 4], expect.any(AbortSignal))
       })
     })
 
@@ -408,7 +410,8 @@ describe('Conservation Page', () => {
             species_ids: [1, 2, 3, 4],
             page: 1,
             page_size: 20,
-          })
+          }),
+          expect.any(AbortSignal)
         )
       })
     })

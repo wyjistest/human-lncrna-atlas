@@ -96,9 +96,10 @@ export const featuresApi = {
    * @see RepeatMaskerResponse type for response structure
    * @see Gene Detail page RepeatMasker tab
    */
-  getGeneRepeats: (geneId: number, filters?: RepeatMaskerFilters) =>
+  getGeneRepeats: (geneId: number, filters?: RepeatMaskerFilters, signal?: AbortSignal) =>
     apiClient.get<RepeatMaskerResponse>(`/api/v1/features/genes/${geneId}/repeats`, {
-      params: filters
+      params: filters,
+      signal
     }),
 
   /**
@@ -125,8 +126,8 @@ export const featuresApi = {
    *
    * @see RepeatStats type for response structure
    */
-  getGeneRepeatStats: (geneId: number) =>
-    apiClient.get<RepeatStats>(`/api/v1/features/genes/${geneId}/repeats/stats`),
+  getGeneRepeatStats: (geneId: number, signal?: AbortSignal) =>
+    apiClient.get<RepeatStats>(`/api/v1/features/genes/${geneId}/repeats/stats`, { signal }),
 
   /**
    * Export RepeatMasker data as BED format file
@@ -215,8 +216,8 @@ export const featuresApi = {
    * @see FeatureTrack type for track structure
    * @see IGV configuration components
    */
-  listTracks: (params?: FeatureTrackListParams) =>
-    apiClient.get<FeatureTrack[]>('/api/v1/features/tracks', { params }),
+  listTracks: (params?: FeatureTrackListParams, signal?: AbortSignal) =>
+    apiClient.get<FeatureTrack[]>('/api/v1/features/tracks', { params, signal }),
 
   /**
    * Get details for a specific feature track
@@ -242,8 +243,8 @@ export const featuresApi = {
    *
    * @see FeatureTrack type for track structure
    */
-  getTrack: (trackId: number) =>
-    apiClient.get<FeatureTrack>(`/api/v1/features/tracks/${trackId}`),
+  getTrack: (trackId: number, signal?: AbortSignal) =>
+    apiClient.get<FeatureTrack>(`/api/v1/features/tracks/${trackId}`, { signal }),
 
   /**
    * Get statistics for all feature tracks
@@ -268,8 +269,8 @@ export const featuresApi = {
    *
    * @see FeatureTrackStats type for statistics structure
    */
-  getTrackStats: () =>
-    apiClient.get<FeatureTrackStats[]>('/api/v1/features/tracks/stats'),
+  getTrackStats: (signal?: AbortSignal) =>
+    apiClient.get<FeatureTrackStats[]>('/api/v1/features/tracks/stats', { signal }),
 
   // =============================================================================
   // Region-based RepeatMasker API
@@ -328,8 +329,8 @@ export const featuresApi = {
    * @see RepeatMaskerResponse type for response structure
    * @see IGV Browser RepeatMasker track
    */
-  getRepeatsByRegion: (speciesId: number, params: RepeatRegionParams) =>
-    apiClient.get<RepeatMaskerResponse>(`/api/v1/features/repeats/${speciesId}`, { params }),
+  getRepeatsByRegion: (speciesId: number, params: RepeatRegionParams, signal?: AbortSignal) =>
+    apiClient.get<RepeatMaskerResponse>(`/api/v1/features/repeats/${speciesId}`, { params, signal }),
 
   /**
    * Get list of unique repeat classes for a species
@@ -356,8 +357,8 @@ export const featuresApi = {
    *
    * @see RepeatMasker class filter in IGV controls
    */
-  getRepeatClasses: (speciesId: number) =>
-    apiClient.get<string[]>(`/api/v1/features/repeats/${speciesId}/classes`),
+  getRepeatClasses: (speciesId: number, signal?: AbortSignal) =>
+    apiClient.get<string[]>(`/api/v1/features/repeats/${speciesId}/classes`, { signal }),
 
   /**
    * Get list of unique repeat families for a species
@@ -391,9 +392,10 @@ export const featuresApi = {
    *
    * @see RepeatMasker family filter in IGV controls
    */
-  getRepeatFamilies: (speciesId: number, repeatClass?: string) =>
+  getRepeatFamilies: (speciesId: number, repeatClass?: string, signal?: AbortSignal) =>
     apiClient.get<string[]>(`/api/v1/features/repeats/${speciesId}/families`, {
-      params: repeatClass ? { repeat_class: repeatClass } : undefined
+      params: repeatClass ? { repeat_class: repeatClass } : undefined,
+      signal
     }),
 }
 
@@ -473,12 +475,14 @@ export interface RepeatMaskerTrackConfig {
  */
 export const getRepeatMaskerTrackConfig = (
   speciesId: number,
-  displayMode?: RepeatMaskerDisplayMode
+  displayMode?: RepeatMaskerDisplayMode,
+  signal?: AbortSignal
 ) =>
   apiClient.get<ApiResponse<RepeatMaskerTrackConfig>>(
     `/api/v1/igv/config/repeatmasker/${speciesId}`,
     {
-      params: displayMode ? { display_mode: displayMode } : undefined
+      params: displayMode ? { display_mode: displayMode } : undefined,
+      signal
     }
   )
 
@@ -564,7 +568,8 @@ export interface RepeatMaskerClassTracksResponse {
  * @see RepeatMasker track controls in IGV toolbar
  * @see Phase 6.1 IGV enhancement documentation
  */
-export const getRepeatMaskerClassTracks = (speciesId: number) =>
+export const getRepeatMaskerClassTracks = (speciesId: number, signal?: AbortSignal) =>
   apiClient.get<ApiResponse<RepeatMaskerClassTracksResponse>>(
-    `/api/v1/igv/config/repeatmasker-classes/${speciesId}`
+    `/api/v1/igv/config/repeatmasker-classes/${speciesId}`,
+    { signal }
   )

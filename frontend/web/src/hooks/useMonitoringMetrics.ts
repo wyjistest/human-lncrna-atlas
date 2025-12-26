@@ -13,7 +13,7 @@ import { queryKeys } from './queryKeys'
 export const useMonitoringMetrics = () => {
   return useQuery({
     queryKey: queryKeys.admin.metrics(),
-    queryFn: fetchMonitoringMetrics,
+    queryFn: ({ signal }) => fetchMonitoringMetrics(signal),
     // 仅在无错误时每 5 秒刷新，有错误时停止轮询
     refetchInterval: (query) => (query.state.error ? false : 5000),
     staleTime: 3000, // Consider data stale after 3 seconds

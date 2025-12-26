@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.exceptions import sanitize_db_error
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
 from app.schemas.analysis import (
@@ -97,7 +98,10 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         FROM high_affinity_regs
     """)
 
-    ha_stats = db.execute(high_affinity_sql).fetchone()
+    try:
+        ha_stats = db.execute(high_affinity_sql).fetchone()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     # Top 20 lncRNAs by target count
     top_lncrnas_sql = text("""
@@ -113,13 +117,18 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         LIMIT 20
     """)
 
+    try:
+        top_lncrnas_rows = db.execute(top_lncrnas_sql).fetchall()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
+
     top_lncrnas = [
         TopLncRNA(
             name=row.lncrna_name,
             target_count=row.target_count,
             avg_ba=round(float(row.avg_ba), 2)
         )
-        for row in db.execute(top_lncrnas_sql).fetchall()
+        for row in top_lncrnas_rows
     ]
 
     high_affinity = HighAffinityAnalysis(
@@ -150,7 +159,10 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         ) AS conservation_counts
     """)
 
-    cons_stats = db.execute(conservation_sql).fetchone()
+    try:
+        cons_stats = db.execute(conservation_sql).fetchone()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     conservation = ConservationAnalysis(
         four_species=cons_stats.four_species or 0,
@@ -165,22 +177,28 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     # 3. Epigenetic Analysis (ChIP-seq overlaps)
     # ========================================================================
     # Phase 9.13: 添加 MV 缺失时的降级处理，避免整页 500 错误
+    # 与 /export/chipseq-overlaps 默认参数对齐：仅统计高置信度 (BA >= 100) 的重叠
+    epigenetic_min_ba = 100.0
     epigenetic_sql = text("""
         SELECT
             COUNT(*) as total_overlaps,
-            mt.mark_name,
+            o.mark_name,
+            o.mark_category,
             o.cell_type
         FROM mv_lncrna_chipseq_overlaps o
-        JOIN epigenetic_mark_types mt ON o.mark_type_id = mt.mark_type_id
-        GROUP BY mt.mark_name, o.cell_type
+        WHERE o.binding_affinity >= :min_ba
+        GROUP BY o.mark_name, o.mark_category, o.cell_type
     """)
 
     by_mark = {}
     by_cell_type = {}
     total_overlaps = 0
+    bivalent_domains = 0
+    active_marks = 0
+    repressive_marks = 0
 
     try:
-        epi_results = db.execute(epigenetic_sql).fetchall()
+        epi_results = db.execute(epigenetic_sql, {"min_ba": epigenetic_min_ba}).fetchall()
 
         for row in epi_results:
             count = row.total_overlaps or 0
@@ -194,6 +212,15 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
             cell = row.cell_type
             by_cell_type[cell] = by_cell_type.get(cell, 0) + count
 
+            # Aggregate by mark category (for frontend stats cards)
+            category = row.mark_category
+            if category == "bivalent_component":
+                bivalent_domains += count
+            elif category == "activating":
+                active_marks += count
+            elif category == "repressive":
+                repressive_marks += count
+
     except Exception as e:
         # MV 不存在或查询失败时，降级为空数据（不阻塞其他分析模块）
         logger.warning(
@@ -205,16 +232,33 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         by_mark = {}
         by_cell_type = {}
         total_overlaps = 0
+        bivalent_domains = 0
+        active_marks = 0
+        repressive_marks = 0
 
     epigenetic = EpigeneticAnalysis(
         total_overlaps=total_overlaps,
         by_mark=by_mark,
-        by_cell_type=by_cell_type
+        by_cell_type=by_cell_type,
+        bivalent_domains=bivalent_domains,
+        active_marks=active_marks,
+        repressive_marks=repressive_marks,
     )
 
     # ========================================================================
     # 4. Disease Analysis
     # ========================================================================
+    avg_connections_sql = text("""
+        SELECT AVG(connection_count) AS avg_connections
+        FROM (
+            SELECT
+                trait_id,
+                COUNT(DISTINCT core_id) AS connection_count
+            FROM trait_gene_associations
+            GROUP BY trait_id
+        ) AS per_trait
+    """)
+
     disease_sql = text("""
         SELECT
             COUNT(DISTINCT t.trait_id) as total_diseases,
@@ -225,12 +269,22 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         JOIN core_genes cg ON tga.core_id = cg.core_id
     """)
 
-    disease_stats = db.execute(disease_sql).fetchone()
+    try:
+        disease_stats = db.execute(disease_sql).fetchone()
+        avg_connections_row = db.execute(avg_connections_sql).fetchone()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
+    avg_connections = (
+        float(avg_connections_row.avg_connections)
+        if avg_connections_row and avg_connections_row.avg_connections is not None
+        else 0.0
+    )
 
     disease = DiseaseAnalysis(
         total_diseases=disease_stats.total_diseases or 0,
         total_lncrnas=disease_stats.total_lncrnas or 0,
-        total_genes=disease_stats.total_genes or 0
+        total_genes=disease_stats.total_genes or 0,
+        avg_connections=avg_connections,
     )
 
     # ========================================================================

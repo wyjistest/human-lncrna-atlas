@@ -36,3 +36,22 @@ def test_get_client_ip_missing_client_returns_unknown():
     scope = _make_scope(client_ip=None)
     assert LoggingMiddleware._get_client_ip(scope) == "unknown"
 
+
+def test_truncate_for_log_keeps_short_text():
+    text = "/api/v1/genes?species_id=1"
+    assert LoggingMiddleware._truncate_for_log(text, 2048) == text
+
+
+def test_truncate_for_log_respects_max_length_and_suffix():
+    long_text = "/api/v1/genes?" + ("q=" + "x" * 5000)
+    truncated = LoggingMiddleware._truncate_for_log(long_text, 80)
+    assert len(truncated) == 80
+    assert truncated.startswith("/api/v1/genes?")
+    assert truncated.endswith("...[TRUNC]")
+
+
+def test_truncate_for_log_small_max_length_does_not_append_suffix():
+    long_text = "x" * 100
+    truncated = LoggingMiddleware._truncate_for_log(long_text, 5)
+    assert len(truncated) == 5
+    assert truncated == "x" * 5

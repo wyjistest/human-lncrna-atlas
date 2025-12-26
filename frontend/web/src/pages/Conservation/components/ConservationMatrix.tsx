@@ -7,8 +7,8 @@ import { useEffect, useRef, useMemo } from 'react'
 import { escapeHtml } from '@/utils/escapeHtml'
 import { Card, Empty, Spin } from 'antd'
 import { useTranslation } from 'react-i18next'
-import * as echarts from 'echarts'
-import type { EChartsOption, HeatmapSeriesOption } from 'echarts'
+import echarts from '@/utils/echarts'
+import type { ECOption } from '@/utils/echarts'
 import type { ConservationMatrixData } from '@/types/conservationPage'
 import type { HeatmapParams } from '@/types/echarts'
 
@@ -53,7 +53,7 @@ export function ConservationMatrix({
 }: ConservationMatrixProps) {
   const { t } = useTranslation('conservation')
   const chartRef = useRef<HTMLDivElement>(null)
-  const chartInstance = useRef<echarts.ECharts | null>(null)
+  const chartInstance = useRef<ReturnType<typeof echarts.init> | null>(null)
 
   // Transform matrix data to ECharts format
   const chartData = useMemo(() => {
@@ -88,7 +88,7 @@ export function ConservationMatrix({
 
     const { speciesIds, speciesNames, heatmapData, maxValue, minValue } = chartData
 
-    const option: EChartsOption = {
+    const option: ECOption = {
       title: {
         text: title || t('matrix.title', 'Conservation Matrix'),
         left: 'center',
@@ -191,7 +191,7 @@ export function ConservationMatrix({
             borderColor: '#fff',
             borderWidth: 2
           }
-        } as HeatmapSeriesOption
+        }
       ]
     }
 

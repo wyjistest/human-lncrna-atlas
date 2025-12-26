@@ -68,7 +68,7 @@ export const statsApi = {
    * @see Home page dashboard cards
    * @see Stats page summary section
    */
-  overview: () => apiClient.get<OverviewStats>('/api/v1/stats/overview'),
+  overview: (signal?: AbortSignal) => apiClient.get<OverviewStats>('/api/v1/stats/overview', { signal }),
 
   /**
    * Get binding affinity (BA) range statistics
@@ -110,7 +110,7 @@ export const statsApi = {
    * @see Network page BA filter
    * @see Regulations table filter panel
    */
-  baRange: () => apiClient.get<BARange>('/api/v1/stats/ba-range'),
+  baRange: (signal?: AbortSignal) => apiClient.get<BARange>('/api/v1/stats/ba-range', { signal }),
 
   /**
    * Get detailed statistics with distributions
@@ -163,8 +163,8 @@ export const statsApi = {
    * @see Stats page charts section
    * @see BA distribution histogram component
    */
-  detailed: (params?: { buckets?: number; top_limit?: number }) =>
-    apiClient.get<DetailedStatsResponse>('/api/v1/stats/detailed', { params }),
+  detailed: (params?: { buckets?: number; top_limit?: number }, signal?: AbortSignal) =>
+    apiClient.get<DetailedStatsResponse>('/api/v1/stats/detailed', { params, signal }),
 
   /**
    * Get top genes ranked by regulation count
@@ -222,8 +222,8 @@ export const statsApi = {
    * @see Stats page top genes section
    * @see Home page highlights
    */
-  topGenes: (params?: TopGenesParams) =>
-    apiClient.get<TopGene[]>('/api/v1/stats/top-genes', { params }),
+  topGenes: (params?: TopGenesParams, signal?: AbortSignal) =>
+    apiClient.get<TopGene[]>('/api/v1/stats/top-genes', { params, signal }),
 
   /**
    * Get top diseases ranked by gene association count
@@ -274,8 +274,8 @@ export const statsApi = {
    * @see Stats page top diseases section
    * @see Disease exploration page
    */
-  topDiseases: (params?: TopDiseasesParams) =>
-    apiClient.get<TopDisease[]>('/api/v1/stats/top-diseases', { params }),
+  topDiseases: (params?: TopDiseasesParams, signal?: AbortSignal) =>
+    apiClient.get<TopDisease[]>('/api/v1/stats/top-diseases', { params, signal }),
 
   /**
    * Get conserved regulatory relationships across species
@@ -335,8 +335,8 @@ export const statsApi = {
    * @see Conservation page analysis
    * @see Stats page conservation section
    */
-  conservedRegulations: (params?: ConservedRegulationsParams) =>
-    apiClient.get<ConservedRegulation[]>('/api/v1/stats/conserved-regulations', { params }),
+  conservedRegulations: (params?: ConservedRegulationsParams, signal?: AbortSignal) =>
+    apiClient.get<ConservedRegulation[]>('/api/v1/stats/conserved-regulations', { params, signal }),
 
   /**
    * Get Redis cache status and metrics
@@ -392,5 +392,5 @@ export const statsApi = {
    * @see Admin monitoring dashboard
    * @see System health page
    */
-  cacheStatus: () => apiClient.get<CacheStats>('/api/v1/stats/cache-status'),
+  cacheStatus: (signal?: AbortSignal) => apiClient.get<CacheStats>('/api/v1/stats/cache-status', { signal }),
 }

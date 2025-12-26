@@ -2,7 +2,7 @@
 Pydantic Schemas for Genomic Features (RepeatMasker, etc.)
 """
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, computed_field
 from datetime import datetime
 
 
@@ -126,6 +126,10 @@ class RepeatMaskerResponse(BaseModel):
     page: int = Field(..., description="Current page number")
     page_size: int = Field(..., description="Number of items per page")
 
+    # Phase 9.29+: 响应完整性修复
+    # 之前 total_pages 仅为 @property，不会出现在 FastAPI JSON 响应/OpenAPI schema 中。
+    # 使用 computed_field 让前端可直接消费 total_pages，避免重复计算/类型缺失。
+    @computed_field(return_type=int)
     @property
     def total_pages(self) -> int:
         """Calculate total pages"""

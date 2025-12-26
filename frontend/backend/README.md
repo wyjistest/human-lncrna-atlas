@@ -168,11 +168,11 @@ uvicorn main:app --port 8001
 
 ## 技术栈
 
-- **FastAPI** 0.104.1 - 现代Web框架
+- **FastAPI** >=0.118.0 - 现代Web框架（StreamingResponse 生命周期修复 + 安全修复）
 - **SQLAlchemy** 2.0.23 - ORM
-- **Pydantic** 2.5.0 - 数据验证
-- **Uvicorn** 0.24.0 - ASGI服务器
-- **PostgreSQL** 17.5 - 数据库
+- **Pydantic** >=2.5.0 - 数据验证
+- **Uvicorn** >=0.30.0 - ASGI服务器
+- **PostgreSQL** 15+ - 数据库（依赖 NULLS NOT DISTINCT 等特性）
 
 ## API版本
 

@@ -1,7 +1,7 @@
 """网络分析API路由"""
 from collections import Counter
-from typing import Optional, Dict, Set
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, or_, and_
 
@@ -10,15 +10,20 @@ from app.core.utils import compute_conservation_map
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Regulation, Gene, CoreGene, TraitGeneAssociation, Trait, Ontology, Species
 from app.schemas.regulation import NetworkData, NetworkNode, NetworkEdge
+from app.schemas.network import (
+    AvailableCombinationsResponse,
+    NetworkGeneDetail,
+    SpeciesNetworkComparisonResponse,
+)
 
 router = APIRouter(prefix="/network", tags=["network"])
 
 
-@router.get("/available-combinations")
+@router.get("/available-combinations", response_model=AvailableCombinationsResponse)
 @rate_limit("60/minute")
 def get_available_combinations(
     request: Request,
-    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID过滤"),
     db: Session = Depends(get_db),
 ):
     """
@@ -39,7 +44,15 @@ def get_available_combinations(
     if species_id:
         query = query.filter(TraitGeneAssociation.evidence_species_id == species_id)
 
-    combinations = query.distinct().all()
+    combinations = (
+        query.distinct()
+        .order_by(
+            TraitGeneAssociation.trait_id,
+            TraitGeneAssociation.ontology_id,
+            TraitGeneAssociation.evidence_species_id,
+        )
+        .all()
+    )
 
     return {
         "combinations": [
@@ -58,9 +71,9 @@ def get_available_combinations(
 @rate_limit("30/minute")
 def get_disease_network(
     request: Request,
-    trait_id: int = Query(..., description="Trait ID"),
-    ontology_id: int = Query(..., description="Ontology ID"),
-    species_id: Optional[int] = Query(None, description="物种ID过滤"),
+    trait_id: int = Query(..., ge=1, description="Trait ID"),
+    ontology_id: int = Query(..., ge=1, description="Ontology ID"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID过滤"),
     min_ba: Optional[float] = Query(50, ge=0, description="最小结合亲和力(默认50)"),
     max_nodes: int = Query(500, ge=1, le=2000, description="最大节点数"),
     max_edges: int = Query(2000, ge=1, le=10000, description="最大边数"),
@@ -180,11 +193,11 @@ def get_disease_network(
     return NetworkData(nodes=list(nodes_dict.values()), edges=edges, stats=stats)
 
 
-@router.get("/gene/{gene_id}/detail")
+@router.get("/gene/{gene_id}/detail", response_model=NetworkGeneDetail)
 @rate_limit("120/minute")
 def get_gene_detail(
     request: Request,
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     db: Session = Depends(get_db),
 ):
     """
@@ -254,6 +267,9 @@ def get_gene_detail(
         "species_id": gene.species_id,
         "species_name": species.display_name if species else None,
         "chromosome": gene.chromosome,
+        "gene_start": gene.gene_start,
+        "gene_end": gene.gene_end,
+        # Backward compatibility (deprecated): keep old field names for existing clients
         "start": gene.gene_start,
         "end": gene.gene_end,
         "strand": gene.strand,
@@ -273,10 +289,10 @@ def get_gene_detail(
 @rate_limit("30/minute")
 def get_gene_network(
     request: Request,
-    gene_id: int,
-    species_id: Optional[int] = Query(None, description="限制物种"),
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
+    species_id: Optional[int] = Query(None, ge=1, le=4, description="限制物种"),
     min_ba: Optional[float] = Query(0, ge=0, description="最小结合亲和力"),
-    max_distance: Optional[int] = Query(None, description="最大距离（bp）"),
+    max_distance: Optional[int] = Query(None, ge=0, description="最大距离（bp）"),
     depth: int = Query(1, ge=1, le=2, description="网络深度（1或2层）"),
     max_edges: int = Query(500, ge=1, le=5000, description="最大边数（默认500）"),
     db: Session = Depends(get_db),
@@ -457,11 +473,11 @@ def get_gene_network(
     )
 
 
-@router.get("/compare", response_model=dict)
+@router.get("/compare", response_model=SpeciesNetworkComparisonResponse)
 @rate_limit("20/minute")
 def compare_species_networks(
     request: Request,
-    lncrna_gene_id: int = Query(..., description="lncRNA基因ID（human）"),
+    lncrna_gene_id: int = Query(..., ge=1, description="lncRNA基因ID（human）"),
     min_ba: float = Query(50, ge=0, description="最小结合亲和力"),
     max_targets_per_species: int = Query(100, ge=1, le=500, description="每个物种最大靶基因数"),
     db: Session = Depends(get_db),

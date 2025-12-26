@@ -64,7 +64,7 @@ export function ConservationDetailsDrawer({
     isLoading,
   } = useQuery({
     queryKey: ['shared-regulations', speciesPair?.speciesX, speciesPair?.speciesY, page, pageSize],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!speciesPair) return null
 
       // Query regulations that exist in both species
@@ -74,7 +74,7 @@ export function ConservationDetailsDrawer({
         min_conservation: 2, // Must be in at least 2 species
         page,
         page_size: pageSize
-      })
+      }, signal)
     },
     enabled: open && !!speciesPair,
     staleTime: 5 * 60 * 1000

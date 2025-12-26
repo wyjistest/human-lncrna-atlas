@@ -26,7 +26,6 @@ import {
 } from 'antd'
 import type { TableProps, TabsProps } from 'antd'
 import {
-  ExportOutlined,
   EyeOutlined,
   ArrowRightOutlined,
   TeamOutlined
@@ -384,11 +383,6 @@ export const OrthologBrowser: React.FC<OrthologBrowserProps> = ({
               {t('ortholog.speciesCount', { count: availableSpecies.length })}
             </Tag>
           </Space>
-        }
-        extra={
-          <Tooltip title="View in full page">
-            <Button type="text" size="small" icon={<ExportOutlined />} />
-          </Tooltip>
         }
         styles={{ body: { padding: 0 } }}
       >

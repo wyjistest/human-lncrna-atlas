@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
+from sqlalchemy.exc import SQLAlchemyError
 import os
 import time
 import mimetypes
@@ -32,7 +33,7 @@ mimetypes.add_type("application/octet-stream", ".bigwig")
 from app.core.config import settings  # noqa: E402
 from app.core.database import init_db, close_db  # noqa: E402
 from app.core.logging_config import setup_logging  # noqa: E402
-from app.core.exceptions import sanitize_internal_error  # noqa: E402
+from app.core.exceptions import sanitize_db_error, sanitize_internal_error  # noqa: E402
 from app.middleware import LoggingMiddleware, add_security_headers, metrics_auth_middleware  # noqa: E402
 from app.mounts import mount_genomes_app  # noqa: E402
 from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization  # noqa: E402
@@ -399,13 +400,17 @@ async def global_exception_handler(request: Request, exc: Exception):
     - 使用 error_id 关联服务器日志和客户端报告
     - 返回通用错误消息，防止信息泄露
     """
-    # 使用 sanitize_internal_error 生成脱敏的 HTTPException
-    sanitized_exc = sanitize_internal_error(
-        e=exc,
-        logger=logger,
-        error_type="INTERNAL_ERROR",
-        message="An internal server error occurred. Please try again later."
-    )
+    # 优先识别数据库异常，返回更明确的错误类型（仍然脱敏）
+    if isinstance(exc, SQLAlchemyError):
+        sanitized_exc = sanitize_db_error(exc, logger)
+    else:
+        # 使用 sanitize_internal_error 生成脱敏的 HTTPException
+        sanitized_exc = sanitize_internal_error(
+            e=exc,
+            logger=logger,
+            error_type="INTERNAL_ERROR",
+            message="An internal server error occurred. Please try again later.",
+        )
 
     return JSONResponse(
         status_code=sanitized_exc.status_code,

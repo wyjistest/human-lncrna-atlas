@@ -5,8 +5,8 @@ import { queryKeys } from './queryKeys'
 export const useStats = () => {
   return useQuery({
     queryKey: queryKeys.stats.overview(),
-    queryFn: async () => {
-      const { data } = await statsApi.overview()
+    queryFn: async ({ signal }) => {
+      const { data } = await statsApi.overview(signal)
       return data
     },
   })

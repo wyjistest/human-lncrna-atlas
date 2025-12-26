@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.exceptions import sanitize_db_error
 from app.core.utils import escape_like_pattern
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.visualization import (
@@ -38,7 +39,7 @@ def get_sankey_data(
     request: Request,
     species_id: int = Query(default=1, ge=1, le=4, description="物种 ID (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
     min_ba: float = Query(default=100.0, ge=0, description="最小结合亲和力阈值"),
-    trait_name: Optional[str] = Query(default=None, description="疾病/性状名称筛选（模糊搜索）"),
+    trait_name: Optional[str] = Query(default=None, max_length=100, description="疾病/性状名称筛选（模糊搜索）"),
     limit: int = Query(default=500, ge=1, le=5000, description="最大返回数据量"),
     db: Session = Depends(get_db),
 ):
@@ -110,19 +111,38 @@ def get_sankey_data(
         f"trait_name={trait_name}, limit={limit}"
     )
 
+    # 规范化 trait_name：去除首尾空白，空字符串视为不筛选
+    normalized_trait_name = trait_name.strip() if trait_name else None
+    if normalized_trait_name == "":
+        normalized_trait_name = None
+
+    # ========================================================================
+    # Step 0: 缓存（10 分钟）
+    # ========================================================================
+    cache_key = cache.make_list_key(
+        "visualization:sankey",
+        species_id=species_id,
+        min_ba=min_ba,
+        trait_name=normalized_trait_name,
+        limit=limit,
+    )
+
+    cached = cache.get(cache_key)
+    if cached:
+        logger.info(f"[SANKEY] Cache HIT: {cache_key}")
+        return SankeyResponse(**cached)
+
     # Phase 9.13: 转义 trait_name 中的 LIKE 通配符，防止意外匹配
     # 如 trait_name="type%" 会被转义为 "type\%"，只匹配字面量 "type%"
-    escaped_trait_name = escape_like_pattern(trait_name) if trait_name else None
+    escaped_trait_name = escape_like_pattern(normalized_trait_name) if normalized_trait_name else None
 
     # ========================================================================
     # Step 1: 查询三层数据（使用聚合去重）
     # ========================================================================
     # 使用 GROUP BY 聚合，避免重复连接
     # 同时计算平均 BA 和流经记录数
-    trait_where_sql = "t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\'" if escaped_trait_name else "TRUE"
-
     sql = text(
-        f"""
+        """
         WITH regulation_agg AS (
             -- 聚合 lncRNA -> Gene 调控关系（去重 + 计算平均 BA）
             SELECT
@@ -151,7 +171,10 @@ def get_sankey_data(
                 COUNT(*) as association_count
             FROM trait_gene_associations tga
             JOIN traits t ON tga.trait_id = t.trait_id
-            WHERE {trait_where_sql}
+            WHERE (
+                :trait_name IS NULL
+                OR t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\'
+            )
             GROUP BY tga.core_id, t.trait_id, t.trait_name
         )
         -- 连接两层数据
@@ -171,18 +194,21 @@ def get_sankey_data(
         JOIN disease_agg da ON ra.target_core_id = da.core_id
         ORDER BY ra.avg_ba DESC, da.avg_pvalue ASC
         LIMIT :limit
-        """  # noqa: S608
+        """
     )
 
-    result = db.execute(
-        sql,
-        {
-            "species_id": species_id,
-            "min_ba": min_ba,
-            "trait_name": escaped_trait_name,
-            "limit": limit,
-        },
-    )
+    try:
+        result = db.execute(
+            sql,
+            {
+                "species_id": species_id,
+                "min_ba": min_ba,
+                "trait_name": escaped_trait_name,
+                "limit": limit,
+            },
+        )
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     # ========================================================================
     # Step 2: 构建 Sankey 节点和连接
@@ -295,7 +321,7 @@ def get_sankey_data(
     query_params = {
         "species_id": species_id,
         "min_ba": min_ba,
-        "trait_name": trait_name,
+        "trait_name": normalized_trait_name,
         "limit": limit,
     }
 
@@ -305,12 +331,18 @@ def get_sankey_data(
         f"Disease: {stats.total_diseases})"
     )
 
-    return SankeyResponse(
+    response = SankeyResponse(
         success=True,
         data=SankeyData(nodes=nodes, links=links),
         stats=stats,
         query_params=query_params,
     )
+
+    # 缓存 10 分钟（与 Chord 保持一致）
+    cache.set(cache_key, response.model_dump(), ttl=cache.TTL_DETAIL)
+    logger.info(f"[SANKEY] Cache SET: {cache_key}")
+
+    return response
 
 
 @router.get("/chord-data", response_model=ChordResponse)
@@ -477,7 +509,10 @@ def get_chord_data(
             "limit": limit,
         }
 
-    result = db.execute(sql, params)
+    try:
+        result = db.execute(sql, params)
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     # ========================================================================
     # Step 3: 构建节点和连接

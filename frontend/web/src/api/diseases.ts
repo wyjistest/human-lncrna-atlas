@@ -112,7 +112,8 @@ export const diseasesApi = {
     page_size?: number
     trait_category?: string
     search?: string
-  }) => apiClient.get<PaginatedTraitAssociationResponse>('/api/v1/diseases', { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<PaginatedTraitAssociationResponse>('/api/v1/diseases', { params, signal }),
 
   /**
    * Get genes associated with a specific disease
@@ -175,7 +176,8 @@ export const diseasesApi = {
     page?: number
     page_size?: number
     ontology_id?: number
-  }) => apiClient.get<PaginatedGeneResponse>(`/api/v1/diseases/${traitId}/genes`, { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<PaginatedGeneResponse>(`/api/v1/diseases/${traitId}/genes`, { params, signal }),
 
   /**
    * Get disease associations for a specific gene
@@ -235,8 +237,11 @@ export const diseasesApi = {
    * @see Gene detail page disease tab
    * @see Disease-gene relationship explorer
    */
-  getGeneAssociations: (geneId: number) =>
-    apiClient.get<TraitGeneAssociationDetail[]>(`/api/v1/diseases/gene/${geneId}/associations`),
+  getGeneAssociations: (geneId: number, signal?: AbortSignal) =>
+    apiClient.get<TraitGeneAssociationDetail[]>(
+      `/api/v1/diseases/gene/${geneId}/associations`,
+      { signal }
+    ),
 
   /**
    * Get lightweight disease options for dropdown selection
@@ -307,8 +312,11 @@ export const diseasesApi = {
    * @see Phase 5.1 optimization (CLAUDE.md)
    * @see genesApi.getOptions() for similar pattern
    */
-  getOptions: async (): Promise<DiseaseOptionsResponse> => {
-    const response = await apiClient.get<DiseaseOptionsResponse>('/api/v1/diseases/options')
+  getOptions: async (signal?: AbortSignal): Promise<DiseaseOptionsResponse> => {
+    const response = await apiClient.get<DiseaseOptionsResponse>(
+      '/api/v1/diseases/options',
+      { signal }
+    )
     return response.data
   },
 }

@@ -42,8 +42,9 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
-import type { EChartsOption } from 'echarts'
 import type { ChordParams } from '@/types/echarts'
+import echarts from '@/utils/echarts'
+import type { ECOption } from '@/utils/echarts'
 
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -89,8 +90,8 @@ export default function ChordDiagram() {
   const chartRef = useRef<ReactECharts>(null)
 
   // State
-  const [speciesId, setSpeciesId] = useState<number | undefined>(1)
-  const [minBA, setMinBA] = useState(0)
+  const [speciesId, setSpeciesId] = useState<number>(1)
+  const [minBA, setMinBA] = useState(50)
   const [limit, setLimit] = useState(50)
 
   // API Query
@@ -100,19 +101,22 @@ export default function ChordDiagram() {
     error,
   } = useQuery({
     queryKey: ['chord-data', speciesId, minBA, limit],
-    queryFn: () =>
-      chordApi.getChordData({
-        species_id: speciesId,
-        min_ba: minBA > 0 ? minBA : undefined,
-        limit,
-      }),
+    queryFn: ({ signal }) =>
+      chordApi.getChordData(
+        {
+          species_id: speciesId,
+          min_ba: minBA,
+          limit,
+        },
+        signal
+      ),
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   // Transform data for ECharts Circular Graph
-  const chartOption = useMemo(() => {
+  const chartOption: ECOption = useMemo(() => {
     if (!chordData || !chordData.nodes || !chordData.links) {
-      return { series: [] } as EChartsOption
+      return { series: [] }
     }
 
     // Transform nodes for graph
@@ -390,10 +394,7 @@ export default function ChordDiagram() {
                 style={{ width: '100%' }}
                 value={speciesId}
                 onChange={setSpeciesId}
-                options={[
-                  { value: undefined, label: t('chord.filters.allSpecies', 'All Species') },
-                  ...SPECIES_OPTIONS,
-                ]}
+                options={SPECIES_OPTIONS}
                 data-testid="species-select"
               />
             </Space>
@@ -459,6 +460,7 @@ export default function ChordDiagram() {
         ) : (
           <ReactECharts
             ref={chartRef}
+            echarts={echarts}
             option={chartOption}
             style={{ height: 600 }}
             opts={{ renderer: 'canvas' }}

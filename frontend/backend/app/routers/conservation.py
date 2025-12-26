@@ -17,6 +17,7 @@ from sqlalchemy import func, distinct, String
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
+from app.core.validators import compute_pagination_offset
 from app.core.utils import escape_like_pattern, compute_conservation_map
 from app.models import CoreGene, Gene, Regulation, Species
 from app.schemas.conservation import (
@@ -485,7 +486,7 @@ def get_conserved_regulations(
     total = db.query(func.count()).select_from(count_subq).scalar() or 0
 
     # Paginate
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     results = (
         base_query
         .order_by(func.count(distinct(Regulation.species_id)).desc())

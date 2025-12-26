@@ -27,7 +27,7 @@ export const globalCompareApi = {
    * Get global comparison data across all marks
    * @param params - Query parameters including marks filter
    */
-  getGlobalCompare: (params?: GlobalCompareParams) =>
+  getGlobalCompare: (params?: GlobalCompareParams, signal?: AbortSignal) =>
     apiClient.get<GlobalCompareResponse>('/api/v1/chipseq/global-compare', {
       params: {
         marks: params?.marks?.join(','),
@@ -35,32 +35,35 @@ export const globalCompareApi = {
         min_peaks: params?.min_peaks,
         include_position_distribution: params?.include_position_distribution,
       },
+      signal,
     }),
 
   /**
    * Get cell line x mark matrix data
    * @param params - Query parameters including marks and cell types
    */
-  getCellLineMatrix: (params: CellLineMatrixParams) =>
+  getCellLineMatrix: (params: CellLineMatrixParams, signal?: AbortSignal) =>
     apiClient.get<CellLineMatrixResponse>('/api/v1/chipseq/cell-line-matrix', {
       params: {
         marks: params.marks?.join(','),
         cell_types: params.cell_types?.join(','),
         metric: params.metric,
       },
+      signal,
     }),
 
   /**
    * Get signal distribution data for marks
    * @param params - Query parameters including marks filter
    */
-  getSignalDistribution: (params?: SignalDistParams) =>
+  getSignalDistribution: (params?: SignalDistParams, signal?: AbortSignal) =>
     apiClient.get<SignalDistResponse>('/api/v1/chipseq/signal-distribution', {
       params: {
         marks: params?.marks?.join(','),
         cell_types: params?.cell_types?.join(','),
         bins: params?.bins,
       },
+      signal,
     }),
 }
 

@@ -33,7 +33,6 @@ export default function ConservationTab() {
   const { data, isLoading, error, refetch } = useConservationData({
     min_species_count: minSpeciesCount,
     limit: 500,
-    offset: (page - 1) * pageSize,
   })
 
   // Conservation level pie chart
@@ -216,7 +215,10 @@ export default function ConservationTab() {
           <Select
             style={{ width: 150 }}
             value={minSpeciesCount}
-            onChange={setMinSpeciesCount}
+            onChange={(value) => {
+              setMinSpeciesCount(value)
+              setPage(1)
+            }}
             allowClear
             placeholder="All"
           >

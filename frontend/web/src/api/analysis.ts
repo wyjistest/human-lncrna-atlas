@@ -13,6 +13,11 @@ export interface AnalysisSummary {
     unique_targets: number
     avg_ba: number
     max_ba: number
+    top_lncrnas: Array<{
+      name: string
+      target_count: number
+      avg_ba: number
+    }>
   }
   conservation: {
     four_species: number
@@ -22,6 +27,8 @@ export interface AnalysisSummary {
   }
   epigenetic: {
     total_overlaps: number
+    by_mark: Record<string, number>
+    by_cell_type: Record<string, number>
     bivalent_domains: number
     active_marks: number
     repressive_marks: number
@@ -49,11 +56,11 @@ export interface HighAffinityRecord {
 
 export interface ConservationRecord {
   core_id: number
-  lncrna_names: string
+  lncrna_names: string[]
   species_count: number
   total_regulations: number
   avg_binding_affinity: number
-  conserved_targets: number
+  conserved_targets: string[]
 }
 
 export interface ChIPSeqOverlapRecord {
@@ -92,19 +99,18 @@ export interface DiseaseNetworkResponse {
   }
 }
 
-export interface PaginatedResponse<T> {
+export interface ExportResponse<T> {
   data: T[]
   total: number
-  page: number
-  page_size: number
+  query_params: Record<string, unknown>
 }
 
 export const analysisApi = {
   /**
    * Get summary statistics for all analysis modules
    */
-  getSummary: () =>
-    apiClient.get<AnalysisSummary>('/api/v1/analysis/summary'),
+  getSummary: (signal?: AbortSignal) =>
+    apiClient.get<AnalysisSummary>('/api/v1/analysis/summary', { signal }),
 
   /**
    * Get high affinity regulatory relationships
@@ -113,9 +119,8 @@ export const analysisApi = {
     min_ba?: number
     species_id?: number
     limit?: number
-    offset?: number
-  }) =>
-    apiClient.get<PaginatedResponse<HighAffinityRecord>>('/api/v1/export/high-affinity', { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<ExportResponse<HighAffinityRecord>>('/api/v1/export/high-affinity', { params, signal }),
 
   /**
    * Get conservation data across species
@@ -123,30 +128,25 @@ export const analysisApi = {
   getConservation: (params?: {
     min_species_count?: number
     limit?: number
-    offset?: number
-  }) =>
-    apiClient.get<PaginatedResponse<ConservationRecord>>('/api/v1/export/conservation', { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<ExportResponse<ConservationRecord>>('/api/v1/export/conservation', { params, signal }),
 
   /**
    * Get ChIP-seq overlaps for epigenetic analysis
    */
   getChipseqOverlaps: (params?: {
     mark_names?: string[]
-    cell_types?: string[]
     min_ba?: number
     limit?: number
-    offset?: number
-  }) =>
-    apiClient.get<PaginatedResponse<ChIPSeqOverlapRecord>>('/api/v1/export/chipseq-overlaps', { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<ExportResponse<ChIPSeqOverlapRecord>>('/api/v1/export/chipseq-overlaps', { params, signal }),
 
   /**
    * Get disease network data
    */
   getDiseaseNetwork: (params?: {
     trait_name?: string
-    min_ba?: number
     limit?: number
-    offset?: number
-  }) =>
-    apiClient.get<DiseaseNetworkResponse>('/api/v1/export/disease-network', { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<DiseaseNetworkResponse>('/api/v1/export/disease-network', { params, signal }),
 }

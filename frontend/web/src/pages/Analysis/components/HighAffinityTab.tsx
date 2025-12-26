@@ -38,7 +38,6 @@ export default function HighAffinityTab() {
     min_ba: minBa,
     species_id: speciesId,
     limit: 1000, // Get enough for charts
-    offset: (page - 1) * pageSize,
   })
 
   // BA distribution chart
@@ -259,14 +258,21 @@ export default function HighAffinityTab() {
             min={50}
             max={300}
             value={minBa}
-            onChange={(val) => val && setMinBa(val)}
+            onChange={(val) => {
+              if (!val) return
+              setMinBa(val)
+              setPage(1)
+            }}
             style={{ width: 120 }}
           />
           <span>Species:</span>
           <Select
             style={{ width: 150 }}
             value={speciesId}
-            onChange={setSpeciesId}
+            onChange={(value) => {
+              setSpeciesId(value)
+              setPage(1)
+            }}
             allowClear
             placeholder="All species"
           >

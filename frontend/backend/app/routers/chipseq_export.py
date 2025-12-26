@@ -17,6 +17,7 @@ Phase 9.11 改进:
 """
 import io
 import csv
+import logging
 from typing import Optional, Iterator, Tuple, Dict, Any
 from itertools import combinations
 
@@ -26,6 +27,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.exceptions import sanitize_db_error
 from app.core.validators import MAX_EXPORT_MARKS, parse_comma_list
 from app.models import Gene
 from app.schemas.chipseq import ExportFormat
@@ -36,6 +38,7 @@ from app.utils.streaming_export import sanitize_csv_value
 from app.routers.chipseq_rate_limit import rate_limit, DEFAULT_FLANKING_REGION
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 def _iter_overlapping_peak_pairs(
     peaks_a: list[Dict[str, Any]],
@@ -152,15 +155,21 @@ def export_comparison(
         """  # noqa: S608
     )
 
-    rows = db.execute(query, {
-        "species_id": gene.species_id,
-        "chromosome": gene.chromosome,
-        "region_start": region_start,
-        "region_end": region_end,
-        "mark_list": mark_list,
-        "max_qvalue": max_qvalue,
-        "max_rows": max_rows,
-    }).fetchall()
+    try:
+        rows = db.execute(
+            query,
+            {
+                "species_id": gene.species_id,
+                "chromosome": gene.chromosome,
+                "region_start": region_start,
+                "region_end": region_end,
+                "mark_list": mark_list,
+                "max_qvalue": max_qvalue,
+                "max_rows": max_rows,
+            },
+        ).fetchall()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     # Prepare data for export
     peaks_data = []
@@ -377,15 +386,21 @@ def export_overlaps_bed(
         """  # noqa: S608
     )
 
-    rows = db.execute(query, {
-        "species_id": gene.species_id,
-        "chromosome": gene.chromosome,
-        "region_start": region_start,
-        "region_end": region_end,
-        "mark_list": mark_list,
-        "max_qvalue": max_qvalue,
-        "max_rows": max_rows,
-    }).fetchall()
+    try:
+        rows = db.execute(
+            query,
+            {
+                "species_id": gene.species_id,
+                "chromosome": gene.chromosome,
+                "region_start": region_start,
+                "region_end": region_end,
+                "mark_list": mark_list,
+                "max_qvalue": max_qvalue,
+                "max_rows": max_rows,
+            },
+        ).fetchall()
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
     # Group by mark
     marks_data = {}

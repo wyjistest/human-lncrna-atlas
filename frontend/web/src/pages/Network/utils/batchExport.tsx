@@ -1,6 +1,5 @@
 import type React from 'react'
 import { message, Modal, Checkbox, Space } from 'antd'
-import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import type { Core } from 'cytoscape'
 import type { NetworkData, NetworkNode, NetworkEdge } from '@/types/network'
@@ -159,6 +158,8 @@ export const handleBatchExport = ({
           return
         }
 
+        // 动态导入：只有在批量导出时才加载 jszip，减少 Network 页面首包体积
+        const { default: JSZip } = await import('jszip')
         const zip = new JSZip()
 
         // Generate timestamp for filenames

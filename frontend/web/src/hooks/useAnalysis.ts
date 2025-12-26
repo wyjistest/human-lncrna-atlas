@@ -14,8 +14,8 @@ import { queryKeys } from './queryKeys'
 export const useAnalysisSummary = () => {
   return useQuery({
     queryKey: queryKeys.analysis.summary(),
-    queryFn: async () => {
-      const { data } = await analysisApi.getSummary()
+    queryFn: async ({ signal }) => {
+      const { data } = await analysisApi.getSummary(signal)
       return data
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -29,12 +29,11 @@ export const useHighAffinityData = (params?: {
   min_ba?: number
   species_id?: number
   limit?: number
-  offset?: number
 }) => {
   return useQuery({
     queryKey: queryKeys.analysis.highAffinity(params as Record<string, unknown>),
-    queryFn: async () => {
-      const { data } = await analysisApi.getHighAffinity(params)
+    queryFn: async ({ signal }) => {
+      const { data } = await analysisApi.getHighAffinity(params, signal)
       return data
     },
     staleTime: 5 * 60 * 1000,
@@ -47,12 +46,11 @@ export const useHighAffinityData = (params?: {
 export const useConservationData = (params?: {
   min_species_count?: number
   limit?: number
-  offset?: number
 }) => {
   return useQuery({
     queryKey: queryKeys.analysis.conservation(params as Record<string, unknown>),
-    queryFn: async () => {
-      const { data } = await analysisApi.getConservation(params)
+    queryFn: async ({ signal }) => {
+      const { data } = await analysisApi.getConservation(params, signal)
       return data
     },
     staleTime: 5 * 60 * 1000,
@@ -64,15 +62,13 @@ export const useConservationData = (params?: {
  */
 export const useEpigeneticData = (params?: {
   mark_names?: string[]
-  cell_types?: string[]
   min_ba?: number
   limit?: number
-  offset?: number
 }) => {
   return useQuery({
     queryKey: queryKeys.analysis.epigenetic(params as Record<string, unknown>),
-    queryFn: async () => {
-      const { data } = await analysisApi.getChipseqOverlaps(params)
+    queryFn: async ({ signal }) => {
+      const { data } = await analysisApi.getChipseqOverlaps(params, signal)
       return data
     },
     staleTime: 5 * 60 * 1000,
@@ -84,14 +80,12 @@ export const useEpigeneticData = (params?: {
  */
 export const useDiseaseData = (params?: {
   trait_name?: string
-  min_ba?: number
   limit?: number
-  offset?: number
 }) => {
   return useQuery({
     queryKey: queryKeys.analysis.disease(params as Record<string, unknown>),
-    queryFn: async () => {
-      const { data } = await analysisApi.getDiseaseNetwork(params)
+    queryFn: async ({ signal }) => {
+      const { data } = await analysisApi.getDiseaseNetwork(params, signal)
       return data
     },
     staleTime: 5 * 60 * 1000,

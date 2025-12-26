@@ -136,8 +136,8 @@ export const clusteringApi = {
    *   cluster_cols: false,
    * })
    */
-  getClusteredHeatmap: async (params: ClusteringParams): Promise<ClusteredHeatmapResponse> => {
-    const response = await apiClient.post('/api/v1/clustering/heatmap-clustered', params)
+  getClusteredHeatmap: async (params: ClusteringParams, signal?: AbortSignal): Promise<ClusteredHeatmapResponse> => {
+    const response = await apiClient.post('/api/v1/clustering/heatmap-clustered', params, { signal })
 
     // Transform backend response to frontend format
     const raw = response.data as ClusteringBackendResponse

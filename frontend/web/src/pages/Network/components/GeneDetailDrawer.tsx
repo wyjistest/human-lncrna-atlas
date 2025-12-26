@@ -30,7 +30,7 @@ export const GeneDetailDrawer = ({ open, onClose, geneDetail, loading }: GeneDet
       ) : geneDetail ? (
         <Descriptions column={1} bordered size="small">
           <Descriptions.Item label={t('drawer.geneName')}>{geneDetail.gene_name}</Descriptions.Item>
-          <Descriptions.Item label={t('drawer.ensemblId')}>{geneDetail.gene_ensembl_id}</Descriptions.Item>
+          <Descriptions.Item label={t('drawer.ensemblId')}>{geneDetail.gene_ensembl_id ?? 'N/A'}</Descriptions.Item>
           <Descriptions.Item label={t('drawer.ensemblLink')}>
             {geneDetail.gene_ensembl_id?.startsWith('ENSG') ? (
               <a
@@ -62,7 +62,7 @@ export const GeneDetailDrawer = ({ open, onClose, geneDetail, loading }: GeneDet
           </Descriptions.Item>
           <Descriptions.Item label={t('drawer.speciesLabel')}>
             <Tag color="orange" style={{ fontSize: 13, padding: '2px 8px' }}>
-              {geneDetail.species_name}
+              {geneDetail.species_name ?? 'N/A'}
             </Tag>
             <span style={{ marginLeft: 8, fontSize: 12, color: '#666' }}>
               (ID: {geneDetail.species_id})
@@ -89,7 +89,7 @@ export const GeneDetailDrawer = ({ open, onClose, geneDetail, loading }: GeneDet
           <Descriptions.Item label={t('drawer.startPosition')}>{geneDetail.gene_start?.toLocaleString() || 'N/A'}</Descriptions.Item>
           <Descriptions.Item label={t('drawer.endPosition')}>{geneDetail.gene_end?.toLocaleString() || 'N/A'}</Descriptions.Item>
           <Descriptions.Item label={t('drawer.strand')}>{geneDetail.strand || 'N/A'}</Descriptions.Item>
-          <Descriptions.Item label={t('drawer.coreId')}>{geneDetail.core_id}</Descriptions.Item>
+          <Descriptions.Item label={t('drawer.coreId')}>{geneDetail.core_id ?? 'N/A'}</Descriptions.Item>
           <Descriptions.Item label={t('drawer.asSource')}>
             {geneDetail.connections?.as_source || 0}
           </Descriptions.Item>

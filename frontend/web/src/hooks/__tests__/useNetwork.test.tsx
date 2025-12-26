@@ -170,7 +170,7 @@ describe('useNetwork', () => {
       })
 
       expect(result.current.data).toEqual(mockNetworkResponse.data)
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, undefined)
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, undefined, expect.anything())
     })
 
     it('does not fetch when geneId is null', async () => {
@@ -210,7 +210,7 @@ describe('useNetwork', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { species_id: 1 })
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { species_id: 1 }, expect.anything())
     })
 
     it('supports min_ba filter parameter', async () => {
@@ -226,7 +226,7 @@ describe('useNetwork', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { min_ba: 150 })
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { min_ba: 150 }, expect.anything())
     })
 
     it('supports max_distance filter parameter', async () => {
@@ -242,7 +242,7 @@ describe('useNetwork', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { max_distance: 100000 })
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { max_distance: 100000 }, expect.anything())
     })
 
     it('supports depth parameter', async () => {
@@ -258,7 +258,7 @@ describe('useNetwork', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { depth: 2 })
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { depth: 2 }, expect.anything())
     })
 
     it('supports multiple filter parameters combined', async () => {
@@ -281,7 +281,7 @@ describe('useNetwork', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, params)
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, params, expect.anything())
     })
 
     it('returns null when geneId is null and query runs', async () => {
@@ -305,13 +305,13 @@ describe('useNetwork', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, undefined)
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, undefined, expect.anything())
 
       // Change geneId
       rerender({ geneId: 2 })
 
       await waitFor(() => {
-        expect(mockGetGeneNetwork).toHaveBeenCalledWith(2, undefined)
+        expect(mockGetGeneNetwork).toHaveBeenCalledWith(2, undefined, expect.anything())
       })
     })
 
@@ -328,13 +328,13 @@ describe('useNetwork', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { min_ba: 100 })
+      expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { min_ba: 100 }, expect.anything())
 
       // Change params
       rerender({ geneId: 1, params: { min_ba: 200 } })
 
       await waitFor(() => {
-        expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { min_ba: 200 })
+        expect(mockGetGeneNetwork).toHaveBeenCalledWith(1, { min_ba: 200 }, expect.anything())
       })
     })
 

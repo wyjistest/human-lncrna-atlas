@@ -85,8 +85,8 @@ import { queryKeys } from './queryKeys'
 export const useGenes = (params: Parameters<typeof genesApi.list>[0]) => {
   return useQuery({
     queryKey: queryKeys.genes.list(params as Record<string, unknown>),
-    queryFn: async () => {
-      const { data } = await genesApi.list(params)
+    queryFn: async ({ signal }) => {
+      const { data } = await genesApi.list(params, signal)
       return data
     },
   })
@@ -130,8 +130,8 @@ export const usePrefetchGenes = () => {
   return useCallback((params: Parameters<typeof genesApi.list>[0]) => {
     queryClient.prefetchQuery({
       queryKey: queryKeys.genes.list(params as Record<string, unknown>),
-      queryFn: async () => {
-        const { data } = await genesApi.list(params)
+      queryFn: async ({ signal }) => {
+        const { data } = await genesApi.list(params, signal)
         return data
       },
     })
@@ -184,8 +184,8 @@ export const usePrefetchGenes = () => {
 export const useGeneDetail = (geneId: number) => {
   return useQuery({
     queryKey: queryKeys.genes.detail(geneId),
-    queryFn: async () => {
-      const { data } = await genesApi.detail(geneId)
+    queryFn: async ({ signal }) => {
+      const { data } = await genesApi.detail(geneId, signal)
       return data
     },
     enabled: !!geneId,
@@ -198,12 +198,12 @@ export const useGeneDetail = (geneId: number) => {
 export const useGeneRegulations = (geneId: number, params?: { page?: number; page_size?: number }) => {
   return useQuery({
     queryKey: queryKeys.genes.regulations(geneId, params as Record<string, unknown>),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const { data } = await regulationsApi.list({
         lncrna_gene_id: geneId,
         page: params?.page || 1,
         page_size: params?.page_size || 20,
-      })
+      }, signal)
       return data
     },
     enabled: !!geneId,
@@ -216,8 +216,8 @@ export const useGeneRegulations = (geneId: number, params?: { page?: number; pag
 export const useGeneDiseases = (geneId: number) => {
   return useQuery({
     queryKey: queryKeys.genes.diseases(geneId),
-    queryFn: async () => {
-      const { data } = await diseasesApi.getGeneAssociations(geneId)
+    queryFn: async ({ signal }) => {
+      const { data } = await diseasesApi.getGeneAssociations(geneId, signal)
       return data
     },
     enabled: !!geneId,
@@ -237,8 +237,8 @@ export const useGeneDiseases = (geneId: number) => {
 export const useGeneOrthologs = (geneId: number) => {
   return useQuery({
     queryKey: queryKeys.genes.orthologs(geneId),
-    queryFn: async () => {
-      const { data } = await genesApi.getOrthologs(geneId)
+    queryFn: async ({ signal }) => {
+      const { data } = await genesApi.getOrthologs(geneId, signal)
       return data
     },
     enabled: geneId > 0,

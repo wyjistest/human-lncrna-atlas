@@ -10,13 +10,14 @@ export const adminApi = {
    * Fetch monitoring metrics
    * GET /api/v1/admin/metrics
    */
-  metrics: () => apiClient.get<MonitoringMetrics>('/api/v1/admin/metrics'),
+  metrics: (signal?: AbortSignal) =>
+    apiClient.get<MonitoringMetrics>('/api/v1/admin/metrics', { signal }),
 }
 
 /**
  * Convenience function for fetching monitoring metrics
  */
-export const fetchMonitoringMetrics = async (): Promise<MonitoringMetrics> => {
-  const { data } = await adminApi.metrics()
+export const fetchMonitoringMetrics = async (signal?: AbortSignal): Promise<MonitoringMetrics> => {
+  const { data } = await adminApi.metrics(signal)
   return data
 }

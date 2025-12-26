@@ -142,7 +142,7 @@ describe('useRegulations', () => {
       })
 
       expect(result.current.data).toEqual(mockRegulationListResponse.data)
-      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1, page_size: 20 })
+      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1, page_size: 20 }, expect.anything())
     })
 
     it('handles API errors gracefully', async () => {
@@ -175,7 +175,7 @@ describe('useRegulations', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1, species_id: 1 })
+      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1, species_id: 1 }, expect.anything())
     })
 
     it('supports chromosome filter parameter', async () => {
@@ -191,7 +191,7 @@ describe('useRegulations', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1, chromosome: 'chr1' })
+      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1, chromosome: 'chr1' }, expect.anything())
     })
 
     it('supports binding affinity range filters', async () => {
@@ -211,7 +211,7 @@ describe('useRegulations', () => {
         page: 1,
         min_ba: 100,
         max_ba: 200,
-      })
+      }, expect.anything())
     })
 
     it('supports lncrna_gene_name search parameter', async () => {
@@ -230,7 +230,7 @@ describe('useRegulations', () => {
       expect(mockRegulationsApiList).toHaveBeenCalledWith({
         page: 1,
         lncrna_gene_name: 'HOTAIR',
-      })
+      }, expect.anything())
     })
 
     it('supports target_gene_name search parameter', async () => {
@@ -249,7 +249,7 @@ describe('useRegulations', () => {
       expect(mockRegulationsApiList).toHaveBeenCalledWith({
         page: 1,
         target_gene_name: 'TP53',
-      })
+      }, expect.anything())
     })
 
     it('supports multiple species filter with species_ids', async () => {
@@ -268,7 +268,7 @@ describe('useRegulations', () => {
       expect(mockRegulationsApiList).toHaveBeenCalledWith({
         page: 1,
         species_ids: '1,2',
-      })
+      }, expect.anything())
     })
 
     it('updates query key when params change', async () => {
@@ -284,13 +284,13 @@ describe('useRegulations', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1 })
+      expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 1 }, expect.anything())
 
       // Change page
       rerender({ page: 2 })
 
       await waitFor(() => {
-        expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 2 })
+        expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 2 }, expect.anything())
       })
     })
   })
@@ -307,7 +307,7 @@ describe('useRegulations', () => {
 
       // Wait for the API to be called (prefetch is fire-and-forget)
       await waitFor(() => {
-        expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 2, page_size: 20 })
+        expect(mockRegulationsApiList).toHaveBeenCalledWith({ page: 2, page_size: 20 }, expect.anything())
       })
     })
 
@@ -322,7 +322,7 @@ describe('useRegulations', () => {
 
       // Wait for the API to be called with filter params
       await waitFor(() => {
-        expect(mockRegulationsApiList).toHaveBeenCalledWith(params)
+        expect(mockRegulationsApiList).toHaveBeenCalledWith(params, expect.anything())
       })
     })
   })
@@ -339,7 +339,7 @@ describe('useRegulations', () => {
       })
 
       expect(result.current.data).toEqual(mockRegulationDetailResponse.data)
-      expect(mockRegulationsApiGetDetail).toHaveBeenCalledWith(1)
+      expect(mockRegulationsApiGetDetail).toHaveBeenCalledWith(1, expect.anything())
     })
 
     it('does not fetch when regulationId is null', async () => {
@@ -372,7 +372,7 @@ describe('useRegulations', () => {
         expect(result.current.isSuccess).toBe(true)
       })
 
-      expect(mockRegulationsApiGetDetail).toHaveBeenCalledWith(1)
+      expect(mockRegulationsApiGetDetail).toHaveBeenCalledWith(1, expect.anything())
     })
 
     it('handles errors properly', async () => {

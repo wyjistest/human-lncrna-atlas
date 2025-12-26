@@ -23,7 +23,7 @@ import sys
 import os
 import argparse
 import logging
-from typing import Dict, List, Optional, Generator
+from typing import Dict, List, Optional, Generator, Tuple
 from datetime import datetime
 
 import psycopg2
@@ -111,18 +111,105 @@ class RepeatMaskerImporter:
         logger.info(f"Created batch: {batch_name} (batch_id={batch_id})")
         return batch_id
 
-    def _update_batch(self, batch_id: int, status: str, record_count: int):
-        """Update batch status"""
+    def _get_batch_info(self, batch_id: int) -> Optional[Tuple[str, int, Optional[str], str, Optional[int]]]:
+        """
+        获取批次信息，用于断点续传/安全校验
+
+        Returns:
+            (batch_type, species_id, source_file, status, record_count) 或 None
+        """
         cursor = self.conn.cursor()
-        cursor.execute("""
-            UPDATE import_batches
-            SET status = %s, record_count = %s, completed_at = CURRENT_TIMESTAMP
+        cursor.execute(
+            """
+            SELECT batch_type, species_id, source_file, status, record_count
+            FROM import_batches
             WHERE batch_id = %s
-        """, (status, record_count, batch_id))
+            """,
+            (batch_id,),
+        )
+        row = cursor.fetchone()
+        cursor.close()
+        if not row:
+            return None
+        return row[0], row[1], row[2], row[3], row[4]
+
+    def _resume_batch(self, batch_id: int, *, expected_species_id: int, file_path: str) -> int:
+        """
+        断点续传：复用已有 batch_id，重置状态为 in_progress
+
+        注意：
+        - 仅支持 repeatmasker 批次类型
+        - species_id 必须匹配，避免误写入
+        """
+        info = self._get_batch_info(batch_id)
+        if info is None:
+            raise ValueError(f"Resume batch_id not found: {batch_id}")
+
+        batch_type, species_id, source_file, status, record_count = info
+        if batch_type != "repeatmasker":
+            raise ValueError(
+                f"Resume batch_id={batch_id} type mismatch: {batch_type!r} (expected 'repeatmasker')"
+            )
+        if int(species_id) != int(expected_species_id):
+            raise ValueError(
+                f"Resume batch_id={batch_id} species mismatch: {species_id} (expected {expected_species_id})"
+            )
+        if source_file and os.path.abspath(source_file) != os.path.abspath(file_path):
+            logger.warning(
+                f"Resume batch_id={batch_id} source_file differs:\n"
+                f"  batch.source_file={source_file}\n"
+                f"  --file={file_path}\n"
+                f"Continuing anyway (ensure you are resuming the same dataset)."
+            )
+
+        cursor = self.conn.cursor()
+        cursor.execute(
+            """
+            UPDATE import_batches
+            SET status = 'in_progress',
+                error_message = NULL,
+                completed_at = NULL
+            WHERE batch_id = %s
+            """,
+            (batch_id,),
+        )
         self.conn.commit()
         cursor.close()
 
-    def _set_error_message(self, batch_id: int, message: str):
+        logger.info(
+            f"Resuming existing batch_id={batch_id} "
+            f"(previous status={status!r}, record_count={record_count})"
+        )
+        return int(record_count or 0)
+
+    def _update_batch(self, batch_id: int, status: str, record_count: int):
+        """Update batch status"""
+        cursor = self.conn.cursor()
+        if status == "completed":
+            cursor.execute(
+                """
+                UPDATE import_batches
+                SET status = %s,
+                    record_count = %s,
+                    error_message = NULL,
+                    completed_at = CURRENT_TIMESTAMP
+                WHERE batch_id = %s
+                """,
+                (status, record_count, batch_id),
+            )
+        else:
+            cursor.execute(
+                """
+                UPDATE import_batches
+                SET status = %s, record_count = %s, completed_at = CURRENT_TIMESTAMP
+                WHERE batch_id = %s
+                """,
+                (status, record_count, batch_id),
+            )
+        self.conn.commit()
+        cursor.close()
+
+    def _set_error_message(self, batch_id: int, message: Optional[str]):
         """Set error message for a batch"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -347,7 +434,7 @@ class RepeatMaskerImporter:
     def _batch_insert(self, features: List[Dict], species_id: int, batch_id: int):
         """Batch insert features"""
         if not features:
-            return
+            return 0
 
         cursor = self.conn.cursor()
 
@@ -381,6 +468,7 @@ class RepeatMaskerImporter:
 
         self.stats['imported'] += len(features)
         cursor.close()
+        return len(features)
 
     def import_file(
         self,
@@ -392,6 +480,8 @@ class RepeatMaskerImporter:
         commit_every: int = 10,
         dry_run: bool = False,
         chromosome_filter: Optional[str] = None,
+        skip_records: int = 0,
+        resume_batch_id: Optional[int] = None,
     ):
         """
         Import RepeatMasker data from file
@@ -412,6 +502,10 @@ class RepeatMaskerImporter:
         logger.info(f"  Species: {species_code}")
         logger.info(f"  Format: {file_format}")
         logger.info(f"  Dry run: {dry_run}")
+        if skip_records:
+            logger.info(f"  Skip records: {skip_records:,}")
+        if resume_batch_id:
+            logger.info(f"  Resume batch_id: {resume_batch_id}")
 
         # Get track_id
         self.track_id = self._get_track_id()
@@ -423,10 +517,20 @@ class RepeatMaskerImporter:
 
         # Create batch
         batch_id = None
+        baseline_imported = 0
+        if resume_batch_id and dry_run:
+            logger.warning("--resume-batch-id is ignored in --dry-run mode")
+            resume_batch_id = None
+        if resume_batch_id and batch_name:
+            logger.warning("--batch-name is ignored when --resume-batch-id is set")
         if not dry_run:
-            if not batch_name:
-                batch_name = f"RepeatMasker {species_code} {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            batch_id = self._create_batch(batch_name, species_id, file_path)
+            if resume_batch_id:
+                batch_id = int(resume_batch_id)
+                baseline_imported = self._resume_batch(batch_id, expected_species_id=species_id, file_path=file_path)
+            else:
+                if not batch_name:
+                    batch_name = f"RepeatMasker {species_code} {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                batch_id = self._create_batch(batch_name, species_id, file_path)
 
         # Select parser based on format
         if file_format.lower() == 'out':
@@ -441,9 +545,21 @@ class RepeatMaskerImporter:
         # Process records
         features = []
         batch_insert_count = 0  # Track batch inserts for periodic commits
+        processed_records = 0
+        last_committed_processed_records = max(skip_records, 0) if resume_batch_id else 0
+        pending_imported = 0
+        committed_imported = baseline_imported
+        if baseline_imported:
+            # Resume into the same batch_id: keep counters consistent with already-committed rows
+            self.stats['imported'] = baseline_imported
         try:
             for record in parser:
-                self.stats['total_lines'] += 1
+                processed_records += 1
+                self.stats['total_lines'] = processed_records
+
+                # Resume support: skip first N parsed records (counts parsed records, not raw file lines)
+                if skip_records > 0 and processed_records <= skip_records:
+                    continue
 
                 # Apply chromosome filter
                 if chromosome_filter and record['chromosome'] != chromosome_filter:
@@ -454,12 +570,16 @@ class RepeatMaskerImporter:
                 # Batch insert
                 if len(features) >= batch_size:
                     if not dry_run:
-                        self._batch_insert(features, species_id, batch_id)
+                        inserted = self._batch_insert(features, species_id, batch_id)
+                        pending_imported += inserted
                         batch_insert_count += 1
 
                         # Periodic commit to avoid large transaction / WAL pressure
                         if commit_every > 0 and batch_insert_count % commit_every == 0:
                             self.conn.commit()
+                            committed_imported += pending_imported
+                            pending_imported = 0
+                            last_committed_processed_records = processed_records
                             logger.info(f"Committed {self.stats['imported']:,} records "
                                       f"({batch_insert_count} batches)")
                     else:
@@ -474,13 +594,18 @@ class RepeatMaskerImporter:
             # Insert remaining records
             if features:
                 if not dry_run:
-                    self._batch_insert(features, species_id, batch_id)
+                    inserted = self._batch_insert(features, species_id, batch_id)
+                    pending_imported += inserted
                 else:
                     self.stats['imported'] += len(features)
 
             # Final commit for any uncommitted data
             if not dry_run:
                 self.conn.commit()
+                committed_imported += pending_imported
+                pending_imported = 0
+                last_committed_processed_records = processed_records
+                self.stats['imported'] = committed_imported
                 self._update_batch(batch_id, 'completed', self.stats['imported'])
 
             logger.info("Import completed successfully!")
@@ -489,25 +614,23 @@ class RepeatMaskerImporter:
             logger.error(f"Import failed: {e}")
             if not dry_run:
                 self.conn.rollback()  # Only rolls back uncommitted batches
+                # Ensure stats reflect committed state (uncommitted inserts were rolled back)
+                self.stats['imported'] = committed_imported
                 if batch_id:
-                    # Record actual imported count for cleanup/resume purposes
-                    # With commit_every > 0, some data may have been committed before failure
-                    actual_imported = self.stats.get('imported', 0)
-                    if actual_imported > 0:
+                    if committed_imported > 0:
                         logger.warning(
-                            f"Partial data committed before failure: {actual_imported:,} records. "
+                            f"Partial data committed before failure: {committed_imported:,} records. "
                             f"To cleanup: DELETE FROM genomic_features WHERE batch_id = {batch_id}"
                         )
-                        # Use 'failed' status (CHECK constraint) with actual count for audit
-                        # Store cleanup hint in error_message via separate update
-                        self._update_batch(batch_id, 'failed', actual_imported)
-                        self._set_error_message(
-                            batch_id,
-                            f"PARTIAL_FAILURE: {actual_imported} records committed before error. "
-                            f"Cleanup: DELETE FROM genomic_features WHERE batch_id = {batch_id}"
-                        )
-                    else:
-                        self._update_batch(batch_id, 'failed', 0)
+                    self._update_batch(batch_id, 'failed', committed_imported)
+                    resume_hint = (
+                        f"PARTIAL_FAILURE: committed_records={committed_imported}, "
+                        f"last_committed_processed_records={last_committed_processed_records}. "
+                        f"Resume: re-run with the same CLI args plus "
+                        f"--resume-batch-id={batch_id} --skip-records={last_committed_processed_records}.\n"
+                        f"Cleanup (discard batch): DELETE FROM genomic_features WHERE batch_id = {batch_id}"
+                    )
+                    self._set_error_message(batch_id, resume_hint)
             raise
 
     def print_stats(self):
@@ -567,6 +690,10 @@ Examples:
                        help='Only import specific chromosome (e.g., chr1)')
     parser.add_argument('--dry-run', action='store_true',
                        help='Parse file without inserting data')
+    parser.add_argument('--skip-records', type=int, default=0,
+                       help='Skip first N parsed records (resume support; counts parsed records, not raw file lines)')
+    parser.add_argument('--resume-batch-id', type=int,
+                       help='Resume into an existing import_batches.batch_id (use with --skip-records)')
 
     # Database connection
     parser.add_argument('--host', default='localhost', help='Database host')
@@ -606,6 +733,8 @@ Examples:
             commit_every=args.commit_every,
             dry_run=args.dry_run,
             chromosome_filter=args.chromosome,
+            skip_records=args.skip_records,
+            resume_batch_id=args.resume_batch_id,
         )
         importer.print_stats()
 

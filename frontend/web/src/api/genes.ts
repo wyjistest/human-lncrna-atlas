@@ -60,7 +60,8 @@ export const genesApi = {
     gene_type?: string
     species_id?: number
     search?: string
-  }) => apiClient.get<PaginatedResponse<GeneListItem>>('/api/v1/genes', { params }),
+  }, signal?: AbortSignal) =>
+    apiClient.get<PaginatedResponse<GeneListItem>>('/api/v1/genes', { params, signal }),
 
   /**
    * Get detailed information for a single gene
@@ -70,7 +71,8 @@ export const genesApi = {
    * @param geneId - Gene ID
    * @returns Complete gene information including orthologs, regulations, diseases
    */
-  detail: (geneId: number) => apiClient.get<GeneDetail>(`/api/v1/genes/${geneId}`),
+  detail: (geneId: number, signal?: AbortSignal) =>
+    apiClient.get<GeneDetail>(`/api/v1/genes/${geneId}`, { signal }),
 
   /**
    * Get lightweight gene options for dropdown selection
@@ -136,10 +138,10 @@ export const genesApi = {
   getOptions: async (params?: {
     species_id?: number
     gene_type?: string
-  }): Promise<GeneOptionsResponse> => {
+  }, signal?: AbortSignal): Promise<GeneOptionsResponse> => {
     const response = await apiClient.get<GeneOptionsResponse>(
       '/api/v1/genes/options',
-      { params }
+      { params, signal }
     )
     return response.data
   },
@@ -160,6 +162,6 @@ export const genesApi = {
    * const { data } = await genesApi.getOrthologs(1)
    * // Returns: OrthologInfo[]
    */
-  getOrthologs: (geneId: number) =>
-    apiClient.get<OrthologInfo[]>(`/api/v1/genes/${geneId}/orthologs`),
+  getOrthologs: (geneId: number, signal?: AbortSignal) =>
+    apiClient.get<OrthologInfo[]>(`/api/v1/genes/${geneId}/orthologs`, { signal }),
 }

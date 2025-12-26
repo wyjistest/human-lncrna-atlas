@@ -86,8 +86,8 @@ export default function Conservation() {
     error: overviewError
   } = useQuery({
     queryKey: ['conservation-overview'],
-    queryFn: async () => {
-      const apiData = await conservationApi.getOverview()
+    queryFn: async ({ signal }) => {
+      const apiData = await conservationApi.getOverview(undefined, signal)
       // Transform backend format to frontend expected format
       const distribution = apiData.distribution || []
       const getCountByLevel = (level: number) =>
@@ -112,7 +112,7 @@ export default function Conservation() {
     error: matrixError
   } = useQuery({
     queryKey: ['conservation-matrix'],
-    queryFn: () => conservationApi.getMatrix([1, 2, 3, 4]),
+    queryFn: ({ signal }) => conservationApi.getMatrix([1, 2, 3, 4], signal),
     enabled: selectedSpecies.length >= 2,
     staleTime: 5 * 60 * 1000
   })
@@ -158,7 +158,7 @@ export default function Conservation() {
     error: regulationsError
   } = useQuery({
     queryKey: ['conservation-regulations', selectedSpecies, page, pageSize, minConservation, minBA, lncrnaSearch, targetSearch],
-    queryFn: () => conservationApi.getConservedRegulations({
+    queryFn: ({ signal }) => conservationApi.getConservedRegulations({
       species_ids: selectedSpecies,
       page,
       page_size: pageSize,
@@ -166,7 +166,7 @@ export default function Conservation() {
       min_ba: minBA > 0 ? minBA : undefined,
       lncrna_gene_name: lncrnaSearch || undefined,
       target_gene_name: targetSearch || undefined
-    }),
+    }, signal),
     enabled: selectedSpecies.length >= 2,
     staleTime: 2 * 60 * 1000
   })

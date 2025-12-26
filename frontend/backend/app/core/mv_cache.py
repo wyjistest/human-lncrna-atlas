@@ -197,15 +197,18 @@ def is_mv_missing_error(exc: Exception) -> bool:
         True if the error indicates MV is missing/unavailable
     """
     error_msg = str(exc).lower()
-    # PostgreSQL error patterns for missing relation
-    patterns = [
-        "relation",
-        "does not exist",
-        "undefined_table",
-        "mv_lncrna_chipseq_overlaps",
-    ]
-    # Check if error message contains patterns indicating missing MV
-    return any(p in error_msg for p in patterns)
+    # SECURITY/Correctness: be strict to avoid masking unrelated DB errors.
+    # Only treat errors as "MV missing" if the MV name is explicitly present.
+    mv_name = "mv_lncrna_chipseq_overlaps"
+    if mv_name not in error_msg:
+        return False
+
+    # PostgreSQL common error patterns for missing relation
+    return (
+        "does not exist" in error_msg
+        or "undefined_table" in error_msg
+        or ("relation" in error_msg and "does not exist" in error_msg)
+    )
 
 
 __all__ = ["MaterializedViewCache", "mv_cache", "is_mv_missing_error"]

@@ -13,7 +13,7 @@
  * - Detailed data table
  */
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { escapeHtml } from '@/utils/escapeHtml'
 import {
   Card,
@@ -42,8 +42,9 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import ReactECharts from 'echarts-for-react'
-import type { EChartsOption } from 'echarts'
 import type { SankeyParams } from '@/types/echarts'
+import echarts from '@/utils/echarts'
+import type { ECOption } from '@/utils/echarts'
 
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -90,10 +91,19 @@ export default function SankeyFlow() {
   const { t } = useTranslation('visualization')
 
   // State
-  const [speciesId, setSpeciesId] = useState<number | undefined>(1)
-  const [minBA, setMinBA] = useState(0)
+  const [speciesId, setSpeciesId] = useState<number>(1)
+  const [minBA, setMinBA] = useState(100)
+  const [traitInput, setTraitInput] = useState('')
   const [traitSearch, setTraitSearch] = useState('')
   const [limit, setLimit] = useState(100)
+
+  // Debounce trait search to avoid firing a request on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTraitSearch(traitInput.trim())
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [traitInput])
 
   // API Query
   const {
@@ -102,20 +112,23 @@ export default function SankeyFlow() {
     error,
   } = useQuery({
     queryKey: ['sankey-data', speciesId, minBA, traitSearch, limit],
-    queryFn: () =>
-      visualizationApi.getSankeyData({
-        species_id: speciesId,
-        min_ba: minBA > 0 ? minBA : undefined,
-        trait_name: traitSearch || undefined,
-        limit,
-      }),
+    queryFn: ({ signal }) =>
+      visualizationApi.getSankeyData(
+        {
+          species_id: speciesId,
+          min_ba: minBA,
+          trait_name: traitSearch || undefined,
+          limit,
+        },
+        signal
+      ),
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
   // Transform data for ECharts Sankey
-  const chartOption = useMemo(() => {
+  const chartOption: ECOption = useMemo(() => {
     if (!sankeyData || !sankeyData.nodes || !sankeyData.links) {
-      return { series: [] } as EChartsOption
+      return { series: [] }
     }
 
     // Transform nodes to add colors based on layer
@@ -298,7 +311,7 @@ export default function SankeyFlow() {
 
   // Handle search with debounce
   const handleSearch = (value: string) => {
-    setTraitSearch(value)
+    setTraitInput(value)
   }
 
   // Loading state
@@ -419,10 +432,7 @@ export default function SankeyFlow() {
                 style={{ width: '100%' }}
                 value={speciesId}
                 onChange={setSpeciesId}
-                options={[
-                  { value: undefined, label: t('sankey.filters.allSpecies', 'All Species') },
-                  ...SPECIES_OPTIONS,
-                ]}
+                options={SPECIES_OPTIONS}
                 data-testid="species-select"
               />
             </Space>
@@ -435,7 +445,7 @@ export default function SankeyFlow() {
               <Input
                 placeholder={t('sankey.filters.diseasePlaceholder', 'e.g., diabetes')}
                 prefix={<SearchOutlined />}
-                value={traitSearch}
+                value={traitInput}
                 onChange={(e) => handleSearch(e.target.value)}
                 allowClear
                 data-testid="disease-search"
@@ -493,6 +503,7 @@ export default function SankeyFlow() {
           />
         ) : (
           <ReactECharts
+            echarts={echarts}
             option={chartOption}
             style={{ height: 600 }}
             opts={{ renderer: 'canvas' }}

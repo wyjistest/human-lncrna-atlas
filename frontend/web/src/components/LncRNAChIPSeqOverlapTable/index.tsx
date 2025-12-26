@@ -356,19 +356,28 @@ export function LncRNAChIPSeqOverlapTable({
 
   // Fetch available repeat class tracks when species changes
   useEffect(() => {
+    const controller = new AbortController()
+
     const fetchRepeatClassTracks = async () => {
       try {
-        const response = await getRepeatMaskerClassTracks(igvSpeciesId)
+        const response = await getRepeatMaskerClassTracks(igvSpeciesId, controller.signal)
+        if (controller.signal.aborted) {
+          return
+        }
         if (response.data?.data?.tracks) {
           setRepeatClassTracks(response.data.data.tracks)
         }
       } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
         console.error('Failed to fetch repeat class tracks:', error)
       }
     }
     if (showIGV) {
       fetchRepeatClassTracks()
     }
+    return () => controller.abort()
   }, [igvSpeciesId, showIGV])
 
   // Fetch available ChIP-seq marks for the selected species
@@ -378,8 +387,8 @@ export function LncRNAChIPSeqOverlapTable({
     error: chipseqMarksError
   } = useQuery({
     queryKey: ['chipseq-marks', igvSpeciesId],
-    queryFn: async () => {
-      const response = await genomeApi.getChIPSeqMarks(igvSpeciesId)
+    queryFn: async ({ signal }) => {
+      const response = await genomeApi.getChIPSeqMarks(igvSpeciesId, signal)
       return response.data.data.marks
     },
     enabled: showChIPSeq && showIGV,

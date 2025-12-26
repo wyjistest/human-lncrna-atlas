@@ -19,14 +19,16 @@ from app.models import (
 from app.schemas.disease import (
     TraitDetail,
     TraitGeneAssociationDetail,
+    DiseaseOptionsResponse,
 )
 from app.schemas.common import PaginatedResponse
 from app.core.cache import cache
+from app.core.validators import compute_pagination_offset
 
 router = APIRouter(prefix="/diseases", tags=["diseases"])
 
 
-@router.get("/options")
+@router.get("/options", response_model=DiseaseOptionsResponse)
 @rate_limit("60/minute")
 def get_disease_options(
     request: Request,
@@ -149,7 +151,7 @@ def list_diseases(
     total = cache.get_cached_count(count_query, count_cache_key)
 
     # 分页（添加 ORDER BY 确保分页稳定性）
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     items = query.order_by(Trait.trait_id, Ontology.ontology_id).offset(offset).limit(page_size).all()
 
     # 转换为响应模型
@@ -303,7 +305,7 @@ def get_disease_genes(
     total = query.count()
 
     # 分页（添加 ORDER BY 确保分页稳定性）
-    offset = (page - 1) * page_size
+    offset = compute_pagination_offset(page, page_size)
     items = query.order_by(TraitGeneAssociation.association_id).offset(offset).limit(page_size).all()
 
     # 转换为响应模型

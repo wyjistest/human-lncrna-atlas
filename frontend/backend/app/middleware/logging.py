@@ -110,11 +110,32 @@ class LoggingMiddleware:
             # 解析失败时返回安全提示
             return "***PARSE_ERROR***"
 
+    @staticmethod
+    def _truncate_for_log(text: str, max_length: int) -> str:
+        """
+        截断日志中记录的字符串，防止超长 URL/查询字符串导致日志膨胀。
+
+        Args:
+            text: 原始文本
+            max_length: 最大长度（<=0 表示不限制）
+
+        Returns:
+            截断后的文本（长度不超过 max_length）
+        """
+        if max_length <= 0 or len(text) <= max_length:
+            return text
+
+        suffix = "...[TRUNC]"
+        if max_length <= len(suffix):
+            return text[:max_length]
+        return text[: max_length - len(suffix)] + suffix
+
     def __init__(self, app: ASGIApp):
         self.app = app
         self._log_enabled = settings.REQUEST_LOG_ENABLED
         self._slow_threshold_sec = settings.REQUEST_LOG_SLOW_THRESHOLD_MS / 1000.0
         self._sample_rate = max(0.0, min(1.0, settings.REQUEST_LOG_SAMPLE_RATE))
+        self._max_url_length = max(0, int(getattr(settings, "REQUEST_LOG_MAX_URL_LENGTH", 0)))
 
         # 启动时记录配置
         if self._log_enabled:
@@ -159,7 +180,7 @@ class LoggingMiddleware:
             return
 
         # 记录请求开始时间
-        start_time = time.time()
+        start_time = time.monotonic()
 
         # 获取请求信息
         method = scope.get("method", "UNKNOWN")
@@ -167,6 +188,7 @@ class LoggingMiddleware:
         # 遮蔽敏感查询参数后用于日志记录
         safe_query = self._sanitize_query_string(query_string)
         url = f"{path}?{safe_query}" if safe_query else path
+        url = self._truncate_for_log(url, self._max_url_length)
 
         # 获取客户端 IP
         client_ip = self._get_client_ip(scope)
@@ -183,7 +205,7 @@ class LoggingMiddleware:
                 response_started = True
 
                 # 计算处理时间并添加到响应头
-                process_time = time.time() - start_time
+                process_time = time.monotonic() - start_time
                 headers: List[Tuple[bytes, bytes]] = list(message.get("headers", []))
                 headers.append((b"x-process-time", f"{process_time:.3f}".encode()))
                 message = {**message, "headers": headers}
@@ -194,7 +216,7 @@ class LoggingMiddleware:
             await self.app(scope, receive, send_wrapper)
 
             # 根据配置决定是否记录日志
-            process_time = time.time() - start_time
+            process_time = time.monotonic() - start_time
             if self._should_log(process_time):
                 # 慢请求使用 WARNING 级别
                 if self._slow_threshold_sec > 0 and process_time >= self._slow_threshold_sec:
@@ -210,9 +232,10 @@ class LoggingMiddleware:
 
         except Exception as e:
             # 错误日志始终记录（不受采样/阈值限制）
-            process_time = time.time() - start_time
+            process_time = time.monotonic() - start_time
+            safe_error = str(e).replace("\r", " ").replace("\n", " ")
             logger.error(
                 f"{method} {url} - ERROR - {process_time:.3f}s - "
-                f"{client_ip} - {str(e)}"
+                f"{client_ip} - {safe_error}"
             )
             raise

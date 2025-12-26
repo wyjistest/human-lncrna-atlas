@@ -112,18 +112,27 @@ export default function GenomeBrowserPage() {
 
   // Fetch available repeat class tracks when species changes
   useEffect(() => {
+    const controller = new AbortController()
+
     const fetchRepeatClassTracks = async () => {
       try {
-        const response = await getRepeatMaskerClassTracks(speciesId)
+        const response = await getRepeatMaskerClassTracks(speciesId, controller.signal)
+        if (controller.signal.aborted) {
+          return
+        }
         // API returns { tracks: [...], species_id, species_name }
         if (response.data?.data?.tracks) {
           setRepeatClassTracks(response.data.data.tracks)
         }
       } catch (error) {
+        if (controller.signal.aborted) {
+          return
+        }
         console.error('Failed to fetch repeat class tracks:', error)
       }
     }
     fetchRepeatClassTracks()
+    return () => controller.abort()
   }, [speciesId])
 
   // Fetch available ChIP-seq marks for the selected species
@@ -133,8 +142,8 @@ export default function GenomeBrowserPage() {
     error: chipseqMarksError
   } = useQuery({
     queryKey: ['chipseq-marks', speciesId],
-    queryFn: async () => {
-      const response = await genomeApi.getChIPSeqMarks(speciesId)
+    queryFn: async ({ signal }) => {
+      const response = await genomeApi.getChIPSeqMarks(speciesId, signal)
       return response.data.data.marks
     },
     enabled: showChIPSeq, // Only fetch when ChIP-seq toggle is enabled
