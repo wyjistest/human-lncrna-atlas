@@ -128,7 +128,7 @@ def get_sankey_data(
     )
 
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         logger.info(f"[SANKEY] Cache HIT: {cache_key}")
         return SankeyResponse(**cached)
 
@@ -451,7 +451,7 @@ def get_chord_data(
 
     # 尝试从缓存读取
     cached = cache.get(cache_key)
-    if cached:
+    if cached is not None:
         logger.info(f"[CHORD] Cache HIT: {cache_key}")
         return ChordResponse(**cached)
 

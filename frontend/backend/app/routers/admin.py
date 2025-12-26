@@ -53,6 +53,44 @@ from app.schemas.monitoring import (
 logger = logging.getLogger(__name__)
 
 
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+
+
+def _enforce_admin_unsafe_origin(request: Request) -> None:
+    """
+    Best-effort CSRF mitigation for Admin endpoints when IP-based access is enabled.
+
+    Context (FastAPI docs/security):
+    - CSRF attacks do not require CORS. A malicious site can trigger cross-site requests from a user's browser.
+    - Our Admin API is normally protected by API Key (ADMIN_REQUIRE_API_KEY=true by default).
+    - When admins intentionally disable strict mode for local development, we may allow IP-based access.
+
+    Mitigation:
+    - For unsafe methods (POST/PUT/PATCH/DELETE), if the browser sends an Origin header, require it to be:
+      1) Same-origin as the API server, or
+      2) In configured CORS_ORIGINS (frontend origins).
+    - Non-browser clients (curl) typically don't send Origin and will not be blocked.
+    """
+    if request.method.upper() in _SAFE_METHODS:
+        return
+
+    origin = (request.headers.get("origin") or "").strip()
+    if not origin:
+        return
+
+    backend_origin = str(request.base_url).rstrip("/")
+    allowed = set(settings.CORS_ORIGINS) | {backend_origin}
+    if origin not in allowed:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "CSRF_BLOCKED",
+                "message": "Origin not allowed for state-changing Admin request",
+                "origin": origin,
+            },
+        )
+
+
 async def verify_admin_access(
     request: Request,
     x_admin_api_key: Optional[str] = Header(None, alias="X-Admin-API-Key"),
@@ -136,11 +174,17 @@ async def verify_admin_access(
 
     # 检查是否在显式白名单中
     if client_ip in allowed_ips or "localhost" in allowed_ips and client_ip == "127.0.0.1":
+        # CSRF defense-in-depth: only relevant when strict mode is disabled.
+        if not settings.ADMIN_REQUIRE_API_KEY:
+            _enforce_admin_unsafe_origin(request)
         logger.debug(f"Admin API access granted via IP whitelist: {client_ip}")
         return
 
     # 检查是否为私有/内网 IP（仅在非严格模式下）
     if is_private_ip(client_ip):
+        # CSRF defense-in-depth: only relevant when strict mode is disabled.
+        if not settings.ADMIN_REQUIRE_API_KEY:
+            _enforce_admin_unsafe_origin(request)
         logger.warning(
             f"⚠️ SECURITY: Admin API accessed from private IP {client_ip} without API Key. "
             f"This is allowed in development mode (ADMIN_REQUIRE_API_KEY=false) but is a security risk in production. "
