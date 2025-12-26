@@ -7,7 +7,7 @@
  * IGV.js is an imperative library, so we use useRef + useEffect pattern
  * similar to Cytoscape.js integration in the Network page.
  */
-import { useRef, useEffect, useState, useCallback, memo } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo, memo } from 'react'
 import { message, Alert } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -188,7 +188,6 @@ const GenomeBrowser = memo(({
           // Clear loaded/pending ChIP-seq marks since the browser is being reinitialized
           loadedChipseqMarksRef.current.clear()
           pendingChipseqMarksRef.current.clear()
-          desiredChipseqMarksRef.current.clear()
         }
         if (cancelled) return
 
@@ -427,17 +426,24 @@ const GenomeBrowser = memo(({
   const loadedChipseqMarksRef = useRef<Set<string>>(new Set())
   // Track ChIP-seq marks that are currently loading (to prevent duplicate loads)
   const pendingChipseqMarksRef = useRef<Set<string>>(new Set())
-  // Track the latest desired marks (used to avoid race conditions on async load completion)
-  const desiredChipseqMarksRef = useRef<Set<string>>(new Set())
+  // Compute desired marks based on current props
+  const desiredMarks = useMemo(
+    () => (showChIPSeq ? chipseqMarks : []),
+    [showChIPSeq, chipseqMarks]
+  )
+
+  // Use a ref to store latest desired marks for async callbacks (avoiding stale closures)
+  // This ref is updated inside useEffect which is safe
+  const desiredMarksSnapshotRef = useRef<Set<string>>(new Set())
 
   // Dynamically manage ChIP-seq tracks without reinitializing browser
   useEffect(() => {
     if (!browserRef.current) return
 
     const browser = browserRef.current
-    const desiredMarks = showChIPSeq ? chipseqMarks : []
     const currentMarks = new Set(desiredMarks)
-    desiredChipseqMarksRef.current = currentMarks
+    // Update snapshot ref at the start of effect (safe pattern)
+    desiredMarksSnapshotRef.current = currentMarks
     const loadedMarks = loadedChipseqMarksRef.current
     const pendingMarks = pendingChipseqMarksRef.current
 
@@ -515,7 +521,7 @@ const GenomeBrowser = memo(({
           }
 
           // If user toggled off while loading, remove the loaded track to avoid orphan tracks.
-          if (!desiredChipseqMarksRef.current.has(mark)) {
+          if (!desiredMarksSnapshotRef.current.has(mark)) {
             removeTrackByName(`ChIP-seq: ${mark}`)
             return
           }
@@ -527,7 +533,7 @@ const GenomeBrowser = memo(({
           console.warn(`Failed to load track for ${mark}:`, e)
         })
     })
-  }, [showChIPSeq, chipseqMarks, speciesId])
+  }, [desiredMarks, speciesId])
 
   // Handle external locus changes (navigation)
   // Disabled to avoid conflicts with navigateToLocus
