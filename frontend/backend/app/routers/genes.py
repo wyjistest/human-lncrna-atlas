@@ -162,7 +162,7 @@ def list_genes(
     gene_type: Optional[str] = Query(None, description="基因类型（lncRNA/protein_coding）"),
     species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID"),
     chromosome: Optional[str] = Query(None, description="染色体"),
-    search: Optional[str] = Query(None, description="搜索关键词（基因名/ID）"),
+    search: Optional[str] = Query(None, max_length=100, description="搜索关键词（基因名/ID）"),
     has_regulation: Optional[bool] = Query(None, description="是否有调控关系"),
     min_regulation_count: Optional[int] = Query(None, ge=0, description="最小调控数量"),
     db: Session = Depends(get_db),

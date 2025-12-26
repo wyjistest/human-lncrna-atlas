@@ -78,7 +78,7 @@ def list_diseases(
     request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    search: Optional[str] = Query(None, description="搜索关键词（Trait/Ontology名称）"),
+    search: Optional[str] = Query(None, max_length=100, description="搜索关键词（Trait/Ontology名称）"),
     db: Session = Depends(get_db),
 ):
     """

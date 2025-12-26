@@ -102,23 +102,19 @@ def get_disease_network(
         raise HTTPException(status_code=404, detail="Ontology not found")
 
     # 获取该trait-ontology组合下的所有关联基因的core_id（包括lncRNA和靶基因）
-    associated_core_ids = (
+    associated_core_ids_query = (
         db.query(TraitGeneAssociation.core_id)
         .filter(TraitGeneAssociation.trait_id == trait_id)
         .filter(TraitGeneAssociation.ontology_id == ontology_id)
         .distinct()
     )
 
-    associated_core_ids = [row[0] for row in associated_core_ids.all()]
-
-    if not associated_core_ids:
-        return NetworkData(nodes=[], edges=[], stats={})
-
     # 获取这些基因在指定物种的同源基因（限制数量避免内存溢出）
     genes_query = (
         db.query(Gene, CoreGene)
         .join(CoreGene, Gene.core_id == CoreGene.core_id)
-        .filter(Gene.core_id.in_(associated_core_ids))
+        # PERF: avoid materializing potentially huge core_id lists in Python; use a subquery IN (...)
+        .filter(Gene.core_id.in_(associated_core_ids_query))
     )
 
     if species_id:

@@ -280,9 +280,15 @@ def list_regulations(
     # 规范化列表参数，提升缓存命中率（去空格、排序）
     normalized_species_ids = _normalize_list_param(species_ids)
     normalized_chromosomes = _normalize_list_param(chromosomes)
+    if normalized_chromosomes:
+        # Chromosome values are case-insensitive; normalize to reduce cache fragmentation.
+        normalized_chromosomes = normalized_chromosomes.lower()
     normalized_lncrna_gene_name = normalize_optional_str(lncrna_gene_name)
     normalized_target_gene_name = normalize_optional_str(target_gene_name)
     normalized_chromosome = normalize_optional_str(chromosome)
+    if normalized_chromosome:
+        # Chromosome values are case-insensitive; normalize to reduce cache fragmentation.
+        normalized_chromosome = normalized_chromosome.lower()
 
     # 构建缓存键（使用 make_list_key 进行参数哈希，确保键长度稳定且一致）
     cache_key = cache.make_list_key(
@@ -367,7 +373,7 @@ def list_regulations(
                     "Expected format: chr1, chr2, ..., chr22, chrX, chrY, chrM"
                 ),
             )
-        query = query.filter(Regulation.target_chromosome == normalized_chromosome.lower())
+        query = query.filter(Regulation.target_chromosome == normalized_chromosome)
 
     # 添加排序，确保分页结果稳定
     query = query.order_by(desc(Regulation.binding_affinity), Regulation.regulation_id)
