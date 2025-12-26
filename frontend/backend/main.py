@@ -123,6 +123,13 @@ def _validate_security_config() -> None:
         )
 
     if settings.is_production:
+        # 2.1 生产环境禁止私网 bypass（否则可能被代理误配 + XFF 伪造绕过）
+        if getattr(settings, "RATE_LIMIT_BYPASS_PRIVATE", False):
+            fatal_errors.append(
+                "RATE_LIMIT_BYPASS_PRIVATE=true is not allowed in production. "
+                "Keep it false to prevent rate-limit bypass via internal IP spoofing."
+            )
+
         storage_url = settings.ratelimit_storage_url or ""
         if not storage_url:
             fatal_errors.append(
@@ -163,6 +170,44 @@ def _validate_security_config() -> None:
                     "This will reject ALL external requests with HTTP 400. "
                     "Add your actual domain(s) to TRUSTED_HOSTS, e.g., ['example.com', '*.example.com']"
                 )
+
+        # 3.1 TRUSTED_PROXIES 生产环境检查（防止 X-Forwarded-For 伪造导致鉴权/限流绕过）
+        # 默认配置是 localhost-only，安全但可能导致所有客户端共享同一个限流 key（若实际运行在反代后）。
+        try:
+            import ipaddress
+
+            for entry in settings.TRUSTED_PROXIES or []:
+                proxy = str(entry).strip()
+                if not proxy:
+                    continue
+                # 极高风险：信任全网，任何客户端都可伪造 XFF
+                if proxy in {"0.0.0.0/0", "::/0"}:
+                    fatal_errors.append(
+                        f"TRUSTED_PROXIES contains an unsafe catch-all network {proxy!r} in production. "
+                        "This allows anyone to spoof X-Forwarded-For and bypass IP-based protections."
+                    )
+                    continue
+
+                if "/" in proxy:
+                    net = ipaddress.ip_network(proxy, strict=False)
+                    # 过宽的网段通常意味着“信任整段内网”，风险较高，给出警告即可（由部署方决定）。
+                    if (net.version == 4 and net.prefixlen < 24) or (net.version == 6 and net.prefixlen < 64):
+                        warnings.append(
+                            f"TRUSTED_PROXIES contains a broad network {proxy!r} in production. "
+                            "Prefer trusting only the exact reverse-proxy IP(s) to reduce XFF spoofing risk."
+                        )
+                else:
+                    # Validate single IP format
+                    ipaddress.ip_address(proxy)
+        except Exception as e:  # pragma: no cover
+            warnings.append(f"Failed to validate TRUSTED_PROXIES entries: {e}")
+
+        # 3.2 API Docs exposure notice
+        if getattr(settings, "ENABLE_API_DOCS", True):
+            warnings.append(
+                "ENABLE_API_DOCS=true in production. Consider disabling /docs, /redoc and /openapi.json "
+                "to reduce attack surface."
+            )
 
     # 4. 连接池配置检查（仅警告）
     pool_total = settings.DB_POOL_SIZE + settings.DB_POOL_MAX_OVERFLOW
@@ -284,8 +329,10 @@ app = FastAPI(
     - 67,763 个疾病关联
     - 涵盖4个物种（人、黑猩猩、猕猴、狨猴）
     """,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # SECURITY: 可通过 ENABLE_API_DOCS=false 在生产环境禁用 API 文档与 OpenAPI schema 暴露
+    docs_url="/docs" if settings.ENABLE_API_DOCS else None,
+    redoc_url="/redoc" if settings.ENABLE_API_DOCS else None,
+    openapi_url="/openapi.json" if settings.ENABLE_API_DOCS else None,
     lifespan=lifespan,
 )
 

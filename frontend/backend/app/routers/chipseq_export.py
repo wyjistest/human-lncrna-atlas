@@ -41,6 +41,32 @@ from app.routers.chipseq_rate_limit import rate_limit, DEFAULT_FLANKING_REGION
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
+def _parse_mark_pair_filter(mark_pair: Optional[str], mark_list: list[str]) -> Optional[set[str]]:
+    """
+    Parse and validate the optional mark_pair filter.
+
+    Expected format: "mark1:mark2" (exactly 2 marks).
+    Both marks must be present in the `marks` parameter (mark_list).
+    """
+    if not mark_pair:
+        return None
+
+    raw = mark_pair.strip()
+    if not raw:
+        return None
+
+    parts = [p.strip() for p in raw.split(":") if p.strip()]
+    if len(parts) != 2:
+        raise HTTPException(status_code=400, detail="mark_pair must be in format 'mark1:mark2'")
+    mark_a, mark_b = parts
+    if mark_a == mark_b:
+        raise HTTPException(status_code=400, detail="mark_pair must contain two different marks")
+    if mark_a not in mark_list or mark_b not in mark_list:
+        raise HTTPException(status_code=400, detail="mark_pair marks must be included in the 'marks' parameter")
+    return {mark_a, mark_b}
+
+
 def _iter_overlapping_peak_pairs(
     peaks_a: list[Dict[str, Any]],
     peaks_b: list[Dict[str, Any]],
@@ -317,6 +343,7 @@ def export_overlaps_bed(
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
     mark_pair: Optional[str] = Query(
         None,
+        max_length=200,
         description="Filter by specific mark pair (e.g., 'H3K4me3:H3K27me3')"
     ),
     min_overlap_bp: int = Query(0, ge=0, description="Minimum overlap length"),
@@ -342,6 +369,8 @@ def export_overlaps_bed(
             status_code=400,
             detail="At least 2 marks are required for overlap detection"
         )
+
+    filter_marks = _parse_mark_pair_filter(mark_pair, mark_list)
 
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
     if not gene:
@@ -419,11 +448,6 @@ def export_overlaps_bed(
     overlaps = []
     overlaps_truncated = False
     mark_names = list(marks_data.keys())
-
-    # Parse mark_pair filter if provided
-    filter_marks = None
-    if mark_pair:
-        filter_marks = set(mark_pair.split(":"))
 
     for mark_1, mark_2 in combinations(mark_names, 2):
         if len(overlaps) >= max_overlaps:

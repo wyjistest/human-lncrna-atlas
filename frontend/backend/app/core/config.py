@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     APP_VERSION: str = "0.1.0"
     API_V1_PREFIX: str = "/api/v1"
 
+    # API Docs / OpenAPI exposure
+    # SECURITY NOTE: In production, you may want to disable these endpoints to reduce attack surface.
+    # - /docs (Swagger UI)
+    # - /redoc (ReDoc)
+    # - /openapi.json (OpenAPI schema)
+    ENABLE_API_DOCS: bool = Field(
+        default=True,
+        validation_alias="ENABLE_API_DOCS",
+        description="Expose /docs, /redoc and /openapi.json (set false in production if desired)",
+    )
+
     # 环境模式配置（Phase 9.18 - Codex审查修复）
     # production: 严格模式，DB连接失败时拒绝启动
     # development: 宽松模式，DB连接失败时仍启动（方便开发调试）

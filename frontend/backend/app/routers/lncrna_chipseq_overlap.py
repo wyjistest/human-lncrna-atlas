@@ -230,6 +230,9 @@ def get_lncrna_chipseq_overlaps_from_mv(
     # Parse comma-separated filters
     mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
     cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
+    # Cache key normalization: order does not matter for "= ANY(:array)" semantics.
+    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
+    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     sort_field_map = {
@@ -309,8 +312,8 @@ def get_lncrna_chipseq_overlaps_from_mv(
         lncrna_gene_id=filters.lncrna_gene_id,
         target_gene_id=filters.target_gene_id,
         chromosome=filters.chromosome,
-        mark_types=mark_types_array,
-        cell_types=cell_types_array,
+        mark_types=cache_mark_types,
+        cell_types=cache_cell_types,
         min_binding_affinity=filters.min_binding_affinity,
         min_peak_strength=filters.min_peak_strength,
         max_qvalue=filters.max_qvalue,
@@ -393,6 +396,9 @@ def get_lncrna_chipseq_overlaps_query(
     # Parse comma-separated filters
     mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
     cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
+    # Cache key normalization: order does not matter for "= ANY(:array)" semantics.
+    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
+    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     # Only allowed values from the map can be used in the SQL query
@@ -493,8 +499,8 @@ def get_lncrna_chipseq_overlaps_query(
         lncrna_gene_id=filters.lncrna_gene_id,
         target_gene_id=filters.target_gene_id,
         chromosome=filters.chromosome,
-        mark_types=mark_types_array,
-        cell_types=cell_types_array,
+        mark_types=cache_mark_types,
+        cell_types=cache_cell_types,
         min_binding_affinity=filters.min_binding_affinity,
         min_peak_strength=filters.min_peak_strength,
         max_qvalue=filters.max_qvalue,
