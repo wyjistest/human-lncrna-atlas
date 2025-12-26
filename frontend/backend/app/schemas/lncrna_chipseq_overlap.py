@@ -9,7 +9,12 @@ from typing import Annotated, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
 
-from app.core.validators import MAX_COMMA_SEPARATED_ITEMS, MAX_ITEM_LENGTH, MAX_FIELD_LENGTH
+from app.core.validators import (
+    MAX_COMMA_SEPARATED_ITEMS,
+    MAX_ITEM_LENGTH,
+    MAX_FIELD_LENGTH,
+    validate_comma_list,
+)
 
 DecimalAsFloat = Annotated[
     Decimal,
@@ -98,15 +103,11 @@ class OverlapFilters(BaseModel):
     @classmethod
     def validate_comma_separated_items(cls, v: Optional[str]) -> Optional[str]:
         """验证逗号分隔字段不超过最大项数"""
-        if v is None:
-            return v
-        items = [item.strip() for item in v.split(',') if item.strip()]
-        if len(items) > MAX_COMMA_SEPARATED_ITEMS:
-            raise ValueError(f"Too many items: maximum {MAX_COMMA_SEPARATED_ITEMS} allowed, got {len(items)}")
-        for item in items:
-            if len(item) > MAX_ITEM_LENGTH:
-                raise ValueError(f"Item too long: maximum {MAX_ITEM_LENGTH} characters, got {len(item)}")
-        return v
+        return validate_comma_list(
+            v,
+            max_items=MAX_COMMA_SEPARATED_ITEMS,
+            max_item_length=MAX_ITEM_LENGTH,
+        )
 
     model_config = ConfigDict(from_attributes=True)
 

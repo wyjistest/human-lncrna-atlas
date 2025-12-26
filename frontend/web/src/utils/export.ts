@@ -16,6 +16,7 @@ import { saveAs } from 'file-saver'
 import { apiClient } from '@/api/client'
 import type { Regulation, ExportResult } from '@/types'
 import { EXPORT_LIMITS } from '@/config/constants'
+import { escapeCSV } from '@/utils/csv'
 
 /**
  * 导出筛选参数（后端支持的格式）
@@ -97,29 +98,6 @@ async function downloadFromBackend(
       message: error instanceof Error ? error.message : '导出失败'
     }
   }
-}
-
-/**
- * CSV 转义函数（防止 CSV 注入和公式注入）
- * 用于 exportSelectedRegulations 的本地 CSV 生成
- *
- * 安全措施：
- * 1. 以 =, +, -, @, \t, \r 开头的字符串前添加单引号防止公式注入
- * 2. 包含逗号、双引号、换行符的字符串用双引号包裹
- */
-function escapeCSV(val: unknown): string {
-  let str = String(val ?? '')
-
-  // 防止 CSV 公式注入：Excel/Sheets 会将这些字符开头的内容解释为公式
-  if (/^[=+\-@\t\r]/.test(str)) {
-    str = "'" + str
-  }
-
-  // 处理需要引号包裹的特殊字符
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
 }
 
 /**

@@ -126,13 +126,6 @@ router = APIRouter(
 )
 
 
-def parse_comma_separated(value: Optional[str]) -> Optional[List[str]]:
-    """Parse comma-separated string into list"""
-    if not value:
-        return None
-    return [item.strip() for item in value.split(',') if item.strip()]
-
-
 def _normalize_array_param(values: Optional[List[str]]) -> Optional[List[str]]:
     """Normalize list parameters: treat [] as None (no filter)."""
     if not values:
@@ -235,8 +228,8 @@ def get_lncrna_chipseq_overlaps_from_mv(
     """
 
     # Parse comma-separated filters
-    mark_types_array = _normalize_array_param(parse_comma_separated(filters.mark_type))
-    cell_types_array = _normalize_array_param(parse_comma_separated(filters.cell_type))
+    mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
+    cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
 
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     sort_field_map = {
@@ -378,8 +371,8 @@ def get_lncrna_chipseq_overlaps_query(
     """
 
     # Parse comma-separated filters
-    mark_types_array = _normalize_array_param(parse_comma_separated(filters.mark_type))
-    cell_types_array = _normalize_array_param(parse_comma_separated(filters.cell_type))
+    mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
+    cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
 
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     # Only allowed values from the map can be used in the SQL query

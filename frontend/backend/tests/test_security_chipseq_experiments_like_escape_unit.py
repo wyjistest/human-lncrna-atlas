@@ -84,7 +84,10 @@ def client(captured_db: _CaptureSession) -> TestClient:
 def test_list_experiments_cell_type_uses_single_char_escape_clause(client: TestClient, captured_db: _CaptureSession):
     resp = client.get(
         "/api/v1/features/chipseq/experiments",
-        params={"cell_type": "K%562"},
+        # NOTE: `%` is a reserved character in URLs. The TestClient/requests stack may treat
+        # `%56` as an already-percent-encoded sequence (0x56 == 'V') unless we double-encode it.
+        # We want the server to receive the literal value `K%562` to verify LIKE escaping.
+        params={"cell_type": "K%25562"},
     )
     assert resp.status_code == 200
 
@@ -94,4 +97,3 @@ def test_list_experiments_cell_type_uses_single_char_escape_clause(client: TestC
 
     assert captured_db.last_params is not None
     assert captured_db.last_params.get("cell_type") == r"K\%562"
-

@@ -213,8 +213,9 @@ def get_gene_detail(
     """
     # 查询基因信息
     gene_info = (
-        db.query(Gene, CoreGene)
+        db.query(Gene, CoreGene, Species)
         .join(CoreGene, Gene.core_id == CoreGene.core_id)
+        .outerjoin(Species, Gene.species_id == Species.species_id)
         .filter(Gene.gene_id == gene_id)
         .first()
     )
@@ -222,7 +223,7 @@ def get_gene_detail(
     if not gene_info:
         raise HTTPException(status_code=404, detail="Gene not found")
 
-    gene, core_gene = gene_info
+    gene, core_gene, species = gene_info
 
     # 合并多个统计查询为单次查询（优化：减少数据库往返）
     # 使用 CASE WHEN 同时统计作为源和作为目标的调控关系，以及总BA
@@ -242,9 +243,6 @@ def get_gene_detail(
     as_source_count = stats.as_source_count or 0
     as_target_count = stats.as_target_count or 0
     total_ba = stats.total_ba or 0
-
-    # 获取物种信息（Species 已在文件顶部导入）
-    species = db.query(Species).filter(Species.species_id == gene.species_id).first()
 
     # 计算保守性标签：统计该 core_id 在哪些物种中存在
     species_presence = (

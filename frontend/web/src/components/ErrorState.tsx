@@ -73,10 +73,17 @@ export const ErrorState = ({
   }
 
   // 复制 error_id 到剪贴板
-  const handleCopyErrorId = () => {
+  const handleCopyErrorId = async () => {
     if (parsedError.errorId) {
-      navigator.clipboard.writeText(parsedError.errorId)
-      message.success('Error ID copied')
+      try {
+        if (!navigator.clipboard?.writeText) {
+          throw new Error('Clipboard API not available')
+        }
+        await navigator.clipboard.writeText(parsedError.errorId)
+        message.success(t('error.errorIdCopied', 'Error ID copied'))
+      } catch {
+        message.error(t('error.copyFailed', 'Copy failed'))
+      }
     }
   }
 
@@ -102,14 +109,15 @@ export const ErrorState = ({
           <Space orientation="vertical" size="small">
             <Text type="secondary">{getErrorMessage()}</Text>
             {parsedError.errorId && (
-              <Text
-                type="secondary"
-                style={{ fontSize: 11, cursor: 'pointer' }}
+              <Button
+                type="link"
+                size="small"
                 onClick={handleCopyErrorId}
-                title="Click to copy"
+                aria-label={t('error.copyErrorId', 'Copy Error ID')}
+                style={{ padding: 0, height: 'auto', fontSize: 11 }}
               >
                 Error ID: {parsedError.errorId} <CopyOutlined style={{ marginLeft: 4 }} />
-              </Text>
+              </Button>
             )}
             {import.meta.env.DEV && error instanceof Error && (
               <Text type="secondary" style={{ fontSize: 11 }}>

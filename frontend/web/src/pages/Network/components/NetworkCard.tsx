@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { ConservationLegend } from '@/components/ConservationLegend'
 import { parseConservationLabel, CONSERVATION_COLORS } from '@/types/conservation'
 import { networkApi } from '@/api/network'
+import { escapeCSV } from '@/utils/csv'
 import { getLayoutConfig } from '../utils/cytoscapeLayouts'
 import { GeneDetailDrawer } from './GeneDetailDrawer'
 import { ComparisonDrawer } from './ComparisonDrawer'
@@ -22,24 +23,6 @@ type NodeSingular = cytoscape.NodeSingular
 
 // cytoscape 调用包装（绕过 TypeScript 类型检查）
 const createCytoscape = cytoscape as unknown as (options: cytoscape.CytoscapeOptions) => Core
-
-/**
- * CSV 转义函数（防止 CSV 注入和公式注入）
- */
-const escapeCSV = (val: unknown): string => {
-  let str = String(val ?? '')
-
-  // 防止 CSV 公式注入
-  if (/^[=+\-@\t\r]/.test(str)) {
-    str = "'" + str
-  }
-
-  // 处理需要引号包裹的特殊字符
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
-}
 
 /**
  * NetworkCard Component

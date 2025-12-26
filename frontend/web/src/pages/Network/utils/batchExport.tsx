@@ -3,25 +3,8 @@ import { message, Modal, Checkbox, Space } from 'antd'
 import { saveAs } from 'file-saver'
 import type { Core } from 'cytoscape'
 import type { NetworkData, NetworkNode, NetworkEdge } from '@/types/network'
+import { escapeCSV } from '@/utils/csv'
 import { SPECIES_EN_NAMES } from '../types'
-
-/**
- * CSV escape function to prevent CSV injection
- */
-const escapeCSV = (val: unknown): string => {
-  let str = String(val ?? '')
-
-  // Prevent CSV formula injection
-  if (/^[=+\-@\t\r]/.test(str)) {
-    str = "'" + str
-  }
-
-  // Wrap special characters with quotes
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`
-  }
-  return str
-}
 
 /**
  * Generate CSV content from network data
