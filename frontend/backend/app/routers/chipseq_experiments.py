@@ -65,7 +65,8 @@ def list_experiments(
         # SECURITY/PERF: 统一 LIKE 转义，避免通配符绕过导致意外全表扫描
         cell_type_stripped = cell_type.strip()
         if cell_type_stripped:
-            where_clauses.append("e.cell_type ILIKE '%' || :cell_type || '%' ESCAPE '\\\\'")
+            # PostgreSQL: ESCAPE 子句必须是单字符；这里使用反斜杠作为转义字符
+            where_clauses.append("e.cell_type ILIKE '%' || :cell_type || '%' ESCAPE '\\'")
             params["cell_type"] = escape_like_pattern(cell_type_stripped)
 
     if source_database is not None:

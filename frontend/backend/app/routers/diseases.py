@@ -301,8 +301,14 @@ def get_disease_genes(
     if ontology_id:
         query = query.filter(TraitGeneAssociation.ontology_id == ontology_id)
 
-    # 总数
-    total = query.count()
+    # 总数（缓存 + 去掉 ORDER BY，避免慢 count）
+    count_cache_key = cache.make_key(
+        "diseases:trait-genes:count",
+        trait_id=trait_id,
+        gene_type=gene_type,
+        ontology_id=ontology_id,
+    )
+    total = cache.get_cached_count(query, count_cache_key)
 
     # 分页（添加 ORDER BY 确保分页稳定性）
     offset = compute_pagination_offset(page, page_size)
