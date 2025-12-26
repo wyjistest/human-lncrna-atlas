@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.31 |
+| 版本 | Phase 9.41 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-26 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -272,7 +272,17 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.28 | Codex 十三次审查修复: 内存缓存 invalidate() 修复 (delete_prefix) + /metrics 路径匹配兼容 root_path + batch_import_chipseq.py 硬编码移除 | 2025-12-24 |
 | 9.29 | Codex 十四次审查修复: init_db.sh fail-fast (pipefail + ON_ERROR_STOP) + start.sh 健康检查修正 (curl -fsS) + npm ci 统一 + IGV 计数查询优化 (func.count) + 日志权限收紧 + DB 索引迁移脚本 | 2025-12-25 |
 | 9.30 | Codex 十五次审查修复 (6 轮 47 项): XSS tooltip 转义 + CI 权限收紧 + SQL 参数化 + ETL 断点续传 + DB CHECK 约束 + 前端内存泄漏修复 + API 参数校验 + 请求取消机制 + 缓存 Prometheus 指标 + a11y 可访问性 + 全局 unhandledrejection + 依赖安全审计 | 2025-12-26 |
-| **9.31** | **Codex 十六至二十次审查修复 (5 轮 17 项): 测试分层默认跳过集成测试 + ILIKE 转义防护 + SQL 参数化重构 + URL 协议白名单 + BED 字段/track 清理 + API 参数长度限制 + 缓存优化 + /metrics 鉴权一致性 + 日志注入防护 + React Query 智能重试 + 除零保护 + RFC5987 Unicode 文件名 + IGV track 竞态修复 + RepeatMasker 导出安全 + a11y aria-label** | **2025-12-26** |
+| 9.31 | Codex 十六至二十次审查修复 (5 轮 17 项): 测试分层默认跳过集成测试 + ILIKE 转义防护 + SQL 参数化重构 + URL 协议白名单 + BED 字段/track 清理 + API 参数长度限制 + 缓存优化 + /metrics 鉴权一致性 + 日志注入防护 + React Query 智能重试 + 除零保护 + RFC5987 Unicode 文件名 + IGV track 竞态修复 + RepeatMasker 导出安全 + a11y aria-label | 2025-12-26 |
+| 9.32 | Codex 二十一次审查修复: BED/TSV 字段清洗 (sanitize_bed_field) + 日志注入防护 (sanitize_for_log) + track 属性转义 | 2025-12-26 |
+| 9.33 | Codex 二十二次审查修复: PostgreSQL ILIKE ESCAPE 单字符修复 + diseases COUNT(*) 缓存优化 | 2025-12-26 |
+| 9.34 | Codex 二十三次审查修复: escapeCSV 统一工具函数 + 死代码清理 (exporters.ts) + ErrorState a11y 按钮语义 | 2025-12-26 |
+| 9.35 | Codex 二十四次审查修复: Admin CSRF Origin 校验 + visualization 缓存空值修复 | 2025-12-26 |
+| 9.36 | Codex 二十五次审查修复: normalize_optional_str 参数规范化 + React HMR 内存泄漏修复 (unhandledrejection) | 2025-12-26 |
+| 9.37 | Codex 二十六次审查修复: SQL 子查询优化 (network/regulations) + search 参数长度限制 (max_length=100) | 2025-12-26 |
+| 9.38 | Codex 二十七次审查修复: X-Forwarded-For 解析加固 (parse_x_forwarded_for) + Overlap COUNT 缓存 | 2025-12-26 |
+| 9.39 | Codex 二十八次审查修复: 生产环境 RATE_LIMIT_BYPASS_PRIVATE fail-fast + ENABLE_API_DOCS 开关 + mark_pair 验证 | 2025-12-26 |
+| 9.40 | Codex 二十九次审查修复: RepeatMasker 区域 DoS 防护 (10Mb 限制) + include_total 可选参数优化 | 2025-12-26 |
+| **9.41** | **Codex 三十次审查修复: 多端点 DoS 防护 (marks/stats 1h 缓存) + 参数规范化 + max_length 约束** | **2025-12-26** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -290,6 +300,14 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_security_headers_middleware_unit.py` | - | HTTP 安全头中间件 (Phase 9.30) |
 | `test_etl_repeatmasker_resume_unit.py` | - | ETL 断点续传 (Phase 9.30) |
 | `test_etl_batch_manager_error_message_unit.py` | - | BatchManager 错误消息 (Phase 9.30) |
+| `test_security_igv_stream_generators_bed_sanitization_unit.py` | 5 | BED 字段清洗 + track 属性转义 (Phase 9.32) |
+| `test_security_chipseq_experiments_like_escape_unit.py` | 1 | ILIKE ESCAPE 单字符验证 (Phase 9.33) |
+| `test_security_admin_csrf_origin_unit.py` | 4 | Admin CSRF Origin 校验 (Phase 9.35) |
+| `test_validators_normalize_optional_str_unit.py` | 6 | 参数规范化函数 (Phase 9.36) |
+| `test_logging_middleware_client_ip.py` | 7 | X-Forwarded-For 解析 + 日志截断 (Phase 9.38) |
+| `test_security_chipseq_export_mark_pair_unit.py` | 8 | mark_pair 参数验证 (Phase 9.39) |
+| `test_security_repeatmasker_region_validation_unit.py` | 3 | RepeatMasker 区域 DoS 防护 (Phase 9.40) |
+| `test_security_repeatmasker_gene_region_limit_unit.py` | 2 | 基因区域大小限制 (Phase 9.40) |
 
 **运行测试**:
 ```bash
