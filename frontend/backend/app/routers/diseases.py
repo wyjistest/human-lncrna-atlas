@@ -23,7 +23,7 @@ from app.schemas.disease import (
 )
 from app.schemas.common import PaginatedResponse
 from app.core.cache import cache
-from app.core.validators import compute_pagination_offset
+from app.core.validators import compute_pagination_offset, normalize_optional_str
 
 router = APIRouter(prefix="/diseases", tags=["diseases"])
 
@@ -84,6 +84,8 @@ def list_diseases(
     """
     获取疾病-Ontology关联列表（支持分页和过滤）
     """
+    normalized_search = normalize_optional_str(search)
+
     # 查询 Trait-Ontology 唯一组合（包含统计字段，用于列表展示）
     query = (
         db.query(
@@ -134,8 +136,8 @@ def list_diseases(
     )
 
     # 应用过滤（转义特殊字符防止意外匹配）
-    if search:
-        escaped = escape_like_pattern(search)
+    if normalized_search:
+        escaped = escape_like_pattern(normalized_search)
         search_pattern = f"%{escaped}%"
         query = query.filter(
             (Trait.trait_name.ilike(search_pattern, escape='\\')) |
@@ -147,7 +149,7 @@ def list_diseases(
         )
 
     # 总数（缓存 + 去掉 ORDER BY，避免慢 count）
-    count_cache_key = cache.make_key("diseases:list:count", search=search)
+    count_cache_key = cache.make_key("diseases:list:count", search=normalized_search)
     total = cache.get_cached_count(count_query, count_cache_key)
 
     # 分页（添加 ORDER BY 确保分页稳定性）

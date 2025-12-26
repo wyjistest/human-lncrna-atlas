@@ -8,7 +8,7 @@ from math import ceil
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
-from app.core.validators import compute_pagination_offset
+from app.core.validators import compute_pagination_offset, normalize_optional_str
 from app.models import Gene, CoreGene, Species, Regulation, TraitGeneAssociation
 from app.schemas.gene import (
     GeneDetail,
@@ -62,7 +62,8 @@ def get_gene_options(
         GeneOptionsResponse: 包含基因选项列表
     """
     # 仅“全量 options”使用缓存：避免为每个 q/limit 组合生成大量缓存键
-    use_cache = (q is None and limit is None)
+    normalized_q = normalize_optional_str(q)
+    use_cache = (normalized_q is None and limit is None)
     if use_cache:
         cache_key = cache.make_options_key("genes", species_id=species_id, gene_type=gene_type)
         cached = cache.get(cache_key)
@@ -88,21 +89,19 @@ def get_gene_options(
         query = query.filter(Gene.species_id == species_id)
 
     # 可选搜索（用于 typeahead）
-    if q:
-        keyword = q.strip()
-        if keyword:
-            escaped = escape_like_pattern(keyword)
-            pattern = f"%{escaped}%"
-            query = query.filter(
-                or_(
-                    Gene.gene_name.ilike(pattern, escape="\\"),
-                    Gene.gene_ensembl_id.ilike(pattern, escape="\\"),
-                )
+    if normalized_q:
+        escaped = escape_like_pattern(normalized_q)
+        pattern = f"%{escaped}%"
+        query = query.filter(
+            or_(
+                Gene.gene_name.ilike(pattern, escape="\\"),
+                Gene.gene_ensembl_id.ilike(pattern, escape="\\"),
             )
+        )
 
     # 可选 limit：如果提供搜索但未指定 limit，给一个保守默认值避免大返回
     effective_limit = limit
-    if q and effective_limit is None:
+    if normalized_q and effective_limit is None:
         effective_limit = 200
 
     if effective_limit is not None:
@@ -171,6 +170,9 @@ def list_genes(
     """
     获取基因列表（支持分页和过滤）
     """
+    normalized_search = normalize_optional_str(search)
+    normalized_chromosome = normalize_optional_str(chromosome)
+
     # 构建基础查询
     query = (
         db.query(
@@ -211,10 +213,10 @@ def list_genes(
         query = query.filter(CoreGene.gene_type == gene_type)
     if species_id:
         query = query.filter(Gene.species_id == species_id)
-    if chromosome:
-        query = query.filter(Gene.chromosome == chromosome)
-    if search:
-        escaped = escape_like_pattern(search)
+    if normalized_chromosome:
+        query = query.filter(Gene.chromosome == normalized_chromosome)
+    if normalized_search:
+        escaped = escape_like_pattern(normalized_search)
         search_pattern = f"%{escaped}%"
         query = query.filter(
             or_(
@@ -241,8 +243,8 @@ def list_genes(
         "genes",
         gene_type=gene_type,
         species_id=species_id,
-        chromosome=chromosome,
-        search=search,
+        chromosome=normalized_chromosome,
+        search=normalized_search,
         has_regulation=has_regulation,
         min_regulation_count=min_regulation_count,
     )
@@ -257,10 +259,10 @@ def list_genes(
             count_query = count_query.filter(CoreGene.gene_type == gene_type)
         if species_id:
             count_query = count_query.filter(Gene.species_id == species_id)
-        if chromosome:
-            count_query = count_query.filter(Gene.chromosome == chromosome)
-        if search:
-            escaped = escape_like_pattern(search)
+        if normalized_chromosome:
+            count_query = count_query.filter(Gene.chromosome == normalized_chromosome)
+        if normalized_search:
+            escaped = escape_like_pattern(normalized_search)
             search_pattern = f"%{escaped}%"
             count_query = count_query.filter(
                 or_(
@@ -280,10 +282,10 @@ def list_genes(
             count_query = count_query.filter(CoreGene.gene_type == gene_type)
         if species_id:
             count_query = count_query.filter(Gene.species_id == species_id)
-        if chromosome:
-            count_query = count_query.filter(Gene.chromosome == chromosome)
-        if search:
-            escaped = escape_like_pattern(search)
+        if normalized_chromosome:
+            count_query = count_query.filter(Gene.chromosome == normalized_chromosome)
+        if normalized_search:
+            escaped = escape_like_pattern(normalized_search)
             search_pattern = f"%{escaped}%"
             count_query = count_query.filter(
                 or_(

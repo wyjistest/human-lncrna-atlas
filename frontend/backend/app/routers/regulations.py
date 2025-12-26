@@ -10,7 +10,12 @@ from math import ceil
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
-from app.core.validators import compute_pagination_offset, parse_comma_list, parse_int_list
+from app.core.validators import (
+    compute_pagination_offset,
+    normalize_optional_str,
+    parse_comma_list,
+    parse_int_list,
+)
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Regulation, Gene, Species, Sequence
 from app.schemas.regulation import (
@@ -275,6 +280,9 @@ def list_regulations(
     # 规范化列表参数，提升缓存命中率（去空格、排序）
     normalized_species_ids = _normalize_list_param(species_ids)
     normalized_chromosomes = _normalize_list_param(chromosomes)
+    normalized_lncrna_gene_name = normalize_optional_str(lncrna_gene_name)
+    normalized_target_gene_name = normalize_optional_str(target_gene_name)
+    normalized_chromosome = normalize_optional_str(chromosome)
 
     # 构建缓存键（使用 make_list_key 进行参数哈希，确保键长度稳定且一致）
     cache_key = cache.make_list_key(
@@ -283,11 +291,11 @@ def list_regulations(
         target_gene_id=target_gene_id,
         species_id=species_id,
         species_ids=normalized_species_ids,
-        lncrna_gene_name=lncrna_gene_name,
-        target_gene_name=target_gene_name,
+        lncrna_gene_name=normalized_lncrna_gene_name,
+        target_gene_name=normalized_target_gene_name,
         min_ba=min_ba,
         max_ba=max_ba,
-        chromosome=chromosome,
+        chromosome=normalized_chromosome,
         chromosomes=normalized_chromosomes,
         page=page,
         page_size=page_size,
@@ -305,8 +313,8 @@ def list_regulations(
 
     # 物种筛选：优先使用数组参数
     # Phase 9.15: 使用安全验证器防止 DoS 攻击（限制项数和长度）
-    if species_ids:
-        ids = parse_int_list(species_ids, param_name="species_ids")
+    if normalized_species_ids:
+        ids = parse_int_list(normalized_species_ids, param_name="species_ids")
         if ids:
             query = query.filter(Regulation.species_id.in_(ids))
     elif species_id:
@@ -318,13 +326,13 @@ def list_regulations(
         query = query.filter(Regulation.target_gene_id == target_gene_id)
 
     # lncRNA基因名模糊搜索（转义特殊字符防止意外匹配）
-    if lncrna_gene_name:
-        escaped = escape_like_pattern(lncrna_gene_name)
+    if normalized_lncrna_gene_name:
+        escaped = escape_like_pattern(normalized_lncrna_gene_name)
         query = query.filter(LncRNAGene.gene_name.ilike(f"%{escaped}%", escape='\\'))
 
     # 靶基因名模糊搜索（转义特殊字符防止意外匹配）
-    if target_gene_name:
-        escaped = escape_like_pattern(target_gene_name)
+    if normalized_target_gene_name:
+        escaped = escape_like_pattern(normalized_target_gene_name)
         query = query.filter(TargetGene.gene_name.ilike(f"%{escaped}%", escape='\\'))
 
     # BA范围筛选
@@ -335,11 +343,12 @@ def list_regulations(
 
     # 染色体筛选：优先使用数组参数
     # Phase 9.15: 使用安全验证器防止 DoS 攻击，并校验染色体格式
-    if chromosomes:
-        chrs = parse_comma_list(chromosomes, param_name="chromosomes")
+    chr_pattern = re.compile(r'^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$', re.IGNORECASE)
+
+    if normalized_chromosomes:
+        chrs = parse_comma_list(normalized_chromosomes, param_name="chromosomes")
         if chrs:
             # 校验染色体格式 (chr1-chr22, chrX, chrY, chrM)
-            chr_pattern = re.compile(r'^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$', re.IGNORECASE)
             invalid_chrs = [c for c in chrs if not chr_pattern.match(c)]
             if invalid_chrs:
                 raise HTTPException(
@@ -349,8 +358,16 @@ def list_regulations(
             # 规范化为小写并去重，确保与数据库一致且减少 IN 参数
             chrs_normalized = list({c.lower() for c in chrs})
             query = query.filter(Regulation.target_chromosome.in_(chrs_normalized))
-    elif chromosome:
-        query = query.filter(Regulation.target_chromosome == chromosome)
+    elif normalized_chromosome:
+        if not chr_pattern.match(normalized_chromosome):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid chromosome format: {normalized_chromosome!r}. "
+                    "Expected format: chr1, chr2, ..., chr22, chrX, chrY, chrM"
+                ),
+            )
+        query = query.filter(Regulation.target_chromosome == normalized_chromosome.lower())
 
     # 添加排序，确保分页结果稳定
     query = query.order_by(desc(Regulation.binding_affinity), Regulation.regulation_id)
@@ -362,11 +379,11 @@ def list_regulations(
         species_ids=normalized_species_ids,
         lncrna_gene_id=lncrna_gene_id,
         target_gene_id=target_gene_id,
-        lncrna_gene_name=lncrna_gene_name,
-        target_gene_name=target_gene_name,
+        lncrna_gene_name=normalized_lncrna_gene_name,
+        target_gene_name=normalized_target_gene_name,
         min_ba=min_ba,
         max_ba=max_ba,
-        chromosome=chromosome,
+        chromosome=normalized_chromosome,
         chromosomes=normalized_chromosomes,
     )
     total = cache.get_cached_count(query, count_cache_key)

@@ -10,6 +10,13 @@ import App from './App.tsx'
 import { parseError } from '@/utils/errorParser'
 import { throttledMessage } from '@/utils/throttledMessage'
 
+declare global {
+  interface Window {
+    __hlaUnhandledRejectionHandlerInstalled?: boolean
+    __hlaUnhandledRejectionHandler?: (event: PromiseRejectionEvent) => void
+  }
+}
+
 const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
@@ -58,10 +65,25 @@ const queryClient = new QueryClient({
 // Global unhandled promise rejection handler
 // Prevents silent failures when a Promise is rejected without a catch handler.
 // Note: React Query errors are handled by QueryCache/MutationCache above.
-window.addEventListener('unhandledrejection', (event) => {
-  const parsed = parseError(event.reason)
-  throttledMessage.showError(parsed)
-})
+if (!window.__hlaUnhandledRejectionHandlerInstalled) {
+  const handler = (event: PromiseRejectionEvent) => {
+    const parsed = parseError(event.reason)
+    throttledMessage.showError(parsed)
+  }
+
+  window.__hlaUnhandledRejectionHandler = handler
+  window.__hlaUnhandledRejectionHandlerInstalled = true
+  window.addEventListener('unhandledrejection', handler)
+
+  // Vite HMR: avoid accumulating global listeners across reloads (memory leak / duplicate toasts).
+  if (import.meta.hot) {
+    import.meta.hot.dispose(() => {
+      window.removeEventListener('unhandledrejection', handler)
+      window.__hlaUnhandledRejectionHandlerInstalled = false
+      window.__hlaUnhandledRejectionHandler = undefined
+    })
+  }
+}
 
 /**
  * MSW 启动逻辑（仅开发环境）

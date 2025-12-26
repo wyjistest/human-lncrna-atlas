@@ -85,6 +85,23 @@ def compute_pagination_offset(
     return offset
 
 
+def normalize_optional_str(value: Optional[str]) -> Optional[str]:
+    """
+    Normalize optional string inputs.
+
+    - Strips leading/trailing whitespace
+    - Converts blank strings to None
+
+    Motivation:
+    - Improves cache hit rate by avoiding distinct cache keys for semantically empty inputs
+    - Avoids accidental broad LIKE queries caused by whitespace-only parameters
+    """
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
 def parse_comma_list(
     value: Optional[str],
     *,
