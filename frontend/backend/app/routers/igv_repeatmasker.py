@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 
 from app.core.database import get_db
+from app.core.validators import normalize_optional_str
 from app.core.utils import sanitize_for_log
 from app.routers.chipseq_rate_limit import rate_limit
 from app.models import Species, GenomicFeature
@@ -33,7 +34,7 @@ router = APIRouter()
 def get_repeatmasker_bed(
     request: Request,
     species_id: int,
-    chr: Optional[str] = Query(None, description="Chromosome filter, e.g., chr1"),
+    chr: Optional[str] = Query(None, max_length=64, description="Chromosome filter, e.g., chr1"),
     start: Optional[int] = Query(None, ge=0, description="Start position (0-based)"),
     end: Optional[int] = Query(None, ge=0, description="End position"),
     db: Session = Depends(get_db),
@@ -70,8 +71,10 @@ def get_repeatmasker_bed(
             detail="RepeatMasker track not found. Please ensure the database schema is initialized."
         )
 
+    normalized_chr = normalize_optional_str(chr)
+
     # Parameter validation
-    if (start is not None or end is not None) and chr is None:
+    if (start is not None or end is not None) and normalized_chr is None:
         raise HTTPException(
             status_code=400,
             detail="chr parameter is required when using start/end filters"
@@ -86,7 +89,7 @@ def get_repeatmasker_bed(
     logger.info(
         "RepeatMasker BED export: species=%s, chr=%s, start=%s, end=%s",
         species_id,
-        sanitize_for_log(chr),
+        sanitize_for_log(normalized_chr),
         start,
         end,
     )
@@ -95,15 +98,15 @@ def get_repeatmasker_bed(
     bed_stream = generate_repeatmasker_bed_stream(
         db=db,
         species_id=species_id,
-        chr_filter=chr,
+        chr_filter=normalized_chr,
         start_filter=start,
         end_filter=end,
     )
 
     # Build filename
     filename = f"repeatmasker_species{species_id}"
-    if chr:
-        filename += f"_{chr}"
+    if normalized_chr:
+        filename += f"_{normalized_chr}"
         if start is not None and end is not None:
             filename += f"_{start}-{end}"
     filename += ".bed"
@@ -124,7 +127,7 @@ def get_repeatmasker_bed(
 def get_repeatmasker_count(
     request: Request,
     species_id: int,
-    chr: Optional[str] = Query(None, description="Chromosome filter"),
+    chr: Optional[str] = Query(None, max_length=64, description="Chromosome filter"),
     start: Optional[int] = Query(None, ge=0, description="Start position"),
     end: Optional[int] = Query(None, ge=0, description="End position"),
     db: Session = Depends(get_db),
@@ -160,6 +163,15 @@ def get_repeatmasker_count(
             }
         }
 
+    normalized_chr = normalize_optional_str(chr)
+    if (start is not None or end is not None) and normalized_chr is None:
+        raise HTTPException(
+            status_code=400,
+            detail="chr parameter is required when using start/end filters",
+        )
+    if start is not None and end is not None and start >= end:
+        raise HTTPException(status_code=400, detail="start must be less than end")
+
     # Build query
     # 仅需计数：使用 func.count 避免 Query.count() 生成子查询带来的额外开销
     query = (
@@ -169,8 +181,8 @@ def get_repeatmasker_count(
     )
 
     # Region filter
-    if chr:
-        query = query.filter(GenomicFeature.chromosome == chr)
+    if normalized_chr:
+        query = query.filter(GenomicFeature.chromosome == normalized_chr)
 
         if start is not None and end is not None:
             query = query.filter(
@@ -187,7 +199,7 @@ def get_repeatmasker_count(
         "data": {
             "species_id": species_id,
             "species_name": species.display_name,
-            "chr": chr,
+            "chr": normalized_chr,
             "start": start,
             "end": end,
             "count": count,

@@ -26,11 +26,11 @@ router = APIRouter()
 def get_regulations_bed(
     request: Request,
     species_id: int,
-    chr: Optional[str] = Query(None, description="染色体过滤，如 chr1"),
+    chr: Optional[str] = Query(None, max_length=64, description="染色体过滤，如 chr1"),
     # IGV.js webservice 轨道会传递浮点坐标（像素换算），这里兼容 float 并向下取整
     start: Optional[float] = Query(None, ge=0, description="起始位置 (0-based)"),
     end: Optional[float] = Query(None, ge=0, description="结束位置"),
-    lncrna: Optional[str] = Query(None, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
+    lncrna: Optional[str] = Query(None, max_length=256, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
     db: Session = Depends(get_db),
 ):
     """
@@ -120,11 +120,11 @@ def get_regulations_bed(
 def get_interactions_bedpe(
     request: Request,
     species_id: int,
-    chr: Optional[str] = Query(None, description="染色体过滤，如 chr1"),
+    chr: Optional[str] = Query(None, max_length=64, description="染色体过滤，如 chr1"),
     # IGV.js webservice 轨道会传递浮点坐标（像素换算），这里兼容 float 并向下取整
     start: Optional[float] = Query(None, ge=0, description="起始位置 (0-based)"),
     end: Optional[float] = Query(None, ge=0, description="结束位置"),
-    lncrna: Optional[str] = Query(None, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
+    lncrna: Optional[str] = Query(None, max_length=256, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
     db: Session = Depends(get_db),
 ):
     """

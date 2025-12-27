@@ -256,16 +256,40 @@ export const chipseqQueryKeys = {
     [...chipseqQueryKeys.gene(geneId), 'summary', markType] as const,
 
   /** Comparison data for multiple marks */
-  compare: (geneId: number, marks: MarkType[]) =>
-    [...chipseqQueryKeys.gene(geneId), 'compare', marks.sort().join(',')] as const,
+  compare: (geneId: number, marks: MarkType[], flanking?: number) =>
+    [
+      ...chipseqQueryKeys.gene(geneId),
+      'compare',
+      [...marks].sort().join(','),
+      flanking ?? null,
+    ] as const,
 
   /** Cell line comparison data for a single mark across multiple cell types */
-  compareCellLines: (geneId: number, markType: MarkType, cellTypes: string[]) =>
-    [...chipseqQueryKeys.gene(geneId), 'compare-cell-lines', markType, cellTypes.sort().join(',')] as const,
+  compareCellLines: (geneId: number, markType: MarkType, cellTypes: string[], flanking?: number) =>
+    [
+      ...chipseqQueryKeys.gene(geneId),
+      'compare-cell-lines',
+      markType,
+      [...cellTypes].sort().join(','),
+      flanking ?? null,
+    ] as const,
 
   /** Heatmap matrix data for multiple marks and cell types */
-  heatmapMatrix: (geneId: number, marks: MarkType[], cellTypes: string[], metric: HeatmapMetricType) =>
-    [...chipseqQueryKeys.gene(geneId), 'heatmap-matrix', marks.sort().join(','), cellTypes.sort().join(','), metric] as const,
+  heatmapMatrix: (
+    geneId: number,
+    marks: MarkType[],
+    cellTypes: string[],
+    metric: HeatmapMetricType,
+    flanking?: number
+  ) =>
+    [
+      ...chipseqQueryKeys.gene(geneId),
+      'heatmap-matrix',
+      [...marks].sort().join(','),
+      [...cellTypes].sort().join(','),
+      metric,
+      flanking ?? null,
+    ] as const,
 
   /** All experiments */
   experiments: () => [...chipseqQueryKeys.all, 'experiments'] as const,

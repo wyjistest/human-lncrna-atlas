@@ -188,7 +188,7 @@ export function useChIPSeqCompare(
   }
 ) {
   return useQuery({
-    queryKey: chipseqQueryKeys.compare(geneId, marks),
+    queryKey: chipseqQueryKeys.compare(geneId, marks, flanking),
     queryFn: async ({ signal }): Promise<ChIPSeqCompareResponse> => {
       const response = await chipseqApi.compareMarks(geneId, marks, flanking, signal)
       const rawData: RawChIPSeqCompareResponse = response.data
@@ -448,7 +448,7 @@ export function useChIPSeqCellLineCompare(
   options?: { enabled?: boolean }
 ) {
   return useQuery({
-    queryKey: chipseqQueryKeys.compareCellLines(geneId, markType || 'H3K27me3', cellTypes),
+    queryKey: chipseqQueryKeys.compareCellLines(geneId, markType || 'H3K27me3', cellTypes, flanking),
     queryFn: async ({ signal }): Promise<CellLineComparisonResponse> => {
       if (!markType) throw new Error('Mark type is required')
       const response = await chipseqApi.compareCellLines(geneId, markType, cellTypes, flanking, signal)
@@ -489,7 +489,7 @@ export function useChIPSeqHeatmapMatrix(
   options?: { enabled?: boolean }
 ) {
   return useQuery({
-    queryKey: chipseqQueryKeys.heatmapMatrix(geneId, marks, cellTypes, metric),
+    queryKey: chipseqQueryKeys.heatmapMatrix(geneId, marks, cellTypes, metric, flanking),
     queryFn: async ({ signal }): Promise<HeatmapMatrixResponse> => {
       const response = await chipseqApi.getHeatmapMatrix(geneId, marks, cellTypes, metric, flanking, signal)
       return response.data

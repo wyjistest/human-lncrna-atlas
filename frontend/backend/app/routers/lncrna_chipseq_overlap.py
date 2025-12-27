@@ -22,8 +22,8 @@ Phase 3.2 Enhancements (2025-12-09):
 """
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy import bindparam, column, func, literal, select, table
+from sqlalchemy.orm import Session, aliased
 from typing import Optional, List, Tuple, Literal, Generator
 import logging
 import csv
@@ -37,6 +37,8 @@ from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Threa
 from app.utils.bed import sanitize_bed_field
 from app.utils.http_headers import content_disposition_attachment
 from app.utils.streaming_export import sanitize_csv_value
+
+from app.models import Regulation, Gene, ChIPSeqExperiment, EpigeneticMarkType
 
 # ============================================================================
 # Rate Limiting Setup (reuse shared module from chipseq_rate_limit)
@@ -144,69 +146,67 @@ def _build_overlap_where_and_params(
     min_peak_strength: Optional[float],
     max_qvalue: Optional[float],
     min_overlap_length: Optional[int],
-    lncrna_gene_col: str,
-    target_gene_col: str,
-    chromosome_col: str,
-    mark_name_col: str,
-    cell_type_col: str,
-    binding_affinity_col: str,
-    fold_enrichment_col: str,
-    qvalue_col: str,
-    overlap_length_expr: str,
-) -> Tuple[str, dict]:
+    lncrna_gene_col,
+    target_gene_col,
+    chromosome_col,
+    mark_name_col,
+    cell_type_col,
+    binding_affinity_col,
+    fold_enrichment_col,
+    qvalue_col,
+    overlap_length_expr,
+) -> Tuple[List, dict]:
     """
-    Build dynamic WHERE clause to avoid the "(:param IS NULL OR ...)" anti-pattern.
+    Build dynamic WHERE conditions to avoid the "(:param IS NULL OR ...)" anti-pattern.
 
     Rationale:
     - OR-NULL predicates often prevent PostgreSQL from choosing good index plans for large tables/MVs
       when using prepared statements.
-    - Dynamic SQL here is safe because:
-      1) Only fixed, whitelisted column/expression strings are interpolated
-      2) All user values are passed as bound parameters
+    - Dynamic predicate assembly here is safe because all user values are passed as bound parameters
+      and column/expression objects are defined in code (no user-controlled SQL fragments).
     """
-    conditions: List[str] = []
+    conditions: List = []
     params: dict = {}
 
     if lncrna_gene_id is not None:
-        conditions.append(f"{lncrna_gene_col} = :lncrna_gene_id")
+        conditions.append(lncrna_gene_col == bindparam("lncrna_gene_id"))
         params["lncrna_gene_id"] = lncrna_gene_id
 
     if target_gene_id is not None:
-        conditions.append(f"{target_gene_col} = :target_gene_id")
+        conditions.append(target_gene_col == bindparam("target_gene_id"))
         params["target_gene_id"] = target_gene_id
 
     if chromosome is not None:
-        conditions.append(f"{chromosome_col} = :chromosome")
+        conditions.append(chromosome_col == bindparam("chromosome"))
         params["chromosome"] = chromosome
 
     mark_types = _normalize_array_param(mark_types)
     if mark_types is not None:
-        conditions.append(f"{mark_name_col} = ANY(:mark_types)")
+        conditions.append(mark_name_col.in_(bindparam("mark_types", expanding=True)))
         params["mark_types"] = mark_types
 
     cell_types = _normalize_array_param(cell_types)
     if cell_types is not None:
-        conditions.append(f"{cell_type_col} = ANY(:cell_types)")
+        conditions.append(cell_type_col.in_(bindparam("cell_types", expanding=True)))
         params["cell_types"] = cell_types
 
     if min_binding_affinity is not None:
-        conditions.append(f"{binding_affinity_col} >= :min_binding_affinity")
+        conditions.append(binding_affinity_col >= bindparam("min_binding_affinity"))
         params["min_binding_affinity"] = min_binding_affinity
 
     if min_peak_strength is not None:
-        conditions.append(f"{fold_enrichment_col} >= :min_peak_strength")
+        conditions.append(fold_enrichment_col >= bindparam("min_peak_strength"))
         params["min_peak_strength"] = min_peak_strength
 
     if max_qvalue is not None:
-        conditions.append(f"({qvalue_col} IS NULL OR {qvalue_col} <= :max_qvalue)")
+        conditions.append((qvalue_col.is_(None)) | (qvalue_col <= bindparam("max_qvalue")))
         params["max_qvalue"] = max_qvalue
 
     if min_overlap_length is not None:
-        conditions.append(f"{overlap_length_expr} >= :min_overlap_length")
+        conditions.append(overlap_length_expr >= bindparam("min_overlap_length"))
         params["min_overlap_length"] = min_overlap_length
 
-    where_sql = " AND ".join(conditions) if conditions else "TRUE"
-    return where_sql, params
+    return conditions, params
 
 
 def get_lncrna_chipseq_overlaps_from_mv(
@@ -234,17 +234,41 @@ def get_lncrna_chipseq_overlaps_from_mv(
     cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
     cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
+    mv = table(
+        MV_LNCRNA_CHIPSEQ_OVERLAPS,
+        column("overlap_id"),
+        column("regulation_id"),
+        column("lncrna_gene_id"),
+        column("lncrna_name"),
+        column("target_gene_id"),
+        column("target_gene_name"),
+        column("mark_name"),
+        column("mark_category"),
+        column("cell_type"),
+        column("chromosome"),
+        column("lncrna_binding_start"),
+        column("lncrna_binding_end"),
+        column("peak_start"),
+        column("peak_end"),
+        column("overlap_start"),
+        column("overlap_end"),
+        column("overlap_length"),
+        column("binding_affinity"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     sort_field_map = {
-        OverlapSortField.binding_affinity: "binding_affinity",
-        OverlapSortField.overlap_length: "overlap_length",
-        OverlapSortField.peak_fold_enrichment: "fold_enrichment",
-        OverlapSortField.peak_qvalue: "qvalue",
+        OverlapSortField.binding_affinity: mv.c.binding_affinity,
+        OverlapSortField.overlap_length: mv.c.overlap_length,
+        OverlapSortField.peak_fold_enrichment: mv.c.fold_enrichment,
+        OverlapSortField.peak_qvalue: mv.c.qvalue,
     }
     sort_field = sort_field_map[filters.sort_by]
-    sort_direction = "DESC" if filters.sort_order == OverlapSortOrder.desc else "ASC"
+    sort_expr = sort_field.desc() if filters.sort_order == OverlapSortOrder.desc else sort_field.asc()
 
-    where_sql, params = _build_overlap_where_and_params(
+    where_conditions, params = _build_overlap_where_and_params(
         lncrna_gene_id=filters.lncrna_gene_id,
         target_gene_id=filters.target_gene_id,
         chromosome=filters.chromosome,
@@ -254,56 +278,46 @@ def get_lncrna_chipseq_overlaps_from_mv(
         min_peak_strength=filters.min_peak_strength,
         max_qvalue=filters.max_qvalue,
         min_overlap_length=filters.min_overlap_length,
-        lncrna_gene_col="lncrna_gene_id",
-        target_gene_col="target_gene_id",
-        chromosome_col="chromosome",
-        mark_name_col="mark_name",
-        cell_type_col="cell_type",
-        binding_affinity_col="binding_affinity",
-        fold_enrichment_col="fold_enrichment",
-        qvalue_col="qvalue",
-        overlap_length_expr="overlap_length",
+        lncrna_gene_col=mv.c.lncrna_gene_id,
+        target_gene_col=mv.c.target_gene_id,
+        chromosome_col=mv.c.chromosome,
+        mark_name_col=mv.c.mark_name,
+        cell_type_col=mv.c.cell_type,
+        binding_affinity_col=mv.c.binding_affinity,
+        fold_enrichment_col=mv.c.fold_enrichment,
+        qvalue_col=mv.c.qvalue,
+        overlap_length_expr=mv.c.overlap_length,
     )
 
-    # Count query using materialized view
-    count_sql = text(
-        f"""
-        SELECT COUNT(*) AS total
-        FROM mv_lncrna_chipseq_overlaps
-        WHERE {where_sql}
-        """  # noqa: S608
-    )
+    count_stmt = select(func.count().label("total")).select_from(mv)
+    data_stmt = select(
+        mv.c.overlap_id,
+        mv.c.regulation_id,
+        mv.c.lncrna_gene_id,
+        mv.c.lncrna_name,
+        mv.c.target_gene_id,
+        mv.c.target_gene_name,
+        mv.c.mark_name.label("mark_type"),
+        mv.c.mark_category,
+        mv.c.cell_type,
+        mv.c.chromosome,
+        mv.c.lncrna_binding_start,
+        mv.c.lncrna_binding_end,
+        mv.c.peak_start,
+        mv.c.peak_end,
+        mv.c.overlap_start,
+        mv.c.overlap_end,
+        mv.c.overlap_length,
+        mv.c.binding_affinity,
+        mv.c.fold_enrichment.label("peak_fold_enrichment"),
+        mv.c.qvalue.label("peak_qvalue"),
+    ).select_from(mv)
 
-    # Main data query using materialized view
-    data_sql = text(
-        f"""
-        SELECT
-            overlap_id,
-            regulation_id,
-            lncrna_gene_id,
-            lncrna_name,
-            target_gene_id,
-            target_gene_name,
-            mark_name AS mark_type,
-            mark_category,
-            cell_type,
-            chromosome,
-            lncrna_binding_start,
-            lncrna_binding_end,
-            peak_start,
-            peak_end,
-            overlap_start,
-            overlap_end,
-            overlap_length,
-            binding_affinity,
-            fold_enrichment AS peak_fold_enrichment,
-            qvalue AS peak_qvalue
-        FROM mv_lncrna_chipseq_overlaps
-        WHERE {where_sql}
-        ORDER BY {sort_field} {sort_direction}
-        LIMIT :page_size OFFSET :offset
-        """  # noqa: S608
-    )
+    if where_conditions:
+        count_stmt = count_stmt.where(*where_conditions)
+        data_stmt = data_stmt.where(*where_conditions)
+
+    data_stmt = data_stmt.order_by(sort_expr).limit(bindparam("page_size")).offset(bindparam("offset"))
 
     # Cache COUNT(*) separately (hot path for pagination).
     count_cache_key = cache.make_key(
@@ -336,12 +350,12 @@ def get_lncrna_chipseq_overlaps_from_mv(
         if cached_total is not None:
             total = int(cached_total)
         else:
-            count_result = db.execute(count_sql, params).fetchone()
+            count_result = db.execute(count_stmt, params).fetchone()
             total = int(count_result[0] if count_result else 0)
             cache.set(count_cache_key, total, cache.TTL_COUNT)
 
         # Get data
-        results = db.execute(data_sql, params).fetchall()
+        results = db.execute(data_stmt, params).fetchall()
 
         # Convert to dictionary list
         items = []
@@ -400,18 +414,35 @@ def get_lncrna_chipseq_overlaps_query(
     cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
     cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
+    p = table(
+        "chipseq_peaks_human",
+        column("peak_id"),
+        column("species_id"),
+        column("chromosome"),
+        column("peak_start"),
+        column("peak_end"),
+        column("experiment_id"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+    overlap_start_base = func.greatest(Regulation.best_peak_start, p.c.peak_start)
+    overlap_end_base = func.least(Regulation.best_peak_end, p.c.peak_end)
+    overlap_start_expr = overlap_start_base.label("overlap_start")
+    overlap_end_expr = overlap_end_base.label("overlap_end")
+    overlap_length_expr = (overlap_end_base - overlap_start_base).label("overlap_length")
+
     # Build sort clause - SECURITY: Uses whitelist to prevent SQL injection
     # Only allowed values from the map can be used in the SQL query
     sort_field_map = {
-        OverlapSortField.binding_affinity: "r.binding_affinity",
-        OverlapSortField.overlap_length: "overlap_length",
-        OverlapSortField.peak_fold_enrichment: "p.fold_enrichment",
-        OverlapSortField.peak_qvalue: "p.qvalue",
+        OverlapSortField.binding_affinity: Regulation.binding_affinity,
+        OverlapSortField.overlap_length: overlap_length_expr,
+        OverlapSortField.peak_fold_enrichment: p.c.fold_enrichment,
+        OverlapSortField.peak_qvalue: p.c.qvalue,
     }
     sort_field = sort_field_map[filters.sort_by]
-    sort_direction = "DESC" if filters.sort_order == OverlapSortOrder.desc else "ASC"
+    sort_expr = sort_field.desc() if filters.sort_order == OverlapSortOrder.desc else sort_field.asc()
 
-    filter_where_sql, params = _build_overlap_where_and_params(
+    filter_conditions, params = _build_overlap_where_and_params(
         lncrna_gene_id=filters.lncrna_gene_id,
         target_gene_id=filters.target_gene_id,
         chromosome=filters.chromosome,
@@ -421,75 +452,69 @@ def get_lncrna_chipseq_overlaps_query(
         min_peak_strength=filters.min_peak_strength,
         max_qvalue=filters.max_qvalue,
         min_overlap_length=filters.min_overlap_length,
-        lncrna_gene_col="r.lncrna_gene_id",
-        target_gene_col="r.target_gene_id",
-        chromosome_col="r.best_peak_chr",
-        mark_name_col="m.mark_name",
-        cell_type_col="e.cell_type",
-        binding_affinity_col="r.binding_affinity",
-        fold_enrichment_col="p.fold_enrichment",
-        qvalue_col="p.qvalue",
-        overlap_length_expr="(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start))",
+        lncrna_gene_col=Regulation.lncrna_gene_id,
+        target_gene_col=Regulation.target_gene_id,
+        chromosome_col=Regulation.best_peak_chr,
+        mark_name_col=EpigeneticMarkType.mark_name,
+        cell_type_col=ChIPSeqExperiment.cell_type,
+        binding_affinity_col=Regulation.binding_affinity,
+        fold_enrichment_col=p.c.fold_enrichment,
+        qvalue_col=p.c.qvalue,
+        overlap_length_expr=overlap_length_expr,
     )
 
-    where_sql = "r.species_id = 1 AND e.is_active = TRUE"
-    if filter_where_sql != "TRUE":
-        where_sql = f"{where_sql} AND {filter_where_sql}"
-
-    # Count query
-    count_sql = text(
-        f"""
-        SELECT COUNT(*) AS total
-        FROM regulations r
-        JOIN chipseq_peaks_human p ON
-            r.species_id = p.species_id
-            AND r.best_peak_chr = p.chromosome
-            AND r.best_peak_start < p.peak_end
-            AND r.best_peak_end > p.peak_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        """  # noqa: S608
+    where_conditions = [Regulation.species_id == 1, ChIPSeqExperiment.is_active.is_(True), *filter_conditions]
+    join_on_peak = (
+        (Regulation.species_id == p.c.species_id)
+        & (Regulation.best_peak_chr == p.c.chromosome)
+        & (Regulation.best_peak_start < p.c.peak_end)
+        & (Regulation.best_peak_end > p.c.peak_start)
     )
 
-    # Main data query
-    data_sql = text(
-        f"""
-        SELECT
-            CONCAT('reg_', r.regulation_id, '_peak_', p.peak_id) AS overlap_id,
-            r.regulation_id,
-            r.lncrna_gene_id,
-            lnc.gene_name AS lncrna_name,
-            r.target_gene_id,
-            tgt.gene_name AS target_gene_name,
-            m.mark_name AS mark_type,
-            m.mark_category,
-            e.cell_type,
-            r.best_peak_chr AS chromosome,
-            r.best_peak_start AS lncrna_binding_start,
-            r.best_peak_end AS lncrna_binding_end,
-            p.peak_start,
-            p.peak_end,
-            GREATEST(r.best_peak_start, p.peak_start) AS overlap_start,
-            LEAST(r.best_peak_end, p.peak_end) AS overlap_end,
-            LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start) AS overlap_length,
-            r.binding_affinity,
-            p.fold_enrichment AS peak_fold_enrichment,
-            p.qvalue AS peak_qvalue
-        FROM regulations r
-        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
-        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
-        JOIN chipseq_peaks_human p ON
-            r.species_id = p.species_id
-            AND r.best_peak_chr = p.chromosome
-            AND r.best_peak_start < p.peak_end
-            AND r.best_peak_end > p.peak_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        ORDER BY {sort_field} {sort_direction}
-        LIMIT :page_size OFFSET :offset
-        """  # noqa: S608
+    count_stmt = (
+        select(func.count().label("total"))
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+    )
+
+    lnc = aliased(Gene)
+    tgt = aliased(Gene)
+    data_stmt = (
+        select(
+            func.concat(literal("reg_"), Regulation.regulation_id, literal("_peak_"), p.c.peak_id).label("overlap_id"),
+            Regulation.regulation_id,
+            Regulation.lncrna_gene_id,
+            lnc.gene_name.label("lncrna_name"),
+            Regulation.target_gene_id,
+            tgt.gene_name.label("target_gene_name"),
+            EpigeneticMarkType.mark_name.label("mark_type"),
+            EpigeneticMarkType.mark_category,
+            ChIPSeqExperiment.cell_type,
+            Regulation.best_peak_chr.label("chromosome"),
+            Regulation.best_peak_start.label("lncrna_binding_start"),
+            Regulation.best_peak_end.label("lncrna_binding_end"),
+            p.c.peak_start,
+            p.c.peak_end,
+            overlap_start_expr,
+            overlap_end_expr,
+            overlap_length_expr,
+            Regulation.binding_affinity,
+            p.c.fold_enrichment.label("peak_fold_enrichment"),
+            p.c.qvalue.label("peak_qvalue"),
+        )
+        .select_from(Regulation)
+        .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
+        .join(tgt, Regulation.target_gene_id == tgt.gene_id)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .order_by(sort_expr)
+        .limit(bindparam("page_size"))
+        .offset(bindparam("offset"))
     )
 
     # Cache COUNT(*) separately (hot path for pagination).
@@ -523,12 +548,12 @@ def get_lncrna_chipseq_overlaps_query(
         if cached_total is not None:
             total = int(cached_total)
         else:
-            count_result = db.execute(count_sql, params).fetchone()
+            count_result = db.execute(count_stmt, params).fetchone()
             total = int(count_result[0] if count_result else 0)
             cache.set(count_cache_key, total, cache.TTL_COUNT)
 
         # Get data
-        results = db.execute(data_sql, params).fetchall()
+        results = db.execute(data_stmt, params).fetchall()
 
         # Convert to dictionary list
         items = []
@@ -568,7 +593,7 @@ def get_lncrna_chipseq_overlaps(
     target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
     mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated (e.g., 'H3K27me3,H3K4me3')"),
     cell_type: Optional[str] = Query(None, description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878')"),
-    chromosome: Optional[str] = Query(None, description="Filter by chromosome (e.g., 'chr1')"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome (e.g., 'chr1')"),
     min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity score"),
     min_peak_strength: Optional[float] = Query(None, ge=0, description="Minimum peak fold enrichment"),
@@ -726,7 +751,7 @@ def get_overlap_statistics(
         max_length=MAX_FIELD_LENGTH,
         description="Filter by cell type(s), comma-separated (max 20 items)"
     ),
-    chromosome: Optional[str] = Query(None, description="Filter by chromosome"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity"),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value"),
     db: Session = Depends(get_db)
@@ -773,7 +798,22 @@ def get_overlap_statistics(
     mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
     cell_types_array = parse_comma_list(cell_type, param_name="cell_type")
 
-    filter_where_sql, params = _build_overlap_where_and_params(
+    p = table(
+        "chipseq_peaks_human",
+        column("peak_id"),
+        column("species_id"),
+        column("chromosome"),
+        column("peak_start"),
+        column("peak_end"),
+        column("experiment_id"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+    overlap_start_base = func.greatest(Regulation.best_peak_start, p.c.peak_start)
+    overlap_end_base = func.least(Regulation.best_peak_end, p.c.peak_end)
+    overlap_length_base = overlap_end_base - overlap_start_base
+
+    filter_conditions, params = _build_overlap_where_and_params(
         lncrna_gene_id=lncrna_gene_id,
         target_gene_id=target_gene_id,
         chromosome=effective_chromosome,
@@ -783,89 +823,74 @@ def get_overlap_statistics(
         min_peak_strength=None,
         max_qvalue=max_qvalue,
         min_overlap_length=None,
-        lncrna_gene_col="r.lncrna_gene_id",
-        target_gene_col="r.target_gene_id",
-        chromosome_col="r.best_peak_chr",
-        mark_name_col="m.mark_name",
-        cell_type_col="e.cell_type",
-        binding_affinity_col="r.binding_affinity",
-        fold_enrichment_col="p.fold_enrichment",
-        qvalue_col="p.qvalue",
-        overlap_length_expr="(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start))",
+        lncrna_gene_col=Regulation.lncrna_gene_id,
+        target_gene_col=Regulation.target_gene_id,
+        chromosome_col=Regulation.best_peak_chr,
+        mark_name_col=EpigeneticMarkType.mark_name,
+        cell_type_col=ChIPSeqExperiment.cell_type,
+        binding_affinity_col=Regulation.binding_affinity,
+        fold_enrichment_col=p.c.fold_enrichment,
+        qvalue_col=p.c.qvalue,
+        overlap_length_expr=overlap_length_base,
+    )
+    where_conditions = [Regulation.species_id == 1, ChIPSeqExperiment.is_active.is_(True), *filter_conditions]
+    join_on_peak = (
+        (Regulation.species_id == p.c.species_id)
+        & (Regulation.best_peak_chr == p.c.chromosome)
+        & (Regulation.best_peak_start < p.c.peak_end)
+        & (Regulation.best_peak_end > p.c.peak_start)
     )
 
-    where_sql = "r.species_id = 1 AND e.is_active = TRUE"
-    if filter_where_sql != "TRUE":
-        where_sql = f"{where_sql} AND {filter_where_sql}"
-
-    # Main statistics query
-    stats_sql = text(
-        f"""
-        SELECT
-            COUNT(*) AS total_overlaps,
-            COUNT(DISTINCT r.lncrna_gene_id) AS unique_lncrnas,
-            COUNT(DISTINCT r.target_gene_id) AS unique_target_genes,
-            COUNT(DISTINCT m.mark_name) AS unique_marks,
-            COUNT(DISTINCT e.cell_type) AS unique_cell_types,
-            AVG(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start)) AS avg_overlap_length,
-            AVG(r.binding_affinity) AS avg_binding_affinity,
-            AVG(p.fold_enrichment) AS avg_peak_strength
-        FROM regulations r
-        JOIN chipseq_peaks_human p ON
-            r.species_id = p.species_id
-            AND r.best_peak_chr = p.chromosome
-            AND r.best_peak_start < p.peak_end
-            AND r.best_peak_end > p.peak_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        """  # noqa: S608
+    stats_stmt = (
+        select(
+            func.count().label("total_overlaps"),
+            func.count(func.distinct(Regulation.lncrna_gene_id)).label("unique_lncrnas"),
+            func.count(func.distinct(Regulation.target_gene_id)).label("unique_target_genes"),
+            func.count(func.distinct(EpigeneticMarkType.mark_name)).label("unique_marks"),
+            func.count(func.distinct(ChIPSeqExperiment.cell_type)).label("unique_cell_types"),
+            func.avg(overlap_length_base).label("avg_overlap_length"),
+            func.avg(Regulation.binding_affinity).label("avg_binding_affinity"),
+            func.avg(p.c.fold_enrichment).label("avg_peak_strength"),
+        )
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
     )
 
-    # By mark type breakdown query
-    by_mark_sql = text(
-        f"""
-        SELECT
-            m.mark_name AS mark_type,
-            COUNT(*) AS count,
-            AVG(r.binding_affinity) AS avg_strength
-        FROM regulations r
-        JOIN chipseq_peaks_human p ON
-            r.species_id = p.species_id
-            AND r.best_peak_chr = p.chromosome
-            AND r.best_peak_start < p.peak_end
-            AND r.best_peak_end > p.peak_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        GROUP BY m.mark_name
-        ORDER BY count DESC
-        """  # noqa: S608
+    by_mark_stmt = (
+        select(
+            EpigeneticMarkType.mark_name.label("mark_type"),
+            func.count().label("count"),
+            func.avg(Regulation.binding_affinity).label("avg_strength"),
+        )
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .group_by(EpigeneticMarkType.mark_name)
+        .order_by(func.count().desc())
     )
 
-    # By cell type breakdown query
-    by_cell_sql = text(
-        f"""
-        SELECT
-            e.cell_type,
-            COUNT(*) AS count
-        FROM regulations r
-        JOIN chipseq_peaks_human p ON
-            r.species_id = p.species_id
-            AND r.best_peak_chr = p.chromosome
-            AND r.best_peak_start < p.peak_end
-            AND r.best_peak_end > p.peak_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        GROUP BY e.cell_type
-        ORDER BY count DESC
-        """  # noqa: S608
+    by_cell_stmt = (
+        select(
+            ChIPSeqExperiment.cell_type,
+            func.count().label("count"),
+        )
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .group_by(ChIPSeqExperiment.cell_type)
+        .order_by(func.count().desc())
     )
 
     try:
         # Execute main statistics query
-        result = db.execute(stats_sql, params).fetchone()
+        result = db.execute(stats_stmt, params).fetchone()
 
         if not result or result.total_overlaps == 0:
             return OverlapStatistics(
@@ -884,7 +909,7 @@ def get_overlap_statistics(
             )
 
         # Execute by_mark_type query
-        mark_results = db.execute(by_mark_sql, params).fetchall()
+        mark_results = db.execute(by_mark_stmt, params).fetchall()
         by_mark_type = [
             MarkTypeStats(
                 mark_type=row.mark_type,
@@ -895,7 +920,7 @@ def get_overlap_statistics(
         ]
 
         # Execute by_cell_type query
-        cell_results = db.execute(by_cell_sql, params).fetchall()
+        cell_results = db.execute(by_cell_stmt, params).fetchall()
         by_cell_type = [
             CellTypeStats(
                 cell_type=row.cell_type,
@@ -930,9 +955,9 @@ def get_overlap_summary(
     request: Request,
     lncrna_gene_id: Optional[int] = Query(None, description="Filter by specific lncRNA gene ID"),
     target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
-    mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated"),
-    cell_type: Optional[str] = Query(None, description="Filter by cell type(s), comma-separated"),
-    chromosome: Optional[str] = Query(None, description="Filter by chromosome"),
+    mark_type: Optional[str] = Query(None, max_length=MAX_FIELD_LENGTH, description="Filter by mark type(s), comma-separated"),
+    cell_type: Optional[str] = Query(None, max_length=MAX_FIELD_LENGTH, description="Filter by cell type(s), comma-separated"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity"),
     min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
     min_peak_strength: Optional[float] = Query(None, ge=0, description="Minimum peak fold enrichment"),
@@ -980,7 +1005,7 @@ def get_overlap_heatmap(
         le=100,
         description="Limit Y-axis items (max 100)"
     ),
-    chromosome: Optional[str] = Query(None, description="Filter by chromosome (e.g., 'chr1')"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome (e.g., 'chr1')"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity score"),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value (FDR) for peaks"),
     db: Session = Depends(get_db)
@@ -1053,35 +1078,52 @@ def get_overlap_heatmap(
     if default_filter_applied:
         logger.info(f"Heatmap: No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
 
-    # SECURITY: All SQL fragment maps use whitelisted values only
-    # User input (x_axis, y_axis, metric) is validated against these maps
-    # This prevents SQL injection by ensuring only predefined SQL fragments are used
+    # SECURITY: All dimension/metric selectors use whitelisted SQLAlchemy expressions only.
+    # User input (x_axis, y_axis, metric) is validated against these maps.
+    p = table(
+        "chipseq_peaks_human",
+        column("peak_id"),
+        column("species_id"),
+        column("chromosome"),
+        column("peak_start"),
+        column("peak_end"),
+        column("experiment_id"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+    join_on_peak = (
+        (Regulation.species_id == p.c.species_id)
+        & (Regulation.best_peak_chr == p.c.chromosome)
+        & (Regulation.best_peak_start < p.c.peak_end)
+        & (Regulation.best_peak_end > p.c.peak_start)
+    )
+    overlap_length_base = func.least(Regulation.best_peak_end, p.c.peak_end) - func.greatest(
+        Regulation.best_peak_start, p.c.peak_start
+    )
 
-    # Map x_axis to SQL column/expression (WHITELIST)
     x_axis_map = {
-        'mark_type': ('m.mark_name', 'm.mark_name'),
-        'cell_type': ('e.cell_type', 'e.cell_type')
+        "mark_type": EpigeneticMarkType.mark_name,
+        "cell_type": ChIPSeqExperiment.cell_type,
     }
+    x_expr = x_axis_map[x_axis]
 
-    # Map y_axis to SQL column/expression and gene join (WHITELIST)
-    y_axis_map = {
-        'lncrna': ('lnc.gene_name', 'r.lncrna_gene_id', 'JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id'),
-        'target_gene': ('tgt.gene_name', 'r.target_gene_id', 'JOIN genes tgt ON r.target_gene_id = tgt.gene_id')
-    }
+    lnc = aliased(Gene)
+    tgt = aliased(Gene)
+    if y_axis == "lncrna":
+        y_expr = lnc.gene_name
+        y_join_on = Regulation.lncrna_gene_id == lnc.gene_id
+    else:  # y_axis == "target_gene"
+        y_expr = tgt.gene_name
+        y_join_on = Regulation.target_gene_id == tgt.gene_id
 
-    # Map metric to SQL aggregation (WHITELIST)
     metric_map = {
-        'count': 'COUNT(*)',
-        'avg_binding_affinity': 'AVG(r.binding_affinity)',
-        'total_overlap_length': 'SUM(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start))'
+        "count": func.count(),
+        "avg_binding_affinity": func.avg(Regulation.binding_affinity),
+        "total_overlap_length": func.sum(overlap_length_base),
     }
+    metric_expr = metric_map[metric]
 
-    # Validate and extract values from whitelists - raises KeyError if invalid
-    x_select, x_group = x_axis_map[x_axis]
-    y_select, y_group_id, y_join = y_axis_map[y_axis]
-    metric_agg = metric_map[metric]
-
-    filter_where_sql, filter_params = _build_overlap_where_and_params(
+    filter_conditions, filter_params = _build_overlap_where_and_params(
         lncrna_gene_id=None,
         target_gene_id=None,
         chromosome=effective_chromosome,
@@ -1091,42 +1133,34 @@ def get_overlap_heatmap(
         min_peak_strength=None,
         max_qvalue=max_qvalue,
         min_overlap_length=None,
-        lncrna_gene_col="r.lncrna_gene_id",
-        target_gene_col="r.target_gene_id",
-        chromosome_col="r.best_peak_chr",
-        mark_name_col="m.mark_name",
-        cell_type_col="e.cell_type",
-        binding_affinity_col="r.binding_affinity",
-        fold_enrichment_col="p.fold_enrichment",
-        qvalue_col="p.qvalue",
-        overlap_length_expr="(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start))",
+        lncrna_gene_col=Regulation.lncrna_gene_id,
+        target_gene_col=Regulation.target_gene_id,
+        chromosome_col=Regulation.best_peak_chr,
+        mark_name_col=EpigeneticMarkType.mark_name,
+        cell_type_col=ChIPSeqExperiment.cell_type,
+        binding_affinity_col=Regulation.binding_affinity,
+        fold_enrichment_col=p.c.fold_enrichment,
+        qvalue_col=p.c.qvalue,
+        overlap_length_expr=overlap_length_base,
     )
 
-    base_where = "r.species_id = 1 AND e.is_active = TRUE"
-    if filter_where_sql != "TRUE":
-        base_where = f"{base_where} AND {filter_where_sql}"
-
+    where_conditions = [Regulation.species_id == 1, ChIPSeqExperiment.is_active.is_(True), *filter_conditions]
     params = {**filter_params, "top_n": top_n}
 
     try:
         # Step 1: Get all distinct X-axis values (ordered alphabetically)
-        x_labels_sql = text(
-            f"""
-            SELECT DISTINCT {x_select} AS x_value
-            FROM regulations r
-            JOIN chipseq_peaks_human p ON
-                r.species_id = p.species_id
-                AND r.best_peak_chr = p.chromosome
-                AND r.best_peak_start < p.peak_end
-                AND r.best_peak_end > p.peak_start
-            JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-            WHERE {base_where}
-            ORDER BY x_value
-            """  # noqa: S608
+        x_labels_stmt = (
+            select(x_expr.label("x_value"))
+            .select_from(Regulation)
+            .join(p, join_on_peak)
+            .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+            .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+            .where(*where_conditions)
+            .distinct()
+            .order_by(x_expr)
         )
 
-        x_results = db.execute(x_labels_sql, params).fetchall()
+        x_results = db.execute(x_labels_stmt, params).fetchall()
         x_labels = [row.x_value for row in x_results if row.x_value]
 
         if not x_labels:
@@ -1142,27 +1176,24 @@ def get_overlap_heatmap(
             )
 
         # Step 2: Get top N Y-axis values (by total count across all X values)
-        y_labels_sql = text(
-            f"""
-            SELECT {y_select} AS y_value, COUNT(*) AS total_count
-            FROM regulations r
-            {y_join}
-            JOIN chipseq_peaks_human p ON
-                r.species_id = p.species_id
-                AND r.best_peak_chr = p.chromosome
-                AND r.best_peak_start < p.peak_end
-                AND r.best_peak_end > p.peak_start
-            JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-            WHERE {base_where}
-                AND {y_select} IS NOT NULL
-            GROUP BY {y_select}
-            ORDER BY total_count DESC
-            LIMIT :top_n
-            """  # noqa: S608
+        y_labels_stmt = (
+            select(
+                y_expr.label("y_value"),
+                func.count().label("total_count"),
+            )
+            .select_from(Regulation)
+            .join(lnc if y_axis == "lncrna" else tgt, y_join_on)
+            .join(p, join_on_peak)
+            .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+            .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+            .where(*where_conditions)
+            .where(y_expr.is_not(None))
+            .group_by(y_expr)
+            .order_by(func.count().desc())
+            .limit(bindparam("top_n"))
         )
 
-        y_results = db.execute(y_labels_sql, params).fetchall()
+        y_results = db.execute(y_labels_stmt, params).fetchall()
         y_labels = [row.y_value for row in y_results if row.y_value]
 
         if not y_labels:
@@ -1179,31 +1210,25 @@ def get_overlap_heatmap(
 
         # Step 3: Get heatmap data for all X-Y combinations
         # Build the main aggregation query
-        heatmap_sql = text(
-            f"""
-            SELECT
-                {x_select} AS x_value,
-                {y_select} AS y_value,
-                {metric_agg} AS metric_value
-            FROM regulations r
-            {y_join}
-            JOIN chipseq_peaks_human p ON
-                r.species_id = p.species_id
-                AND r.best_peak_chr = p.chromosome
-                AND r.best_peak_start < p.peak_end
-                AND r.best_peak_end > p.peak_start
-            JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-            WHERE {base_where}
-                AND {y_select} = ANY(:y_labels)
-            GROUP BY {x_group}, {y_select}
-            ORDER BY x_value, y_value
-            """  # noqa: S608
+        params["y_labels"] = y_labels
+        heatmap_stmt = (
+            select(
+                x_expr.label("x_value"),
+                y_expr.label("y_value"),
+                metric_expr.label("metric_value"),
+            )
+            .select_from(Regulation)
+            .join(lnc if y_axis == "lncrna" else tgt, y_join_on)
+            .join(p, join_on_peak)
+            .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+            .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+            .where(*where_conditions)
+            .where(y_expr.in_(bindparam("y_labels", expanding=True)))
+            .group_by(x_expr, y_expr)
+            .order_by(x_expr, y_expr)
         )
 
-        params["y_labels"] = y_labels
-
-        heatmap_results = db.execute(heatmap_sql, params).fetchall()
+        heatmap_results = db.execute(heatmap_stmt, params).fetchall()
 
         # Build the data array
         data = []
@@ -1364,7 +1389,24 @@ def generate_overlap_export(
     mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
     cell_types_array = parse_comma_list(cell_type, param_name="cell_type")
 
-    filter_where_sql, params = _build_overlap_where_and_params(
+    p = table(
+        "chipseq_peaks_human",
+        column("peak_id"),
+        column("species_id"),
+        column("chromosome"),
+        column("peak_start"),
+        column("peak_end"),
+        column("experiment_id"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+    overlap_start_base = func.greatest(Regulation.best_peak_start, p.c.peak_start)
+    overlap_end_base = func.least(Regulation.best_peak_end, p.c.peak_end)
+    overlap_start_expr = overlap_start_base.label("overlap_start")
+    overlap_end_expr = overlap_end_base.label("overlap_end")
+    overlap_length_expr = (overlap_end_base - overlap_start_base).label("overlap_length")
+
+    filter_conditions, params = _build_overlap_where_and_params(
         lncrna_gene_id=lncrna_gene_id,
         target_gene_id=target_gene_id,
         chromosome=effective_chromosome,
@@ -1374,59 +1416,59 @@ def generate_overlap_export(
         min_peak_strength=min_peak_strength,
         max_qvalue=max_qvalue,
         min_overlap_length=min_overlap_length,
-        lncrna_gene_col="r.lncrna_gene_id",
-        target_gene_col="r.target_gene_id",
-        chromosome_col="r.best_peak_chr",
-        mark_name_col="m.mark_name",
-        cell_type_col="e.cell_type",
-        binding_affinity_col="r.binding_affinity",
-        fold_enrichment_col="p.fold_enrichment",
-        qvalue_col="p.qvalue",
-        overlap_length_expr="(LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start))",
+        lncrna_gene_col=Regulation.lncrna_gene_id,
+        target_gene_col=Regulation.target_gene_id,
+        chromosome_col=Regulation.best_peak_chr,
+        mark_name_col=EpigeneticMarkType.mark_name,
+        cell_type_col=ChIPSeqExperiment.cell_type,
+        binding_affinity_col=Regulation.binding_affinity,
+        fold_enrichment_col=p.c.fold_enrichment,
+        qvalue_col=p.c.qvalue,
+        overlap_length_expr=overlap_length_expr,
     )
 
-    where_sql = "r.species_id = 1 AND e.is_active = TRUE"
-    if filter_where_sql != "TRUE":
-        where_sql = f"{where_sql} AND {filter_where_sql}"
-
-    # Build main query (reuse logic from get_lncrna_chipseq_overlaps_query)
-    data_sql = text(
-        f"""
-        SELECT
-            CONCAT('reg_', r.regulation_id, '_peak_', p.peak_id) AS overlap_id,
-            r.regulation_id,
-            r.lncrna_gene_id,
-            lnc.gene_name AS lncrna_name,
-            r.target_gene_id,
-            tgt.gene_name AS target_gene_name,
-            m.mark_name AS mark_type,
-            m.mark_category,
-            e.cell_type,
-            r.best_peak_chr AS chromosome,
-            r.best_peak_start AS lncrna_binding_start,
-            r.best_peak_end AS lncrna_binding_end,
-            p.peak_start,
-            p.peak_end,
-            GREATEST(r.best_peak_start, p.peak_start) AS overlap_start,
-            LEAST(r.best_peak_end, p.peak_end) AS overlap_end,
-            LEAST(r.best_peak_end, p.peak_end) - GREATEST(r.best_peak_start, p.peak_start) AS overlap_length,
-            r.binding_affinity,
-            p.fold_enrichment AS peak_fold_enrichment,
-            p.qvalue AS peak_qvalue
-        FROM regulations r
-        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
-        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
-        JOIN chipseq_peaks_human p ON
-            r.species_id = p.species_id
-            AND r.best_peak_chr = p.chromosome
-            AND r.best_peak_start < p.peak_end
-            AND r.best_peak_end > p.peak_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        ORDER BY r.best_peak_chr, overlap_start
-        LIMIT :limit OFFSET :offset
-        """  # noqa: S608
+    where_conditions = [Regulation.species_id == 1, ChIPSeqExperiment.is_active.is_(True), *filter_conditions]
+    join_on_peak = (
+        (Regulation.species_id == p.c.species_id)
+        & (Regulation.best_peak_chr == p.c.chromosome)
+        & (Regulation.best_peak_start < p.c.peak_end)
+        & (Regulation.best_peak_end > p.c.peak_start)
+    )
+    lnc = aliased(Gene)
+    tgt = aliased(Gene)
+    data_stmt = (
+        select(
+            func.concat(literal("reg_"), Regulation.regulation_id, literal("_peak_"), p.c.peak_id).label("overlap_id"),
+            Regulation.regulation_id,
+            Regulation.lncrna_gene_id,
+            lnc.gene_name.label("lncrna_name"),
+            Regulation.target_gene_id,
+            tgt.gene_name.label("target_gene_name"),
+            EpigeneticMarkType.mark_name.label("mark_type"),
+            EpigeneticMarkType.mark_category,
+            ChIPSeqExperiment.cell_type,
+            Regulation.best_peak_chr.label("chromosome"),
+            Regulation.best_peak_start.label("lncrna_binding_start"),
+            Regulation.best_peak_end.label("lncrna_binding_end"),
+            p.c.peak_start,
+            p.c.peak_end,
+            overlap_start_expr,
+            overlap_end_expr,
+            overlap_length_expr,
+            Regulation.binding_affinity,
+            p.c.fold_enrichment.label("peak_fold_enrichment"),
+            p.c.qvalue.label("peak_qvalue"),
+        )
+        .select_from(Regulation)
+        .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
+        .join(tgt, Regulation.target_gene_id == tgt.gene_id)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .order_by(Regulation.best_peak_chr, overlap_start_expr)
+        .limit(bindparam("limit"))
+        .offset(bindparam("offset"))
     )
 
     # Stream data in batches
@@ -1438,7 +1480,7 @@ def generate_overlap_export(
         while rows_exported < max_rows:
             batch_limit = min(batch_size, max_rows - rows_exported)
             batch = db.execute(
-                data_sql,
+                data_stmt,
                 {
                     **params,
                     "limit": batch_limit,
@@ -1519,7 +1561,7 @@ def export_lncrna_chipseq_overlaps(
         max_length=MAX_FIELD_LENGTH,
         description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878', max 20 items)"
     ),
-    chromosome: Optional[str] = Query(None, description="Filter by chromosome (e.g., 'chr1')"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome (e.g., 'chr1')"),
     min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity score"),
     min_peak_strength: Optional[float] = Query(None, ge=0, description="Minimum peak fold enrichment"),

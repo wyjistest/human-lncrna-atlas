@@ -27,8 +27,8 @@ from sqlalchemy.orm import Session, aliased
 	
 from app.core.database import get_db
 from app.core.utils import escape_like_pattern, sanitize_for_log
-from app.core.validators import parse_int_list, parse_comma_list
-from app.models import Gene, Regulation, Species
+from app.core.validators import MAX_EXPORT_MARKS, MAX_ITEM_LENGTH, parse_int_list, parse_comma_list
+from app.models import Gene, Regulation, Species, Trait, TraitGeneAssociation
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.export import (
     HighAffinityExportResponse,
@@ -73,6 +73,41 @@ def is_effective_like_filter(value: Optional[str]) -> bool:
     # 移除所有 LIKE 通配符后检查是否还有内容
     stripped = value.replace('%', '').replace('_', '').strip()
     return len(stripped) > 0
+
+
+def _validate_mark_names_list(mark_names: List[str]) -> List[str]:
+    """
+    Validate mark_names list query param for /export/chipseq-overlaps.
+
+    Security/Perf:
+    - Prevent parameter amplification DoS via extremely large repeated query params.
+    - Enforce per-item length limits consistent with app.core.validators.
+    """
+    if not mark_names:
+        raise HTTPException(status_code=400, detail="At least one mark_name is required")
+
+    if len(mark_names) > MAX_EXPORT_MARKS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"mark_names: Maximum {MAX_EXPORT_MARKS} items allowed, got {len(mark_names)}",
+        )
+
+    normalized: List[str] = []
+    for idx, raw in enumerate(mark_names):
+        item = str(raw).strip() if raw is not None else ""
+        if not item:
+            continue
+        if len(item) > MAX_ITEM_LENGTH:
+            raise HTTPException(
+                status_code=400,
+                detail=f"mark_names[{idx}]: Item too long, maximum {MAX_ITEM_LENGTH} characters",
+            )
+        normalized.append(item)
+
+    if not normalized:
+        raise HTTPException(status_code=400, detail="At least one mark_name is required")
+
+    return normalized
 
 
 def export_to_streaming_format(
@@ -466,6 +501,9 @@ def export_chipseq_overlaps(
     **性能**: 10000 条记录 < 5s（使用物化视图 mv_lncrna_chipseq_overlaps）
     **内存**: CSV 真流式 O(1)；Excel 使用 write_only 模式降低内存峰值
     """
+    # Validate early to avoid logging/processing extremely large query parameter lists.
+    mark_names = _validate_mark_names_list(mark_names)
+
     logger.info(
         "[EXPORT] chipseq-overlaps: mark_names=%s, min_ba=%s, limit=%s, output_format=%s",
         sanitize_for_log(mark_names, max_length=500),
@@ -479,12 +517,6 @@ def export_chipseq_overlaps(
         raise HTTPException(
             status_code=400,
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
-        )
-
-    if not mark_names:
-        raise HTTPException(
-            status_code=400,
-            detail="At least one mark_name is required"
         )
 
     # 使用物化视图查询（性能优化）
@@ -651,29 +683,24 @@ def export_disease_network(
     # ========================================================================
     # Step 1: 查询疾病-基因边
     # ========================================================================
-    disease_where_sql = "t.trait_name ILIKE '%' || :trait_name || '%' ESCAPE '\\'" if escaped_trait_name else "TRUE"
-
-    disease_gene_sql = text(
-        f"""
-        SELECT
-            t.trait_name,
-            t.trait_id,
-            g.gene_id,
-            g.gene_name,
-            tga.trait_snp_pvalue as pvalue
-        FROM trait_gene_associations tga
-        JOIN traits t ON tga.trait_id = t.trait_id
-        JOIN genes g ON tga.core_id = g.core_id
-        WHERE {disease_where_sql}
-        LIMIT :limit
-        """  # noqa: S608
+    disease_gene_stmt = (
+        select(
+            Trait.trait_name,
+            Trait.trait_id,
+            Gene.gene_id,
+            Gene.gene_name,
+            TraitGeneAssociation.trait_snp_pvalue.label("pvalue"),
+        )
+        .select_from(TraitGeneAssociation)
+        .join(Trait, TraitGeneAssociation.trait_id == Trait.trait_id)
+        .join(Gene, TraitGeneAssociation.core_id == Gene.core_id)
+        .limit(effective_limit)
     )
-
-    disease_gene_params = {"limit": effective_limit}
     if escaped_trait_name:
-        disease_gene_params["trait_name"] = escaped_trait_name
+        pattern = f"%{escaped_trait_name}%"
+        disease_gene_stmt = disease_gene_stmt.where(Trait.trait_name.ilike(pattern, escape="\\"))
 
-    disease_gene_result = db.execute(disease_gene_sql, disease_gene_params)
+    disease_gene_result = db.execute(disease_gene_stmt)
 
     # 收集基因 ID（用于后续查询调控关系）
     gene_ids = set()

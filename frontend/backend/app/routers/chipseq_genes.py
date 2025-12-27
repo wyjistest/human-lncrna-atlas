@@ -10,13 +10,14 @@ from typing import Optional, List, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import bindparam, case, column, func, literal, select, values
+from sqlalchemy.sql.expression import funcfilter
 
 from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
-from app.core.validators import parse_comma_list
-from app.models import Gene
+from app.core.validators import normalize_optional_str, parse_comma_list
+from app.models import Gene, ChIPSeqPeak, ChIPSeqExperiment, EpigeneticMarkType
 from app.schemas.chipseq import (
     GeneChIPSeqResponse,
     GeneChIPSeqSummary,
@@ -68,7 +69,7 @@ def get_gene_chipseq(
         None,
         description="Filter by mark type(s), comma-separated (e.g., H3K27me3,H3K4me3)"
     ),
-    mark_category: Optional[str] = Query(None, description="Filter by mark category"),
+    mark_category: Optional[str] = Query(None, max_length=50, description="Filter by mark category"),
     experiment_id: Optional[int] = Query(None, description="Filter by specific experiment"),
     min_fold_enrichment: Optional[float] = Query(
         None,
@@ -124,21 +125,20 @@ def get_gene_chipseq(
 
     # 3. Parse mark types
     mark_types = parse_mark_types(mark_type)
+    normalized_mark_category = normalize_optional_str(mark_category)
 
     # 4. Build and execute query
     is_postgresql = db.get_bind().dialect.name == "postgresql"
-    region_predicate = (
-        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
-        if is_postgresql
-        else "p.peak_start < :region_end AND p.peak_end > :region_start"
-    )
+    bp_region_start = bindparam("region_start")
+    bp_region_end = bindparam("region_end")
+    if is_postgresql:
+        region_predicate = (
+            func.int8range(ChIPSeqPeak.peak_start, ChIPSeqPeak.peak_end, "[)")
+            .op("&&")(func.int8range(bp_region_start, bp_region_end, "[)"))
+        )
+    else:
+        region_predicate = (ChIPSeqPeak.peak_start < bp_region_end) & (ChIPSeqPeak.peak_end > bp_region_start)
 
-    where_clauses = [
-        "p.species_id = :species_id",
-        "p.chromosome = :chromosome",
-        region_predicate,
-        "e.is_active = TRUE",
-    ]
     params = {
         "species_id": gene.species_id,
         "chromosome": gene.chromosome,
@@ -149,63 +149,96 @@ def get_gene_chipseq(
         "tss": tss,
         "strand": gene.strand or '+',
     }
+    where_conditions = [
+        ChIPSeqPeak.species_id == bindparam("species_id"),
+        ChIPSeqPeak.chromosome == bindparam("chromosome"),
+        region_predicate,
+        ChIPSeqExperiment.is_active.is_(True),
+    ]
     if mark_types is not None:
-        where_clauses.append("m.mark_name = ANY(:mark_types)")
+        where_conditions.append(EpigeneticMarkType.mark_name.in_(bindparam("mark_types", expanding=True)))
         params["mark_types"] = mark_types
-    if mark_category is not None:
-        where_clauses.append("m.mark_category = :mark_category")
-        params["mark_category"] = mark_category
+    if normalized_mark_category is not None:
+        where_conditions.append(EpigeneticMarkType.mark_category == bindparam("mark_category"))
+        params["mark_category"] = normalized_mark_category
     if experiment_id is not None:
-        where_clauses.append("e.experiment_id = :experiment_id")
+        where_conditions.append(ChIPSeqExperiment.experiment_id == bindparam("experiment_id"))
         params["experiment_id"] = experiment_id
     if min_fold_enrichment is not None:
-        where_clauses.append("p.fold_enrichment >= :min_fold_enrichment")
+        where_conditions.append(ChIPSeqPeak.fold_enrichment >= bindparam("min_fold_enrichment"))
         params["min_fold_enrichment"] = min_fold_enrichment
     if max_qvalue is not None:
-        where_clauses.append("(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)")
+        where_conditions.append(
+            (ChIPSeqPeak.qvalue.is_(None)) | (ChIPSeqPeak.qvalue <= bindparam("max_qvalue"))
+        )
         params["max_qvalue"] = max_qvalue
 
-    where_sql = " AND ".join(where_clauses)
+    strand_is_plus = bindparam("strand") == "+"
+    peak_midpoint = func.coalesce(ChIPSeqPeak.summit_position, (ChIPSeqPeak.peak_start + ChIPSeqPeak.peak_end) / 2)
+    distance_to_tss_expr = case(
+        (strand_is_plus, peak_midpoint - bindparam("tss")),
+        else_=bindparam("tss") - peak_midpoint,
+    ).label("distance_to_tss")
 
-    query = text(
-        f"""
-        SELECT
-            p.peak_id,
-            p.experiment_id,
-            m.mark_name,
-            m.mark_category,
-            m.display_color,
-            p.chromosome,
-            p.peak_start,
-            p.peak_end,
-            p.summit_position,
-            p.fold_enrichment,
-            p.qvalue,
-            p.peak_width,
-            CASE
-                WHEN :strand = '+' THEN COALESCE(p.summit_position, (p.peak_start + p.peak_end) / 2) - :tss
-                ELSE :tss - COALESCE(p.summit_position, (p.peak_start + p.peak_end) / 2)
-            END as distance_to_tss,
-            CASE
-                WHEN p.peak_start <= :gene_start AND p.peak_end >= :gene_end THEN 'overlapping'
-                WHEN p.peak_start >= :gene_start AND p.peak_end <= :gene_end THEN 'gene_body'
-                WHEN p.peak_end <= :gene_start THEN
-                    CASE WHEN :strand = '+' THEN 'upstream' ELSE 'downstream' END
-                WHEN p.peak_start >= :gene_end THEN
-                    CASE WHEN :strand = '+' THEN 'downstream' ELSE 'upstream' END
-                WHEN ABS(COALESCE(p.summit_position, (p.peak_start + p.peak_end) / 2) - :tss) <= 2000 THEN 'promoter'
-                ELSE 'gene_body'
-            END as overlap_type,
-            GREATEST(0, LEAST(p.peak_end, :region_end) - GREATEST(p.peak_start, :region_start)) as overlap_bp
-        FROM chipseq_peaks p
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        ORDER BY m.sort_order, m.mark_name, p.fold_enrichment DESC
-        """  # noqa: S608
+    peak_before_gene_expr = case(
+        (strand_is_plus, literal("upstream")),
+        else_=literal("downstream"),
+    )
+    peak_after_gene_expr = case(
+        (strand_is_plus, literal("downstream")),
+        else_=literal("upstream"),
+    )
+    overlap_type_expr = case(
+        (
+            (ChIPSeqPeak.peak_start <= bindparam("gene_start"))
+            & (ChIPSeqPeak.peak_end >= bindparam("gene_end")),
+            literal("overlapping"),
+        ),
+        (
+            (ChIPSeqPeak.peak_start >= bindparam("gene_start"))
+            & (ChIPSeqPeak.peak_end <= bindparam("gene_end")),
+            literal("gene_body"),
+        ),
+        (ChIPSeqPeak.peak_end <= bindparam("gene_start"), peak_before_gene_expr),
+        (ChIPSeqPeak.peak_start >= bindparam("gene_end"), peak_after_gene_expr),
+        (func.abs(peak_midpoint - bindparam("tss")) <= 2000, literal("promoter")),
+        else_=literal("gene_body"),
+    ).label("overlap_type")
+
+    overlap_bp_expr = func.greatest(
+        0,
+        func.least(ChIPSeqPeak.peak_end, bindparam("region_end"))
+        - func.greatest(ChIPSeqPeak.peak_start, bindparam("region_start")),
+    ).label("overlap_bp")
+
+    peak_width_expr = (ChIPSeqPeak.peak_end - ChIPSeqPeak.peak_start).label("peak_width")
+
+    stmt = (
+        select(
+            ChIPSeqPeak.peak_id,
+            ChIPSeqPeak.experiment_id,
+            EpigeneticMarkType.mark_name,
+            EpigeneticMarkType.mark_category,
+            EpigeneticMarkType.display_color,
+            ChIPSeqPeak.chromosome,
+            ChIPSeqPeak.peak_start,
+            ChIPSeqPeak.peak_end,
+            ChIPSeqPeak.summit_position,
+            ChIPSeqPeak.fold_enrichment,
+            ChIPSeqPeak.qvalue,
+            peak_width_expr,
+            distance_to_tss_expr,
+            overlap_type_expr,
+            overlap_bp_expr,
+        )
+        .select_from(ChIPSeqPeak)
+        .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .order_by(EpigeneticMarkType.sort_order, EpigeneticMarkType.mark_name, ChIPSeqPeak.fold_enrichment.desc())
     )
 
-    rows = db.execute(query, params).fetchall()
+    rows = db.execute(stmt, params).fetchall()
 
     # 5. Group by mark type
     marks_dict = {}
@@ -281,54 +314,79 @@ def get_gene_chipseq_summary(
     region_length = region_end - region_start
 
     # 2. Query summary stats per mark
-    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
-    region_predicate = (
-        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
-        if db.get_bind().dialect.name == "postgresql"
-        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    bp_region_start = bindparam("region_start")
+    bp_region_end = bindparam("region_end")
+    is_postgresql = db.get_bind().dialect.name == "postgresql"
+    if is_postgresql:
+        region_predicate = (
+            func.int8range(ChIPSeqPeak.peak_start, ChIPSeqPeak.peak_end, "[)")
+            .op("&&")(func.int8range(bp_region_start, bp_region_end, "[)"))
+        )
+    else:
+        region_predicate = (ChIPSeqPeak.peak_start < bp_region_end) & (ChIPSeqPeak.peak_end > bp_region_start)
+
+    midpoint_expr = func.coalesce(ChIPSeqPeak.summit_position, (ChIPSeqPeak.peak_start + ChIPSeqPeak.peak_end) / 2)
+    tss_expr = case(
+        (bindparam("strand") == "+", bindparam("gene_start")),
+        else_=bindparam("gene_end"),
+    )
+    overlap_type_expr = case(
+        (
+            (ChIPSeqPeak.peak_start >= bindparam("gene_start")) & (ChIPSeqPeak.peak_end <= bindparam("gene_end")),
+            literal("gene_body"),
+        ),
+        (func.abs(midpoint_expr - tss_expr) <= 2000, literal("promoter")),
+        else_=literal("flanking"),
     )
 
-    query = text(
-        f"""
-        SELECT
-            m.mark_name,
-            m.mark_category,
-            COUNT(*) as peak_count,
-            MAX(p.fold_enrichment) as max_fold_enrichment,
-            AVG(p.fold_enrichment) as avg_fold_enrichment,
-            MIN(p.qvalue) as best_qvalue,
-            SUM(GREATEST(0, LEAST(p.peak_end, :region_end) - GREATEST(p.peak_start, :region_start))) as coverage_bp,
-            array_agg(DISTINCT
-                CASE
-                    WHEN p.peak_start >= :gene_start AND p.peak_end <= :gene_end THEN 'gene_body'
-                    WHEN ABS(COALESCE(p.summit_position, (p.peak_start + p.peak_end) / 2) -
-                         CASE WHEN :strand = '+' THEN :gene_start ELSE :gene_end END) <= 2000 THEN 'promoter'
-                    ELSE 'flanking'
-                END
-            ) as overlap_types
-        FROM chipseq_peaks p
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE p.species_id = :species_id
-          AND p.chromosome = :chromosome
-          AND {region_predicate}
-          AND e.is_active = TRUE
-          AND {qvalue_clause}
-        GROUP BY m.mark_name, m.mark_category
-        ORDER BY m.mark_category, m.mark_name
-        """  # noqa: S608
+    coverage_expr = func.sum(
+        func.greatest(
+            0,
+            func.least(ChIPSeqPeak.peak_end, bp_region_end) - func.greatest(ChIPSeqPeak.peak_start, bp_region_start),
+        )
+    ).label("coverage_bp")
+
+    where_conditions = [
+        ChIPSeqPeak.species_id == bindparam("species_id"),
+        ChIPSeqPeak.chromosome == bindparam("chromosome"),
+        region_predicate,
+        ChIPSeqExperiment.is_active.is_(True),
+    ]
+    if max_qvalue is not None:
+        where_conditions.append((ChIPSeqPeak.qvalue.is_(None)) | (ChIPSeqPeak.qvalue <= bindparam("max_qvalue")))
+
+    stmt = (
+        select(
+            EpigeneticMarkType.mark_name,
+            EpigeneticMarkType.mark_category,
+            func.count().label("peak_count"),
+            func.max(ChIPSeqPeak.fold_enrichment).label("max_fold_enrichment"),
+            func.avg(ChIPSeqPeak.fold_enrichment).label("avg_fold_enrichment"),
+            func.min(ChIPSeqPeak.qvalue).label("best_qvalue"),
+            coverage_expr,
+            func.array_agg(func.distinct(overlap_type_expr)).label("overlap_types"),
+        )
+        .select_from(ChIPSeqPeak)
+        .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .group_by(EpigeneticMarkType.mark_name, EpigeneticMarkType.mark_category)
+        .order_by(EpigeneticMarkType.mark_category, EpigeneticMarkType.mark_name)
     )
 
-    rows = db.execute(query, {
-        "species_id": gene.species_id,
-        "chromosome": gene.chromosome,
-        "region_start": region_start,
-        "region_end": region_end,
-        "gene_start": gene.gene_start,
-        "gene_end": gene.gene_end,
-        "strand": gene.strand or '+',
-        "max_qvalue": max_qvalue,
-    }).fetchall()
+    rows = db.execute(
+        stmt,
+        {
+            "species_id": gene.species_id,
+            "chromosome": gene.chromosome,
+            "region_start": region_start,
+            "region_end": region_end,
+            "gene_start": gene.gene_start,
+            "gene_end": gene.gene_end,
+            "strand": gene.strand or "+",
+            "max_qvalue": max_qvalue,
+        },
+    ).fetchall()
 
     # 3. Build summary
     mark_summaries = []
@@ -438,48 +496,60 @@ def compare_gene_marks(
     region_end = gene.gene_end + flanking
 
     # 3. Query peaks for each mark with peak_width
-    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
-    region_predicate = (
-        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
-        if db.get_bind().dialect.name == "postgresql"
-        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    bp_region_start = bindparam("region_start")
+    bp_region_end = bindparam("region_end")
+    is_postgresql = db.get_bind().dialect.name == "postgresql"
+    if is_postgresql:
+        region_predicate = (
+            func.int8range(ChIPSeqPeak.peak_start, ChIPSeqPeak.peak_end, "[)")
+            .op("&&")(func.int8range(bp_region_start, bp_region_end, "[)"))
+        )
+    else:
+        region_predicate = (ChIPSeqPeak.peak_start < bp_region_end) & (ChIPSeqPeak.peak_end > bp_region_start)
+
+    where_conditions = [
+        ChIPSeqPeak.species_id == bindparam("species_id"),
+        ChIPSeqPeak.chromosome == bindparam("chromosome"),
+        region_predicate,
+        ChIPSeqExperiment.is_active.is_(True),
+        EpigeneticMarkType.mark_name.in_(bindparam("mark_list", expanding=True)),
+    ]
+    if max_qvalue is not None:
+        where_conditions.append((ChIPSeqPeak.qvalue.is_(None)) | (ChIPSeqPeak.qvalue <= bindparam("max_qvalue")))
+
+    peak_width_expr = (ChIPSeqPeak.peak_end - ChIPSeqPeak.peak_start).label("peak_width")
+    stmt = (
+        select(
+            ChIPSeqPeak.peak_id,
+            EpigeneticMarkType.mark_name,
+            EpigeneticMarkType.mark_category,
+            EpigeneticMarkType.display_color,
+            ChIPSeqPeak.chromosome,
+            ChIPSeqPeak.peak_start,
+            ChIPSeqPeak.peak_end,
+            ChIPSeqPeak.summit_position,
+            ChIPSeqPeak.fold_enrichment,
+            ChIPSeqPeak.qvalue,
+            peak_width_expr,
+        )
+        .select_from(ChIPSeqPeak)
+        .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .order_by(EpigeneticMarkType.mark_name, ChIPSeqPeak.peak_start)
     )
 
-    query = text(
-        f"""
-        SELECT
-            p.peak_id,
-            m.mark_name,
-            m.mark_category,
-            m.display_color,
-            p.chromosome,
-            p.peak_start,
-            p.peak_end,
-            p.summit_position,
-            p.fold_enrichment,
-            p.qvalue,
-            COALESCE(p.peak_width, p.peak_end - p.peak_start) as peak_width
-        FROM chipseq_peaks p
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE p.species_id = :species_id
-          AND p.chromosome = :chromosome
-          AND {region_predicate}
-          AND e.is_active = TRUE
-          AND m.mark_name = ANY(:mark_list)
-          AND {qvalue_clause}
-        ORDER BY m.mark_name, p.peak_start
-        """  # noqa: S608
-    )
-
-    rows = db.execute(query, {
-        "species_id": gene.species_id,
-        "chromosome": gene.chromosome,
-        "region_start": region_start,
-        "region_end": region_end,
-        "mark_list": mark_list,
-        "max_qvalue": max_qvalue,
-    }).fetchall()
+    rows = db.execute(
+        stmt,
+        {
+            "species_id": gene.species_id,
+            "chromosome": gene.chromosome,
+            "region_start": region_start,
+            "region_end": region_end,
+            "mark_list": mark_list,
+            "max_qvalue": max_qvalue,
+        },
+    ).fetchall()
 
     # 4. Group by mark
     marks_data: Dict[str, Dict[str, Any]] = {}
@@ -666,51 +736,63 @@ def compare_gene_cell_lines(
     region_end = gene.gene_end + flanking
 
     # 3. Query peaks for each cell type
-    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
-    region_predicate = (
-        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
-        if db.get_bind().dialect.name == "postgresql"
-        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    bp_region_start = bindparam("region_start")
+    bp_region_end = bindparam("region_end")
+    is_postgresql = db.get_bind().dialect.name == "postgresql"
+    if is_postgresql:
+        region_predicate = (
+            func.int8range(ChIPSeqPeak.peak_start, ChIPSeqPeak.peak_end, "[)")
+            .op("&&")(func.int8range(bp_region_start, bp_region_end, "[)"))
+        )
+    else:
+        region_predicate = (ChIPSeqPeak.peak_start < bp_region_end) & (ChIPSeqPeak.peak_end > bp_region_start)
+
+    where_conditions = [
+        ChIPSeqPeak.species_id == bindparam("species_id"),
+        ChIPSeqPeak.chromosome == bindparam("chromosome"),
+        region_predicate,
+        ChIPSeqExperiment.is_active.is_(True),
+        EpigeneticMarkType.mark_name == bindparam("mark_type"),
+        ChIPSeqExperiment.cell_type.in_(bindparam("cell_types", expanding=True)),
+    ]
+    if max_qvalue is not None:
+        where_conditions.append((ChIPSeqPeak.qvalue.is_(None)) | (ChIPSeqPeak.qvalue <= bindparam("max_qvalue")))
+
+    peak_width_expr = (ChIPSeqPeak.peak_end - ChIPSeqPeak.peak_start).label("peak_width")
+    stmt = (
+        select(
+            ChIPSeqExperiment.cell_type,
+            ChIPSeqExperiment.cell_line,
+            ChIPSeqPeak.peak_id,
+            ChIPSeqPeak.chromosome,
+            ChIPSeqPeak.peak_start,
+            ChIPSeqPeak.peak_end,
+            ChIPSeqPeak.summit_position,
+            ChIPSeqPeak.fold_enrichment,
+            ChIPSeqPeak.qvalue,
+            ChIPSeqPeak.signal_value,
+            peak_width_expr,
+            EpigeneticMarkType.mark_name,
+        )
+        .select_from(ChIPSeqPeak)
+        .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .order_by(ChIPSeqExperiment.cell_type, ChIPSeqPeak.peak_start)
     )
 
-    query = text(
-        f"""
-        SELECT
-            e.cell_type,
-            e.cell_line,
-            p.peak_id,
-            p.chromosome,
-            p.peak_start,
-            p.peak_end,
-            p.summit_position,
-            p.fold_enrichment,
-            p.qvalue,
-            p.signal_value,
-            COALESCE(p.peak_width, p.peak_end - p.peak_start) as peak_width,
-            m.mark_name
-        FROM chipseq_peaks p
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE p.species_id = :species_id
-          AND p.chromosome = :chromosome
-          AND {region_predicate}
-          AND e.is_active = TRUE
-          AND m.mark_name = :mark_type
-          AND e.cell_type = ANY(:cell_types)
-          AND {qvalue_clause}
-        ORDER BY e.cell_type, p.peak_start
-        """  # noqa: S608
-    )
-
-    rows = db.execute(query, {
-        "species_id": gene.species_id,
-        "chromosome": gene.chromosome,
-        "region_start": region_start,
-        "region_end": region_end,
-        "mark_type": mark_type,
-        "cell_types": cell_type_list,
-        "max_qvalue": max_qvalue,
-    }).fetchall()
+    rows = db.execute(
+        stmt,
+        {
+            "species_id": gene.species_id,
+            "chromosome": gene.chromosome,
+            "region_start": region_start,
+            "region_end": region_end,
+            "mark_type": mark_type,
+            "cell_types": cell_type_list,
+            "max_qvalue": max_qvalue,
+        },
+    ).fetchall()
 
     # 4. Group peaks by cell type
     cell_lines_data: Dict[str, Dict[str, Any]] = {}
@@ -937,47 +1019,58 @@ def get_gene_heatmap_matrix(
     region_end = gene.gene_end + flanking
 
     # 3. Single SQL query for all combinations
-    qvalue_clause = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if max_qvalue is not None else "TRUE"
-    region_predicate = (
-        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:region_start, :region_end, '[)')"
-        if db.get_bind().dialect.name == "postgresql"
-        else "p.peak_start < :region_end AND p.peak_end > :region_start"
+    bp_region_start = bindparam("region_start")
+    bp_region_end = bindparam("region_end")
+    is_postgresql = db.get_bind().dialect.name == "postgresql"
+    if is_postgresql:
+        region_predicate = (
+            func.int8range(ChIPSeqPeak.peak_start, ChIPSeqPeak.peak_end, "[)")
+            .op("&&")(func.int8range(bp_region_start, bp_region_end, "[)"))
+        )
+    else:
+        region_predicate = (ChIPSeqPeak.peak_start < bp_region_end) & (ChIPSeqPeak.peak_end > bp_region_start)
+
+    where_conditions = [
+        ChIPSeqPeak.species_id == bindparam("species_id"),
+        ChIPSeqPeak.chromosome == bindparam("chromosome"),
+        region_predicate,
+        ChIPSeqExperiment.is_active.is_(True),
+        EpigeneticMarkType.mark_name.in_(bindparam("marks", expanding=True)),
+        ChIPSeqExperiment.cell_type.in_(bindparam("cell_types", expanding=True)),
+    ]
+    if max_qvalue is not None:
+        where_conditions.append((ChIPSeqPeak.qvalue.is_(None)) | (ChIPSeqPeak.qvalue <= bindparam("max_qvalue")))
+
+    stmt = (
+        select(
+            ChIPSeqExperiment.cell_type,
+            EpigeneticMarkType.mark_name,
+            ChIPSeqPeak.peak_id,
+            ChIPSeqPeak.fold_enrichment,
+            ChIPSeqPeak.signal_value,
+            ChIPSeqPeak.qvalue,
+            ChIPSeqPeak.peak_start,
+            ChIPSeqPeak.peak_end,
+        )
+        .select_from(ChIPSeqPeak)
+        .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .order_by(ChIPSeqExperiment.cell_type, EpigeneticMarkType.mark_name)
     )
 
-    query = text(
-        f"""
-        SELECT
-            e.cell_type,
-            m.mark_name,
-            p.peak_id,
-            p.fold_enrichment,
-            p.signal_value,
-            p.qvalue,
-            p.peak_start,
-            p.peak_end
-        FROM chipseq_peaks p
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE p.species_id = :species_id
-          AND p.chromosome = :chromosome
-          AND {region_predicate}
-          AND e.is_active = TRUE
-          AND m.mark_name = ANY(:marks)
-          AND e.cell_type = ANY(:cell_types)
-          AND {qvalue_clause}
-        ORDER BY e.cell_type, m.mark_name
-        """  # noqa: S608
-    )
-
-    rows = db.execute(query, {
-        "species_id": gene.species_id,
-        "chromosome": gene.chromosome,
-        "region_start": region_start,
-        "region_end": region_end,
-        "marks": mark_list,
-        "cell_types": cell_type_list,
-        "max_qvalue": max_qvalue,
-    }).fetchall()
+    rows = db.execute(
+        stmt,
+        {
+            "species_id": gene.species_id,
+            "chromosome": gene.chromosome,
+            "region_start": region_start,
+            "region_end": region_end,
+            "marks": mark_list,
+            "cell_types": cell_type_list,
+            "max_qvalue": max_qvalue,
+        },
+    ).fetchall()
 
     # 4. Group by (cell_type, mark) and compute statistics
     # combo_stats[cell_type][mark] = {"peaks": [...], "coverage": int}
@@ -1217,7 +1310,7 @@ def get_batch_gene_heatmap_matrix(
     mark_list = list(request.marks)
     cell_type_list = list(request.cell_types)
 
-    gene_regions_values: List[str] = []
+    gene_regions_rows: List[tuple] = []
     gene_region_bounds: Dict[int, tuple[int, int]] = {}
     valid_gene_ids: List[int] = []
     failed_gene_ids: List[int] = []
@@ -1228,7 +1321,7 @@ def get_batch_gene_heatmap_matrix(
         "max_qvalue": request.max_qvalue,
     }
 
-    for idx, gene_id in enumerate(request.gene_ids):
+    for gene_id in request.gene_ids:
         gene = gene_dict.get(gene_id)
         if not gene:
             logger.warning(f"Gene {gene_id} not found")
@@ -1246,16 +1339,7 @@ def get_batch_gene_heatmap_matrix(
         gene_region_bounds[gene_id] = (region_start, region_end)
         valid_gene_ids.append(gene_id)
 
-        gene_regions_values.append(
-            f"(:gene_id_{idx}, :species_id_{idx}, :chromosome_{idx}, :region_start_{idx}, :region_end_{idx})"
-        )
-        params.update({
-            f"gene_id_{idx}": gene.gene_id,
-            f"species_id_{idx}": gene.species_id,
-            f"chromosome_{idx}": gene.chromosome,
-            f"region_start_{idx}": region_start,
-            f"region_end_{idx}": region_end,
-        })
+        gene_regions_rows.append((gene.gene_id, gene.species_id, gene.chromosome, region_start, region_end))
 
     if not valid_gene_ids:
         query_time_ms = int((time.time() - start_time) * 1000)
@@ -1268,58 +1352,78 @@ def get_batch_gene_heatmap_matrix(
         )
 
     # 4. Single aggregated query for all genes (avoid N+1 queries)
-    values_clause = ",\n        ".join(gene_regions_values)
-    qvalue_predicate = "(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)" if request.max_qvalue is not None else "TRUE"
-    # 该 SQL 仅动态拼接参数占位符（:gene_id_0 ...），不包含任何用户输入，用于避免 N+1 查询。
-    # ruff(S608) 会对动态 SQL 拼接做保守告警，这里仅注入受控的占位符字符串。
-    query_sql = (
-        """
-        WITH gene_regions (gene_id, species_id, chromosome, region_start, region_end) AS (
-            VALUES
-        """
-        + values_clause
-        + f"""
+    gene_regions = (
+        values(
+            column("gene_id"),
+            column("species_id"),
+            column("chromosome"),
+            column("region_start"),
+            column("region_end"),
+            name="gene_regions",
         )
-        SELECT
-            gr.gene_id,
-            e.cell_type,
-            m.mark_name AS mark_name,
-            COUNT(*) AS peak_count,
-            COALESCE(
-                SUM(
-                    CASE
-                        WHEN p.peak_start IS NOT NULL AND p.peak_end IS NOT NULL THEN (p.peak_end - p.peak_start)
-                        ELSE 0
-                    END
+        .data(gene_regions_rows)
+        .alias("gene_regions")
+    )
+
+    peak_join = (
+        (ChIPSeqPeak.species_id == gene_regions.c.species_id)
+        & (ChIPSeqPeak.chromosome == gene_regions.c.chromosome)
+        & (ChIPSeqPeak.peak_start < gene_regions.c.region_end)
+        & (ChIPSeqPeak.peak_end > gene_regions.c.region_start)
+    )
+
+    total_coverage_bp_expr = func.coalesce(
+        func.sum(
+            case(
+                (
+                    (ChIPSeqPeak.peak_start.is_not(None)) & (ChIPSeqPeak.peak_end.is_not(None)),
+                    ChIPSeqPeak.peak_end - ChIPSeqPeak.peak_start,
                 ),
-                0
-            ) AS total_coverage_bp,
-            AVG(p.signal_value) AS avg_signal,
-            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY p.fold_enrichment)
-                FILTER (WHERE p.fold_enrichment IS NOT NULL) AS median_fold_enrichment,
-            STDDEV_SAMP(p.fold_enrichment)
-                FILTER (WHERE p.fold_enrichment IS NOT NULL) AS std_fold_enrichment
-        FROM gene_regions gr
-        JOIN chipseq_peaks p ON
-            p.species_id = gr.species_id
-            AND p.chromosome = gr.chromosome
-            AND p.peak_start < gr.region_end
-            AND p.peak_end > gr.region_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE
-            e.is_active = TRUE
-            AND m.mark_name = ANY(:marks)
-            AND e.cell_type = ANY(:cell_types)
-            AND {qvalue_predicate}
-        GROUP BY gr.gene_id, e.cell_type, m.mark_name
-        ORDER BY gr.gene_id, e.cell_type, m.mark_name
-        """
-    )  # noqa: S608
-    query = text(query_sql)
+                else_=0,
+            )
+        ),
+        0,
+    ).label("total_coverage_bp")
+
+    median_fold_enrichment_expr = funcfilter(
+        func.percentile_cont(0.5).within_group(ChIPSeqPeak.fold_enrichment),
+        ChIPSeqPeak.fold_enrichment.is_not(None),
+    ).label("median_fold_enrichment")
+
+    std_fold_enrichment_expr = func.stddev_samp(ChIPSeqPeak.fold_enrichment).filter(
+        ChIPSeqPeak.fold_enrichment.is_not(None)
+    ).label("std_fold_enrichment")
+
+    where_conditions = [
+        ChIPSeqExperiment.is_active.is_(True),
+        EpigeneticMarkType.mark_name.in_(bindparam("marks", expanding=True)),
+        ChIPSeqExperiment.cell_type.in_(bindparam("cell_types", expanding=True)),
+    ]
+    if request.max_qvalue is not None:
+        where_conditions.append((ChIPSeqPeak.qvalue.is_(None)) | (ChIPSeqPeak.qvalue <= bindparam("max_qvalue")))
+
+    stmt = (
+        select(
+            gene_regions.c.gene_id,
+            ChIPSeqExperiment.cell_type,
+            EpigeneticMarkType.mark_name.label("mark_name"),
+            func.count().label("peak_count"),
+            total_coverage_bp_expr,
+            func.avg(ChIPSeqPeak.signal_value).label("avg_signal"),
+            median_fold_enrichment_expr,
+            std_fold_enrichment_expr,
+        )
+        .select_from(gene_regions)
+        .join(ChIPSeqPeak, peak_join)
+        .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .group_by(gene_regions.c.gene_id, ChIPSeqExperiment.cell_type, EpigeneticMarkType.mark_name)
+        .order_by(gene_regions.c.gene_id, ChIPSeqExperiment.cell_type, EpigeneticMarkType.mark_name)
+    )
 
     try:
-        rows = db.execute(query, params).fetchall()
+        rows = db.execute(stmt, params).fetchall()
     except Exception as e:
         raise sanitize_db_error(e, logger)
 

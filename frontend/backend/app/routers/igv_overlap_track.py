@@ -17,15 +17,16 @@ from typing import Optional, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text
+from sqlalchemy import bindparam, column, func, select, table
+from sqlalchemy.orm import Session, aliased
 
 from app.routers.chipseq_rate_limit import rate_limit
-from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
 from app.utils.bed import sanitize_bed_field
+from app.models import Regulation, Gene, ChIPSeqExperiment, EpigeneticMarkType
 
 logger = logging.getLogger(__name__)
 
@@ -134,86 +135,120 @@ def _execute_overlap_query(
     use_mv = _check_mv_available(db)
 
     is_postgresql = db.get_bind().dialect.name == "postgresql"
-    mv_region_predicate = (
-        "int8range(overlap_start, overlap_end, '[)') && int8range(:start, :end, '[)')"
-        if is_postgresql
-        else "overlap_start < :end AND overlap_end > :start"
-    )
+    bp_chromosome = bindparam("chromosome")
+    bp_start = bindparam("start")
+    bp_end = bindparam("end")
+    bp_mark_type = bindparam("mark_type")
+    bp_min_ba = bindparam("min_ba")
+    bp_limit = bindparam("limit")
 
-    mv_where_clauses = [
-        "chromosome = :chromosome",
+    mv = table(
+        "mv_lncrna_chipseq_overlaps",
+        column("chromosome"),
+        column("overlap_start"),
+        column("overlap_end"),
+        column("lncrna_name"),
+        column("target_gene_name"),
+        column("mark_name"),
+        column("cell_type"),
+        column("binding_affinity"),
+    )
+    if is_postgresql:
+        mv_region_predicate = (
+            func.int8range(mv.c.overlap_start, mv.c.overlap_end, "[)")
+            .op("&&")(func.int8range(bp_start, bp_end, "[)"))
+        )
+    else:
+        mv_region_predicate = (mv.c.overlap_start < bp_end) & (mv.c.overlap_end > bp_start)
+
+    mv_where_conditions = [
+        mv.c.chromosome == bp_chromosome,
         mv_region_predicate,
     ]
     if mark_type is not None:
-        mv_where_clauses.append("mark_name = :mark_type")
+        mv_where_conditions.append(mv.c.mark_name == bp_mark_type)
     if min_ba is not None:
-        mv_where_clauses.append("binding_affinity >= :min_ba")
-    mv_where_sql = " AND ".join(mv_where_clauses)
+        mv_where_conditions.append(mv.c.binding_affinity >= bp_min_ba)
 
-    mv_sql = text(
-        f"""
-        SELECT
-            chromosome,
-            overlap_start,
-            overlap_end,
-            lncrna_name,
-            target_gene_name,
-            mark_name AS mark_type,
-            cell_type,
-            binding_affinity
-        FROM mv_lncrna_chipseq_overlaps
-        WHERE {mv_where_sql}
-        ORDER BY overlap_start
-        LIMIT :limit
-        """  # noqa: S608
+    mv_stmt = (
+        select(
+            mv.c.chromosome,
+            mv.c.overlap_start,
+            mv.c.overlap_end,
+            mv.c.lncrna_name,
+            mv.c.target_gene_name,
+            mv.c.mark_name.label("mark_type"),
+            mv.c.cell_type,
+            mv.c.binding_affinity,
+        )
+        .select_from(mv)
+        .where(*mv_where_conditions)
+        .order_by(mv.c.overlap_start)
+        .limit(bp_limit)
     )
 
     # fallback：无 MV 时使用原始 join（仅在小窗口内使用，受 MAX_REGION_SIZE_BP 保护）
-    fallback_where_clauses = [
-        "r.species_id = 1",
-        "e.is_active = TRUE",
-        "r.best_peak_chr = :chromosome",
-        "r.best_peak_start < :end",
-        "r.best_peak_end > :start",
-    ]
-    # 重要：必须同时限制 peak 与 region 重叠，否则会返回“peak 与 best_peak 相交但不在 region 内”的特征
-    peak_region_predicate = (
-        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:start, :end, '[)')"
-        if is_postgresql
-        else "p.peak_start < :end AND p.peak_end > :start"
+    p = table(
+        "chipseq_peaks_human",
+        column("species_id"),
+        column("chromosome"),
+        column("peak_start"),
+        column("peak_end"),
+        column("experiment_id"),
     )
-    fallback_where_clauses.append(peak_region_predicate)
-    if mark_type is not None:
-        fallback_where_clauses.append("m.mark_name = :mark_type")
-    if min_ba is not None:
-        fallback_where_clauses.append("r.binding_affinity >= :min_ba")
-    fallback_where_sql = " AND ".join(fallback_where_clauses)
+    lnc = aliased(Gene)
+    tgt = aliased(Gene)
 
-    fallback_sql = text(
-        f"""
-        SELECT
-            r.best_peak_chr AS chromosome,
-            GREATEST(r.best_peak_start, p.peak_start) AS overlap_start,
-            LEAST(r.best_peak_end, p.peak_end) AS overlap_end,
-            lnc.gene_name AS lncrna_name,
-            tgt.gene_name AS target_gene_name,
-            m.mark_name AS mark_type,
-            e.cell_type,
-            r.binding_affinity
-        FROM regulations r
-        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
-        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
-        JOIN chipseq_peaks_human p ON
-            r.species_id = p.species_id
-            AND r.best_peak_chr = p.chromosome
-            AND r.best_peak_start < p.peak_end
-            AND r.best_peak_end > p.peak_start
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {fallback_where_sql}
-        ORDER BY overlap_start
-        LIMIT :limit
-        """  # noqa: S608
+    # 重要：必须同时限制 peak 与 region 重叠，否则会返回“peak 与 best_peak 相交但不在 region 内”的特征
+    if is_postgresql:
+        peak_region_predicate = (
+            func.int8range(p.c.peak_start, p.c.peak_end, "[)")
+            .op("&&")(func.int8range(bp_start, bp_end, "[)"))
+        )
+    else:
+        peak_region_predicate = (p.c.peak_start < bp_end) & (p.c.peak_end > bp_start)
+
+    fallback_where_conditions = [
+        Regulation.species_id == 1,
+        ChIPSeqExperiment.is_active.is_(True),
+        Regulation.best_peak_chr == bp_chromosome,
+        Regulation.best_peak_start < bp_end,
+        Regulation.best_peak_end > bp_start,
+        peak_region_predicate,
+    ]
+    if mark_type is not None:
+        fallback_where_conditions.append(EpigeneticMarkType.mark_name == bp_mark_type)
+    if min_ba is not None:
+        fallback_where_conditions.append(Regulation.binding_affinity >= bp_min_ba)
+
+    overlap_start_expr = func.greatest(Regulation.best_peak_start, p.c.peak_start).label("overlap_start")
+    overlap_end_expr = func.least(Regulation.best_peak_end, p.c.peak_end).label("overlap_end")
+    fallback_stmt = (
+        select(
+            Regulation.best_peak_chr.label("chromosome"),
+            overlap_start_expr,
+            overlap_end_expr,
+            lnc.gene_name.label("lncrna_name"),
+            tgt.gene_name.label("target_gene_name"),
+            EpigeneticMarkType.mark_name.label("mark_type"),
+            ChIPSeqExperiment.cell_type,
+            Regulation.binding_affinity,
+        )
+        .select_from(Regulation)
+        .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
+        .join(tgt, Regulation.target_gene_id == tgt.gene_id)
+        .join(
+            p,
+            (Regulation.species_id == p.c.species_id)
+            & (Regulation.best_peak_chr == p.c.chromosome)
+            & (Regulation.best_peak_start < p.c.peak_end)
+            & (Regulation.best_peak_end > p.c.peak_start),
+        )
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*fallback_where_conditions)
+        .order_by(overlap_start_expr)
+        .limit(bp_limit)
     )
 
     params = {
@@ -225,7 +260,7 @@ def _execute_overlap_query(
         "limit": limit,
     }
 
-    sql = mv_sql if use_mv else fallback_sql
+    sql = mv_stmt if use_mv else fallback_stmt
     try:
         return db.execute(sql.execution_options(stream_results=True), params)
     except Exception as e:
@@ -233,7 +268,7 @@ def _execute_overlap_query(
             logger.warning(f"MV query failed (MV may have been dropped), falling back to join query: {e}")
             mv_cache.reset()
             try:
-                return db.execute(fallback_sql.execution_options(stream_results=True), params)
+                return db.execute(fallback_stmt.execution_options(stream_results=True), params)
             except Exception as fallback_error:
                 raise sanitize_db_error(fallback_error, logger)
         raise sanitize_db_error(e, logger)

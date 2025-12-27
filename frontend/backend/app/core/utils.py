@@ -14,9 +14,25 @@ if TYPE_CHECKING:
 SPECIES_IDS: List[int] = [1, 2, 3, 4]
 
 
-def escape_like_pattern(value: str) -> str:
-    """Escape LIKE pattern special characters (%, _, \\)"""
-    return re.sub(r'([%_\\])', r'\\\1', value)
+def escape_like_pattern(value: str, *, escape_char: str = "\\") -> str:
+    """
+    Escape user input for SQL LIKE/ILIKE pattern matching.
+
+    Escapes:
+    - '%' and '_' (wildcards)
+    - the escape character itself
+
+    Notes:
+    - Callers MUST also provide the same `escape_char` to the SQLAlchemy
+      `.like()` / `.ilike()` `escape=` parameter to ensure consistent behavior.
+    """
+    if len(escape_char) != 1:
+        raise ValueError("escape_char must be a single character")
+
+    # Escape the escape character first to avoid double-escaping.
+    escaped = value.replace(escape_char, escape_char + escape_char)
+    escaped = escaped.replace("%", escape_char + "%").replace("_", escape_char + "_")
+    return escaped
 
 
 _LOG_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]+")

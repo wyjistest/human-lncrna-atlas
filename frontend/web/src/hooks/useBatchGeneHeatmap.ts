@@ -75,7 +75,7 @@ export function useBatchGeneHeatmap(
   const queries = useMemo(
     () =>
       genes.map((gene) => ({
-        queryKey: chipseqQueryKeys.heatmapMatrix(gene.gene_id, marks, cellTypes, metric),
+        queryKey: chipseqQueryKeys.heatmapMatrix(gene.gene_id, marks, cellTypes, metric, flanking),
         queryFn: async ({ signal }: { signal: AbortSignal }) => {
           const response = await chipseqApi.getHeatmapMatrix(
             gene.gene_id,
@@ -184,7 +184,7 @@ export async function prefetchBatchGeneHeatmap(
 ) {
   const promises = genes.map((gene) =>
     queryClient.prefetchQuery({
-      queryKey: chipseqQueryKeys.heatmapMatrix(gene.gene_id, marks, cellTypes, metric),
+      queryKey: chipseqQueryKeys.heatmapMatrix(gene.gene_id, marks, cellTypes, metric, flanking),
       queryFn: async ({ signal }) => {
         const response = await chipseqApi.getHeatmapMatrix(
           gene.gene_id,

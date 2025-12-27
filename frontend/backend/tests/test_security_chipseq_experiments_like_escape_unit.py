@@ -3,7 +3,9 @@ Unit tests: ChIP-seq experiments filtering should use a single-character ESCAPE 
 
 Rationale:
 - PostgreSQL requires the ESCAPE string length to be exactly 1 character.
-- We use backslash (\\) as the escape character together with escape_like_pattern().
+- We use a dedicated escape character together with escape_like_pattern() to ensure:
+  1) LIKE wildcards ('%' / '_') in user input are treated literally
+  2) the query doesn't degrade into an unintended broad scan
 """
 
 from datetime import datetime
@@ -11,6 +13,8 @@ from datetime import datetime
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+from sqlalchemy.dialects import postgresql
 
 from app.core.database import get_db
 from app.routers.chipseq_experiments import router as experiments_router
@@ -33,7 +37,13 @@ class _CaptureSession:
         self.last_params = None
 
     def execute(self, sql, params=None):
-        self.last_sql = getattr(sql, "text", str(sql))
+        if hasattr(sql, "compile"):
+            try:
+                self.last_sql = str(sql.compile(dialect=postgresql.dialect()))
+            except Exception:
+                self.last_sql = getattr(sql, "text", str(sql))
+        else:
+            self.last_sql = getattr(sql, "text", str(sql))
         self.last_params = dict(params or {})
 
         # Return one row matching list_experiments() expected shape (22 columns).
@@ -82,7 +92,7 @@ def client(captured_db: _CaptureSession) -> TestClient:
 
 
 def test_list_experiments_cell_type_uses_single_char_escape_clause(client: TestClient, captured_db: _CaptureSession):
-    # Test that the ESCAPE clause uses a single backslash character.
+    # Test that the ESCAPE clause uses a single character.
     # We use a cell_type that contains the LIKE wildcard `_` to verify escaping.
     # Note: We use `_` instead of `%` to avoid URL encoding issues across different environments.
     resp = client.get(
@@ -92,9 +102,9 @@ def test_list_experiments_cell_type_uses_single_char_escape_clause(client: TestC
     assert resp.status_code == 200
 
     assert captured_db.last_sql is not None, "Expected the endpoint to execute a SQL query"
-    assert "ESCAPE '\\'" in captured_db.last_sql, "ESCAPE clause should use a single backslash character"
-    assert "ESCAPE '\\\\'" not in captured_db.last_sql, "ESCAPE clause must not contain a two-character string"
+    assert "ESCAPE '^'" in captured_db.last_sql, "ESCAPE clause should use a single character"
+    assert "ESCAPE '^^'" not in captured_db.last_sql, "ESCAPE clause must not contain a two-character string"
 
     assert captured_db.last_params is not None
-    # The escape_like_pattern function should escape `_` with backslash
-    assert captured_db.last_params.get("cell_type") == r"K\_562"
+    # escape_like_pattern should escape `_` with the same escape character
+    assert captured_db.last_params.get("cell_type") == r"K^_562"

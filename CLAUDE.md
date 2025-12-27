@@ -4,9 +4,9 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.41 |
+| 版本 | Phase 9.42 |
 | 状态 | 🟢 生产就绪 |
-| 更新 | 2025-12-26 |
+| 更新 | 2025-12-27 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
@@ -282,7 +282,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.38 | Codex 二十七次审查修复: X-Forwarded-For 解析加固 (parse_x_forwarded_for) + Overlap COUNT 缓存 | 2025-12-26 |
 | 9.39 | Codex 二十八次审查修复: 生产环境 RATE_LIMIT_BYPASS_PRIVATE fail-fast + ENABLE_API_DOCS 开关 + mark_pair 验证 | 2025-12-26 |
 | 9.40 | Codex 二十九次审查修复: RepeatMasker 区域 DoS 防护 (10Mb 限制) + include_total 可选参数优化 | 2025-12-26 |
-| **9.41** | **Codex 三十次审查修复: 多端点 DoS 防护 (marks/stats 1h 缓存) + 参数规范化 + max_length 约束** | **2025-12-26** |
+| 9.41 | Codex 三十次审查修复: 多端点 DoS 防护 (marks/stats 1h 缓存) + 参数规范化 + max_length 约束 | 2025-12-26 |
+| **9.42** | **Codex 三十一次审查修复: SQL 注入防护 (SQLAlchemy 表达式重构) + Conservation 内存 DoS 防护 (SQL 聚合) + 前端 queryKey 完整性 + AbortController 请求取消 + ILIKE ESCAPE 字符修复** | **2025-12-27** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -308,6 +309,10 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_security_chipseq_export_mark_pair_unit.py` | 8 | mark_pair 参数验证 (Phase 9.39) |
 | `test_security_repeatmasker_region_validation_unit.py` | 3 | RepeatMasker 区域 DoS 防护 (Phase 9.40) |
 | `test_security_repeatmasker_gene_region_limit_unit.py` | 2 | 基因区域大小限制 (Phase 9.40) |
+| `test_security_export_chipseq_overlaps_mark_names_unit.py` | 5 | mark_names DoS 防护 (Phase 9.42) |
+| `test_conservation_regulation_matrix_patterns_unit.py` | - | Conservation 矩阵 SQL 聚合 (Phase 9.42) |
+| `test_security_repeatmasker_families_repeat_class_validation_unit.py` | - | RepeatMasker families 白名单校验 (Phase 9.42) |
+| `queryKeys.test.ts` (前端) | - | React Query key 不变异 + 参数完整性 (Phase 9.42) |
 
 **运行测试**:
 ```bash

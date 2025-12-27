@@ -27,7 +27,7 @@ router = APIRouter()
 @rate_limit("60/minute")
 def search_genes_for_igv(
     request: Request,
-    q: str = Query(..., min_length=1, description="搜索关键词（基因名或 Ensembl ID）"),
+    q: str = Query(..., min_length=1, max_length=256, description="搜索关键词（基因名或 Ensembl ID）"),
     species_id: Optional[int] = Query(None, ge=1, le=4, description="物种 ID 过滤"),
     limit: int = Query(20, ge=1, le=100, description="返回结果数量限制"),
     db: Session = Depends(get_db),
@@ -119,7 +119,7 @@ def search_genes_for_igv(
 @rate_limit("60/minute")
 def search_locus_for_igv(
     request: Request,
-    q: str = Query(..., min_length=1, description="搜索关键词（基因名、Ensembl ID 或染色体坐标）"),
+    q: str = Query(..., min_length=1, max_length=256, description="搜索关键词（基因名、Ensembl ID 或染色体坐标）"),
     species_id: Optional[int] = Query(None, ge=1, le=4, description="物种 ID 过滤"),
     db: Session = Depends(get_db),
 ):
@@ -266,7 +266,7 @@ def search_locus_for_igv(
 @rate_limit("60/minute")
 def autocomplete_genes(
     request: Request,
-    q: str = Query(..., min_length=1, description="搜索关键词（基因名前缀）"),
+    q: str = Query(..., min_length=1, max_length=256, description="搜索关键词（基因名前缀）"),
     species_id: Optional[int] = Query(None, ge=1, le=4, description="物种 ID 过滤"),
     limit: int = Query(10, ge=1, le=50, description="返回结果数量限制"),
     db: Session = Depends(get_db),

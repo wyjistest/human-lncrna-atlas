@@ -1,12 +1,13 @@
 """统计信息API路由"""
-from typing import List
-from fastapi import APIRouter, Depends, Query, Request
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func, desc, case
 
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
+from app.core.validators import normalize_optional_str
 from app.models import (
     Species,
     CoreGene,
@@ -127,14 +128,22 @@ def get_overview_stats(request: Request, db: Session = Depends(get_db)):
 def get_top_genes(
     request: Request,
     limit: int = Query(10, ge=1, le=100, description="返回数量"),
-    gene_type: str = Query(None, description="基因类型过滤"),
+    gene_type: Optional[str] = Query(None, max_length=32, description="基因类型过滤"),
     db: Session = Depends(get_db),
 ):
     """
     获取Top基因（按调控关系数量排序，缓存 1 小时）
     """
+    normalized_gene_type = normalize_optional_str(gene_type)
+    if normalized_gene_type is not None and normalized_gene_type not in ("lncRNA", "protein_coding"):
+        raise HTTPException(
+            status_code=400,
+            detail="gene_type must be 'lncRNA' or 'protein_coding'",
+        )
+
     # 构建缓存键（包含参数）
-    cache_key = cache.make_key(f"stats:top-genes:{limit}:{gene_type or 'all'}")
+    # SECURITY/PERF: avoid embedding user-controlled strings in cache keys; use hashed key params.
+    cache_key = cache.make_key("stats:top-genes", limit=limit, gene_type=normalized_gene_type)
 
     # 尝试从缓存获取
     cached = cache.get(cache_key)
@@ -162,8 +171,8 @@ def get_top_genes(
         )
     )
 
-    if gene_type:
-        query = query.filter(CoreGene.gene_type == gene_type)
+    if normalized_gene_type:
+        query = query.filter(CoreGene.gene_type == normalized_gene_type)
 
     query = query.order_by(desc("regulation_count")).limit(limit)
 

@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
-from app.core.validators import parse_comma_list
+from app.core.validators import normalize_optional_str, parse_comma_list
 from app.models import Species, ChIPSeqExperiment, EpigeneticMarkType
 from app.core.igv_stream_generators import (
     generate_chipseq_bed_stream,
@@ -45,7 +45,7 @@ def get_chipseq_bed(
     request: Request,
     species_id: int,
     mark_type: str = Query(..., description="Mark type, e.g., H3K27me3"),
-    chromosome: Optional[str] = Query(None, description="Filter by chromosome, e.g., chr1"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome, e.g., chr1"),
     start: Optional[int] = Query(None, ge=0, description="Region start position (0-based)"),
     end: Optional[int] = Query(None, ge=0, description="Region end position"),
     limit: Optional[int] = Query(None, ge=1, le=100000, description="Max records to return (default: 50000 when no region filter)"),
@@ -86,8 +86,10 @@ def get_chipseq_bed(
     if not species:
         raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
 
+    normalized_chromosome = normalize_optional_str(chromosome)
+
     # Parameter validation
-    if (start is not None or end is not None) and chromosome is None:
+    if (start is not None or end is not None) and normalized_chromosome is None:
         raise HTTPException(
             status_code=400,
             detail="chromosome parameter is required when using start/end filters"
@@ -121,8 +123,8 @@ def get_chipseq_bed(
 
     # Build filename
     filename = f"chipseq_{mark_type}_species{species_id}"
-    if chromosome:
-        filename += f"_{chromosome}"
+    if normalized_chromosome:
+        filename += f"_{normalized_chromosome}"
         if start is not None and end is not None:
             filename += f"_{start}-{end}"
     filename += ".bed"
@@ -154,7 +156,7 @@ def get_chipseq_bed(
     # Default limit of 50000 when no region filter to prevent loading all 420k peaks
     if limit is not None:
         max_records = limit
-    elif chromosome is None:
+    elif normalized_chromosome is None:
         max_records = 50000  # Default limit when no region filter
     else:
         max_records = None  # No limit when region filter is specified
@@ -162,14 +164,14 @@ def get_chipseq_bed(
     # Data exists - generate full BED stream
     logger.info(
         f"ChIP-seq BED export: species={species_id}, mark={mark_type}, "
-        f"chr={chromosome}, start={start}, end={end}, max_records={max_records}"
+        f"chr={normalized_chromosome}, start={start}, end={end}, max_records={max_records}"
     )
 
     bed_stream = generate_chipseq_bed_stream(
         db=db,
         species_id=species_id,
         mark_type=mark_type,
-        chr_filter=chromosome,
+        chr_filter=normalized_chromosome,
         start_filter=start,
         end_filter=end,
         max_records=max_records,

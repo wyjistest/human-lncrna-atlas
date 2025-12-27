@@ -53,7 +53,7 @@ def get_repeatmasker_track_id(db: Session) -> int:
 @rate_limit("30/minute")
 def list_feature_tracks(
     request: Request,
-    category: Optional[str] = Query(None, description="Filter by track category"),
+    category: Optional[str] = Query(None, max_length=50, description="Filter by track category"),
     active_only: bool = Query(True, description="Only return active tracks"),
     db: Session = Depends(get_db),
 ):
@@ -62,8 +62,9 @@ def list_feature_tracks(
     """
     query = db.query(FeatureTrack)
 
-    if category:
-        query = query.filter(FeatureTrack.track_category == category)
+    normalized_category = normalize_optional_str(category)
+    if normalized_category:
+        query = query.filter(FeatureTrack.track_category == normalized_category)
     if active_only:
         query = query.filter(FeatureTrack.is_active.is_(True))
 
@@ -724,7 +725,32 @@ def get_repeat_families(
     if not species:
         raise HTTPException(status_code=404, detail="Species not found")
 
-    track_id = get_repeatmasker_track_id(db)
+    track_id: Optional[int] = None
+
+    # PERF/SECURITY: prevent cache-miss DoS by validating repeat_class against known classes.
+    # Attackers could otherwise send many distinct repeat_class values to trigger expensive DISTINCT scans.
+    if normalized_repeat_class:
+        classes_cache_key = cache.make_key("repeatmasker:classes", species_id=species_id)
+        known_classes = cache.get(classes_cache_key)
+        if known_classes is None:
+            track_id = get_repeatmasker_track_id(db)
+            rows = (
+                db.query(GenomicFeature.attributes["repeat_class"].astext.label("repeat_class"))
+                .filter(
+                    GenomicFeature.track_id == track_id,
+                    GenomicFeature.species_id == species_id,
+                )
+                .distinct()
+                .all()
+            )
+            known_classes = sorted([r.repeat_class for r in rows if r.repeat_class])
+            cache.set(classes_cache_key, known_classes, cache.TTL_STATS)
+
+        if normalized_repeat_class not in (known_classes or []):
+            return []
+
+    if track_id is None:
+        track_id = get_repeatmasker_track_id(db)
 
     # Build query
     query = (

@@ -7,14 +7,15 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import bindparam, func, literal, select
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
 from app.core.utils import escape_like_pattern
-from app.core.validators import compute_pagination_offset
+from app.core.validators import compute_pagination_offset, normalize_optional_str
 from app.routers.chipseq_rate_limit import rate_limit
 from app.utils.chipseq_db import parse_mark_types
+from app.models import ChIPSeqExperiment, ChIPSeqPeak, EpigeneticMarkType, Species
 from app.schemas.chipseq import (
     ChIPSeqExperimentListResponse,
     ChIPSeqExperimentResponse,
@@ -31,9 +32,9 @@ def list_experiments(
     request: Request,
     species_id: Optional[int] = Query(None, ge=1, le=4, description="Filter by species"),
     mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated"),
-    mark_category: Optional[str] = Query(None, description="Filter by mark category"),
-    cell_type: Optional[str] = Query(None, description="Filter by cell type"),
-    source_database: Optional[str] = Query(None, description="Filter by source (ENCODE, GEO)"),
+    mark_category: Optional[str] = Query(None, max_length=100, description="Filter by mark category"),
+    cell_type: Optional[str] = Query(None, max_length=100, description="Filter by cell type"),
+    source_database: Optional[str] = Query(None, max_length=32, description="Filter by source (ENCODE, GEO)"),
     active_only: bool = Query(True, description="Only return active experiments"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -45,113 +46,136 @@ def list_experiments(
     Supports filtering by species, mark type, cell type, and data source.
     """
     mark_types = parse_mark_types(mark_type)
+    normalized_mark_category = normalize_optional_str(mark_category)
+    normalized_cell_type = normalize_optional_str(cell_type)
+    normalized_source_database = normalize_optional_str(source_database)
 
-    where_clauses = []
     params = {}
 
+    # NOTE: 避免使用反斜杠作为 ESCAPE 字符，减少 PostgreSQL/驱动/编译器在字符串转义上的歧义。
+    # '^' 是单字符且不常见，适合作为 LIKE/ILIKE 的 escape 字符。
+    like_escape_char = "^"
+
+    where_conditions = []
     if species_id is not None:
-        where_clauses.append("e.species_id = :species_id")
+        where_conditions.append(ChIPSeqExperiment.species_id == bindparam("species_id"))
         params["species_id"] = species_id
 
     if mark_types is not None:
-        where_clauses.append("m.mark_name = ANY(:mark_types)")
+        where_conditions.append(EpigeneticMarkType.mark_name.in_(bindparam("mark_types", expanding=True)))
         params["mark_types"] = mark_types
 
-    if mark_category is not None:
-        where_clauses.append("m.mark_category = :mark_category")
-        params["mark_category"] = mark_category
+    if normalized_mark_category is not None:
+        where_conditions.append(EpigeneticMarkType.mark_category == bindparam("mark_category"))
+        params["mark_category"] = normalized_mark_category
 
-    if cell_type is not None:
+    if normalized_cell_type is not None:
         # SECURITY/PERF: 统一 LIKE 转义，避免通配符绕过导致意外全表扫描
-        cell_type_stripped = cell_type.strip()
-        if cell_type_stripped:
-            # PostgreSQL: ESCAPE 子句必须是单字符；这里使用反斜杠作为转义字符
-            where_clauses.append("e.cell_type ILIKE '%' || :cell_type || '%' ESCAPE '\\'")
-            params["cell_type"] = escape_like_pattern(cell_type_stripped)
+        # PostgreSQL: ESCAPE 子句必须是单字符；这里使用 '^' 作为转义字符
+        where_conditions.append(
+            ChIPSeqExperiment.cell_type.ilike(
+                literal("%") + bindparam("cell_type") + literal("%"),
+                escape=like_escape_char,
+            )
+        )
+        params["cell_type"] = escape_like_pattern(normalized_cell_type, escape_char=like_escape_char)
 
-    if source_database is not None:
-        where_clauses.append("e.source_database = :source_database")
-        params["source_database"] = source_database
+    if normalized_source_database is not None:
+        where_conditions.append(ChIPSeqExperiment.source_database == bindparam("source_database"))
+        params["source_database"] = normalized_source_database
 
     if active_only:
-        where_clauses.append("e.is_active = TRUE")
-
-    where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
+        where_conditions.append(ChIPSeqExperiment.is_active.is_(True))
 
     # Avoid scanning the full chipseq_peaks table for all experiments:
     # only compute peak_count for experiments in the current page.
-    query = text(
-        f"""
-        WITH filtered_experiments AS (
-            SELECT
-                e.experiment_id,
-                e.experiment_name,
-                e.species_id,
-                s.species_code,
-                m.mark_name,
-                m.mark_category,
-                m.display_color,
-                e.cell_type,
-                e.tissue_type,
-                e.cell_line,
-                e.treatment,
-                e.source_database,
-                e.source_accession,
-                e.peak_caller,
-                e.reference_genome,
-                e.total_reads,
-                e.mapped_reads,
-                e.frip_score,
-                e.is_active,
-                e.created_at
-            FROM chipseq_experiments e
-            JOIN species s ON e.species_id = s.species_id
-            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-            WHERE {where_sql}
-        ),
-        paged_experiments AS (
-            SELECT
-                *,
-                COUNT(*) OVER() as total_count
-            FROM filtered_experiments
-            ORDER BY created_at DESC
-            LIMIT :limit OFFSET :offset
-        ),
-        peak_counts AS (
-            SELECT
-                p.experiment_id,
-                COUNT(*) as peak_count
-            FROM chipseq_peaks p
-            WHERE p.experiment_id IN (SELECT experiment_id FROM paged_experiments)
-            GROUP BY p.experiment_id
+    filtered_experiments = (
+        select(
+            ChIPSeqExperiment.experiment_id,
+            ChIPSeqExperiment.experiment_name,
+            ChIPSeqExperiment.species_id,
+            Species.species_code,
+            EpigeneticMarkType.mark_name,
+            EpigeneticMarkType.mark_category,
+            EpigeneticMarkType.display_color,
+            ChIPSeqExperiment.cell_type,
+            ChIPSeqExperiment.tissue_type,
+            ChIPSeqExperiment.cell_line,
+            ChIPSeqExperiment.treatment,
+            ChIPSeqExperiment.source_database,
+            ChIPSeqExperiment.source_accession,
+            ChIPSeqExperiment.peak_caller,
+            ChIPSeqExperiment.reference_genome,
+            ChIPSeqExperiment.total_reads,
+            ChIPSeqExperiment.mapped_reads,
+            ChIPSeqExperiment.frip_score,
+            ChIPSeqExperiment.is_active,
+            ChIPSeqExperiment.created_at,
         )
-        SELECT
-            pe.experiment_id,
-            pe.experiment_name,
-            pe.species_id,
-            pe.species_code,
-            pe.mark_name,
-            pe.mark_category,
-            pe.display_color,
-            pe.cell_type,
-            pe.tissue_type,
-            pe.cell_line,
-            pe.treatment,
-            pe.source_database,
-            pe.source_accession,
-            pe.peak_caller,
-            pe.reference_genome,
-            pe.total_reads,
-            pe.mapped_reads,
-            pe.frip_score,
-            pe.is_active,
-            pe.created_at,
-            COALESCE(pc.peak_count, 0) as peak_count,
-            pe.total_count
-        FROM paged_experiments pe
-        LEFT JOIN peak_counts pc ON pe.experiment_id = pc.experiment_id
-        ORDER BY pe.created_at DESC
-        """  # noqa: S608
+        .select_from(ChIPSeqExperiment)
+        .join(Species, ChIPSeqExperiment.species_id == Species.species_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+    )
+    if where_conditions:
+        filtered_experiments = filtered_experiments.where(*where_conditions)
+
+    filtered_experiments_cte = filtered_experiments.cte("filtered_experiments")
+
+    paged_experiments_cte = (
+        select(
+            filtered_experiments_cte,
+            func.count().over().label("total_count"),
+        )
+        .select_from(filtered_experiments_cte)
+        .order_by(filtered_experiments_cte.c.created_at.desc())
+        .limit(bindparam("limit"))
+        .offset(bindparam("offset"))
+        .cte("paged_experiments")
+    )
+
+    peak_counts_cte = (
+        select(
+            ChIPSeqPeak.experiment_id,
+            func.count().label("peak_count"),
+        )
+        .select_from(ChIPSeqPeak)
+        .where(
+            ChIPSeqPeak.experiment_id.in_(
+                select(paged_experiments_cte.c.experiment_id)
+            )
+        )
+        .group_by(ChIPSeqPeak.experiment_id)
+        .cte("peak_counts")
+    )
+
+    query = (
+        select(
+            paged_experiments_cte.c.experiment_id,
+            paged_experiments_cte.c.experiment_name,
+            paged_experiments_cte.c.species_id,
+            paged_experiments_cte.c.species_code,
+            paged_experiments_cte.c.mark_name,
+            paged_experiments_cte.c.mark_category,
+            paged_experiments_cte.c.display_color,
+            paged_experiments_cte.c.cell_type,
+            paged_experiments_cte.c.tissue_type,
+            paged_experiments_cte.c.cell_line,
+            paged_experiments_cte.c.treatment,
+            paged_experiments_cte.c.source_database,
+            paged_experiments_cte.c.source_accession,
+            paged_experiments_cte.c.peak_caller,
+            paged_experiments_cte.c.reference_genome,
+            paged_experiments_cte.c.total_reads,
+            paged_experiments_cte.c.mapped_reads,
+            paged_experiments_cte.c.frip_score,
+            paged_experiments_cte.c.is_active,
+            paged_experiments_cte.c.created_at,
+            func.coalesce(peak_counts_cte.c.peak_count, 0).label("peak_count"),
+            paged_experiments_cte.c.total_count,
+        )
+        .select_from(paged_experiments_cte)
+        .outerjoin(peak_counts_cte, paged_experiments_cte.c.experiment_id == peak_counts_cte.c.experiment_id)
+        .order_by(paged_experiments_cte.c.created_at.desc())
     )
 
     offset = compute_pagination_offset(page, page_size)
@@ -217,41 +241,48 @@ def get_experiment(
     """
     Get details for a specific ChIP-seq experiment
     """
-    query = text("""
-        WITH experiment_counts AS (
-            SELECT experiment_id, COUNT(*) as peak_count
-            FROM chipseq_peaks
-            WHERE experiment_id = :experiment_id
-            GROUP BY experiment_id
+    bp_experiment_id = bindparam("experiment_id")
+    experiment_counts_cte = (
+        select(
+            ChIPSeqPeak.experiment_id,
+            func.count().label("peak_count"),
         )
-        SELECT
-            e.experiment_id,
-            e.experiment_name,
-            e.species_id,
-            s.species_code,
-            m.mark_name,
-            m.mark_category,
-            m.display_color,
-            e.cell_type,
-            e.tissue_type,
-            e.cell_line,
-            e.treatment,
-            e.source_database,
-            e.source_accession,
-            e.peak_caller,
-            e.reference_genome,
-            e.total_reads,
-            e.mapped_reads,
-            e.frip_score,
-            e.is_active,
-            e.created_at,
-            COALESCE(ec.peak_count, 0) as peak_count
-        FROM chipseq_experiments e
-        JOIN species s ON e.species_id = s.species_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        LEFT JOIN experiment_counts ec ON e.experiment_id = ec.experiment_id
-        WHERE e.experiment_id = :experiment_id
-    """)
+        .select_from(ChIPSeqPeak)
+        .where(ChIPSeqPeak.experiment_id == bp_experiment_id)
+        .group_by(ChIPSeqPeak.experiment_id)
+        .cte("experiment_counts")
+    )
+
+    query = (
+        select(
+            ChIPSeqExperiment.experiment_id,
+            ChIPSeqExperiment.experiment_name,
+            ChIPSeqExperiment.species_id,
+            Species.species_code,
+            EpigeneticMarkType.mark_name,
+            EpigeneticMarkType.mark_category,
+            EpigeneticMarkType.display_color,
+            ChIPSeqExperiment.cell_type,
+            ChIPSeqExperiment.tissue_type,
+            ChIPSeqExperiment.cell_line,
+            ChIPSeqExperiment.treatment,
+            ChIPSeqExperiment.source_database,
+            ChIPSeqExperiment.source_accession,
+            ChIPSeqExperiment.peak_caller,
+            ChIPSeqExperiment.reference_genome,
+            ChIPSeqExperiment.total_reads,
+            ChIPSeqExperiment.mapped_reads,
+            ChIPSeqExperiment.frip_score,
+            ChIPSeqExperiment.is_active,
+            ChIPSeqExperiment.created_at,
+            func.coalesce(experiment_counts_cte.c.peak_count, 0).label("peak_count"),
+        )
+        .select_from(ChIPSeqExperiment)
+        .join(Species, ChIPSeqExperiment.species_id == Species.species_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .outerjoin(experiment_counts_cte, ChIPSeqExperiment.experiment_id == experiment_counts_cte.c.experiment_id)
+        .where(ChIPSeqExperiment.experiment_id == bp_experiment_id)
+    )
 
     try:
         row = db.execute(query, {"experiment_id": experiment_id}).fetchone()

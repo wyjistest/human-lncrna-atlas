@@ -8,13 +8,14 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
 
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
+from app.core.validators import normalize_optional_str
 from app.models import Species, Gene, Regulation, EpigeneticMarkType, ChIPSeqExperiment
 from app.core.igv_utils import get_genome_reference, get_chipseq_mark_color
 from app.config.igv_genomes import (
@@ -221,11 +222,12 @@ def list_available_genomes(request: Request, db: Session = Depends(get_db)):
 @rate_limit("60/minute")
 def get_igv_config_for_gene(
     request: Request,
-    gene_name: str,
+    gene_name: str = Path(..., min_length=1, max_length=256, description="基因名称或 Ensembl ID"),
     padding: int = Query(50000, ge=0, le=500000, description="基因两侧扩展区域(bp)"),
     include_chipseq: bool = Query(False, description="Include ChIP-seq tracks"),
     chipseq_marks: Optional[str] = Query(
         None,
+        max_length=500,
         description="Comma-separated ChIP-seq mark types to include, e.g., H3K27me3,H3K4me3. If not specified but include_chipseq=true, all available marks are included."
     ),
     db: Session = Depends(get_db),
@@ -475,7 +477,7 @@ def get_igv_config_for_gene(
 def get_regulations_count(
     request: Request,
     species_id: int,
-    chr: Optional[str] = Query(None, description="染色体过滤"),
+    chr: Optional[str] = Query(None, max_length=64, description="染色体过滤"),
     start: Optional[int] = Query(None, ge=0, description="起始位置"),
     end: Optional[int] = Query(None, ge=0, description="结束位置"),
     db: Session = Depends(get_db),
@@ -499,6 +501,15 @@ def get_regulations_count(
     if not species:
         raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
 
+    normalized_chr = normalize_optional_str(chr)
+    if (start is not None or end is not None) and normalized_chr is None:
+        raise HTTPException(
+            status_code=400,
+            detail="chr parameter is required when using start/end filters",
+        )
+    if start is not None and end is not None and start >= end:
+        raise HTTPException(status_code=400, detail="start must be less than end")
+
     # 仅需计数：使用 func.count 避免 Query.count() 生成子查询带来的额外开销
     query = (
         db.query(func.count(Regulation.regulation_id))
@@ -507,8 +518,8 @@ def get_regulations_count(
     )
 
     # 区域过滤
-    if chr:
-        query = query.filter(Regulation.best_peak_chr == chr)
+    if normalized_chr:
+        query = query.filter(Regulation.best_peak_chr == normalized_chr)
 
         if start is not None and end is not None:
             query = query.filter(
@@ -525,7 +536,7 @@ def get_regulations_count(
         "data": {
             "species_id": species_id,
             "species_name": species.display_name,
-            "chr": chr,
+            "chr": normalized_chr,
             "start": start,
             "end": end,
             "count": count,

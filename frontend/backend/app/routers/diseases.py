@@ -245,7 +245,7 @@ def get_disease_genes(
     trait_id: int,
     page: int = Query(1, ge=1),
     page_size: int = Query(100, ge=1, le=1000),
-    gene_type: Optional[str] = Query(None, description="基因类型过滤"),
+    gene_type: Optional[str] = Query(None, max_length=20, description="基因类型过滤"),
     ontology_id: Optional[int] = Query(None, description="Ontology ID过滤"),
     db: Session = Depends(get_db),
 ):
@@ -256,6 +256,13 @@ def get_disease_genes(
     trait = db.query(Trait).filter(Trait.trait_id == trait_id).first()
     if not trait:
         raise HTTPException(status_code=404, detail="Disease/Trait not found")
+
+    normalized_gene_type = normalize_optional_str(gene_type)
+    if normalized_gene_type is not None and normalized_gene_type not in ("lncRNA", "protein_coding"):
+        raise HTTPException(
+            status_code=400,
+            detail="gene_type must be 'lncRNA' or 'protein_coding'",
+        )
 
     # 构建基因名子查询（每个core_id取一个gene_name）
     # 使用 DISTINCT ON 替代相关子查询，避免 N+1 查询问题
@@ -298,8 +305,8 @@ def get_disease_genes(
     )
 
     # 应用过滤
-    if gene_type:
-        query = query.filter(CoreGene.gene_type == gene_type)
+    if normalized_gene_type:
+        query = query.filter(CoreGene.gene_type == normalized_gene_type)
     if ontology_id:
         query = query.filter(TraitGeneAssociation.ontology_id == ontology_id)
 
@@ -307,7 +314,7 @@ def get_disease_genes(
     count_cache_key = cache.make_key(
         "diseases:trait-genes:count",
         trait_id=trait_id,
-        gene_type=gene_type,
+        gene_type=normalized_gene_type,
         ontology_id=ontology_id,
     )
     total = cache.get_cached_count(query, count_cache_key)

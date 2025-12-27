@@ -7,13 +7,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import select, func
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
 from app.core.validators import compute_pagination_offset
 from app.routers.chipseq_rate_limit import rate_limit
-from app.models import Species
+from app.models import Species, ChIPSeqPeak as ChIPSeqPeakModel, ChIPSeqExperiment, EpigeneticMarkType
 from app.utils.chipseq_db import parse_mark_types
 from app.schemas.chipseq import (
     ChIPSeqPaginatedResponse,
@@ -73,98 +73,82 @@ def get_peaks_by_region(
     mark_types = parse_mark_types(mark_type)
 
     is_postgresql = db.get_bind().dialect.name == "postgresql"
-    region_predicate = (
-        "int8range(p.peak_start, p.peak_end, '[)') && int8range(:start, :end, '[)')"
-        if is_postgresql
-        else "p.peak_start < :end AND p.peak_end > :start"
-    )
+    if is_postgresql:
+        # PostgreSQL: use int8range overlap for efficient range filtering.
+        region_predicate = (
+            func.int8range(ChIPSeqPeakModel.peak_start, ChIPSeqPeakModel.peak_end, "[)")
+            .op("&&")(func.int8range(start, end, "[)"))
+        )
+    else:
+        # Generic fallback for SQLite/demo mode.
+        region_predicate = (ChIPSeqPeakModel.peak_start < end) & (ChIPSeqPeakModel.peak_end > start)
 
-    where_clauses = [
-        "p.species_id = :species_id",
-        "p.chromosome = :chromosome",
+    where_conditions = [
+        ChIPSeqPeakModel.species_id == species_id,
+        ChIPSeqPeakModel.chromosome == chromosome,
         region_predicate,
-        "e.is_active = TRUE",
+        ChIPSeqExperiment.is_active.is_(True),
     ]
-    params = {
-        "species_id": species_id,
-        "chromosome": chromosome,
-        "start": start,
-        "end": end,
-    }
-
     if mark_types is not None:
-        where_clauses.append("m.mark_name = ANY(:mark_types)")
-        params["mark_types"] = mark_types
-
+        where_conditions.append(EpigeneticMarkType.mark_name.in_(mark_types))
     if min_fold_enrichment is not None:
-        where_clauses.append("p.fold_enrichment >= :min_fold_enrichment")
-        params["min_fold_enrichment"] = min_fold_enrichment
-
+        where_conditions.append(ChIPSeqPeakModel.fold_enrichment >= min_fold_enrichment)
     if max_qvalue is not None:
-        where_clauses.append("(p.qvalue IS NULL OR p.qvalue <= :max_qvalue)")
-        params["max_qvalue"] = max_qvalue
-
-    where_sql = " AND ".join(where_clauses)
+        where_conditions.append(
+            (ChIPSeqPeakModel.qvalue.is_(None)) | (ChIPSeqPeakModel.qvalue <= max_qvalue)
+        )
 
     # Phase 9.16: 条件性 COUNT 查询 - 当 include_total=false 时跳过
     total = 0
     if include_total:
-        count_query = text(
-            f"""
-            SELECT COUNT(*)
-            FROM chipseq_peaks p
-            JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-            JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-            WHERE {where_sql}
-            """  # noqa: S608
-        )
-
         try:
-            total = db.execute(count_query, params).scalar() or 0
+            count_stmt = (
+                select(func.count())
+                .select_from(ChIPSeqPeakModel)
+                .join(ChIPSeqExperiment, ChIPSeqPeakModel.experiment_id == ChIPSeqExperiment.experiment_id)
+                .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+                .where(*where_conditions)
+            )
+            total = db.execute(count_stmt).scalar() or 0
         except Exception as e:
             raise sanitize_db_error(e, logger)
 
     # Data query
     offset = compute_pagination_offset(page, page_size)
-    data_query = text(
-        f"""
-        SELECT
-            p.peak_id,
-            p.experiment_id,
-            m.mark_name,
-            m.mark_category,
-            p.chromosome,
-            p.peak_start,
-            p.peak_end,
-            p.summit_position,
-            p.peak_name,
-            p.strand,
-            p.fold_enrichment,
-            p.log2_fold_enrichment,
-            p.pvalue,
-            p.neg_log10_pvalue,
-            p.qvalue,
-            p.neg_log10_qvalue,
-            p.signal_value,
-            p.score,
-            p.peak_width
-        FROM chipseq_peaks p
-        JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
-        JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
-        WHERE {where_sql}
-        ORDER BY p.peak_start
-        LIMIT :limit OFFSET :offset
-        """  # noqa: S608
-    )
-
     try:
+        peak_width_expr = (ChIPSeqPeakModel.peak_end - ChIPSeqPeakModel.peak_start).label("peak_width")
+        data_stmt = (
+            select(
+                ChIPSeqPeakModel.peak_id,
+                ChIPSeqPeakModel.experiment_id,
+                EpigeneticMarkType.mark_name,
+                EpigeneticMarkType.mark_category,
+                ChIPSeqPeakModel.chromosome,
+                ChIPSeqPeakModel.peak_start,
+                ChIPSeqPeakModel.peak_end,
+                ChIPSeqPeakModel.summit_position,
+                ChIPSeqPeakModel.peak_name,
+                ChIPSeqPeakModel.strand,
+                ChIPSeqPeakModel.fold_enrichment,
+                ChIPSeqPeakModel.log2_fold_enrichment,
+                ChIPSeqPeakModel.pvalue,
+                ChIPSeqPeakModel.neg_log10_pvalue,
+                ChIPSeqPeakModel.qvalue,
+                ChIPSeqPeakModel.neg_log10_qvalue,
+                ChIPSeqPeakModel.signal_value,
+                ChIPSeqPeakModel.score,
+                peak_width_expr,
+            )
+            .select_from(ChIPSeqPeakModel)
+            .join(ChIPSeqExperiment, ChIPSeqPeakModel.experiment_id == ChIPSeqExperiment.experiment_id)
+            .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+            .where(*where_conditions)
+            .order_by(ChIPSeqPeakModel.peak_start)
+            .limit(page_size)
+            .offset(offset)
+        )
         rows = db.execute(
-            data_query,
-            {
-                **params,
-                "limit": page_size,
-                "offset": offset,
-            },
+            data_stmt,
         ).fetchall()
     except Exception as e:
         raise sanitize_db_error(e, logger)

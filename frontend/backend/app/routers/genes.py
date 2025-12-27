@@ -29,7 +29,7 @@ router = APIRouter(prefix="/genes", tags=["genes"])
 def get_gene_options(
     request: Request,  # Required for rate limiting
     species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID过滤"),
-    gene_type: Optional[str] = Query(None, description="基因类型过滤（lncRNA/protein_coding）"),
+    gene_type: Optional[str] = Query(None, max_length=20, description="基因类型过滤（lncRNA/protein_coding）"),
     q: Optional[str] = Query(
         None,
         min_length=1,
@@ -63,9 +63,15 @@ def get_gene_options(
     """
     # 仅“全量 options”使用缓存：避免为每个 q/limit 组合生成大量缓存键
     normalized_q = normalize_optional_str(q)
+    normalized_gene_type = normalize_optional_str(gene_type)
+    if normalized_gene_type is not None and normalized_gene_type not in ("lncRNA", "protein_coding"):
+        raise HTTPException(
+            status_code=400,
+            detail="gene_type must be 'lncRNA' or 'protein_coding'",
+        )
     use_cache = (normalized_q is None and limit is None)
     if use_cache:
-        cache_key = cache.make_options_key("genes", species_id=species_id, gene_type=gene_type)
+        cache_key = cache.make_options_key("genes", species_id=species_id, gene_type=normalized_gene_type)
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
@@ -80,9 +86,9 @@ def get_gene_options(
     ).join(Species, Gene.species_id == Species.species_id)
 
     # 如果需要按基因类型过滤，需要 JOIN core_genes
-    if gene_type:
+    if normalized_gene_type:
         query = query.join(CoreGene, Gene.core_id == CoreGene.core_id)
-        query = query.filter(CoreGene.gene_type == gene_type)
+        query = query.filter(CoreGene.gene_type == normalized_gene_type)
 
     # 应用物种过滤
     if species_id:
@@ -159,9 +165,9 @@ def list_genes(
     request: Request,  # Required for rate limiting
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(100, ge=1, le=1000, description="每页数量"),
-    gene_type: Optional[str] = Query(None, description="基因类型（lncRNA/protein_coding）"),
+    gene_type: Optional[str] = Query(None, max_length=20, description="基因类型（lncRNA/protein_coding）"),
     species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID"),
-    chromosome: Optional[str] = Query(None, description="染色体"),
+    chromosome: Optional[str] = Query(None, max_length=30, description="染色体"),
     search: Optional[str] = Query(None, max_length=100, description="搜索关键词（基因名/ID）"),
     has_regulation: Optional[bool] = Query(None, description="是否有调控关系"),
     min_regulation_count: Optional[int] = Query(None, ge=0, description="最小调控数量"),
@@ -172,6 +178,12 @@ def list_genes(
     """
     normalized_search = normalize_optional_str(search)
     normalized_chromosome = normalize_optional_str(chromosome)
+    normalized_gene_type = normalize_optional_str(gene_type)
+    if normalized_gene_type is not None and normalized_gene_type not in ("lncRNA", "protein_coding"):
+        raise HTTPException(
+            status_code=400,
+            detail="gene_type must be 'lncRNA' or 'protein_coding'",
+        )
 
     # 构建基础查询
     query = (
@@ -209,8 +221,8 @@ def list_genes(
     )
 
     # 应用过滤条件
-    if gene_type:
-        query = query.filter(CoreGene.gene_type == gene_type)
+    if normalized_gene_type:
+        query = query.filter(CoreGene.gene_type == normalized_gene_type)
     if species_id:
         query = query.filter(Gene.species_id == species_id)
     if normalized_chromosome:
@@ -241,7 +253,7 @@ def list_genes(
     # - 有 HAVING 条件时：仅按 gene_id 分组，减少 GROUP BY 列数量
     count_cache_key = cache.make_list_key(
         "genes",
-        gene_type=gene_type,
+        gene_type=normalized_gene_type,
         species_id=species_id,
         chromosome=normalized_chromosome,
         search=normalized_search,
@@ -255,8 +267,8 @@ def list_genes(
             .outerjoin(CoreGene, Gene.core_id == CoreGene.core_id)
         )
 
-        if gene_type:
-            count_query = count_query.filter(CoreGene.gene_type == gene_type)
+        if normalized_gene_type:
+            count_query = count_query.filter(CoreGene.gene_type == normalized_gene_type)
         if species_id:
             count_query = count_query.filter(Gene.species_id == species_id)
         if normalized_chromosome:
@@ -278,8 +290,8 @@ def list_genes(
             .group_by(Gene.gene_id)
         )
 
-        if gene_type:
-            count_query = count_query.filter(CoreGene.gene_type == gene_type)
+        if normalized_gene_type:
+            count_query = count_query.filter(CoreGene.gene_type == normalized_gene_type)
         if species_id:
             count_query = count_query.filter(Gene.species_id == species_id)
         if normalized_chromosome:

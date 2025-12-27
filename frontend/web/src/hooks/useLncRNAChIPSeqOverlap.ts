@@ -7,9 +7,10 @@
  */
 
 import { useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { message } from 'antd'
 import lncRNAChIPSeqOverlapApi, { overlapQueryKeys } from '@/api/lncRNAChIPSeqOverlapApi'
+import { parseError } from '@/utils/errorParser'
 import type {
   OverlapFilters,
   OverlapResponse,
@@ -272,13 +273,27 @@ export function useExportOverlaps(
   format: 'bed' | 'csv' = 'bed'
 ) {
   const [isExporting, setIsExporting] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+      abortRef.current?.abort()
+    }
+  }, [])
 
   const exportData = useCallback(async () => {
+    // Cancel any in-flight export to avoid races and unnecessary work
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setIsExporting(true)
     try {
       const response = format === 'bed'
-        ? await lncRNAChIPSeqOverlapApi.exportToBED(filters)
-        : await lncRNAChIPSeqOverlapApi.exportToCSV(filters)
+        ? await lncRNAChIPSeqOverlapApi.exportToBED(filters, controller.signal)
+        : await lncRNAChIPSeqOverlapApi.exportToCSV(filters, controller.signal)
 
       // Create download link
       const blob = new Blob([response.data], {
@@ -294,10 +309,18 @@ export function useExportOverlaps(
       window.URL.revokeObjectURL(url)
       message.success(`Export to ${format.toUpperCase()} successful`)
     } catch (error) {
-      console.error('Export failed:', error)
-      message.error(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      const parsed = parseError(error)
+      if (parsed.type !== 'canceled') {
+        console.error('Export failed:', error)
+        message.error(`Export failed: ${parsed.message}`)
+      }
     } finally {
-      setIsExporting(false)
+      if (abortRef.current === controller) {
+        abortRef.current = null
+      }
+      if (isMountedRef.current) {
+        setIsExporting(false)
+      }
     }
   }, [filters, format])
 

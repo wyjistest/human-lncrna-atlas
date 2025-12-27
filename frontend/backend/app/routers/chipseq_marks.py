@@ -5,14 +5,14 @@ ChIP-seq Mark Types API Router
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import select
+from sqlalchemy.orm import Session, aliased
 
 from app.core.cache import cache
 from app.core.database import get_db
 from app.core.validators import normalize_optional_str
 from app.routers.chipseq_rate_limit import rate_limit
-from app.models import Species
+from app.models import Species, EpigeneticMarkType, MarkRelationship
 from app.schemas.chipseq import (
     EpigeneticMarkTypeResponse,
     MarkRelationshipResponse,
@@ -46,36 +46,29 @@ def list_mark_types(
     if cached_value is not None:
         return cached_value
 
-    where_clauses = []
-    params = {}
-    if normalized_category is not None:
-        where_clauses.append("mark_category = :category")
-        params["category"] = normalized_category
-    if active_only:
-        where_clauses.append("is_active = TRUE")
-    where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
-
-    query = text(
-        f"""
-        SELECT
-            mark_type_id,
-            mark_name,
-            mark_category,
-            display_name,
-            display_color,
-            description,
-            biological_function,
-            associated_state,
-            typical_signal_range,
-            is_active,
-            sort_order
-        FROM epigenetic_mark_types
-        WHERE {where_sql}
-        ORDER BY sort_order, mark_name
-        """  # noqa: S608
+    stmt = (
+        select(
+            EpigeneticMarkType.mark_type_id,
+            EpigeneticMarkType.mark_name,
+            EpigeneticMarkType.mark_category,
+            EpigeneticMarkType.display_name,
+            EpigeneticMarkType.display_color,
+            EpigeneticMarkType.description,
+            EpigeneticMarkType.biological_function,
+            EpigeneticMarkType.associated_state,
+            EpigeneticMarkType.typical_signal_range,
+            EpigeneticMarkType.is_active,
+            EpigeneticMarkType.sort_order,
+        )
+        .select_from(EpigeneticMarkType)
+        .order_by(EpigeneticMarkType.sort_order, EpigeneticMarkType.mark_name)
     )
+    if normalized_category is not None:
+        stmt = stmt.where(EpigeneticMarkType.mark_category == normalized_category)
+    if active_only:
+        stmt = stmt.where(EpigeneticMarkType.is_active.is_(True))
 
-    rows = db.execute(query, params).fetchall()
+    rows = db.execute(stmt).fetchall()
 
     result = [
         EpigeneticMarkTypeResponse(
@@ -119,31 +112,26 @@ def get_mark_relationships(
     if cached_value is not None:
         return cached_value
 
-    where_sql = "r.relationship_type = :relationship_type" if normalized_relationship_type is not None else "TRUE"
-
-    query = text(
-        f"""
-        SELECT
-            r.relationship_id,
-            m1.mark_name as mark_1,
-            m2.mark_name as mark_2,
-            r.relationship_type,
-            r.description,
-            r.biological_significance
-        FROM mark_relationships r
-        JOIN epigenetic_mark_types m1 ON r.mark_type_id_1 = m1.mark_type_id
-        JOIN epigenetic_mark_types m2 ON r.mark_type_id_2 = m2.mark_type_id
-        WHERE {where_sql}
-        ORDER BY r.relationship_type, m1.mark_name
-        """  # noqa: S608
+    m1 = aliased(EpigeneticMarkType)
+    m2 = aliased(EpigeneticMarkType)
+    stmt = (
+        select(
+            MarkRelationship.relationship_id,
+            m1.mark_name.label("mark_1"),
+            m2.mark_name.label("mark_2"),
+            MarkRelationship.relationship_type,
+            MarkRelationship.description,
+            MarkRelationship.biological_significance,
+        )
+        .select_from(MarkRelationship)
+        .join(m1, MarkRelationship.mark_type_id_1 == m1.mark_type_id)
+        .join(m2, MarkRelationship.mark_type_id_2 == m2.mark_type_id)
+        .order_by(MarkRelationship.relationship_type, m1.mark_name)
     )
+    if normalized_relationship_type is not None:
+        stmt = stmt.where(MarkRelationship.relationship_type == normalized_relationship_type)
 
-    params = (
-        {"relationship_type": normalized_relationship_type}
-        if normalized_relationship_type is not None
-        else {}
-    )
-    rows = db.execute(query, params).fetchall()
+    rows = db.execute(stmt).fetchall()
 
     result = [
         MarkRelationshipResponse(

@@ -76,12 +76,18 @@ export const globalCompareQueryKeys = {
   all: ['globalCompare'] as const,
 
   /** Global comparison data */
-  compare: (marks?: MarkType[], cellTypes?: string[]) =>
+  compare: (
+    marks?: MarkType[],
+    cellTypes?: string[],
+    options?: Pick<GlobalCompareParams, 'min_peaks' | 'include_position_distribution'>
+  ) =>
     [
       ...globalCompareQueryKeys.all,
       'compare',
-      marks?.sort().join(',') || 'all',
-      cellTypes?.sort().join(',') || 'all',
+      marks && marks.length > 0 ? [...marks].sort().join(',') : 'all',
+      cellTypes && cellTypes.length > 0 ? [...cellTypes].sort().join(',') : 'all',
+      options?.min_peaks ?? null,
+      options?.include_position_distribution ?? null,
     ] as const,
 
   /** Cell line matrix data */
@@ -89,17 +95,18 @@ export const globalCompareQueryKeys = {
     [
       ...globalCompareQueryKeys.all,
       'matrix',
-      marks?.sort().join(',') || 'all',
-      cellTypes?.sort().join(',') || 'all',
+      marks && marks.length > 0 ? [...marks].sort().join(',') : 'all',
+      cellTypes && cellTypes.length > 0 ? [...cellTypes].sort().join(',') : 'all',
       metric || 'peak_count',
     ] as const,
 
   /** Signal distribution data */
-  signalDistribution: (marks?: MarkType[], cellTypes?: string[]) =>
+  signalDistribution: (marks?: MarkType[], cellTypes?: string[], bins?: number) =>
     [
       ...globalCompareQueryKeys.all,
       'distribution',
-      marks?.sort().join(',') || 'all',
-      cellTypes?.sort().join(',') || 'all',
+      marks && marks.length > 0 ? [...marks].sort().join(',') : 'all',
+      cellTypes && cellTypes.length > 0 ? [...cellTypes].sort().join(',') : 'all',
+      bins ?? null,
     ] as const,
 }

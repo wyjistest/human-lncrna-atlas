@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Set
 from collections import defaultdict
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import func, distinct, String
+from sqlalchemy import func, distinct, String, text
 
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
@@ -56,6 +56,81 @@ def get_lncrna_core_ids(db: Session) -> List[int]:
         .filter(CoreGene.gene_type == "lncRNA")
         .all()
     ]
+
+
+def _get_regulation_pair_pattern_counts(db: Session) -> Dict[str, int]:
+    """
+    Get conservation pattern counts for regulation pairs (lncRNA_core_id, target_core_id).
+
+    Security/Perf:
+    - Avoid materializing all distinct regulation pairs into Python (DoS risk).
+    - Compute 4-bit species presence patterns in SQL and aggregate to at most 16 rows.
+    - Cache the aggregated pattern counts for reuse by /matrix and /venn endpoints.
+    """
+    cache_key = cache.make_key("conservation:regulation_pair_patterns")
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return {str(k): int(v) for k, v in dict(cached).items()}
+
+    # Dialect-agnostic SQL (works for PostgreSQL and SQLite demo mode):
+    # - Use MAX(CASE WHEN ...) to compute per-species presence (0/1).
+    # - Concatenate digits to form a 4-bit label like "1101".
+    sql = text(
+        """
+        WITH pair_species AS (
+            SELECT
+                lnc.core_id AS lncrna_core_id,
+                tgt.core_id AS target_core_id,
+                MAX(CASE WHEN r.species_id = 1 THEN 1 ELSE 0 END) AS s1,
+                MAX(CASE WHEN r.species_id = 2 THEN 1 ELSE 0 END) AS s2,
+                MAX(CASE WHEN r.species_id = 3 THEN 1 ELSE 0 END) AS s3,
+                MAX(CASE WHEN r.species_id = 4 THEN 1 ELSE 0 END) AS s4
+            FROM regulations r
+            JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
+            JOIN genes tgt ON r.target_gene_id = tgt.gene_id
+            JOIN core_genes lnc_core ON lnc.core_id = lnc_core.core_id
+            JOIN core_genes tgt_core ON tgt.core_id = tgt_core.core_id
+            WHERE r.species_id IN (1, 2, 3, 4)
+              AND lnc_core.gene_type = 'lncRNA'
+            GROUP BY lnc.core_id, tgt.core_id
+        )
+        SELECT
+            CAST(s1 AS TEXT) || CAST(s2 AS TEXT) || CAST(s3 AS TEXT) || CAST(s4 AS TEXT) AS label,
+            COUNT(*) AS count
+        FROM pair_species
+        GROUP BY label
+        """
+    )
+
+    rows = db.execute(sql).fetchall()
+    pattern_counts = {str(row.label): int(row.count) for row in rows if row and row.label}
+
+    cache.set(cache_key, pattern_counts, CacheService.TTL_STATS)
+    return pattern_counts
+
+
+def _build_regulation_matrix_from_pattern_counts(pattern_counts: Dict[str, int]) -> List[List[int]]:
+    """
+    Build a 4x4 regulation matrix from pattern counts.
+
+    regulation_matrix[i][j] = number of regulation pairs present in both species i and j
+    where species order follows SPECIES_IDS (1..4).
+    """
+    n = len(SPECIES_IDS)
+    matrix = [[0] * n for _ in range(n)]
+
+    for label, count in pattern_counts.items():
+        if not label or len(label) != n:
+            continue
+        bits = [ch == "1" for ch in label]
+        for i in range(n):
+            if not bits[i]:
+                continue
+            for j in range(n):
+                if bits[j]:
+                    matrix[i][j] += int(count)
+
+    return matrix
 
 
 def _build_conserved_regulation_items(results: list, db: Session) -> List[ConservedRegulationItem]:
@@ -338,65 +413,22 @@ def get_conservation_matrix(request: Request, db: Session = Depends(get_db)):
             jaccard = len(shared) / len(union) if union else 0.0
             jaccard_matrix[i][j] = round(jaccard, 4)
 
-            # Shared regulations (lncRNA-target pairs present in both species)
-            if i <= j:  # Only compute for upper triangle + diagonal
-                if shared:
-                    if i == j:
-                        # Diagonal: total regulations for this species
-                        # Get gene_ids for shared lncRNAs in this species
-                        genes_sp1 = set(
-                            row[0] for row in
-                            db.query(Gene.gene_id)
-                            .filter(Gene.core_id.in_(shared))
-                            .filter(Gene.species_id == sid1)
-                            .all()
-                        )
-                        if genes_sp1:
-                            reg_count = (
-                                db.query(func.count(Regulation.regulation_id))
-                                .filter(Regulation.lncrna_gene_id.in_(genes_sp1))
-                                .filter(Regulation.species_id == sid1)
-                                .scalar() or 0
-                            )
-                        else:
-                            reg_count = 0
-                        regulation_matrix[i][j] = reg_count
-                    else:
-                        # Off-diagonal: count conserved regulation pairs
-                        # This is a simplified count - regulations where lncRNA core_id
-                        # is present in both species
-                        LncRNAGene = aliased(Gene)
-                        TargetGene = aliased(Gene)
-
-                        # Get unique (lncrna_core_id, target_core_id) pairs per species
-                        # then find intersection
-                        pairs_sp1 = set(
-                            db.query(LncRNAGene.core_id, TargetGene.core_id)
-                            .select_from(Regulation)
-                            .join(LncRNAGene, Regulation.lncrna_gene_id == LncRNAGene.gene_id)
-                            .join(TargetGene, Regulation.target_gene_id == TargetGene.gene_id)
-                            .filter(Regulation.species_id == sid1)
-                            .distinct()
-                            .all()
-                        )
-
-                        pairs_sp2 = set(
-                            db.query(LncRNAGene.core_id, TargetGene.core_id)
-                            .select_from(Regulation)
-                            .join(LncRNAGene, Regulation.lncrna_gene_id == LncRNAGene.gene_id)
-                            .join(TargetGene, Regulation.target_gene_id == TargetGene.gene_id)
-                            .filter(Regulation.species_id == sid2)
-                            .distinct()
-                            .all()
-                        )
-
-                        shared_pairs = pairs_sp1 & pairs_sp2
-                        regulation_matrix[i][j] = len(shared_pairs)
-                        regulation_matrix[j][i] = len(shared_pairs)
-                else:
-                    regulation_matrix[i][j] = 0
-                    if i != j:
-                        regulation_matrix[j][i] = 0
+    # Regulation matrix: compute in SQL to avoid materializing huge pair sets in Python (DoS risk).
+    regulation_patterns = _get_regulation_pair_pattern_counts(db)
+    regulation_matrix = _build_regulation_matrix_from_pattern_counts(regulation_patterns)
+    # Backward-compatibility: keep diagonal values as total regulation rows per species.
+    # Off-diagonal cells represent shared (lncRNA_core_id, target_core_id) pairs.
+    reg_row_counts = dict(
+        db.query(Regulation.species_id, func.count(Regulation.regulation_id))
+        .join(Gene, Regulation.lncrna_gene_id == Gene.gene_id)
+        .join(CoreGene, Gene.core_id == CoreGene.core_id)
+        .filter(Regulation.species_id.in_(SPECIES_IDS))
+        .filter(CoreGene.gene_type == "lncRNA")
+        .group_by(Regulation.species_id)
+        .all()
+    )
+    for idx, sid in enumerate(SPECIES_IDS):
+        regulation_matrix[idx][idx] = int(reg_row_counts.get(sid, 0))
 
     result = ConservationMatrix(
         species=species_info,
@@ -422,8 +454,8 @@ def get_conserved_regulations(
     min_species: int = Query(2, ge=2, le=4, description="Minimum number of species"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=10, le=200, description="Items per page"),
-    lncrna_symbol: Optional[str] = Query(None, description="Filter by lncRNA symbol"),
-    target_symbol: Optional[str] = Query(None, description="Filter by target symbol"),
+    lncrna_symbol: Optional[str] = Query(None, max_length=100, description="Filter by lncRNA symbol"),
+    target_symbol: Optional[str] = Query(None, max_length=100, description="Filter by target symbol"),
     db: Session = Depends(get_db),
 ):
     """
@@ -443,6 +475,13 @@ def get_conserved_regulations(
     TargetGene = aliased(Gene, name="target_gene")
     LncRNACore = aliased(CoreGene, name="lncrna_core")
     TargetCore = aliased(CoreGene, name="target_core")
+
+    normalized_lncrna_symbol = lncrna_symbol.strip() if lncrna_symbol else None
+    normalized_target_symbol = target_symbol.strip() if target_symbol else None
+    if normalized_lncrna_symbol == "":
+        normalized_lncrna_symbol = None
+    if normalized_target_symbol == "":
+        normalized_target_symbol = None
 
     # Base query: group by (lncrna_core_id, target_core_id)
     base_query = (
@@ -470,13 +509,13 @@ def get_conserved_regulations(
     )
 
     # Apply symbol filters if provided
-    if lncrna_symbol:
-        escaped = escape_like_pattern(lncrna_symbol)
+    if normalized_lncrna_symbol:
+        escaped = escape_like_pattern(normalized_lncrna_symbol)
         base_query = base_query.filter(
             LncRNACore.canonical_symbol.ilike(f"%{escaped}%", escape="\\")
         )
-    if target_symbol:
-        escaped = escape_like_pattern(target_symbol)
+    if normalized_target_symbol:
+        escaped = escape_like_pattern(normalized_target_symbol)
         base_query = base_query.filter(
             TargetCore.canonical_symbol.ilike(f"%{escaped}%", escape="\\")
         )
@@ -568,43 +607,8 @@ def get_venn_data(
         }
 
     else:  # regulation
-        # Get conservation patterns for regulation pairs (lncrna_core_id, target_core_id)
-        LncRNAGene = aliased(Gene, name="lncrna_gene")
-        TargetGene = aliased(Gene, name="target_gene")
-
-        # Get all unique (lncrna_core_id, target_core_id, species_id) combinations
-        regulation_species = (
-            db.query(
-                LncRNAGene.core_id.label("lncrna_core_id"),
-                TargetGene.core_id.label("target_core_id"),
-                Regulation.species_id
-            )
-            .select_from(Regulation)
-            .join(LncRNAGene, Regulation.lncrna_gene_id == LncRNAGene.gene_id)
-            .join(TargetGene, Regulation.target_gene_id == TargetGene.gene_id)
-            .distinct()
-            .all()
-        )
-
-        # Build (lncrna_core_id, target_core_id) -> set of species_ids
-        pair_species: Dict[tuple, Set[int]] = defaultdict(set)
-        for lncrna_cid, target_cid, species_id in regulation_species:
-            pair_species[(lncrna_cid, target_cid)].add(species_id)
-
-        # Count each pattern
-        pattern_counts: Dict[str, int] = defaultdict(int)
-        for (lncrna_cid, target_cid), species_set in pair_species.items():
-            label = "".join(
-                "1" if sid in species_set else "0"
-                for sid in SPECIES_IDS
-            )
-            pattern_counts[label] += 1
-
-        venn_data = {
-            label: count
-            for label, count in pattern_counts.items()
-            if count > 0
-        }
+        pattern_counts = _get_regulation_pair_pattern_counts(db)
+        venn_data = {label: count for label, count in pattern_counts.items() if count > 0}
 
     result = {
         "sets": sets,
@@ -767,5 +771,3 @@ def get_lncrna_conservation(
         "conserved_targets": conserved_targets[:50],  # Limit to top 50
         "conserved_target_count": len(conserved_targets)
     }
-
-
