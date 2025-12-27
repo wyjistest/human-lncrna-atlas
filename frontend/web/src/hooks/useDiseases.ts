@@ -4,7 +4,7 @@ import { queryKeys } from './queryKeys'
 
 export const useDiseases = (params: Parameters<typeof diseasesApi.list>[0]) => {
   return useQuery({
-    queryKey: queryKeys.diseases.list(params as Record<string, unknown>),
+    queryKey: queryKeys.diseases.list(params),
     queryFn: async ({ signal }) => {
       const { data } = await diseasesApi.list(params, signal)
       return data
@@ -17,7 +17,7 @@ export const useDiseaseGenes = (
   params?: Parameters<typeof diseasesApi.getGenes>[1]
 ) => {
   return useQuery({
-    queryKey: queryKeys.diseases.genes(traitId, params as Record<string, unknown>),
+    queryKey: queryKeys.diseases.genes(traitId, params),
     queryFn: async ({ signal }) => {
       const { data } = await diseasesApi.getGenes(traitId, params, signal)
       return data

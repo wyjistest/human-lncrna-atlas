@@ -4,17 +4,26 @@
  * 便于缓存管理和一致性的缓存失效
  */
 
+import { normalizeQueryKeyObject } from '@/utils/queryKey'
+
 // 基础 query keys
 export const queryKeys = {
   // Genes
   genes: {
     all: ['genes'] as const,
     lists: () => [...queryKeys.genes.all, 'list'] as const,
-    list: (params: Record<string, unknown>) => [...queryKeys.genes.lists(), params] as const,
+    list: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized ? ([...queryKeys.genes.lists(), normalized] as const) : queryKeys.genes.lists()
+    },
     details: () => [...queryKeys.genes.all, 'detail'] as const,
     detail: (id: number) => [...queryKeys.genes.details(), id] as const,
-    regulations: (geneId: number, params?: Record<string, unknown>) =>
-      [...queryKeys.genes.detail(geneId), 'regulations', params] as const,
+    regulations: (geneId: number, params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.genes.detail(geneId), 'regulations', normalized] as const)
+        : ([...queryKeys.genes.detail(geneId), 'regulations'] as const)
+    },
     diseases: (geneId: number) => [...queryKeys.genes.detail(geneId), 'diseases'] as const,
     orthologs: (geneId: number) => [...queryKeys.genes.detail(geneId), 'orthologs'] as const,
   },
@@ -23,7 +32,10 @@ export const queryKeys = {
   regulations: {
     all: ['regulations'] as const,
     lists: () => [...queryKeys.regulations.all, 'list'] as const,
-    list: (params: Record<string, unknown>) => [...queryKeys.regulations.lists(), params] as const,
+    list: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized ? ([...queryKeys.regulations.lists(), normalized] as const) : queryKeys.regulations.lists()
+    },
     details: () => [...queryKeys.regulations.all, 'detail'] as const,
     detail: (id: number) => [...queryKeys.regulations.details(), id] as const,
   },
@@ -32,28 +44,54 @@ export const queryKeys = {
   diseases: {
     all: ['diseases'] as const,
     lists: () => [...queryKeys.diseases.all, 'list'] as const,
-    list: (params: Record<string, unknown>) => [...queryKeys.diseases.lists(), params] as const,
+    list: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized ? ([...queryKeys.diseases.lists(), normalized] as const) : queryKeys.diseases.lists()
+    },
     details: () => [...queryKeys.diseases.all, 'detail'] as const,
     detail: (id: number) => [...queryKeys.diseases.details(), id] as const,
-    genes: (traitId: number, params?: Record<string, unknown>) =>
-      [...queryKeys.diseases.detail(traitId), 'genes', params] as const,
+    genes: (traitId: number, params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.diseases.detail(traitId), 'genes', normalized] as const)
+        : ([...queryKeys.diseases.detail(traitId), 'genes'] as const)
+    },
   },
 
   // Stats
   stats: {
     all: ['stats'] as const,
     overview: () => [...queryKeys.stats.all, 'overview'] as const,
-    detailed: (params?: Record<string, unknown>) => [...queryKeys.stats.all, 'detailed', params] as const,
+    detailed: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.stats.all, 'detailed', normalized] as const)
+        : ([...queryKeys.stats.all, 'detailed'] as const)
+    },
     baRange: () => [...queryKeys.stats.all, 'ba-range'] as const,
-    topGenes: (params?: Record<string, unknown>) => [...queryKeys.stats.all, 'top-genes', params] as const,
-    topDiseases: (params?: Record<string, unknown>) => [...queryKeys.stats.all, 'top-diseases', params] as const,
+    topGenes: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.stats.all, 'top-genes', normalized] as const)
+        : ([...queryKeys.stats.all, 'top-genes'] as const)
+    },
+    topDiseases: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.stats.all, 'top-diseases', normalized] as const)
+        : ([...queryKeys.stats.all, 'top-diseases'] as const)
+    },
   },
 
   // Network
   network: {
     all: ['network'] as const,
-    gene: (geneId: number | null, params?: Record<string, unknown>) =>
-      [...queryKeys.network.all, 'gene', geneId, params] as const,
+    gene: (geneId: number | null, params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.network.all, 'gene', geneId, normalized] as const)
+        : ([...queryKeys.network.all, 'gene', geneId] as const)
+    },
     geneDetail: (geneId: number) => [...queryKeys.network.all, 'gene-detail', geneId] as const,
   },
 
@@ -73,14 +111,30 @@ export const queryKeys = {
   analysis: {
     all: ['analysis'] as const,
     summary: () => [...queryKeys.analysis.all, 'summary'] as const,
-    highAffinity: (params?: Record<string, unknown>) =>
-      [...queryKeys.analysis.all, 'high-affinity', params] as const,
-    conservation: (params?: Record<string, unknown>) =>
-      [...queryKeys.analysis.all, 'conservation', params] as const,
-    epigenetic: (params?: Record<string, unknown>) =>
-      [...queryKeys.analysis.all, 'epigenetic', params] as const,
-    disease: (params?: Record<string, unknown>) =>
-      [...queryKeys.analysis.all, 'disease', params] as const,
+    highAffinity: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.analysis.all, 'high-affinity', normalized] as const)
+        : ([...queryKeys.analysis.all, 'high-affinity'] as const)
+    },
+    conservation: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.analysis.all, 'conservation', normalized] as const)
+        : ([...queryKeys.analysis.all, 'conservation'] as const)
+    },
+    epigenetic: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.analysis.all, 'epigenetic', normalized] as const)
+        : ([...queryKeys.analysis.all, 'epigenetic'] as const)
+    },
+    disease: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.analysis.all, 'disease', normalized] as const)
+        : ([...queryKeys.analysis.all, 'disease'] as const)
+    },
   },
 } as const
 

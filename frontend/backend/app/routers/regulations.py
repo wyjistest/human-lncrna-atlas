@@ -30,6 +30,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/regulations", tags=["regulations"])
 
+# 染色体格式校验（chr1-chr22, chrX, chrY, chrM）
+_CHR_PATTERN = re.compile(r"^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$", re.IGNORECASE)
+
 
 @router.get("/lncrna-options", response_model=LncRNAOptionsResponse)
 @rate_limit("60/minute")
@@ -228,7 +231,7 @@ def _build_regulation_list_query(db: Session):
 # 详见 app.core.validators.parse_int_list
 
 
-def _normalize_list_param(value: str | None) -> str | None:
+def _normalize_list_param(value: str | None, *, param_name: str = "parameter") -> str | None:
     """
     规范化列表参数字符串，提升缓存命中率
 
@@ -243,7 +246,12 @@ def _normalize_list_param(value: str | None) -> str | None:
     """
     if not value:
         return value
-    items = [x.strip() for x in value.split(",") if x.strip()]
+
+    # SECURITY: 复用统一校验器，限制总长度/项数，避免超长列表导致的 DoS 与缓存键碎片化。
+    items = parse_comma_list(value, param_name=param_name)
+    if not items:
+        return None
+
     # 尝试按数字排序，失败则按字符串排序
     try:
         items = sorted(items, key=int)
@@ -260,8 +268,8 @@ def list_regulations(
     page_size: int = Query(100, ge=1, le=1000),
     species_id: Optional[int] = Query(None, ge=1, le=4, description="物种ID（单个）"),
     species_ids: Optional[str] = Query(None, description="物种ID列表（逗号分隔，如: 1,2,3）"),
-    lncrna_gene_id: Optional[int] = Query(None, description="lncRNA基因ID"),
-    target_gene_id: Optional[int] = Query(None, description="靶基因ID"),
+    lncrna_gene_id: Optional[int] = Query(None, ge=1, description="lncRNA基因ID"),
+    target_gene_id: Optional[int] = Query(None, ge=1, description="靶基因ID"),
     lncrna_gene_name: Optional[str] = Query(None, max_length=100, description="lncRNA基因名（模糊搜索）"),
     target_gene_name: Optional[str] = Query(None, max_length=100, description="靶基因名（模糊搜索）"),
     min_ba: Optional[float] = Query(None, ge=0, description="最小结合亲和力"),
@@ -278,8 +286,8 @@ def list_regulations(
     - 按查询参数组合生成缓存键（使用 make_list_key 进行参数哈希）
     """
     # 规范化列表参数，提升缓存命中率（去空格、排序）
-    normalized_species_ids = _normalize_list_param(species_ids)
-    normalized_chromosomes = _normalize_list_param(chromosomes)
+    normalized_species_ids = _normalize_list_param(species_ids, param_name="species_ids")
+    normalized_chromosomes = _normalize_list_param(chromosomes, param_name="chromosomes")
     if normalized_chromosomes:
         # Chromosome values are case-insensitive; normalize to reduce cache fragmentation.
         normalized_chromosomes = normalized_chromosomes.lower()
@@ -320,7 +328,7 @@ def list_regulations(
     # 物种筛选：优先使用数组参数
     # Phase 9.15: 使用安全验证器防止 DoS 攻击（限制项数和长度）
     if normalized_species_ids:
-        ids = parse_int_list(normalized_species_ids, param_name="species_ids")
+        ids = parse_int_list(normalized_species_ids, param_name="species_ids", min_value=1, max_value=4)
         if ids:
             query = query.filter(Regulation.species_id.in_(ids))
     elif species_id:
@@ -349,13 +357,11 @@ def list_regulations(
 
     # 染色体筛选：优先使用数组参数
     # Phase 9.15: 使用安全验证器防止 DoS 攻击，并校验染色体格式
-    chr_pattern = re.compile(r'^chr([1-9]|1[0-9]|2[0-2]|X|Y|M)$', re.IGNORECASE)
-
     if normalized_chromosomes:
         chrs = parse_comma_list(normalized_chromosomes, param_name="chromosomes")
         if chrs:
             # 校验染色体格式 (chr1-chr22, chrX, chrY, chrM)
-            invalid_chrs = [c for c in chrs if not chr_pattern.match(c)]
+            invalid_chrs = [c for c in chrs if not _CHR_PATTERN.match(c)]
             if invalid_chrs:
                 raise HTTPException(
                     status_code=400,
@@ -365,7 +371,7 @@ def list_regulations(
             chrs_normalized = list({c.lower() for c in chrs})
             query = query.filter(Regulation.target_chromosome.in_(chrs_normalized))
     elif normalized_chromosome:
-        if not chr_pattern.match(normalized_chromosome):
+        if not _CHR_PATTERN.match(normalized_chromosome):
             raise HTTPException(
                 status_code=400,
                 detail=(

@@ -10,7 +10,7 @@ ETL基类模板
 
 import psycopg2
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Iterator
 import logging
 import csv
 from pathlib import Path
@@ -111,9 +111,25 @@ class BaseImporter(ABC):
         Returns:
             数据列表（字典格式）
         """
+        return list(self.iter_csv(file_path, encoding=encoding, delimiter=delimiter, skip_rows=skip_rows))
+
+    def iter_csv(
+        self,
+        file_path: str,
+        *,
+        encoding: str = 'utf-8',
+        delimiter: str = '\t',
+        skip_rows: int = 0,
+    ) -> Iterator[Dict]:
+        """
+        从CSV文件逐行解析数据（流式，避免一次性加载到内存）
+
+        Notes:
+        - 仅 yield parse_row() 返回的有效数据（None 表示跳过）
+        - 统计信息（total_rows/skipped_rows/failed_rows）与 load_csv() 保持一致
+        """
         logger.info(f"加载文件: {file_path}")
 
-        data = []
         with open(file_path, 'r', encoding=encoding) as f:
             reader = csv.DictReader(f, delimiter=delimiter)
 
@@ -127,7 +143,7 @@ class BaseImporter(ABC):
                 try:
                     parsed = self.parse_row(row)
                     if parsed:
-                        data.append(parsed)
+                        yield parsed
                     else:
                         self.stats['skipped_rows'] += 1
 
@@ -141,15 +157,15 @@ class BaseImporter(ABC):
                 if i % 10000 == 0:
                     logger.info(f"已读取 {i} 行...")
 
-        logger.info(f"文件加载完成: 总行数={self.stats['total_rows']}, "
-                   f"有效={len(data)}, 跳过={self.stats['skipped_rows']}, "
-                   f"失败={self.stats['failed_rows']}")
-
-        return data
+        logger.info(
+            f"文件读取完成: 总行数={self.stats['total_rows']}, 跳过={self.stats['skipped_rows']}, "
+            f"失败={self.stats['failed_rows']}"
+        )
 
     def import_data(self, file_path: str, batch_name: Optional[str] = None,
                    species_id: Optional[int] = None,
-                   dry_run: bool = False) -> Dict:
+                   dry_run: bool = False,
+                   batch_size: Optional[int] = 10000) -> Dict:
         """
         执行完整的导入流程
 
@@ -158,6 +174,7 @@ class BaseImporter(ABC):
             batch_name: 批次名称（如不提供则自动生成）
             species_id: 物种ID
             dry_run: 是否为试运行（不实际写入数据库）
+            batch_size: 分批大小（默认 10000）。设为 None 表示全量加载到内存后再处理（不建议大文件）。
 
         Returns:
             导入统计信息字典
@@ -169,36 +186,91 @@ class BaseImporter(ABC):
         self.connect()
 
         try:
-            # 2. 加载数据
-            data = self.load_csv(file_path)
+            # 2. 加载/验证/导入（支持分批，降低内存峰值）
+            if batch_size is not None and batch_size <= 0:
+                raise ValueError("batch_size must be > 0 or None")
 
-            if not data:
-                logger.warning("没有数据需要导入")
-                return self.stats
-
-            # 3. 验证数据
-            valid_data, errors = self.validate_data(data)
-            self.stats['errors'].extend(errors)
-
-            if not valid_data:
-                logger.error("所有数据验证失败，终止导入")
-                return self.stats
-
-            logger.info(f"数据验证完成: 有效={len(valid_data)}, 无效={len(errors)}")
-
+            # Dry-run: 仅解析与验证，不创建批次、不写入数据库
             if dry_run:
+                if batch_size is None:
+                    data = self.load_csv(file_path)
+                    if not data:
+                        logger.warning("没有数据需要导入")
+                        return self.stats
+
+                    valid_data, errors = self.validate_data(data)
+                    self.stats['errors'].extend(errors)
+
+                    if not valid_data:
+                        logger.error("所有数据验证失败，终止导入")
+                        return self.stats
+
+                    logger.info(f"数据验证完成: 有效={len(valid_data)}, 无效={len(errors)}")
+                else:
+                    buffer: List[Dict] = []
+                    for parsed in self.iter_csv(file_path):
+                        buffer.append(parsed)
+                        if len(buffer) < batch_size:
+                            continue
+                        _, errors = self.validate_data(buffer)
+                        self.stats['errors'].extend(errors)
+                        buffer.clear()
+
+                    if buffer:
+                        _, errors = self.validate_data(buffer)
+                        self.stats['errors'].extend(errors)
+
                 logger.info("试运行模式，不实际写入数据")
                 return self.stats
 
-            # 4. 使用批次管理器导入
+            imported_total = 0
             with BatchManager(self.conn, batch_name, self.get_batch_type(),
-                            species_id, file_path) as batch:
+                              species_id, file_path) as batch:
 
-                self._insert_data(valid_data, batch)
-                batch.add_records(len(valid_data))
-                self.stats['imported_rows'] = len(valid_data)
+                if batch_size is None:
+                    data = self.load_csv(file_path)
+                    if not data:
+                        logger.warning("没有数据需要导入")
+                        return self.stats
 
-                logger.info(f"批次 {batch.get_batch_id()} 导入完成")
+                    valid_data, errors = self.validate_data(data)
+                    self.stats['errors'].extend(errors)
+
+                    if not valid_data:
+                        logger.error("所有数据验证失败，终止导入")
+                        return self.stats
+
+                    logger.info(f"数据验证完成: 有效={len(valid_data)}, 无效={len(errors)}")
+
+                    self._insert_data(valid_data, batch)
+                    batch.add_records(len(valid_data))
+                    imported_total += len(valid_data)
+
+                else:
+                    buffer: List[Dict] = []
+                    for parsed in self.iter_csv(file_path):
+                        buffer.append(parsed)
+                        if len(buffer) < batch_size:
+                            continue
+
+                        valid_batch, errors = self.validate_data(buffer)
+                        self.stats['errors'].extend(errors)
+                        if valid_batch:
+                            self._insert_data(valid_batch, batch)
+                            batch.add_records(len(valid_batch))
+                            imported_total += len(valid_batch)
+                        buffer.clear()
+
+                    if buffer:
+                        valid_batch, errors = self.validate_data(buffer)
+                        self.stats['errors'].extend(errors)
+                        if valid_batch:
+                            self._insert_data(valid_batch, batch)
+                            batch.add_records(len(valid_batch))
+                            imported_total += len(valid_batch)
+
+                self.stats['imported_rows'] = imported_total
+                logger.info(f"批次 {batch.get_batch_id()} 导入完成: imported_rows={imported_total}")
 
             # 5. 数据质量检查
             self._run_quality_checks()

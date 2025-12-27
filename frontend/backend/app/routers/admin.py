@@ -141,7 +141,6 @@ async def verify_admin_access(
             detail={
                 "error": "ACCESS_DENIED",
                 "message": "Valid API Key required (strict mode enabled)",
-                "client_ip": client_ip,
             }
         )
 
@@ -165,7 +164,6 @@ async def verify_admin_access(
                 detail={
                     "error": "ACCESS_DENIED",
                     "message": "Invalid API Key provided",
-                    "client_ip": client_ip,
                 }
             )
 
@@ -199,7 +197,6 @@ async def verify_admin_access(
         detail={
             "error": "ACCESS_DENIED",
             "message": "Admin API access is restricted to local/internal networks or requires valid API Key",
-            "client_ip": client_ip,
         }
     )
 

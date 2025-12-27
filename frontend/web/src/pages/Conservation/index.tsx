@@ -232,9 +232,9 @@ export default function Conservation() {
       dataIndex: 'lncrna_gene_name',
       key: 'lncrna',
       width: 150,
-      render: (name: string, record: ConservedRegulation) => (
+      render: (name: string | null, record: ConservedRegulation) => (
         <Tooltip title={record?.lncrna_ensembl_id ?? '-'}>
-          <Link to={`/genes?search=${name ?? ''}`}>{name ?? '-'}</Link>
+          <Link to={`/genes?search=${encodeURIComponent(name ?? '')}`}>{name ?? '-'}</Link>
         </Tooltip>
       )
     },
@@ -243,7 +243,7 @@ export default function Conservation() {
       dataIndex: 'target_gene_name',
       key: 'target',
       width: 150,
-      render: (name: string, record: ConservedRegulation) => (
+      render: (name: string | null, record: ConservedRegulation) => (
         <Tooltip title={record?.target_ensembl_id ?? '-'}>
           <Text>{name ?? '-'}</Text>
         </Tooltip>

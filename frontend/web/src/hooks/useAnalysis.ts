@@ -31,7 +31,7 @@ export const useHighAffinityData = (params?: {
   limit?: number
 }) => {
   return useQuery({
-    queryKey: queryKeys.analysis.highAffinity(params as Record<string, unknown>),
+    queryKey: queryKeys.analysis.highAffinity(params),
     queryFn: async ({ signal }) => {
       const { data } = await analysisApi.getHighAffinity(params, signal)
       return data
@@ -48,7 +48,7 @@ export const useConservationData = (params?: {
   limit?: number
 }) => {
   return useQuery({
-    queryKey: queryKeys.analysis.conservation(params as Record<string, unknown>),
+    queryKey: queryKeys.analysis.conservation(params),
     queryFn: async ({ signal }) => {
       const { data } = await analysisApi.getConservation(params, signal)
       return data
@@ -66,7 +66,7 @@ export const useEpigeneticData = (params?: {
   limit?: number
 }) => {
   return useQuery({
-    queryKey: queryKeys.analysis.epigenetic(params as Record<string, unknown>),
+    queryKey: queryKeys.analysis.epigenetic(params),
     queryFn: async ({ signal }) => {
       const { data } = await analysisApi.getChipseqOverlaps(params, signal)
       return data
@@ -83,7 +83,7 @@ export const useDiseaseData = (params?: {
   limit?: number
 }) => {
   return useQuery({
-    queryKey: queryKeys.analysis.disease(params as Record<string, unknown>),
+    queryKey: queryKeys.analysis.disease(params),
     queryFn: async ({ signal }) => {
       const { data } = await analysisApi.getDiseaseNetwork(params, signal)
       return data

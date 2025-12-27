@@ -15,7 +15,7 @@ from sqlalchemy import and_, func
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
-from app.core.validators import normalize_optional_str
+from app.core.validators import normalize_optional_str, parse_comma_list
 from app.models import Species, Gene, Regulation, EpigeneticMarkType, ChIPSeqExperiment
 from app.core.igv_utils import get_genome_reference, get_chipseq_mark_color
 from app.config.igv_genomes import (
@@ -366,9 +366,7 @@ def get_igv_config_for_gene(
     chipseq_marks_added = []
     if include_chipseq:
         # Parse requested mark types
-        requested_marks = None
-        if chipseq_marks:
-            requested_marks = [m.strip() for m in chipseq_marks.split(",") if m.strip()]
+        requested_marks = parse_comma_list(chipseq_marks, param_name="chipseq_marks")
 
         # Query available marks for this species
 

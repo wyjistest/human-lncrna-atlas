@@ -31,10 +31,13 @@ async def metrics_auth_middleware(request: Request, call_next):
     - Prometheus /metrics 端点可暴露敏感运行时指标（请求量、延迟、错误率等）
     - 攻击者可利用这些信息进行针对性攻击（如在高负载时发起 DDoS）
     """
-    # 只拦截 /metrics 路径（Prometheus 端点）
-    # Phase 9.24: 兼容反向代理 root_path 或尾随斜杠场景（如 /api/metrics 或 /metrics/）
-    path = (request.url.path or "").rstrip("/")
-    if path.endswith("/metrics"):
+    # 只拦截 Prometheus /metrics 路径
+    #
+    # 注意：
+    # - 使用 ASGI scope["path"]（不包含 root_path），避免误拦截如 /api/v1/admin/metrics 这类端点
+    # - 兼容反向代理 root_path 与尾随斜杠（如 root_path=/api 且 path=/metrics，或 /metrics/）
+    scope_path = (request.scope.get("path") or "").rstrip("/")
+    if scope_path == "/metrics":
         client_ip = get_client_ip(request)
         api_key = request.headers.get("X-Admin-API-Key")
 

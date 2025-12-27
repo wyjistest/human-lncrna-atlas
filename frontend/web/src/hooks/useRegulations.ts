@@ -8,7 +8,7 @@ type RegulationDetail = components['schemas']['RegulationDetail']
 
 export const useRegulations = (params: Parameters<typeof regulationsApi.list>[0]) => {
   return useQuery({
-    queryKey: queryKeys.regulations.list(params as Record<string, unknown>),
+    queryKey: queryKeys.regulations.list(params),
     queryFn: async ({ signal }) => {
       const { data } = await regulationsApi.list(params, signal)
       return data
@@ -25,7 +25,7 @@ export const usePrefetchRegulations = () => {
 
   return useCallback((params: Parameters<typeof regulationsApi.list>[0]) => {
     queryClient.prefetchQuery({
-      queryKey: queryKeys.regulations.list(params as Record<string, unknown>),
+      queryKey: queryKeys.regulations.list(params),
       queryFn: async ({ signal }) => {
         const { data } = await regulationsApi.list(params, signal)
         return data

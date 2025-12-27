@@ -59,8 +59,11 @@ async def add_security_headers(request: Request, call_next):
     #
     # ⚠️ 注意：FastAPI 的 Swagger UI (/docs) 与 ReDoc (/redoc) 需要加载 JS/CSS。
     # 若对文档页面也设置 `default-src 'none'`，浏览器会阻止资源加载，导致交互式文档不可用。
-    path = request.url.path or ""
-    if not (path.startswith("/docs") or path.startswith("/redoc")):
+    # 使用 ASGI scope["path"]（不包含 root_path）做路径判断，避免反代 root_path 场景下规则失效。
+    path = request.scope.get("path") or ""
+    normalized_path = path.rstrip("/")
+
+    if not (normalized_path.startswith("/docs") or normalized_path.startswith("/redoc")):
         response.headers["Content-Security-Policy"] = (
             "default-src 'none'; "
             "frame-ancestors 'none'; "
@@ -69,9 +72,9 @@ async def add_security_headers(request: Request, call_next):
         )
 
     # 对敏感端点显式禁用缓存（避免浏览器/中间代理缓存 Admin/metrics 输出）
-    normalized_path = path.rstrip("/")
     admin_prefix = f"{settings.API_V1_PREFIX}/admin"
-    if normalized_path.endswith("/metrics") or normalized_path.startswith(admin_prefix):
+    # Prometheus metrics 固定在 /metrics（由 prometheus-fastapi-instrumentator 注册）
+    if normalized_path == "/metrics" or normalized_path.startswith(admin_prefix):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Pragma"] = "no-cache"
 

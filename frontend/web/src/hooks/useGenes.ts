@@ -84,7 +84,7 @@ import { queryKeys } from './queryKeys'
  */
 export const useGenes = (params: Parameters<typeof genesApi.list>[0]) => {
   return useQuery({
-    queryKey: queryKeys.genes.list(params as Record<string, unknown>),
+    queryKey: queryKeys.genes.list(params),
     queryFn: async ({ signal }) => {
       const { data } = await genesApi.list(params, signal)
       return data
@@ -129,7 +129,7 @@ export const usePrefetchGenes = () => {
 
   return useCallback((params: Parameters<typeof genesApi.list>[0]) => {
     queryClient.prefetchQuery({
-      queryKey: queryKeys.genes.list(params as Record<string, unknown>),
+      queryKey: queryKeys.genes.list(params),
       queryFn: async ({ signal }) => {
         const { data } = await genesApi.list(params, signal)
         return data
@@ -196,13 +196,17 @@ export const useGeneDetail = (geneId: number) => {
  * 获取基因的调控关系列表
  */
 export const useGeneRegulations = (geneId: number, params?: { page?: number; page_size?: number }) => {
+  const paginationParams = {
+    page: params?.page || 1,
+    page_size: params?.page_size || 20,
+  }
+
   return useQuery({
-    queryKey: queryKeys.genes.regulations(geneId, params as Record<string, unknown>),
+    queryKey: queryKeys.genes.regulations(geneId, paginationParams),
     queryFn: async ({ signal }) => {
       const { data } = await regulationsApi.list({
         lncrna_gene_id: geneId,
-        page: params?.page || 1,
-        page_size: params?.page_size || 20,
+        ...paginationParams,
       }, signal)
       return data
     },

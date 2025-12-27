@@ -989,19 +989,13 @@ def get_gene_heatmap_matrix(
     - `details[cell_type][mark]`: Detailed statistics for tooltips
     """
     # 1. Parse and validate inputs
-    mark_list = [m.strip() for m in marks.split(",") if m.strip()]
-    cell_type_list = [c.strip() for c in cell_types.split(",") if c.strip()]
+    mark_list = parse_comma_list(marks, max_items=8, param_name="marks") or []
+    cell_type_list = parse_comma_list(cell_types, max_items=10, param_name="cell_types") or []
 
-    if not (1 <= len(mark_list) <= 8):
-        raise HTTPException(
-            status_code=400,
-            detail="marks must have 1-8 items"
-        )
-    if not (1 <= len(cell_type_list) <= 10):
-        raise HTTPException(
-            status_code=400,
-            detail="cell_types must have 1-10 items"
-        )
+    if not mark_list:
+        raise HTTPException(status_code=400, detail="marks must have 1-8 items")
+    if not cell_type_list:
+        raise HTTPException(status_code=400, detail="cell_types must have 1-10 items")
 
     # 2. Query gene
     gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()

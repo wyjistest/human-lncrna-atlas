@@ -39,6 +39,11 @@ MAX_FIELD_LENGTH = 500
 # 导出相关的更严格限制
 MAX_EXPORT_MARKS = 10  # 导出端点最多允许的 marks 数量
 
+# JSON 导出在内存中的硬上限（非流式 JSON 响应）
+# NOTE: JSON 需要一次性序列化为完整对象/数组，内存占用与记录数线性增长。
+# 对于更大数据集，请使用 JSONL/CSV 等流式格式。
+MAX_JSON_EXPORT_LIMIT = 5000
+
 # 分页相关的更严格限制
 # SECURITY/PERF: 防止恶意构造超大 OFFSET 导致慢查询/DoS（深分页通常应改用更窄的过滤或导出接口）
 MAX_PAGINATION_OFFSET = 1_000_000
@@ -224,6 +229,8 @@ def parse_int_list(
     value: Optional[str],
     *,
     max_items: int = MAX_COMMA_SEPARATED_ITEMS,
+    min_value: Optional[int] = None,
+    max_value: Optional[int] = None,
     param_name: str = "parameter",
 ) -> Optional[List[int]]:
     """
@@ -256,13 +263,28 @@ def parse_int_list(
     result = []
     for item in items_str:
         try:
-            result.append(int(item))
+            parsed_int = int(item)
         except ValueError:
             logger.warning(f"Invalid integer in {param_name}: {item}")
             raise HTTPException(
                 status_code=400,
                 detail=f"{param_name}: '{item}' is not a valid integer"
             )
+
+        if min_value is not None and parsed_int < min_value:
+            logger.warning("%s out of range (<%s): %s", param_name, min_value, parsed_int)
+            raise HTTPException(
+                status_code=400,
+                detail=f"{param_name}: '{parsed_int}' is less than minimum allowed value ({min_value})",
+            )
+        if max_value is not None and parsed_int > max_value:
+            logger.warning("%s out of range (>%s): %s", param_name, max_value, parsed_int)
+            raise HTTPException(
+                status_code=400,
+                detail=f"{param_name}: '{parsed_int}' is greater than maximum allowed value ({max_value})",
+            )
+
+        result.append(parsed_int)
 
     return result
 

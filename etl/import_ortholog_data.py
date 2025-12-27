@@ -19,13 +19,26 @@ import psycopg2
 from psycopg2.extras import execute_values
 import argparse
 import logging
-from typing import Dict
+from itertools import islice
+from typing import Dict, Iterable, Iterator, List, Tuple
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def _batched(iterable: Iterable, batch_size: int) -> Iterator[List]:
+    """将可迭代对象分批（避免一次性构造超大列表导致 OOM）。"""
+    if batch_size <= 0:
+        raise ValueError("batch_size must be > 0")
+    it = iter(iterable)
+    while True:
+        batch = list(islice(it, batch_size))
+        if not batch:
+            return
+        yield batch
 
 
 class OrthologImporter:
@@ -41,6 +54,9 @@ class OrthologImporter:
             'genes_skipped': 0,
             'errors': []
         }
+
+        # 批量写入大小（在大文件场景下降低内存峰值）
+        self.insert_batch_size = 10000
 
     def connect(self):
         """建立数据库连接"""
@@ -125,11 +141,13 @@ class OrthologImporter:
         species_map = self.get_species_map()
         cursor = self.conn.cursor()
 
-        # 读取CSV文件
-        lncrnas = []
+        # Pass 1: 扫描文件并构建 core_id -> 代表信息（优先使用 human 作为 canonical_symbol）
+        core_representative: Dict[int, Tuple[int, str]] = {}  # core_id -> (species_id, human_reference_lnc_id)
+        total_rows = 0
         with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader, 1):
+                total_rows += 1
                 try:
                     species_code = row['species'].strip()
                     species_id = species_map.get(species_code)
@@ -139,100 +157,110 @@ class OrthologImporter:
                         self.stats['genes_skipped'] += 1
                         continue
 
-                    # 提取core_id (支持CATG和ENSG，ENSG会加偏移量)
                     lnc_core_id_str = row['lnc_core_id'].strip()
                     core_id = self._extract_core_id(lnc_core_id_str)
 
-                    lncrna_data = {
-                        'core_id': core_id,
-                        'core_id_str': lnc_core_id_str,  # 保存原始字符串用于追踪
-                        'species_id': species_id,
-                        'species_lnc_id': row['species_lnc_id'].strip(),
-                        'human_reference_lnc_id': row['human_reference_lnc_id'].strip(),
-                        'sequence_file': row['sequence_file'].strip() if row.get('sequence_file') else None,
-                        'species_presence_tag': row['species_presence_tag'].strip() if row.get('species_presence_tag') else None
-                    }
+                    human_reference_lnc_id = row['human_reference_lnc_id'].strip()
+                    if not human_reference_lnc_id:
+                        raise ValueError("human_reference_lnc_id 不能为空")
 
-                    lncrnas.append(lncrna_data)
+                    if core_id not in core_representative:
+                        core_representative[core_id] = (species_id, human_reference_lnc_id)
+                    elif species_id == 1 and core_representative[core_id][0] != 1:
+                        # Prefer human record as canonical symbol
+                        core_representative[core_id] = (species_id, human_reference_lnc_id)
 
                 except Exception as e:
                     error_msg = f"第{i}行解析失败: {e}"
                     self.stats['errors'].append(error_msg)
                     logger.warning(error_msg)
 
-                # 进度反馈
                 if i % 1000 == 0:
-                    logger.info(f"已读取 {i} 行...")
+                    logger.info(f"已扫描 {i} 行...")
 
-        logger.info(f"CSV文件加载完成: 有效记录={len(lncrnas)}")
+        logger.info(
+            f"CSV文件扫描完成: 总行数={total_rows}, 独立core_id={len(core_representative)}"
+        )
 
         if dry_run:
             logger.info("试运行模式，不实际写入数据")
             cursor.close()
             return
 
-        # 分组: core_id -> [species_data]
-        core_groups = {}
-        for lnc in lncrnas:
-            core_id = lnc['core_id']
-            if core_id not in core_groups:
-                core_groups[core_id] = []
-            core_groups[core_id].append(lnc)
-
-        logger.info(f"发现 {len(core_groups)} 个独立的core_id")
-
-        # 插入core_genes
-        core_genes_data = []
-        for core_id, lnc_list in core_groups.items():
-            # 使用human作为参考
-            human_lnc = next((lnc for lnc in lnc_list if lnc['species_id'] == 1), lnc_list[0])
-
-            core_genes_data.append((
-                core_id,
-                'lncRNA',
-                human_lnc['human_reference_lnc_id'],
-                human_lnc['human_reference_lnc_id'],
-                f"lncRNA {human_lnc['human_reference_lnc_id']}"
-            ))
-
         try:
-            # 先插入core_id_assignments（使用标准的INSERT ... SELECT语法，兼容PostgreSQL 10+）
-            cursor.execute("""
-                INSERT INTO core_id_assignments (core_id, assignment_source, notes)
-                SELECT unnest(%s::int[]), 'ortholog_table', 'lncRNA ortholog import'
-                ON CONFLICT (core_id) DO NOTHING
-            """, ([c[0] for c in core_genes_data],))
+            # 插入 core_id_assignments（分批，避免超大数组参数导致内存峰值）
+            for core_id_batch in _batched(core_representative.keys(), self.insert_batch_size):
+                assignment_rows = [
+                    (core_id, 'ortholog_table', 'lncRNA ortholog import') for core_id in core_id_batch
+                ]
+                execute_values(cursor, """
+                    INSERT INTO core_id_assignments (core_id, assignment_source, notes)
+                    VALUES %s
+                    ON CONFLICT (core_id) DO NOTHING
+                """, assignment_rows)
 
-            # 插入core_genes
-            inserted_core_ids = execute_values(cursor, """
-                INSERT INTO core_genes (core_id, gene_type, canonical_symbol, human_ensembl_id, description)
-                VALUES %s
-                ON CONFLICT (core_id) DO NOTHING
-                RETURNING core_id
-            """, core_genes_data, fetch=True)
+            # 插入 core_genes（分批）
+            for batch_items in _batched(core_representative.items(), self.insert_batch_size):
+                core_genes_data = [
+                    (
+                        core_id,
+                        'lncRNA',
+                        human_reference_lnc_id,
+                        human_reference_lnc_id,
+                        f"lncRNA {human_reference_lnc_id}",
+                    )
+                    for core_id, (_sp_id, human_reference_lnc_id) in batch_items
+                ]
+                inserted_core_ids = execute_values(cursor, """
+                    INSERT INTO core_genes (core_id, gene_type, canonical_symbol, human_ensembl_id, description)
+                    VALUES %s
+                    ON CONFLICT (core_id) DO NOTHING
+                    RETURNING core_id
+                """, core_genes_data, fetch=True)
+                self.stats['core_genes_inserted'] += len(inserted_core_ids)
 
-            self.stats['core_genes_inserted'] = len(inserted_core_ids)
-            logger.info(f"插入 {len(inserted_core_ids)} 条core_genes记录（尝试 {len(core_genes_data)} 条）")
+            logger.info(f"core_genes写入完成（累计插入: {self.stats['core_genes_inserted']}）")
 
-            # 插入genes
-            genes_data = []
-            for lnc in lncrnas:
-                genes_data.append((
-                    lnc['species_id'],
-                    lnc['core_id'],
-                    lnc['species_lnc_id'],
-                    lnc['species_lnc_id'],  # gene_name与gene_ensembl_id相同
-                ))
+            # Pass 2: 插入 genes（分批，避免一次性构造超大 VALUES 列表）
+            genes_batch: List[Tuple[int, int, str, str]] = []
+            with open(file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for i, row in enumerate(reader, 1):
+                    try:
+                        species_code = row['species'].strip()
+                        species_id = species_map.get(species_code)
+                        if not species_id:
+                            continue
 
-            inserted_gene_ids = execute_values(cursor, """
-                INSERT INTO genes (species_id, core_id, gene_ensembl_id, gene_name)
-                VALUES %s
-                ON CONFLICT (species_id, gene_ensembl_id) DO NOTHING
-                RETURNING gene_id
-            """, genes_data, fetch=True)
+                        lnc_core_id_str = row['lnc_core_id'].strip()
+                        core_id = self._extract_core_id(lnc_core_id_str)
 
-            self.stats['genes_inserted'] += len(inserted_gene_ids)
-            logger.info(f"插入 {len(inserted_gene_ids)} 条genes记录（尝试 {len(genes_data)} 条）")
+                        species_lnc_id = row['species_lnc_id'].strip()
+                        genes_batch.append((species_id, core_id, species_lnc_id, species_lnc_id))
+
+                        if len(genes_batch) >= self.insert_batch_size:
+                            inserted_gene_ids = execute_values(cursor, """
+                                INSERT INTO genes (species_id, core_id, gene_ensembl_id, gene_name)
+                                VALUES %s
+                                ON CONFLICT (species_id, gene_ensembl_id) DO NOTHING
+                                RETURNING gene_id
+                            """, genes_batch, fetch=True)
+                            self.stats['genes_inserted'] += len(inserted_gene_ids)
+                            genes_batch.clear()
+
+                    except Exception as e:
+                        error_msg = f"第{i}行解析失败: {e}"
+                        self.stats['errors'].append(error_msg)
+                        logger.warning(error_msg)
+
+            if genes_batch:
+                inserted_gene_ids = execute_values(cursor, """
+                    INSERT INTO genes (species_id, core_id, gene_ensembl_id, gene_name)
+                    VALUES %s
+                    ON CONFLICT (species_id, gene_ensembl_id) DO NOTHING
+                    RETURNING gene_id
+                """, genes_batch, fetch=True)
+                self.stats['genes_inserted'] += len(inserted_gene_ids)
 
             self.conn.commit()
             logger.info("lncRNA数据导入成功")
@@ -256,11 +284,13 @@ class OrthologImporter:
         species_map = self.get_species_map()
         cursor = self.conn.cursor()
 
-        # 读取CSV文件
-        genes = []
+        # Pass 1: 扫描文件并构建 core_id -> 代表信息（优先使用 human 作为 canonical_symbol）
+        core_representative: Dict[int, Tuple[int, str, str]] = {}  # core_id -> (species_id, gene_name, human_reference_gene_id)
+        total_rows = 0
         with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for i, row in enumerate(reader, 1):
+                total_rows += 1
                 try:
                     species_code = row['species'].strip()
                     species_id = species_map.get(species_code)
@@ -270,100 +300,111 @@ class OrthologImporter:
                         self.stats['genes_skipped'] += 1
                         continue
 
-                    # 提取core_id (支持CATG和ENSG，ENSG会加偏移量)
                     gene_core_id_str = row['gene_core_id'].strip()
                     core_id = self._extract_core_id(gene_core_id_str)
 
-                    gene_data = {
-                        'core_id': core_id,
-                        'core_id_str': gene_core_id_str,  # 保存原始字符串用于追踪
-                        'species_id': species_id,
-                        'species_gene_id': row['species_gene_id'].strip(),
-                        'human_reference_gene_id': row['human_reference_gene_id'].strip(),
-                        'gene_name': row['gene_name'].strip(),
-                        'species_presence_tag': row['species_presence_tag'].strip() if row.get('species_presence_tag') else None
-                    }
+                    gene_name = row['gene_name'].strip()
+                    human_reference_gene_id = row['human_reference_gene_id'].strip()
+                    if not human_reference_gene_id:
+                        raise ValueError("human_reference_gene_id 不能为空")
 
-                    genes.append(gene_data)
+                    if core_id not in core_representative:
+                        core_representative[core_id] = (species_id, gene_name, human_reference_gene_id)
+                    elif species_id == 1 and core_representative[core_id][0] != 1:
+                        core_representative[core_id] = (species_id, gene_name, human_reference_gene_id)
 
                 except Exception as e:
                     error_msg = f"第{i}行解析失败: {e}"
                     self.stats['errors'].append(error_msg)
                     logger.warning(error_msg)
 
-                # 进度反馈
                 if i % 1000 == 0:
-                    logger.info(f"已读取 {i} 行...")
+                    logger.info(f"已扫描 {i} 行...")
 
-        logger.info(f"CSV文件加载完成: 有效记录={len(genes)}")
+        logger.info(
+            f"CSV文件扫描完成: 总行数={total_rows}, 独立core_id={len(core_representative)}"
+        )
 
         if dry_run:
             logger.info("试运行模式，不实际写入数据")
             cursor.close()
             return
 
-        # 分组: core_id -> [species_data]
-        core_groups = {}
-        for gene in genes:
-            core_id = gene['core_id']
-            if core_id not in core_groups:
-                core_groups[core_id] = []
-            core_groups[core_id].append(gene)
-
-        logger.info(f"发现 {len(core_groups)} 个独立的core_id")
-
-        # 插入core_genes
-        core_genes_data = []
-        for core_id, gene_list in core_groups.items():
-            # 使用human作为参考
-            human_gene = next((g for g in gene_list if g['species_id'] == 1), gene_list[0])
-
-            core_genes_data.append((
-                core_id,
-                'protein_coding',
-                human_gene['gene_name'],
-                human_gene['human_reference_gene_id'],
-                f"Protein coding gene {human_gene['gene_name']}"
-            ))
-
         try:
-            # 先插入core_id_assignments（使用标准的INSERT ... SELECT语法，兼容PostgreSQL 10+）
-            cursor.execute("""
-                INSERT INTO core_id_assignments (core_id, assignment_source, notes)
-                SELECT unnest(%s::int[]), 'ortholog_table', 'protein_coding gene ortholog import'
-                ON CONFLICT (core_id) DO NOTHING
-            """, ([c[0] for c in core_genes_data],))
+            # 插入 core_id_assignments（分批，避免超大数组参数导致内存峰值）
+            for core_id_batch in _batched(core_representative.keys(), self.insert_batch_size):
+                assignment_rows = [
+                    (core_id, 'ortholog_table', 'protein_coding gene ortholog import') for core_id in core_id_batch
+                ]
+                execute_values(cursor, """
+                    INSERT INTO core_id_assignments (core_id, assignment_source, notes)
+                    VALUES %s
+                    ON CONFLICT (core_id) DO NOTHING
+                """, assignment_rows)
 
-            # 插入core_genes
-            inserted_core_ids = execute_values(cursor, """
-                INSERT INTO core_genes (core_id, gene_type, canonical_symbol, human_ensembl_id, description)
-                VALUES %s
-                ON CONFLICT (core_id) DO NOTHING
-                RETURNING core_id
-            """, core_genes_data, fetch=True)
+            # 插入 core_genes（分批）
+            for batch_items in _batched(core_representative.items(), self.insert_batch_size):
+                core_genes_data = [
+                    (
+                        core_id,
+                        'protein_coding',
+                        gene_name,
+                        human_reference_gene_id,
+                        f"Protein coding gene {gene_name}",
+                    )
+                    for core_id, (_sp_id, gene_name, human_reference_gene_id) in batch_items
+                ]
+                inserted_core_ids = execute_values(cursor, """
+                    INSERT INTO core_genes (core_id, gene_type, canonical_symbol, human_ensembl_id, description)
+                    VALUES %s
+                    ON CONFLICT (core_id) DO NOTHING
+                    RETURNING core_id
+                """, core_genes_data, fetch=True)
+                self.stats['core_genes_inserted'] += len(inserted_core_ids)
 
-            self.stats['core_genes_inserted'] += len(inserted_core_ids)
-            logger.info(f"插入 {len(inserted_core_ids)} 条core_genes记录（尝试 {len(core_genes_data)} 条）")
+            logger.info(f"core_genes写入完成（累计插入: {self.stats['core_genes_inserted']}）")
 
-            # 插入genes
-            genes_data = []
-            for gene in genes:
-                genes_data.append((
-                    gene['species_id'],
-                    gene['core_id'],
-                    gene['species_gene_id'],
-                    gene['gene_name'],
-                ))
+            # Pass 2: 插入 genes（分批）
+            genes_batch: List[Tuple[int, int, str, str]] = []
+            with open(file_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for i, row in enumerate(reader, 1):
+                    try:
+                        species_code = row['species'].strip()
+                        species_id = species_map.get(species_code)
+                        if not species_id:
+                            continue
 
-            inserted_gene_ids = execute_values(cursor, """
-                INSERT INTO genes (species_id, core_id, gene_ensembl_id, gene_name)
-                VALUES %s
-                ON CONFLICT (species_id, gene_ensembl_id) DO NOTHING
-                RETURNING gene_id
-            """, genes_data, fetch=True)
+                        gene_core_id_str = row['gene_core_id'].strip()
+                        core_id = self._extract_core_id(gene_core_id_str)
 
-            self.stats['genes_inserted'] += len(inserted_gene_ids)
-            logger.info(f"插入 {len(inserted_gene_ids)} 条genes记录（尝试 {len(genes_data)} 条）")
+                        species_gene_id = row['species_gene_id'].strip()
+                        gene_name = row['gene_name'].strip()
+                        genes_batch.append((species_id, core_id, species_gene_id, gene_name))
+
+                        if len(genes_batch) >= self.insert_batch_size:
+                            inserted_gene_ids = execute_values(cursor, """
+                                INSERT INTO genes (species_id, core_id, gene_ensembl_id, gene_name)
+                                VALUES %s
+                                ON CONFLICT (species_id, gene_ensembl_id) DO NOTHING
+                                RETURNING gene_id
+                            """, genes_batch, fetch=True)
+                            self.stats['genes_inserted'] += len(inserted_gene_ids)
+                            genes_batch.clear()
+
+                    except Exception as e:
+                        error_msg = f"第{i}行解析失败: {e}"
+                        self.stats['errors'].append(error_msg)
+                        logger.warning(error_msg)
+
+            if genes_batch:
+                inserted_gene_ids = execute_values(cursor, """
+                    INSERT INTO genes (species_id, core_id, gene_ensembl_id, gene_name)
+                    VALUES %s
+                    ON CONFLICT (species_id, gene_ensembl_id) DO NOTHING
+                    RETURNING gene_id
+                """, genes_batch, fetch=True)
+                self.stats['genes_inserted'] += len(inserted_gene_ids)
 
             self.conn.commit()
             logger.info("基因数据导入成功")

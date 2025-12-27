@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
-from app.core.utils import escape_like_pattern
+from app.core.utils import escape_like_pattern, sanitize_for_log
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.visualization import (
     SankeyResponse,
@@ -104,11 +104,14 @@ def get_sankey_data(
         "species_id": 1
       }
     }
-    ```
+	    ```
     """
     logger.info(
-        f"[SANKEY] species_id={species_id}, min_ba={min_ba}, "
-        f"trait_name={trait_name}, limit={limit}"
+        "[SANKEY] species_id=%s, min_ba=%s, trait_name=%s, limit=%s",
+        species_id,
+        min_ba,
+        sanitize_for_log(trait_name, max_length=100),
+        limit,
     )
 
     # 规范化 trait_name：去除首尾空白，空字符串视为不筛选
@@ -129,7 +132,7 @@ def get_sankey_data(
 
     cached = cache.get(cache_key)
     if cached is not None:
-        logger.info(f"[SANKEY] Cache HIT: {cache_key}")
+        logger.info("[SANKEY] Cache HIT: %s", sanitize_for_log(cache_key, max_length=200))
         return SankeyResponse(**cached)
 
     # Phase 9.13: 转义 trait_name 中的 LIKE 通配符，防止意外匹配
@@ -340,7 +343,7 @@ def get_sankey_data(
 
     # 缓存 10 分钟（与 Chord 保持一致）
     cache.set(cache_key, response.model_dump(), ttl=cache.TTL_DETAIL)
-    logger.info(f"[SANKEY] Cache SET: {cache_key}")
+    logger.info("[SANKEY] Cache SET: %s", sanitize_for_log(cache_key, max_length=200))
 
     return response
 
@@ -350,7 +353,7 @@ def get_sankey_data(
 def get_chord_data(
     request: Request,
     species_id: int = Query(default=1, ge=1, le=4, description="物种 ID (1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴)"),
-    lncrna_id: Optional[int] = Query(default=None, description="指定 lncRNA 基因 ID（可选）"),
+    lncrna_id: Optional[int] = Query(default=None, ge=1, description="指定 lncRNA 基因 ID（可选）"),
     min_ba: float = Query(default=50.0, ge=0, description="最小结合亲和力阈值"),
     limit: int = Query(default=100, ge=1, le=500, description="最大返回节点数量"),
     db: Session = Depends(get_db),
@@ -434,8 +437,11 @@ def get_chord_data(
     ```
     """
     logger.info(
-        f"[CHORD] species_id={species_id}, lncrna_id={lncrna_id}, "
-        f"min_ba={min_ba}, limit={limit}"
+        "[CHORD] species_id=%s, lncrna_id=%s, min_ba=%s, limit=%s",
+        species_id,
+        lncrna_id,
+        min_ba,
+        limit,
     )
 
     # ========================================================================
@@ -452,7 +458,7 @@ def get_chord_data(
     # 尝试从缓存读取
     cached = cache.get(cache_key)
     if cached is not None:
-        logger.info(f"[CHORD] Cache HIT: {cache_key}")
+        logger.info("[CHORD] Cache HIT: %s", sanitize_for_log(cache_key, max_length=200))
         return ChordResponse(**cached)
 
     # ========================================================================

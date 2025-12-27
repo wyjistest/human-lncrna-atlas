@@ -339,7 +339,42 @@ app = FastAPI(
 # 配置中间件
 # 注意：RateLimitMiddleware 已移除，统一使用 slowapi 进行端点级别限流
 # MetricsMiddleware 已移除，统一使用 Prometheus Metrics (prometheus-fastapi-instrumentator)
+# FastAPI 中间件执行顺序：后添加的中间件在外层（最先执行）。
 app.add_middleware(LoggingMiddleware)
+
+
+# ============================================================================
+# TrustedHost Middleware (Phase 9.18 - Codex审查修复)
+# 防止 HTTP Host Header 攻击，仅允许配置的 Host 访问
+# ============================================================================
+if settings.TRUSTED_HOSTS:
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=settings.TRUSTED_HOSTS,
+    )
+    logger.info(f"TrustedHostMiddleware enabled with hosts: {settings.TRUSTED_HOSTS}")
+
+# ============================================================================
+# slowapi Rate Limiting Integration (per-endpoint limits for ChIP-seq API)
+# ============================================================================
+if SLOWAPI_AVAILABLE and chipseq_limiter:
+    app.state.limiter = chipseq_limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
+    logger.info("slowapi rate limiting enabled for ChIP-seq endpoints")
+
+# ============================================================================
+# Security Middleware Registration
+# Phase 9.16: 安全中间件已提取到 app/middleware/security/
+# IMPORTANT: 注册在 slowapi 之后，确保 429/异常响应也能附带安全头
+# ============================================================================
+app.middleware("http")(metrics_auth_middleware)
+app.middleware("http")(add_security_headers)
+
+# ============================================================================
+# CORS Middleware
+# IMPORTANT: 放在最外层，确保所有响应（含 429/5xx）都带 CORS 头，避免前端误判为 CORS Error
+# ============================================================================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -356,35 +391,6 @@ app.add_middleware(
         "Origin",
     ],
 )
-
-
-# ============================================================================
-# TrustedHost Middleware (Phase 9.18 - Codex审查修复)
-# 防止 HTTP Host Header 攻击，仅允许配置的 Host 访问
-# ============================================================================
-if settings.TRUSTED_HOSTS:
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=settings.TRUSTED_HOSTS,
-    )
-    logger.info(f"TrustedHostMiddleware enabled with hosts: {settings.TRUSTED_HOSTS}")
-
-# ============================================================================
-# Security Middleware Registration
-# Phase 9.16: 安全中间件已提取到 app/middleware/security/
-# ============================================================================
-app.middleware("http")(metrics_auth_middleware)
-app.middleware("http")(add_security_headers)
-
-
-# ============================================================================
-# slowapi Rate Limiting Integration (per-endpoint limits for ChIP-seq API)
-# ============================================================================
-if SLOWAPI_AVAILABLE and chipseq_limiter:
-    app.state.limiter = chipseq_limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    app.add_middleware(SlowAPIMiddleware)
-    logger.info("slowapi rate limiting enabled for ChIP-seq endpoints")
 
 # ============================================================================
 # Prometheus Metrics Integration (prometheus-fastapi-instrumentator)

@@ -150,6 +150,7 @@ def get_top_genes(
     if cached is not None:
         return [TopGene(**item) for item in cached]
 
+    regulation_count = func.count(Regulation.regulation_id).label("regulation_count")
     query = (
         db.query(
             Gene.gene_id,
@@ -157,7 +158,7 @@ def get_top_genes(
             Gene.gene_name,
             CoreGene.gene_type,
             Species.display_name.label("species_name"),
-            func.count(Regulation.regulation_id).label("regulation_count"),
+            regulation_count,
         )
         .join(CoreGene, Gene.core_id == CoreGene.core_id)
         .join(Species, Gene.species_id == Species.species_id)
@@ -174,7 +175,7 @@ def get_top_genes(
     if normalized_gene_type:
         query = query.filter(CoreGene.gene_type == normalized_gene_type)
 
-    query = query.order_by(desc("regulation_count")).limit(limit)
+    query = query.order_by(regulation_count.desc()).limit(limit)
 
     results_raw = query.all()
 
@@ -214,25 +215,28 @@ def get_top_diseases(
     if cached is not None:
         return [TopDisease(**item) for item in cached]
 
+    gene_count = func.count(func.distinct(TraitGeneAssociation.core_id)).label("gene_count")
+    lncrna_count = func.count(
+        func.distinct(
+            case(
+                (CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id),
+                else_=None,
+            )
+        )
+    ).label("lncrna_count")
+
     query = (
         db.query(
             Trait.trait_id,
             Trait.trait_name,
             Trait.trait_category,
-            func.count(func.distinct(TraitGeneAssociation.core_id)).label("gene_count"),
-            func.count(
-                func.distinct(
-                    case(
-                        (CoreGene.gene_type == "lncRNA", TraitGeneAssociation.core_id),
-                        else_=None
-                    )
-                )
-            ).label("lncrna_count"),
+            gene_count,
+            lncrna_count,
         )
         .join(TraitGeneAssociation, Trait.trait_id == TraitGeneAssociation.trait_id)
         .join(CoreGene, TraitGeneAssociation.core_id == CoreGene.core_id)
         .group_by(Trait.trait_id, Trait.trait_name, Trait.trait_category)
-        .order_by(desc("gene_count"))
+        .order_by(gene_count.desc())
         .limit(limit)
     )
 
@@ -279,12 +283,14 @@ def get_conserved_regulations(
     LncRNAGene = aliased(Gene, name="lncrna_gene")
     TargetGene = aliased(Gene, name="target_gene")
 
+    species_count = func.count(func.distinct(Regulation.species_id)).label("species_count")
+
     # 查询保守调控（包含基因名和物种信息）
     query = (
         db.query(
             LncRNAGene.core_id.label("lncrna_core_id"),
             TargetGene.core_id.label("target_core_id"),
-            func.count(func.distinct(Regulation.species_id)).label("species_count"),
+            species_count,
             func.avg(Regulation.binding_affinity).label("avg_ba"),
             # 使用 GROUP_CONCAT / STRING_AGG 获取物种列表（PostgreSQL）
             func.string_agg(func.distinct(Species.display_name), ',').label("species_names"),
@@ -297,8 +303,8 @@ def get_conserved_regulations(
         .join(TargetGene, Regulation.target_gene_id == TargetGene.gene_id)
         .join(Species, Regulation.species_id == Species.species_id)
         .group_by(LncRNAGene.core_id, TargetGene.core_id)
-        .having(func.count(func.distinct(Regulation.species_id)) >= min_species)
-        .order_by(desc("species_count"))
+        .having(species_count >= min_species)
+        .order_by(species_count.desc())
         .limit(limit)
     )
 

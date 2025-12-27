@@ -14,6 +14,7 @@
 import { apiClient } from './client'
 import { API_BASE_URL } from '@/config/api'
 import { openInNewTab } from '@/utils/safeWindow'
+import { normalizeCommaSeparatedList, normalizeQueryKeyObject } from '@/utils/queryKey'
 import type {
   OverlapFilters,
   OverlapResponse,
@@ -21,6 +22,41 @@ import type {
   OverlapHeatmapData,
   OverlapHeatmapParams,
 } from '@/types/lncRNAChIPSeqOverlap'
+
+const DEFAULT_MAX_QVALUE = 0.05
+const DEFAULT_PAGE = 1
+const DEFAULT_PAGE_SIZE = 20
+const DEFAULT_SORT_BY: NonNullable<OverlapFilters['sort_by']> = 'binding_affinity'
+const DEFAULT_SORT_ORDER: NonNullable<OverlapFilters['sort_order']> = 'desc'
+
+function normalizeOverlapsFiltersForKey(filters: OverlapFilters) {
+  // /lncrna-chipseq-overlap 是分页端点：page/page_size 必须进入 key
+  return normalizeQueryKeyObject({
+    ...filters,
+    mark_type: normalizeCommaSeparatedList(filters.mark_type),
+    cell_type: normalizeCommaSeparatedList(filters.cell_type),
+    page: filters.page ?? DEFAULT_PAGE,
+    page_size: filters.page_size ?? DEFAULT_PAGE_SIZE,
+    sort_by: filters.sort_by ?? DEFAULT_SORT_BY,
+    sort_order: filters.sort_order ?? DEFAULT_SORT_ORDER,
+    max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+  })
+}
+
+function buildSummaryParams(filters?: Partial<OverlapFilters>) {
+  if (!filters) return undefined
+
+  // /summary(/statistics) 端点不接受分页/排序参数；仅保留服务端支持的字段，避免缓存碎片与无效 query params。
+  return normalizeQueryKeyObject({
+    lncrna_gene_id: filters.lncrna_gene_id,
+    target_gene_id: filters.target_gene_id,
+    mark_type: normalizeCommaSeparatedList(filters.mark_type),
+    cell_type: normalizeCommaSeparatedList(filters.cell_type),
+    chromosome: filters.chromosome,
+    min_binding_affinity: filters.min_binding_affinity,
+    max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+  })
+}
 
 /**
  * lncRNA-ChIP-seq Overlap API namespace
@@ -43,25 +79,25 @@ export const lncRNAChIPSeqOverlapApi = {
    * })
    * ```
    */
-  getOverlaps: (filters: OverlapFilters, signal?: AbortSignal) =>
-    apiClient.get<OverlapResponse>('/api/v1/lncrna-chipseq-overlap', {
-      params: {
-        lncrna_gene_id: filters.lncrna_gene_id,
-        target_gene_id: filters.target_gene_id,
-        mark_type: filters.mark_type,
-        cell_type: filters.cell_type,
-        chromosome: filters.chromosome,
-        min_overlap_length: filters.min_overlap_length,
-        min_binding_affinity: filters.min_binding_affinity,
-        min_peak_strength: filters.min_peak_strength,
-        max_qvalue: filters.max_qvalue,
-        page: filters.page ?? 1,
-        page_size: filters.page_size ?? 20,
-        sort_by: filters.sort_by,
-        sort_order: filters.sort_order,
-      },
-      signal
-    }),
+	  getOverlaps: (filters: OverlapFilters, signal?: AbortSignal) =>
+	    apiClient.get<OverlapResponse>('/api/v1/lncrna-chipseq-overlap', {
+	      params: {
+	        lncrna_gene_id: filters.lncrna_gene_id,
+	        target_gene_id: filters.target_gene_id,
+	        mark_type: normalizeCommaSeparatedList(filters.mark_type),
+	        cell_type: normalizeCommaSeparatedList(filters.cell_type),
+	        chromosome: filters.chromosome,
+	        min_overlap_length: filters.min_overlap_length,
+	        min_binding_affinity: filters.min_binding_affinity,
+	        min_peak_strength: filters.min_peak_strength,
+	        max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+	        page: filters.page ?? DEFAULT_PAGE,
+	        page_size: filters.page_size ?? DEFAULT_PAGE_SIZE,
+	        sort_by: filters.sort_by ?? DEFAULT_SORT_BY,
+	        sort_order: filters.sort_order ?? DEFAULT_SORT_ORDER,
+	      },
+	      signal
+	    }),
 
   /**
    * Get summary statistics for overlap analysis
@@ -79,11 +115,11 @@ export const lncRNAChIPSeqOverlapApi = {
    * })
    * ```
    */
-  getSummary: (filters?: Partial<OverlapFilters>, signal?: AbortSignal) =>
-    apiClient.get<OverlapSummary>('/api/v1/lncrna-chipseq-overlap/summary', {
-      params: filters,
-      signal
-    }),
+	  getSummary: (filters?: Partial<OverlapFilters>, signal?: AbortSignal) =>
+	    apiClient.get<OverlapSummary>('/api/v1/lncrna-chipseq-overlap/summary', {
+	      params: buildSummaryParams(filters),
+	      signal
+	    }),
 
   /**
    * Export overlaps in specified format (BED or CSV)
@@ -188,16 +224,28 @@ export const overlapQueryKeys = {
   all: ['lncrna-chipseq-overlap'] as const,
 
   /** Overlap data queries */
-  overlaps: (filters: OverlapFilters) =>
-    [...overlapQueryKeys.all, 'overlaps', filters] as const,
+  overlaps: (filters: OverlapFilters) => {
+    const normalized = normalizeOverlapsFiltersForKey(filters)
+    return normalized
+      ? ([...overlapQueryKeys.all, 'overlaps', normalized] as const)
+      : ([...overlapQueryKeys.all, 'overlaps'] as const)
+  },
 
   /** Summary statistics */
-  summary: (filters?: Partial<OverlapFilters>) =>
-    [...overlapQueryKeys.all, 'summary', filters] as const,
+  summary: (filters?: Partial<OverlapFilters>) => {
+    const normalized = buildSummaryParams(filters)
+    return normalized
+      ? ([...overlapQueryKeys.all, 'summary', normalized] as const)
+      : ([...overlapQueryKeys.all, 'summary'] as const)
+  },
 
   /** Heatmap data (Phase 3.0 Phase 2) */
-  heatmap: (params: OverlapHeatmapParams) =>
-    [...overlapQueryKeys.all, 'heatmap', params] as const,
+  heatmap: (params: OverlapHeatmapParams) => {
+    const normalized = normalizeQueryKeyObject(params)
+    return normalized
+      ? ([...overlapQueryKeys.all, 'heatmap', normalized] as const)
+      : ([...overlapQueryKeys.all, 'heatmap'] as const)
+  },
 }
 
 export default lncRNAChIPSeqOverlapApi

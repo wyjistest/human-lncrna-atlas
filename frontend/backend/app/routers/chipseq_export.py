@@ -28,7 +28,7 @@ from sqlalchemy import select, func
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
-from app.core.validators import MAX_EXPORT_MARKS, parse_comma_list
+from app.core.validators import MAX_EXPORT_MARKS, MAX_JSON_EXPORT_LIMIT, parse_comma_list
 from app.models import Gene, ChIPSeqPeak, ChIPSeqExperiment, EpigeneticMarkType
 from app.schemas.chipseq import ExportFormat
 from app.utils.bed import sanitize_bed_track_attr
@@ -92,6 +92,43 @@ def _iter_overlapping_peak_pairs(
             k += 1
 
 
+def _apply_json_limit_param(
+    request: Request,
+    value: int,
+    *,
+    param_name: str,
+    max_value: int = MAX_JSON_EXPORT_LIMIT,
+    label: str = "records",
+) -> int:
+    """
+    Apply JSON in-memory limit for ChIP-seq export endpoints.
+
+    - If user explicitly provides the param and exceeds the limit: return 400.
+    - If param is implicit (default) and exceeds the limit: auto-cap.
+    """
+    if value <= max_value:
+        return value
+
+    was_explicit = param_name in request.query_params
+    if was_explicit:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"JSON export is limited to {max_value} {label} due to memory constraints. "
+                "For larger datasets, please use CSV/TSV format."
+            ),
+        )
+
+    logger.warning(
+        "[chipseq-export] %s: %s capped to %s (requested default: %s) for JSON export",
+        request.url.path,
+        param_name,
+        max_value,
+        value,
+    )
+    return max_value
+
+
 @router.get("/genes/{gene_id}/compare/export")
 @rate_limit("5/minute")  # Rate limit: 5 requests per minute per IP (export is resource-intensive)
 def export_comparison(
@@ -147,6 +184,12 @@ def export_comparison(
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
+    # JSON 输出会在内存中构造完整对象，进行额外的内存保护（默认值过大时自动降级）
+    if format == ExportFormat.json:
+        max_rows = _apply_json_limit_param(request, max_rows, param_name="max_rows", label="peaks")
+        if include_overlaps:
+            max_overlaps = _apply_json_limit_param(request, max_overlaps, param_name="max_overlaps", label="overlaps")
+
     try:
         is_postgresql = db.get_bind().dialect.name == "postgresql"
         if is_postgresql:
@@ -186,39 +229,150 @@ def export_comparison(
             .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
             .where(*where_conditions)
             .order_by(EpigeneticMarkType.mark_name, ChIPSeqPeak.peak_start)
-            .limit(max_rows)
         )
-
-        rows = db.execute(stmt).fetchall()
     except Exception as e:
         raise sanitize_db_error(e, logger)
 
-    # Prepare data for export
-    peaks_data = []
-    marks_data = {}
+    # Generate output based on format
+    if format != ExportFormat.json:
+        delimiter = "\t" if format == ExportFormat.tsv else ","
+        media_type = "text/csv" if format == ExportFormat.csv else "text/tab-separated-values"
+        ext = "csv" if format == ExportFormat.csv else "tsv"
+        filename = f"chipseq_compare_{gene_id}.{ext}"
 
-    for row in rows:
-        peak_dict = {
-            "peak_id": row[0],
-            "mark_type": row[1],
-            "mark_category": row[2],
-            "chromosome": row[3],
-            "peak_start": row[4],
-            "peak_end": row[5],
-            "summit_position": row[6],
-            "fold_enrichment": float(row[7]) if row[7] else None,
-            "qvalue": float(row[8]) if row[8] else None,
-            "peak_width": row[9],
-        }
-        peaks_data.append(peak_dict)
+        stmt = stmt.limit(max_rows).execution_options(stream_results=True)
+        try:
+            result = db.execute(stmt)
+        except Exception as e:
+            raise sanitize_db_error(e, logger)
 
-        mark_name = row[1]
-        if mark_name not in marks_data:
-            marks_data[mark_name] = []
-        marks_data[mark_name].append(peak_dict)
+        def _generate_rows() -> Iterator[bytes]:
+            buffer = io.StringIO()
+            writer = csv.writer(buffer, delimiter=delimiter)
 
-    # Calculate overlaps if requested (Phase 9.11: max_overlaps 防止 O(n²) 内存爆炸)
-    overlaps_data = []
+            writer.writerow([
+                "peak_id", "mark_type", "mark_category", "chromosome",
+                "peak_start", "peak_end", "summit_position",
+                "fold_enrichment", "qvalue", "peak_width",
+            ])
+            yield buffer.getvalue().encode("utf-8")
+            buffer.seek(0)
+            buffer.truncate()
+
+            marks_data: dict[str, list[Dict[str, Any]]] = {} if include_overlaps else {}
+
+            close = getattr(result, "close", None)
+            try:
+                for row in result:
+                    peak_id = row[0]
+                    mark_name = row[1]
+                    writer.writerow([
+                        sanitize_csv_value(peak_id),
+                        sanitize_csv_value(mark_name),
+                        sanitize_csv_value(row[2]),
+                        sanitize_csv_value(row[3]),
+                        sanitize_csv_value(row[4]),
+                        sanitize_csv_value(row[5]),
+                        sanitize_csv_value(row[6]),
+                        sanitize_csv_value(row[7]),
+                        sanitize_csv_value(row[8]),
+                        sanitize_csv_value(row[9]),
+                    ])
+                    yield buffer.getvalue().encode("utf-8")
+                    buffer.seek(0)
+                    buffer.truncate()
+
+                    if include_overlaps:
+                        marks_data.setdefault(mark_name, []).append(
+                            {"peak_id": peak_id, "peak_start": row[4], "peak_end": row[5]}
+                        )
+
+                if include_overlaps and len(marks_data) >= 2:
+                    writer.writerow([])  # Empty row separator
+                    writer.writerow(["# Overlapping Regions"])
+                    writer.writerow([
+                        "chromosome", "start", "end", "length",
+                        "mark_1", "mark_2", "mark_1_peak_id", "mark_2_peak_id",
+                    ])
+                    yield buffer.getvalue().encode("utf-8")
+                    buffer.seek(0)
+                    buffer.truncate()
+
+                    overlap_count = 0
+                    mark_names = list(marks_data.keys())
+                    for mark_1, mark_2 in combinations(mark_names, 2):
+                        if overlap_count >= max_overlaps:
+                            break
+                        for p1, p2 in _iter_overlapping_peak_pairs(marks_data[mark_1], marks_data[mark_2]):
+                            if overlap_count >= max_overlaps:
+                                break
+                            overlap_start = max(p1["peak_start"], p2["peak_start"])
+                            overlap_end = min(p1["peak_end"], p2["peak_end"])
+                            writer.writerow([
+                                sanitize_csv_value(gene.chromosome),
+                                sanitize_csv_value(overlap_start),
+                                sanitize_csv_value(overlap_end),
+                                sanitize_csv_value(overlap_end - overlap_start),
+                                sanitize_csv_value(mark_1),
+                                sanitize_csv_value(mark_2),
+                                sanitize_csv_value(p1["peak_id"]),
+                                sanitize_csv_value(p2["peak_id"]),
+                            ])
+                            yield buffer.getvalue().encode("utf-8")
+                            buffer.seek(0)
+                            buffer.truncate()
+                            overlap_count += 1
+            finally:
+                if callable(close):
+                    close()
+
+        return StreamingResponse(
+            _generate_rows(),
+            media_type=media_type,
+            # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+            headers={"Content-Disposition": content_disposition_attachment(filename)},
+        )
+
+    # JSON: 构造完整对象（已通过 MAX_JSON_EXPORT_LIMIT 做上限保护）
+    import json
+
+    query_limit = max_rows + 1  # 额外取 1 条用于判断是否被截断
+    stmt = stmt.limit(query_limit).execution_options(stream_results=True)
+    try:
+        result = db.execute(stmt)
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
+
+    peaks_data: list[Dict[str, Any]] = []
+    marks_data: dict[str, list[Dict[str, Any]]] = {}
+    peaks_truncated = False
+
+    close = getattr(result, "close", None)
+    try:
+        for row in result:
+            if len(peaks_data) >= max_rows:
+                peaks_truncated = True
+                break
+
+            peak_dict = {
+                "peak_id": row[0],
+                "mark_type": row[1],
+                "mark_category": row[2],
+                "chromosome": row[3],
+                "peak_start": row[4],
+                "peak_end": row[5],
+                "summit_position": row[6],
+                "fold_enrichment": float(row[7]) if row[7] is not None else None,
+                "qvalue": float(row[8]) if row[8] is not None else None,
+                "peak_width": row[9],
+            }
+            peaks_data.append(peak_dict)
+            marks_data.setdefault(row[1], []).append(peak_dict)
+    finally:
+        if callable(close):
+            close()
+
+    overlaps_data: list[Dict[str, Any]] = []
     overlaps_truncated = False
     if include_overlaps and len(marks_data) >= 2:
         mark_names = list(marks_data.keys())
@@ -245,77 +399,22 @@ def export_comparison(
             if overlaps_truncated:
                 break
 
-    # Generate output based on format
-    peaks_truncated = len(peaks_data) >= max_rows
-    if format == ExportFormat.json:
-        import json
-        output = json.dumps({
-            "gene_id": gene_id,
-            "gene_name": gene.gene_name,
-            "chromosome": gene.chromosome,
-            "region_start": region_start,
-            "region_end": region_end,
-            "peaks": peaks_data,
-            "peaks_truncated": peaks_truncated,
-            "overlaps": overlaps_data if include_overlaps else None,
-            "overlaps_truncated": overlaps_truncated if include_overlaps else None,
-        }, indent=2)
-        media_type = "application/json"
-        filename = f"chipseq_compare_{gene_id}.json"
-    else:
-        # CSV or TSV
-        delimiter = "\t" if format == ExportFormat.tsv else ","
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=delimiter)
+    output = json.dumps({
+        "gene_id": gene_id,
+        "gene_name": gene.gene_name,
+        "chromosome": gene.chromosome,
+        "region_start": region_start,
+        "region_end": region_end,
+        "peaks": peaks_data,
+        "peaks_truncated": peaks_truncated,
+        "overlaps": overlaps_data if include_overlaps else None,
+        "overlaps_truncated": overlaps_truncated if include_overlaps else None,
+    }, indent=2)
 
-        # Write peaks header and data
-        writer.writerow([
-            "peak_id", "mark_type", "mark_category", "chromosome",
-            "peak_start", "peak_end", "summit_position",
-            "fold_enrichment", "qvalue", "peak_width"
-        ])
-        for peak in peaks_data:
-            writer.writerow([
-                sanitize_csv_value(peak["peak_id"]),
-                sanitize_csv_value(peak["mark_type"]),
-                sanitize_csv_value(peak["mark_category"]),
-                sanitize_csv_value(peak["chromosome"]),
-                sanitize_csv_value(peak["peak_start"]),
-                sanitize_csv_value(peak["peak_end"]),
-                sanitize_csv_value(peak["summit_position"]),
-                sanitize_csv_value(peak["fold_enrichment"]),
-                sanitize_csv_value(peak["qvalue"]),
-                sanitize_csv_value(peak["peak_width"])
-            ])
-
-        # Write overlaps section if requested
-        if include_overlaps and overlaps_data:
-            writer.writerow([])  # Empty row separator
-            writer.writerow(["# Overlapping Regions"])
-            writer.writerow([
-                "chromosome", "start", "end", "length",
-                "mark_1", "mark_2", "mark_1_peak_id", "mark_2_peak_id"
-            ])
-            for overlap in overlaps_data:
-                writer.writerow([
-                    sanitize_csv_value(overlap["chromosome"]),
-                    sanitize_csv_value(overlap["start"]),
-                    sanitize_csv_value(overlap["end"]),
-                    sanitize_csv_value(overlap["length"]),
-                    sanitize_csv_value(overlap["mark_1"]),
-                    sanitize_csv_value(overlap["mark_2"]),
-                    sanitize_csv_value(overlap["mark_1_peak_id"]),
-                    sanitize_csv_value(overlap["mark_2_peak_id"])
-                ])
-
-        output = output.getvalue()
-        media_type = "text/csv" if format == ExportFormat.csv else "text/tab-separated-values"
-        ext = "csv" if format == ExportFormat.csv else "tsv"
-        filename = f"chipseq_compare_{gene_id}.{ext}"
-
+    filename = f"chipseq_compare_{gene_id}.json"
     return StreamingResponse(
-        io.BytesIO(output.encode("utf-8")),
-        media_type=media_type,
+        iter([output.encode("utf-8")]),
+        media_type="application/json",
         # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
         headers={"Content-Disposition": content_disposition_attachment(filename)},
     )
@@ -381,6 +480,11 @@ def export_overlaps_bed(
     region_start = max(0, gene.gene_start - flanking)
     region_end = gene.gene_end + flanking
 
+    # JSON 输出会在内存中构造 overlaps 数组，进行额外的内存保护（默认值过大时自动降级）
+    if format == ExportFormat.json:
+        max_rows = _apply_json_limit_param(request, max_rows, param_name="max_rows", label="peaks")
+        max_overlaps = _apply_json_limit_param(request, max_overlaps, param_name="max_overlaps", label="overlaps")
+
     try:
         is_postgresql = db.get_bind().dialect.name == "postgresql"
         if is_postgresql:
@@ -416,22 +520,24 @@ def export_overlaps_bed(
             .order_by(EpigeneticMarkType.mark_name, ChIPSeqPeak.peak_start)
             .limit(max_rows)
         )
-
-        rows = db.execute(stmt).fetchall()
+        result = db.execute(stmt.execution_options(stream_results=True))
     except Exception as e:
         raise sanitize_db_error(e, logger)
 
     # Group by mark
-    marks_data = {}
-    for row in rows:
-        mark_name = row[1]
-        if mark_name not in marks_data:
-            marks_data[mark_name] = []
-        marks_data[mark_name].append({
-            "peak_id": row[0],
-            "peak_start": row[3],
-            "peak_end": row[4],
-        })
+    marks_data: dict[str, list[Dict[str, Any]]] = {}
+    close = getattr(result, "close", None)
+    try:
+        for row in result:
+            mark_name = row[1]
+            marks_data.setdefault(mark_name, []).append({
+                "peak_id": row[0],
+                "peak_start": row[3],
+                "peak_end": row[4],
+            })
+    finally:
+        if callable(close):
+            close()
 
     # Find overlaps (Phase 9.11: max_overlaps 防止 O(n²) 内存爆炸)
     overlaps = []
@@ -475,49 +581,74 @@ def export_overlaps_bed(
 
     # Generate output
     if format == ExportFormat.bed:
-        output = io.StringIO()
         # BED header (optional track line)
         safe_gene_name = sanitize_bed_track_attr(gene.gene_name or "unknown")
-        output.write(
-            f"track name=\"ChIP-seq_Overlaps_{gene_id}\" description=\"Overlapping regions for gene {safe_gene_name}\"\n"
-        )
-        for o in overlaps:
-            output.write(f"{o['chromosome']}\t{o['start']}\t{o['end']}\t{o['name']}\t{o['score']}\t{o['strand']}\n")
         media_type = "text/plain"
         filename = f"chipseq_overlaps_{gene_id}.bed"
+
+        def _bed_stream() -> Iterator[bytes]:
+            yield (
+                f"track name=\"ChIP-seq_Overlaps_{gene_id}\" "
+                f"description=\"Overlapping regions for gene {safe_gene_name}\"\n"
+            ).encode("utf-8")
+            for o in overlaps:
+                yield (
+                    f"{o['chromosome']}\t{o['start']}\t{o['end']}\t{o['name']}\t{o['score']}\t{o['strand']}\n"
+                ).encode("utf-8")
+
+        return StreamingResponse(
+            _bed_stream(),
+            media_type=media_type,
+            # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+            headers={"Content-Disposition": content_disposition_attachment(filename)},
+        )
     elif format == ExportFormat.json:
         import json
-        output = io.StringIO()
-        output.write(json.dumps({
+        output = json.dumps({
             "gene_id": gene_id,
             "gene_name": gene.gene_name,
             "overlaps": overlaps,
             "overlaps_truncated": overlaps_truncated,
-        }, indent=2))
+        }, indent=2)
         media_type = "application/json"
         filename = f"chipseq_overlaps_{gene_id}.json"
     else:
         # CSV or TSV
         delimiter = "\t" if format == ExportFormat.tsv else ","
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=delimiter)
-        writer.writerow(["chromosome", "start", "end", "name", "length", "mark_1", "mark_2"])
-        for o in overlaps:
-            writer.writerow([
-                sanitize_csv_value(o["chromosome"]),
-                sanitize_csv_value(o["start"]),
-                sanitize_csv_value(o["end"]),
-                sanitize_csv_value(o["name"]),
-                sanitize_csv_value(o["length"]),
-                sanitize_csv_value(o["mark_1"]),
-                sanitize_csv_value(o["mark_2"])
-            ])
         media_type = "text/csv" if format == ExportFormat.csv else "text/tab-separated-values"
         ext = "csv" if format == ExportFormat.csv else "tsv"
         filename = f"chipseq_overlaps_{gene_id}.{ext}"
 
+        def _delimited_stream() -> Iterator[bytes]:
+            buffer = io.StringIO()
+            writer = csv.writer(buffer, delimiter=delimiter)
+            writer.writerow(["chromosome", "start", "end", "name", "length", "mark_1", "mark_2"])
+            yield buffer.getvalue().encode("utf-8")
+            buffer.seek(0)
+            buffer.truncate()
+            for o in overlaps:
+                writer.writerow([
+                    sanitize_csv_value(o["chromosome"]),
+                    sanitize_csv_value(o["start"]),
+                    sanitize_csv_value(o["end"]),
+                    sanitize_csv_value(o["name"]),
+                    sanitize_csv_value(o["length"]),
+                    sanitize_csv_value(o["mark_1"]),
+                    sanitize_csv_value(o["mark_2"]),
+                ])
+                yield buffer.getvalue().encode("utf-8")
+                buffer.seek(0)
+                buffer.truncate()
+
+        return StreamingResponse(
+            _delimited_stream(),
+            media_type=media_type,
+            # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+            headers={"Content-Disposition": content_disposition_attachment(filename)},
+        )
+
     return StreamingResponse(
-        io.BytesIO(output.getvalue().encode("utf-8")),
+        iter([output.encode("utf-8")]),
         media_type=media_type,
         # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
         headers={"Content-Disposition": content_disposition_attachment(filename)},

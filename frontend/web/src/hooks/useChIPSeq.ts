@@ -29,6 +29,38 @@ import type {
   HeatmapMetricType,
 } from '@/types/chipseq'
 
+function stripPaginationFilters(filters: ChIPSeqFilters): Omit<ChIPSeqFilters, 'page' | 'page_size'> {
+  const { page: _page, page_size: _pageSize, ...rest } = filters
+  return rest
+}
+
+function transformGenePeaks(rawData: GeneChIPSeqRawResponse, markType: MarkType | undefined): ChIPSeqPeak[] {
+  const allPeaks = markType && rawData.marks[markType] ? rawData.marks[markType] : []
+
+  // Transform GenePeakAssociation to ChIPSeqPeak format
+  return allPeaks.map((peak) => ({
+    peak_id: peak.peak_id,
+    gene_id: rawData.gene_id,
+    mark_type: peak.mark_type,
+    chromosome: peak.chromosome,
+    peak_start: peak.peak_start,
+    peak_end: peak.peak_end,
+    peak_width: peak.peak_end - peak.peak_start,
+    summit_position: peak.summit_position,
+    fold_enrichment: peak.fold_enrichment,
+    log2_fold_enrichment: peak.fold_enrichment ? Math.log2(peak.fold_enrichment) : null,
+    signal_value: null,
+    pvalue: null,
+    qvalue: peak.qvalue,
+    neg_log10_qvalue: peak.qvalue ? -Math.log10(peak.qvalue) : null,
+    overlap_type: peak.overlap_type as 'promoter' | 'gene_body' | 'upstream' | 'downstream',
+    distance_to_tss: peak.distance_to_tss,
+    overlap_bp: peak.overlap_bp,
+    mark_category: peak.mark_category as 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other',
+    experiment_id: peak.experiment_id,
+  }))
+}
+
 /**
  * Hook to fetch ChIP-seq peaks for a gene
  *
@@ -53,56 +85,38 @@ export function useChIPSeqPeaks(
     staleTime?: number
   }
 ) {
-  return useQuery({
-    queryKey: chipseqQueryKeys.peaks(geneId, filters),
-    queryFn: async ({ signal }): Promise<ChIPSeqResponse> => {
-      const response = await chipseqApi.getGenePeaks(geneId, filters, signal)
+  const page = filters.page ?? 1
+  const pageSize = filters.page_size ?? 20
+  const fetchFilters = stripPaginationFilters(filters)
+
+  const query = useQuery({
+    // 后端 /features/chipseq/genes/{gene_id} 目前不分页；避免 page/page_size 进入 key 导致每翻页重复拉取全量数据
+    queryKey: chipseqQueryKeys.peaks(geneId, fetchFilters),
+    queryFn: async ({ signal }): Promise<ChIPSeqPeak[]> => {
+      const response = await chipseqApi.getGenePeaks(geneId, fetchFilters, signal)
       const rawData: GeneChIPSeqRawResponse = response.data
-
-      // Get peaks for the selected mark type
-      const markType = filters.mark_type
-      const allPeaks = markType && rawData.marks[markType] ? rawData.marks[markType] : []
-
-      // Transform GenePeakAssociation to ChIPSeqPeak format
-      const transformedPeaks: ChIPSeqPeak[] = allPeaks.map((peak) => ({
-        peak_id: peak.peak_id,
-        gene_id: rawData.gene_id,
-        mark_type: peak.mark_type,
-        chromosome: peak.chromosome,
-        peak_start: peak.peak_start,
-        peak_end: peak.peak_end,
-        peak_width: peak.peak_end - peak.peak_start,
-        summit_position: peak.summit_position,
-        fold_enrichment: peak.fold_enrichment,
-        log2_fold_enrichment: peak.fold_enrichment ? Math.log2(peak.fold_enrichment) : null,
-        signal_value: null,
-        pvalue: null,
-        qvalue: peak.qvalue,
-        neg_log10_qvalue: peak.qvalue ? -Math.log10(peak.qvalue) : null,
-        overlap_type: peak.overlap_type as 'promoter' | 'gene_body' | 'upstream' | 'downstream',
-        distance_to_tss: peak.distance_to_tss,
-        overlap_bp: peak.overlap_bp,
-        mark_category: peak.mark_category as 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other',
-        experiment_id: peak.experiment_id,
-      }))
-
-      // Client-side pagination
-      const page = filters.page ?? 1
-      const pageSize = filters.page_size ?? 20
-      const startIndex = (page - 1) * pageSize
-      const endIndex = startIndex + pageSize
-      const paginatedPeaks = transformedPeaks.slice(startIndex, endIndex)
-
-      return {
-        total: transformedPeaks.length,
-        items: paginatedPeaks,
-        page,
-        page_size: pageSize,
-      }
+      return transformGenePeaks(rawData, filters.mark_type)
     },
     staleTime: options?.staleTime ?? 30 * 60 * 1000, // 30 minutes default
     enabled: (options?.enabled ?? true) && geneId > 0 && !!filters.mark_type,
   })
+
+  const data = useMemo<ChIPSeqResponse | undefined>(() => {
+    if (!query.data) return undefined
+    const startIndex = (page - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    return {
+      total: query.data.length,
+      items: query.data.slice(startIndex, endIndex),
+      page,
+      page_size: pageSize,
+    }
+  }, [query.data, page, pageSize])
+
+  return {
+    ...query,
+    data,
+  }
 }
 
 /**
@@ -271,52 +285,14 @@ export function usePrefetchChIPSeqPeaks() {
 
   return useCallback(
     (geneId: number, filters: ChIPSeqFilters) => {
+      const fetchFilters = stripPaginationFilters(filters)
+
       queryClient.prefetchQuery({
-        queryKey: chipseqQueryKeys.peaks(geneId, filters),
-        queryFn: async ({ signal }): Promise<ChIPSeqResponse> => {
-          const response = await chipseqApi.getGenePeaks(geneId, filters, signal)
+        queryKey: chipseqQueryKeys.peaks(geneId, fetchFilters),
+        queryFn: async ({ signal }): Promise<ChIPSeqPeak[]> => {
+          const response = await chipseqApi.getGenePeaks(geneId, fetchFilters, signal)
           const rawData: GeneChIPSeqRawResponse = response.data
-
-          // Get peaks for the selected mark type
-          const markType = filters.mark_type
-          const allPeaks = markType && rawData.marks[markType] ? rawData.marks[markType] : []
-
-          // Transform GenePeakAssociation to ChIPSeqPeak format
-          const transformedPeaks: ChIPSeqPeak[] = allPeaks.map((peak) => ({
-            peak_id: peak.peak_id,
-            gene_id: rawData.gene_id,
-            mark_type: peak.mark_type,
-            chromosome: peak.chromosome,
-            peak_start: peak.peak_start,
-            peak_end: peak.peak_end,
-            peak_width: peak.peak_end - peak.peak_start,
-            summit_position: peak.summit_position,
-            fold_enrichment: peak.fold_enrichment,
-            log2_fold_enrichment: peak.fold_enrichment ? Math.log2(peak.fold_enrichment) : null,
-            signal_value: null,
-            pvalue: null,
-            qvalue: peak.qvalue,
-            neg_log10_qvalue: peak.qvalue ? -Math.log10(peak.qvalue) : null,
-            overlap_type: peak.overlap_type as 'promoter' | 'gene_body' | 'upstream' | 'downstream',
-            distance_to_tss: peak.distance_to_tss,
-            overlap_bp: peak.overlap_bp,
-            mark_category: peak.mark_category as 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other',
-            experiment_id: peak.experiment_id,
-          }))
-
-          // Client-side pagination
-          const page = filters.page ?? 1
-          const pageSize = filters.page_size ?? 20
-          const startIndex = (page - 1) * pageSize
-          const endIndex = startIndex + pageSize
-          const paginatedPeaks = transformedPeaks.slice(startIndex, endIndex)
-
-          return {
-            total: transformedPeaks.length,
-            items: paginatedPeaks,
-            page,
-            page_size: pageSize,
-          }
+          return transformGenePeaks(rawData, filters.mark_type)
         },
         staleTime: 30 * 60 * 1000,
       })

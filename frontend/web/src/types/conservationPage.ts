@@ -75,13 +75,13 @@ export interface ConservedRegulation {
   /** Core ID (shared across species) */
   core_id: number
   /** LncRNA gene name */
-  lncrna_gene_name: string
+  lncrna_gene_name: string | null
   /** LncRNA Ensembl ID */
-  lncrna_ensembl_id: string
+  lncrna_ensembl_id: string | null
   /** Target gene name */
-  target_gene_name: string
+  target_gene_name: string | null
   /** Target Ensembl ID */
-  target_ensembl_id: string
+  target_ensembl_id: string | null
   /** Conservation label (e.g., "1100") */
   conservation_label: string
   /** Number of species with this regulation */
@@ -89,7 +89,7 @@ export interface ConservedRegulation {
   /** List of species IDs with this regulation */
   species_ids: number[]
   /** Average binding affinity across species */
-  avg_binding_affinity: number
+  avg_binding_affinity: number | null
   /** Binding affinities per species */
   species_binding_affinities: SpeciesBindingAffinity[]
 }

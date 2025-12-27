@@ -24,10 +24,16 @@ from typing import List, Optional, Dict, Any, Iterator, Generator, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import Float, cast, select, text
 from sqlalchemy.orm import Session, aliased
-	
+		
 from app.core.database import get_db
 from app.core.utils import escape_like_pattern, sanitize_for_log
-from app.core.validators import MAX_EXPORT_MARKS, MAX_ITEM_LENGTH, parse_int_list, parse_comma_list
+from app.core.validators import (
+    MAX_EXPORT_MARKS,
+    MAX_ITEM_LENGTH,
+    MAX_JSON_EXPORT_LIMIT,
+    parse_int_list,
+    parse_comma_list,
+)
 from app.models import Gene, Regulation, Species, Trait, TraitGeneAssociation
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.export import (
@@ -52,7 +58,40 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 # 最大导出数量限制（防止内存溢出）
 MAX_EXPORT_LIMIT = 50000  # CSV/Excel/JSONL 流式输出可支持大数据集
-MAX_JSON_LIMIT = 5000     # JSON 模式全量加载进内存，限制为 5000 条
+# Backward-compat constant (tests/imports rely on this name)
+MAX_JSON_LIMIT = MAX_JSON_EXPORT_LIMIT  # JSON 模式全量加载进内存，限制为 5000 条
+
+
+def _apply_json_memory_limit(request: Request, limit: int, output_format: str) -> int:
+    """
+    Enforce JSON in-memory limits consistently across export endpoints.
+
+    Policy:
+    - If user explicitly provides `limit` and it exceeds MAX_JSON_LIMIT: raise 400 (prevents DoS).
+    - If `limit` is implicit (default) and exceeds MAX_JSON_LIMIT: auto-cap to MAX_JSON_LIMIT.
+      This avoids breaking callers that omit `limit` while still protecting memory.
+    """
+    if output_format != "json" or limit <= MAX_JSON_LIMIT:
+        return limit
+
+    # FastAPI 解析后无法直接判断是否使用了默认值，这里用原始 query_params 作为信号。
+    limit_was_explicit = "limit" in request.query_params
+    if limit_was_explicit:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"JSON format is limited to {MAX_JSON_LIMIT} records due to memory constraints. "
+                f"For larger datasets, please use 'jsonl' (JSON Lines) format which supports up to {MAX_EXPORT_LIMIT} records."
+            ),
+        )
+
+    logger.warning(
+        "[EXPORT] %s: JSON limit capped to %s (requested default: %s). Use jsonl/csv/excel for larger exports.",
+        request.url.path,
+        MAX_JSON_LIMIT,
+        limit,
+    )
+    return MAX_JSON_LIMIT
 
 
 def is_effective_like_filter(value: Optional[str]) -> bool:
@@ -284,6 +323,9 @@ def export_high_affinity(
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
         )
 
+    # JSON 模式独立限制（防止内存峰值）；默认 limit 过大时自动降级到 MAX_JSON_LIMIT
+    limit = _apply_json_memory_limit(request, limit, output_format)
+
     lnc = aliased(Gene)
     tgt = aliased(Gene)
 
@@ -390,6 +432,9 @@ def export_conservation(
             status_code=400,
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
         )
+
+    # JSON 模式独立限制（防止内存峰值）；默认 limit 过大时自动降级到 MAX_JSON_LIMIT
+    limit = _apply_json_memory_limit(request, limit, output_format)
 
     # 查询保守 lncRNA 统计信息
     sql = text("""
@@ -518,6 +563,9 @@ def export_chipseq_overlaps(
             status_code=400,
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
         )
+
+    # JSON 模式独立限制（防止内存峰值）；默认 limit 过大时自动降级到 MAX_JSON_LIMIT
+    limit = _apply_json_memory_limit(request, limit, output_format)
 
     # 使用物化视图查询（性能优化）
     sql = text("""
@@ -889,18 +937,11 @@ def export_regulations(
             detail=f"Limit exceeds maximum allowed value ({MAX_EXPORT_LIMIT})"
         )
 
-    # JSON 模式独立限制（防止内存峰值）
-    if output_format == "json" and limit > MAX_JSON_LIMIT:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"JSON format is limited to {MAX_JSON_LIMIT} records due to memory constraints. "
-                f"For larger datasets, please use 'jsonl' (JSON Lines) format which supports up to {MAX_EXPORT_LIMIT} records."
-            )
-        )
+    # JSON 模式独立限制（防止内存峰值）；默认 limit 过大时自动降级到 MAX_JSON_LIMIT
+    limit = _apply_json_memory_limit(request, limit, output_format)
 
     # Phase 9.17: 使用共享验证器解析逗号分隔参数（统一项数/长度限制，防止 DoS）
-    species_id_list = parse_int_list(species_ids, param_name="species_ids")
+    species_id_list = parse_int_list(species_ids, param_name="species_ids", min_value=1, max_value=4)
     chromosome_list = parse_comma_list(chromosomes, param_name="chromosomes")
 
     stmt = build_regulations_export_stmt(
