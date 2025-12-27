@@ -13,7 +13,7 @@ def _make_request(
     *,
     path: str = "/api/v1/admin/metrics",
     method: str = "GET",
-    client_ip: str = "203.0.113.10",
+    client_ip: str = "8.8.8.8",  # Use a real public IP (Google DNS) instead of TEST-NET
     headers: list[tuple[bytes, bytes]] | None = None,
 ) -> Request:
     scope = {
