@@ -16,6 +16,7 @@ from sqlalchemy.sql.expression import funcfilter
 from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
+from app.core.utils import sanitize_for_log
 from app.core.validators import normalize_optional_str, parse_comma_list
 from app.models import Gene, ChIPSeqPeak, ChIPSeqExperiment, EpigeneticMarkType
 from app.schemas.chipseq import (
@@ -1458,7 +1459,12 @@ def get_batch_gene_heatmap_matrix(
                 )
             )
         except Exception as e:
-            logger.error(f"Error building batch heatmap result for gene {gene_id}: {e}", exc_info=True)
+            logger.error(
+                "Error building batch heatmap result for gene %s: %s",
+                gene_id,
+                sanitize_for_log(e, max_length=2000),
+                exc_info=True,
+            )
             failed_gene_ids.append(gene_id)
 
     # 9. Calculate query time

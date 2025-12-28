@@ -2,6 +2,7 @@
 应用配置模块
 """
 import json
+import logging
 from pathlib import Path
 from typing import Optional, List, Any
 from urllib.parse import quote
@@ -52,6 +53,20 @@ class Settings(BaseSettings):
         description="运行环境: production | development (默认 development)"
     )
 
+    @field_validator("ENV")
+    @classmethod
+    def validate_env(cls, v: Any) -> str:
+        if v is None:
+            return "development"
+        env = str(v).strip().lower()
+        if env in ("prod", "production"):
+            return "production"
+        if env in ("dev", "development"):
+            return "development"
+        if env in ("test", "testing"):
+            return "test"
+        raise ValueError("ENV must be one of: production | development | test")
+
     @property
     def is_production(self) -> bool:
         """判断是否为生产环境"""
@@ -59,7 +74,7 @@ class Settings(BaseSettings):
 
     # 数据库配置
     DATABASE_HOST: str = Field(default="localhost", validation_alias="DB_HOST")
-    DATABASE_PORT: int = Field(default=5432, validation_alias="DB_PORT")
+    DATABASE_PORT: int = Field(default=5432, validation_alias="DB_PORT", ge=1, le=65535)
     DATABASE_USER: str = Field(default="amax", validation_alias="DB_USER")
     # SECURITY: 使用 SecretStr 保护密码，避免在日志/异常中泄露
     DATABASE_PASSWORD: SecretStr = Field(default=SecretStr(""), validation_alias="DB_PASSWORD")
@@ -70,28 +85,32 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = Field(
         default=10,
         validation_alias="DB_POOL_SIZE",
-        description="连接池大小 (默认 10，生产环境建议 20)"
+        description="连接池大小 (默认 10，生产环境建议 20)",
+        ge=1,
     )
     DB_POOL_MAX_OVERFLOW: int = Field(
         default=20,
         validation_alias="DB_POOL_MAX_OVERFLOW",
-        description="超出 pool_size 后最多创建的连接数 (默认 20，生产环境建议 30)"
+        description="超出 pool_size 后最多创建的连接数 (默认 20，生产环境建议 30)",
+        ge=0,
     )
     DB_POOL_TIMEOUT: int = Field(
         default=30,
         validation_alias="DB_POOL_TIMEOUT",
-        description="获取连接超时秒数 (默认 30)"
+        description="获取连接超时秒数 (默认 30)",
+        ge=1,
     )
     DB_POOL_RECYCLE: int = Field(
         default=1800,
         validation_alias="DB_POOL_RECYCLE",
-        description="连接回收时间秒数 (默认 1800 = 30分钟)"
+        description="连接回收时间秒数 (默认 1800 = 30分钟)",
+        ge=0,
     )
 
     # Redis配置
     REDIS_HOST: str = Field(default="localhost", validation_alias="REDIS_HOST")
-    REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT")
-    REDIS_DB: int = Field(default=0, validation_alias="REDIS_DB")
+    REDIS_PORT: int = Field(default=6379, validation_alias="REDIS_PORT", ge=1, le=65535)
+    REDIS_DB: int = Field(default=0, validation_alias="REDIS_DB", ge=0)
     # SECURITY: 使用 SecretStr 保护 Redis 密码
     REDIS_PASSWORD: Optional[SecretStr] = Field(default=None, validation_alias="REDIS_PASSWORD")
 
@@ -306,7 +325,7 @@ class Settings(BaseSettings):
         return [validate_host(h) for h in hosts]
 
     # 缓存配置
-    CACHE_TTL: int = Field(default=3600, validation_alias="CACHE_TTL")  # 缓存时间（秒）
+    CACHE_TTL: int = Field(default=3600, validation_alias="CACHE_TTL", ge=1)  # 缓存时间（秒）
     ENABLE_CACHE: bool = Field(default=True, validation_alias="ENABLE_CACHE")
 
     # 分页配置
@@ -315,6 +334,23 @@ class Settings(BaseSettings):
 
     # 日志配置
     LOG_LEVEL: str = Field(default="INFO", validation_alias="LOG_LEVEL")
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def validate_log_level(cls, v: Any) -> str:
+        level = str(v).strip().upper()
+        # Common aliases
+        if level == "WARN":
+            level = "WARNING"
+        if level == "FATAL":
+            level = "CRITICAL"
+        allowed = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
+        if level not in allowed:
+            raise ValueError(f"LOG_LEVEL must be one of: {sorted(allowed)}")
+        # Ensure it's a valid logging level name
+        if logging.getLevelName(level) == f"Level {level}":
+            raise ValueError(f"Invalid LOG_LEVEL: {level}")
+        return level
 
     # 请求日志配置
     REQUEST_LOG_ENABLED: bool = Field(
@@ -325,12 +361,15 @@ class Settings(BaseSettings):
     REQUEST_LOG_SLOW_THRESHOLD_MS: int = Field(
         default=0,
         validation_alias="REQUEST_LOG_SLOW_THRESHOLD_MS",
-        description="仅记录慢请求阈值（毫秒），0 表示记录全部 (默认 0)"
+        description="仅记录慢请求阈值（毫秒），0 表示记录全部 (默认 0)",
+        ge=0,
     )
     REQUEST_LOG_SAMPLE_RATE: float = Field(
         default=1.0,
         validation_alias="REQUEST_LOG_SAMPLE_RATE",
-        description="请求日志采样率 0.0-1.0 (默认 1.0 = 100%)"
+        description="请求日志采样率 0.0-1.0 (默认 1.0 = 100%)",
+        ge=0.0,
+        le=1.0,
     )
     REQUEST_LOG_MAX_URL_LENGTH: int = Field(
         default=2048,
@@ -342,8 +381,25 @@ class Settings(BaseSettings):
         ge=0,
     )
 
+    # DoS 防护：请求大小/查询字符串长度限制
+    # 说明：
+    # - 这些限制用于抵御异常大的请求体/查询字符串导致的内存与 CPU 消耗。
+    # - 生产环境通常还会在反向代理层（Nginx/Traefik）做一次更早的限制；应用层限制作为兜底。
+    MAX_REQUEST_BODY_SIZE: int = Field(
+        default=1024 * 1024,  # 1 MiB
+        validation_alias="MAX_REQUEST_BODY_SIZE",
+        description="最大请求体大小（字节）。0 表示不限制（不建议在生产使用）。",
+        ge=0,
+    )
+    MAX_QUERY_STRING_LENGTH: int = Field(
+        default=8192,  # 8 KiB
+        validation_alias="MAX_QUERY_STRING_LENGTH",
+        description="最大查询字符串长度（字节）。0 表示不限制（不建议在生产使用）。",
+        ge=0,
+    )
+
     # 性能配置
-    QUERY_TIMEOUT: int = Field(default=30, validation_alias="QUERY_TIMEOUT")  # 查询超时（秒）
+    QUERY_TIMEOUT: int = Field(default=30, validation_alias="QUERY_TIMEOUT", ge=1)  # 查询超时（秒）
 
     # 告警阈值配置
     ALERT_THRESHOLDS: AlertThresholds = AlertThresholds()

@@ -81,9 +81,11 @@ class TestExportRegulationsJSONLimit:
 
         if response.status_code == 400:
             data = response.json()
-            assert "memory constraints" in data["detail"].lower(), \
+            assert isinstance(data.get("detail"), dict)
+            message = str(data["detail"].get("message", "")).lower()
+            assert "memory constraints" in message, \
                 "错误消息应提及内存限制"
-            assert "jsonl" in data["detail"].lower(), \
+            assert "jsonl" in message, \
                 "错误消息应建议使用 JSONL 格式"
 
     def test_json_format_far_exceeds_limit(self, api_client):

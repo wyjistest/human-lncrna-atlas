@@ -31,6 +31,7 @@ from app.core.database import engine
 from app.core.cache import cache
 from app.core.config import settings, AlertThresholds
 from app.core.ip_utils import get_client_ip, is_private_ip
+from app.core.utils import sanitize_for_log
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.monitoring import (
     MetricsResponse,
@@ -223,7 +224,7 @@ def check_database_status() -> Literal["ok", "error"]:
             conn.execute(text("SELECT 1"))
         return "ok"
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error("Database health check failed: %s", sanitize_for_log(e, max_length=2000), exc_info=True)
         return "error"
 
 
@@ -448,7 +449,7 @@ def get_system_metrics() -> SystemMetrics:
     try:
         cpu_percent = psutil.cpu_percent(interval=None)
     except Exception as e:
-        logger.warning(f"Failed to get CPU percent: {e}")
+        logger.warning("Failed to get CPU percent: %s", sanitize_for_log(e, max_length=2000))
         cpu_percent = 0.0
 
     # 内存使用情况
@@ -460,7 +461,7 @@ def get_system_metrics() -> SystemMetrics:
             percent=round(memory.percent, 2),
         )
     except Exception as e:
-        logger.warning(f"Failed to get memory info: {e}")
+        logger.warning("Failed to get memory info: %s", sanitize_for_log(e, max_length=2000))
         memory_info = SystemMemory(used_mb=0, total_mb=0, percent=0)
 
     # 磁盘使用情况（根目录）
@@ -472,7 +473,7 @@ def get_system_metrics() -> SystemMetrics:
             percent=round(disk.percent, 2),
         )
     except Exception as e:
-        logger.warning(f"Failed to get disk info: {e}")
+        logger.warning("Failed to get disk info: %s", sanitize_for_log(e, max_length=2000))
         disk_info = SystemDisk(used_gb=0, total_gb=0, percent=0)
 
     # 当前进程信息
@@ -483,7 +484,7 @@ def get_system_metrics() -> SystemMetrics:
             memory_mb=round(process.memory_info().rss / 1024 / 1024, 2),
         )
     except Exception as e:
-        logger.warning(f"Failed to get process info: {e}")
+        logger.warning("Failed to get process info: %s", sanitize_for_log(e, max_length=2000))
         process_info = ProcessInfo(cpu_percent=0, memory_mb=0)
 
     return SystemMetrics(

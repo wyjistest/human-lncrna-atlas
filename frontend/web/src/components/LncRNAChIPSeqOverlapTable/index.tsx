@@ -167,6 +167,14 @@ export function LncRNAChIPSeqOverlapTable({
   const { t: tCommon } = useTranslation('common')
   const { t: tGenomeBrowser } = useTranslation('genomeBrowser')
 
+  // Prevent setState after unmount for async callbacks (track loading / PNG export / IGV events)
+  const isMountedRef = useRef(true)
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
   // UI state
   const [showFilters, setShowFilters] = useState(true)
   const [showStats, setShowStats] = useState(enableStats)
@@ -178,9 +186,61 @@ export function LncRNAChIPSeqOverlapTable({
   const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
   const browserContainerRef = useRef<HTMLDivElement>(null)
 
+  // Avoid keeping a stale imperative handle when the IGV browser is hidden/unmounted
+  useEffect(() => {
+    if (!showIGV) {
+      browserHandleRef.current = null
+    }
+  }, [showIGV])
+
   // Overlap track state
   const [autoSyncTrack, setAutoSyncTrack] = useState(false)
   const [trackLoading, setTrackLoading] = useState(false)
+  const exportToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Serialize IGV track operations to avoid out-of-order loads / duplicate tracks
+  const trackLoadMutexRef = useRef<Promise<void>>(Promise.resolve())
+  const trackLoadPendingRef = useRef(0)
+  const withTrackLoadMutex = useCallback(async (fn: () => Promise<void>) => {
+    const prev = trackLoadMutexRef.current
+    let release: (() => void) | undefined
+    const next = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    // Chain regardless of previous success/failure so one exception doesn't break the queue
+    trackLoadMutexRef.current = prev.then(() => next).catch(() => next)
+
+    await prev.catch(() => undefined)
+    try {
+      await fn()
+    } finally {
+      release?.()
+    }
+  }, [])
+
+  const beginTrackLoading = () => {
+    trackLoadPendingRef.current += 1
+    if (isMountedRef.current) {
+      setTrackLoading(true)
+    }
+  }
+
+  const endTrackLoading = () => {
+    trackLoadPendingRef.current = Math.max(0, trackLoadPendingRef.current - 1)
+    if (isMountedRef.current) {
+      setTrackLoading(trackLoadPendingRef.current > 0)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (exportToastTimerRef.current) {
+        clearTimeout(exportToastTimerRef.current)
+        exportToastTimerRef.current = null
+      }
+    }
+  }, [])
 
   // IGV control state (like GenomeBrowser page)
   const [igvSpeciesId, setIgvSpeciesId] = useState<number>(1) // Default to Human
@@ -199,6 +259,22 @@ export function LncRNAChIPSeqOverlapTable({
   })
   const [loadingRepeatClasses, setLoadingRepeatClasses] = useState<Record<string, boolean>>({})
   const [repeatClassTracks, setRepeatClassTracks] = useState<RepeatMaskerClassTrack[]>([])
+  const enabledRepeatClassesRef = useRef(enabledRepeatClasses)
+  useEffect(() => {
+    enabledRepeatClassesRef.current = enabledRepeatClasses
+  }, [enabledRepeatClasses])
+  const updateEnabledRepeatClasses = useCallback(
+    (updater: (prev: Record<string, boolean>) => Record<string, boolean>) => {
+      const next = updater(enabledRepeatClassesRef.current)
+      enabledRepeatClassesRef.current = next
+      setEnabledRepeatClasses(next)
+    },
+    []
+  )
+  const setEnabledRepeatClassesSafe = useCallback((next: Record<string, boolean>) => {
+    enabledRepeatClassesRef.current = next
+    setEnabledRepeatClasses(next)
+  }, [])
 
   // ChIP-seq state
   const [showChIPSeq, setShowChIPSeq] = useState(false)
@@ -229,117 +305,135 @@ export function LncRNAChIPSeqOverlapTable({
 
   // Load Overlap Track into IGV browser
   // NOTE: This callback must be defined AFTER filters state
-  const loadOverlapTrack = useCallback(async () => {
+  const loadOverlapTrack = useCallback(() => {
     if (!browserHandleRef.current) {
       message.warning(t('igv.browserNotReady', 'IGV browser is not ready'))
-      return
+      return Promise.resolve()
     }
 
-    setTrackLoading(true)
-    message.loading({
-      content: t('igv.trackLoading', 'Loading track...'),
-      key: 'overlapTrack',
-      duration: 0,
+    beginTrackLoading()
+    return withTrackLoadMutex(async () => {
+      if (!browserHandleRef.current) {
+        if (isMountedRef.current) {
+          message.warning(t('igv.browserNotReady', 'IGV browser is not ready'))
+        }
+        return
+      }
+
+      message.loading({
+        content: t('igv.trackLoading', 'Loading track...'),
+        key: 'overlapTrack',
+        duration: 0,
+      })
+
+      try {
+        // Remove existing overlap track first
+        browserHandleRef.current.removeTrack('Overlap Track')
+
+        // Build URL parameters from current filters
+        const params = new URLSearchParams()
+        if (filters.chromosome) params.append('chr', filters.chromosome)
+        if (filters.mark_type) params.append('mark_type', filters.mark_type)
+        if (filters.cell_type) params.append('cell_line', filters.cell_type)
+        if (filters.min_overlap_length !== undefined) {
+          params.append('min_overlap_length', String(filters.min_overlap_length))
+        }
+        if (filters.min_binding_affinity !== undefined) {
+          params.append('min_binding_affinity', String(filters.min_binding_affinity))
+        }
+
+        // Load new track with dynamic URL
+        await browserHandleRef.current.loadTrack({
+          name: 'Overlap Track',
+          type: 'annotation',
+          format: 'bed',
+          url: `${API_BASE_URL}/api/v1/igv/overlap-track?${params.toString()}`,
+          displayMode: 'EXPANDED',
+          color: '#722ed1',  // Purple color for overlap track
+          height: 60,
+          removable: true,
+          visibilityWindow: 5000000,  // 5MB window for BED format
+        })
+
+        message.success({
+          content: t('igv.trackLoaded', 'Track loaded'),
+          key: 'overlapTrack',
+          duration: 2,
+        })
+      } catch (error) {
+        console.error('Failed to load overlap track:', error)
+        message.error({
+          content: t('igv.trackLoadError', 'Failed to load track'),
+          key: 'overlapTrack',
+          duration: 3,
+        })
+      }
+    }).finally(() => {
+      endTrackLoading()
     })
-
-    try {
-      // Remove existing overlap track first
-      browserHandleRef.current.removeTrack('Overlap Track')
-
-      // Build URL parameters from current filters
-      const params = new URLSearchParams()
-      if (filters.chromosome) params.append('chr', filters.chromosome)
-      if (filters.mark_type) params.append('mark_type', filters.mark_type)
-      if (filters.cell_type) params.append('cell_line', filters.cell_type)
-      if (filters.min_overlap_length !== undefined) {
-        params.append('min_overlap_length', String(filters.min_overlap_length))
-      }
-      if (filters.min_binding_affinity !== undefined) {
-        params.append('min_binding_affinity', String(filters.min_binding_affinity))
-      }
-
-      // Load new track with dynamic URL
-      await browserHandleRef.current.loadTrack({
-        name: 'Overlap Track',
-        type: 'annotation',
-        format: 'bed',
-        url: `${API_BASE_URL}/api/v1/igv/overlap-track?${params.toString()}`,
-        displayMode: 'EXPANDED',
-        color: '#722ed1',  // Purple color for overlap track
-        height: 60,
-        removable: true,
-        visibilityWindow: 5000000,  // 5MB window for BED format
-      })
-
-      message.success({
-        content: t('igv.trackLoaded', 'Track loaded'),
-        key: 'overlapTrack',
-        duration: 2,
-      })
-    } catch (error) {
-      console.error('Failed to load overlap track:', error)
-      message.error({
-        content: t('igv.trackLoadError', 'Failed to load track'),
-        key: 'overlapTrack',
-        duration: 3,
-      })
-    } finally {
-      setTrackLoading(false)
-    }
-  }, [filters, t])
+  }, [filters, t, withTrackLoadMutex])
 
   // Load Regulation Track into IGV browser
   // Shows lncRNA → target gene regulatory relationships in the current view
-  const loadRegulationTrack = useCallback(async () => {
+  const loadRegulationTrack = useCallback(() => {
     if (!browserHandleRef.current) {
       message.warning(t('igv.browserNotReady', 'IGV browser is not ready'))
-      return
+      return Promise.resolve()
     }
 
-    setTrackLoading(true)
-    message.loading({
-      content: t('igv.trackLoading', 'Loading track...'),
-      key: 'regulationTrack',
-      duration: 0,
+    beginTrackLoading()
+    return withTrackLoadMutex(async () => {
+      if (!browserHandleRef.current) {
+        if (isMountedRef.current) {
+          message.warning(t('igv.browserNotReady', 'IGV browser is not ready'))
+        }
+        return
+      }
+
+      message.loading({
+        content: t('igv.trackLoading', 'Loading track...'),
+        key: 'regulationTrack',
+        duration: 0,
+      })
+
+      try {
+        // Remove existing regulation track first
+        browserHandleRef.current.removeTrack('Regulation Track')
+
+        // Build URL parameters - use chromosome filter if available
+        const params = new URLSearchParams()
+        if (filters.chromosome) params.append('chr', filters.chromosome)
+
+        // Load new track with dynamic URL
+        await browserHandleRef.current.loadTrack({
+          name: 'Regulation Track',
+          type: 'annotation',
+          format: 'bed',
+          url: `${API_BASE_URL}/api/v1/igv/tracks/regulations/${igvSpeciesId}.bed?${params.toString()}`,
+          displayMode: 'EXPANDED',
+          color: '#13c2c2',  // Cyan/teal color for regulation track (distinct from purple overlap)
+          height: 60,
+          removable: true,
+          visibilityWindow: 5000000,  // 5MB window for BED format
+        })
+
+        message.success({
+          content: t('igv.trackLoaded', 'Track loaded'),
+          key: 'regulationTrack',
+          duration: 2,
+        })
+      } catch (error) {
+        console.error('Failed to load regulation track:', error)
+        message.error({
+          content: t('igv.trackLoadError', 'Failed to load track'),
+          key: 'regulationTrack',
+          duration: 3,
+        })
+      }
+    }).finally(() => {
+      endTrackLoading()
     })
-
-    try {
-      // Remove existing regulation track first
-      browserHandleRef.current.removeTrack('Regulation Track')
-
-      // Build URL parameters - use chromosome filter if available
-      const params = new URLSearchParams()
-      if (filters.chromosome) params.append('chr', filters.chromosome)
-
-      // Load new track with dynamic URL
-      await browserHandleRef.current.loadTrack({
-        name: 'Regulation Track',
-        type: 'annotation',
-        format: 'bed',
-        url: `${API_BASE_URL}/api/v1/igv/tracks/regulations/${igvSpeciesId}.bed?${params.toString()}`,
-        displayMode: 'EXPANDED',
-        color: '#13c2c2',  // Cyan/teal color for regulation track (distinct from purple overlap)
-        height: 60,
-        removable: true,
-        visibilityWindow: 5000000,  // 5MB window for BED format
-      })
-
-      message.success({
-        content: t('igv.trackLoaded', 'Track loaded'),
-        key: 'regulationTrack',
-        duration: 2,
-      })
-    } catch (error) {
-      console.error('Failed to load regulation track:', error)
-      message.error({
-        content: t('igv.trackLoadError', 'Failed to load track'),
-        key: 'regulationTrack',
-        duration: 3,
-      })
-    } finally {
-      setTrackLoading(false)
-    }
-  }, [filters.chromosome, igvSpeciesId, t])
+  }, [filters.chromosome, igvSpeciesId, t, withTrackLoadMutex])
 
   // Auto-sync track when filters change (if enabled)
   useEffect(() => {
@@ -435,39 +529,77 @@ export function LncRNAChIPSeqOverlapTable({
       return
     }
 
-    setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: true }))
+    // User toggled off while this async work is in-flight/queued; skip to avoid orphan tracks.
+    if (!enabledRepeatClassesRef.current[repeatClass]) {
+      return
+    }
+
+    if (isMountedRef.current) {
+      setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: true }))
+    }
     try {
-      await browserHandleRef.current.loadTrack(track as unknown as IGVTrackConfig)
+      await withTrackLoadMutex(async () => {
+        if (!browserHandleRef.current) {
+          return
+        }
+        if (!enabledRepeatClassesRef.current[repeatClass]) {
+          return
+        }
+
+        await browserHandleRef.current.loadTrack(track as unknown as IGVTrackConfig)
+
+        // If user toggled off while loading, remove immediately to avoid leaving orphan tracks.
+        if (!enabledRepeatClassesRef.current[repeatClass]) {
+          browserHandleRef.current.removeTrack(track.name)
+        }
+      })
+
+      if (!enabledRepeatClassesRef.current[repeatClass]) {
+        return
+      }
       message.success(tGenomeBrowser('trackLoaded', { name: tGenomeBrowser(`repeatClasses.${repeatClass}`) }))
     } catch (error) {
       console.error(`Failed to load ${repeatClass} track:`, error)
       message.error(tGenomeBrowser('trackLoadFailed', { name: repeatClass }))
-      setEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
+      updateEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
     } finally {
-      setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
-    }
-  }, [repeatClassTracks, tGenomeBrowser])
-
-  // Remove a specific repeat class track
-  const removeRepeatClassTrack = useCallback((repeatClass: string) => {
-    if (browserHandleRef.current) {
-      const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
-      if (track) {
-        browserHandleRef.current.removeTrack(track.id)
-        message.info(tGenomeBrowser('trackRemoved', { name: tGenomeBrowser(`repeatClasses.${repeatClass}`) }))
+      if (isMountedRef.current) {
+        setLoadingRepeatClasses(prev => ({ ...prev, [repeatClass]: false }))
       }
     }
-  }, [repeatClassTracks, tGenomeBrowser])
+  }, [repeatClassTracks, tGenomeBrowser, enabledRepeatClassesRef, withTrackLoadMutex, updateEnabledRepeatClasses])
+
+  // Remove a specific repeat class track
+  const removeRepeatClassTrack = useCallback(async (repeatClass: string) => {
+    const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
+    if (!track) {
+      return
+    }
+
+    let removed = false
+    await withTrackLoadMutex(async () => {
+      if (!browserHandleRef.current) {
+        return
+      }
+      // removeTrack expects the IGV track name
+      browserHandleRef.current.removeTrack(track.name)
+      removed = true
+    })
+
+    if (removed) {
+      message.info(tGenomeBrowser('trackRemoved', { name: tGenomeBrowser(`repeatClasses.${repeatClass}`) }))
+    }
+  }, [repeatClassTracks, tGenomeBrowser, withTrackLoadMutex])
 
   // Handle repeat class toggle
   const handleRepeatClassToggle = useCallback(async (repeatClass: string, enabled: boolean) => {
-    setEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: enabled }))
+    updateEnabledRepeatClasses(prev => ({ ...prev, [repeatClass]: enabled }))
     if (enabled) {
       await loadRepeatClassTrack(repeatClass)
     } else {
-      removeRepeatClassTrack(repeatClass)
+      await removeRepeatClassTrack(repeatClass)
     }
-  }, [loadRepeatClassTrack, removeRepeatClassTrack])
+  }, [loadRepeatClassTrack, removeRepeatClassTrack, updateEnabledRepeatClasses])
 
   // Handle select all / deselect all for RepeatMasker
   const handleSelectAllRepeats = useCallback(() => {
@@ -489,18 +621,22 @@ export function LncRNAChIPSeqOverlapTable({
   // Handle species change for IGV
   const handleIgvSpeciesChange = useCallback((value: number) => {
     setIgvSpeciesId(value)
-    setCurrentLocus(undefined)
+    if (isMountedRef.current) {
+      setCurrentLocus(undefined)
+    }
     // Reset tracks when species changes
     setSelectedChIPSeqMarks([])
-    setEnabledRepeatClasses({
+    setEnabledRepeatClassesSafe({
       SINE: false, LINE: false, LTR: false, DNA: false,
       Simple: false, LowComplexity: false, Other: false,
     })
-  }, [])
+  }, [setEnabledRepeatClassesSafe])
 
   // Handle locus change from IGV browser
   const handleLocusChange = useCallback((locus: string) => {
-    setCurrentLocus(locus)
+    if (isMountedRef.current) {
+      setCurrentLocus(locus)
+    }
   }, [])
 
   // Handle browser ready callback
@@ -514,7 +650,9 @@ export function LncRNAChIPSeqOverlapTable({
       browserHandleRef.current.navigateToLocus(locus)
         .then(() => {
           message.success(`Navigated to ${locus}`)
-          setCurrentLocus(locus)
+          if (isMountedRef.current) {
+            setCurrentLocus(locus)
+          }
         })
         .catch((err) => {
           console.error('Navigation failed:', err)
@@ -559,7 +697,9 @@ export function LncRNAChIPSeqOverlapTable({
       console.error('SVG export failed:', err)
       message.error(tGenomeBrowser('exportFailed'))
     } finally {
-      setIsExporting(false)
+      if (isMountedRef.current) {
+        setIsExporting(false)
+      }
     }
   }, [tGenomeBrowser, getExportFilename])
 
@@ -575,7 +715,9 @@ export function LncRNAChIPSeqOverlapTable({
       const svg = browserHandleRef.current.toSVG()
       if (!svg) {
         message.error(tGenomeBrowser('exportFailed'))
-        setIsExporting(false)
+        if (isMountedRef.current) {
+          setIsExporting(false)
+        }
         return
       }
 
@@ -601,22 +743,30 @@ export function LncRNAChIPSeqOverlapTable({
             } else {
               message.error(tGenomeBrowser('exportFailed'))
             }
-            setIsExporting(false)
+            if (isMountedRef.current) {
+              setIsExporting(false)
+            }
           }, 'image/png')
         } else {
           message.error(tGenomeBrowser('exportFailed'))
-          setIsExporting(false)
+          if (isMountedRef.current) {
+            setIsExporting(false)
+          }
         }
       }
       img.onerror = () => {
         message.error(tGenomeBrowser('exportFailed'))
-        setIsExporting(false)
+        if (isMountedRef.current) {
+          setIsExporting(false)
+        }
       }
       img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)))
     } catch (err) {
       console.error('PNG export failed:', err)
       message.error(tGenomeBrowser('exportFailed'))
-      setIsExporting(false)
+      if (isMountedRef.current) {
+        setIsExporting(false)
+      }
     }
   }, [tGenomeBrowser, getExportFilename])
 
@@ -749,12 +899,17 @@ export function LncRNAChIPSeqOverlapTable({
           })
         } else {
           // Successful window open - show success message after delay
-          setTimeout(() => {
+          if (exportToastTimerRef.current) {
+            clearTimeout(exportToastTimerRef.current)
+            exportToastTimerRef.current = null
+          }
+          exportToastTimerRef.current = setTimeout(() => {
             message.success({
               content: t('export.success', `${format.toUpperCase()} export started - check your downloads`),
               key: 'export',
               duration: 3
             })
+            exportToastTimerRef.current = null
           }, 1000)
         }
       } catch (error) {

@@ -15,6 +15,7 @@ from contextlib import contextmanager
 import logging
 
 from .config import settings
+from .utils import sanitize_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +121,25 @@ def init_db():
             logger.info(f"Database connection successful: {settings.DATABASE_NAME}@{settings.DATABASE_HOST}")
         return True
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        safe_error = sanitize_for_log(e, max_length=2000)
+        safe_url = settings.safe_database_url if not _is_sqlite else _db_url
+        # SECURITY: 避免在生产日志中输出潜在包含凭据的 traceback / DSN
+        # 仅在开发环境输出完整堆栈，生产环境输出脱敏后的摘要信息。
+        if settings.is_production:
+            logger.error(
+                "Database connection failed (%s): %s (url=%s)",
+                type(e).__name__,
+                safe_error,
+                safe_url,
+            )
+        else:
+            logger.error(
+                "Database connection failed (%s): %s (url=%s)",
+                type(e).__name__,
+                safe_error,
+                safe_url,
+                exc_info=True,
+            )
         return False
 
 

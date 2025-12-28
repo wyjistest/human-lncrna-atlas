@@ -297,6 +297,10 @@ const GenomeBrowser = memo(({
         // Helper function to navigate with retry
         const navigateToLocus = async (targetLocus: string, retries = 3): Promise<void> => {
           for (let i = 0; i < retries; i++) {
+            // Component unmounted / browser replaced while waiting
+            if (cancelled || browserRef.current !== browser) {
+              return
+            }
             try {
               await browser.search(targetLocus)
               const currentLoci = browser.currentLoci()
@@ -309,6 +313,9 @@ const GenomeBrowser = memo(({
               // If still showing "all", wait and retry
               await new Promise(resolve => setTimeout(resolve, 500))
             } catch {
+              if (cancelled || browserRef.current !== browser) {
+                return
+              }
               if (i < retries - 1) {
                 await new Promise(resolve => setTimeout(resolve, 500))
               }
@@ -319,6 +326,9 @@ const GenomeBrowser = memo(({
         if (effectiveLocus && effectiveLocus !== 'all') {
           // Small delay to ensure genome is loaded for built-in genomes
           await new Promise(resolve => setTimeout(resolve, 100))
+          if (cancelled || browserRef.current !== browser) {
+            return
+          }
           await navigateToLocus(effectiveLocus)
         }
 

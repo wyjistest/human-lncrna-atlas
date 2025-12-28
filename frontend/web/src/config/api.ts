@@ -9,12 +9,29 @@
 /**
  * Base URL for the API server.
  * - Development: http://localhost:8000 (default)
- * - Production: Set via VITE_API_BASE_URL environment variable
+ * - Production: default to same-origin (empty string), or set via VITE_API_BASE_URL
  */
-const RAW_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const ENV_API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+const DEFAULT_API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:8000'
+const RAW_API_BASE_URL =
+  typeof ENV_API_BASE_URL === 'string' ? ENV_API_BASE_URL : DEFAULT_API_BASE_URL
+
+// Basic runtime validation (fail fast on obvious misconfig)
+if (RAW_API_BASE_URL && !/^https?:\/\//i.test(RAW_API_BASE_URL)) {
+  throw new Error(
+    `Invalid VITE_API_BASE_URL: ${RAW_API_BASE_URL}. Expected an absolute http(s) URL, or leave empty for same-origin.`,
+  )
+}
 
 // Normalize to avoid double slashes when joining paths (e.g. "https://example.com//api/v1")
 export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
+
+if (import.meta.env.DEV && /\/api\/v1\/?$/i.test(API_BASE_URL)) {
+  console.warn(
+    '[API] VITE_API_BASE_URL seems to include /api/v1. ' +
+    'The client already prefixes requests with /api/v1, so this may cause double /api/v1/api/v1.',
+  )
+}
 
 /**
  * API v1 prefix

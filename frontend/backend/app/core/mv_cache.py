@@ -24,6 +24,8 @@ import time
 
 from sqlalchemy.orm import Session
 
+from app.core.utils import sanitize_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,6 +55,8 @@ class MaterializedViewCache:
         self._checked = False
         self._available = False
         self._checked_at = 0.0
+        # Generation counter to prevent stale in-flight checks from overwriting reset() state.
+        self._generation = 0
 
     @property
     def mv_name(self) -> str:
@@ -75,6 +79,7 @@ class MaterializedViewCache:
             self._checked = False
             self._available = False
             self._checked_at = 0.0
+            self._generation += 1
         logger.info(f"Materialized view cache reset for '{self._mv_name}'")
 
     def is_available(self, db: Session) -> bool:
@@ -90,23 +95,24 @@ class MaterializedViewCache:
         Returns:
             True if MV exists and is populated, False otherwise
         """
+        # Fast path: return cached value under lock.
         with self._lock:
-            # Check if cached result is still valid
             if self._checked:
                 elapsed = time.monotonic() - self._checked_at
                 if elapsed < self._ttl_seconds:
                     return self._available
-                # TTL expired, will re-check below
                 logger.debug(f"MV cache TTL expired ({elapsed:.1f}s), re-checking...")
+            generation = self._generation
 
-            # Perform the actual check
-            available = self._check_mv_exists(db)
+        # Slow path: perform DB check outside lock to avoid blocking other requests.
+        available = self._check_mv_exists(db)
 
-            # Update cache state (still under lock)
-            self._checked = True
-            self._available = available
-            self._checked_at = time.monotonic()
-
+        # Update cache only if no reset() happened during the in-flight check.
+        with self._lock:
+            if generation == self._generation:
+                self._checked = True
+                self._available = available
+                self._checked_at = time.monotonic()
             return available
 
     def _check_mv_exists(self, db: Session) -> bool:
@@ -152,7 +158,12 @@ class MaterializedViewCache:
                 return False
 
         except Exception as e:
-            logger.error(f"Error checking materialized view '{self._mv_name}': {e}")
+            # SECURITY: 防止日志注入/日志膨胀
+            logger.error(
+                "Error checking materialized view '%s': %s",
+                self._mv_name,
+                sanitize_for_log(e, max_length=2000),
+            )
             return False
 
     def get_status(self) -> dict:

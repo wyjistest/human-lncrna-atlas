@@ -120,7 +120,9 @@ class TestOverlapTrackMissingParameter:
 
         data = response.json()
         assert "detail" in data
-        assert "chr" in data["detail"].lower() or "chromosome" in data["detail"].lower()
+        assert isinstance(data["detail"], dict)
+        message = str(data["detail"].get("message", "")).lower()
+        assert "chr" in message or "chromosome" in message
 
 
 class TestOverlapTrackParameterPriority:

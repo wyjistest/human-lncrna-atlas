@@ -239,9 +239,14 @@ class LoggingMiddleware:
         except Exception as e:
             # 错误日志始终记录（不受采样/阈值限制）
             process_time = time.monotonic() - start_time
-            safe_error = str(e).replace("\r", " ").replace("\n", " ")
+            safe_error = sanitize_for_log(e, max_length=2000)
             logger.error(
-                f"{method} {url} - ERROR - {process_time:.3f}s - "
-                f"{client_ip} - {safe_error}"
+                "%s %s - ERROR - %.3fs - %s - %s",
+                method,
+                url,
+                process_time,
+                client_ip,
+                safe_error,
+                exc_info=True,
             )
             raise

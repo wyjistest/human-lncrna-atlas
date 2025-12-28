@@ -2,7 +2,7 @@
 Pydantic Schemas for ChIP-seq Epigenetic Marks
 Supports multiple histone modifications with unified architecture
 """
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Annotated
 from enum import Enum
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator, computed_field
 from datetime import datetime
@@ -803,6 +803,10 @@ class HeatmapMatrixResponse(BaseModel):
 # Batch Heatmap Matrix Schemas (Multi-Gene Query)
 # =============================================================================
 
+BatchMarkName = Annotated[str, Field(min_length=1, max_length=64)]
+BatchCellTypeName = Annotated[str, Field(min_length=1, max_length=64)]
+
+
 class BatchHeatmapMatrixRequest(BaseModel):
     """
     Request schema for batch heatmap matrix query across multiple genes.
@@ -814,13 +818,13 @@ class BatchHeatmapMatrixRequest(BaseModel):
         max_length=100,
         description="List of gene IDs (1-100 genes)"
     )
-    marks: List[str] = Field(
+    marks: List[BatchMarkName] = Field(
         ...,
         min_length=1,
         max_length=8,
         description="Histone modification marks (1-8 marks)"
     )
-    cell_types: List[str] = Field(
+    cell_types: List[BatchCellTypeName] = Field(
         ...,
         min_length=1,
         max_length=10,

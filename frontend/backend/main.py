@@ -8,10 +8,6 @@ Phase 9.16: 模块化重构
 - 基因组文件服务提取到 app/mounts/genomes.py
 """
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.exception_handlers import (
-    http_exception_handler as default_http_exception_handler,
-    request_validation_exception_handler as default_validation_exception_handler,
-)
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -33,8 +29,19 @@ mimetypes.add_type("application/octet-stream", ".bigwig")
 from app.core.config import settings  # noqa: E402
 from app.core.database import init_db, close_db  # noqa: E402
 from app.core.logging_config import setup_logging  # noqa: E402
-from app.core.exceptions import sanitize_db_error, sanitize_internal_error  # noqa: E402
-from app.middleware import LoggingMiddleware, add_security_headers, metrics_auth_middleware  # noqa: E402
+from app.core.exceptions import (
+    build_validation_error_detail,
+    normalize_http_error_detail,
+    sanitize_db_error,
+    sanitize_internal_error,
+)  # noqa: E402
+from app.core.utils import sanitize_for_log  # noqa: E402
+from app.middleware import (
+    LoggingMiddleware,
+    RequestLimitsMiddleware,
+    add_security_headers,
+    metrics_auth_middleware,
+)  # noqa: E402
 from app.mounts import mount_genomes_app  # noqa: E402
 from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization  # noqa: E402
 from app.schemas.common import HealthResponse  # noqa: E402
@@ -43,10 +50,9 @@ from app.schemas.common import HealthResponse  # noqa: E402
 # slowapi Rate Limiting Setup (for per-endpoint rate limiting)
 # ============================================================================
 try:
-    from slowapi import _rate_limit_exceeded_handler
     from slowapi.errors import RateLimitExceeded
     from slowapi.middleware import SlowAPIMiddleware
-    from app.routers.chipseq_rate_limit import chipseq_limiter
+    from app.routers.chipseq_rate_limit import chipseq_limiter, rate_limit_exceeded_handler
     SLOWAPI_AVAILABLE = True
 except ImportError:
     SLOWAPI_AVAILABLE = False
@@ -209,6 +215,28 @@ def _validate_security_config() -> None:
                 "to reduce attack surface."
             )
 
+        # 3.3 DoS guardrails sanity checks (request size / query string length)
+        # These are app-level backstops; production should ideally also enforce limits at the reverse proxy layer.
+        max_body = int(getattr(settings, "MAX_REQUEST_BODY_SIZE", 0) or 0)
+        if max_body <= 0:
+            warnings.append(
+                "MAX_REQUEST_BODY_SIZE is 0 (unlimited). This disables request body size protection and may allow DoS."
+            )
+        elif max_body > 20 * 1024 * 1024:
+            warnings.append(
+                f"MAX_REQUEST_BODY_SIZE is very large ({max_body} bytes). Consider lowering it to reduce DoS risk."
+            )
+
+        max_qs = int(getattr(settings, "MAX_QUERY_STRING_LENGTH", 0) or 0)
+        if max_qs <= 0:
+            warnings.append(
+                "MAX_QUERY_STRING_LENGTH is 0 (unlimited). This disables query string length protection and may allow DoS."
+            )
+        elif max_qs > 64 * 1024:
+            warnings.append(
+                f"MAX_QUERY_STRING_LENGTH is very large ({max_qs} bytes). Consider lowering it to reduce DoS risk."
+            )
+
     # 4. 连接池配置检查（仅警告）
     pool_total = settings.DB_POOL_SIZE + settings.DB_POOL_MAX_OVERFLOW
     if pool_total < 20:
@@ -359,7 +387,7 @@ if settings.TRUSTED_HOSTS:
 # ============================================================================
 if SLOWAPI_AVAILABLE and chipseq_limiter:
     app.state.limiter = chipseq_limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
     logger.info("slowapi rate limiting enabled for ChIP-seq endpoints")
 
@@ -368,6 +396,12 @@ if SLOWAPI_AVAILABLE and chipseq_limiter:
 # Phase 9.16: 安全中间件已提取到 app/middleware/security/
 # IMPORTANT: 注册在 slowapi 之后，确保 429/异常响应也能附带安全头
 # ============================================================================
+# ============================================================================
+# Request Limits Middleware (DoS hardening)
+# IMPORTANT: 放在安全头/CORS 之内，确保 413/414 也能带上安全头与 CORS 头
+# ============================================================================
+app.add_middleware(RequestLimitsMiddleware)
+
 app.middleware("http")(metrics_auth_middleware)
 app.middleware("http")(add_security_headers)
 
@@ -427,17 +461,22 @@ else:
 # ============================================================================
 @app.exception_handler(StarletteHTTPException)
 async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return await default_http_exception_handler(request, exc)
+    detail = normalize_http_error_detail(exc.detail, status_code=exc.status_code)
+    headers = getattr(exc, "headers", None)
+    return JSONResponse(status_code=exc.status_code, content={"detail": detail}, headers=headers)
 
 
 @app.exception_handler(HTTPException)
 async def fastapi_http_exception_handler(request: Request, exc: HTTPException):
-    return await default_http_exception_handler(request, exc)
+    detail = normalize_http_error_detail(exc.detail, status_code=exc.status_code)
+    headers = getattr(exc, "headers", None)
+    return JSONResponse(status_code=exc.status_code, content={"detail": detail}, headers=headers)
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    return await default_validation_exception_handler(request, exc)
+    detail = build_validation_error_detail(exc)
+    return JSONResponse(status_code=422, content={"detail": detail})
 
 
 # ============================================================================
@@ -501,7 +540,11 @@ def health_check():
         db_status = "healthy"
     except Exception as e:
         # 安全改进：不暴露底层异常详情，只记录日志
-        logger.error(f"Health check database error: {e}")
+        logger.error(
+            "Health check database error: %s",
+            sanitize_for_log(e, max_length=2000),
+            exc_info=not settings.is_production,
+        )
         db_status = "unhealthy"
 
     # 检查 Redis/缓存状态（对齐 CacheService 实际状态）

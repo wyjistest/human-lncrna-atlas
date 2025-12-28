@@ -13,7 +13,108 @@ Security best practices:
 """
 import uuid
 import logging
+from typing import Any, Dict, List
+
 from fastapi import HTTPException
+from fastapi.exceptions import RequestValidationError
+
+from app.core.utils import sanitize_for_log
+
+
+def _default_error_code_for_status(status_code: int) -> str:
+    mapping = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        405: "METHOD_NOT_ALLOWED",
+        409: "CONFLICT",
+        413: "REQUEST_BODY_TOO_LARGE",
+        414: "QUERY_STRING_TOO_LONG",
+        422: "VALIDATION_ERROR",
+        429: "RATE_LIMIT_EXCEEDED",
+        500: "INTERNAL_ERROR",
+        502: "BAD_GATEWAY",
+        503: "SERVICE_UNAVAILABLE",
+        504: "GATEWAY_TIMEOUT",
+    }
+    if status_code in mapping:
+        return mapping[status_code]
+    if 400 <= status_code < 500:
+        return "CLIENT_ERROR"
+    if status_code >= 500:
+        return "SERVER_ERROR"
+    return "ERROR"
+
+
+def normalize_http_error_detail(detail: Any, *, status_code: int) -> Dict[str, Any]:
+    """
+    Normalize FastAPI/Starlette error `detail` into a consistent object shape.
+
+    Goal: make API error responses consistent for clients and reduce leakage risk
+    (e.g., avoid returning raw validation inputs).
+
+    Output shape:
+      {"error": "<CODE>", "message": "<human-readable>", ...}
+    """
+    default_code = _default_error_code_for_status(status_code)
+
+    # Fast path: already a dict-like detail from our code.
+    if isinstance(detail, dict):
+        error_code = detail.get("error")
+        message = detail.get("message")
+
+        # Preserve existing keys; fill missing ones.
+        normalized: Dict[str, Any] = dict(detail)
+        if not isinstance(error_code, str) or not error_code.strip():
+            normalized["error"] = default_code
+        if not isinstance(message, str) or not message.strip():
+            # Try to derive a message from other fields.
+            fallback = None
+            for key in ("detail", "msg", "reason"):
+                val = detail.get(key)
+                if isinstance(val, str) and val.strip():
+                    fallback = val
+                    break
+            normalized["message"] = fallback or normalized.get("error") or "Request failed"
+        return normalized
+
+    # Validation error lists should not echo raw input back to the client.
+    if isinstance(detail, list):
+        errors: List[Dict[str, Any]] = []
+        for item in detail[:50]:
+            if not isinstance(item, dict):
+                continue
+            errors.append(
+                {
+                    "loc": item.get("loc"),
+                    "msg": item.get("msg"),
+                    "type": item.get("type"),
+                }
+            )
+        message = "Validation error"
+        if errors:
+            first_msg = errors[0].get("msg")
+            if isinstance(first_msg, str) and first_msg.strip():
+                message = first_msg
+        return {"error": "VALIDATION_ERROR", "message": message, "errors": errors}
+
+    # String / other types: coerce to a message string.
+    message = str(detail) if detail is not None else "Request failed"
+    return {"error": default_code, "message": message}
+
+
+def build_validation_error_detail(exc: RequestValidationError) -> Dict[str, Any]:
+    """
+    Build a safe, consistent detail object for 422 RequestValidationError.
+
+    SECURITY: Pydantic errors may include `input` values. We intentionally drop them.
+    """
+    try:
+        raw_errors = exc.errors()
+    except Exception:
+        raw_errors = []
+    return normalize_http_error_detail(raw_errors, status_code=422)
 
 
 def sanitize_db_error(e: Exception, logger: logging.Logger) -> HTTPException:
@@ -58,7 +159,9 @@ def sanitize_db_error(e: Exception, logger: logging.Logger) -> HTTPException:
         ERROR - Database error [a1b2c3d4]: <full error message with traceback>
     """
     error_id = uuid.uuid4().hex[:8]
-    logger.error(f"Database error [{error_id}]: {str(e)}", exc_info=True)
+    # SECURITY: 防止日志注入/日志膨胀（异常消息可能包含控制字符或超长内容）
+    safe_error = sanitize_for_log(e, max_length=2000)
+    logger.error("Database error [%s]: %s", error_id, safe_error, exc_info=True)
     return HTTPException(
         status_code=500,
         detail={
@@ -99,7 +202,9 @@ def sanitize_internal_error(
         ```
     """
     error_id = uuid.uuid4().hex[:8]
-    logger.error(f"{error_type} [{error_id}]: {str(e)}", exc_info=True)
+    # SECURITY: 防止日志注入/日志膨胀（异常消息可能包含控制字符或超长内容）
+    safe_error = sanitize_for_log(e, max_length=2000)
+    logger.error("%s [%s]: %s", error_type, error_id, safe_error, exc_info=True)
     return HTTPException(
         status_code=500,
         detail={

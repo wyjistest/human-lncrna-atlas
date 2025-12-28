@@ -36,6 +36,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import redis as redis_types  # noqa: F401
 
 from app.core.config import settings
+from app.core.utils import sanitize_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -226,7 +227,7 @@ class RedisCache:
             self._client.ping()
             logger.info(f"Redis 连接成功: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
         except (RedisError, ConnectionError) as e:
-            logger.warning(f"Redis 连接失败: {e}")
+            logger.warning("Redis 连接失败: %s", sanitize_for_log(e, max_length=2000))
             self._client = None
 
     @property
@@ -241,7 +242,11 @@ class RedisCache:
             if value:
                 return json.loads(value)
         except (RedisError, json.JSONDecodeError) as e:
-            logger.warning(f"Redis GET 失败 [{key}]: {e}")
+            logger.warning(
+                "Redis GET 失败 [%s]: %s",
+                sanitize_for_log(key, max_length=200),
+                sanitize_for_log(e, max_length=2000),
+            )
         return None
 
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
@@ -252,7 +257,11 @@ class RedisCache:
             self._client.setex(key, ttl, serialized)
             return True
         except (RedisError, TypeError) as e:
-            logger.warning(f"Redis SET 失败 [{key}]: {e}")
+            logger.warning(
+                "Redis SET 失败 [%s]: %s",
+                sanitize_for_log(key, max_length=200),
+                sanitize_for_log(e, max_length=2000),
+            )
             return False
 
     def delete(self, key: str) -> bool:
@@ -261,7 +270,11 @@ class RedisCache:
         try:
             return self._client.delete(key) > 0
         except RedisError as e:
-            logger.warning(f"Redis DELETE 失败 [{key}]: {e}")
+            logger.warning(
+                "Redis DELETE 失败 [%s]: %s",
+                sanitize_for_log(key, max_length=200),
+                sanitize_for_log(e, max_length=2000),
+            )
             return False
 
     def delete_pattern(self, pattern: str) -> int:
@@ -279,7 +292,11 @@ class RedisCache:
                     break
             return deleted
         except RedisError as e:
-            logger.warning(f"Redis batch delete failed [{pattern}]: {e}")
+            logger.warning(
+                "Redis batch delete failed [%s]: %s",
+                sanitize_for_log(pattern, max_length=200),
+                sanitize_for_log(e, max_length=2000),
+            )
         return 0
 
     def clear(self, prefix: str = "lncrna:") -> int:

@@ -29,7 +29,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     // 可以将错误日志上报给服务端
-    console.error('ErrorBoundary caught an error:', error, errorInfo)
+    if (import.meta.env.DEV) {
+      console.error('ErrorBoundary caught an error:', error, errorInfo)
+    }
     this.setState({ errorInfo })
   }
 

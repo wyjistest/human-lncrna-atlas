@@ -32,6 +32,7 @@ from io import StringIO
 from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error
+from app.core.utils import sanitize_for_log
 from app.core.validators import MAX_FIELD_LENGTH, compute_pagination_offset, parse_comma_list
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
 from app.utils.bed import sanitize_bed_field
@@ -708,7 +709,10 @@ def get_lncrna_chipseq_overlaps(
             items, total = get_lncrna_chipseq_overlaps_from_mv(db, filters)
         except Exception as e:
             if is_mv_missing_error(e):
-                logger.warning(f"MV query failed (MV may have been dropped), falling back to join query: {e}")
+                logger.warning(
+                    "MV query failed (MV may have been dropped), falling back to join query: %s",
+                    sanitize_for_log(e, max_length=2000),
+                )
                 mv_cache.reset()
                 use_materialized_view = False
                 items, total = get_lncrna_chipseq_overlaps_query(db, filters)
@@ -1535,7 +1539,11 @@ def generate_overlap_export(
                 break
 
     except Exception as e:
-        logger.error(f"Error during export generation: {e}")
+        logger.error(
+            "Error during export generation: %s",
+            sanitize_for_log(e, max_length=2000),
+            exc_info=True,
+        )
         raise
 
 

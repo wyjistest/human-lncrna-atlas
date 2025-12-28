@@ -24,6 +24,7 @@ from app.routers.chipseq_rate_limit import rate_limit
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
+from app.core.utils import sanitize_for_log
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
 from app.utils.bed import sanitize_bed_field
 from app.models import Regulation, Gene, ChIPSeqExperiment, EpigeneticMarkType
@@ -265,7 +266,10 @@ def _execute_overlap_query(
         return db.execute(sql.execution_options(stream_results=True), params)
     except Exception as e:
         if use_mv and is_mv_missing_error(e):
-            logger.warning(f"MV query failed (MV may have been dropped), falling back to join query: {e}")
+            logger.warning(
+                "MV query failed (MV may have been dropped), falling back to join query: %s",
+                sanitize_for_log(e, max_length=2000),
+            )
             mv_cache.reset()
             try:
                 return db.execute(fallback_stmt.execution_options(stream_results=True), params)

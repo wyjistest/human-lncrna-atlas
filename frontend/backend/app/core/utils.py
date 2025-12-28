@@ -36,6 +36,57 @@ def escape_like_pattern(value: str, *, escape_char: str = "\\") -> str:
 
 
 _LOG_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]+")
+_LOG_URL_USERINFO_RE = re.compile(r"(\b[a-zA-Z][a-zA-Z0-9+.\-]*://)([^@\s]+)@")
+_LOG_KV_SECRET_RE = re.compile(
+    r"(?i)(\b(?:password|passwd|pwd|secret|token|api_key|apikey|authorization|x-admin-api-key)\b\s*[:=]\s*)([^\s,;&]+)"
+)
+_LOG_BEARER_TOKEN_RE = re.compile(r"(?i)\bbearer\s+([a-z0-9\-._~+/]+=*)")
+
+
+def _redact_url_userinfo(text: str) -> str:
+    """
+    Redact credentials in URL-like strings (e.g. postgresql://user:pass@host/db).
+
+    Notes:
+    - Best-effort: only targets common "scheme://userinfo@host" patterns.
+    - We avoid parsing as URL to keep this utility lightweight and dependency-free.
+    """
+
+    def _replace(match: re.Match) -> str:
+        scheme = match.group(1)
+        userinfo = match.group(2)
+        if ":" not in userinfo:
+            return match.group(0)
+        username, _password = userinfo.split(":", 1)
+        return f"{scheme}{username}:***@"
+
+    return _LOG_URL_USERINFO_RE.sub(_replace, text)
+
+
+def _redact_kv_secrets(text: str) -> str:
+    """Redact common key/value secret patterns (e.g. token=..., password: ...)."""
+
+    def _replace(match: re.Match) -> str:
+        return f"{match.group(1)}***"
+
+    return _LOG_KV_SECRET_RE.sub(_replace, text)
+
+
+def _redact_bearer_tokens(text: str) -> str:
+    """Redact Authorization Bearer tokens when they appear inline in log messages."""
+
+    def _replace(match: re.Match) -> str:
+        return "Bearer ***"
+
+    return _LOG_BEARER_TOKEN_RE.sub(_replace, text)
+
+
+def _redact_secrets(text: str) -> str:
+    # Order matters: redact structured patterns before truncation.
+    text = _redact_url_userinfo(text)
+    text = _redact_kv_secrets(text)
+    text = _redact_bearer_tokens(text)
+    return text
 
 
 def sanitize_for_log(value: object, *, max_length: int = 200) -> str:
@@ -45,6 +96,7 @@ def sanitize_for_log(value: object, *, max_length: int = 200) -> str:
     Security goals:
     - Prevent log injection / log forging (strip control characters like CR/LF/TAB/ESC).
     - Bound log size to avoid unbounded growth from large inputs.
+    - Best-effort redact common secrets (tokens/passwords) and URL credentials.
 
     Args:
         value: Any value to be logged.
@@ -57,6 +109,7 @@ def sanitize_for_log(value: object, *, max_length: int = 200) -> str:
         return ""
 
     text = str(value)
+    text = _redact_secrets(text)
     text = _LOG_CONTROL_CHARS_RE.sub(" ", text).strip()
 
     if max_length <= 0 or len(text) <= max_length:

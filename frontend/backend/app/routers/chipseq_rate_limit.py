@@ -99,15 +99,36 @@ def rate_limit(limit_string: str):
 
 async def rate_limit_exceeded_handler(request: Request, exc):
     """Custom handler for rate limit exceeded errors"""
+    # Keep contract compatible while aligning with FastAPI default error shape.
+    # Frontend errorParser prefers `data.detail.message` when available.
+    retry_after = getattr(exc, "retry_after", 60)
+    try:
+        retry_after_int = int(retry_after)
+    except Exception:
+        retry_after_int = 60
+    retry_after_int = max(1, min(retry_after_int, 86400))
+
+    limiter_detail = str(getattr(exc, "detail", "Rate limit exceeded"))
+
+    detail = {
+        "error": "RATE_LIMIT_EXCEEDED",
+        "message": "Too many requests. Please try again later.",
+        "detail": limiter_detail,
+        "retry_after": retry_after_int,
+    }
     return JSONResponse(
         status_code=429,
+        headers={"Retry-After": str(retry_after_int)},
         content={
+            # Standard FastAPI error field for consistency across endpoints.
+            "detail": detail,
+            # Backward-compatible legacy shape.
             "success": False,
             "error": {
                 "code": "RATE_LIMIT_EXCEEDED",
                 "message": "Too many requests. Please try again later.",
-                "detail": str(exc.detail) if hasattr(exc, "detail") else "Rate limit exceeded",
-                "retry_after": getattr(exc, "retry_after", 60),
+                "detail": limiter_detail,
+                "retry_after": retry_after_int,
             },
         },
     )
