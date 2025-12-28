@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.49 |
+| 版本 | Phase 9.50 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-28 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -290,7 +290,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.46 | Codex 三十六次审查修复: 导出接口流式查询 stream_results 优化 (DoS/OOM 防护) + 测试参数名修正 (format alias) | 2025-12-28 |
 | 9.47 | Codex 三十七次审查修复: 流式导出资源清理 (try/finally close) + CSV 公式注入防护增强 (前导空白/BOM 绕过) | 2025-12-28 |
 | 9.48 | Codex 三十八次审查修复: IGV 轨道 DoS 防护 (区域大小限制 10Mb + 默认记录限制 50k + max_records 参数) | 2025-12-28 |
-| **9.49** | **Codex 三十九次审查修复: 日志脱敏 (safeWindow URL redact) + ETL logging 副作用移除 + /genomes percent-encoding 路径遍历加固 + 分块查询防 DoS + 缓存 Singleflight 并发防护 + IGV/Cytoscape 事件监听器清理** | **2025-12-28** |
+| 9.49 | Codex 三十九次审查修复: 日志脱敏 (safeWindow URL redact) + ETL logging 副作用移除 + /genomes percent-encoding 路径遍历加固 + 分块查询防 DoS + 缓存 Singleflight 并发防护 + IGV/Cytoscape 事件监听器清理 | 2025-12-28 |
+| **9.50** | **Codex 四十至四十五次审查修复 (6 轮): CSV 注入绕过防护 + Admin Key 收敛 + Redis 缓存失效 + ETL BatchManager 幂等 + API Path 参数校验 + Cytoscape 类型安全 + Toast 节流 + Flaky Tests 消除 + Redis 重连退避 + Docker Compose + Dependabot** | **2025-12-28** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -327,6 +328,12 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_security_igv_track_dos_limits_unit.py` | 8 | IGV 轨道 DoS 防护 (Phase 9.48) |
 | `test_security_genomes_path_safety_unit.py` | 6+ | /genomes percent-encoding 路径遍历防护 (Phase 9.49) |
 | `test_utils_chunking_unit.py` | 3 | 分块查询 + 去重函数 (Phase 9.49) |
+| `test_cache_invalidate_unit.py` | - | Redis/内存缓存失效覆盖 (Phase 9.50) |
+| `test_etl_batch_manager_commit_unit.py` | - | BatchManager 幂等提交 (Phase 9.50) |
+| `test_redis_reconnect_backoff_unit.py` | - | Redis 重连退避机制 (Phase 9.50) |
+| `csv.test.ts` (前端) | - | CSV 公式注入绕过防护 (Phase 9.50) |
+| `throttledMessage.test.ts` (前端) | - | Toast 节流逻辑 (Phase 9.50) |
+| `cytoscapeExport.ts` (前端) | - | Cytoscape PNG 导出类型安全 (Phase 9.50) |
 | `test_cache_singleflight_unit.py` | 1 | 缓存 Singleflight 并发防护 (Phase 9.49) |
 | `safeWindow.test.ts` (前端) | 3 | 日志脱敏 + tabnabbing 防护 (Phase 9.49) |
 | `GenomeBrowser.cleanup.test.tsx` (前端) | 1 | IGV 事件监听器清理 (Phase 9.49) |

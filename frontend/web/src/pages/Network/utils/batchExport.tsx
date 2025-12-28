@@ -5,6 +5,7 @@ import type { Core } from 'cytoscape'
 import type { NetworkData, NetworkNode, NetworkEdge } from '@/types/network'
 import { escapeCSV } from '@/utils/csv'
 import { SPECIES_EN_NAMES } from '../types'
+import { exportCytoscapePngBlob } from './cytoscapeExport'
 
 /**
  * Generate CSV content from network data
@@ -174,12 +175,11 @@ export const handleBatchExport = ({
               const { cyRef, speciesName } = card
               if (!cyRef.current) continue
 
-              const blob = cyRef.current.png({
-                output: 'blob',
+              const blob = exportCytoscapePngBlob(cyRef.current, {
                 bg: 'white',
                 full: true,
-                scale: 2
-              }) as unknown as Blob
+                scale: 2,
+              })
 
               // Use Object URL instead of base64 (save memory)
               const objectURL = URL.createObjectURL(blob)

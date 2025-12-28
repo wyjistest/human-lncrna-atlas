@@ -112,6 +112,15 @@ class Settings(BaseSettings):
     REDIS_DB: int = Field(default=0, validation_alias="REDIS_DB", ge=0)
     # SECURITY: 使用 SecretStr 保护 Redis 密码
     REDIS_PASSWORD: Optional[SecretStr] = Field(default=None, validation_alias="REDIS_PASSWORD")
+    REDIS_CONNECT_BACKOFF_SECONDS: int = Field(
+        default=30,
+        validation_alias="REDIS_CONNECT_BACKOFF_SECONDS",
+        description=(
+            "Redis 断线重连退避秒数（默认 30）。"
+            "仅在 Redis 不可用时生效，用于避免每个请求都触发连接尝试导致抖动。"
+        ),
+        ge=0,
+    )
 
     # CORS配置（支持环境变量 CORS_ORIGINS，JSON 数组格式）
     # 默认值仅包含 localhost，生产环境请通过 CORS_ORIGINS 环境变量配置实际域名

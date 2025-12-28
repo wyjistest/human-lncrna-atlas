@@ -103,7 +103,7 @@ def setup_logging(log_level: str = "INFO"):
 
     # 配置API日志
     api_logger = logging.getLogger("api")
-    api_logger.setLevel(logging.INFO)
+    api_logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
 
     # 配置数据库日志（只记录警告和错误）
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)

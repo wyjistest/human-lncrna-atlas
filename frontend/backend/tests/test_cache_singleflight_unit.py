@@ -6,7 +6,6 @@ do not trigger duplicated expensive computations within the same process.
 """
 
 import threading
-import time
 
 import pytest
 
@@ -32,6 +31,10 @@ def test_cached_decorator_singleflight(monkeypatch):
     compute_calls = 0
     compute_calls_lock = threading.Lock()
     barrier = threading.Barrier(10)
+    compute_gate = threading.Barrier(2)  # main thread + the single compute thread
+    all_calls_started = threading.Event()
+    call_started = 0
+    call_started_lock = threading.Lock()
     results: list[dict] = [{} for _ in range(10)]
     errors: list[Exception] = []
 
@@ -40,13 +43,19 @@ def test_cached_decorator_singleflight(monkeypatch):
         nonlocal compute_calls
         with compute_calls_lock:
             compute_calls += 1
-        # Ensure other threads have time to contend on the lock
-        time.sleep(0.05)
+        # Avoid time.sleep(): block deterministically until all workers started calling
+        # the function, then let main thread release the compute path.
+        compute_gate.wait(timeout=5)
         return {"x": x}
 
     def worker(i: int):
+        nonlocal call_started
         try:
-            barrier.wait(timeout=2)
+            barrier.wait(timeout=5)
+            with call_started_lock:
+                call_started += 1
+                if call_started == 10:
+                    all_calls_started.set()
             results[i] = expensive(1)
         except Exception as e:
             errors.append(e)
@@ -54,10 +63,14 @@ def test_cached_decorator_singleflight(monkeypatch):
     threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
     for t in threads:
         t.start()
-    for t in threads:
-        t.join(timeout=3)
 
+    assert all_calls_started.wait(timeout=5)
+    compute_gate.wait(timeout=5)
+
+    for t in threads:
+        t.join(timeout=10)
+
+    assert not any(t.is_alive() for t in threads)
     assert errors == []
     assert all(r == {"x": 1} for r in results)
     assert compute_calls == 1
-

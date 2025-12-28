@@ -32,9 +32,18 @@ export function SequenceViewer({ regulationId, open, onClose }: SequenceViewerPr
 
   // 生成 FASTA 格式内容
   const generateFasta = (sequence: string, header: string) => {
+    const safeHeader = String(header ?? 'sequence')
+      .replace(/[\r\n\0]/g, ' ')
+      .replace(/^>+/, '')
+      .replace(/\s+/g, ' ')
+      .trim() || 'sequence'
+
+    // FASTA 序列通常不应包含空白字符；做一次规范化避免换行/空格导致格式错误
+    const normalizedSeq = String(sequence ?? '').replace(/\s+/g, '')
+
     // FASTA 格式：每行 60 个字符
-    const formattedSeq = sequence.match(/.{1,60}/g)?.join('\n') || sequence
-    return `>${header}\n${formattedSeq}\n`
+    const formattedSeq = normalizedSeq.match(/.{1,60}/g)?.join('\n') || normalizedSeq
+    return `>${safeHeader}\n${formattedSeq}\n`
   }
 
   // 下载序列为 FASTA 文件

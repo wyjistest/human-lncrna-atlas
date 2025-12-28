@@ -119,7 +119,7 @@ class MaterializedViewCache:
         """
         Internal method to check if MV exists in PostgreSQL.
 
-        Should only be called while holding the lock.
+        Called outside the lock (DB I/O) to avoid blocking other requests.
 
         Args:
             db: Database session

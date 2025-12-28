@@ -9,7 +9,10 @@ export function escapeCSV(val: unknown): string {
   let str = String(val ?? '')
 
   // Prevent CSV formula injection: Excel/Sheets interprets these as formulas
-  if (/^[=+\-@\t\r]/.test(str)) {
+  // SECURITY: Defense-in-depth against bypass via leading whitespace or UTF-8 BOM.
+  // Some spreadsheet apps may ignore leading whitespace/BOM before evaluating formulas.
+  const check = str.replace(/^\ufeff/, '').trimStart()
+  if (/^[=+\-@\t\r]/.test(check)) {
     str = "'" + str
   }
 
@@ -20,4 +23,3 @@ export function escapeCSV(val: unknown): string {
 
   return str
 }
-

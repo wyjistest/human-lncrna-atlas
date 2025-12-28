@@ -68,6 +68,10 @@ class BatchManager:
         self.batch_id: Optional[int] = None
         self.record_count = 0
         self.cleanup_callback = cleanup_callback
+        # Prevent duplicate completion when user calls commit() inside context manager.
+        # Rollback should still run on exceptions even if commit() happened earlier.
+        self._completed = False
+        self._rolled_back = False
 
     def __enter__(self):
         """上下文管理器入口 - 创建批次"""
@@ -86,8 +90,11 @@ class BatchManager:
             # 正常退出但未显式commit
             if self.record_count == 0:
                 logger.warning(f"批次 {self.batch_id} 未导入任何数据")
-            logger.info(f"批次 {self.batch_id} 自动提交")
-            self._complete_batch()
+            if self._completed:
+                logger.info(f"批次 {self.batch_id} 已显式提交，跳过自动提交")
+            else:
+                logger.info(f"批次 {self.batch_id} 自动提交")
+                self._complete_batch()
             return True
 
     def _create_batch(self):
@@ -108,6 +115,11 @@ class BatchManager:
         """标记批次完成"""
         if self.batch_id is None:
             raise RuntimeError("批次未创建")
+        if self._rolled_back:
+            raise RuntimeError("批次已回滚，无法完成")
+        if self._completed:
+            logger.info(f"批次 {self.batch_id} 已完成，跳过重复提交")
+            return
 
         with self.conn.cursor() as cur:
             cur.execute("""
@@ -121,11 +133,15 @@ class BatchManager:
 
             self.conn.commit()
             logger.info(f"批次 {self.batch_id} 完成，共导入 {self.record_count} 条记录")
+            self._completed = True
 
     def _rollback_batch(self, *, error_message: Optional[str] = None):
         """回滚批次 - 删除所有关联数据"""
         if self.batch_id is None:
             logger.warning("批次未创建，无需回滚")
+            return
+        if self._rolled_back:
+            logger.info(f"批次 {self.batch_id} 已回滚，跳过重复回滚")
             return
 
         try:
@@ -179,6 +195,8 @@ class BatchManager:
 
                 self.conn.commit()
                 logger.info(f"批次 {self.batch_id} 回滚完成")
+                self._rolled_back = True
+                self._completed = False
 
         except Exception as e:
             logger.error(f"回滚批次 {self.batch_id} 失败: {e}")

@@ -4,7 +4,7 @@ ChIP-seq Mark Types API Router
 """
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session, aliased
 
@@ -152,7 +152,7 @@ def get_mark_relationships(
 @rate_limit("30/minute")
 def get_available_marks_for_species(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     db: Session = Depends(get_db),
 ):
     """

@@ -176,7 +176,9 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 Phase 9.24: 提供完整的 Docker 部署示例，确保"默认安全"。
 
-> 注意：当前仓库未内置 `frontend/backend/Dockerfile` 与 `nginx/` 示例目录，下面为参考模板。
+> 注意：
+> - 仓库已内置 `frontend/backend/Dockerfile` 与根目录 `docker-compose.yml`（Phase 9.50）。
+> - `nginx/` 示例目录仍为参考模板（可按下文示例自行添加/调整）。
 ### docker-compose.yml
 
 ```yaml

@@ -259,7 +259,7 @@ export function BatchHeatmapMatrix({
         textStyle: { fontSize: 14, fontWeight: 'bold' },
       },
       toolbox: getChartToolbox(
-        `batch-heatmap-matrix-${Date.now()}`,
+        `batch-heatmap-matrix-${metric}`,
         t('export.saveImage', 'Save as Image')
       ),
       tooltip: {

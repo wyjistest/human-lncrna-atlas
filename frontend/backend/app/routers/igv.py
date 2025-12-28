@@ -56,7 +56,7 @@ router.include_router(overlap_track_router)
 @rate_limit("60/minute")
 def get_igv_config(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="物种 ID (1=Human, 2=Chimp, 3=Macaque, 4=Marmoset)"),
     db: Session = Depends(get_db),
 ):
     """
@@ -474,7 +474,7 @@ def get_igv_config_for_gene(
 @rate_limit("60/minute")
 def get_regulations_count(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="物种 ID (1=Human, 2=Chimp, 3=Macaque, 4=Marmoset)"),
     chr: Optional[str] = Query(None, max_length=64, description="染色体过滤"),
     start: Optional[int] = Query(None, ge=0, description="起始位置"),
     end: Optional[int] = Query(None, ge=0, description="结束位置"),

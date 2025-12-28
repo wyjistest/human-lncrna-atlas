@@ -8,7 +8,7 @@ import time
 from itertools import combinations
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import bindparam, case, column, func, literal, select, values
 from sqlalchemy.sql.expression import funcfilter
@@ -65,7 +65,7 @@ MAX_COMPARE_CELL_TYPES = 10  # 与 heatmap cell_types 限制一致
 @rate_limit("30/minute")
 def get_gene_chipseq(
     request: Request,
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     mark_type: Optional[str] = Query(
         None,
         description="Filter by mark type(s), comma-separated (e.g., H3K27me3,H3K4me3)"
@@ -284,7 +284,7 @@ def get_gene_chipseq(
 @cached("chipseq:summary", ttl=cache.TTL_LIST)  # Cache: 5 minutes (TTL_LIST=300)
 def get_gene_chipseq_summary(
     request: Request,  # Required for rate limiting
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
     db: Session = Depends(get_db),
@@ -436,7 +436,7 @@ def get_gene_chipseq_summary(
 @cached("chipseq:compare", ttl=cache.TTL_DETAIL)  # Cache: 10 minutes (TTL_DETAIL=600)
 def compare_gene_marks(
     request: Request,  # Required for rate limiting
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     marks: str = Query(
         ...,
         description="Comma-separated list of marks to compare (e.g., H3K27me3,H3K4me3)"
@@ -666,7 +666,7 @@ def compare_gene_marks(
 @cached("chipseq:compare-cell-lines", ttl=cache.TTL_DETAIL)  # Cache: 10 minutes (TTL_DETAIL=600)
 def compare_gene_cell_lines(
     request: Request,  # Required for rate limiting
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     mark_type: str = Query(
         ...,
         description="Mark type to compare across cell lines (e.g., H3K27me3)"
@@ -925,7 +925,7 @@ def compare_gene_cell_lines(
 @cached("chipseq:heatmap-matrix", ttl=cache.TTL_DETAIL)  # Cache: 10 minutes (TTL_DETAIL=600)
 def get_gene_heatmap_matrix(
     request: Request,  # Required for rate limiting
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     marks: str = Query(
         ...,
         description="Comma-separated marks (e.g., H3K27me3,H3K4me3,H3K27ac)",

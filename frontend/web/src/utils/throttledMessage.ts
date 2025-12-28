@@ -59,6 +59,10 @@ const ERROR_STRATEGIES: Record<ErrorType, ErrorStrategy> = {
   unknown: { showToast: true, minInterval: 2000, countsAgainstLimit: true },
 }
 
+const MAX_ERROR_TYPE_INTERVAL_MS = Math.max(
+  ...Object.values(ERROR_STRATEGIES).map((s) => s.minInterval)
+)
+
 class ThrottledMessageQueue {
   private config: MessageConfig
   private recentMessages: Map<string, number> = new Map() // message -> timestamp
@@ -89,14 +93,14 @@ class ThrottledMessageQueue {
 
     // Check type-level throttling (e.g., only show "network error" once per 10s)
     const lastTypeShown = this.lastErrorTypeShown.get(parsed.type)
-    if (lastTypeShown && now - lastTypeShown < strategy.minInterval) {
+    if (lastTypeShown !== undefined && now - lastTypeShown < strategy.minInterval) {
       // This error type was shown recently - skip
       return
     }
 
     // Check message-level deduplication
     const lastMsgShown = this.recentMessages.get(parsed.message)
-    if (lastMsgShown && now - lastMsgShown < this.config.dedupeWindow) {
+    if (lastMsgShown !== undefined && now - lastMsgShown < this.config.dedupeWindow) {
       return
     }
 
@@ -141,7 +145,7 @@ class ThrottledMessageQueue {
     this.cleanupOldEntries(now)
 
     const lastShown = this.recentMessages.get(msg)
-    if (lastShown && now - lastShown < this.config.dedupeWindow) {
+    if (lastShown !== undefined && now - lastShown < this.config.dedupeWindow) {
       return
     }
 
@@ -168,8 +172,10 @@ class ThrottledMessageQueue {
       }
     }
 
-    // Cleanup type throttle map (use longest interval as cutoff)
-    const typeCutoff = now - this.config.networkErrorWindow
+    // Cleanup type throttle map (use longest strategy interval as cutoff)
+    // NOTE: keep entries long enough for the maximum minInterval (e.g. rate_limit = 30s),
+    // otherwise cleanup could shorten throttling unexpectedly.
+    const typeCutoff = now - Math.max(this.config.networkErrorWindow, MAX_ERROR_TYPE_INTERVAL_MS)
     for (const [type, timestamp] of this.lastErrorTypeShown.entries()) {
       if (timestamp < typeCutoff) {
         this.lastErrorTypeShown.delete(type)

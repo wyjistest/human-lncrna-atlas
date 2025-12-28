@@ -21,7 +21,7 @@ import logging
 from typing import Optional, Iterator, Tuple, Dict, Any
 from itertools import combinations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
@@ -133,7 +133,7 @@ def _apply_json_limit_param(
 @rate_limit("5/minute")  # Rate limit: 5 requests per minute per IP (export is resource-intensive)
 def export_comparison(
     request: Request,  # Required for rate limiting
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     marks: str = Query(
         ...,
         description="Comma-separated list of marks to compare"
@@ -424,7 +424,7 @@ def export_comparison(
 @rate_limit("5/minute")
 def export_overlaps_bed(
     request: Request,
-    gene_id: int,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
     marks: str = Query(
         ...,
         description="Comma-separated list of marks to compare"

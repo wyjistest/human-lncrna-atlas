@@ -1,0 +1,85 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-lncrna_production}
+      POSTGRES_USER: ${DB_USER:-lncrna}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in a local .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: ./frontend/backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    networks:
+      - backend
+    environment:
+      ENV: ${ENV:-production}
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-lncrna}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in a local .env}
+      DB_NAME: ${DB_NAME:-lncrna_production}
+
+      ENABLE_CACHE: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_CONNECT_BACKOFF_SECONDS: ${REDIS_CONNECT_BACKOFF_SECONDS:-30}
+
+      # SECURITY: production defaults
+      ADMIN_REQUIRE_API_KEY: "true"
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?set ADMIN_API_KEY in a local .env}
+
+      # NOTE: settings expect JSON arrays for these values.
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-["localhost","127.0.0.1","*.localhost"]}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173"]}
+
+      # Container-friendly logging
+      LOG_TO_FILE: "false"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+networks:
+  backend:
+    internal: true
+
+volumes:
+  postgres_data:
+

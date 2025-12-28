@@ -8,8 +8,8 @@ These tests verify:
 3. Reset functionality
 4. Cache status reporting
 """
+import importlib
 import threading
-import time
 from types import SimpleNamespace
 
 import pytest
@@ -110,27 +110,43 @@ class TestMaterializedViewCacheTTL:
         fresh_cache.is_available(db)
         assert db.execute_count == 1  # No additional DB call
 
-    def test_cache_expires_after_ttl(self, fresh_cache):
+    def test_cache_expires_after_ttl(self, fresh_cache, monkeypatch):
         """Test cache expires and re-checks after TTL."""
+        # Avoid real sleep: control time.monotonic deterministically.
+        # 1st call: checked_at = 1000.0
+        # 2nd call: elapsed = 2.0s (> ttl=1), should re-check DB and update checked_at.
+        times = iter([1000.0, 1002.0, 1002.0])
+        mv_cache_mod = importlib.import_module("app.core.mv_cache")
+        monkeypatch.setattr(
+            mv_cache_mod,
+            "time",
+            SimpleNamespace(monotonic=lambda: next(times)),
+        )
+
         db = MockSession()
 
         # First call
         fresh_cache.is_available(db)
         assert db.execute_count == 1
 
-        # Wait for TTL to expire (cache TTL is 1 second)
-        time.sleep(1.1)
-
         # Should re-check
         fresh_cache.is_available(db)
         assert db.execute_count == 2
 
-    def test_get_status_includes_age(self, fresh_cache):
+    def test_get_status_includes_age(self, fresh_cache, monkeypatch):
         """Test status includes cache age."""
+        # Avoid real sleep: control time.monotonic deterministically.
+        times = iter([1000.0, 1000.1])
+        mv_cache_mod = importlib.import_module("app.core.mv_cache")
+        monkeypatch.setattr(
+            mv_cache_mod,
+            "time",
+            SimpleNamespace(monotonic=lambda: next(times)),
+        )
+
         db = MockSession()
         fresh_cache.is_available(db)
 
-        time.sleep(0.1)
         status = fresh_cache.get_status()
 
         assert status["checked"] is True
@@ -188,39 +204,39 @@ class TestMaterializedViewCacheThreadSafety:
         """Test reading and resetting concurrently is safe."""
         db = MockSession()
         errors = []
-        stop_flag = threading.Event()
+
+        # Avoid time-based sleeps: use a barrier to force interleaving between reads and resets.
+        iterations = 50
+        barrier = threading.Barrier(5)  # 3 readers + 2 resetters
 
         def reader():
-            while not stop_flag.is_set():
-                try:
+            try:
+                for _ in range(iterations):
+                    barrier.wait(timeout=5)
                     fresh_cache.is_available(db)
-                except Exception as e:
-                    errors.append(e)
+            except Exception as e:
+                errors.append(e)
 
         def resetter():
-            for _ in range(50):
-                try:
+            try:
+                for _ in range(iterations):
+                    barrier.wait(timeout=5)
                     fresh_cache.reset()
-                    time.sleep(0.01)
-                except Exception as e:
-                    errors.append(e)
+            except Exception as e:
+                errors.append(e)
 
-        readers = [threading.Thread(target=reader) for _ in range(3)]
-        resetters = [threading.Thread(target=resetter) for _ in range(2)]
+        threads = [threading.Thread(target=reader) for _ in range(3)] + [
+            threading.Thread(target=resetter) for _ in range(2)
+        ]
 
-        for t in readers + resetters:
+        for t in threads:
             t.start()
 
-        # Let resetters finish
-        for t in resetters:
-            t.join()
+        for t in threads:
+            t.join(timeout=10)
 
-        # Signal readers to stop
-        stop_flag.set()
-        for t in readers:
-            t.join()
-
-        assert len(errors) == 0
+        assert not any(t.is_alive() for t in threads)
+        assert errors == []
 
 
 @pytest.mark.unit

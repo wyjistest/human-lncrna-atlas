@@ -183,21 +183,23 @@ class LoggingMiddleware:
         # 记录请求开始时间
         start_time = time.monotonic()
 
-        # 获取请求信息
+        # 获取请求信息（尽量保持轻量：URL/Query/IP 的解析延迟到确实需要记录日志时）
         method = scope.get("method", "UNKNOWN")
-        query_string = scope.get("query_string", b"").decode(errors="replace")
-        # 遮蔽敏感查询参数后用于日志记录
-        safe_query = self._sanitize_query_string(query_string)
-        log_path = sanitize_for_log(
-            path,
-            max_length=self._max_url_length if self._max_url_length > 0 else 0,
-        )
-        url = f"{log_path}?{safe_query}" if safe_query else log_path
-        url = self._truncate_for_log(url, self._max_url_length)
+        query_string_bytes = scope.get("query_string", b"")
 
-        # 获取客户端 IP
-        # SECURITY: 防止 log injection，确保 IP 字段不包含控制字符且长度受限。
-        client_ip = sanitize_for_log(self._get_client_ip(scope), max_length=100)
+        def _build_safe_url() -> str:
+            query_string = query_string_bytes.decode(errors="replace")
+            safe_query = self._sanitize_query_string(query_string)
+            log_path = sanitize_for_log(
+                path,
+                max_length=self._max_url_length if self._max_url_length > 0 else 0,
+            )
+            url = f"{log_path}?{safe_query}" if safe_query else log_path
+            return self._truncate_for_log(url, self._max_url_length)
+
+        def _get_safe_client_ip() -> str:
+            # SECURITY: 防止 log injection，确保 IP 字段不包含控制字符且长度受限。
+            return sanitize_for_log(self._get_client_ip(scope), max_length=100)
 
         # 状态码存储
         status_code: int = 0
@@ -224,21 +226,26 @@ class LoggingMiddleware:
             # 根据配置决定是否记录日志
             process_time = time.monotonic() - start_time
             if self._should_log(process_time):
+                url = _build_safe_url()
+                client_ip = _get_safe_client_ip()
                 # 慢请求使用 WARNING 级别
                 if self._slow_threshold_sec > 0 and process_time >= self._slow_threshold_sec:
                     logger.warning(
-                        f"SLOW {method} {url} - {status_code} - "
-                        f"{process_time:.3f}s - {client_ip}"
+                        "SLOW %s %s - %s - %.3fs - %s",
+                        method,
+                        url,
+                        status_code,
+                        process_time,
+                        client_ip,
                     )
                 else:
-                    logger.info(
-                        f"{method} {url} - {status_code} - "
-                        f"{process_time:.3f}s - {client_ip}"
-                    )
+                    logger.info("%s %s - %s - %.3fs - %s", method, url, status_code, process_time, client_ip)
 
         except Exception as e:
             # 错误日志始终记录（不受采样/阈值限制）
             process_time = time.monotonic() - start_time
+            url = _build_safe_url()
+            client_ip = _get_safe_client_ip()
             safe_error = sanitize_for_log(e, max_length=2000)
             logger.error(
                 "%s %s - ERROR - %.3fs - %s - %s",

@@ -158,6 +158,9 @@ sudo journalctl -u lncrna-api -f
 
 ### 方案2: Docker部署
 
+> Phase 9.50: 仓库已内置 `frontend/backend/Dockerfile` 与根目录 `docker-compose.yml`（postgres/redis/backend 示例）。
+> 下方内容保留为模板说明，可按实际环境（域名、Admin Key、资源限制）调整。
+
 #### 1. 创建 Dockerfile
 
 ```dockerfile

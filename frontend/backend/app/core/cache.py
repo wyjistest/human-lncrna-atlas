@@ -83,10 +83,19 @@ def _safe_gauge(name: str, documentation: str):
 
 _CACHE_HITS_TOTAL = _safe_counter("lncrna_cache_hits", "Cache hits total", ["backend"])
 _CACHE_MISSES_TOTAL = _safe_counter("lncrna_cache_misses", "Cache misses total", ["backend"])
+_CACHE_INVALIDATIONS_TOTAL = _safe_counter(
+    "lncrna_cache_invalidations",
+    "Cache namespace invalidations total",
+    ["backend"],
+)
 _MEMORY_CACHE_SIZE = _safe_gauge("lncrna_memory_cache_size", "In-memory cache current size")
 _MEMORY_CACHE_EVICTIONS_TOTAL = _safe_counter(
     "lncrna_memory_cache_evictions",
     "In-memory cache evictions total",
+)
+_REDIS_CONNECTED = _safe_gauge(
+    "lncrna_redis_connected",
+    "Redis cache connectivity (1=connected, 0=disconnected)",
 )
 
 
@@ -206,36 +215,82 @@ class RedisCache:
     def __init__(self):
         # NOTE: redis 是可选依赖；使用字符串注解避免在 ImportError 场景下触发 NameError
         self._client: Optional["redis.Redis"] = None
+        self._connect_guard = threading.Lock()
+        # Monotonic timestamp of last (attempted) connection.
+        # Used to apply backoff when Redis is down, to avoid per-request reconnect storms.
+        self._last_connect_attempt_monotonic = time.monotonic()
+        if _REDIS_CONNECTED is not None:
+            _REDIS_CONNECTED.set(0)
         self._connect()
 
     def _connect(self):
         """连接 Redis"""
         if not REDIS_AVAILABLE or not settings.ENABLE_CACHE:
+            if _REDIS_CONNECTED is not None:
+                _REDIS_CONNECTED.set(0)
             return
 
-        try:
-            # SECURITY: 使用 get_secret_value() 获取真实密码（SecretStr 类型）
-            redis_password = settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None
-            self._client = redis.Redis(
-                host=settings.REDIS_HOST,
-                port=settings.REDIS_PORT,
-                db=settings.REDIS_DB,
-                password=redis_password,
-                decode_responses=True,
-                socket_timeout=10,  # 读写超时（增加容错性，减少网络抖动时的缓存失效）
-                socket_connect_timeout=5,  # 连接建立超时
-            )
-            self._client.ping()
-            logger.info(f"Redis 连接成功: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
-        except (RedisError, ConnectionError) as e:
-            logger.warning("Redis 连接失败: %s", sanitize_for_log(e, max_length=2000))
-            self._client = None
+        # Prevent concurrent connect attempts (best-effort).
+        with self._connect_guard:
+            if self._client is not None:
+                return
+            try:
+                # SECURITY: 使用 get_secret_value() 获取真实密码（SecretStr 类型）
+                redis_password = settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None
+                self._client = redis.Redis(
+                    host=settings.REDIS_HOST,
+                    port=settings.REDIS_PORT,
+                    db=settings.REDIS_DB,
+                    password=redis_password,
+                    decode_responses=True,
+                    socket_timeout=10,  # 读写超时（增加容错性，减少网络抖动时的缓存失效）
+                    socket_connect_timeout=5,  # 连接建立超时
+                )
+                self._client.ping()
+                if _REDIS_CONNECTED is not None:
+                    _REDIS_CONNECTED.set(1)
+                logger.info(f"Redis 连接成功: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
+            except (RedisError, ConnectionError) as e:
+                logger.warning("Redis 连接失败: %s", sanitize_for_log(e, max_length=2000))
+                self._client = None
+                if _REDIS_CONNECTED is not None:
+                    _REDIS_CONNECTED.set(0)
+
+    def _maybe_reconnect(self) -> None:
+        """
+        Best-effort reconnect when Redis was unavailable at startup.
+
+        Improves cache hit rate and resilience without impacting the critical path:
+        - Only runs when not connected
+        - Uses a configurable backoff to avoid reconnect storms
+        """
+        if self._client is not None:
+            return
+        if not REDIS_AVAILABLE or not settings.ENABLE_CACHE:
+            return
+        backoff_seconds = max(0, int(getattr(settings, "REDIS_CONNECT_BACKOFF_SECONDS", 30)))
+        now = time.monotonic()
+        # Fast path: backoff check without lock.
+        if now - self._last_connect_attempt_monotonic < backoff_seconds:
+            return
+        with self._connect_guard:
+            if self._client is not None:
+                return
+            # Double-check backoff under lock to prevent stampede.
+            now = time.monotonic()
+            if now - self._last_connect_attempt_monotonic < backoff_seconds:
+                return
+            # Record attempt before connecting, so concurrent requests won't all reconnect.
+            self._last_connect_attempt_monotonic = now
+        self._connect()
 
     @property
     def connected(self) -> bool:
         return self._client is not None
 
     def get(self, key: str) -> Optional[Any]:
+        if not self._client:
+            self._maybe_reconnect()
         if not self._client:
             return None
         try:
@@ -252,6 +307,8 @@ class RedisCache:
 
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
         if not self._client:
+            self._maybe_reconnect()
+        if not self._client:
             return False
         try:
             serialized = json.dumps(value, default=str, ensure_ascii=False)
@@ -267,6 +324,8 @@ class RedisCache:
 
     def delete(self, key: str) -> bool:
         if not self._client:
+            self._maybe_reconnect()
+        if not self._client:
             return False
         try:
             return self._client.delete(key) > 0
@@ -280,6 +339,8 @@ class RedisCache:
 
     def delete_pattern(self, pattern: str) -> int:
         """Delete keys matching pattern using non-blocking SCAN"""
+        if not self._client:
+            self._maybe_reconnect()
         if not self._client:
             return 0
         try:
@@ -412,16 +473,26 @@ class CacheService:
 
     def invalidate(self, namespace: str) -> int:
         """使指定命名空间的缓存失效"""
-        pattern = f"{self.PREFIX}{namespace}:*"
+        root_key = f"{self.PREFIX}{namespace}"
+        pattern = f"{root_key}:*"
         if self._redis.connected:
-            return self._redis.delete_pattern(pattern)
+            deleted = 0
+            # Also delete the namespace root key (no hashed suffix).
+            # Example: lncrna:stats:overview
+            deleted += 1 if self._redis.delete(root_key) else 0
+            deleted += self._redis.delete_pattern(pattern)
+            if _CACHE_INVALIDATIONS_TOTAL is not None:
+                _CACHE_INVALIDATIONS_TOTAL.labels(backend="redis").inc()
+            return deleted
         # Memory fallback: delete both namespace root and hashed keys.
         # Examples:
         # - lncrna:stats:overview
         # - lncrna:genes:list:<hash>
         deleted = 0
-        deleted += 1 if self._memory.delete(f"{self.PREFIX}{namespace}") else 0
-        deleted += self._memory.delete_prefix(f"{self.PREFIX}{namespace}:")
+        deleted += 1 if self._memory.delete(root_key) else 0
+        deleted += self._memory.delete_prefix(f"{root_key}:")
+        if _CACHE_INVALIDATIONS_TOTAL is not None:
+            _CACHE_INVALIDATIONS_TOTAL.labels(backend="memory").inc()
         return deleted
 
     def clear_all(self) -> int:

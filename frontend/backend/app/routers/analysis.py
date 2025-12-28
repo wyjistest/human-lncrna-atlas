@@ -20,6 +20,7 @@ from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.exceptions import sanitize_db_error
+from app.core.utils import sanitize_for_log
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.cache import cache, CacheService
 from app.schemas.analysis import (
@@ -198,35 +199,41 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     repressive_marks = 0
 
     try:
-        epi_results = db.execute(epigenetic_sql, {"min_ba": epigenetic_min_ba}).fetchall()
+        epi_result = db.execute(epigenetic_sql.execution_options(stream_results=True), {"min_ba": epigenetic_min_ba})
+        close = getattr(epi_result, "close", None)
+        try:
+            for row in epi_result:
+                count = row.total_overlaps or 0
+                total_overlaps += count
 
-        for row in epi_results:
-            count = row.total_overlaps or 0
-            total_overlaps += count
+                # Aggregate by mark
+                mark = row.mark_name
+                by_mark[mark] = by_mark.get(mark, 0) + count
 
-            # Aggregate by mark
-            mark = row.mark_name
-            by_mark[mark] = by_mark.get(mark, 0) + count
+                # Aggregate by cell type
+                cell = row.cell_type
+                by_cell_type[cell] = by_cell_type.get(cell, 0) + count
 
-            # Aggregate by cell type
-            cell = row.cell_type
-            by_cell_type[cell] = by_cell_type.get(cell, 0) + count
-
-            # Aggregate by mark category (for frontend stats cards)
-            category = row.mark_category
-            if category == "bivalent_component":
-                bivalent_domains += count
-            elif category == "activating":
-                active_marks += count
-            elif category == "repressive":
-                repressive_marks += count
+                # Aggregate by mark category (for frontend stats cards)
+                category = row.mark_category
+                if category == "bivalent_component":
+                    bivalent_domains += count
+                elif category == "activating":
+                    active_marks += count
+                elif category == "repressive":
+                    repressive_marks += count
+        finally:
+            if callable(close):
+                close()
 
     except Exception as e:
         # MV 不存在或查询失败时，降级为空数据（不阻塞其他分析模块）
+        safe_error = sanitize_for_log(e, max_length=2000)
         logger.warning(
-            f"[ANALYSIS] Epigenetic analysis failed (MV may not exist): {e}. "
+            "[ANALYSIS] Epigenetic analysis failed (MV may not exist): %s. "
             "Returning empty epigenetic data. "
-            "Consider running: CREATE MATERIALIZED VIEW mv_lncrna_chipseq_overlaps ..."
+            "Consider running: CREATE MATERIALIZED VIEW mv_lncrna_chipseq_overlaps ...",
+            safe_error,
         )
         # 保持默认的空值
         by_mark = {}

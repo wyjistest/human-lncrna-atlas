@@ -13,6 +13,7 @@ import { parseConservationLabel, CONSERVATION_COLORS } from '@/types/conservatio
 import { networkApi } from '@/api/network'
 import { escapeCSV } from '@/utils/csv'
 import { getLayoutConfig } from '../utils/cytoscapeLayouts'
+import { exportCytoscapePngBlob } from '../utils/cytoscapeExport'
 import { GeneDetailDrawer } from './GeneDetailDrawer'
 import { ComparisonDrawer } from './ComparisonDrawer'
 import type { NetworkCardProps } from '../types'
@@ -481,14 +482,13 @@ export const NetworkCard = memo(({
     try {
       message.loading({ content: t('export.generating', { species: speciesName, format: 'PNG' }), key: messageKey, duration: 0 })
 
-      const png = cyRef.current.png({
-        output: 'blob',
+      const blob = exportCytoscapePngBlob(cyRef.current, {
         bg: 'white',
         full: true,
-        scale: 2
-      }) as unknown as Blob
+        scale: 2,
+      })
 
-      const url = URL.createObjectURL(png)
+      const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = `network-${speciesName}-${Date.now()}.png`

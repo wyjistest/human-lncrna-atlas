@@ -5,7 +5,7 @@
  * 参见 src/main.tsx 中的 queryClient 配置
  */
 import axios from 'axios';
-import { API_BASE_URL, API_TIMEOUT, ADMIN_API_KEY } from '@/config/api';
+import { API_BASE_URL, API_TIMEOUT, ADMIN_API_KEY, API_V1_PREFIX } from '@/config/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -25,7 +25,33 @@ apiClient.interceptors.request.use(
     //   2. 使用反向代理（如 Nginx）注入 X-Admin-API-Key
     //   3. 开发/测试环境
     // 生产公网环境建议使用后端会话式鉴权替代。
-    const isAdminRequest = config.url?.includes('/admin')
+    const isAdminRequest = (() => {
+      const rawUrl = config.url
+      if (!rawUrl) return false
+
+      const adminPrefix = `${API_V1_PREFIX}/admin`
+
+      // Resolve relative URLs safely (avoid attaching Admin key to external origins in DEV).
+      const base =
+        (typeof config.baseURL === 'string' && config.baseURL) ||
+        (typeof API_BASE_URL === 'string' && API_BASE_URL) ||
+        (typeof window !== 'undefined' ? window.location.origin : 'http://localhost')
+
+      try {
+        const resolved = new URL(rawUrl, base)
+
+        // If API_BASE_URL is absolute, ensure we only attach to that origin.
+        if (API_BASE_URL && /^https?:\/\//i.test(API_BASE_URL)) {
+          const expectedOrigin = new URL(API_BASE_URL).origin
+          if (resolved.origin !== expectedOrigin) return false
+        }
+
+        return resolved.pathname.startsWith(adminPrefix)
+      } catch {
+        // Best-effort fallback: only match the expected API prefix.
+        return rawUrl.startsWith(adminPrefix)
+      }
+    })()
 
     // SECURITY: Only allow frontend-provided Admin API Key in DEV builds.
     // Production builds must rely on reverse proxy injection or backend auth.

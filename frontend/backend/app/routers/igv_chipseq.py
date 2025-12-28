@@ -8,7 +8,7 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -43,7 +43,7 @@ router = APIRouter()
 @rate_limit("60/minute")
 def get_chipseq_bed(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     mark_type: str = Query(..., description="Mark type, e.g., H3K27me3"),
     chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome, e.g., chr1"),
     start: Optional[int] = Query(None, ge=0, description="Region start position (0-based)"),
@@ -192,7 +192,7 @@ def get_chipseq_bed(
 @rate_limit("60/minute")
 def get_igv_chipseq_config(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     mark_types: Optional[str] = Query(
         None,
         description="Comma-separated mark types to include, e.g., H3K27me3,H3K4me3. If not specified, all available marks are included."

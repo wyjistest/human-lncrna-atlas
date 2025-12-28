@@ -5,7 +5,7 @@ IGV RepeatMasker轨道路由
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
@@ -40,7 +40,7 @@ MAX_LIMIT = 100_000
 @rate_limit("60/minute")
 def get_repeatmasker_bed(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     chr: Optional[str] = Query(None, max_length=64, description="Chromosome filter, e.g., chr1"),
     start: Optional[int] = Query(None, ge=0, description="Start position (0-based)"),
     end: Optional[int] = Query(None, ge=0, description="End position"),
@@ -155,7 +155,7 @@ def get_repeatmasker_bed(
 @rate_limit("60/minute")
 def get_repeatmasker_count(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     chr: Optional[str] = Query(None, max_length=64, description="Chromosome filter"),
     start: Optional[int] = Query(None, ge=0, description="Start position"),
     end: Optional[int] = Query(None, ge=0, description="End position"),
@@ -246,7 +246,7 @@ def get_repeatmasker_count(
 @rate_limit("60/minute")
 def get_repeatmasker_igv_config(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     display_mode: str = Query(
         "SQUISHED",
         description="Display mode: SQUISHED (default, single color), EXPANDED (colored by repeat class), or COLLAPSED",
@@ -344,7 +344,7 @@ def get_repeatmasker_igv_config(
 @rate_limit("60/minute")
 def get_repeatmasker_class_tracks(
     request: Request,
-    species_id: int,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
     db: Session = Depends(get_db),
 ):
     """
