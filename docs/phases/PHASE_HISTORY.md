@@ -14,6 +14,9 @@
 - [Phase 9.2: Ruff Lint 修复](#phase-92-ruff-lint-全面修复)
 - [Phase 9.3: 代码审查修复](#phase-93-代码审查修复)
 - [Phase 9.45: Codex 三十五次审查修复](#phase-945-codex-三十五次审查修复)
+- [Phase 9.46: Codex 三十六次审查修复](#phase-946-codex-三十六次审查修复)
+- [Phase 9.47: Codex 三十七次审查修复](#phase-947-codex-三十七次审查修复)
+- [Phase 9.48: Codex 三十八次审查修复](#phase-948-codex-三十八次审查修复)
 
 ---
 
@@ -501,6 +504,172 @@ from sqlalchemy import func, text
 
 ```
 65b34a8 fix: Phase 9.45 Codex 三十五次审查修复 - 安全加固 + 代码质量
+```
+
+---
+
+## Phase 9.46: Codex 三十六次审查修复
+
+**日期**: 2025-12-28
+
+### 修复摘要
+
+| 类别 | 修复内容 | 优先级 |
+|------|----------|--------|
+| 性能/DoS | 导出接口流式查询 stream_results 优化 | P0 |
+| 正确性 | 测试参数名修正 (format alias) | P1 |
+
+### 流式查询优化
+
+**问题**: 导出接口 CSV/Excel/JSONL 分支未启用 `stream_results`，大结果集时 PostgreSQL 驱动可能在客户端缓冲。
+
+**修复**: 新增 `_execute_streaming()` 辅助函数
+
+```python
+def _execute_streaming(db: Session, stmt, params=None):
+    executable = stmt.execution_options(stream_results=True)
+    if params is not None:
+        return db.execute(executable, params)
+    return db.execute(executable)
+```
+
+### 测试参数名修正
+
+| 文件 | 修复 |
+|------|------|
+| `test_export_regulations.py` | `output_format` → `format` |
+| `test_security_like_filter.py` | `output_format` → `format` |
+
+### 新增测试
+
+- `test_export_stream_results_unit.py` (2 tests)
+
+### Commit
+
+```
+860437f fix: Phase 9.46 Codex 三十六次审查修复 - 流式查询优化 + 测试参数修正
+```
+
+---
+
+## Phase 9.47: Codex 三十七次审查修复
+
+**日期**: 2025-12-28
+
+### 修复摘要
+
+| 类别 | 修复内容 | 优先级 |
+|------|----------|--------|
+| 资源管理 | 流式导出资源清理 (try/finally close) | P0 |
+| 安全 | CSV 公式注入防护增强 (前导空白/BOM 绕过) | P1 |
+
+### 资源清理修复
+
+**问题**: `create_db_row_generator()` 未在生成器结束/取消时显式 `close()`，服务端游标场景下客户端断开可能延迟释放连接。
+
+**修复**:
+
+```python
+def create_db_row_generator(db_execute_result, transform=None):
+    close = getattr(db_execute_result, "close", None)
+    try:
+        for row in db_execute_result:
+            row_dict = dict(row._mapping)
+            if transform:
+                row_dict = transform(row_dict)
+            yield row_dict
+    finally:
+        if callable(close):
+            close()
+```
+
+### CSV 公式注入增强
+
+**问题**: `sanitize_csv_value()` 未处理前导空白或 UTF-8 BOM 绕过。
+
+**修复**:
+
+```python
+# 检测前归一化
+check_value = value.lstrip("\ufeff").lstrip()
+if _CSV_FORMULA_PATTERN.match(check_value):
+    return "'" + value
+```
+
+### 新增测试
+
+- `test_streaming_export_resource_cleanup_unit.py` (2 tests)
+- `test_security_csv_formula_injection_unit.py` (2 tests)
+
+### Commit
+
+```
+a96517e fix: Phase 9.47 Codex 三十七次审查修复 - 资源清理 + CSV 注入防护
+```
+
+---
+
+## Phase 9.48: Codex 三十八次审查修复
+
+**日期**: 2025-12-28
+
+### 修复摘要
+
+| 类别 | 修复内容 | 优先级 |
+|------|----------|--------|
+| DoS 防护 | IGV 轨道区域大小限制 (10Mb) | P0 |
+| DoS 防护 | IGV 轨道默认记录限制 (50k) | P0 |
+| 功能增强 | 新增 limit 参数控制返回记录数 | P1 |
+
+### DoS 防护参数
+
+| 参数 | 值 | 说明 |
+|------|-----|------|
+| `MAX_REGION_SIZE_BP` | 10,000,000 | 区域大小上限 (10Mb) |
+| `DEFAULT_MAX_RECORDS_NO_REGION` | 50,000 | 无过滤时默认记录限制 |
+| `MAX_LIMIT` | 100,000 | 用户可指定的最大记录数 |
+
+### 防护逻辑
+
+```python
+# 区域过大拒绝
+if start_int is not None and end_int is not None:
+    if (end_int - start_int) > MAX_REGION_SIZE_BP:
+        raise HTTPException(400, f"region too large (max {MAX_REGION_SIZE_BP} bp)")
+
+# 智能限制
+has_region_filter = chr is not None and start_int is not None and end_int is not None
+if limit is not None:
+    max_records = limit
+elif not has_region_filter and lncrna is None:
+    max_records = DEFAULT_MAX_RECORDS_NO_REGION
+else:
+    max_records = None  # 有过滤条件时不限制
+```
+
+### 修改文件
+
+| 文件 | 变更 |
+|------|------|
+| `app/core/igv_stream_generators.py` | 添加 `max_records` 参数到 3 个生成器 |
+| `app/routers/igv_regulations.py` | DoS 防护逻辑 |
+| `app/routers/igv_repeatmasker.py` | DoS 防护逻辑 |
+
+### 新增测试
+
+- `test_security_igv_track_dos_limits_unit.py` (8 tests)
+
+### 验证结果
+
+| 检查 | 结果 |
+|------|------|
+| `pytest -m unit` | ✅ 233 passed |
+| `npm run build` | ✅ 成功 |
+
+### Commit
+
+```
+ea610ef fix: Phase 9.48 Codex 三十八次审查修复 - IGV 轨道 DoS 防护
 ```
 
 ---
