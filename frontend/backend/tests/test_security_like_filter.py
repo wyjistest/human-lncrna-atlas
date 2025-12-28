@@ -102,7 +102,7 @@ class TestDiseaseNetworkExportFiltering:
         """纯通配符 trait_name 应限制返回（每个查询 500 条）"""
         response = api_client.get(
             "/api/v1/export/disease-network",
-            params={"trait_name": "%", "limit": 1000, "output_format": "json"}
+            params={"trait_name": "%", "limit": 1000, "format": "json"}
         )
         # 应返回 200 或 429（限流），两者都是安全的
         assert response.status_code in (200, 429), \
@@ -120,7 +120,7 @@ class TestDiseaseNetworkExportFiltering:
         """空 trait_name 应限制返回（每个查询 500 条）"""
         response = api_client.get(
             "/api/v1/export/disease-network",
-            params={"trait_name": "", "limit": 1000, "output_format": "json"}
+            params={"trait_name": "", "limit": 1000, "format": "json"}
         )
         assert response.status_code in (200, 429), \
             f"应返回 200 或 429，实际 {response.status_code}"
@@ -135,7 +135,7 @@ class TestDiseaseNetworkExportFiltering:
         """有效 trait_name 应允许更大 limit"""
         response = api_client.get(
             "/api/v1/export/disease-network",
-            params={"trait_name": "diabetes", "limit": 1000, "output_format": "json"}
+            params={"trait_name": "diabetes", "limit": 1000, "format": "json"}
         )
         # 应返回 200 或 429，只验证不报错
         assert response.status_code in (200, 429), \
@@ -152,7 +152,7 @@ class TestDiseaseNetworkExportFiltering:
         for value in special_values:
             response = api_client.get(
                 "/api/v1/export/disease-network",
-                params={"trait_name": value, "limit": 10, "output_format": "json"}
+                params={"trait_name": value, "limit": 10, "format": "json"}
             )
             # 应返回 200 或 400（参数问题），绝不应该 500
             assert response.status_code != 500, \
@@ -210,7 +210,7 @@ class TestLikeFilterEdgeCases:
         """Unicode 字符应正常处理"""
         response = api_client.get(
             "/api/v1/export/disease-network",
-            params={"trait_name": "糖尿病", "limit": 10, "output_format": "json"}
+            params={"trait_name": "糖尿病", "limit": 10, "format": "json"}
         )
         # 应正常返回（可能空结果）或 429（触发限流，仍然表示安全防护有效）
         assert response.status_code in (200, 429), \
@@ -221,7 +221,7 @@ class TestLikeFilterEdgeCases:
         long_name = "a" * 1000
         response = api_client.get(
             "/api/v1/export/disease-network",
-            params={"trait_name": long_name, "limit": 10, "output_format": "json"}
+            params={"trait_name": long_name, "limit": 10, "format": "json"}
         )
         # 应返回 200 或 4xx，不应 500
         assert response.status_code != 500, \
@@ -231,7 +231,7 @@ class TestLikeFilterEdgeCases:
         """纯空白 trait_name 应被视为无效过滤"""
         response = api_client.get(
             "/api/v1/export/disease-network",
-            params={"trait_name": "   ", "limit": 1000, "output_format": "json"}
+            params={"trait_name": "   ", "limit": 1000, "format": "json"}
         )
         # 可能返回 200 或 429（限流），两者都是安全的
         assert response.status_code in (200, 429), \

@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.45 |
+| 版本 | Phase 9.46 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-28 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -286,7 +286,8 @@ DB_POOL_MAX_OVERFLOW=20
 | **9.42** | **Codex 三十一次审查修复: SQL 注入防护 (SQLAlchemy 表达式重构) + Conservation 内存 DoS 防护 (SQL 聚合) + 前端 queryKey 完整性 + AbortController 请求取消 + ILIKE ESCAPE 字符修复** | **2025-12-27** |
 | 9.43 | Codex 三十二次审查修复: /metrics 精确匹配 + ASGI scope path + 中间件顺序调整 + JSON 导出内存限制 (5000条) + ETL 分批导入 + React Query 缓存归一化 + Conservation 端点契约兼容 | 2025-12-27 |
 | 9.44 | Codex 三十三/三十四次审查修复: 请求大小限制中间件 (DoS 防护) + IGV 轨道并发竞态修复 (互斥队列) + 前端资源泄漏防护 (isMountedRef) + RateLimitExceeded 响应契约统一 + 依赖安全审计 (0 漏洞) | 2025-12-28 |
-| **9.45** | **Codex 三十五次审查修复: ETL 连接泄漏防护 (try/finally) + Admin CSRF Origin 增强校验 (urlsplit) + SQLAlchemy 导入修复 + 测试代码质量统一** | **2025-12-28** |
+| 9.45 | Codex 三十五次审查修复: ETL 连接泄漏防护 (try/finally) + Admin CSRF Origin 增强校验 (urlsplit) + SQLAlchemy 导入修复 + 测试代码质量统一 | 2025-12-28 |
+| **9.46** | **Codex 三十六次审查修复: 导出接口流式查询 stream_results 优化 (DoS/OOM 防护) + 测试参数名修正 (format alias)** | **2025-12-28** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -317,6 +318,7 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_security_repeatmasker_families_repeat_class_validation_unit.py` | - | RepeatMasker families 白名单校验 (Phase 9.42) |
 | `queryKeys.test.ts` (前端) | - | React Query key 不变异 + 参数完整性 (Phase 9.42) |
 | `test_security_request_limits_middleware_unit.py` | 4 | 请求大小/查询字符串长度限制 DoS 防护 (Phase 9.44) |
+| `test_export_stream_results_unit.py` | 2 | 导出接口流式查询 stream_results 优化 (Phase 9.46) |
 
 **运行测试**:
 ```bash

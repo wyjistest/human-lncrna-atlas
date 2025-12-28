@@ -94,6 +94,22 @@ def _apply_json_memory_limit(request: Request, limit: int, output_format: str) -
     return MAX_JSON_LIMIT
 
 
+def _execute_streaming(db: Session, stmt, params: Optional[Dict[str, Any]] = None):
+    """
+    Execute a SQLAlchemy statement with streaming-friendly execution options.
+
+    Motivation:
+    - StreamingResponse + large exports can otherwise cause DBAPI drivers to buffer
+      large result sets, increasing memory pressure and DoS risk.
+    - This helper keeps behavior unchanged for JSON (in-memory) paths by only being
+      used in csv/excel/jsonl branches.
+    """
+    executable = stmt.execution_options(stream_results=True)
+    if params is not None:
+        return db.execute(executable, params)
+    return db.execute(executable)
+
+
 def is_effective_like_filter(value: Optional[str]) -> bool:
     """
     判断 LIKE 过滤条件是否有效（能有效缩小结果集）。
@@ -361,7 +377,7 @@ def export_high_affinity(
 
     # CSV/Excel: 使用流式输出
     if output_format in ("csv", "excel", "jsonl"):
-        result = db.execute(stmt)
+        result = _execute_streaming(db, stmt)
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,
@@ -470,7 +486,7 @@ def export_conservation(
 
     # CSV/Excel: 使用流式输出
     if output_format in ("csv", "excel", "jsonl"):
-        result = db.execute(sql, {
+        result = _execute_streaming(db, sql, {
             "min_species_count": min_species_count,
             "limit": limit
         })
@@ -599,7 +615,7 @@ def export_chipseq_overlaps(
 
     # CSV/Excel: 使用流式输出
     if output_format in ("csv", "excel", "jsonl"):
-        result = db.execute(sql, {
+        result = _execute_streaming(db, sql, {
             "mark_names": mark_names,
             "min_ba": min_ba,
             "limit": limit
@@ -962,7 +978,7 @@ def export_regulations(
 
     # CSV/Excel: 使用流式输出
     if output_format in ("csv", "excel", "jsonl"):
-        result = db.execute(stmt)
+        result = _execute_streaming(db, stmt)
         return export_to_streaming_format(
             create_db_row_generator(result),
             fieldnames,

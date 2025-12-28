@@ -10,6 +10,9 @@
     pytest tests/test_export_regulations.py -v
     pytest tests/test_export_regulations.py -v -m unit         # 仅单元测试
     pytest tests/test_export_regulations.py -v -m integration  # 仅集成测试
+
+注意:
+- API 查询参数名为 `format`（Query(..., alias="format")），不是 `output_format`。
 """
 import pytest
 
@@ -42,7 +45,7 @@ class TestExportRegulationsJSONLimit:
             "/api/v1/export/regulations",
             params={
                 "limit": 100,
-                "output_format": "json",
+                "format": "json",
             }
         )
         assert response.status_code in (200, 429), \
@@ -60,7 +63,7 @@ class TestExportRegulationsJSONLimit:
             "/api/v1/export/regulations",
             params={
                 "limit": 5000,
-                "output_format": "json",
+                "format": "json",
             }
         )
         assert response.status_code in (200, 429), \
@@ -72,7 +75,7 @@ class TestExportRegulationsJSONLimit:
             "/api/v1/export/regulations",
             params={
                 "limit": 5001,
-                "output_format": "json",
+                "format": "json",
             }
         )
         # 可能触发限流
@@ -94,7 +97,7 @@ class TestExportRegulationsJSONLimit:
             "/api/v1/export/regulations",
             params={
                 "limit": 10000,
-                "output_format": "json",
+                "format": "json",
             }
         )
         # 可能触发限流
@@ -114,7 +117,7 @@ class TestExportRegulationsStreamingFormats:
             "/api/v1/export/regulations",
             params={
                 "limit": 10000,
-                "output_format": "jsonl",
+                "format": "jsonl",
             }
         )
         # JSONL 不应触发 JSON 的 5000 条限制
@@ -127,7 +130,7 @@ class TestExportRegulationsStreamingFormats:
             "/api/v1/export/regulations",
             params={
                 "limit": 10000,
-                "output_format": "csv",
+                "format": "csv",
             }
         )
         assert response.status_code in (200, 429), \
@@ -139,7 +142,7 @@ class TestExportRegulationsStreamingFormats:
             "/api/v1/export/regulations",
             params={
                 "limit": 10000,
-                "output_format": "excel",
+                "format": "excel",
             }
         )
         assert response.status_code in (200, 429), \
@@ -158,7 +161,7 @@ class TestExportRegulationsResponseFormats:
             "/api/v1/export/regulations",
             params={
                 "limit": 10,
-                "output_format": "json",
+                "format": "json",
             }
         )
         if response.status_code == 200:
@@ -171,7 +174,7 @@ class TestExportRegulationsResponseFormats:
             "/api/v1/export/regulations",
             params={
                 "limit": 10,
-                "output_format": "jsonl",
+                "format": "jsonl",
             }
         )
         if response.status_code == 200:
@@ -185,7 +188,7 @@ class TestExportRegulationsResponseFormats:
             "/api/v1/export/regulations",
             params={
                 "limit": 10,
-                "output_format": "csv",
+                "format": "csv",
             }
         )
         if response.status_code == 200:
@@ -198,7 +201,7 @@ class TestExportRegulationsResponseFormats:
             "/api/v1/export/regulations",
             params={
                 "limit": 10,
-                "output_format": "excel",
+                "format": "excel",
             }
         )
         if response.status_code == 200:
@@ -219,7 +222,7 @@ class TestExportRegulationsEdgeCases:
             "/api/v1/export/regulations",
             params={
                 "limit": 0,
-                "output_format": "json",
+                "format": "json",
             }
         )
         # Pydantic ge=1 验证会返回 422
@@ -232,7 +235,7 @@ class TestExportRegulationsEdgeCases:
             "/api/v1/export/regulations",
             params={
                 "limit": -1,
-                "output_format": "json",
+                "format": "json",
             }
         )
         # 应返回 422（Pydantic 验证失败）
@@ -245,7 +248,7 @@ class TestExportRegulationsEdgeCases:
             "/api/v1/export/regulations",
             params={
                 "limit": 50001,
-                "output_format": "jsonl",
+                "format": "jsonl",
             }
         )
         # Pydantic le=MAX_EXPORT_LIMIT 验证会返回 422
@@ -253,12 +256,12 @@ class TestExportRegulationsEdgeCases:
             f"超过MAX_EXPORT_LIMIT应返回400/422/429，实际 {response.status_code}"
 
     def test_invalid_output_format(self, api_client):
-        """无效的 output_format 应返回 422"""
+        """无效的 format 应返回 422"""
         response = api_client.get(
             "/api/v1/export/regulations",
             params={
                 "limit": 10,
-                "output_format": "invalid_format",
+                "format": "invalid_format",
             }
         )
         # 可能触发限流
@@ -271,7 +274,7 @@ class TestExportRegulationsEdgeCases:
             "/api/v1/export/regulations",
             params={
                 "limit": 100,
-                "output_format": "json",
+                "format": "json",
                 "species_ids": "1",
                 "min_ba": "50",
             }
@@ -285,7 +288,7 @@ class TestExportRegulationsEdgeCases:
             "/api/v1/export/regulations",
             params={
                 "limit": 6000,
-                "output_format": "json",
+                "format": "json",
                 "species_ids": "1",
             }
         )
@@ -310,7 +313,7 @@ class TestExportRegulationsPerformance:
             "/api/v1/export/regulations",
             params={
                 "limit": 5000,
-                "output_format": "json",
+                "format": "json",
             }
         )
         elapsed = time.time() - start
@@ -326,7 +329,7 @@ class TestExportRegulationsPerformance:
             "/api/v1/export/regulations",
             params={
                 "limit": 10000,
-                "output_format": "jsonl",
+                "format": "jsonl",
             }
         )
         if response.status_code == 200:
