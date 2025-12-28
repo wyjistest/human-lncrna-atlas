@@ -23,6 +23,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# 10Mb 以内允许 IGV 区域查询，避免一次请求拖垮数据库/连接池
+MAX_REGION_SIZE_BP = 10_000_000
+
+# 无区域过滤（chr/start/end 均缺失）时的默认返回上限：防止全表流式导出导致 DoS
+DEFAULT_MAX_RECORDS_NO_REGION = 50_000
+MAX_LIMIT = 100_000
+
 
 # =============================================================================
 # RepeatMasker IGV Track Endpoints
@@ -37,6 +44,12 @@ def get_repeatmasker_bed(
     chr: Optional[str] = Query(None, max_length=64, description="Chromosome filter, e.g., chr1"),
     start: Optional[int] = Query(None, ge=0, description="Start position (0-based)"),
     end: Optional[int] = Query(None, ge=0, description="End position"),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        le=MAX_LIMIT,
+        description=f"Max records to return (default: {DEFAULT_MAX_RECORDS_NO_REGION} when no region filter)",
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -86,13 +99,28 @@ def get_repeatmasker_bed(
             detail="start must be less than end"
         )
 
+    if start is not None and end is not None and (end - start) > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"region too large (max {MAX_REGION_SIZE_BP} bp)",
+        )
+
     logger.info(
-        "RepeatMasker BED export: species=%s, chr=%s, start=%s, end=%s",
+        "RepeatMasker BED export: species=%s, chr=%s, start=%s, end=%s, limit=%s",
         species_id,
         sanitize_for_log(normalized_chr),
         start,
         end,
+        limit,
     )
+
+    has_region_filter = normalized_chr is not None and start is not None and end is not None
+    if limit is not None:
+        max_records = limit
+    elif not has_region_filter:
+        max_records = DEFAULT_MAX_RECORDS_NO_REGION
+    else:
+        max_records = None
 
     # Generate BED stream
     bed_stream = generate_repeatmasker_bed_stream(
@@ -101,6 +129,7 @@ def get_repeatmasker_bed(
         chr_filter=normalized_chr,
         start_filter=start,
         end_filter=end,
+        max_records=max_records,
     )
 
     # Build filename
@@ -171,6 +200,11 @@ def get_repeatmasker_count(
         )
     if start is not None and end is not None and start >= end:
         raise HTTPException(status_code=400, detail="start must be less than end")
+    if start is not None and end is not None and (end - start) > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"region too large (max {MAX_REGION_SIZE_BP} bp)",
+        )
 
     # Build query
     # 仅需计数：使用 func.count 避免 Query.count() 生成子查询带来的额外开销

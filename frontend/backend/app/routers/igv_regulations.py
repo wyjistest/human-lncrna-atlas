@@ -20,6 +20,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# 10Mb 以内允许 IGV 区域查询，避免一次请求拖垮数据库/连接池
+MAX_REGION_SIZE_BP = 10_000_000
+
+# 无区域过滤（chr/start/end 均缺失）且无 lncrna 过滤时的默认返回上限：防止全表流式导出导致 DoS
+DEFAULT_MAX_RECORDS_NO_REGION = 50_000
+MAX_LIMIT = 100_000
+
 
 @router.get("/tracks/regulations/{species_id}.bed")
 @rate_limit("60/minute")
@@ -31,6 +38,12 @@ def get_regulations_bed(
     start: Optional[float] = Query(None, ge=0, description="起始位置 (0-based)"),
     end: Optional[float] = Query(None, ge=0, description="结束位置"),
     lncrna: Optional[str] = Query(None, max_length=256, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        le=MAX_LIMIT,
+        description=f"Max records to return (default: {DEFAULT_MAX_RECORDS_NO_REGION} when no region/lncrna filter)",
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -75,14 +88,29 @@ def get_regulations_bed(
             detail="start must be less than end"
         )
 
+    if start_int is not None and end_int is not None and (end_int - start_int) > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"region too large (max {MAX_REGION_SIZE_BP} bp)",
+        )
+
     logger.info(
-        "BED export requested: species=%s, chr=%s, start=%s, end=%s, lncrna=%s",
+        "BED export requested: species=%s, chr=%s, start=%s, end=%s, lncrna=%s, limit=%s",
         species_id,
         sanitize_for_log(chr),
         start_int,
         end_int,
         sanitize_for_log(lncrna),
+        limit,
     )
+
+    has_region_filter = chr is not None and start_int is not None and end_int is not None
+    if limit is not None:
+        max_records = limit
+    elif not has_region_filter and lncrna is None:
+        max_records = DEFAULT_MAX_RECORDS_NO_REGION
+    else:
+        max_records = None
 
     # 生成 BED 数据流
     bed_stream = generate_bed_stream(
@@ -92,6 +120,7 @@ def get_regulations_bed(
         start_filter=start_int,
         end_filter=end_int,
         lncrna_filter=lncrna,
+        max_records=max_records,
     )
 
     # 设置响应头
@@ -125,6 +154,12 @@ def get_interactions_bedpe(
     start: Optional[float] = Query(None, ge=0, description="起始位置 (0-based)"),
     end: Optional[float] = Query(None, ge=0, description="结束位置"),
     lncrna: Optional[str] = Query(None, max_length=256, description="lncRNA 基因名过滤，如 CATG00000000011.1"),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        le=MAX_LIMIT,
+        description=f"Max records to return (default: {DEFAULT_MAX_RECORDS_NO_REGION} when no region/lncrna filter)",
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -172,14 +207,29 @@ def get_interactions_bedpe(
             detail="start must be less than end"
         )
 
+    if start_int is not None and end_int is not None and (end_int - start_int) > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"region too large (max {MAX_REGION_SIZE_BP} bp)",
+        )
+
     logger.info(
-        "BEDPE export requested: species=%s, chr=%s, start=%s, end=%s, lncrna=%s",
+        "BEDPE export requested: species=%s, chr=%s, start=%s, end=%s, lncrna=%s, limit=%s",
         species_id,
         sanitize_for_log(chr),
         start_int,
         end_int,
         sanitize_for_log(lncrna),
+        limit,
     )
+
+    has_region_filter = chr is not None and start_int is not None and end_int is not None
+    if limit is not None:
+        max_records = limit
+    elif not has_region_filter and lncrna is None:
+        max_records = DEFAULT_MAX_RECORDS_NO_REGION
+    else:
+        max_records = None
 
     # 生成 BEDPE 数据流
     bedpe_stream = generate_bedpe_stream(
@@ -189,6 +239,7 @@ def get_interactions_bedpe(
         start_filter=start_int,
         end_filter=end_int,
         lncrna_filter=lncrna,
+        max_records=max_records,
     )
 
     # 设置响应头

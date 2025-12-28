@@ -165,3 +165,70 @@ def test_generate_empty_chipseq_bed_stream_sanitizes_track_header_attributes():
     # Only the attribute delimiters should remain.
     assert body.count('"') == 4
 
+
+def test_generate_bed_stream_respects_max_records():
+    db = _DummySession(
+        [
+            SimpleNamespace(
+                best_peak_chr="chr1",
+                best_peak_start=0,
+                best_peak_end=10,
+                binding_affinity=12.3,
+                lncrna_name="LNC1",
+                target_name="TGT1",
+            ),
+            SimpleNamespace(
+                best_peak_chr="chr1",
+                best_peak_start=10,
+                best_peak_end=20,
+                binding_affinity=45.6,
+                lncrna_name="LNC2",
+                target_name="TGT2",
+            ),
+            SimpleNamespace(
+                best_peak_chr="chr1",
+                best_peak_start=20,
+                best_peak_end=30,
+                binding_affinity=78.9,
+                lncrna_name="LNC3",
+                target_name="TGT3",
+            ),
+        ]
+    )
+
+    lines = list(generate_bed_stream(db=db, species_id=1, max_records=2))
+    assert len(lines) == 2
+
+
+def test_generate_repeatmasker_bed_stream_respects_max_records():
+    db = _DummySession(
+        [
+            SimpleNamespace(
+                chromosome="chr1",
+                feature_start=1,
+                feature_end=2,
+                feature_name="Alu1",
+                strand="+",
+                attributes={"divergence": 1.0},
+            ),
+            SimpleNamespace(
+                chromosome="chr1",
+                feature_start=2,
+                feature_end=3,
+                feature_name="Alu2",
+                strand="+",
+                attributes={"divergence": 2.0},
+            ),
+            SimpleNamespace(
+                chromosome="chr1",
+                feature_start=3,
+                feature_end=4,
+                feature_name="Alu3",
+                strand="+",
+                attributes={"divergence": 3.0},
+            ),
+        ]
+    )
+
+    lines = list(generate_repeatmasker_bed_stream(db=db, species_id=1, max_records=2))
+    assert len(lines) == 2

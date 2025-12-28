@@ -25,6 +25,7 @@ def generate_bed_stream(
     start_filter: Optional[int] = None,
     end_filter: Optional[int] = None,
     lncrna_filter: Optional[str] = None,
+    max_records: Optional[int] = None,
 ) -> Generator[str, None, None]:
     """
     生成 BED 格式数据流
@@ -83,7 +84,10 @@ def generate_bed_stream(
     batch_size = 10000
     streaming_query = query.execution_options(stream_results=True).yield_per(batch_size)
 
+    emitted = 0
     for row in streaming_query:
+        if max_records is not None and emitted >= max_records:
+            break
         # BED 坐标转换（数据库中已经是 0-based）
         chr_name = row.best_peak_chr
         start = row.best_peak_start
@@ -104,6 +108,7 @@ def generate_bed_stream(
         strand = "."
 
         # 输出 BED6 格式行
+        emitted += 1
         yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
 
 
@@ -114,6 +119,7 @@ def generate_bedpe_stream(
     start_filter: Optional[int] = None,
     end_filter: Optional[int] = None,
     lncrna_filter: Optional[str] = None,
+    max_records: Optional[int] = None,
 ) -> Generator[str, None, None]:
     """
     生成 BEDPE 格式数据流用于 IGV.js 交互轨道
@@ -202,7 +208,10 @@ def generate_bedpe_stream(
     batch_size = 10000
     streaming_query = query.execution_options(stream_results=True).yield_per(batch_size)
 
+    emitted = 0
     for row in streaming_query:
+        if max_records is not None and emitted >= max_records:
+            break
         # Endpoint 1: lncRNA gene location
         chr1 = row.chr1
         start1 = row.start1
@@ -225,6 +234,7 @@ def generate_bedpe_stream(
         score = min(1000, max(0, int(ba * 10)))
 
         # 输出 BEDPE 8列格式行
+        emitted += 1
         yield f"{chr1}\t{start1}\t{end1}\t{chr2}\t{start2}\t{end2}\t{name}\t{score}\n"
 
 
@@ -234,6 +244,7 @@ def generate_repeatmasker_bed_stream(
     chr_filter: Optional[str] = None,
     start_filter: Optional[int] = None,
     end_filter: Optional[int] = None,
+    max_records: Optional[int] = None,
 ) -> Generator[str, None, None]:
     """
     Generate RepeatMasker BED format data stream
@@ -280,7 +291,10 @@ def generate_repeatmasker_bed_stream(
     batch_size = 10000
     streaming_query = query.execution_options(stream_results=True).yield_per(batch_size)
 
+    emitted = 0
     for row in streaming_query:
+        if max_records is not None and emitted >= max_records:
+            break
         # BED coordinates are 0-based, half-open
         chr_name = row.chromosome
         start = row.feature_start
@@ -300,6 +314,7 @@ def generate_repeatmasker_bed_stream(
         # Strand
         strand = row.strand or "."
 
+        emitted += 1
         yield f"{chr_name}\t{start}\t{end}\t{name}\t{score}\t{strand}\n"
 
 
