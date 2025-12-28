@@ -38,6 +38,7 @@ from app.utils.http_headers import content_disposition_attachment
 
 
 # CSV 公式注入防护正则：匹配以 =, +, -, @, \t, \r 开头的字符串
+# NOTE: 调用方应在检测前对前导空白/BOM 做剥离（见 sanitize_csv_value）。
 _CSV_FORMULA_PATTERN = re.compile(r'^[=+\-@\t\r]')
 
 
@@ -64,7 +65,10 @@ def sanitize_csv_value(value: Any) -> Any:
     if not isinstance(value, str):
         return value
 
-    if _CSV_FORMULA_PATTERN.match(value):
+    # SECURITY: 防止 CSV 公式注入绕过（前导空白 / UTF-8 BOM）
+    # 一些客户端可能会忽略前导空白或 BOM 并仍将其解释为公式。
+    check_value = value.lstrip("\ufeff").lstrip()
+    if _CSV_FORMULA_PATTERN.match(check_value):
         return "'" + value
 
     return value
@@ -283,11 +287,18 @@ def create_db_row_generator(
     Yields:
         每行数据的字典
     """
-    for row in db_execute_result:
-        row_dict = dict(row._mapping)
-        if transform:
-            row_dict = transform(row_dict)
-        yield row_dict
+    close = getattr(db_execute_result, "close", None)
+    try:
+        for row in db_execute_result:
+            row_dict = dict(row._mapping)
+            if transform:
+                row_dict = transform(row_dict)
+            yield row_dict
+    finally:
+        # SECURITY/RESOURCE: Ensure server-side cursors/results are closed promptly,
+        # including when a client disconnects and StreamingResponse cancels iteration.
+        if callable(close):
+            close()
 
 
 __all__ = [
