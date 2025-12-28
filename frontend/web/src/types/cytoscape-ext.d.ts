@@ -47,6 +47,29 @@ declare module 'cytoscape' {
     removeClass(classes: string): this
   }
 
+  // EdgeSingular 类型
+  export interface EdgeSingular extends Singular {
+    data(name?: string): unknown
+    data(name: string, value: unknown): this
+    removeData(names?: string): this
+    source(): NodeSingular
+    target(): NodeSingular
+    addClass(classes: string): this
+    removeClass(classes: string): this
+    on(events: string, handler: (evt: EventObject) => void): this
+    off(events: string, handler?: (evt: EventObject) => void): this
+  }
+
+  /**
+   * Singular scratchpad API
+   * 用于存储临时、不可序列化的数据（推荐用于 DOM 引用/函数等）。
+   */
+  export interface Singular {
+    scratch(): Record<string, unknown>
+    scratch(namespace: string): unknown
+    scratch(namespace: string, value: unknown): unknown
+  }
+
   interface Core {
     // 事件方法 - 支持多种签名
     on(events: string, handler: (evt: EventObject) => void): this

@@ -19,7 +19,6 @@ from typing import Optional, Dict, List, Callable
 import logging
 import re
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 VALID_SQL_IDENTIFIER = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
@@ -395,6 +394,7 @@ class DataQualityChecker:
 
 # 使用示例
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     # 连接数据库
     conn = psycopg2.connect(
         host=os.getenv("PGHOST", "localhost"),

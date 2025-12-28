@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.48 |
+| 版本 | Phase 9.49 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-28 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -289,7 +289,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.45 | Codex 三十五次审查修复: ETL 连接泄漏防护 (try/finally) + Admin CSRF Origin 增强校验 (urlsplit) + SQLAlchemy 导入修复 + 测试代码质量统一 | 2025-12-28 |
 | 9.46 | Codex 三十六次审查修复: 导出接口流式查询 stream_results 优化 (DoS/OOM 防护) + 测试参数名修正 (format alias) | 2025-12-28 |
 | 9.47 | Codex 三十七次审查修复: 流式导出资源清理 (try/finally close) + CSV 公式注入防护增强 (前导空白/BOM 绕过) | 2025-12-28 |
-| **9.48** | **Codex 三十八次审查修复: IGV 轨道 DoS 防护 (区域大小限制 10Mb + 默认记录限制 50k + max_records 参数)** | **2025-12-28** |
+| 9.48 | Codex 三十八次审查修复: IGV 轨道 DoS 防护 (区域大小限制 10Mb + 默认记录限制 50k + max_records 参数) | 2025-12-28 |
+| **9.49** | **Codex 三十九次审查修复: 日志脱敏 (safeWindow URL redact) + ETL logging 副作用移除 + /genomes percent-encoding 路径遍历加固 + 分块查询防 DoS + 缓存 Singleflight 并发防护 + IGV/Cytoscape 事件监听器清理** | **2025-12-28** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 
@@ -324,6 +325,11 @@ DB_POOL_MAX_OVERFLOW=20
 | `test_streaming_export_resource_cleanup_unit.py` | 2 | 流式导出资源清理 (Phase 9.47) |
 | `test_security_csv_formula_injection_unit.py` | 2 | CSV 公式注入防护增强 (Phase 9.47) |
 | `test_security_igv_track_dos_limits_unit.py` | 8 | IGV 轨道 DoS 防护 (Phase 9.48) |
+| `test_security_genomes_path_safety_unit.py` | 6+ | /genomes percent-encoding 路径遍历防护 (Phase 9.49) |
+| `test_utils_chunking_unit.py` | 3 | 分块查询 + 去重函数 (Phase 9.49) |
+| `test_cache_singleflight_unit.py` | 1 | 缓存 Singleflight 并发防护 (Phase 9.49) |
+| `safeWindow.test.ts` (前端) | 3 | 日志脱敏 + tabnabbing 防护 (Phase 9.49) |
+| `GenomeBrowser.cleanup.test.tsx` (前端) | 1 | IGV 事件监听器清理 (Phase 9.49) |
 
 **运行测试**:
 ```bash

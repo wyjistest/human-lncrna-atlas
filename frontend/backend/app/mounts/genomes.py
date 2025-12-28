@@ -7,6 +7,7 @@ Phase 9.16: 从 main.py 提取
 import logging
 import os
 from pathlib import PurePosixPath
+from urllib.parse import unquote
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,6 +53,14 @@ class GenomeFileWhitelistMiddleware:
         - These checks further reduce the chance of accidental sensitive file exposure (e.g., dotfiles)
           and block suspicious paths early.
         """
+        # Decode percent-encoding to catch traversal/dotfile bypasses like "%2e%2e" or "%2eenv.gz".
+        # ASGI servers typically provide a decoded `scope["path"]`, but this is defense-in-depth.
+        try:
+            path = unquote(path)
+        except Exception:
+            # Keep original path on decode errors (best-effort).
+            pass
+
         # Null byte / backslash are never expected in URL paths for this service.
         if "\x00" in path or "\\" in path:
             return False

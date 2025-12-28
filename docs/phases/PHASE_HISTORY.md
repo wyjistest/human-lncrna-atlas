@@ -674,4 +674,183 @@ ea610ef fix: Phase 9.48 Codex 三十八次审查修复 - IGV 轨道 DoS 防护
 
 ---
 
+## Phase 9.49: Codex 三十九次审查修复
+
+**日期**: 2025-12-28
+
+### 修复摘要
+
+| 类别 | 修复内容 | 优先级 |
+|------|----------|--------|
+| 安全 | safeWindow.ts 日志脱敏 (防 token 泄露) | P1 |
+| 代码质量 | ETL logging.basicConfig 副作用移除 | P2 |
+| 代码质量 | config.py 未使用 import 清理 | P2 |
+| 安全 | /genomes percent-encoding 路径遍历加固 | P0 |
+| 性能/DoS | compute_conservation_map 分块查询 | P1 |
+| 并发安全 | 缓存 Singleflight 防护 (cache stampede) | P0 |
+| 资源管理 | Cytoscape tooltip 资源清理 | P1 |
+| 资源管理 | IGV locuschange 事件解绑 | P1 |
+
+### 日志脱敏 (safeWindow.ts)
+
+**问题**: 阻止不安全 URL 时，日志中会记录完整 URL（含 query/fragment），可能泄露 token。
+
+**修复**:
+
+```typescript
+function redactUrlForLog(rawUrl: string): string {
+  // 1. 移除换行符防止日志注入
+  const singleLine = trimmed.replace(/[\r\n\0]/g, '')
+  // 2. 移除 query/fragment 防止 token 泄露
+  const withoutQuery = singleLine.split(/[?#]/, 1)[0]
+  // 3. 截断过长 URL (>512 字符)
+  // 4. 规范化为 protocol://host/pathname 格式
+}
+
+// 使用
+console.warn('[safeWindow] Blocked:', redactUrlForLog(url))
+```
+
+### ETL logging 副作用移除
+
+**问题**: `etl/templates/` 模块在 import 时执行 `logging.basicConfig()`，会"抢占"应用的日志配置。
+
+**修复**:
+
+```python
+# Before (模块顶层)
+logging.basicConfig(level=logging.INFO)
+
+# After (仅入口点)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="...")
+```
+
+### /genomes percent-encoding 路径遍历加固
+
+**问题**: 现有 dotfile/traversal 检查未处理 `%2e%2e` 等 percent-encoding 绕过。
+
+**修复**:
+
+```python
+from urllib.parse import unquote
+
+# 解码后再检查
+path = unquote(path)  # %2e%2e -> ..
+if ".." in path or path.startswith("."):
+    return False
+```
+
+**防护场景**:
+- `/%2e%2e/secret.fa` → 解码后 `/../secret.fa` → 拦截
+- `/%2eenv.gz` → 解码后 `/.env.gz` → 拦截
+
+### 分块查询防 DoS (utils.py)
+
+**问题**: `compute_conservation_map()` 对大 `core_ids` 列表可能触发 PostgreSQL 参数上限。
+
+**修复**:
+
+```python
+def _unique_preserve_order(values: Iterable[int]) -> List[int]:
+    """去重保序"""
+
+def _iter_chunks(values: List[int], chunk_size: int) -> Iterator[List[int]]:
+    """分块迭代"""
+
+# 使用
+unique_core_ids = _unique_preserve_order(core_ids)
+for chunk in _iter_chunks(unique_core_ids, chunk_size=1000):
+    rows = db.query(...).filter(Gene.core_id.in_(chunk))...
+```
+
+### 缓存 Singleflight 防护 (cache.py)
+
+**问题**: 高并发下多个请求同时触发相同 key 的昂贵计算 (cache stampede)。
+
+**修复**:
+
+```python
+# WeakValueDictionary 防止锁对象无限增长
+self._singleflight_locks: weakref.WeakValueDictionary[str, threading.Lock]
+
+def get_or_compute(self, namespace, key_params, compute_func, ttl):
+    key = self._make_key(namespace, **key_params)
+    cached = self.get(key)
+    if cached is not None:
+        return cached
+
+    # Double-check under lock
+    lock = self._get_singleflight_lock(key)
+    with lock:
+        cached = self.get(key)
+        if cached is not None:
+            return cached
+        result = compute_func()  # 只执行一次
+        self.set(key, result, ttl)
+        return result
+```
+
+### Cytoscape tooltip 资源清理 (NetworkCard.tsx)
+
+**问题**: tooltip DOM/handler 存到 `data()` 可能导致序列化问题和内存泄漏。
+
+**修复**:
+- 使用 `ele.scratch()` 存储不可序列化对象
+- 销毁/重建/错误态时强制清理 edge mousemove 监听
+
+### IGV 事件解绑 (GenomeBrowser/index.tsx)
+
+**问题**: `browser.on('locuschange', handler)` 未在卸载时解绑，导致监听器残留。
+
+**修复**:
+
+```typescript
+// 保存 handler 引用
+const locusChangeHandlerRef = useRef<((...args: unknown[]) => void) | null>(null)
+
+// 注册
+locusChangeHandlerRef.current = handleLocusChange
+browser.on('locuschange', handleLocusChange)
+
+// 卸载时解绑
+browser.un?.('locuschange', handler)
+locusChangeHandlerRef.current = null
+```
+
+### 修改文件
+
+| 文件 | 变更 |
+|------|------|
+| `frontend/web/src/utils/safeWindow.ts` | 新增 `redactUrlForLog()` |
+| `etl/templates/batch_manager.py` | 移除顶层 `logging.basicConfig()` |
+| `etl/templates/import_base.py` | 移除顶层 `logging.basicConfig()` |
+| `frontend/backend/app/core/config.py` | 移除未使用 `quote` import |
+| `frontend/backend/app/mounts/genomes.py` | 添加 `unquote()` 解码 |
+| `frontend/backend/app/core/utils.py` | 添加分块查询辅助函数 |
+| `frontend/backend/app/core/cache.py` | 添加 Singleflight 机制 |
+| `frontend/web/src/pages/Network/components/NetworkCard.tsx` | tooltip 资源清理 |
+| `frontend/web/src/types/cytoscape-ext.d.ts` | 补全 `scratch()` 类型 |
+| `frontend/web/src/components/GenomeBrowser/index.tsx` | IGV 事件解绑 |
+
+### 新增测试
+
+| 测试文件 | 测试数 | 覆盖范围 |
+|---------|--------|----------|
+| `test_security_genomes_path_safety_unit.py` | +4 | percent-encoding 绕过 |
+| `test_utils_chunking_unit.py` | 3 | 分块/去重函数 |
+| `test_cache_singleflight_unit.py` | 1 | 10 线程并发仅执行 1 次 compute |
+| `safeWindow.test.ts` | 3 | 日志脱敏 + tabnabbing |
+| `GenomeBrowser.cleanup.test.tsx` | 1 | IGV locuschange 解绑 |
+
+### 验证结果
+
+| 检查 | 结果 |
+|------|------|
+| 后端 pytest | ✅ 253 passed, 241 skipped |
+| 前端 vitest | ✅ 18 files, 188 passed |
+| npm run build | ✅ 成功 |
+
+---
+
 *文档更新: 2025-12-28*

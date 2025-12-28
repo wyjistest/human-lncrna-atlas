@@ -41,3 +41,9 @@ def test_genomes_blocks_dotfiles_and_traversal_defense_in_depth():
     # so we assert the helper behavior directly.
     assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/../secret.fa")
     assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/dir/../secret.fa")
+
+    # Percent-encoded traversal/dotfile bypass attempts.
+    assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/%2e%2e/secret.fa")
+    assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/dir/%2e%2e/secret.fa")
+    assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/%2eenv.gz")
+    assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/dir/%2ehidden.fa")

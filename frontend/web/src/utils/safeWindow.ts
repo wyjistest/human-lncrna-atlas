@@ -38,6 +38,31 @@ function isSafeUrlToOpen(rawUrl: string): boolean {
   }
 }
 
+function redactUrlForLog(rawUrl: string): string {
+  const trimmed = rawUrl.trim()
+  if (!trimmed) return ''
+
+  // Avoid log injection / multi-line logs
+  const singleLine = trimmed.replace(/[\r\n\0]/g, '')
+  // Drop query string / fragment to avoid leaking tokens (defense-in-depth)
+  const withoutQuery = singleLine.split(/[?#]/, 1)[0]
+
+  const truncated =
+    withoutQuery.length > 512 ? `${withoutQuery.slice(0, 512)}...[TRUNC]` : withoutQuery
+
+  if (typeof window === 'undefined') return truncated
+
+  try {
+    const resolved = new URL(truncated, window.location.href)
+    const protocol = resolved.protocol
+    const host = resolved.host
+    const pathname = resolved.pathname
+    return host ? `${protocol}//${host}${pathname}` : `${protocol}${pathname}`
+  } catch {
+    return truncated
+  }
+}
+
 /**
  * Safely open a URL in a new tab/window with tabnabbing protection.
  *
@@ -61,7 +86,7 @@ export const openInNewTab = (url: string): SafeWindowResult => {
   }
 
   if (!isSafeUrlToOpen(url)) {
-    console.warn('[safeWindow] Blocked opening unsafe URL:', url)
+    console.warn('[safeWindow] Blocked opening unsafe URL:', redactUrlForLog(url))
     return { window: null, blocked: true, reason: 'invalid_url' }
   }
 

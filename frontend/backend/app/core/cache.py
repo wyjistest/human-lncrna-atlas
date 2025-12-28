@@ -13,6 +13,7 @@ import hashlib
 import logging
 import time
 import threading
+import weakref
 from typing import Any, Optional, Callable, TypeVar, Tuple, TYPE_CHECKING
 from functools import wraps
 
@@ -328,6 +329,24 @@ class CacheService:
         self._misses = 0
         # 统计字段在多线程环境下可能被并发更新，仅用于监控但仍需保证一致性
         self._stats_lock = threading.Lock()
+        # Prevent cache stampede (per-process) on hot keys.
+        # Use WeakValueDictionary to avoid unbounded growth when keys are high-cardinality.
+        self._singleflight_guard = threading.Lock()
+        self._singleflight_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
+
+    def _get_singleflight_lock(self, key: str) -> threading.Lock:
+        """
+        Return a per-key lock for singleflight behavior (best-effort).
+
+        - Only coordinates within the current process (not distributed across workers).
+        - WeakValueDictionary prevents lock map from growing indefinitely.
+        """
+        with self._singleflight_guard:
+            lock = self._singleflight_locks.get(key)
+            if lock is None:
+                lock = threading.Lock()
+                self._singleflight_locks[key] = lock
+            return lock
 
     @property
     def backend(self) -> str:
@@ -430,6 +449,9 @@ class CacheService:
         Returns:
             缓存或计算的结果
         """
+        if not self.enabled:
+            return self._serialize(compute_func())
+
         key = self._make_key(namespace, **key_params)
 
         # 尝试获取缓存
@@ -438,17 +460,21 @@ class CacheService:
             logger.debug(f"[CACHE HIT] {namespace}")
             return cached
 
-        # 计算结果
-        logger.debug(f"[CACHE MISS] {namespace}")
-        result = compute_func()
+        # Cache stampede protection (per-process).
+        # Double-check under lock to avoid duplicated expensive computations.
+        lock = self._get_singleflight_lock(key)
+        with lock:
+            cached = self.get(key)
+            if cached is not None:
+                logger.debug(f"[CACHE HIT] {namespace}")
+                return cached
 
-        # 转换为可序列化的格式
-        cache_data = self._serialize(result)
-
-        # 存入缓存
-        self.set(key, cache_data, ttl)
-
-        return cache_data
+            logger.debug(f"[CACHE MISS] {namespace}")
+            result = compute_func()
+            cache_data = self._serialize(result)
+            if cache_data is not None:
+                self.set(key, cache_data, ttl)
+            return cache_data
 
     def _serialize(self, data: Any) -> Any:
         """将数据转换为可序列化的格式"""
@@ -680,23 +706,12 @@ def cached(namespace: str, ttl: int = None):
             if hashable_args:
                 key_params["__args__"] = hashable_args
 
-            key = cache._make_key(namespace, **key_params)
-
-            # 尝试获取缓存
-            cached_value = cache.get(key)
-            if cached_value is not None:
-                logger.debug(f"[CACHE HIT] {namespace}")
-                return cached_value
-
-            # 执行函数
-            logger.debug(f"[CACHE MISS] {namespace}")
-            result = func(*args, **kwargs)
-
-            # 序列化并缓存
-            cache_data = cache._serialize(result)
-            cache.set(key, cache_data, ttl or cache.TTL_LIST)
-
-            return cache_data
+            return cache.get_or_compute(
+                namespace,
+                lambda: func(*args, **kwargs),
+                ttl=ttl or cache.TTL_LIST,
+                **key_params,
+            )
 
         return wrapper
     return decorator

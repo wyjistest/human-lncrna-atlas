@@ -17,7 +17,6 @@ from pathlib import Path
 
 from etl.templates.batch_manager import BatchManager
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 

@@ -26,6 +26,10 @@ interface IGVModule {
   removeBrowser: (browser: IGVBrowser) => void
 }
 
+type IGVBrowserWithUnsubscribe = IGVBrowser & {
+  un?: (eventName: string, handlerFn: (...args: unknown[]) => void) => void
+}
+
 let igvModule: IGVModule | null = null
 
 const loadIGV = async (): Promise<IGVModule> => {
@@ -144,6 +148,9 @@ const GenomeBrowser = memo(({
     onLocusChangeRef.current = onLocusChange
   }, [onLocusChange])
 
+  // Track IGV event handler for explicit unsubscription
+  const locusChangeHandlerRef = useRef<((...args: unknown[]) => void) | null>(null)
+
   // Store onBrowserReady in ref
   const onBrowserReadyRef = useRef(onBrowserReady)
   useEffect(() => {
@@ -180,6 +187,15 @@ const GenomeBrowser = memo(({
         // Clean up existing browser instance
         if (browserRef.current) {
           try {
+            const prevHandler = locusChangeHandlerRef.current
+            if (prevHandler && typeof (browserRef.current as IGVBrowserWithUnsubscribe).un === 'function') {
+              try {
+                ;(browserRef.current as IGVBrowserWithUnsubscribe).un?.('locuschange', prevHandler)
+              } catch (e) {
+                console.warn('Error unsubscribing IGV locuschange handler:', e)
+              }
+            }
+            locusChangeHandlerRef.current = null
             igv.removeBrowser(browserRef.current)
           } catch (e) {
             console.warn('Error removing previous IGV browser:', e)
@@ -334,7 +350,7 @@ const GenomeBrowser = memo(({
 
         // Listen for locus changes
         // Filter out "all" which IGV.js uses for whole-genome view
-        browser.on('locuschange', () => {
+        const handleLocusChange = () => {
           const currentLoci = browser.currentLoci()
           if (currentLoci && currentLoci.length > 0 && onLocusChangeRef.current) {
             const locus = currentLoci[0]
@@ -343,7 +359,9 @@ const GenomeBrowser = memo(({
               onLocusChangeRef.current(locus)
             }
           }
-        })
+        }
+        locusChangeHandlerRef.current = handleLocusChange
+        browser.on('locuschange', handleLocusChange)
 
         // Notify parent that browser is ready with handle
         if (onBrowserReadyRef.current) {
@@ -423,6 +441,15 @@ const GenomeBrowser = memo(({
       cancelled = true
       if (browserRef.current && igvModule) {
         try {
+          const handler = locusChangeHandlerRef.current
+          if (handler && typeof (browserRef.current as IGVBrowserWithUnsubscribe).un === 'function') {
+            try {
+              ;(browserRef.current as IGVBrowserWithUnsubscribe).un?.('locuschange', handler)
+            } catch (e) {
+              console.warn('Error unsubscribing IGV locuschange handler during cleanup:', e)
+            }
+          }
+          locusChangeHandlerRef.current = null
           igvModule.removeBrowser(browserRef.current)
         } catch (e) {
           console.warn('Error cleaning up IGV browser:', e)

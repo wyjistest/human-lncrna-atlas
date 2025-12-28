@@ -20,9 +20,35 @@ import type { NetworkCardProps } from '../types'
 // 类型别名
 type Core = cytoscape.Core
 type NodeSingular = cytoscape.NodeSingular
+type EdgeSingular = cytoscape.EdgeSingular
 
 // cytoscape 调用包装（绕过 TypeScript 类型检查）
 const createCytoscape = cytoscape as unknown as (options: cytoscape.CytoscapeOptions) => Core
+
+const EDGE_TOOLTIP_SCRATCH = '_hlaEdgeTooltip'
+type EdgeTooltipState = {
+  tooltipDiv: HTMLDivElement
+  updatePosition: (e: cytoscape.EventObject) => void
+}
+
+const cleanupEdgeTooltip = (edge: EdgeSingular) => {
+  const scratch = edge.scratch(EDGE_TOOLTIP_SCRATCH) as EdgeTooltipState | null | undefined
+  const tooltipDiv = scratch?.tooltipDiv ?? (edge.data('tooltipDiv') as HTMLDivElement | undefined)
+  const updatePosition =
+    scratch?.updatePosition ??
+    (edge.data('updatePosition') as ((e: cytoscape.EventObject) => void) | undefined)
+
+  if (tooltipDiv && document.body.contains(tooltipDiv)) {
+    document.body.removeChild(tooltipDiv)
+  }
+  if (updatePosition) {
+    edge.off('mousemove', updatePosition)
+  }
+
+  edge.scratch(EDGE_TOOLTIP_SCRATCH, null)
+  edge.removeData('tooltipDiv')
+  edge.removeData('updatePosition')
+}
 
 /**
  * NetworkCard Component
@@ -123,6 +149,7 @@ export const NetworkCard = memo(({
 
       // 销毁Cytoscape实例
       if (cyRef.current) {
+        cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
         cyRef.current.destroy()
         cyRef.current = null
       }
@@ -133,6 +160,7 @@ export const NetworkCard = memo(({
   useEffect(() => {
     if (error || loading) {
       if (cyRef.current) {
+        cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
         cyRef.current.destroy()
         cyRef.current = null
       }
@@ -152,6 +180,7 @@ export const NetworkCard = memo(({
 
     // 销毁旧实例
     if (cyRef.current) {
+      cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
       cyRef.current.off('mouseover', 'edge')
       cyRef.current.off('mouseout', 'edge')
       cyRef.current.off('tap', 'node')
@@ -311,9 +340,13 @@ export const NetworkCard = memo(({
 
     // 添加边的tooltip
     cyRef.current.on('mouseover', 'edge', (evt: cytoscape.EventObject) => {
-      const edge = evt.target
-      const ba = edge.data('ba')
-      if (ba === undefined) return
+      const edge = evt.target as EdgeSingular
+      const baRaw = edge.data('ba')
+      if (baRaw === undefined || baRaw === null) return
+      const ba = typeof baRaw === 'number' ? baRaw : Number(baRaw)
+      if (Number.isNaN(ba)) return
+
+      cleanupEdgeTooltip(edge)
 
       const tooltipDiv = document.createElement('div')
       tooltipDiv.setAttribute('data-cy-tooltip', 'true')
@@ -352,29 +385,18 @@ export const NetworkCard = memo(({
       }
 
       edge.on('mousemove', updatePosition)
-      edge.data('tooltipDiv', tooltipDiv)
-      edge.data('updatePosition', updatePosition)
+      edge.scratch(EDGE_TOOLTIP_SCRATCH, { tooltipDiv, updatePosition } satisfies EdgeTooltipState)
     })
 
     cyRef.current.on('mouseout', 'edge', (evt: cytoscape.EventObject) => {
-      const edge = evt.target
-      const tooltipDiv = edge.data('tooltipDiv') as HTMLDivElement | undefined
-      const updatePosition = edge.data('updatePosition') as ((e: cytoscape.EventObject) => void) | undefined
-
-      if (tooltipDiv && document.body.contains(tooltipDiv)) {
-        document.body.removeChild(tooltipDiv)
-      }
-      if (updatePosition) {
-        edge.off('mousemove', updatePosition)
-      }
-      edge.removeData('tooltipDiv')
-      edge.removeData('updatePosition')
+      const edge = evt.target as EdgeSingular
+      cleanupEdgeTooltip(edge)
     })
 
     // 添加节点点击事件
-    cyRef.current.on('tap', 'node', (evt) => {
-      const node = evt.target
-      const geneId = node.data('gene_id')
+    cyRef.current.on('tap', 'node', (evt: cytoscape.EventObject) => {
+      const node = evt.target as NodeSingular
+      const geneId = node.data('gene_id') as number | undefined
       if (geneId) {
         setSelectedGeneId(geneId)
         setDetailDrawerOpen(true)
@@ -389,6 +411,7 @@ export const NetworkCard = memo(({
       })
 
       if (cyRef.current) {
+        cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
         cyRef.current.off('mouseover', 'edge')
         cyRef.current.off('mouseout', 'edge')
         cyRef.current.off('tap', 'node')
