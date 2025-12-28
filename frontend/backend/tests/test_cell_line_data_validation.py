@@ -6,13 +6,14 @@ These tests verify data integrity and statistical properties.
 
 Run: pytest tests/test_cell_line_data_validation.py -v
 """
-import pytest
+import os
+from typing import Optional
+
 import httpx
+import pytest
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
-import os
-from typing import Optional
 
 # Configuration
 BASE_URL = os.getenv("TEST_API_URL", "http://localhost:8000")

@@ -5,7 +5,7 @@ ChIP-seq Mark Types API Router
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session, aliased
 
 from app.core.cache import cache

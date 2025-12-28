@@ -30,7 +30,9 @@ import type {
 } from '@/types/chipseq'
 
 function stripPaginationFilters(filters: ChIPSeqFilters): Omit<ChIPSeqFilters, 'page' | 'page_size'> {
-  const { page: _page, page_size: _pageSize, ...rest } = filters
+  const { page, page_size, ...rest } = filters
+  void page
+  void page_size
   return rest
 }
 

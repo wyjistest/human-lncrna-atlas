@@ -225,7 +225,7 @@ class TestLikeFilterEdgeCases:
         )
         # 应返回 200 或 4xx，不应 500
         assert response.status_code != 500, \
-            f"超长 trait_name 导致 500 错误"
+            "超长 trait_name 导致 500 错误"
 
     def test_whitespace_only_trait_name(self, api_client):
         """纯空白 trait_name 应被视为无效过滤"""

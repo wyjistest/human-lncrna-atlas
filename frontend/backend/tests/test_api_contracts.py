@@ -9,9 +9,6 @@ API 合同测试 - 验证所有 API 响应符合定义的 Schema
 import pytest
 import httpx
 
-# Mark all tests in this module as integration tests
-pytestmark = pytest.mark.integration
-
 from conftest import (
     validate_paginated_response,
     validate_single_response,
@@ -20,6 +17,8 @@ from app.schemas.gene import GeneListItem, GeneDetail
 from app.schemas.regulation import RegulationListItem, RegulationDetail
 from app.schemas.stats import OverviewStats
 from app.schemas.disease import TraitGeneAssociationDetail, TraitDetail
+
+pytestmark = pytest.mark.integration
 
 
 class TestGenesAPIContract:

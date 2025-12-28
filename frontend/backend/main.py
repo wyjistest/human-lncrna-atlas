@@ -19,32 +19,26 @@ import os
 import time
 import mimetypes
 
-# 注册基因组文件的 MIME 类型，避免被当作 text/plain 处理
-mimetypes.add_type("application/octet-stream", ".2bit")
-mimetypes.add_type("application/octet-stream", ".bb")
-mimetypes.add_type("application/octet-stream", ".bigbed")
-mimetypes.add_type("application/octet-stream", ".bw")
-mimetypes.add_type("application/octet-stream", ".bigwig")
-
-from app.core.config import settings  # noqa: E402
-from app.core.database import init_db, close_db  # noqa: E402
-from app.core.logging_config import setup_logging  # noqa: E402
+from app.core.config import settings
+from app.core.database import init_db, close_db
+from app.core.logging_config import setup_logging
 from app.core.exceptions import (
     build_validation_error_detail,
     normalize_http_error_detail,
     sanitize_db_error,
     sanitize_internal_error,
-)  # noqa: E402
-from app.core.utils import sanitize_for_log  # noqa: E402
+)
+from app.core.utils import sanitize_for_log
 from app.middleware import (
     LoggingMiddleware,
     RequestLimitsMiddleware,
     add_security_headers,
     metrics_auth_middleware,
-)  # noqa: E402
-from app.mounts import mount_genomes_app  # noqa: E402
-from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization  # noqa: E402
-from app.schemas.common import HealthResponse  # noqa: E402
+)
+from app.mounts import mount_genomes_app
+from app.routers import genes, regulations, diseases, stats, network, admin, igv, features, chipseq, lncrna_chipseq_overlap, conservation, export, analysis, visualization
+from app.routers.chipseq_rate_limit import rate_limit
+from app.schemas.common import HealthResponse
 
 # ============================================================================
 # slowapi Rate Limiting Setup (for per-endpoint rate limiting)
@@ -67,6 +61,13 @@ try:
 except ImportError:
     PROMETHEUS_AVAILABLE = False
     Instrumentator = None
+
+# 注册基因组文件的 MIME 类型，避免被当作 text/plain 处理
+mimetypes.add_type("application/octet-stream", ".2bit")
+mimetypes.add_type("application/octet-stream", ".bb")
+mimetypes.add_type("application/octet-stream", ".bigbed")
+mimetypes.add_type("application/octet-stream", ".bw")
+mimetypes.add_type("application/octet-stream", ".bigwig")
 
 # 初始化日志
 logger = setup_logging(settings.LOG_LEVEL)
@@ -527,7 +528,8 @@ def read_root():
 
 # 健康检查
 @app.get("/health", response_model=HealthResponse, tags=["root"])
-def health_check():
+@rate_limit("60/minute")
+def health_check(request: Request):
     """健康检查接口"""
     from app.core.database import engine
     from app.core.cache import cache

@@ -56,6 +56,24 @@ def test_admin_post_allows_missing_origin_header_in_non_strict_mode(client: Test
     assert resp.json() == {"ok": True}
 
 
+def test_admin_post_blocks_untrusted_referer_in_non_strict_mode(client: TestClient):
+    # Defense-in-depth: if Origin is missing but Referer is present and cross-site, block it.
+    resp = client.post("/admin/test", headers={"Referer": "https://evil.example/path"})
+    assert resp.status_code == 403
+    body = resp.json()
+    assert body.get("detail", {}).get("error") == "CSRF_BLOCKED"
+
+
+def test_admin_post_allows_same_origin_referer_in_non_strict_mode(client: TestClient):
+    resp = client.post("/admin/test", headers={"Referer": "http://testserver/admin/test"})
+    assert resp.status_code == 200
+
+
+def test_admin_post_allows_configured_cors_referer_in_non_strict_mode(client: TestClient):
+    resp = client.post("/admin/test", headers={"Referer": "http://localhost:5173/some/page"})
+    assert resp.status_code == 200
+
+
 def test_admin_post_allows_same_origin_in_non_strict_mode(client: TestClient):
     resp = client.post("/admin/test", headers={"Origin": "http://testserver"})
     assert resp.status_code == 200

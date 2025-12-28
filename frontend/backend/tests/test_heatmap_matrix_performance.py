@@ -6,16 +6,17 @@ acceptable response times under various conditions.
 
 Run: pytest tests/test_heatmap_matrix_performance.py -v
 """
-import pytest
+import os
+import statistics
+import time
+from typing import Any, Dict, Optional
+
 import httpx
+import pytest
 
 # Mark all tests in this module as integration + performance + slow tests
 # Phase 9.20: Added 'slow' marker for test layer optimization
 pytestmark = [pytest.mark.integration, pytest.mark.performance, pytest.mark.slow]
-import time
-import statistics
-from typing import Optional, Dict, Any
-import os
 
 # ============== Configuration ==============
 

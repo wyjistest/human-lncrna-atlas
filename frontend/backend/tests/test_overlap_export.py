@@ -13,15 +13,15 @@ This module tests the batch export functionality including:
 
 Run: pytest tests/test_overlap_export.py -v
 """
-import pytest
-import httpx
-from io import StringIO
 import csv
+from io import StringIO
 
-# Mark all tests in this module as integration tests
-pytestmark = pytest.mark.integration
+import httpx
+import pytest
 
 from conftest import APIAssertions
+
+pytestmark = pytest.mark.integration
 
 
 # ============== Test Constants ==============

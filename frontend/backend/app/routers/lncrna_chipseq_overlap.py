@@ -589,11 +589,21 @@ def get_lncrna_chipseq_overlaps_query(
 
 
 @router.get("", response_model=OverlapResponse)
+@rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
 def get_lncrna_chipseq_overlaps(
+    request: Request,  # Required for rate limiting
     lncrna_gene_id: Optional[int] = Query(None, description="Filter by specific lncRNA gene ID"),
     target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
-    mark_type: Optional[str] = Query(None, description="Filter by mark type(s), comma-separated (e.g., 'H3K27me3,H3K4me3')"),
-    cell_type: Optional[str] = Query(None, description="Filter by cell type(s), comma-separated (e.g., 'K562,GM12878')"),
+    mark_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by mark type(s), comma-separated (max 20 items)",
+    ),
+    cell_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by cell type(s), comma-separated (max 20 items)",
+    ),
     chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome (e.g., 'chr1')"),
     min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity score"),

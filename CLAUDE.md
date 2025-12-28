@@ -4,7 +4,7 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.44 |
+| 版本 | Phase 9.45 |
 | 状态 | 🟢 生产就绪 |
 | 更新 | 2025-12-28 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
@@ -285,7 +285,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.41 | Codex 三十次审查修复: 多端点 DoS 防护 (marks/stats 1h 缓存) + 参数规范化 + max_length 约束 | 2025-12-26 |
 | **9.42** | **Codex 三十一次审查修复: SQL 注入防护 (SQLAlchemy 表达式重构) + Conservation 内存 DoS 防护 (SQL 聚合) + 前端 queryKey 完整性 + AbortController 请求取消 + ILIKE ESCAPE 字符修复** | **2025-12-27** |
 | 9.43 | Codex 三十二次审查修复: /metrics 精确匹配 + ASGI scope path + 中间件顺序调整 + JSON 导出内存限制 (5000条) + ETL 分批导入 + React Query 缓存归一化 + Conservation 端点契约兼容 | 2025-12-27 |
-| **9.44** | **Codex 三十三/三十四次审查修复: 请求大小限制中间件 (DoS 防护) + IGV 轨道并发竞态修复 (互斥队列) + 前端资源泄漏防护 (isMountedRef) + RateLimitExceeded 响应契约统一 + 依赖安全审计 (0 漏洞)** | **2025-12-28** |
+| 9.44 | Codex 三十三/三十四次审查修复: 请求大小限制中间件 (DoS 防护) + IGV 轨道并发竞态修复 (互斥队列) + 前端资源泄漏防护 (isMountedRef) + RateLimitExceeded 响应契约统一 + 依赖安全审计 (0 漏洞) | 2025-12-28 |
+| **9.45** | **Codex 三十五次审查修复: ETL 连接泄漏防护 (try/finally) + Admin CSRF Origin 增强校验 (urlsplit) + SQLAlchemy 导入修复 + 测试代码质量统一** | **2025-12-28** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

@@ -11,8 +11,6 @@ These tests verify:
 import threading
 import time
 from types import SimpleNamespace
-from typing import Optional
-from unittest.mock import MagicMock, patch
 
 import pytest
 

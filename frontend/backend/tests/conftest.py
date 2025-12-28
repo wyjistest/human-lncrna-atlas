@@ -11,6 +11,10 @@ import pytest
 # 添加项目根目录到 path，以便导入 app 模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from app.schemas.gene import GeneDetail, GeneListItem
+from app.schemas.regulation import RegulationDetail, RegulationListItem
+from app.schemas.stats import OverviewStats
+
 
 @pytest.fixture(scope="session", autouse=True)
 def _install_uvloop_policy() -> None:
@@ -28,12 +32,6 @@ def _install_uvloop_policy() -> None:
         return
 
     uvloop.install()
-
-
-from app.schemas.gene import GeneListItem, GeneDetail
-from app.schemas.regulation import RegulationListItem, RegulationDetail
-from app.schemas.stats import OverviewStats
-
 
 # ============== 配置 ==============
 
@@ -353,4 +351,3 @@ def expect_client_error():
         return response
 
     return _assert
-

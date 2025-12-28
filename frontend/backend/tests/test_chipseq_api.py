@@ -11,16 +11,16 @@ This module tests the ChIP-seq functionality including:
 
 Run: pytest tests/test_chipseq_api.py -v
 """
-import pytest
-import httpx
 from typing import Optional
 
-# Mark all tests in this module as integration tests
-pytestmark = pytest.mark.integration
+import httpx
+import pytest
 
 from conftest import (
     APIAssertions,
 )
+
+pytestmark = pytest.mark.integration
 
 
 # ============== Test Constants ==============

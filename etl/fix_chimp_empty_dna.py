@@ -138,142 +138,158 @@ def main():
 
     # 2. 连接数据库
     print("\n2. 连接数据库...")
-    conn = psycopg2.connect(**DB_CONFIG)
+    conn = None
+    try:
+        conn = psycopg2.connect(**DB_CONFIG)
 
-    # 3. 从原始文件读取空DNA记录的完整信息
-    print("\n3. 读取原始数据文件中的空DNA记录...")
-    import csv
+        # 3. 从原始文件读取空DNA记录的完整信息
+        print("\n3. 读取原始数据文件中的空DNA记录...")
+        import csv
 
-    empty_records = []
-    with open(BATCH_FILE, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f, delimiter='\t')
-        for row in reader:
-            dna_seq = row.get('DNA_Sequence', '').strip()
-            if not dna_seq or dna_seq == 'None':
-                empty_records.append({
-                    'lncrna_id': row.get('LncRNA_ID', ''),
-                    'target_gene': row.get('Target_Gene_ID', ''),
-                    'region_start': int(row.get('Target_Region_Start', 0)),
-                    'region_end': int(row.get('Target_Region_End', 0)),
-                    'dna_start': int(row.get('DNA_Start', 0)),
-                    'dna_end': int(row.get('DNA_End', 0)),
-                })
+        empty_records = []
+        with open(BATCH_FILE, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            for row in reader:
+                dna_seq = row.get('DNA_Sequence', '').strip()
+                if not dna_seq or dna_seq == 'None':
+                    empty_records.append({
+                        'lncrna_id': row.get('LncRNA_ID', ''),
+                        'target_gene': row.get('Target_Gene_ID', ''),
+                        'region_start': int(row.get('Target_Region_Start', 0)),
+                        'region_end': int(row.get('Target_Region_End', 0)),
+                        'dna_start': int(row.get('DNA_Start', 0)),
+                        'dna_end': int(row.get('DNA_End', 0)),
+                    })
 
-    print(f"   找到 {len(empty_records)} 条空DNA记录")
+        print(f"   找到 {len(empty_records)} 条空DNA记录")
 
-    # 4. 获取数据库中的regulation_id映射
-    print("\n4. 构建数据库映射...")
-    cursor = conn.cursor()
-
-    # 获取基因ID映射
-    cursor.execute("""
-        SELECT gene_ensembl_id, gene_id FROM genes WHERE species_id = 2
-    """)
-    gene_map = {row[0]: row[1] for row in cursor.fetchall()}
-    # 添加去后缀的映射
-    for ensembl_id, gene_id in list(gene_map.items()):
-        if ensembl_id.endswith('_chimp'):
-            gene_map[ensembl_id.replace('_chimp', '')] = gene_id
-
-    # 获取regulation映射
-    cursor.execute("""
-        SELECT regulation_id, lncrna_gene_id, target_gene_id, dna_start, dna_end
-        FROM regulations WHERE species_id = 2
-    """)
-    reg_map = {}
-    for row in cursor.fetchall():
-        reg_id, lnc_id, tgt_id, dna_s, dna_e = row
-        reg_map[(lnc_id, tgt_id, dna_s, dna_e)] = reg_id
-
-    print(f"   基因映射: {len(gene_map)} 条")
-    print(f"   Regulation映射: {len(reg_map)} 条")
-
-    # 5. 匹配并提取DNA序列
-    print("\n5. 匹配DNA序列...")
-    updates = []
-    matched = 0
-    not_matched_file = 0
-    not_matched_reg = 0
-
-    for rec in empty_records:
-        target_gene = rec['target_gene']
-        region_start = rec['region_start']
-        region_end = rec['region_end']
-        dna_start = rec['dna_start']
-        dna_end = rec['dna_end']
-        lncrna_id = rec['lncrna_id']
-
-        # 查找DNA文件（考虑±1坐标偏差）
-        dna_info = None
-        for offset in range(-1, 2):
-            key = (target_gene, region_start + offset, region_end)
-            if key in dna_map:
-                dna_info = dna_map[key]
-                break
-
-        if not dna_info:
-            not_matched_file += 1
-            continue
-
-        filepath, sequence, seq_start = dna_info
-
-        # 提取DNA片段
-        dna_seq = extract_dna_sequence(sequence, seq_start, dna_start, dna_end)
-        if not dna_seq:
-            not_matched_file += 1
-            continue
-
-        # 查找regulation_id
-        lnc_gene_id = gene_map.get(lncrna_id) or gene_map.get(lncrna_id.replace('_chimp', ''))
-        tgt_gene_id = gene_map.get(target_gene)
-
-        if not lnc_gene_id or not tgt_gene_id:
-            not_matched_reg += 1
-            continue
-
-        reg_key = (lnc_gene_id, tgt_gene_id, dna_start, dna_end)
-        reg_id = reg_map.get(reg_key)
-
-        if not reg_id:
-            not_matched_reg += 1
-            continue
-
-        updates.append((dna_seq, reg_id))
-        matched += 1
-
-    print(f"   匹配成功: {matched}")
-    print(f"   文件未找到: {not_matched_file}")
-    print(f"   Regulation未找到: {not_matched_reg}")
-
-    # 6. 更新数据库
-    if updates:
-        print(f"\n6. 更新数据库 ({len(updates)} 条记录)...")
-
+        # 4. 获取数据库中的regulation_id映射
+        print("\n4. 构建数据库映射...")
         cursor = conn.cursor()
-        execute_batch(cursor, """
-            UPDATE sequences
-            SET dna_sequence = %s
-            WHERE regulation_id = %s
-        """, updates, page_size=100)
+        try:
+            # 获取基因ID映射
+            cursor.execute("""
+                SELECT gene_ensembl_id, gene_id FROM genes WHERE species_id = 2
+            """)
+            gene_map = {row[0]: row[1] for row in cursor.fetchall()}
+            # 添加去后缀的映射
+            for ensembl_id, gene_id in list(gene_map.items()):
+                if ensembl_id.endswith('_chimp'):
+                    gene_map[ensembl_id.replace('_chimp', '')] = gene_id
 
-        conn.commit()
-        print("   ✓ 更新完成")
-    else:
-        print("\n6. 没有需要更新的记录")
+            # 获取regulation映射
+            cursor.execute("""
+                SELECT regulation_id, lncrna_gene_id, target_gene_id, dna_start, dna_end
+                FROM regulations WHERE species_id = 2
+            """)
+            reg_map = {}
+            for row in cursor.fetchall():
+                reg_id, lnc_id, tgt_id, dna_s, dna_e = row
+                reg_map[(lnc_id, tgt_id, dna_s, dna_e)] = reg_id
+        finally:
+            cursor.close()
 
-    # 7. 验证结果
-    print("\n7. 验证结果...")
-    cursor.execute("""
-        SELECT COUNT(*) FROM sequences seq
-        JOIN regulations r ON seq.regulation_id = r.regulation_id
-        JOIN species s ON r.species_id = s.species_id
-        WHERE s.species_code = 'chimp'
-        AND (seq.dna_sequence IS NULL OR seq.dna_sequence = '')
-    """)
-    remaining = cursor.fetchone()[0]
-    print(f"   剩余空DNA序列: {remaining}")
+        print(f"   基因映射: {len(gene_map)} 条")
+        print(f"   Regulation映射: {len(reg_map)} 条")
 
-    conn.close()
+        # 5. 匹配并提取DNA序列
+        print("\n5. 匹配DNA序列...")
+        updates = []
+        matched = 0
+        not_matched_file = 0
+        not_matched_reg = 0
+
+        for rec in empty_records:
+            target_gene = rec['target_gene']
+            region_start = rec['region_start']
+            region_end = rec['region_end']
+            dna_start = rec['dna_start']
+            dna_end = rec['dna_end']
+            lncrna_id = rec['lncrna_id']
+
+            # 查找DNA文件（考虑±1坐标偏差）
+            dna_info = None
+            for offset in range(-1, 2):
+                key = (target_gene, region_start + offset, region_end)
+                if key in dna_map:
+                    dna_info = dna_map[key]
+                    break
+
+            if not dna_info:
+                not_matched_file += 1
+                continue
+
+            filepath, sequence, seq_start = dna_info
+
+            # 提取DNA片段
+            dna_seq = extract_dna_sequence(sequence, seq_start, dna_start, dna_end)
+            if not dna_seq:
+                not_matched_file += 1
+                continue
+
+            # 查找regulation_id
+            lnc_gene_id = gene_map.get(lncrna_id) or gene_map.get(lncrna_id.replace('_chimp', ''))
+            tgt_gene_id = gene_map.get(target_gene)
+
+            if not lnc_gene_id or not tgt_gene_id:
+                not_matched_reg += 1
+                continue
+
+            reg_key = (lnc_gene_id, tgt_gene_id, dna_start, dna_end)
+            reg_id = reg_map.get(reg_key)
+
+            if not reg_id:
+                not_matched_reg += 1
+                continue
+
+            updates.append((dna_seq, reg_id))
+            matched += 1
+
+        print(f"   匹配成功: {matched}")
+        print(f"   文件未找到: {not_matched_file}")
+        print(f"   Regulation未找到: {not_matched_reg}")
+
+        # 6. 更新数据库
+        if updates:
+            print(f"\n6. 更新数据库 ({len(updates)} 条记录)...")
+
+            cursor = conn.cursor()
+            try:
+                execute_batch(cursor, """
+                    UPDATE sequences
+                    SET dna_sequence = %s
+                    WHERE regulation_id = %s
+                """, updates, page_size=100)
+            finally:
+                cursor.close()
+
+            conn.commit()
+            print("   ✓ 更新完成")
+        else:
+            print("\n6. 没有需要更新的记录")
+
+        # 7. 验证结果
+        print("\n7. 验证结果...")
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT COUNT(*) FROM sequences seq
+                JOIN regulations r ON seq.regulation_id = r.regulation_id
+                JOIN species s ON r.species_id = s.species_id
+                WHERE s.species_code = 'chimp'
+                AND (seq.dna_sequence IS NULL OR seq.dna_sequence = '')
+            """)
+            remaining = cursor.fetchone()[0]
+        finally:
+            cursor.close()
+
+        print(f"   剩余空DNA序列: {remaining}")
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
     print("\n" + "=" * 60)
     print("修复完成!")
     print("=" * 60)

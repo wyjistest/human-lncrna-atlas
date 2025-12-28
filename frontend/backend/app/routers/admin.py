@@ -19,6 +19,7 @@ import shutil
 from datetime import datetime
 from typing import Literal, Optional
 from collections import defaultdict, deque
+from urllib.parse import urlsplit
 
 try:
     import psutil  # type: ignore
@@ -56,6 +57,39 @@ logger = logging.getLogger(__name__)
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
+def _origin_from_referer(referer: str) -> Optional[str]:
+    """
+    Best-effort derive an Origin-like value from a Referer header.
+
+    SECURITY:
+    - We only use this as defense-in-depth when Origin is missing.
+    - We intentionally drop userinfo/path/query/fragment by reconstructing from hostname/port.
+    """
+    if not referer:
+        return None
+
+    try:
+        parsed = urlsplit(referer)
+    except Exception:
+        return None
+
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in {"http", "https"}:
+        return None
+
+    hostname = parsed.hostname
+    if not hostname:
+        return None
+
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+
+    if port:
+        return f"{scheme}://{hostname}:{port}"
+    return f"{scheme}://{hostname}"
+
 
 def _enforce_admin_unsafe_origin(request: Request) -> None:
     """
@@ -77,11 +111,15 @@ def _enforce_admin_unsafe_origin(request: Request) -> None:
 
     origin = (request.headers.get("origin") or "").strip()
     if not origin:
+        # Some clients (or privacy settings) omit Origin but still include Referer.
+        referer = (request.headers.get("referer") or "").strip()
+        origin = _origin_from_referer(referer) or ""
+    if not origin:
         return
 
     backend_origin = str(request.base_url).rstrip("/")
-    allowed = set(settings.CORS_ORIGINS) | {backend_origin}
-    if origin not in allowed:
+    allowed = {o.lower() for o in settings.CORS_ORIGINS} | {backend_origin.lower()}
+    if origin.rstrip("/").lower() not in allowed:
         raise HTTPException(
             status_code=403,
             detail={

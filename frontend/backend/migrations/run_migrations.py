@@ -18,7 +18,6 @@ import argparse
 import os
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -200,7 +199,7 @@ def apply_migration(engine, version: str, sql_file: Path, dry_run: bool = False)
                     {"version": version, "description": description},
                 )
 
-        print(f"    Applied successfully")
+        print("    Applied successfully")
         return True
 
     except SQLAlchemyError as e:
@@ -265,7 +264,7 @@ def main():
             if apply_migration(engine, version, sql_file, dry_run=args.dry_run):
                 success_count += 1
             else:
-                print(f"\nMigration failed. Stopping.")
+                print("\nMigration failed. Stopping.")
                 break
 
         if not args.dry_run:
