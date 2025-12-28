@@ -13,6 +13,7 @@
 - [Phase 9.1: 代码审查修复](#phase-91-代码审查修复)
 - [Phase 9.2: Ruff Lint 修复](#phase-92-ruff-lint-全面修复)
 - [Phase 9.3: 代码审查修复](#phase-93-代码审查修复)
+- [Phase 9.45: Codex 三十五次审查修复](#phase-945-codex-三十五次审查修复)
 
 ---
 
@@ -415,4 +416,93 @@ from app.routers.chipseq_rate_limit import rate_limit
 
 ---
 
-*文档更新: 2025-12-16*
+## Phase 9.45: Codex 三十五次审查修复
+
+**日期**: 2025-12-28
+
+### 修复摘要
+
+| 类别 | 修复内容 | 优先级 |
+|------|----------|--------|
+| 安全 | ETL 数据库连接泄漏防护 | P0 |
+| 安全 | Admin CSRF Origin 增强校验 | P1 |
+| 正确性 | SQLAlchemy `text` 导入缺失修复 | P0 |
+| 代码质量 | 测试文件 import/pytestmark 统一 | P2 |
+
+### 安全修复详情
+
+**ETL 连接泄漏防护** (`etl/fix_chimp_empty_dna.py`)
+
+```python
+# Before: 异常时连接未关闭
+conn = psycopg2.connect(**DB_CONFIG)
+cursor = conn.cursor()
+# ... 操作 ...
+cursor.close()
+conn.close()
+
+# After: try/finally 确保关闭
+conn = psycopg2.connect(**DB_CONFIG)
+try:
+    cursor = conn.cursor()
+    # ... 操作 ...
+finally:
+    cursor.close()
+    conn.close()
+```
+
+**Admin CSRF Origin 增强** (`frontend/backend/app/routers/admin.py`)
+
+```python
+# Before: 字符串操作解析 Origin
+origin = request.headers.get("origin", "")
+if origin.startswith("http://") or origin.startswith("https://"):
+    # 可能被绕过
+
+# After: urlsplit 安全解析
+from urllib.parse import urlsplit
+parsed = urlsplit(origin)
+if parsed.scheme not in ("http", "https"):
+    raise HTTPException(403, "Invalid Origin")
+```
+
+**SQLAlchemy 导入修复** (`frontend/backend/app/routers/chipseq_marks.py`)
+
+```python
+# Before: 缺失导入导致运行时 NameError
+from sqlalchemy import func
+
+# After: 补充 text 导入
+from sqlalchemy import func, text
+```
+
+### 代码质量改进
+
+| 文件 | 修复 |
+|------|------|
+| `main.py` | 导入顺序整理，mimetypes.add_type 移到导入后 |
+| `test_*.py` (9个文件) | 统一 import/pytestmark 顺序 |
+| `lncrna_chipseq_overlap.py` | 清理未使用变量 |
+| `useChIPSeq.ts` | 消除分页字段剥离的未使用变量告警 |
+
+### 验证结果
+
+| 检查 | 结果 |
+|------|------|
+| `ruff check .` | ✅ All checks passed |
+| `pytest -m unit` | ✅ 217 passed |
+| `npm run lint` | ✅ 0 errors |
+| `npm run test:run` | ✅ 184 passed |
+| `npm run build` | ✅ 成功 |
+| GitHub Actions - Tests | ✅ success |
+| GitHub Actions - Security Audit | ✅ success |
+
+### Commit
+
+```
+65b34a8 fix: Phase 9.45 Codex 三十五次审查修复 - 安全加固 + 代码质量
+```
+
+---
+
+*文档更新: 2025-12-28*
