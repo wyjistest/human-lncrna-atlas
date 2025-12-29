@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **P2 Medium**: 输入验证加固 - `lncrna_chipseq_overlap.py` 添加长度限制和逗号分隔项数验证
   - 新增 `safe_database_url` 属性用于日志脱敏
   - 涉及文件: `main.py`, `admin.py`, `config.py`, `cache.py`, `lncrna_chipseq_overlap.py`
+- **Phase 9.50+: IGV ChIP-seq 轨道 DoS 防护补齐** (2025-12-29)
+  - **P1 High**: `/api/v1/igv/tracks/chipseq/{species_id}.bed` 默认限制策略收敛：仅在 `chromosome+start+end`（<=10Mb）时允许不设默认上限
+  - **P1 High**: IGV ChIP-seq 轨道新增 10Mb 区域大小上限（与其他 IGV 轨道一致）
+  - **P2 Medium**: IGV 相关日志字段统一 `sanitize_for_log()`（降低日志注入/日志膨胀风险）
+  - 涉及文件: `frontend/backend/app/routers/igv_chipseq.py`, `frontend/backend/app/routers/igv_overlap_track.py`, `frontend/backend/tests/test_security_igv_track_dos_limits_unit.py`
 
 ### Fixed
 - **Phase 9.3: 代码审查修复** (2025-12-15)

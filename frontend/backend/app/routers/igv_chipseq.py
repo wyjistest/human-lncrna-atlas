@@ -16,6 +16,7 @@ from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
 from app.core.validators import normalize_optional_str, parse_comma_list
+from app.core.utils import sanitize_for_log
 from app.models import Species, ChIPSeqExperiment, EpigeneticMarkType
 from app.core.igv_stream_generators import (
     generate_chipseq_bed_stream,
@@ -34,6 +35,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# 10Mb 以内允许 IGV 区域查询，避免一次请求拖垮数据库/连接池
+MAX_REGION_SIZE_BP = 10_000_000
+
+# 无区域过滤（chromosome/start/end 未同时提供）时的默认返回上限：
+# - 防止 “整条染色体/全表” 流式导出被滥用为 DoS
+DEFAULT_MAX_RECORDS_NO_REGION = 50_000
+
+# 显式 limit 的上限（用于交互式轨道；批量导出请走专用 export 接口）
+MAX_LIMIT = 100_000
+
 
 # =============================================================================
 # ChIP-seq IGV Track Endpoints
@@ -44,11 +55,16 @@ router = APIRouter()
 def get_chipseq_bed(
     request: Request,
     species_id: int = Path(..., ge=1, le=4, description="Species ID"),
-    mark_type: str = Query(..., description="Mark type, e.g., H3K27me3"),
+    mark_type: str = Query(..., min_length=1, max_length=64, description="Mark type, e.g., H3K27me3"),
     chromosome: Optional[str] = Query(None, max_length=64, description="Filter by chromosome, e.g., chr1"),
     start: Optional[int] = Query(None, ge=0, description="Region start position (0-based)"),
     end: Optional[int] = Query(None, ge=0, description="Region end position"),
-    limit: Optional[int] = Query(None, ge=1, le=100000, description="Max records to return (default: 50000 when no region filter)"),
+    limit: Optional[int] = Query(
+        None,
+        ge=1,
+        le=MAX_LIMIT,
+        description=f"Max records to return (default: {DEFAULT_MAX_RECORDS_NO_REGION} when no region filter)",
+    ),
     db: Session = Depends(get_db),
 ):
     """
@@ -101,6 +117,12 @@ def get_chipseq_bed(
             detail="start must be less than end"
         )
 
+    if start is not None and end is not None and (end - start) > MAX_REGION_SIZE_BP:
+        raise HTTPException(
+            status_code=400,
+            detail=f"region too large (max {MAX_REGION_SIZE_BP} bp)",
+        )
+
     # Check if mark_type exists in database
     mark_type_obj = (
         db.query(EpigeneticMarkType)
@@ -133,8 +155,9 @@ def get_chipseq_bed(
     # This allows IGV.js to load the track without errors
     if not has_data:
         logger.info(
-            f"ChIP-seq BED export (no data): species={species_id}, mark={mark_type} - "
-            f"returning empty BED file"
+            "ChIP-seq BED export (no data): species=%s, mark=%s - returning empty BED file",
+            species_id,
+            sanitize_for_log(mark_type),
         )
 
         empty_stream = generate_empty_chipseq_bed_stream(
@@ -152,19 +175,28 @@ def get_chipseq_bed(
             },
         )
 
-    # Determine max_records: use explicit limit, or default when no region filter
-    # Default limit of 50000 when no region filter to prevent loading all 420k peaks
+    # Determine max_records:
+    # - Use explicit limit when provided.
+    # - Apply a conservative default when the request is not a bounded region query
+    #   (chromosome/start/end not all provided) to prevent whole-chromosome streaming DoS.
+    # - Only disable the default limit for bounded region queries (<= 10Mb).
+    has_region_filter = normalized_chromosome is not None and start is not None and end is not None
     if limit is not None:
         max_records = limit
-    elif normalized_chromosome is None:
-        max_records = 50000  # Default limit when no region filter
+    elif not has_region_filter:
+        max_records = DEFAULT_MAX_RECORDS_NO_REGION
     else:
-        max_records = None  # No limit when region filter is specified
+        max_records = None
 
     # Data exists - generate full BED stream
     logger.info(
-        f"ChIP-seq BED export: species={species_id}, mark={mark_type}, "
-        f"chr={normalized_chromosome}, start={start}, end={end}, max_records={max_records}"
+        "ChIP-seq BED export: species=%s, mark=%s, chr=%s, start=%s, end=%s, max_records=%s",
+        species_id,
+        sanitize_for_log(mark_type),
+        sanitize_for_log(normalized_chromosome),
+        start,
+        end,
+        max_records,
     )
 
     bed_stream = generate_chipseq_bed_stream(

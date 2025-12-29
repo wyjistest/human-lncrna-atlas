@@ -311,10 +311,10 @@ def get_overlap_track(
 
     logger.info(
         "IGV overlap-track requested: chr=%s, start=%s, end=%s, mark_type=%s, min_ba=%s, limit=%s",
-        norm_chr,
+        sanitize_for_log(norm_chr),
         start,
         end,
-        mark_type,
+        sanitize_for_log(mark_type),
         min_ba,
         limit,
     )

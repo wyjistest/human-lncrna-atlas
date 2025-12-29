@@ -854,3 +854,50 @@ locusChangeHandlerRef.current = null
 ---
 
 *文档更新: 2025-12-28*
+
+---
+
+## Phase 9.50+: Codex 四十次审查修复
+
+**日期**: 2025-12-29
+
+### 修复摘要
+
+| 类别 | 修复内容 | 优先级 |
+|------|----------|--------|
+| DoS 防护 | IGV ChIP-seq 轨道默认记录限制收敛（chromosome-only 也默认 50k） | P1 |
+| DoS 防护 | IGV ChIP-seq 轨道区域大小限制 (10Mb) | P1 |
+| 安全 | IGV overlap-track 日志字段脱敏（sanitize_for_log） | P2 |
+| 测试 | 扩展 IGV 轨道 DoS 防护单测覆盖 chipseq | P2 |
+
+### 行为变更说明
+
+- `GET /api/v1/igv/tracks/chipseq/{species_id}.bed`：仅当同时提供 `chromosome+start+end` 且窗口 <=10Mb 时，默认不限制返回条目；否则默认限制 `50,000`（仍可用 `limit` 显式控制，最大 `100,000`）。
+
+### 修改文件
+
+| 文件 | 变更 |
+|------|------|
+| `frontend/backend/app/routers/igv_chipseq.py` | 新增 10Mb 窗口校验 + 默认 limit 策略收敛 + `mark_type` 长度限制 + 日志脱敏 |
+| `frontend/backend/app/routers/igv_overlap_track.py` | 日志字段统一 `sanitize_for_log()` |
+| `frontend/backend/tests/test_security_igv_track_dos_limits_unit.py` | 新增 chipseq 轨道 DoS guard 单测 |
+| `CHANGELOG.md` | 记录本次安全/DoS 修复 |
+| `docs/changelog/2025-12-06.md` | 更新 IGV ChIP-seq 默认限制说明 |
+
+### 新增/更新测试
+
+- `frontend/backend/tests/test_security_igv_track_dos_limits_unit.py`（新增 6 个 chipseq 相关用例）
+
+### 验证结果
+
+| 检查 | 结果 |
+|------|------|
+| 后端 `pytest -m unit` | ✅ 248 passed |
+| 后端 `pytest` | ✅ 264 passed, 241 skipped |
+| 前端 `npm run test:run` | ✅ 20 files, 195 passed |
+| 前端 `npm run lint` | ✅ 成功 |
+| 前端 `npm run build` | ✅ 成功 |
+
+---
+
+*文档更新: 2025-12-29*

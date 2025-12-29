@@ -13,9 +13,10 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.core.database import get_db
-from app.models import FeatureTrack, Species
+from app.models import ChIPSeqExperiment, EpigeneticMarkType, FeatureTrack, Species
 import app.routers.igv_repeatmasker as igv_repeatmasker
 import app.routers.igv_regulations as igv_regulations
+import app.routers.igv_chipseq as igv_chipseq
 
 
 pytestmark = pytest.mark.unit
@@ -39,6 +40,10 @@ class _DummySession:
     def query(self, model, *args, **kwargs):  # noqa: ARG002
         if model is Species:
             return _FakeQuery(first_row=SimpleNamespace(species_id=1, display_name="Human"))
+        if model is EpigeneticMarkType:
+            return _FakeQuery(first_row=SimpleNamespace(mark_type_id=1, mark_name="H3K27me3"))
+        if model is ChIPSeqExperiment.experiment_id:
+            return _FakeQuery(first_row=SimpleNamespace(experiment_id=1))
         if model is FeatureTrack:
             return _FakeQuery(first_row=SimpleNamespace(track_id=1))
         return _FakeQuery(first_row=None)
@@ -49,6 +54,7 @@ def client() -> TestClient:
     app = FastAPI()
     app.include_router(igv_repeatmasker.router, prefix="/api/v1/igv")
     app.include_router(igv_regulations.router, prefix="/api/v1/igv")
+    app.include_router(igv_chipseq.router, prefix="/api/v1/igv")
 
     def _override_get_db():
         yield _DummySession()
@@ -159,3 +165,83 @@ def test_regulations_bed_region_too_large_returns_400(client: TestClient):
     )
     assert resp.status_code == 400
 
+
+def test_chipseq_bed_default_limit_when_no_region_filter(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    seen = {}
+
+    def _fake_stream(*, max_records=None, **kwargs):  # noqa: ARG001
+        seen["max_records"] = max_records
+        yield "chr1\t0\t1\tpeak\t0\t.\t0\t0\t0\n"
+
+    monkeypatch.setattr(igv_chipseq, "generate_chipseq_bed_stream", _fake_stream)
+
+    resp = client.get("/api/v1/igv/tracks/chipseq/1.bed", params={"mark_type": "H3K27me3"})
+    assert resp.status_code == 200
+    assert seen["max_records"] == igv_chipseq.DEFAULT_MAX_RECORDS_NO_REGION
+
+
+def test_chipseq_bed_limit_overrides_default(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    seen = {}
+
+    def _fake_stream(*, max_records=None, **kwargs):  # noqa: ARG001
+        seen["max_records"] = max_records
+        yield "chr1\t0\t1\tpeak\t0\t.\t0\t0\t0\n"
+
+    monkeypatch.setattr(igv_chipseq, "generate_chipseq_bed_stream", _fake_stream)
+
+    resp = client.get(
+        "/api/v1/igv/tracks/chipseq/1.bed",
+        params={"mark_type": "H3K27me3", "limit": 123},
+    )
+    assert resp.status_code == 200
+    assert seen["max_records"] == 123
+
+
+def test_chipseq_bed_chromosome_only_uses_default_limit(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    seen = {}
+
+    def _fake_stream(*, max_records=None, **kwargs):  # noqa: ARG001
+        seen["max_records"] = max_records
+        yield "chr1\t0\t1\tpeak\t0\t.\t0\t0\t0\n"
+
+    monkeypatch.setattr(igv_chipseq, "generate_chipseq_bed_stream", _fake_stream)
+
+    resp = client.get(
+        "/api/v1/igv/tracks/chipseq/1.bed",
+        params={"mark_type": "H3K27me3", "chromosome": "chr1"},
+    )
+    assert resp.status_code == 200
+    assert seen["max_records"] == igv_chipseq.DEFAULT_MAX_RECORDS_NO_REGION
+
+
+def test_chipseq_bed_region_filter_disables_default_limit(client: TestClient, monkeypatch: pytest.MonkeyPatch):
+    seen = {}
+
+    def _fake_stream(*, max_records=None, **kwargs):  # noqa: ARG001
+        seen["max_records"] = max_records
+        yield "chr1\t0\t1\tpeak\t0\t.\t0\t0\t0\n"
+
+    monkeypatch.setattr(igv_chipseq, "generate_chipseq_bed_stream", _fake_stream)
+
+    resp = client.get(
+        "/api/v1/igv/tracks/chipseq/1.bed",
+        params={"mark_type": "H3K27me3", "chromosome": "chr1", "start": 0, "end": 100},
+    )
+    assert resp.status_code == 200
+    assert seen["max_records"] is None
+
+
+def test_chipseq_bed_region_too_large_returns_400(client: TestClient):
+    resp = client.get(
+        "/api/v1/igv/tracks/chipseq/1.bed",
+        params={"mark_type": "H3K27me3", "chromosome": "chr1", "start": 0, "end": igv_chipseq.MAX_REGION_SIZE_BP + 1},
+    )
+    assert resp.status_code == 400
+
+
+def test_chipseq_bed_mark_type_too_long_returns_422(client: TestClient):
+    resp = client.get(
+        "/api/v1/igv/tracks/chipseq/1.bed",
+        params={"mark_type": "a" * 65},
+    )
+    assert resp.status_code == 422
