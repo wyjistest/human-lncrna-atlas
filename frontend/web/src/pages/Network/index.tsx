@@ -181,6 +181,7 @@ export default function Network() {
       <Space style={{ marginBottom: 16 }} wrap>
         <span>{t('species.label')}:</span>
         <Select
+          data-testid="network-species-select"
           mode="multiple"
           value={speciesIds}
           onChange={handleSpeciesChange}
@@ -191,6 +192,7 @@ export default function Network() {
         />
         <span>{t('disease.label')}:</span>
         <Select
+          data-testid="network-disease-select"
           placeholder={t('disease.placeholder')}
           value={traitId}
           onChange={(v) => {
@@ -210,6 +212,7 @@ export default function Network() {
         />
         <span>{t('ontology.label')}:</span>
         <Select
+          data-testid="network-ontology-select"
           placeholder={t('ontology.placeholder')}
           value={ontologyId}
           onChange={(v) => {
@@ -225,7 +228,7 @@ export default function Network() {
           }}
           options={ontologies?.map((o: { ontology_id: number; ontology_name: string }) => ({ label: o.ontology_name, value: o.ontology_id }))}
         />
-        <Button type="primary" onClick={handleQuery} disabled={!traitId || !ontologyId}>
+        <Button data-testid="network-query-button" type="primary" onClick={handleQuery} disabled={!traitId || !ontologyId}>
           {t('query.button')}
         </Button>
         {/* 批量导出按钮 */}

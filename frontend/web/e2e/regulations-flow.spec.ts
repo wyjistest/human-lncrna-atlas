@@ -84,12 +84,15 @@ test.describe('调控关系分页', () => {
     // 点击第二页
     const page2Button = pagination.locator('.ant-pagination-item-2')
     if (await page2Button.count() > 0) {
-      await page2Button.click()
-
-      // 等待 API 响应
-      await page.waitForResponse((response) =>
-        response.url().includes('/api/v1/regulations') && response.status() === 200
-      )
+      // ⚠️ 避免竞态：先注册 waitForResponse 再触发 click，否则可能错过瞬时完成的请求
+      await Promise.all([
+        page.waitForResponse(
+          (response) =>
+            response.url().includes('/api/v1/regulations') && response.status() === 200,
+          { timeout: 20000 }
+        ),
+        page2Button.click(),
+      ])
 
       // 验证页码变化
       await expect(page2Button).toHaveClass(/ant-pagination-item-active/)

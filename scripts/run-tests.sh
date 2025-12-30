@@ -6,6 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+BACKEND_DIR="$PROJECT_ROOT/frontend/backend"
 
 # 颜色定义
 RED='\033[0;31m'
@@ -24,6 +25,47 @@ require_cmd() {
         echo -e "${RED}缺少依赖命令: ${cmd}${NC}"
         return 1
     fi
+    return 0
+}
+
+resolve_backend_python() {
+    # 优先使用后端虚拟环境，避免依赖全局 Python（CI/本地更稳定）
+    if [ -n "${BACKEND_PYTHON:-}" ]; then
+        echo "$BACKEND_PYTHON"
+        return 0
+    fi
+
+    if [ -x "$BACKEND_DIR/.venv/bin/python" ]; then
+        echo "$BACKEND_DIR/.venv/bin/python"
+        return 0
+    fi
+    if [ -x "$BACKEND_DIR/venv/bin/python" ]; then
+        echo "$BACKEND_DIR/venv/bin/python"
+        return 0
+    fi
+
+    echo "python3"
+}
+
+ensure_backend_pytest() {
+    local python_bin="$1"
+
+    # python_bin 可能是绝对路径或命令名
+    if [[ "$python_bin" == /* ]]; then
+        if [ ! -x "$python_bin" ]; then
+            echo -e "${RED}后端 Python 不可执行: ${python_bin}${NC}"
+            return 1
+        fi
+    else
+        require_cmd "$python_bin" || return 1
+    fi
+
+    if ! "$python_bin" -c "import pytest" > /dev/null 2>&1; then
+        echo -e "${RED}后端 pytest 不可用（请在后端虚拟环境中安装依赖）${NC}"
+        echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install -r requirements.txt${NC}"
+        return 1
+    fi
+
     return 0
 }
 
@@ -57,10 +99,14 @@ check_services() {
 # 运行后端 API 合同测试 (需要服务运行)
 run_backend_tests() {
     echo -e "${YELLOW}运行后端 API 合同测试...${NC}"
-    require_cmd python3 || return 1
-    cd "$PROJECT_ROOT/frontend/backend"
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+    ensure_backend_pytest "$python_bin" || return 1
 
-    if python3 -m pytest tests/test_api_contracts.py -v --tb=short; then
+    cd "$BACKEND_DIR"
+
+    # integration 测试默认是 opt-in（见 frontend/backend/tests/conftest.py）
+    if RUN_INTEGRATION_TESTS=1 "$python_bin" -m pytest tests/test_api_contracts.py -v --tb=short; then
         echo -e "${GREEN}后端 API 测试通过!${NC}"
         return 0
     else
@@ -72,10 +118,13 @@ run_backend_tests() {
 # 运行后端单元测试 (无外部依赖)
 run_backend_unit_tests() {
     echo -e "${YELLOW}运行后端单元测试 (pytest -m unit)...${NC}"
-    require_cmd python3 || return 1
-    cd "$PROJECT_ROOT/frontend/backend"
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+    ensure_backend_pytest "$python_bin" || return 1
 
-    if python3 -m pytest -m unit -v --tb=short; then
+    cd "$BACKEND_DIR"
+
+    if "$python_bin" -m pytest -m unit -v --tb=short; then
         echo -e "${GREEN}后端单元测试通过!${NC}"
         return 0
     else

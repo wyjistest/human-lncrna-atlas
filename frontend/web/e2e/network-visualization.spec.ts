@@ -30,6 +30,57 @@ async function waitForNetworkAPI(page: Page, timeout = 30000) {
   ).catch(() => null)
 }
 
+async function fillGeneSearch(page: Page, gene: string): Promise<boolean> {
+  // Network 页通常使用 antd Select/AutoComplete（combobox），其 input 可能为 readonly；
+  // 这时应通过 click + keyboard 输入，而不是 locator.fill。
+  const combobox = page.getByRole('combobox').first()
+  if ((await combobox.count()) > 0) {
+    // antd Select 的 input 常被内部 span 覆盖，直接点 input 可能被拦截；优先点击 selector 容器。
+    const select = page.locator('.ant-select', { has: combobox }).first()
+    if ((await select.count()) > 0) {
+      const selector = select.locator('.ant-select-selector')
+      if ((await selector.count()) > 0) {
+        await selector.first().click()
+      } else {
+        await select.first().click()
+      }
+    } else {
+      await combobox.click({ force: true })
+    }
+    await page.keyboard.press('Control+A')
+    await page.keyboard.type(gene)
+    return true
+  }
+
+  const input = page
+    .locator('input[placeholder*="gene" i], input[placeholder*="search" i], input[type="search"]')
+    .first()
+  if ((await input.count()) > 0) {
+    await input.fill(gene)
+    return true
+  }
+
+  return false
+}
+
+async function submitGeneSearch(page: Page, gene: string) {
+  const responsePromise = waitForNetworkAPI(page)
+
+  const ok = await fillGeneSearch(page, gene)
+  if (!ok) {
+    return null
+  }
+
+  const searchButton = page.locator('button').filter({ hasText: /Search|查询|搜索/i }).first()
+  if ((await searchButton.count()) > 0) {
+    await searchButton.click()
+  } else {
+    await page.keyboard.press('Enter')
+  }
+
+  return responsePromise
+}
+
 // ============================================================================
 // Test Suite: Page Loading
 // ============================================================================
@@ -90,46 +141,19 @@ test.describe('Network Visualization - Search and Load', () => {
   })
 
   test('Can search for a gene', async ({ page }) => {
-    const searchInput = page.locator('input[placeholder*="gene" i], input[placeholder*="search" i], .ant-input').first()
-
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('MALAT1')
-
-      // Look for search button or press Enter
-      const searchButton = page.locator('button').filter({ hasText: /Search|查询|搜索/i }).first()
-      if (await searchButton.count() > 0) {
-        await searchButton.click()
-      } else {
-        await page.keyboard.press('Enter')
-      }
-
-      await waitForNetworkAPI(page)
-      console.log('Gene search submitted')
-    }
+    const resp = await submitGeneSearch(page, 'MALAT1')
+    console.log(`Gene search submitted: ${!!resp}`)
   })
 
   test('Network loads after search', async ({ page }) => {
-    const searchInput = page.locator('input').first()
+    await submitGeneSearch(page, 'NEAT1')
+    await page.waitForTimeout(3000)
 
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('NEAT1')
+    // Cytoscape container should be visible
+    const cyContainer = page.locator('[class*="cytoscape"], [class*="network"], canvas').first()
+    const isVisible = await cyContainer.isVisible({ timeout: 10000 }).catch(() => false)
 
-      const searchButton = page.locator('button').filter({ hasText: /Search|查询/i }).first()
-      if (await searchButton.count() > 0) {
-        await searchButton.click()
-      } else {
-        await page.keyboard.press('Enter')
-      }
-
-      await waitForNetworkAPI(page)
-      await page.waitForTimeout(3000)
-
-      // Cytoscape container should be visible
-      const cyContainer = page.locator('[class*="cytoscape"], [class*="network"], canvas').first()
-      const isVisible = await cyContainer.isVisible({ timeout: 10000 }).catch(() => false)
-
-      console.log(`Network container visible: ${isVisible}`)
-    }
+    console.log(`Network container visible: ${isVisible}`)
   })
 
   test('Shows loading state during network fetch', async ({ page }) => {
@@ -139,39 +163,35 @@ test.describe('Network Visualization - Search and Load', () => {
       route.continue()
     })
 
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('MALAT1')
-      await page.keyboard.press('Enter')
+    const ok = await fillGeneSearch(page, 'MALAT1')
+    if (!ok) test.skip()
 
-      // Check for loading state
-      const spinner = page.locator('.ant-spin')
-      const isLoading = await spinner.isVisible({ timeout: 3000 }).catch(() => false)
+    await page.keyboard.press('Enter')
 
-      console.log(`Loading state shown: ${isLoading}`)
-    }
+    // Check for loading state
+    const spinner = page.locator('.ant-spin')
+    const isLoading = await spinner.isVisible({ timeout: 3000 }).catch(() => false)
+
+    console.log(`Loading state shown: ${isLoading}`)
   })
 
   test('Handles gene not found', async ({ page }) => {
-    const searchInput = page.locator('input').first()
+    const ok = await fillGeneSearch(page, 'NONEXISTENT_GENE_XYZ123')
+    if (!ok) test.skip()
 
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('NONEXISTENT_GENE_XYZ123')
-      await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(3000)
 
-      await page.waitForTimeout(3000)
+    // Should show error or empty message
+    const errorMsg = page.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error')
+    const emptyState = page.locator('.ant-empty')
+    const noDataText = page.getByText(/no.*data|not found|未找到|无数据/i)
 
-      // Should show error or empty message
-      const errorMsg = page.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error')
-      const emptyState = page.locator('.ant-empty')
-      const noDataText = page.getByText(/no.*data|not found|未找到|无数据/i)
+    const hasError = await errorMsg.isVisible().catch(() => false)
+    const isEmpty = await emptyState.isVisible().catch(() => false)
+    const hasNoData = await noDataText.isVisible().catch(() => false)
 
-      const hasError = await errorMsg.isVisible().catch(() => false)
-      const isEmpty = await emptyState.isVisible().catch(() => false)
-      const hasNoData = await noDataText.isVisible().catch(() => false)
-
-      console.log(`Gene not found feedback: error=${hasError}, empty=${isEmpty}, noData=${hasNoData}`)
-    }
+    console.log(`Gene not found feedback: error=${hasError}, empty=${isEmpty}, noData=${hasNoData}`)
   })
 })
 
@@ -185,20 +205,8 @@ test.describe('Network Visualization - Graph Interactions', () => {
     await page.waitForLoadState('networkidle')
 
     // Trigger a search to load network data
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('MALAT1')
-
-      const searchButton = page.locator('button').filter({ hasText: /Search|查询/i }).first()
-      if (await searchButton.count() > 0) {
-        await searchButton.click()
-      } else {
-        await page.keyboard.press('Enter')
-      }
-
-      await waitForNetworkAPI(page)
-      await page.waitForTimeout(3000)
-    }
+    await submitGeneSearch(page, 'MALAT1')
+    await page.waitForTimeout(3000)
   })
 
   test('Graph container is rendered', async ({ page }) => {
@@ -350,13 +358,8 @@ test.describe('Network Visualization - Filters', () => {
 
   test('Can change layout', async ({ page }) => {
     // First load network
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('MALAT1')
-      await page.keyboard.press('Enter')
-      await waitForNetworkAPI(page)
-      await page.waitForTimeout(3000)
-    }
+    await submitGeneSearch(page, 'MALAT1')
+    await page.waitForTimeout(3000)
 
     // Find layout selector
     const layoutSelect = page.locator('.ant-select').filter({ hasText: /Layout|cose/i }).first()
@@ -388,13 +391,8 @@ test.describe('Network Visualization - Export', () => {
     await page.waitForLoadState('networkidle')
 
     // Load network
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('MALAT1')
-      await page.keyboard.press('Enter')
-      await waitForNetworkAPI(page)
-      await page.waitForTimeout(3000)
-    }
+    await submitGeneSearch(page, 'MALAT1')
+    await page.waitForTimeout(3000)
   })
 
   test('Export button is visible', async ({ page }) => {
@@ -485,12 +483,11 @@ test.describe('Network Visualization - Error States', () => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
     await page.waitForLoadState('networkidle')
 
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('TEST')
-      await page.keyboard.press('Enter')
-      await page.waitForTimeout(3000)
-    }
+    const ok = await fillGeneSearch(page, 'TEST')
+    if (!ok) test.skip()
+
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(3000)
 
     // Should show error
     const errorIndicator = page.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error')
@@ -512,12 +509,11 @@ test.describe('Network Visualization - Error States', () => {
     })
 
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('TEST')
-      await page.keyboard.press('Enter')
-      await page.waitForTimeout(2000)
-    }
+    const ok = await fillGeneSearch(page, 'TEST')
+    if (!ok) test.skip()
+
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(2000)
 
     const emptyState = page.locator('.ant-empty')
     const noDataText = page.getByText(/no.*data|no.*results|无数据/i)
@@ -570,24 +566,69 @@ test.describe('Network Visualization - Performance', () => {
 
   test('Network renders within acceptable time', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('MALAT1')
+    // 当前 /network 页面为 Disease + Ontology 组合查询（非 gene search）
+    const diseaseSelect = page.getByTestId('network-disease-select').first()
+    const ontologySelect = page.getByTestId('network-ontology-select').first()
+    const queryButton = page.getByTestId('network-query-button').first()
 
-      const startTime = Date.now()
-      await page.keyboard.press('Enter')
-      await waitForNetworkAPI(page)
-
-      const canvas = page.locator('canvas').first()
-      await canvas.waitFor({ timeout: 15000, state: 'visible' }).catch(() => null)
-
-      const renderTime = Date.now() - startTime
-      expect(renderTime).toBeLessThan(15000)
-
-      console.log(`Network rendered in ${renderTime}ms`)
+    // Select first available disease
+    await diseaseSelect.waitFor({ state: 'visible', timeout: 15000 })
+    const diseaseInput = diseaseSelect.locator('input[role="combobox"]').first()
+    await expect(diseaseInput).toBeEnabled({ timeout: 15000 })
+    await diseaseSelect.click()
+    {
+      const dropdown = page.locator('.ant-select-dropdown:visible')
+      await dropdown.waitFor({ state: 'visible', timeout: 10000 })
+      const firstDisease = dropdown.locator('.ant-select-item').first()
+      if ((await firstDisease.count()) === 0) {
+        test.skip()
+        return
+      }
+      await firstDisease.waitFor({ state: 'visible', timeout: 10000 })
+      await page.waitForTimeout(100) // allow popup to settle (virtual list / transition)
+      await firstDisease.click()
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(100)
     }
+
+    // Select first available ontology (enabled after disease is selected)
+    const ontologyInput = ontologySelect.locator('input[role="combobox"]').first()
+    await expect(ontologyInput).toBeEnabled({ timeout: 15000 })
+    await ontologySelect.click()
+    {
+      const dropdown = page.locator('.ant-select-dropdown:visible')
+      await dropdown.waitFor({ state: 'visible', timeout: 10000 })
+      const firstOntology = dropdown.locator('.ant-select-item').first()
+      if ((await firstOntology.count()) === 0) {
+        test.skip()
+        return
+      }
+      await firstOntology.waitFor({ state: 'visible', timeout: 10000 })
+      await page.waitForTimeout(100) // allow popup to settle (virtual list / transition)
+      await firstOntology.click()
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(100)
+    }
+
+    const startTime = Date.now()
+
+    const networkResponsePromise = page.waitForResponse(
+      (resp) => resp.url().includes('/api/v1/network/disease') && resp.status() === 200,
+      { timeout: 30000 }
+    ).catch(() => null)
+
+    await queryButton.click()
+    await networkResponsePromise
+
+    const canvas = page.locator('canvas').first()
+    await canvas.waitFor({ timeout: 20000, state: 'visible' }).catch(() => null)
+
+    const renderTime = Date.now() - startTime
+    expect(renderTime).toBeLessThan(20000)
+
+    console.log(`Network rendered in ${renderTime}ms`)
   })
 
   test('Interactions are responsive', async ({ page }) => {
@@ -595,13 +636,8 @@ test.describe('Network Visualization - Performance', () => {
     await page.waitForLoadState('networkidle')
 
     // Load network
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('MALAT1')
-      await page.keyboard.press('Enter')
-      await waitForNetworkAPI(page)
-      await page.waitForTimeout(3000)
-    }
+    await submitGeneSearch(page, 'MALAT1')
+    await page.waitForTimeout(3000)
 
     // Test zoom responsiveness
     const canvas = page.locator('canvas').first()

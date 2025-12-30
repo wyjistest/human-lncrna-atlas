@@ -80,6 +80,32 @@ human-lncrna-atlas/
 - PostgreSQL 15+
 - Redis (optional, for caching)
 
+### One-command (local/LAN)
+
+```bash
+./scripts/dev.sh
+```
+
+Stop services:
+
+```bash
+./scripts/stop.sh
+```
+
+Show status (ports / PID):
+
+```bash
+./scripts/stop.sh -s
+```
+
+### Docker (production-like)
+
+```bash
+cp .env.example .env
+# edit .env (DB_PASSWORD / ADMIN_API_KEY / TRUSTED_HOSTS / CORS_ORIGINS)
+docker compose up -d
+```
+
 ### Backend Setup
 
 ```bash
@@ -149,6 +175,16 @@ cd frontend/web && npm run test:run
 # E2E tests
 cd frontend/web && npm run test:e2e
 ```
+
+Recommended (starts backend+frontend in test mode, then runs Playwright):
+
+```bash
+./scripts/e2e.sh
+```
+
+## Troubleshooting
+
+- `ERR_CONNECTION_REFUSED` when opening `http://<server-ip>`: the frontend is on `:5173` by default → open `http://<server-ip>:5173` and check status via `./scripts/stop.sh -s`.
 
 ## License
 

@@ -23,8 +23,35 @@ declare module 'igv' {
     coords?: 0 | 1
   }
 
+  /**
+   * Genome list entry used by IGV.js when `genome` is specified.
+   * This allows disabling IGV's default remote genome list fetch (https://igv.org/genomes/*).
+   *
+   * @see https://github.com/igvteam/igv.js/wiki/Browser-Configuration-Options#genomelist
+   */
+  export interface IGVGenomeListEntry {
+    id: string
+    name?: string
+    fastaURL?: string
+    indexURL?: string
+    twoBitURL?: string
+    cytobandURL?: string
+    chromSizesURL?: string
+    aliasURL?: string
+  }
+
   export interface IGVBrowserOptions {
     genome?: string
+    /**
+     * Control whether IGV loads the default genome list from igv.org.
+     * Set to false in offline/E2E environments and provide `genomeList` instead.
+     */
+    loadDefaultGenomes?: boolean
+    /**
+     * Custom genome list (URL or inlined array).
+     * When provided as an array, no network request is needed.
+     */
+    genomeList?: string | IGVGenomeListEntry[]
     reference?: {
       id: string
       name?: string

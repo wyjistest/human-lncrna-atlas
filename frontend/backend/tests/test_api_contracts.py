@@ -216,7 +216,24 @@ class TestAPIErrorHandling:
 
     def test_invalid_page_returns_empty(self, api_client: httpx.Client, api_assert):
         """超出范围的页码应返回空列表，不报错"""
-        response = api_client.get("/api/v1/genes?page=999999&page_size=10")
+        # 说明：
+        # - 后端对 offset 设有上限保护（例如 max offset 1000000），过大的 page 会返回 400；
+        # - 这里选择“足够大但不过载”的 page，以验证“超出实际数据范围”时返回空列表的语义。
+        page_size = 10
+        max_offset = 1_000_000
+        max_page = max_offset // page_size  # 保证 offset < max_offset
+
+        # 先拿到总数，动态计算超出范围的页码（避免依赖固定数据集规模）
+        meta_resp = api_client.get("/api/v1/genes?page=1&page_size=1")
+        api_assert.assert_successful_response(meta_resp)
+        meta = api_assert.assert_json_response(meta_resp)
+        total = int(meta["total"])
+
+        last_page = (total + page_size - 1) // page_size
+        page = min(last_page + 100, max_page)
+        assert page > last_page, "测试用 page 应超出最后一页，且不触发 offset 上限保护"
+
+        response = api_client.get(f"/api/v1/genes?page={page}&page_size={page_size}")
         api_assert.assert_successful_response(response)
         data = api_assert.assert_json_response(response)
 

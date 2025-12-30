@@ -256,7 +256,10 @@ def get_gene_chipseq(
             summit_position=row[8],
             fold_enrichment=float(row[9]) if row[9] else None,
             qvalue=float(row[10]) if row[10] else None,
-            distance_to_tss=row[12],
+            # SQLAlchemy 可能把 (peak_start + peak_end) / 2 推导为 NUMERIC，导致 distance_to_tss 为 Decimal(… .5)
+            # Pydantic int 字段不接受带小数的 Decimal，这会让接口直接 500。
+            # 这里统一转为 int（向 0 取整），保证响应稳定且向后兼容（字段仍为 int）。
+            distance_to_tss=int(row[12]) if row[12] is not None else None,
             overlap_type=row[13],
             overlap_bp=row[14],
             mark_type=row[2],

@@ -38,19 +38,25 @@ test.describe('Conservation Analysis Page', () => {
     expect(await statisticCards.count()).toBeGreaterThanOrEqual(1)
   })
 
-  test('species selector is functional', async ({ page }) => {
-    // SpeciesSelector 使用独立 Checkbox（无 checkbox-group 容器）
-    const checkboxes = page.locator('.ant-checkbox-wrapper')
-    await expect(checkboxes.first()).toBeVisible({ timeout: 10000 })
-    expect(await checkboxes.count()).toBeGreaterThanOrEqual(4)
-
-    const firstCheckbox = checkboxes.first()
-    await firstCheckbox.click()
-
-    // Verify checkbox state changed (checked)
-    const input = firstCheckbox.locator('input[type="checkbox"]')
-    await expect(input).toBeChecked({ timeout: 5000 })
-  })
+	  test('species selector is functional', async ({ page }) => {
+	    // SpeciesSelector 使用独立 Checkbox（无 checkbox-group 容器）
+	    const checkboxes = page.locator('.ant-checkbox-wrapper')
+	    await expect(checkboxes.first()).toBeVisible({ timeout: 10000 })
+	    expect(await checkboxes.count()).toBeGreaterThanOrEqual(4)
+	
+	    const firstCheckbox = checkboxes.first()
+	    const input = firstCheckbox.locator('input[type="checkbox"]')
+	    const wasChecked = await input.isChecked().catch(() => false)
+	
+	    await firstCheckbox.click()
+	
+	    // Verify checkbox state toggled
+	    if (wasChecked) {
+	      await expect(input).not.toBeChecked({ timeout: 5000 })
+	    } else {
+	      await expect(input).toBeChecked({ timeout: 5000 })
+	    }
+	  })
 
   test('conservation heatmap renders', async ({ page }) => {
     // Wait for ECharts canvas to appear
@@ -100,19 +106,20 @@ test.describe('Conservation Analysis Page', () => {
     }
   })
 
-  test('filter by minimum conservation level', async ({ page }) => {
-    // Look for slider or select for conservation level
-    const slider = page.locator('.ant-slider')
-
-    if (await slider.isVisible()) {
-      // Interact with slider
-      const sliderHandle = slider.locator('.ant-slider-handle')
-      await sliderHandle.click()
-
-      // Table should update
-      await expect(page.locator('.ant-table')).toBeVisible()
-    }
-  })
+	  test('filter by minimum conservation level', async ({ page }) => {
+	    // Look for "Min. Conservation" slider (页面同时存在多个 slider)
+	    const conservationLabel = page.getByText(/Min\.\s*Conservation|Minimum\s+Conservation|最小.*保守|保守性/i).first()
+	    const slider = conservationLabel.locator('..').locator('.ant-slider').first()
+	
+	    if (await slider.isVisible().catch(() => false)) {
+	      // Interact with slider
+	      const sliderHandle = slider.locator('.ant-slider-handle').first()
+	      await sliderHandle.click()
+	
+	      // Table should update
+	      await expect(page.locator('.ant-table')).toBeVisible()
+	    }
+	  })
 
   test('search/filter by gene name', async ({ page }) => {
     // Find search input
@@ -141,7 +148,7 @@ test.describe('Conservation Analysis Page', () => {
     }
   })
 
-  test('handles empty state gracefully', async ({ page }) => {
+	  test('handles empty state gracefully', async ({ page }) => {
     // Filter to a state that likely has no results
     const searchInput = page.locator('.ant-input-search input, .ant-input').first()
 
@@ -149,17 +156,19 @@ test.describe('Conservation Analysis Page', () => {
       await searchInput.fill('NONEXISTENT_GENE_12345')
       await searchInput.press('Enter')
 
-      await page.waitForTimeout(1000)
-
-      // Should show empty state or no results message
-      const emptyState = page.locator('.ant-empty, .ant-table-empty, [class*="empty"]')
-      const table = page.locator('.ant-table')
-
-      // Either empty state is shown or table is still visible
-      const hasContent = await emptyState.isVisible() || await table.isVisible()
-      expect(hasContent).toBeTruthy()
-    }
-  })
+	      await page.waitForTimeout(1000)
+	
+	      // Should show empty state or no results message
+	      const emptyState = page.locator('.ant-empty, .ant-table-empty, [class*="empty"]').first()
+	      const table = page.locator('.ant-table')
+	
+	      // Either empty state is shown or table is still visible
+	      const hasContent =
+	        (await emptyState.isVisible().catch(() => false)) ||
+	        (await table.isVisible().catch(() => false))
+	      expect(hasContent).toBeTruthy()
+	    }
+	  })
 
   test('responsive layout on mobile', async ({ page }) => {
     // Set viewport to mobile size

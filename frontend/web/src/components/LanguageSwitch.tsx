@@ -21,6 +21,7 @@ export function LanguageSwitch() {
 
   return (
     <Select
+      data-testid="language-switcher"
       value={currentLang}
       onChange={handleChange}
       options={SUPPORTED_LANGUAGES.map(lang => ({

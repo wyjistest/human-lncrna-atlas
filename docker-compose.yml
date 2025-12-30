@@ -63,8 +63,13 @@ services:
       ADMIN_API_KEY: ${ADMIN_API_KEY:?set ADMIN_API_KEY in a local .env}
 
       # NOTE: settings expect JSON arrays for these values.
-      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-["localhost","127.0.0.1","*.localhost"]}
-      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:5173"]}
+      # Production MUST set real domains/IPs, otherwise backend will refuse to start (fail-fast).
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:?set TRUSTED_HOSTS in a local .env (JSON array)}
+      CORS_ORIGINS: ${CORS_ORIGINS:?set CORS_ORIGINS in a local .env (JSON array)}
+
+      # SlowAPI: production requires Redis storage (avoid memory:// which is per-process).
+      # Use a separate Redis DB index to avoid colliding with business cache keys.
+      RATELIMIT_STORAGE_URL: ${RATELIMIT_STORAGE_URL:-redis://redis:6379/1}
 
       # Container-friendly logging
       LOG_TO_FILE: "false"
@@ -82,4 +87,3 @@ networks:
 
 volumes:
   postgres_data:
-

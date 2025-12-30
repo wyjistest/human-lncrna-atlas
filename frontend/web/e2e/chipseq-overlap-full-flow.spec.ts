@@ -424,21 +424,22 @@ test.describe('ChIP-seq Overlap - Error States', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForTimeout(3000)
-
-    // Look for retry button
-    const retryButton = page.getByRole('button', { name: /Retry|Try Again|Reload/i })
-
-    if (await retryButton.count() > 0) {
-      await retryButton.click()
-      await page.waitForTimeout(2000)
-
-      // Verify retry was attempted
-      expect(requestCount).toBeGreaterThan(1)
-      console.log(`Retry attempted, request count: ${requestCount}`)
-    }
-  })
+	    await page.goto(`${BASE_URL}${PAGE_URL}`)
+	    await page.waitForTimeout(3000)
+	
+	    // Look for retry button
+	    // 页面上可能同时存在多个 reload 按钮（如 Refresh / Reset），避免 strict mode 冲突
+	    const retryButton = page.getByRole('button', { name: /Retry|Try Again|Refresh|Reload/i }).first()
+	
+	    if (await retryButton.isVisible().catch(() => false)) {
+	      await retryButton.click()
+	      await page.waitForTimeout(2000)
+	
+	      // Verify retry was attempted
+	      expect(requestCount).toBeGreaterThan(1)
+	      console.log(`Retry attempted, request count: ${requestCount}`)
+	    }
+	  })
 
   test('Handles network timeout gracefully', async ({ page }) => {
     await page.route('**/api/v1/lncrna-chipseq-overlap*', (route) => {

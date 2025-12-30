@@ -37,6 +37,16 @@ LOG_DIR="${LOG_DIR:-/tmp/lncrna-atlas}"
 # 运行模式: dev(开发) 或 prod(生产)
 MODE="${MODE:-dev}"
 
+# dev 模式增强：自动注入 LAN 访问所需配置
+# - TRUSTED_HOSTS: 允许通过本机局域网 IP 访问（避免 Invalid host header）
+# - CORS_ORIGINS: 允许局域网访问前端时跨域调用后端
+# - ADMIN_API_KEY: 自动生成（避免后端 fail-fast 因未配置而拒绝启动）
+# 如需关闭自动注入：AUTO_LAN=false
+AUTO_LAN="${AUTO_LAN:-true}"
+
+# 后端 Python 解释器（可选）：默认自动探测 backend/.venv 或 backend/venv
+BACKEND_PYTHON="${BACKEND_PYTHON:-}"
+
 # 颜色输出
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -75,6 +85,92 @@ check_command() {
         return 1
     fi
     return 0
+}
+
+detect_lan_ip() {
+    # 尽量选择“默认路由出口”的 IPv4（通常就是局域网 IP）
+    # 失败则回退到 hostname -I 的第一个地址
+    local ip_addr=""
+
+    if command -v ip > /dev/null 2>&1; then
+        ip_addr="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}' || true)"
+    fi
+
+    if [ -z "$ip_addr" ] && command -v hostname > /dev/null 2>&1; then
+        ip_addr="$(hostname -I 2>/dev/null | awk '{print $1}' || true)"
+    fi
+
+    if [ -z "$ip_addr" ]; then
+        ip_addr="127.0.0.1"
+    fi
+
+    echo "$ip_addr"
+}
+
+resolve_backend_python() {
+    if [ -n "$BACKEND_PYTHON" ]; then
+        echo "$BACKEND_PYTHON"
+        return 0
+    fi
+
+    if [ -x "$BACKEND_DIR/.venv/bin/python" ]; then
+        echo "$BACKEND_DIR/.venv/bin/python"
+        return 0
+    fi
+    if [ -x "$BACKEND_DIR/venv/bin/python" ]; then
+        echo "$BACKEND_DIR/venv/bin/python"
+        return 0
+    fi
+
+    echo "python3"
+}
+
+generate_admin_api_key() {
+    # 生成 32 bytes 的 hex key（64 字符）
+    if command -v openssl > /dev/null 2>&1; then
+        openssl rand -hex 32
+        return 0
+    fi
+    python3 -c "import secrets; print(secrets.token_hex(32))"
+}
+
+apply_dev_env_overrides() {
+    if [ "$MODE" != "dev" ] || [ "$AUTO_LAN" != "true" ]; then
+        return 0
+    fi
+
+    local lan_ip="${LAN_IP:-$(detect_lan_ip)}"
+
+    # 仅在用户未显式设置时注入，避免覆盖用户配置
+    if [ -z "${ENV:-}" ]; then
+        export ENV="development"
+    fi
+
+    if [ -z "${TRUSTED_HOSTS:-}" ]; then
+        export TRUSTED_HOSTS="[\"localhost\",\"127.0.0.1\",\"*.localhost\",\"${lan_ip}\"]"
+        log_info "dev: 自动注入 TRUSTED_HOSTS=$TRUSTED_HOSTS"
+    fi
+
+    if [ -z "${CORS_ORIGINS:-}" ]; then
+        export CORS_ORIGINS="[\"http://localhost:${FRONTEND_PORT}\",\"http://127.0.0.1:${FRONTEND_PORT}\",\"http://${lan_ip}:${FRONTEND_PORT}\"]"
+        log_info "dev: 自动注入 CORS_ORIGINS=$CORS_ORIGINS"
+    fi
+
+    if [ -z "${ADMIN_API_KEY:-}" ]; then
+        export ADMIN_API_KEY="$(generate_admin_api_key)"
+        export ADMIN_REQUIRE_API_KEY="true"
+
+        # SECURITY: 仅写入本机临时目录，避免误提交到仓库
+        local key_file="$LOG_DIR/admin_api_key.txt"
+        printf '%s' "$ADMIN_API_KEY" > "$key_file"
+        chmod 600 "$key_file" 2>/dev/null || true
+        log_info "dev: 自动生成 ADMIN_API_KEY（已写入 $key_file）"
+    fi
+
+    if [ -z "${VITE_API_BASE_URL:-}" ]; then
+        export VITE_API_BASE_URL="http://${lan_ip}:${BACKEND_PORT}"
+        log_info "dev: 自动注入 VITE_API_BASE_URL=$VITE_API_BASE_URL"
+    fi
 }
 
 # ==============================================================================
@@ -191,20 +287,33 @@ start_backend() {
         return 0
     fi
 
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+    if ! command -v "$python_bin" > /dev/null 2>&1; then
+        log_error "未找到后端 Python 解释器: $python_bin"
+        log_error "可选：设置 BACKEND_PYTHON=/path/to/python 或创建 $BACKEND_DIR/.venv"
+        return 1
+    fi
+    if ! "$python_bin" -c "import uvicorn" > /dev/null 2>&1; then
+        log_error "后端依赖未安装（uvicorn 不可用）。"
+        log_error "请先在 $BACKEND_DIR 安装依赖，例如：pip install -r requirements.txt"
+        return 1
+    fi
+
     # 启动服务
     # SECURITY: 预创建日志文件并收紧权限，避免默认 umask 导致日志可被其他用户读取
     touch "$LOG_DIR/backend.log"
     chmod 600 "$LOG_DIR/backend.log" 2>/dev/null || true
     if [ "$MODE" = "prod" ]; then
         log_info "生产模式启动..."
-        nohup python3 -m uvicorn main:app \
+        nohup "$python_bin" -m uvicorn main:app \
             --host "$BACKEND_HOST" \
             --port "$BACKEND_PORT" \
             --workers 4 \
             > "$LOG_DIR/backend.log" 2>&1 &
     else
         log_info "开发模式启动 (热重载)..."
-        nohup python3 -m uvicorn main:app \
+        nohup "$python_bin" -m uvicorn main:app \
             --host "$BACKEND_HOST" \
             --port "$BACKEND_PORT" \
             --reload \
@@ -261,7 +370,7 @@ start_frontend() {
             > "$LOG_DIR/frontend.log" 2>&1 &
     else
         log_info "开发模式启动..."
-        nohup npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" \
+        nohup npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" --strictPort \
             > "$LOG_DIR/frontend.log" 2>&1 &
     fi
 
@@ -349,6 +458,7 @@ main() {
 
     check_environment
     create_log_dir
+    apply_dev_env_overrides
 
     local has_failure=0
 

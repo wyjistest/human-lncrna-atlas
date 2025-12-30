@@ -629,7 +629,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
 
       const startTime = Date.now()
       await page.goto(`${BASE_URL}${PAGE_URL}`)
-      await page.waitForLoadState('networkidle')
+      await page.waitForLoadState('domcontentloaded')
 
       // Enable stats if needed
       await enableStatsIfNeeded(page)

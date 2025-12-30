@@ -168,6 +168,7 @@ const GenomeBrowserToolbar = memo(({
 
       <Space.Compact>
         <AutoComplete
+          data-testid="genome-locus-autocomplete"
           value={searchValue}
           onChange={handleSearchChange}
           onSelect={handleSelect}

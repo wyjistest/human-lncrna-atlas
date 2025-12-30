@@ -40,7 +40,7 @@ async function waitForIGVInit(page: Page, timeout = 30000) {
 test.describe('Genome Browser - Page Loading', () => {
   test('Page loads successfully', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // URL should be correct
     expect(page.url()).toContain(PAGE_URL)
@@ -52,7 +52,7 @@ test.describe('Genome Browser - Page Loading', () => {
 
   test('Page title is displayed', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const title = page.locator('h1, h2').first()
     await expect(title).toBeVisible({ timeout: 15000 })
@@ -63,7 +63,7 @@ test.describe('Genome Browser - Page Loading', () => {
 
   test('IGV container initializes', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // Wait for IGV container
     await page.waitForTimeout(3000) // IGV needs time to initialize
@@ -95,8 +95,8 @@ test.describe('Genome Browser - Page Loading', () => {
 
     console.log(`Loading state shown: ${hasLoading}`)
 
-    // Wait for full load
-    await page.waitForLoadState('networkidle')
+    // Avoid networkidle: IGV may keep requesting resources
+    await page.waitForLoadState('domcontentloaded')
   })
 })
 
@@ -107,7 +107,7 @@ test.describe('Genome Browser - Page Loading', () => {
 test.describe('Genome Browser - Species Selection', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })
 
@@ -193,7 +193,7 @@ test.describe('Genome Browser - Species Selection', () => {
 test.describe('Genome Browser - Gene Search', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })
 
@@ -246,13 +246,13 @@ test.describe('Genome Browser - Gene Search', () => {
     }
   })
 
-  test('Invalid gene shows appropriate feedback', async ({ page }) => {
-    const searchInput = page.locator('input').first()
+	  test('Invalid gene shows appropriate feedback', async ({ page }) => {
+	    const searchInput = page.locator('input[placeholder*="Enter gene name"], input[placeholder*="gene name" i]').first()
 
-    if (await searchInput.count() > 0) {
-      await searchInput.fill('NONEXISTENT_GENE_12345')
-      await page.keyboard.press('Enter')
-      await page.waitForTimeout(2000)
+	    if (await searchInput.count() > 0) {
+	      await searchInput.fill('NONEXISTENT_GENE_12345')
+	      await page.keyboard.press('Enter')
+	      await page.waitForTimeout(2000)
 
       // Check for error message or notification
       const errorMsg = page.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error')
@@ -273,7 +273,7 @@ test.describe('Genome Browser - Gene Search', () => {
 test.describe('Genome Browser - URL Parameters', () => {
   test('Gene parameter navigates to gene locus', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}?gene=MALAT1`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
     // Page should load with gene parameter
@@ -288,7 +288,7 @@ test.describe('Genome Browser - URL Parameters', () => {
 
   test('Locus parameter navigates to coordinates', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}?locus=chr1:1000000-2000000`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
     expect(page.url()).toContain('locus=')
@@ -301,7 +301,7 @@ test.describe('Genome Browser - URL Parameters', () => {
   test('Species parameter sets correct genome', async ({ page }) => {
     // Species ID 2 is typically Mouse
     await page.goto(`${BASE_URL}${PAGE_URL}?species=2`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
     expect(page.url()).toContain('species=2')
@@ -311,18 +311,21 @@ test.describe('Genome Browser - URL Parameters', () => {
     console.log(`Species from URL: ${speciesText}`)
   })
 
-  test('Combined parameters work together', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?species=1&gene=MALAT1`)
-    await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(3000)
+	  test('Combined parameters work together', async ({ page }) => {
+	    await page.goto(`${BASE_URL}${PAGE_URL}?species=1&gene=MALAT1`)
+	    await page.waitForLoadState('domcontentloaded')
+	    await page.waitForTimeout(3000)
 
-    expect(page.url()).toContain('species=1')
-    expect(page.url()).toContain('gene=MALAT1')
+	    expect(page.url()).toContain('gene=MALAT1')
 
-    // Page should load successfully
-    const mainContent = page.locator('[class*="igv"], [class*="genome"], .ant-card').first()
-    await expect(mainContent).toBeVisible({ timeout: 20000 })
-  })
+	    // 一些实现会在 species 为默认值时从 URL 中移除该参数，这里只校验 UI 选择结果
+	    const selectedSpecies = page.locator('.ant-select').filter({ hasText: /Human|人类/i }).first()
+	    await expect(selectedSpecies).toBeVisible({ timeout: 10000 })
+
+	    // Page should load successfully
+	    const mainContent = page.locator('[class*="igv"], [class*="genome"], .ant-card').first()
+	    await expect(mainContent).toBeVisible({ timeout: 20000 })
+	  })
 })
 
 // ============================================================================
@@ -332,7 +335,7 @@ test.describe('Genome Browser - URL Parameters', () => {
 test.describe('Genome Browser - Tracks', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000) // IGV needs time to fully initialize
   })
 
@@ -384,7 +387,7 @@ test.describe('Genome Browser - Tracks', () => {
 test.describe('Genome Browser - Navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000)
   })
 
@@ -399,15 +402,14 @@ test.describe('Genome Browser - Navigation', () => {
     console.log(`Zoom controls: in=${hasZoomIn}, out=${hasZoomOut}`)
   })
 
-  test('Locus input allows coordinate entry', async ({ page }) => {
-    // IGV has a locus search box
-    const locusInput = page.locator('input[class*="locus"], input[class*="search"], [class*="igv-search"] input').first()
-      .or(page.locator('.ant-input').first())
+	  test('Locus input allows coordinate entry', async ({ page }) => {
+	    // IGV has a locus search box
+	    const locusInput = page.locator('input.igv-search-input').first()
 
-    if (await locusInput.count() > 0) {
-      // Enter coordinates
-      await locusInput.fill('chr1:1000000-2000000')
-      await page.keyboard.press('Enter')
+	    if (await locusInput.count() > 0) {
+	      // Enter coordinates
+	      await locusInput.fill('chr1:1000000-2000000')
+	      await page.keyboard.press('Enter')
       await page.waitForTimeout(2000)
 
       console.log('Locus coordinate entry works')
@@ -440,7 +442,7 @@ test.describe('Genome Browser - Navigation', () => {
 test.describe('Genome Browser - Error Handling', () => {
   test('Handles invalid locus gracefully', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}?locus=invalid_locus`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
     // Page should not crash
@@ -503,7 +505,7 @@ test.describe('Genome Browser - Error Handling', () => {
     })
 
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000)
 
     // Filter for critical errors
@@ -527,7 +529,7 @@ test.describe('Genome Browser - Performance', () => {
     const startTime = Date.now()
 
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const loadTime = Date.now() - startTime
     expect(loadTime).toBeLessThan(15000) // 15 seconds max (IGV is heavy)
@@ -550,22 +552,25 @@ test.describe('Genome Browser - Performance', () => {
 
   test('Navigation response is acceptable', async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000)
 
-    const searchInput = page.locator('input').first()
-    if (await searchInput.count() > 0) {
-      const startTime = Date.now()
-
-      await searchInput.fill('chr1:5000000-6000000')
-      await page.keyboard.press('Enter')
-      await page.waitForTimeout(2000)
-
-      const navTime = Date.now() - startTime
-      expect(navTime).toBeLessThan(10000)
-
-      console.log(`Navigation completed in ${navTime}ms`)
+    const locusInput = page.getByTestId('genome-locus-autocomplete').locator('input').first()
+    if ((await locusInput.count()) === 0) {
+      test.skip()
+      return
     }
+
+    const startTime = Date.now()
+
+    await locusInput.fill('chr1:5000000-6000000')
+    await page.keyboard.press('Enter')
+    await page.waitForTimeout(2000)
+
+    const navTime = Date.now() - startTime
+    expect(navTime).toBeLessThan(10000)
+
+    console.log(`Navigation completed in ${navTime}ms`)
   })
 })
 
@@ -577,7 +582,7 @@ test.describe('Genome Browser - Responsive', () => {
   test('Desktop view works correctly', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 })
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const mainContent = page.locator('[class*="igv"], [class*="genome"], .ant-card').first()
     await expect(mainContent).toBeVisible({ timeout: 20000 })
@@ -586,7 +591,7 @@ test.describe('Genome Browser - Responsive', () => {
   test('Tablet view is usable', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 })
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     const mainContent = page.locator('[class*="igv"], [class*="genome"], .ant-card, h1, h2').first()
     await expect(mainContent).toBeVisible({ timeout: 20000 })
@@ -595,7 +600,7 @@ test.describe('Genome Browser - Responsive', () => {
   test('Mobile view shows appropriate message or adapts', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
 
     // IGV may not work well on mobile - should show message or adapted view
     const content = page.locator('body')
@@ -616,7 +621,7 @@ test.describe('Genome Browser - Responsive', () => {
 test.describe('Genome Browser - Accessibility', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
   })
 

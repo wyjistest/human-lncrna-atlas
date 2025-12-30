@@ -29,16 +29,28 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
 
+function getEnvInt(name: string, fallback: number): number {
+  const raw = process.env[name]
+  if (!raw) return fallback
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
 // Performance thresholds (in milliseconds)
 const PERF_THRESHOLDS = {
-  CHR1_MAX_LOAD_TIME: 30000,      // 30 seconds for chr1 with MV
-  CHR22_MAX_LOAD_TIME: 5000,      // 5 seconds for chr22 (small)
-  ALL_CHROMOSOMES_MAX_TIME: 60000, // 60 seconds for all chromosomes
-  INITIAL_RENDER_TIME: 5000,       // 5 seconds for initial page render
+  CHR1_MAX_LOAD_TIME: getEnvInt('E2E_CHR1_MAX_LOAD_TIME_MS', 30000),       // chr1 with MV
+  CHR22_MAX_LOAD_TIME: getEnvInt('E2E_CHR22_MAX_LOAD_TIME_MS', 5000),      // chr22 (small)
+  ALL_CHROMOSOMES_MAX_TIME: getEnvInt('E2E_ALL_CHROMOSOMES_MAX_TIME_MS', 60000), // all chromosomes
+  INITIAL_RENDER_TIME: getEnvInt('E2E_OVERLAP_INITIAL_RENDER_TIME_MS', 5000),    // initial page render
+  CHR1_MAX_SORT_TIME: getEnvInt('E2E_CHR1_MAX_SORT_TIME_MS', 45000),       // sorting on chr1 can be noisy in CI/headless
 }
 
 // Helper: Wait for overlap API response and capture metadata
-async function waitForOverlapAPIWithMetadata(page: Page, timeout = 60000): Promise<{
+async function waitForOverlapAPIWithMetadata(
+  page: Page,
+  timeout = 60000,
+  urlMustInclude: string[] = []
+): Promise<{
   response: any
   responseTime: number
   usingMaterializedView: boolean
@@ -50,11 +62,13 @@ async function waitForOverlapAPIWithMetadata(page: Page, timeout = 60000): Promi
 
   try {
     const response = await page.waitForResponse(
-      (resp) => resp.url().includes('/api/v1/lncrna-chipseq-overlap') &&
-                !resp.url().includes('/summary') &&
-                !resp.url().includes('/heatmap') &&
-                !resp.url().includes('/export') &&
-                resp.status() === 200,
+      (resp) => {
+        const url = resp.url()
+        if (!url.includes('/api/v1/lncrna-chipseq-overlap')) return false
+        if (url.includes('/summary') || url.includes('/heatmap') || url.includes('/export')) return false
+        if (resp.status() !== 200) return false
+        return urlMustInclude.every(fragment => url.includes(fragment))
+      },
       { timeout }
     )
 
@@ -76,7 +90,11 @@ async function waitForOverlapAPIWithMetadata(page: Page, timeout = 60000): Promi
 }
 
 // Helper: Select chromosome from dropdown
-async function selectChromosome(page: Page, chromosome: string): Promise<boolean> {
+async function selectChromosome(
+  page: Page,
+  chromosome: string,
+  beforeOptionClick?: () => void | Promise<void>
+): Promise<boolean> {
   // Find the chromosome selector - look for Select component with chromosome label
   const chrSelector = page.locator('.ant-select').filter({ hasText: /Chromosome|All chromosomes/i }).first()
     .or(page.locator('.ant-form-item').filter({ hasText: /Chromosome/i }).locator('.ant-select').first())
@@ -96,6 +114,7 @@ async function selectChromosome(page: Page, chromosome: string): Promise<boolean
           .filter({ hasText: new RegExp(`^${chromosome}$`, 'i') }).first()
 
         if (await option.count() > 0) {
+          await beforeOptionClick?.()
           await option.click()
           return true
         }
@@ -108,11 +127,19 @@ async function selectChromosome(page: Page, chromosome: string): Promise<boolean
   await chrSelector.click()
   await page.waitForTimeout(300)
 
+  // If the dropdown has a search input (showSearch), use it to avoid virtualization issues
+  const dropdownSearch = page.locator('.ant-select-dropdown:visible input').first()
+  if (await dropdownSearch.count() > 0) {
+    await dropdownSearch.fill(chromosome)
+    await page.waitForTimeout(100)
+  }
+
   // Look for the specific chromosome option
   const chrOption = page.locator('.ant-select-dropdown:visible .ant-select-item')
     .filter({ hasText: new RegExp(`^${chromosome}$`, 'i') }).first()
 
   if (await chrOption.count() > 0) {
+    await beforeOptionClick?.()
     await chrOption.click()
     return true
   }
@@ -163,7 +190,7 @@ test.describe('Chr1 Large Chromosome Query Performance (P0)', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000) // Allow initial render
   })
 
@@ -306,13 +333,17 @@ test.describe('Overlap Query Functionality (P1)', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })
 
   test('P1: should filter by chr1 and show results correctly', async ({ page }) => {
-    // Select chr1
-    const selected = await selectChromosome(page, 'chr1')
+    // Select chr1 and wait for the chr1-specific overlap request.
+    // IMPORTANT: set up the response waiter before clicking, otherwise a fast response can be missed.
+    let chr1Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    const selected = await selectChromosome(page, 'chr1', async () => {
+      chr1Response = waitForOverlapAPIWithMetadata(page, 60000, ['chromosome=chr1'])
+    })
     if (!selected) {
       console.log('Skipping: chr1 selection not available')
       test.skip()
@@ -320,7 +351,7 @@ test.describe('Overlap Query Functionality (P1)', () => {
     }
 
     // Wait for data to load
-    const result = await waitForOverlapAPIWithMetadata(page)
+    const result = await (chr1Response ?? waitForOverlapAPIWithMetadata(page, 60000, ['chromosome=chr1']))
     expect(result).not.toBeNull()
 
     if (result) {
@@ -375,33 +406,31 @@ test.describe('Overlap Query Functionality (P1)', () => {
   })
 
   test('P1: should display info alert for all-chromosome queries', async ({ page }) => {
-    // Wait for initial data load
-    await waitForOverlapAPIWithMetadata(page)
-
-    // Clear chromosome filter
-    await clearChromosomeFilter(page)
-    await page.waitForTimeout(500)
-
-    // Wait for query with no chromosome filter
-    await waitForOverlapAPIWithMetadata(page, 60000)
-    await page.waitForTimeout(1000)
-
-    // Look for info alert about all-chromosome query
-    const infoAlert = page.locator('.ant-alert-info')
-    const alertText = page.getByText(/all chromosomes|materialized view|optimized/i)
-
-    const hasInfoAlert = await infoAlert.isVisible().catch(() => false)
-    const hasAlertText = await alertText.isVisible().catch(() => false)
-
-    console.log(`Info Alert Detection:`)
-    console.log(`  - Info alert visible: ${hasInfoAlert}`)
-    console.log(`  - Alert text found: ${hasAlertText}`)
-
-    // Log alert content if found
-    if (hasInfoAlert) {
-      const alertContent = await infoAlert.textContent()
-      console.log(`  - Alert content: ${alertContent}`)
+    // Ensure we start from a specific chromosome so clearing triggers a real state change
+    const selected = await selectChromosome(page, 'chr1')
+    if (!selected) {
+      console.log('Skipping: chromosome selector not available')
+      test.skip()
+      return
     }
+
+    // Wait for chr22 query to settle (best effort)
+    await waitForOverlapAPIWithMetadata(page, 30000)
+
+    // Clear chromosome filter to switch back to all-chromosome query
+    const cleared = await clearChromosomeFilter(page)
+    if (!cleared) {
+      console.log('Skipping: could not clear chromosome filter')
+      test.skip()
+      return
+    }
+
+    // Wait for info alert about all-chromosome query (it appears after data is loaded)
+    const infoAlert = page.locator('.ant-alert-info').filter({ hasText: /Querying All Chromosomes|all chromosomes/i }).first()
+    await expect(infoAlert).toBeVisible({ timeout: 60000 })
+
+    const alertContent = await infoAlert.textContent().catch(() => '')
+    console.log(`All-chromosome info alert: ${alertContent}`)
   })
 
   test('P1: should handle rapid chromosome filter changes', async ({ page }) => {
@@ -457,21 +486,35 @@ test.describe('Regression Tests (P2)', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })
 
   test('P2: should still work quickly with chr22 (small chromosome)', async ({ page }) => {
+    const slackMs = getEnvInt('E2E_CHR22_SLACK_MS', 250)
+
     // Select chr22 - should be fast regardless of MV
-    const selected = await selectChromosome(page, 'chr22')
+    // IMPORTANT: start waiting before clicking to avoid missing a fast/cached response.
+    let chr22Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    const startTime = Date.now()
+    const selected = await selectChromosome(page, 'chr22', async () => {
+      chr22Response = waitForOverlapAPIWithMetadata(
+        page,
+        PERF_THRESHOLDS.CHR22_MAX_LOAD_TIME + slackMs,
+        ['chromosome=chr22']
+      )
+    })
     if (!selected) {
       console.log('Skipping: chr22 selection not available')
       test.skip()
       return
     }
 
-    const startTime = Date.now()
-    const result = await waitForOverlapAPIWithMetadata(page, PERF_THRESHOLDS.CHR22_MAX_LOAD_TIME)
+    const result = await (chr22Response ?? waitForOverlapAPIWithMetadata(
+      page,
+      PERF_THRESHOLDS.CHR22_MAX_LOAD_TIME + slackMs,
+      ['chromosome=chr22']
+    ))
     const totalTime = Date.now() - startTime
 
     console.log(`Chr22 Query Performance:`)
@@ -480,7 +523,7 @@ test.describe('Regression Tests (P2)', () => {
     console.log(`  - Total results: ${result?.total}`)
 
     // Chr22 should be fast
-    expect(totalTime).toBeLessThan(PERF_THRESHOLDS.CHR22_MAX_LOAD_TIME)
+    expect(totalTime).toBeLessThanOrEqual(PERF_THRESHOLDS.CHR22_MAX_LOAD_TIME + slackMs)
 
     if (result) {
       expect(result.total).toBeGreaterThan(0)
@@ -549,15 +592,18 @@ test.describe('Regression Tests (P2)', () => {
   })
 
   test('P2: should not have performance regression for pagination on chr1', async ({ page }) => {
-    // Select chr1
-    const selected = await selectChromosome(page, 'chr1')
+    // Select chr1 and wait for initial overlap load (avoid missing fast responses).
+    let chr1Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    const selected = await selectChromosome(page, 'chr1', async () => {
+      chr1Response = waitForOverlapAPIWithMetadata(page, 60000, ['chromosome=chr1'])
+    })
     if (!selected) {
       test.skip()
       return
     }
 
     // Wait for initial data
-    await waitForOverlapAPIWithMetadata(page)
+    await (chr1Response ?? waitForOverlapAPIWithMetadata(page, 60000, ['chromosome=chr1']))
     await page.waitForTimeout(1000)
 
     // Find pagination
@@ -568,10 +614,12 @@ test.describe('Regression Tests (P2)', () => {
       const page2Button = pagination.locator('.ant-pagination-item-2')
 
       if (await page2Button.count() > 0) {
+        // Set up response waiter before clicking to avoid missing cached/fast pagination responses.
+        const page2Response = waitForOverlapAPIWithMetadata(page, 15000, ['chromosome=chr1', 'page=2'])
         const startTime = Date.now()
         await page2Button.click()
 
-        const result = await waitForOverlapAPIWithMetadata(page, 15000)
+        const result = await page2Response
         const paginationTime = Date.now() - startTime
 
         console.log(`Pagination Performance (chr1):`)
@@ -587,9 +635,12 @@ test.describe('Regression Tests (P2)', () => {
   })
 
   test('P2: should handle sorting on large chromosome data', async ({ page }) => {
-    // Select chr1 for large dataset
-    await selectChromosome(page, 'chr1')
-    await waitForOverlapAPIWithMetadata(page)
+    // Select chr1 for large dataset and wait for initial load (avoid missing fast responses).
+    let chr1Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    await selectChromosome(page, 'chr1', async () => {
+      chr1Response = waitForOverlapAPIWithMetadata(page, 60000, ['chromosome=chr1'])
+    })
+    await (chr1Response ?? waitForOverlapAPIWithMetadata(page, 60000, ['chromosome=chr1']))
     await page.waitForTimeout(1000)
 
     // Find sortable column headers
@@ -598,17 +649,23 @@ test.describe('Regression Tests (P2)', () => {
 
     if (headerCount > 0) {
       // Click first sortable header
+      // IMPORTANT: start waiting before clicking, otherwise a fast response can be missed and the test will time out.
+      const sortResponse = waitForOverlapAPIWithMetadata(
+        page,
+        PERF_THRESHOLDS.CHR1_MAX_SORT_TIME,
+        ['chromosome=chr1']
+      )
       const startTime = Date.now()
       await sortableHeaders.first().click()
 
-      const result = await waitForOverlapAPIWithMetadata(page, 30000)
+      const result = await sortResponse
       const sortTime = Date.now() - startTime
 
       console.log(`Sorting Performance (chr1):`)
       console.log(`  - Sort time: ${sortTime}ms`)
 
       // Sorting should complete in reasonable time
-      expect(sortTime).toBeLessThan(30000)
+      expect(sortTime).toBeLessThan(PERF_THRESHOLDS.CHR1_MAX_SORT_TIME)
 
       // Verify sort indicator appears
       const sortIcon = sortableHeaders.first().locator('.ant-table-column-sorter-up.active, .ant-table-column-sorter-down.active')

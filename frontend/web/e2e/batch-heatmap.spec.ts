@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 
 /**
  * Batch Heatmap E2E Tests
@@ -14,23 +14,25 @@ import { test, expect } from '@playwright/test'
  */
 
 const TEST_GENE_IDS = [17276, 17277, 17278, 17279, 17280]
-const BASE_URL = 'http://localhost:5173'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
+
+async function gotoBatchHeatmapOrSkip(page: Page) {
+  await page.goto(`${BASE_URL}/genes/batch`)
+  await page.waitForLoadState('domcontentloaded')
+
+  // 如果该页面未集成（例如返回 404），则跳过该套件
+  const notFound = await page.getByText(/Not Found|404/i).isVisible().catch(() => false)
+  const hasHeading = await page.locator('h1, h2').first().isVisible().catch(() => false)
+  if (notFound || !hasHeading) {
+    test.skip(true, 'Batch heatmap 页面当前未集成，跳过 E2E')
+  }
+
+  await page.waitForLoadState('networkidle')
+}
 
 test.describe('Batch Heatmap Visualization', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to batch heatmap page or relevant gene page
-    await page.goto(`${BASE_URL}/genes/batch`)
-    await page.waitForLoadState('domcontentloaded')
-
-    // 如果该页面未集成（例如返回 404），则跳过该套件
-    const notFound = await page.getByText(/Not Found|404/i).isVisible().catch(() => false)
-    const hasHeading = await page.locator('h1, h2').first().isVisible().catch(() => false)
-    if (notFound || !hasHeading) {
-      test.skip(true, 'Batch heatmap 页面当前未集成，跳过 E2E')
-    }
-
-    // Wait for page to load
-    await page.waitForLoadState('networkidle')
+    await gotoBatchHeatmapOrSkip(page)
   })
 
   test('should load batch heatmap page', async ({ page }) => {
@@ -142,9 +144,7 @@ test.describe('Batch Heatmap Visualization', () => {
 
 test.describe('Batch Heatmap Performance', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to batch heatmap
-    await page.goto(`${BASE_URL}/genes/batch`)
-    await page.waitForLoadState('networkidle')
+    await gotoBatchHeatmapOrSkip(page)
   })
 
   test('should load 10 genes batch within reasonable time', async ({ page }) => {
@@ -199,10 +199,11 @@ test.describe('Batch Heatmap Performance', () => {
 })
 
 test.describe('Batch Heatmap Data Export', () => {
-  test('should display export options for batch data', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/batch`)
-    await page.waitForLoadState('networkidle')
+  test.beforeEach(async ({ page }) => {
+    await gotoBatchHeatmapOrSkip(page)
+  })
 
+  test('should display export options for batch data', async ({ page }) => {
     // Look for export button
     const exportBtn = page.locator(
       'button:has-text("Export"), button:has-text("Download"), [data-testid="export-btn"]'
@@ -214,37 +215,32 @@ test.describe('Batch Heatmap Data Export', () => {
     }
   })
 
-  test('should export batch heatmap as CSV', async ({ page, context }) => {
-    await page.goto(`${BASE_URL}/genes/batch`)
-    await page.waitForLoadState('networkidle')
-
-    // Set up download listener
-    const downloadPromise = context.waitForEvent('download')
-
+  test('should export batch heatmap as CSV', async ({ page }) => {
     // Find and click export button for CSV
     const csvExportBtn = page.locator(
       'button:has-text("CSV"), button:has-text("Export CSV"), [data-testid="export-csv"]'
     ).first()
 
-    if (await csvExportBtn.isVisible()) {
-      await csvExportBtn.click()
+    const visible = await csvExportBtn.isVisible().catch(() => false)
+    if (!visible) return
 
-      // Wait for download to start
-      const download = await downloadPromise.catch(() => null)
+    const [download] = await Promise.all([
+      page.waitForEvent('download', { timeout: 10000 }),
+      csvExportBtn.click(),
+    ]).catch(() => [null as any])
 
-      if (download) {
-        const filename = download.suggestedFilename()
-        expect(filename).toMatch(/\.csv$/)
-      }
-    }
+    if (!download) return
+    const filename = download.suggestedFilename()
+    expect(filename).toMatch(/\.csv$/)
   })
 })
 
 test.describe('Batch Heatmap Gene Selection', () => {
-  test('should support multiple gene input methods', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/batch`)
-    await page.waitForLoadState('networkidle')
+  test.beforeEach(async ({ page }) => {
+    await gotoBatchHeatmapOrSkip(page)
+  })
 
+  test('should support multiple gene input methods', async ({ page }) => {
     // Method 1: Text input
     const inputs = page.locator('input[type="text"], textarea')
     if (await inputs.count() > 0) {
@@ -258,9 +254,6 @@ test.describe('Batch Heatmap Gene Selection', () => {
   })
 
   test('should validate gene IDs in batch input', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/batch`)
-    await page.waitForLoadState('networkidle')
-
     // Look for validation message or error
     const inputs = page.locator('input[type="text"], textarea')
     if (await inputs.count() > 0) {

@@ -32,6 +32,33 @@ type IGVBrowserWithUnsubscribe = IGVBrowser & {
 
 let igvModule: IGVModule | null = null
 
+// 避免 IGV.js 初始化时访问 https://igv.org/genomes/genomes3.json（默认 2s 超时，E2E/离线环境易报错）。
+// 仅覆盖项目实际使用的内置基因组（当前为 hg19），并禁用默认基因组列表加载。
+const IGV_BUILTIN_GENOME_LIST: Record<
+  string,
+  {
+    id: string
+    name: string
+    twoBitURL: string
+    cytobandURL?: string
+    chromSizesURL?: string
+    aliasURL?: string
+  }
+> = {
+  hg19: {
+    id: 'hg19',
+    name: 'Human (GRCh37/hg19)',
+    // 使用 UCSC 2bit（支持 HTTP Range），避免本地维护超大 FASTA
+    twoBitURL: 'https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.2bit',
+    // 使用 UCSC 的压缩 cytoband（本地 hg19/cytoBandIdeo.txt 为 .txt，后端默认禁止该类型）
+    cytobandURL: 'https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/cytoBand.txt.gz',
+    // chrom.sizes 本地可用且较小，优先走后端静态文件（更快、更稳定）
+    chromSizesURL: `${API_BASE_URL}/genomes/hg19.chrom.sizes`,
+    // 染色体别名表（IGV 官方数据仓库）
+    aliasURL: 'https://raw.githubusercontent.com/igvteam/igv-data/refs/heads/main/data/hg19/hg19_alias.tab',
+  },
+}
+
 const loadIGV = async (): Promise<IGVModule> => {
   if (!igvModule) {
     // IGV.js uses default export in ESM
@@ -257,6 +284,13 @@ const GenomeBrowser = memo(({
         // Use genome ID for built-in genomes, otherwise use reference
         if (config.genome) {
           options.genome = config.genome
+
+          // 如果是内置基因组（例如 hg19），显式提供 genomeList 并禁用默认列表加载，避免外网依赖与控制台错误。
+          const builtin = IGV_BUILTIN_GENOME_LIST[String(config.genome)]
+          if (builtin) {
+            options.loadDefaultGenomes = false
+            options.genomeList = [builtin]
+          }
         } else if (config.reference) {
           // Build reference object - prefer twoBitURL over fastaURL for remote genomes
           options.reference = {

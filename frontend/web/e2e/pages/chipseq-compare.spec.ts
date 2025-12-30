@@ -547,9 +547,10 @@ test.describe('ChIP-seq Filter Panel', () => {
   })
 
   test('should filter by fold enrichment', async ({ page }) => {
-    const foldInput = page.locator('.ant-input-number')
+    // Antd InputNumber 外层不是可编辑元素，需要定位到内部 input
+    const foldInput = page.locator('[data-testid="fold-enrichment-filter"] input')
       .or(page.getByPlaceholder(/fold|enrichment/i))
-      .or(page.locator('[data-testid="fold-enrichment-filter"]'))
+      .or(page.locator('.ant-input-number input'))
 
     const inputCount = await foldInput.count()
     if (inputCount > 0) {
@@ -558,8 +559,8 @@ test.describe('ChIP-seq Filter Panel', () => {
       await page.waitForTimeout(1000)
 
       // Table should update (or show filtered results)
-      const table = page.locator('.ant-table')
-      await expect(table).toBeVisible()
+      const table = page.locator('.ant-table:visible')
+      await expect(table.first()).toBeVisible()
     }
   })
 
@@ -569,21 +570,35 @@ test.describe('ChIP-seq Filter Panel', () => {
 
     const filterCount = await cellTypeFilter.count()
     if (filterCount > 0) {
+      await cellTypeFilter.first().scrollIntoViewIfNeeded()
       await cellTypeFilter.first().click()
       await page.waitForTimeout(300)
 
       // Select a cell type
-      const k562Option = page.locator('.ant-select-dropdown').getByText('K562', { exact: true })
-      if ((await k562Option.count()) > 0) {
-        await k562Option.click()
-        await page.waitForTimeout(1000)
+      // antd Select 可能会渲染“隐藏的 aria option”（文本仅为 K562），导致点击命中不可见节点而超时。
+      // 优先点击 dropdown 内实际可见的渲染项（通常包含描述，例如 "K562 (Leukemia)"）。
+      const dropdown = page.locator('.ant-select-dropdown:visible')
+      const visibleK562 = dropdown
+        .locator('.ant-select-item:visible, .ant-select-item-option:visible, [role="option"]:visible')
+        .filter({ hasText: /^K562\b/i })
+        .first()
+
+      if ((await visibleK562.count()) > 0) {
+        await visibleK562.scrollIntoViewIfNeeded()
+        await visibleK562.click()
+      } else {
+        // 兜底：尝试键盘 typeahead + Enter（不依赖 option DOM 结构）
+        await page.keyboard.type('K562')
+        await page.keyboard.press('Enter')
       }
+
+      // Verify selection is reflected in the control (minimal assertion, avoids brittle table expectations)
+      await expect(cellTypeFilter.first()).toContainText(/K562/i)
     }
   })
 
   test('should have reset filters button', async ({ page }) => {
-    const resetButton = page.getByRole('button', { name: /Reset|Clear|重置/i })
-      .or(page.locator('button').filter({ hasText: /Reset|Clear|重置/i }))
+    const resetButton = page.locator('button:visible').filter({ hasText: /Reset|Clear|重置/i })
 
     const buttonCount = await resetButton.count()
     if (buttonCount > 0) {
@@ -612,8 +627,8 @@ test.describe('ChIP-seq Peaks Table', () => {
   })
 
   test('should display peaks data table', async ({ page }) => {
-    const table = page.locator('.ant-table')
-      .or(page.locator('[data-testid="peaks-table"]'))
+    const table = page.locator('.ant-table:visible')
+      .or(page.locator('[data-testid="peaks-table"]:visible'))
 
     const tableCount = await table.count()
     if (tableCount > 0) {
@@ -641,8 +656,9 @@ test.describe('ChIP-seq Peaks Table', () => {
   })
 
   test('should support sorting', async ({ page }) => {
-    const sortableHeader = page.locator('.ant-table-column-sorters')
-      .or(page.locator('.ant-table-column-has-sorters'))
+    const table = page.locator('.ant-table:visible').first()
+    const sortableHeader = table.locator('.ant-table-column-sorters')
+      .or(table.locator('.ant-table-column-has-sorters'))
 
     const headerCount = await sortableHeader.count()
     if (headerCount > 0) {
@@ -657,7 +673,7 @@ test.describe('ChIP-seq Peaks Table', () => {
   })
 
   test('should support pagination', async ({ page }) => {
-    const pagination = page.locator('.ant-pagination')
+    const pagination = page.locator('.ant-pagination:visible')
 
     const paginationCount = await pagination.count()
     if (paginationCount > 0) {
@@ -693,9 +709,8 @@ test.describe('ChIP-seq Export Functionality', () => {
   })
 
   test('should display export button', async ({ page }) => {
-    const exportButton = page.getByRole('button', { name: /Export|Download|BED/i })
-      .or(page.locator('button').filter({ hasText: /Export|Download|BED/i }))
-      .or(page.locator('[data-testid="export-button"]'))
+    const exportButton = page.locator('button:visible').filter({ hasText: /Export|Download|BED/i })
+      .or(page.locator('[data-testid="export-button"]:visible'))
 
     const buttonCount = await exportButton.count()
     if (buttonCount > 0) {
@@ -706,8 +721,7 @@ test.describe('ChIP-seq Export Functionality', () => {
   })
 
   test('should trigger download when clicking export', async ({ page }) => {
-    const exportButton = page.getByRole('button', { name: /Export|Download|BED/i })
-      .or(page.locator('button').filter({ hasText: /Export|Download|BED/i }))
+    const exportButton = page.locator('button:visible').filter({ hasText: /Export|Download|BED/i })
 
     if ((await exportButton.count()) === 0) {
       test.skip()

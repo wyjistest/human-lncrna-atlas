@@ -33,9 +33,9 @@ test.describe('Main Navigation Menu', () => {
   })
 
   test('should have Home menu item', async ({ page }) => {
-    const homeItem = page.getByRole('menuitem', { name: /Home|/i })
-      .or(page.locator('.ant-menu-item').filter({ hasText: /Home|/i }))
-      .or(page.locator('a').filter({ hasText: /Home|/i }))
+    const homeItem = page.getByRole('menuitem', { name: /Home|首页/i })
+      .or(page.locator('.ant-menu-item').filter({ hasText: /Home|首页/i }))
+      .or(page.locator('a').filter({ hasText: /Home|首页/i }))
 
     const itemCount = await homeItem.count()
     if (itemCount > 0) {
@@ -45,9 +45,9 @@ test.describe('Main Navigation Menu', () => {
   })
 
   test('should have Genes menu item', async ({ page }) => {
-    const genesItem = page.getByRole('menuitem', { name: /Genes|/i })
-      .or(page.locator('.ant-menu-item').filter({ hasText: /Genes|/i }))
-      .or(page.locator('a').filter({ hasText: /Genes|/i }))
+    const genesItem = page.getByRole('menuitem', { name: /Gene List|Genes|基因/i })
+      .or(page.locator('.ant-menu-item').filter({ hasText: /Gene List|Genes|基因/i }))
+      .or(page.locator('a').filter({ hasText: /Gene List|Genes|基因/i }))
 
     const itemCount = await genesItem.count()
     if (itemCount > 0) {
@@ -60,7 +60,7 @@ test.describe('Main Navigation Menu', () => {
   test('should have lncRNA-ChIP-seq Overlap menu item', async ({ page }) => {
     const overlapItem = page.getByRole('menuitem', { name: /Overlap|ChIP.*seq/i })
       .or(page.locator('.ant-menu-item').filter({ hasText: /Overlap|ChIP.*seq/i }))
-      .or(page.locator('a').filter({ hasText: /Overlap|/i }))
+      .or(page.locator('a').filter({ hasText: /Overlap/i }))
 
     const itemCount = await overlapItem.count()
     if (itemCount > 0) {
@@ -86,9 +86,9 @@ test.describe('Main Navigation Menu', () => {
   })
 
   test('should have Regulations menu item', async ({ page }) => {
-    const regulationsItem = page.getByRole('menuitem', { name: /Regulations|/i })
-      .or(page.locator('.ant-menu-item').filter({ hasText: /Regulations|/i }))
-      .or(page.locator('a').filter({ hasText: /Regulations|/i }))
+    const regulationsItem = page.getByRole('menuitem', { name: /Regulations|调控|关系/i })
+      .or(page.locator('.ant-menu-item').filter({ hasText: /Regulations|调控|关系/i }))
+      .or(page.locator('a').filter({ hasText: /Regulations|调控|关系/i }))
 
     const itemCount = await regulationsItem.count()
     if (itemCount > 0) {
@@ -100,24 +100,28 @@ test.describe('Main Navigation Menu', () => {
 })
 
 test.describe('ChIP-seq Feature Navigation', () => {
-  test('should navigate from Genes list to Gene detail', async ({ page }) => {
-    // Go to genes list
-    await page.goto(`${BASE_URL}/genes`)
-    await page.waitForLoadState('networkidle')
+	  test('should navigate from Genes list to Gene detail', async ({ page }) => {
+	    // Go to genes list
+	    await page.goto(`${BASE_URL}/genes`)
+	    await page.waitForLoadState('networkidle')
+	
+	    // 在 Gene List 表格中点击“View →”按钮进入详情（避免误点外链 View →）
+	    const firstRow = page.locator('.ant-table-tbody > tr').first()
+	      .or(page.locator('table tbody tr').first())
 
-    // Look for a gene link in the table
-    const geneLink = page.locator('.ant-table-cell a').first()
-      .or(page.locator('a[href*="/genes/"]').first())
+	    if ((await firstRow.count()) > 0) {
+	      const viewBtn = firstRow.getByRole('button', { name: /View/i }).first()
+	      if ((await viewBtn.count()) > 0) {
+	        await Promise.all([
+	          page.waitForURL(/\/genes\/\d+/, { timeout: 15000 }),
+	          viewBtn.click(),
+	        ])
 
-    const linkCount = await geneLink.count()
-    if (linkCount > 0) {
-      await geneLink.click()
-      await page.waitForLoadState('networkidle')
-
-      // Should navigate to gene detail page
-      await expect(page).toHaveURL(/\/genes\/\d+/)
-    }
-  })
+	        // Should navigate to gene detail page
+	        await expect(page).toHaveURL(/\/genes\/\d+/)
+	      }
+	    }
+	  })
 
   test('should navigate to ChIP-seq tab from Gene detail', async ({ page }) => {
     // Go directly to a gene detail page
@@ -125,15 +129,15 @@ test.describe('ChIP-seq Feature Navigation', () => {
     await page.waitForLoadState('networkidle')
 
     // Look for Genomic Features tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|基因组|Feature/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
     // Look for ChIP-seq tab
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
-      .or(page.locator('.ant-tabs-tab').filter({ hasText: /ChIP|/i }))
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
+      .or(page.locator('.ant-tabs-tab').filter({ hasText: /ChIP/i }))
 
     const tabCount = await chipseqTab.count()
     if (tabCount > 0) {
@@ -190,7 +194,7 @@ test.describe('Breadcrumb Navigation', () => {
 
     if ((await breadcrumb.count()) > 0) {
       // Click on "Genes" breadcrumb item to go back
-      const genesLink = breadcrumb.locator('a').filter({ hasText: /Genes|/i })
+      const genesLink = breadcrumb.locator('a').filter({ hasText: /Genes|Gene List|基因/i })
 
       if ((await genesLink.count()) > 0) {
         await genesLink.click()
@@ -224,7 +228,7 @@ test.describe('Deep Linking', () => {
     await page.waitForLoadState('networkidle')
 
     // Should show error or not found message
-    const errorContent = page.getByText(/Not Found|Error|404|/i)
+    const errorContent = page.getByText(/Not Found|Error|404/i)
       .or(page.locator('.ant-result-error'))
       .or(page.locator('.ant-alert-error'))
 
@@ -316,7 +320,7 @@ test.describe('Sub-Menu Navigation', () => {
     await page.waitForLoadState('networkidle')
 
     // Look for menu items under sub-menu (e.g., Data Analysis sub-menu)
-    const subMenuTrigger = page.locator('.ant-menu-submenu-title').filter({ hasText: /Data|Analysis|/i })
+    const subMenuTrigger = page.locator('.ant-menu-submenu-title').filter({ hasText: /Data|Analysis/i })
 
     if ((await subMenuTrigger.count()) > 0) {
       await subMenuTrigger.click()
@@ -376,8 +380,8 @@ test.describe('Language Switching', () => {
 
     // Look for language switcher
     const languageSwitcher = page.locator('[data-testid="language-switcher"]')
-      .or(page.locator('.ant-dropdown-trigger').filter({ hasText: /EN|ZH|/i }))
-      .or(page.locator('button').filter({ hasText: /English|/i }))
+      .or(page.locator('.ant-dropdown-trigger').filter({ hasText: /EN|ZH/i }))
+      .or(page.locator('button').filter({ hasText: /English|中文/i }))
 
     const switcherCount = await languageSwitcher.count()
     console.log(`Language switcher found: ${switcherCount > 0}`)
@@ -395,7 +399,7 @@ test.describe('Language Switching', () => {
       await page.waitForTimeout(300)
 
       // Look for language option
-      const languageOption = page.getByText(/English|/i)
+      const languageOption = page.getByText(/English|中文/i)
         .or(page.locator('.ant-dropdown-menu-item'))
 
       if ((await languageOption.count()) > 0) {

@@ -180,13 +180,15 @@ export function OverlapFilterPanel({
               <span style={{ fontWeight: 500 }}>
                 {t('filters.markType', 'Mark Type')}:
               </span>
-              <MarkSelector
-                value={filters.mark_type?.split(',') as MarkType[]}
-                onChange={handleMarkTypeChange}
-                multiple
-                placeholder={t('filters.selectMarks', 'Select histone marks')}
-                allowClear
-              />
+              <div data-testid="overlap-filter-mark-type" style={{ width: '100%' }}>
+                <MarkSelector
+                  value={filters.mark_type?.split(',') as MarkType[]}
+                  onChange={handleMarkTypeChange}
+                  multiple
+                  placeholder={t('filters.selectMarks', 'Select histone marks')}
+                  allowClear
+                />
+              </div>
             </Space>
           </Col>
 
@@ -196,19 +198,22 @@ export function OverlapFilterPanel({
               <span style={{ fontWeight: 500 }}>
                 {t('filters.cellType', 'Cell Type')}:
               </span>
-              <Select
-                mode="multiple"
-                style={{ width: '100%' }}
-                value={filters.cell_type?.split(',') || []}
-                onChange={handleCellTypeChange}
-                options={Array.from(CELL_TYPE_OPTIONS).map((ct) => ({
-                  label: ct,
-                  value: ct,
-                }))}
-                placeholder={t('filters.selectCellTypes', 'Select cell types')}
-                allowClear
-                maxTagCount="responsive"
-              />
+              <div data-testid="overlap-filter-cell-type" style={{ width: '100%' }}>
+                <Select
+                  mode="multiple"
+                  virtual={false}
+                  style={{ width: '100%' }}
+                  value={filters.cell_type?.split(',') || []}
+                  onChange={handleCellTypeChange}
+                  options={Array.from(CELL_TYPE_OPTIONS).map((ct) => ({
+                    label: ct,
+                    value: ct,
+                  }))}
+                  placeholder={t('filters.selectCellTypes', 'Select cell types')}
+                  allowClear
+                  maxTagCount="responsive"
+                />
+              </div>
             </Space>
           </Col>
 
@@ -218,18 +223,21 @@ export function OverlapFilterPanel({
               <span style={{ fontWeight: 500 }}>
                 {t('filters.chromosome', 'Chromosome')}:
               </span>
-              <Select
-                style={{ width: '100%' }}
-                value={filters.chromosome}
-                onChange={handleChromosomeChange}
-                options={Array.from(CHROMOSOME_OPTIONS).map((chr) => ({
-                  label: chr,
-                  value: chr,
-                }))}
-                placeholder={t('filters.selectChromosome', 'All chromosomes')}
-                allowClear
-                showSearch
-              />
+              <div data-testid="overlap-filter-chromosome" style={{ width: '100%' }}>
+                <Select
+                  virtual={false}
+                  style={{ width: '100%' }}
+                  value={filters.chromosome}
+                  onChange={handleChromosomeChange}
+                  options={Array.from(CHROMOSOME_OPTIONS).map((chr) => ({
+                    label: chr,
+                    value: chr,
+                  }))}
+                  placeholder={t('filters.selectChromosome', 'All chromosomes')}
+                  allowClear
+                  showSearch
+                />
+              </div>
             </Space>
           </Col>
         </Row>

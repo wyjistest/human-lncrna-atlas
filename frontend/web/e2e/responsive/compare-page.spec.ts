@@ -60,13 +60,13 @@ test.describe('Responsive Design - Mobile Viewport', () => {
 
   test('should stack cards vertically on mobile', async ({ page }) => {
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)
@@ -90,13 +90,13 @@ test.describe('Responsive Design - Mobile Viewport', () => {
 
   test('should have scrollable table on mobile', async ({ page }) => {
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(2000)
@@ -118,13 +118,13 @@ test.describe('Responsive Design - Mobile Viewport', () => {
 
   test('should have touch-friendly buttons', async ({ page }) => {
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)
@@ -180,13 +180,13 @@ test.describe('Responsive Design - Tablet Viewport', () => {
 
   test('should display two-column layout for cards on tablet', async ({ page }) => {
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)
@@ -203,13 +203,13 @@ test.describe('Responsive Design - Tablet Viewport', () => {
 
   test('should have adequate table column visibility', async ({ page }) => {
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(2000)
@@ -255,13 +255,13 @@ test.describe('Responsive Design - Desktop Viewport', () => {
 
   test('should display multi-column layout on desktop', async ({ page }) => {
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)
@@ -285,13 +285,13 @@ test.describe('Responsive Design - Desktop Viewport', () => {
 
   test('should show all table columns without horizontal scroll', async ({ page }) => {
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(2000)
@@ -317,19 +317,19 @@ test.describe('Responsive Charts', () => {
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)
 
       // Enter compare mode and go to Statistics view
-      const compareButton = page.getByRole('button', { name: /Compare|/i })
+      const compareButton = page.getByRole('button', { name: /Compare/i })
       if ((await compareButton.count()) > 0) {
         await compareButton.first().click()
         await page.waitForTimeout(500)
@@ -346,7 +346,7 @@ test.describe('Responsive Charts', () => {
             await page.waitForTimeout(1500)
 
             // Switch to Statistics view
-            const statsTab = page.getByRole('tab', { name: /Statistics|/i })
+            const statsTab = page.getByRole('tab', { name: /Statistics|统计/i })
             if ((await statsTab.count()) > 0) {
               await statsTab.click()
               await page.waitForTimeout(1000)
@@ -380,20 +380,20 @@ test.describe('Responsive Filters', () => {
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)
 
       // Look for collapsed filter panel or filter toggle button
       const filterCollapse = page.locator('.ant-collapse')
-        .or(page.getByRole('button', { name: /Filter|/i }))
+        .or(page.getByRole('button', { name: /Filter|筛选/i }))
 
       const collapseCount = await filterCollapse.count()
       console.log(`Filter collapse/toggle elements: ${collapseCount}`)
@@ -406,13 +406,13 @@ test.describe('Responsive Filters', () => {
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)
@@ -432,13 +432,13 @@ test.describe('Responsive Tables', () => {
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(2000)
@@ -458,13 +458,13 @@ test.describe('Responsive Tables', () => {
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(2000)
@@ -520,13 +520,13 @@ test.describe('Print Layout', () => {
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|/i })
+    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|Feature|基因组/i })
     if ((await genomicFeaturesTab.count()) > 0) {
       await genomicFeaturesTab.click()
       await page.waitForTimeout(500)
     }
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|/i })
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP/i })
     if ((await chipseqTab.count()) > 0) {
       await chipseqTab.first().click()
       await page.waitForTimeout(1500)

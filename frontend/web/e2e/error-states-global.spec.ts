@@ -172,23 +172,27 @@ test.describe('HTTP Error Status Handling', () => {
     console.log(`404 error handled: error=${hasError}, empty=${isEmpty}`)
   })
 
-  test('Handles 500 Internal Server Error', async ({ page }) => {
-    await page.route('**/api/v1/**', (route) => {
-      route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ detail: 'Internal Server Error' })
-      })
-    })
-
-    await page.goto(`${BASE_URL}/regulations`)
-    await page.waitForTimeout(3000)
-
-    const errorIndicator = page.locator('.ant-message-error, .ant-notification-notice-error, .ant-alert-error, .ant-result-error, .ant-result-500')
-    const errorText = page.getByText(/Server Error|500|服务器错误|Loading Failed|Internal Server Error/i)
-
-    const hasError = await errorIndicator.isVisible().catch(() => false) ||
-                     await errorText.isVisible().catch(() => false)
+	  test('Handles 500 Internal Server Error', async ({ page }) => {
+	    await page.route('**/api/v1/**', (route) => {
+	      route.fulfill({
+	        status: 500,
+	        contentType: 'application/json',
+	        body: JSON.stringify({ detail: 'Internal Server Error' })
+	      })
+	    })
+	
+	    await page.goto(`${BASE_URL}/regulations`)
+	    await page.waitForTimeout(3000)
+	
+	    const errorIndicator = page.locator(
+	      '.ant-message-error, .ant-notification-notice-error, .ant-alert-error, .ant-result-error, .ant-result-500'
+	    ).first()
+	    const errorText = page.getByText(
+	      /Server Error|500|服务器错误|Loading Failed|Internal Server Error/i
+	    ).first()
+	
+	    const hasError = await errorIndicator.isVisible().catch(() => false) ||
+	                     await errorText.isVisible().catch(() => false)
 
     expect(hasError).toBe(true)
     console.log('500 error handled')

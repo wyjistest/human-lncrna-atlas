@@ -947,23 +947,9 @@ export function LncRNAChIPSeqOverlapTable({
   // Check if querying all chromosomes (potentially large query)
   const isAllChromosomeQuery = !filters.chromosome
 
-  // Loading state - show enhanced loading for all-chromosome queries
-  if (dataLoading && !overlapData && !dataError) {
-    return (
-      <LoadingState
-        message={isAllChromosomeQuery
-          ? t('loading.allChromosomes', 'Loading data from all chromosomes...')
-          : t('loading.data', 'Loading data...')
-        }
-        tip={isAllChromosomeQuery
-          ? t('loading.allChromosomesTip', 'This query covers all chromosomes and may take longer. Consider filtering by chromosome for faster results.')
-          : undefined
-        }
-        showProgress={isAllChromosomeQuery}
-        estimatedTime={isAllChromosomeQuery ? 15 : undefined}
-      />
-    )
-  }
+  // Initial loading (no cached/previous data yet). Keep filters visible so users can
+  // narrow queries (e.g. select a chromosome) without waiting for the full-table load.
+  const showInitialLoading = dataLoading && !overlapData && !dataError
 
   // Determine if we should show the table or empty state
   const hasData = overlapData && overlapData.total > 0
@@ -1271,8 +1257,25 @@ export function LncRNAChIPSeqOverlapTable({
           </Space>
         }
       >
+        {/* Initial loading (keep filter panel usable) */}
+        {showInitialLoading && (
+          <LoadingState
+            minHeight={320}
+            message={isAllChromosomeQuery
+              ? t('loading.allChromosomes', 'Loading data from all chromosomes...')
+              : t('loading.data', 'Loading data...')
+            }
+            tip={isAllChromosomeQuery
+              ? t('loading.allChromosomesTip', 'This query covers all chromosomes and may take longer. Consider filtering by chromosome for faster results.')
+              : undefined
+            }
+            showProgress={isAllChromosomeQuery}
+            estimatedTime={isAllChromosomeQuery ? 15 : undefined}
+          />
+        )}
+
         {/* Show table when we have data */}
-        {hasData && (
+        {!showInitialLoading && hasData && (
           <OverlapTable
             items={overlapData.items}
             total={overlapData.total}
@@ -1286,7 +1289,7 @@ export function LncRNAChIPSeqOverlapTable({
         )}
 
         {/* Empty state - no data found with current filters */}
-        {showEmptyState && (
+        {!showInitialLoading && showEmptyState && (
           <Empty
             description={
               <Space orientation="vertical">
@@ -1304,7 +1307,7 @@ export function LncRNAChIPSeqOverlapTable({
         )}
 
         {/* Error state - show message with suggestion to adjust filters */}
-        {dataError && !hasData && (
+        {!showInitialLoading && dataError && !hasData && (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={

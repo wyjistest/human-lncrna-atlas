@@ -17,14 +17,29 @@ import { test, expect } from '@playwright/test'
  * Expected Result: All tests pass WITHOUT any frontend code changes
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5175'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000'
+
+function getMainContent(page: any) {
+  return page.locator('main').first()
+    .or(page.locator('.ant-layout-content').first())
+}
+
+function getOverlapFilterPanel(page: any) {
+  const main = getMainContent(page)
+  return main.locator('.ant-card').filter({ hasText: /Advanced Filters|高级筛选/i }).first()
+}
+
+function getOverlapFilterSelect(page: any, index: number) {
+  const panel = getOverlapFilterPanel(page)
+  return panel.locator('.ant-select').nth(index)
+}
 
 test.describe('Phase 3.1: HepG2 × H3K9me3 Frontend Validation', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the page
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    // Prefer Playwright config `use.baseURL` to avoid hardcoded dev ports (e.g. 5173 vs 5175).
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000) // Allow filters to populate
   })
@@ -45,7 +60,7 @@ test.describe('Phase 3.1: HepG2 × H3K9me3 Frontend Validation', () => {
     // If no label found, try the first select (usually mark type)
     const selector = (await markSelector.count()) > 0
       ? markSelector
-      : page.locator('.ant-select').first()
+      : getOverlapFilterSelect(page, 0)
 
     // Click to open dropdown
     await selector.click()
@@ -75,11 +90,11 @@ test.describe('Phase 3.1: HepG2 × H3K9me3 Frontend Validation', () => {
     console.log('[Test 2] Testing HepG2 + H3K9me3 filter combination...')
 
     // Select Mark Type: H3K9me3
-    const markSelector = page.locator('.ant-select').first()
+    const markSelector = getOverlapFilterSelect(page, 0)
     await markSelector.click()
     await page.waitForTimeout(300)
 
-    const h3k9me3Option = page.locator('.ant-select-dropdown .ant-select-item')
+    const h3k9me3Option = page.locator('.ant-select-dropdown:visible .ant-select-item')
       .filter({ hasText: 'H3K9me3' })
       .first()
     await h3k9me3Option.click()
@@ -88,19 +103,12 @@ test.describe('Phase 3.1: HepG2 × H3K9me3 Frontend Validation', () => {
     console.log('[Test 2] Selected mark: H3K9me3')
 
     // Select Cell Type: HepG2
-    const cellSelector = page.locator('.ant-select')
-      .filter({ hasText: /Cell Type|细胞类型|Cell Line|细胞系/i })
-      .first()
-
-    // If no label found, try the second select (usually cell type)
-    const cellSelectorFinal = (await cellSelector.count()) > 0
-      ? cellSelector
-      : page.locator('.ant-select').nth(1)
+    const cellSelectorFinal = getOverlapFilterSelect(page, 1)
 
     await cellSelectorFinal.click()
     await page.waitForTimeout(300)
 
-    const hepg2Option = page.locator('.ant-select-dropdown .ant-select-item')
+    const hepg2Option = page.locator('.ant-select-dropdown:visible .ant-select-item')
       .filter({ hasText: 'HepG2' })
       .first()
     await hepg2Option.click()
@@ -351,11 +359,11 @@ async function applyFilters(
   filters: { markType?: string; cellType?: string; chromosome?: string }
 ) {
   if (filters.markType) {
-    const markSelector = page.locator('.ant-select').first()
+    const markSelector = getOverlapFilterSelect(page, 0)
     await markSelector.click()
     await page.waitForTimeout(300)
     const markOption = page
-      .locator('.ant-select-dropdown .ant-select-item')
+      .locator('.ant-select-dropdown:visible .ant-select-item')
       .filter({ hasText: filters.markType })
       .first()
     await markOption.click()
@@ -363,11 +371,11 @@ async function applyFilters(
   }
 
   if (filters.cellType) {
-    const cellSelector = page.locator('.ant-select').nth(1)
+    const cellSelector = getOverlapFilterSelect(page, 1)
     await cellSelector.click()
     await page.waitForTimeout(300)
     const cellOption = page
-      .locator('.ant-select-dropdown .ant-select-item')
+      .locator('.ant-select-dropdown:visible .ant-select-item')
       .filter({ hasText: filters.cellType })
       .first()
     await cellOption.click()
@@ -375,11 +383,11 @@ async function applyFilters(
   }
 
   if (filters.chromosome) {
-    const chrSelector = page.locator('.ant-select').nth(2)
+    const chrSelector = getOverlapFilterSelect(page, 2)
     await chrSelector.click()
     await page.waitForTimeout(300)
     const chrOption = page
-      .locator('.ant-select-dropdown .ant-select-item')
+      .locator('.ant-select-dropdown:visible .ant-select-item')
       .filter({ hasText: filters.chromosome })
       .first()
     await chrOption.click()

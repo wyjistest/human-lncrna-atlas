@@ -591,18 +591,43 @@ test.describe('Regulations Page - Performance', () => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
-    const startTime = Date.now()
-
-    // Apply a filter
-    const select = page.locator('.ant-select').first()
-    if (await select.count() > 0) {
-      await select.click()
+    // 打开“高级筛选 / Advanced Filters”（默认折叠；避免误点 Header 的语言切换 Select）
+    const filtersCollapse = page.locator('.ant-collapse').filter({ hasText: /Advanced Filters|高级筛选/i }).first()
+    if ((await filtersCollapse.count()) > 0) {
+      const header = filtersCollapse.locator('.ant-collapse-header').first()
+      await header.click({ force: true })
       await page.waitForTimeout(300)
+    }
 
-      const option = page.locator('.ant-select-dropdown:visible .ant-select-item').first()
-      if (await option.count() > 0) {
+    // 选择“物种 / Species”过滤器（页面内的 Select），触发 /api/v1/regulations 重新请求
+    const speciesSelect = page.locator('.ant-form-item')
+      .filter({ hasText: /Species|物种/i })
+      .locator('.ant-select')
+      .first()
+
+    if ((await speciesSelect.count()) > 0) {
+      const startTime = Date.now()
+
+      // 先注册等待，再触发点击，避免竞态
+      const responsePromise = page.waitForResponse(
+        (resp) =>
+          resp.status() === 200 &&
+          resp.url().includes(API_ENDPOINT) &&
+          // 仅匹配筛选后的请求，避免被预加载请求“抢跑”
+          resp.url().includes('species_ids='),
+        { timeout: 30000 }
+      )
+
+      await speciesSelect.click()
+      await page.waitForTimeout(200)
+
+      const option = page.locator('.ant-select-dropdown:visible')
+        .locator('.ant-select-item-option:visible, .ant-select-item:visible')
+        .first()
+
+      if ((await option.count()) > 0) {
         await option.click()
-        await waitForRegulationsAPI(page)
+        await responsePromise
 
         const responseTime = Date.now() - startTime
         expect(responseTime).toBeLessThan(5000)

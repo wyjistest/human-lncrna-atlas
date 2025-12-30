@@ -105,24 +105,45 @@ test.describe('1. 首页 (/) 测试', () => {
     await page.goto(BASE_URL);
     await waitForNetworkIdle(page);
 
-    // 检查导航菜单
-    const navLinks = page.locator('nav a, .ant-menu-item a, [href*="/genes"], [href*="/regulations"], [href*="/conservation"], [href*="/network"]');
-    const linksCount = await navLinks.count();
-    result.details.push(`导航链接数量: ${linksCount}`);
+    // 检查主要功能入口（首页可能使用 menuitem / card 的 onClick 导航，而不是 <a href>）
+    const expectedEntrances = [
+      { path: '/genes', name: /Gene List|Genes|基因|Gene/i },
+      { path: '/regulations', name: /Regulations|调控|关系/i },
+      { path: '/conservation', name: /Conservation|保守|进化/i },
+      { path: '/network', name: /Network|网络/i },
+    ];
 
-    // 检查主要导航链接
-    const expectedLinks = ['/genes', '/regulations', '/conservation', '/network'];
-    for (const link of expectedLinks) {
-      const linkElement = page.locator(`a[href*="${link}"]`).first();
-      if (await linkElement.isVisible({ timeout: 3000 }).catch(() => false)) {
-        result.details.push(`链接 ${link} 可见`);
-      } else {
-        result.issues.push(`链接 ${link} 不可见或不存在`);
+    let availableCount = 0;
+    for (const entrance of expectedEntrances) {
+      const anchor = page.locator(`a[href*="${entrance.path}"]`).first();
+      const menuItem = page.getByRole('menuitem', { name: entrance.name }).first()
+        .or(page.locator('.ant-menu-item').filter({ hasText: entrance.name }).first());
+
+      const entry = anchor.or(menuItem);
+      const visible = await entry.isVisible({ timeout: 3000 }).catch(() => false);
+      if (!visible) {
+        result.issues.push(`入口 ${entrance.path} 不可见或不存在`);
+        continue;
       }
+
+      availableCount += 1;
+      result.details.push(`入口 ${entrance.path} 可见`);
+
+      await Promise.all([
+        page.waitForURL(new RegExp(`${entrance.path.replace(/\//g, '\\/')}(\\?.*)?$`), { timeout: 15000 }),
+        entry.click(),
+      ]);
+      await page.waitForLoadState('networkidle');
+
+      // 回到首页继续验证下一个入口
+      await page.goto(BASE_URL);
+      await waitForNetworkIdle(page);
     }
 
+    result.details.push(`可用入口数量: ${availableCount}`);
+
     testResults.push(result);
-    expect(linksCount).toBeGreaterThan(0);
+    expect(availableCount).toBeGreaterThan(0);
   });
 });
 

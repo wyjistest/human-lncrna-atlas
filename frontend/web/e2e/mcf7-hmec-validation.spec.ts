@@ -25,6 +25,12 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 
+const OVERLAP_FILTER_TESTIDS = {
+  markType: 'overlap-filter-mark-type',
+  cellType: 'overlap-filter-cell-type',
+  chromosome: 'overlap-filter-chromosome',
+} as const
+
 // Expected configurations for new cell lines
 const CELL_LINE_CONFIGS = {
   'MCF-7': {
@@ -54,21 +60,29 @@ async function openCellTypeDropdown(page: any): Promise<string[]> {
   await page.waitForLoadState('networkidle')
   await page.waitForTimeout(2000)
 
-  // Find cell type filter (supports both English and Chinese labels)
+  // Prefer stable test selectors; fallback to text-based matching for backward compatibility.
+  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.cellType).locator('.ant-select').first()
+
   const cellTypeFilter = page.locator('.ant-select').filter({
-    hasText: /Cell Type|细胞类型|Cell Line|细胞系/i
+    hasText: /Cell Type|细胞类型|Cell Line|细胞系/i,
   }).first()
 
-  // If not found by text, try the second select (common pattern)
-  const filterCount = await cellTypeFilter.count()
-  const selector = filterCount > 0 ? cellTypeFilter : page.locator('.ant-select').nth(1)
+  const selector = (await testIdSelector.count()) > 0
+    ? testIdSelector
+    : (await cellTypeFilter.count()) > 0
+      ? cellTypeFilter
+      : page.locator('.ant-select').nth(1)
 
   // Open dropdown
+  await page.keyboard.press('Escape').catch(() => null)
   await selector.click()
   await page.waitForTimeout(500)
 
   // Get all options
-  const options = await page.locator('.ant-select-dropdown .ant-select-item').allTextContents()
+  const dropdown = page.locator('.ant-select-dropdown:visible')
+  await dropdown.waitFor({ state: 'visible', timeout: 15000 })
+
+  const options = await dropdown.locator('.ant-select-item').allTextContents()
   return options
 }
 
@@ -76,18 +90,82 @@ async function openCellTypeDropdown(page: any): Promise<string[]> {
  * Helper function to select a cell type from dropdown
  */
 async function selectCellType(page: any, cellType: string): Promise<void> {
+  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.cellType).locator('.ant-select').first()
   const cellTypeFilter = page.locator('.ant-select').filter({
-    hasText: /Cell Type|细胞类型|Cell Line|细胞系/i
+    hasText: /Cell Type|细胞类型|Cell Line|细胞系/i,
   }).first()
 
-  const filterCount = await cellTypeFilter.count()
-  const selector = filterCount > 0 ? cellTypeFilter : page.locator('.ant-select').nth(1)
+  const selector = (await testIdSelector.count()) > 0
+    ? testIdSelector
+    : (await cellTypeFilter.count()) > 0
+      ? cellTypeFilter
+      : page.locator('.ant-select').nth(1)
+
+  // Ensure no stale dropdown is left open (can steal focus/clicks in parallel runs)
+  await page.keyboard.press('Escape').catch(() => null)
+  await selector.scrollIntoViewIfNeeded?.().catch(() => null)
+
+  const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const candidates = cellType === 'MCF-7' ? ['MCF-7', 'MCF7'] : [cellType]
+  const exact = new RegExp(`^(${candidates.map(escapeRegex).join('|')})$`, 'i')
+  const searchValue = cellType === 'MCF-7' ? 'MCF' : cellType
+
+  // Retry: under heavy parallel E2E load the dropdown/options can render late.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await selector.click()
+
+    const dropdown = page.locator('.ant-select-dropdown:visible')
+    await dropdown.waitFor({ state: 'visible', timeout: 15000 })
+
+    // Prefer using Select's combobox input to avoid virtualization issues on long lists.
+    // NOTE: AntD Select search input is inside the Select control (not the dropdown container).
+    const combobox = selector.locator('input[role="combobox"]').first()
+    if (await combobox.count()) {
+      // Use typing (instead of fill only) to reliably trigger AntD's filterOption logic.
+      await combobox.click().catch(() => null)
+      await combobox.fill('').catch(() => null)
+      await combobox.type(searchValue, { delay: 20 }).catch(() => null)
+      await page.waitForTimeout(300)
+    }
+
+    const option = dropdown.locator('.ant-select-item').filter({ hasText: exact }).first()
+      .or(dropdown.locator('.ant-select-item').filter({ hasText: new RegExp(cellType, 'i') }).first())
+
+    try {
+      await option.waitFor({ state: 'visible', timeout: 15000 })
+      await option.click()
+      await page.keyboard.press('Escape').catch(() => null)
+      await page.waitForTimeout(1000)
+      return
+    } catch (error) {
+      await page.keyboard.press('Escape').catch(() => null)
+      if (attempt >= 3) throw error
+      await page.waitForTimeout(750)
+    }
+  }
+}
+
+/**
+ * Helper function to select an epigenetic mark
+ */
+async function selectMark(page: any, mark: string): Promise<void> {
+  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.markType).locator('.ant-select').first()
+  const markFilter = page.locator('.ant-select').filter({
+    hasText: /Epigenetic Mark|表观标记|Mark|标记/i,
+  }).first()
+
+  const selector = (await testIdSelector.count()) > 0
+    ? testIdSelector
+    : markFilter
 
   await selector.click()
   await page.waitForTimeout(500)
 
-  const option = page.locator('.ant-select-dropdown .ant-select-item').filter({
-    hasText: new RegExp(cellType, 'i')
+  const dropdown = page.locator('.ant-select-dropdown:visible')
+  await dropdown.waitFor({ state: 'visible', timeout: 15000 })
+
+  const option = dropdown.locator('.ant-select-item').filter({
+    hasText: new RegExp(mark, 'i'),
   }).first()
 
   await option.click()
@@ -95,18 +173,27 @@ async function selectCellType(page: any, cellType: string): Promise<void> {
 }
 
 /**
- * Helper function to select an epigenetic mark
+ * Helper function to select a chromosome (e.g. chr22) for faster loading
  */
-async function selectMark(page: any, mark: string): Promise<void> {
-  const markFilter = page.locator('.ant-select').filter({
-    hasText: /Epigenetic Mark|表观标记|Mark|标记/i
+async function selectChromosome(page: any, chromosome: string): Promise<void> {
+  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.chromosome).locator('.ant-select').first()
+  const chrFilter = page.locator('.ant-select').filter({
+    hasText: /Chromosome|染色体/i,
   }).first()
 
-  await markFilter.click()
-  await page.waitForTimeout(500)
+  const selector = (await testIdSelector.count()) > 0 ? testIdSelector : chrFilter
 
-  const option = page.locator('.ant-select-dropdown .ant-select-item').filter({
-    hasText: new RegExp(mark, 'i')
+  if ((await selector.count()) === 0) return
+
+  await page.keyboard.press('Escape').catch(() => null)
+  await selector.click()
+  await page.waitForTimeout(300)
+
+  const dropdown = page.locator('.ant-select-dropdown:visible')
+  await dropdown.waitFor({ state: 'visible', timeout: 15000 })
+
+  const option = dropdown.locator('.ant-select-item').filter({
+    hasText: new RegExp(`^${chromosome}$`, 'i'),
   }).first()
 
   await option.click()
@@ -382,23 +469,7 @@ test.describe('P1 - MCF-7 and HMEC Data Accuracy', () => {
     await selectCellType(page, 'MCF-7')
 
     // Select a chromosome for faster loading
-    const chrSelector = page.locator('.ant-select').filter({
-      hasText: /Chromosome|染色体/i
-    }).first()
-
-    if (await chrSelector.count() > 0) {
-      await chrSelector.click()
-      await page.waitForTimeout(500)
-
-      const chr22Option = page.locator('.ant-select-dropdown .ant-select-item').filter({
-        hasText: /chr22/
-      }).first()
-
-      if (await chr22Option.count() > 0) {
-        await chr22Option.click()
-        await page.waitForTimeout(1000)
-      }
-    }
+    await selectChromosome(page, 'chr22')
 
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(3000)
@@ -431,23 +502,7 @@ test.describe('P1 - MCF-7 and HMEC Data Accuracy', () => {
     await selectCellType(page, 'HMEC')
 
     // Select chromosome for faster loading
-    const chrSelector = page.locator('.ant-select').filter({
-      hasText: /Chromosome|染色体/i
-    }).first()
-
-    if (await chrSelector.count() > 0) {
-      await chrSelector.click()
-      await page.waitForTimeout(500)
-
-      const chr22Option = page.locator('.ant-select-dropdown .ant-select-item').filter({
-        hasText: /chr22/
-      }).first()
-
-      if (await chr22Option.count() > 0) {
-        await chr22Option.click()
-        await page.waitForTimeout(1000)
-      }
-    }
+    await selectChromosome(page, 'chr22')
 
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(3000)
@@ -515,14 +570,16 @@ test.describe('P2 - Regression Tests for Existing Cell Lines', () => {
     console.log('[P2-12] Testing "All" cell types filter')
 
     // Look for "All" option or similar
+    const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.cellType).locator('.ant-select').first()
     const cellTypeFilter = page.locator('.ant-select').filter({
       hasText: /Cell Type|细胞类型/i
     }).first()
 
-    const filterCount = await cellTypeFilter.count()
+    const selector = (await testIdSelector.count()) > 0 ? testIdSelector : cellTypeFilter
+    const filterCount = await selector.count()
 
     if (filterCount > 0) {
-      await cellTypeFilter.click()
+      await selector.click()
       await page.waitForTimeout(500)
 
       // Look for "All" or default option
@@ -612,21 +669,22 @@ test.describe('API Integration - MCF-7 and HMEC', () => {
 
     console.log('API Response Status:', response.status())
 
-    if (response.ok()) {
-      const data = await response.json()
-      console.log('Total records:', data.total || 0)
-      console.log('Records in page:', data.data?.length || 0)
+	    if (response.ok()) {
+	      const data = await response.json()
+	      console.log('Total records:', data.total || 0)
+	      const items = data.items ?? data.data ?? []
+	      console.log('Records in page:', items?.length || 0)
 
-      expect(data.data).toBeDefined()
-      expect(Array.isArray(data.data)).toBe(true)
+	      expect(items).toBeDefined()
+	      expect(Array.isArray(items)).toBe(true)
 
-      // If data exists, verify MCF-7 is present
-      if (data.data?.length > 0) {
-        const hasMCF7 = data.data.some((record: any) =>
-          record.cell_type === 'MCF-7' ||
-          record.cellType === 'MCF-7' ||
-          record.cell_type === 'MCF7'
-        )
+	      // If data exists, verify MCF-7 is present
+	      if (items?.length > 0) {
+	        const hasMCF7 = items.some((record: any) =>
+	          record.cell_type === 'MCF-7' ||
+	          record.cellType === 'MCF-7' ||
+	          record.cell_type === 'MCF7'
+	        )
         expect(hasMCF7).toBe(true)
         console.log('MCF-7 data confirmed in API response')
       } else {
@@ -653,19 +711,20 @@ test.describe('API Integration - MCF-7 and HMEC', () => {
 
     console.log('API Response Status:', response.status())
 
-    if (response.ok()) {
-      const data = await response.json()
-      console.log('Total records:', data.total || 0)
-      console.log('Records in page:', data.data?.length || 0)
+	    if (response.ok()) {
+	      const data = await response.json()
+	      console.log('Total records:', data.total || 0)
+	      const items = data.items ?? data.data ?? []
+	      console.log('Records in page:', items?.length || 0)
 
-      expect(data.data).toBeDefined()
-      expect(Array.isArray(data.data)).toBe(true)
+	      expect(items).toBeDefined()
+	      expect(Array.isArray(items)).toBe(true)
 
-      if (data.data?.length > 0) {
-        const hasHMEC = data.data.some((record: any) =>
-          record.cell_type === 'HMEC' ||
-          record.cellType === 'HMEC'
-        )
+	      if (items?.length > 0) {
+	        const hasHMEC = items.some((record: any) =>
+	          record.cell_type === 'HMEC' ||
+	          record.cellType === 'HMEC'
+	        )
         expect(hasHMEC).toBe(true)
         console.log('HMEC data confirmed in API response')
       } else {

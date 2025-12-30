@@ -67,8 +67,27 @@ show_help() {
     echo "Prerequisites:"
     echo "  - Backend server running on http://localhost:8000"
     echo "  - Frontend dev server running on http://localhost:5173 (for E2E)"
-    echo "  - Python with pytest installed"
+    echo "  - Backend venv (.venv/venv) with pytest installed"
     echo "  - Node.js with Playwright installed"
+}
+
+resolve_backend_python() {
+    # 优先使用后端虚拟环境，避免依赖全局 Python（更稳定）
+    if [ -n "${BACKEND_PYTHON:-}" ]; then
+        echo "$BACKEND_PYTHON"
+        return 0
+    fi
+
+    if [ -x "$BACKEND_DIR/.venv/bin/python" ]; then
+        echo "$BACKEND_DIR/.venv/bin/python"
+        return 0
+    fi
+    if [ -x "$BACKEND_DIR/venv/bin/python" ]; then
+        echo "$BACKEND_DIR/venv/bin/python"
+        return 0
+    fi
+
+    echo "python3"
 }
 
 check_backend_server() {
@@ -111,7 +130,15 @@ run_backend_tests() {
     echo "Test file: test_chipseq_api.py"
     echo ""
 
-    if python3 -m pytest tests/test_chipseq_api.py -v --tb=short 2>&1; then
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+    if ! "$python_bin" -c "import pytest" > /dev/null 2>&1; then
+        print_error "pytest not available in backend python: ${python_bin}"
+        print_error "Hint: cd ${BACKEND_DIR} && pip install -r requirements.txt"
+        return 1
+    fi
+
+    if "$python_bin" -m pytest tests/test_chipseq_api.py -v --tb=short 2>&1; then
         print_success "Backend tests passed!"
         return 0
     else

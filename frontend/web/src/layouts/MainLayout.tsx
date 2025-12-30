@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
-import { Layout, Menu } from 'antd'
+import { useEffect, useMemo, useState } from 'react'
+import { Button, Drawer, Grid, Layout, Menu } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { HomeOutlined, DatabaseOutlined, LinkOutlined, MedicineBoxOutlined, BarChartOutlined, ApartmentOutlined, DashboardOutlined, ExperimentOutlined, InteractionOutlined, RadarChartOutlined, BranchesOutlined, LineChartOutlined } from '@ant-design/icons'
+import { MenuOutlined, HomeOutlined, DatabaseOutlined, LinkOutlined, MedicineBoxOutlined, BarChartOutlined, ApartmentOutlined, DashboardOutlined, ExperimentOutlined, InteractionOutlined, RadarChartOutlined, BranchesOutlined, LineChartOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '@/components/LanguageSwitch'
 
@@ -11,6 +11,15 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { t } = useTranslation('nav')
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isMobile) {
+      setDrawerOpen(false)
+    }
+  }, [isMobile])
 
   // Compute selected keys based on path matching
   // This handles child routes like /genes/:id highlighting the parent /genes menu item
@@ -67,22 +76,53 @@ export default function MainLayout() {
         fontSize: 20,
         fontWeight: 'bold'
       }}>
-        <span>{t('siteTitle')}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {isMobile && (
+            <Button
+              type="text"
+              aria-label="Open navigation menu"
+              icon={<MenuOutlined />}
+              onClick={() => setDrawerOpen(true)}
+              style={{ color: 'white' }}
+            />
+          )}
+          <span>{t('siteTitle')}</span>
+        </div>
         <LanguageSwitch />
       </Header>
       <Layout>
-        <Sider width={200} theme="light">
-          <Menu
-            mode="inline"
-            selectedKeys={selectedKeys}
-            items={menuItems}
-            onClick={({ key }) => navigate(key)}
-          />
-        </Sider>
+        {!isMobile && (
+          <Sider width={200} theme="light">
+            <Menu
+              mode="inline"
+              selectedKeys={selectedKeys}
+              items={menuItems}
+              onClick={({ key }) => navigate(key)}
+            />
+          </Sider>
+        )}
         <Content style={{ padding: 24, background: '#fff' }}>
           <Outlet />
         </Content>
       </Layout>
+
+      <Drawer
+        placement="left"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        size="default"
+        styles={{ body: { padding: 0 } }}
+      >
+        <Menu
+          mode="inline"
+          selectedKeys={selectedKeys}
+          items={menuItems}
+          onClick={({ key }) => {
+            navigate(key)
+            setDrawerOpen(false)
+          }}
+        />
+      </Drawer>
     </Layout>
   )
 }

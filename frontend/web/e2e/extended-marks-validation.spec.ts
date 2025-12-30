@@ -121,13 +121,18 @@ async function getAvailableMarks(page: Page): Promise<string[]> {
  * Enter comparison mode
  */
 async function enterCompareMode(page: Page): Promise<boolean> {
-  const compareButton = page.getByRole('button', { name: /Compare Marks/i })
-  if ((await compareButton.count()) > 0) {
-    await compareButton.click()
-    await page.waitForTimeout(500)
-    return true
+  const compareButton = page.getByRole('button', { name: /Compare Marks|对比标记|比较标记|Compare/i })
+    .or(page.locator('button').filter({ hasText: /Compare Marks|对比标记|比较标记|Compare/i }))
+
+  try {
+    await compareButton.first().waitFor({ state: 'visible', timeout: 15000 })
+  } catch {
+    return false
   }
-  return false
+
+  await compareButton.first().click()
+  await page.waitForTimeout(800)
+  return true
 }
 
 /**
@@ -446,18 +451,37 @@ test.describe('Heatmap Matrix with Extended Marks', () => {
     }
 
     // Select multiple marks
-    const markSelector = page.locator('.ant-select').first()
-    await markSelector.click()
+    const markSelector = page.locator('.ant-select').filter({ hasText: /H3K|Mark/i }).first()
+      .or(page.locator('[data-testid="mark-selector"]'))
+
+    if ((await markSelector.count()) === 0) {
+      test.skip()
+      return
+    }
+
+    await markSelector.first().click()
     await page.waitForTimeout(300)
 
-    const markOptions = page.getByRole('option')
-    if ((await markOptions.count()) > 1) {
-      await markOptions.nth(0).click()
-      await page.waitForTimeout(500)
-      await markSelector.click()
+    const dropdown = page.locator('.ant-select-dropdown:visible')
+    const visibleOptions = dropdown.locator('.ant-select-item-option:visible, [role="option"]:visible')
+
+    if ((await visibleOptions.count()) > 1) {
+      await visibleOptions.nth(0).click()
       await page.waitForTimeout(300)
-      await markOptions.nth(1).click()
-      await page.waitForTimeout(1000)
+
+      // antd multi-select 通常不会关闭 dropdown；若关闭则重新打开后再选第二个选项
+      if ((await page.locator('.ant-select-dropdown:visible').count()) === 0) {
+        await markSelector.first().click()
+        await page.waitForTimeout(200)
+      }
+
+      const visibleOptions2 = page.locator('.ant-select-dropdown:visible')
+        .locator('.ant-select-item-option:visible, [role="option"]:visible')
+
+      if ((await visibleOptions2.count()) > 1) {
+        await visibleOptions2.nth(1).click()
+      }
+      await page.waitForTimeout(800)
     }
 
     // Navigate to Matrix View
@@ -594,8 +618,8 @@ test.describe('Structural Marks (CTCF, H2AZ) Comparison', () => {
         await page.waitForTimeout(2000)
 
         // Verify data table with CTCF peaks
-        const table = page.locator('.ant-table')
-        if (await table.isVisible()) {
+        const table = page.locator('.ant-tabs-tabpane-active .ant-table:visible').first()
+        if ((await table.count()) > 0) {
           const rows = table.locator('.ant-table-tbody tr')
           const rowCount = await rows.count()
           console.log(`CTCF peaks table rows: ${rowCount}`)
@@ -725,18 +749,28 @@ test.describe('Performance - 16-Mark Heatmap Loading', () => {
       return
     }
 
-    const markSelector = page.locator('.ant-select').first()
+    const markSelector = page.locator('.ant-select').filter({ hasText: /H3K|Mark|marks?/i }).first()
+    if ((await markSelector.count()) === 0) {
+      test.skip()
+      return
+    }
+
+    const searchInput = markSelector.locator('input')
+    const marksToCycle = ['H3K4me3', 'H3K27me3', 'H3K27ac']
 
     // Rapidly select and change marks
     for (let i = 0; i < 5; i++) {
       await markSelector.click()
       await page.waitForTimeout(100)
 
-      const markOption = page.getByRole('option').nth(i % 3)
-      if ((await markOption.count()) > 0) {
-        await markOption.click()
-        await page.waitForTimeout(100)
+      // 使用搜索 + Enter 选择，避免直接点击 option 导致的动画/虚拟列表不稳定
+      if ((await searchInput.count()) > 0) {
+        await searchInput.fill('')
+        await searchInput.type(marksToCycle[i % marksToCycle.length], { delay: 20 })
+        await page.keyboard.press('Enter')
+        await page.keyboard.press('Escape')
       }
+      await page.waitForTimeout(120)
     }
 
     await page.waitForTimeout(2000)

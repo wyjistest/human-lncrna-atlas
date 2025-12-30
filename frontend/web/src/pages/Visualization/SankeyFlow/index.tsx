@@ -352,7 +352,7 @@ export default function SankeyFlow() {
 
       {/* Page Header */}
       <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
-        <Title level={2}>{t('sankey.title', 'Sankey Flow Diagram')}</Title>
+        <Title level={1}>{t('sankey.title', 'Sankey Flow Diagram')}</Title>
         <Paragraph type="secondary">
           {t(
             'sankey.description',
