@@ -31,7 +31,7 @@ from app.core.exceptions import sanitize_db_error
 from app.core.validators import MAX_EXPORT_MARKS, MAX_JSON_EXPORT_LIMIT, parse_comma_list
 from app.models import Gene, ChIPSeqPeak, ChIPSeqExperiment, EpigeneticMarkType
 from app.schemas.chipseq import ExportFormat
-from app.utils.bed import sanitize_bed_track_attr
+from app.utils.bed import sanitize_bed_field, sanitize_bed_track_attr
 from app.utils.http_headers import content_disposition_attachment
 from app.utils.streaming_export import sanitize_csv_value
 
@@ -415,6 +415,120 @@ def export_comparison(
     return StreamingResponse(
         iter([output.encode("utf-8")]),
         media_type="application/json",
+        # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
+        headers={"Content-Disposition": content_disposition_attachment(filename)},
+    )
+
+
+@router.get("/genes/{gene_id}/export")
+@rate_limit("10/minute")
+def export_gene_peaks_bed(
+    request: Request,
+    gene_id: int = Path(..., ge=1, description="Gene ID"),
+    mark_type: str = Query(
+        ...,
+        description="Comma-separated list of marks to export (e.g., H3K27me3)",
+    ),
+    flanking: int = Query(DEFAULT_FLANKING_REGION, ge=0, le=100000),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1),
+    max_rows: int = Query(
+        10000,
+        ge=1,
+        le=50000,
+        description="Maximum number of peaks to export (prevents memory issues)",
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    Export ChIP-seq peaks for a gene region in BED format.
+
+    This endpoint is intentionally lightweight:
+    - Uses streaming DB results (LIMIT max_rows) to avoid building large in-memory objects.
+    - Returns 200 even when no peaks are found (empty body), as long as the gene exists.
+
+    **Example:**
+    ```
+    GET /features/chipseq/genes/12345/export?mark_type=H3K27me3&flanking=10000
+    ```
+    """
+    mark_list = parse_comma_list(mark_type, max_items=MAX_EXPORT_MARKS, param_name="mark_type")
+    if not mark_list:
+        raise HTTPException(status_code=400, detail="At least 1 mark is required for export")
+
+    gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
+    if not gene:
+        raise HTTPException(status_code=404, detail="Gene not found")
+
+    if gene.gene_start is None or gene.gene_end is None:
+        raise HTTPException(status_code=400, detail=f"Gene {gene_id} has no coordinate information")
+
+    region_start = max(0, gene.gene_start - flanking)
+    region_end = gene.gene_end + flanking
+
+    try:
+        is_postgresql = db.get_bind().dialect.name == "postgresql"
+        if is_postgresql:
+            region_predicate = (
+                func.int8range(ChIPSeqPeak.peak_start, ChIPSeqPeak.peak_end, "[)")
+                .op("&&")(func.int8range(region_start, region_end, "[)"))
+            )
+        else:
+            region_predicate = (ChIPSeqPeak.peak_start < region_end) & (ChIPSeqPeak.peak_end > region_start)
+
+        where_conditions = [
+            ChIPSeqPeak.species_id == gene.species_id,
+            ChIPSeqPeak.chromosome == gene.chromosome,
+            region_predicate,
+            ChIPSeqExperiment.is_active.is_(True),
+            EpigeneticMarkType.mark_name.in_(mark_list),
+        ]
+        if max_qvalue is not None:
+            where_conditions.append((ChIPSeqPeak.qvalue.is_(None)) | (ChIPSeqPeak.qvalue <= max_qvalue))
+
+        stmt = (
+            select(
+                ChIPSeqPeak.peak_id,
+                EpigeneticMarkType.mark_name,
+                ChIPSeqPeak.chromosome,
+                ChIPSeqPeak.peak_start,
+                ChIPSeqPeak.peak_end,
+            )
+            .select_from(ChIPSeqPeak)
+            .join(ChIPSeqExperiment, ChIPSeqPeak.experiment_id == ChIPSeqExperiment.experiment_id)
+            .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+            .where(*where_conditions)
+            .order_by(EpigeneticMarkType.mark_name, ChIPSeqPeak.peak_start)
+            .limit(max_rows)
+            .execution_options(stream_results=True)
+        )
+        result = db.execute(stmt)
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
+
+    def _generate_bed() -> Iterator[bytes]:
+        close = getattr(result, "close", None)
+        try:
+            for row in result:
+                peak_id = row[0]
+                mark_name = row[1]
+                chromosome = row[2] or gene.chromosome or ""
+                start = int(row[3])
+                end = int(row[4])
+
+                # BED6: chrom, start, end, name, score, strand
+                # Avoid emitting "track" lines (tests treat non-# headers as data).
+                safe_name = sanitize_bed_field(f"{mark_name}|peak:{peak_id}")
+                strand = gene.strand if gene.strand in {"+", "-", "."} else "."
+
+                yield f"{chromosome}\t{start}\t{end}\t{safe_name}\t0\t{strand}\n".encode("utf-8")
+        finally:
+            if callable(close):
+                close()
+
+    filename = f"chipseq_peaks_gene_{gene_id}.bed"
+    return StreamingResponse(
+        _generate_bed(),
+        media_type="text/tab-separated-values",
         # SECURITY: 防止 CRLF 注入/响应拆分，统一使用安全的 Content-Disposition 构造
         headers={"Content-Disposition": content_disposition_attachment(filename)},
     )

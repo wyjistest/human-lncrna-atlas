@@ -827,5 +827,45 @@ class TestNewMarkCategories:
         assert response.status_code in [200, 404]
 
 
+class TestChIPSeqExportGenePeaks:
+    """Tests for /features/chipseq/genes/{gene_id}/export endpoint"""
+
+    def test_export_gene_peaks_invalid_gene_returns_404(self, api_client: httpx.Client):
+        response = api_client.get(
+            "/api/v1/features/chipseq/genes/999999999/export",
+            params={"mark_type": "H3K27me3", "flanking": 10000},
+        )
+        assert response.status_code == 404
+
+    def test_export_gene_peaks_returns_bed_format(self, api_client: httpx.Client):
+        gene_id = get_valid_gene_id(api_client)
+        if gene_id is None:
+            pytest.skip("No valid gene ID available for testing")
+
+        response = api_client.get(
+            f"/api/v1/features/chipseq/genes/{gene_id}/export",
+            params={"mark_type": "H3K27me3", "flanking": 10000},
+        )
+        assert response.status_code == 200
+
+        content_type = response.headers.get("content-type", "")
+        assert (
+            "text/plain" in content_type
+            or "application/octet-stream" in content_type
+            or "text/tab-separated-values" in content_type
+        )
+
+        body = response.text
+        if body.strip():
+            # Allow comment headers, but validate first data line if present.
+            data_lines = [line for line in body.splitlines() if line.strip() and not line.startswith("#")]
+            if data_lines:
+                columns = data_lines[0].split("\t")
+                assert len(columns) >= 3
+                assert columns[0].startswith("chr")
+                assert int(columns[1]) >= 0
+                assert int(columns[2]) > int(columns[1])
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

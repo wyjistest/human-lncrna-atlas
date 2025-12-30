@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ant Design 6：`Alert` 组件迁移 `message` → `title`，清理控制台弃用警告（降低 E2E flaky 风险）
   - 涉及文件: `frontend/web/src/pages/Visualization/SankeyFlow/index.tsx`, `frontend/web/src/pages/**`, `frontend/web/src/components/**`
 
+- **Phase 9.52: ChIP-seq 基因 peaks 导出端点补齐** (2025-12-30)
+  - 新增 `/api/v1/features/chipseq/genes/{gene_id}/export`（BED 导出），修复 Playwright 导出用例因 404 被跳过
+  - 补充后端集成测试覆盖导出端点基本契约
+  - 涉及文件: `frontend/backend/app/routers/chipseq_export.py`, `frontend/backend/tests/test_chipseq_api.py`
+
 ### Changed
 - **移除未使用依赖**: zustand (前端状态管理库，项目中未实际使用)
 

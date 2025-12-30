@@ -1,15 +1,15 @@
 # Features and ChIP-seq API Verification Report
 
-**Date**: 2025-12-12
-**Status**: All endpoints verified and working
+**Date**: 2025-12-30
+**Status**: All endpoints verified and working (updated: gene peaks BED export)
 
 ## Summary
 
 | Category | Total Endpoints | Working | Issues |
 |----------|-----------------|---------|--------|
 | Features | 9 | 9 | 0 (2 routing bugs FIXED) |
-| ChIP-seq | 16 | 16 | 0 (2 routing bugs FIXED) |
-| **Total** | **25** | **25** | **0** |
+| ChIP-seq | 17 | 17 | 0 (2 routing bugs FIXED) |
+| **Total** | **26** | **26** | **0** |
 
 ## Verification Results
 
@@ -96,6 +96,7 @@
 
 | Endpoint | Method | Status | Response Time | Description |
 |----------|--------|--------|---------------|-------------|
+| `/features/chipseq/genes/{gene_id}/export` | GET | OK | - | Export gene peaks in BED format |
 | `/features/chipseq/genes/{gene_id}/compare/export` | GET | OK | - | Export comparison data (CSV/TSV/JSON) |
 | `/features/chipseq/genes/{gene_id}/overlaps/export` | GET | OK | - | Export overlaps in BED format |
 
