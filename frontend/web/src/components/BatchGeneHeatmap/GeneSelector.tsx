@@ -186,7 +186,7 @@ export function GeneSelector({
         maxCount={maxCount}
         optionFilterProp="searchValue"
         popupMatchSelectWidth={false}
-        dropdownStyle={{ minWidth: 400 }}
+        styles={{ popup: { root: { minWidth: 400 } } }}
         listHeight={320}
         notFoundContent={
           loading ? (

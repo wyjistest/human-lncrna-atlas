@@ -1017,7 +1017,7 @@ export function LncRNAChIPSeqOverlapTable({
 
             {/* Overlap Track Controls - Only show when IGV is enabled and visible */}
             {enableIGV && showIGV && (
-              <Space split={<span style={{ color: '#d9d9d9' }}>|</span>}>
+              <Space separator={<span style={{ color: '#d9d9d9' }}>|</span>}>
                 <Tooltip title={t('igv.loadOverlapTrackTip', 'Display overlap data in IGV')}>
                   <Button
                     icon={trackLoading ? <Spin size="small" /> : <EyeOutlined />}
@@ -1097,28 +1097,30 @@ export function LncRNAChIPSeqOverlapTable({
                   : t('export.tooltip')
               }
             >
-              <Dropdown.Button
-                icon={<DownOutlined />}
-                menu={{
-                  items: [
-                    {
-                      key: 'bed',
-                      label: t('export.bed'),
-                      icon: <FileTextOutlined />,
-                    },
-                    {
-                      key: 'csv',
-                      label: t('export.csv'),
-                      icon: <FileExcelOutlined />,
-                    },
-                  ],
-                  onClick: ({ key }) => handleExport(key as 'bed' | 'csv'),
-                }}
-                onClick={() => handleExport('bed')}
-              >
-                <DownloadOutlined />
-                {t('export.button')}
-              </Dropdown.Button>
+              <Space.Compact className="ant-dropdown-button">
+                <Button icon={<DownloadOutlined />} onClick={() => handleExport('bed')}>
+                  {t('export.button')}
+                </Button>
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'bed',
+                        label: t('export.bed'),
+                        icon: <FileTextOutlined />,
+                      },
+                      {
+                        key: 'csv',
+                        label: t('export.csv'),
+                        icon: <FileExcelOutlined />,
+                      },
+                    ],
+                    onClick: ({ key }) => handleExport(key as 'bed' | 'csv'),
+                  }}
+                >
+                  <Button icon={<DownOutlined />} aria-label={t('export.button')} />
+                </Dropdown>
+              </Space.Compact>
             </Tooltip>
           )}
         </Space>

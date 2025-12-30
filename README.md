@@ -185,6 +185,7 @@ Recommended (starts backend+frontend in test mode, then runs Playwright):
 ## Troubleshooting
 
 - `ERR_CONNECTION_REFUSED` when opening `http://<server-ip>`: the frontend is on `:5173` by default → open `http://<server-ip>:5173` and check status via `./scripts/stop.sh -s`.
+- `http://<server-ip>` (port 80/443) shows `ERR_CONNECTION_REFUSED` or `502`: this repo does not start a reverse proxy by default → access `http://<server-ip>:5173` (frontend) / `http://<server-ip>:8000/docs` (backend), or set up Nginx/Caddy to proxy 80/443 to those ports.
 
 ## License
 

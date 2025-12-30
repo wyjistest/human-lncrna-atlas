@@ -61,7 +61,9 @@ async function openCellTypeDropdown(page: any): Promise<string[]> {
   await page.waitForTimeout(2000)
 
   // Prefer stable test selectors; fallback to text-based matching for backward compatibility.
-  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.cellType).locator('.ant-select').first()
+  const testIdWrapper = page.getByTestId(OVERLAP_FILTER_TESTIDS.cellType)
+  await testIdWrapper.waitFor({ state: 'visible', timeout: 20000 }).catch(() => null)
+  const testIdSelector = testIdWrapper.locator('.ant-select').first()
 
   const cellTypeFilter = page.locator('.ant-select').filter({
     hasText: /Cell Type|细胞类型|Cell Line|细胞系/i,
@@ -90,7 +92,9 @@ async function openCellTypeDropdown(page: any): Promise<string[]> {
  * Helper function to select a cell type from dropdown
  */
 async function selectCellType(page: any, cellType: string): Promise<void> {
-  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.cellType).locator('.ant-select').first()
+  const testIdWrapper = page.getByTestId(OVERLAP_FILTER_TESTIDS.cellType)
+  await testIdWrapper.waitFor({ state: 'visible', timeout: 20000 }).catch(() => null)
+  const testIdSelector = testIdWrapper.locator('.ant-select').first()
   const cellTypeFilter = page.locator('.ant-select').filter({
     hasText: /Cell Type|细胞类型|Cell Line|细胞系/i,
   }).first()
@@ -116,6 +120,21 @@ async function selectCellType(page: any, cellType: string): Promise<void> {
 
     const dropdown = page.locator('.ant-select-dropdown:visible')
     await dropdown.waitFor({ state: 'visible', timeout: 15000 })
+
+    // Guard: ensure we opened the cell type dropdown (not Mark Type / other selects).
+    // Cell type options include known cell lines; mark dropdown contains grouped mark names like H3K*.
+    const looksLikeCellTypeDropdown = await dropdown
+      .locator('.ant-select-item')
+      .filter({ hasText: /MCF|HMEC|K562|GM12878|HepG2|H1-hESC|HeLa|A549/i })
+      .first()
+      .isVisible()
+      .catch(() => false)
+
+    if (!looksLikeCellTypeDropdown) {
+      await page.keyboard.press('Escape').catch(() => null)
+      await page.waitForTimeout(300)
+      continue
+    }
 
     // Prefer using Select's combobox input to avoid virtualization issues on long lists.
     // NOTE: AntD Select search input is inside the Select control (not the dropdown container).
@@ -149,7 +168,9 @@ async function selectCellType(page: any, cellType: string): Promise<void> {
  * Helper function to select an epigenetic mark
  */
 async function selectMark(page: any, mark: string): Promise<void> {
-  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.markType).locator('.ant-select').first()
+  const testIdWrapper = page.getByTestId(OVERLAP_FILTER_TESTIDS.markType)
+  await testIdWrapper.waitFor({ state: 'visible', timeout: 20000 }).catch(() => null)
+  const testIdSelector = testIdWrapper.locator('.ant-select').first()
   const markFilter = page.locator('.ant-select').filter({
     hasText: /Epigenetic Mark|表观标记|Mark|标记/i,
   }).first()
@@ -176,7 +197,9 @@ async function selectMark(page: any, mark: string): Promise<void> {
  * Helper function to select a chromosome (e.g. chr22) for faster loading
  */
 async function selectChromosome(page: any, chromosome: string): Promise<void> {
-  const testIdSelector = page.getByTestId(OVERLAP_FILTER_TESTIDS.chromosome).locator('.ant-select').first()
+  const testIdWrapper = page.getByTestId(OVERLAP_FILTER_TESTIDS.chromosome)
+  await testIdWrapper.waitFor({ state: 'visible', timeout: 20000 }).catch(() => null)
+  const testIdSelector = testIdWrapper.locator('.ant-select').first()
   const chrFilter = page.locator('.ant-select').filter({
     hasText: /Chromosome|染色体/i,
   }).first()

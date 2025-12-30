@@ -369,7 +369,7 @@ export function OverlapTable({
         showQuickJumper: true,
         showTotal: (total) => t('table.total', { total, defaultValue: `Total ${total} overlaps` }),
         pageSizeOptions: ['10', '20', '50', '100'],
-        position: ['bottomCenter'],
+        placement: ['bottomCenter'],
       }}
       onChange={handleTableChange}
       onRow={(record) => ({

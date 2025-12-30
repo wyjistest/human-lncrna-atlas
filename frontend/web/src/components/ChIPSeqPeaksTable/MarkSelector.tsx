@@ -262,7 +262,7 @@ export function MarkSelector({
       maxCount={multiple ? maxCount : undefined}
       optionFilterProp="searchValue"
       popupMatchSelectWidth={false}
-      dropdownStyle={{ minWidth: 320 }}
+      styles={{ popup: { root: { minWidth: 320 } } }}
       listHeight={400}
     />
   )

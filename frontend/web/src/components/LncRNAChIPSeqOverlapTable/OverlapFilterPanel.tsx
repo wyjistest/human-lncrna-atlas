@@ -354,7 +354,7 @@ export function OverlapFilterPanel({
                   min={0}
                   max={10000}
                   step={100}
-                  addonAfter="bp"
+                  suffix="bp"
                 />
                 <Button size="small" type="primary" onClick={applyOverlapLengthFilter}>
                   {tCommon('action.apply', 'Apply')}

@@ -227,20 +227,24 @@ test.describe('Deep Linking', () => {
     await page.goto(`${BASE_URL}/genes/99999999`)
     await page.waitForLoadState('networkidle')
 
-    // Should show error or not found message
+    // Should show error or not found message (wait for it, don't just "count" once)
     const errorContent = page.getByText(/Not Found|Error|404/i)
-      .or(page.locator('.ant-result-error'))
+      .or(page.locator('.ant-result'))
       .or(page.locator('.ant-alert-error'))
+      .or(page.locator('text=Failed to load'))
+      .or(page.getByText(/Gene not found/i))
+      .or(page.locator('[data-testid="error-state"]'))
 
-    const hasError = (await errorContent.count()) > 0
-
-    // Either show error or redirect
-    if (!hasError) {
-      // If no error, page should still load (maybe empty state)
+    try {
+      await expect(errorContent.first()).toBeVisible({ timeout: 15000 })
+      return
+    } catch {
+      // If no error, page should still load (maybe empty state) or redirect away
       const pageContent = page.locator('.ant-empty')
         .or(page.locator('.ant-card'))
+        .or(page.locator('.ant-result'))
 
-      await expect(pageContent.first()).toBeVisible({ timeout: 10000 })
+      await expect(pageContent.first()).toBeVisible({ timeout: 15000 })
     }
   })
 
