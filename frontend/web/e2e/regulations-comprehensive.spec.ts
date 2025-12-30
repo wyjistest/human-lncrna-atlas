@@ -216,33 +216,45 @@ test.describe('Regulations Page - Filters', () => {
   })
 
   test('Filter combination works correctly', async ({ page }) => {
-    // Apply multiple filters
-    const selects = page.locator('.ant-select')
-    const selectCount = await selects.count()
+    // Apply multiple filters using stable selectors (avoid nth() flakiness).
+    const speciesSelect = page.locator('.ant-select').filter({ hasText: /Species|Human|Mouse|物种/i }).first()
+      .or(page.locator('[data-testid="species-filter"]'))
+      .or(page.locator('.ant-form-item').filter({ hasText: /Species|物种/i }).locator('.ant-select').first())
 
-    if (selectCount >= 2) {
-      // Select first filter
-      await selects.nth(0).click()
-      await page.waitForTimeout(300)
-      const option1 = page.locator('.ant-select-dropdown:visible .ant-select-item').first()
-      if (await option1.count() > 0) {
-        await option1.click()
-        await waitForRegulationsAPI(page)
-      }
+    const geneTypeSelect = page.locator('.ant-select').filter({ hasText: /Gene.*Type|lncRNA|protein/i }).first()
 
-      // Select second filter
-      await selects.nth(1).click()
-      await page.waitForTimeout(300)
-      const option2 = page.locator('.ant-select-dropdown:visible .ant-select-item').first()
-      if (await option2.count() > 0) {
-        await option2.click()
-        await waitForRegulationsAPI(page)
-      }
-
-      // Table should reflect combined filters
-      await expect(page.locator('.ant-table')).toBeVisible()
-      console.log('Filter combination works')
+    if (await speciesSelect.count() === 0 || await geneTypeSelect.count() === 0) {
+      console.log('Skipping: required filter controls not found')
+      test.skip()
+      return
     }
+
+    // 1) Species
+    await speciesSelect.click()
+    await page.waitForTimeout(300)
+    const speciesOption = page.locator('.ant-select-dropdown:visible .ant-select-item').first()
+    if (await speciesOption.count() > 0) {
+      await speciesOption.click()
+      await waitForRegulationsAPI(page, 15000)
+    }
+
+    // 2) Gene type (prefer lncRNA)
+    await geneTypeSelect.click()
+    await page.waitForTimeout(300)
+    const dropdown = page.locator('.ant-select-dropdown:visible')
+    const lncRNAOption = dropdown.locator('.ant-select-item').filter({ hasText: /lncRNA/i }).first()
+    const geneTypeOption = (await lncRNAOption.count() > 0)
+      ? lncRNAOption
+      : dropdown.locator('.ant-select-item').first()
+
+    if (await geneTypeOption.count() > 0) {
+      await geneTypeOption.click()
+      await waitForRegulationsAPI(page, 15000)
+    }
+
+    // Table should reflect combined filters
+    await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
+    console.log('Filter combination works')
   })
 })
 

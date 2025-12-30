@@ -174,6 +174,9 @@ cd frontend/web && npm run test:run
 
 # E2E tests
 cd frontend/web && npm run test:e2e
+
+# Note: Some E2E specs include environment-dependent performance assertions.
+# You can override budgets via E2E_* env vars (see docs/testing/e2e/README.md).
 ```
 
 Recommended (starts backend+frontend in test mode, then runs Playwright):

@@ -627,8 +627,10 @@ test.describe('ChIP-seq Overlap - Export', () => {
 
 test.describe('ChIP-seq Overlap - Accessibility', () => {
   test('Page has proper heading structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.goto(`${BASE_URL}${PAGE_URL}`, { waitUntil: 'domcontentloaded' })
+
+    // SPA + lazy routes: wait for meaningful UI instead of relying on networkidle.
+    await page.locator('h1, h2').first().waitFor({ state: 'visible', timeout: 15000 })
 
     const h1 = page.locator('h1')
     const h2 = page.locator('h2')

@@ -43,8 +43,24 @@ Comprehensive end-to-end tests for the lncRNA-ChIP-seq Overlap Analysis page usi
 ### Additional Test Suites
 
 #### Performance Tests
-- ✅ Page load time under 5 seconds
-- ✅ Initial render under 3 seconds
+- ✅ Page load time under 8 seconds (default budget)
+- ✅ Initial render under 6 seconds (default budget)
+
+#### Performance Budgets (Configurable)
+
+Performance assertions are environment-dependent (dev server, CPU, cache). You can override budgets via env vars:
+
+| Env var | Default | Meaning |
+|--------|---------|---------|
+| `BASE_URL` | `http://localhost:5173` | Frontend base URL |
+| `E2E_OVERLAP_PAGE_LOAD_BUDGET_MS` | `8000` | SPA shell load budget (ms) |
+| `E2E_OVERLAP_INITIAL_RENDER_BUDGET_MS` | `6000` | First meaningful content render budget (ms) |
+
+Example:
+
+```bash
+E2E_OVERLAP_INITIAL_RENDER_BUDGET_MS=12000 npm run test:e2e -- e2e/lncrna-chipseq-overlap.spec.ts -g "initial render"
+```
 
 #### Error Handling
 - ✅ API error gracefully handled

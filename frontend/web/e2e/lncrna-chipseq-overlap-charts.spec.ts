@@ -291,7 +291,11 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
       // Delay API response to observe loading state
       await page.route('**/api/v1/lncrna-chipseq-overlap*', async (route) => {
         await new Promise(resolve => setTimeout(resolve, 3000))
-        route.continue()
+        try {
+          await route.continue()
+        } catch {
+          // Request might be aborted or the route might be removed while waiting (best-effort delay).
+        }
       })
 
       // Navigate and immediately check for loading
@@ -776,6 +780,9 @@ test.describe('Chart-Filter Integration', () => {
     // Enable stats
     await enableStatsIfNeeded(page)
     await page.waitForTimeout(1500)
+
+    // Charts are rendered asynchronously (React Query + ECharts). Wait for at least one canvas.
+    await expect.poll(async () => countChartCanvases(page), { timeout: 15000 }).toBeGreaterThan(0)
 
     // Count initial charts
     const initialCanvasCount = await countChartCanvases(page)

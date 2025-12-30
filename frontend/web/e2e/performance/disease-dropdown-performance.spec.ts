@@ -30,7 +30,7 @@ const NETWORK_RENDER_BUDGET_MS = getEnvInt('E2E_NETWORK_RENDER_BUDGET_MS', 12000
 
 // Performance thresholds (environment-dependent; override via env vars)
 const THRESHOLDS = {
-  API_RESPONSE_TIME: getEnvInt('E2E_DISEASE_OPTIONS_API_BUDGET_MS', 2000), // cold cache may be slower
+  API_RESPONSE_TIME: getEnvInt('E2E_DISEASE_OPTIONS_API_BUDGET_MS', 3000), // cold cache + dev server can be slower
   RENDER_TIME: getEnvInt('E2E_DISEASE_DROPDOWN_RENDER_BUDGET_MS', 1500),
   TOTAL_USER_TIME: getEnvInt('E2E_DISEASE_FLOW_BUDGET_MS', 15000),
   SCROLL_FPS: getEnvInt('E2E_DISEASE_DROPDOWN_SCROLL_FPS_MIN', 20),

@@ -586,11 +586,14 @@ test.describe('Sankey Flow - Accessibility', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    // Playwright docs: networkidle is discouraged for testing (SPA / long connections).
+    // Prefer explicit UI assertions for readiness.
+    await page.waitForLoadState('domcontentloaded')
   })
 
   test('should have proper heading hierarchy', async ({ page }) => {
-    const h1 = page.locator('h1')
+    const h1 = page.getByRole('heading', { level: 1 })
+    await h1.first().waitFor({ state: 'visible', timeout: 15000 })
     const h1Count = await h1.count()
 
     expect(h1Count).toBeGreaterThanOrEqual(1)
@@ -598,12 +601,20 @@ test.describe('Sankey Flow - Accessibility', () => {
   })
 
   test('should have keyboard navigation support', async ({ page }) => {
-    // Tab through interactive elements
+    // Ensure the page content is rendered before testing focus behavior
+    await page.locator('[data-testid="sankey-flow-page"]').waitFor({ state: 'visible', timeout: 15000 })
+
+    // Ensure focus starts inside the document, then tab through interactive elements
+    await page.locator('body').click({ position: { x: 1, y: 1 } }).catch(() => {})
     await page.keyboard.press('Tab')
     await page.waitForTimeout(200)
 
-    const focusedElement = page.locator(':focus')
-    const hasFocus = await focusedElement.count() > 0
+    const hasFocus = await page.evaluate(() => {
+      const el = document.activeElement
+      if (!el) return false
+      const tag = el.tagName.toLowerCase()
+      return tag !== 'body' && tag !== 'html'
+    })
 
     expect(hasFocus).toBeTruthy()
     console.log('Keyboard navigation works')

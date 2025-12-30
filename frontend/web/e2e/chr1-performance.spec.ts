@@ -195,8 +195,12 @@ test.describe('Chr1 Large Chromosome Query Performance (P0)', () => {
   })
 
   test('P0: should load chr1 data within acceptable time (<30s with materialized view)', async ({ page }) => {
-    // Select chr1 chromosome
-    const selected = await selectChromosome(page, 'chr1')
+    // Select chr1 chromosome and set up the response waiter BEFORE clicking.
+    // Otherwise, a fast cached response can be missed and lead to flaky timeouts.
+    let chr1Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    const selected = await selectChromosome(page, 'chr1', async () => {
+      chr1Response = waitForOverlapAPIWithMetadata(page, PERF_THRESHOLDS.CHR1_MAX_LOAD_TIME, ['chromosome=chr1'])
+    })
     if (!selected) {
       console.log('Warning: Could not select chr1 - chromosome selector not found or chr1 not available')
       test.skip()
@@ -204,7 +208,7 @@ test.describe('Chr1 Large Chromosome Query Performance (P0)', () => {
     }
 
     // Wait for API response and measure time
-    const result = await waitForOverlapAPIWithMetadata(page, PERF_THRESHOLDS.CHR1_MAX_LOAD_TIME)
+    const result = await (chr1Response ?? waitForOverlapAPIWithMetadata(page, PERF_THRESHOLDS.CHR1_MAX_LOAD_TIME, ['chromosome=chr1']))
 
     expect(result).not.toBeNull()
     if (!result) return

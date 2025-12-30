@@ -98,6 +98,26 @@
 | **CLS (Cumulative Layout Shift)** | 累积布局偏移 | < 0.1 | < 0.05 | Web Vitals API |
 | **TTI (Time to Interactive)** | 可交互时间 | < 3.5s | < 2.5s | Lighthouse |
 
+#### D. E2E 断言预算（可通过环境变量覆盖）
+
+上表是“优化目标”。实际跑 Playwright E2E 时，性能断言会受环境影响（dev server、CPU、缓存冷热）。
+当前实现 `frontend/web/e2e/performance/disease-dropdown-performance.spec.ts` 支持通过环境变量覆盖预算（单位：毫秒，除非特别说明）：
+
+| Env var | Default | 说明 |
+|--------|---------|------|
+| `BASE_URL` | `http://localhost:5173` | 前端地址 |
+| `API_BASE_URL` | `http://localhost:8000` | 后端地址 |
+| `E2E_DISEASE_OPTIONS_API_BUDGET_MS` | `3000` | `/api/v1/diseases/options` 响应预算 |
+| `E2E_DISEASE_DROPDOWN_RENDER_BUDGET_MS` | `1500` | 下拉渲染预算 |
+| `E2E_DISEASE_FLOW_BUDGET_MS` | `15000` | “打开页面→选择疾病→渲染网络图”的总预算 |
+| `E2E_DISEASE_DROPDOWN_SCROLL_FPS_MIN` | `20` | 下拉滚动最低 FPS |
+| `E2E_NETWORK_API_BUDGET_MS` | `12000` | 网络图相关 API 响应预算 |
+| `E2E_NETWORK_RENDER_BUDGET_MS` | `12000` | 网络图渲染预算 |
+| `E2E_MEMORY_LIMIT_MB` | `250` | 内存上限（MB） |
+| `E2E_LCP_BUDGET_MS` | `4000` | LCP 预算 |
+| `E2E_FID_BUDGET_MS` | `200` | FID 预算 |
+| `E2E_CLS_BUDGET` | `0.25` | CLS 预算（分数） |
+
 ### 3.2 性能等级划分
 
 | 等级 | 描述 | 响应时间范围 | 用户感知 |
