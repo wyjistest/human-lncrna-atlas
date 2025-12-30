@@ -169,7 +169,7 @@ export function BivalentDomainBadge({
       type="info"
       icon={<ExperimentOutlined />}
       showIcon
-      message={
+      title={
         <Space>
           <span style={{ fontWeight: 500 }}>
             {t('detail.chipseq.bivalent.detected', 'Bivalent Domain Detected')}

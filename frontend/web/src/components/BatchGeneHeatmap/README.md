@@ -191,7 +191,7 @@ function MyComponent() {
   )
 
   if (isLoading) return <Spin />
-  if (error) return <Alert type="error" message={error.message} />
+  if (error) return <Alert type="error" title={error.message} />
 
   return <BatchHeatmapMatrix data={data} metric={metric} />
 }

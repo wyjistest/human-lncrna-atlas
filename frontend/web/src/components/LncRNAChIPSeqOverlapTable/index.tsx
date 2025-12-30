@@ -970,7 +970,7 @@ export function LncRNAChIPSeqOverlapTable({
       {dataError && (
         <Alert
           type="error"
-          message={t('error.title', 'Loading Failed')}
+          title={t('error.title', 'Loading Failed')}
           description={
             <Space orientation="vertical" size="small">
               <span>{dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
@@ -1130,7 +1130,7 @@ export function LncRNAChIPSeqOverlapTable({
       {enableStats && !showStats && (
         <Alert
           type="info"
-          message={t('notice.statsPhase2Title', 'Statistics Feature')}
+          title={t('notice.statsPhase2Title', 'Statistics Feature')}
           description={t(
             'notice.statsPhase2Desc',
             'Enable statistics to see aggregate metrics and distributions (Phase 2 feature)'
@@ -1226,7 +1226,7 @@ export function LncRNAChIPSeqOverlapTable({
         <Alert
           type="info"
           icon={<InfoCircleOutlined />}
-          message={t('info.allChromosomesQuery', 'Querying All Chromosomes')}
+          title={t('info.allChromosomesQuery', 'Querying All Chromosomes')}
           description={t(
             'info.allChromosomesDesc',
             'You are viewing data from all chromosomes. For faster queries and exports, consider selecting a specific chromosome from the filter panel.'
@@ -1328,7 +1328,7 @@ export function LncRNAChIPSeqOverlapTable({
       {(lncrnaGeneId || targetGeneId) && (
         <Alert
           type="info"
-          message={t('info.filteredView', 'Filtered View')}
+          title={t('info.filteredView', 'Filtered View')}
           description={
             <Space orientation="vertical" size={0}>
               {lncrnaGeneId && (
@@ -1444,7 +1444,7 @@ export function LncRNAChIPSeqOverlapTable({
                                         <span>{tGenomeBrowser('chipseq.loadingMarks')}</span>
                                       </Space>
                                     ) : chipseqMarksError ? (
-                                      <Alert type="error" message={tGenomeBrowser('chipseq.loadMarksFailed')} />
+                                      <Alert type="error" title={tGenomeBrowser('chipseq.loadMarksFailed')} />
                                     ) : (
                                       <>
                                         <Text type="secondary" style={{ fontSize: 12 }}>

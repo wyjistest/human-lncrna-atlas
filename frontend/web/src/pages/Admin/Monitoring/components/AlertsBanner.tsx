@@ -51,7 +51,7 @@ export function AlertsBanner({ alerts }: AlertsBannerProps) {
       <AntAlert
         type={getAlertType(alert.type)}
         icon={getAlertIcon(alert.type)}
-        message={alert.message}
+        title={alert.message}
         description={`${alert.metric}: ${alert.value.toFixed(1)} (threshold: ${alert.threshold})`}
         showIcon
         style={{ marginBottom: 16 }}
@@ -67,7 +67,7 @@ export function AlertsBanner({ alerts }: AlertsBannerProps) {
     <AntAlert
       type={overallType}
       icon={hasCritical ? <CloseCircleOutlined /> : <ExclamationCircleOutlined />}
-      message={`${sortedAlerts.length} Active Alerts`}
+      title={`${sortedAlerts.length} Active Alerts`}
       description={
         <Space orientation="vertical" size={4} style={{ width: '100%' }}>
           {sortedAlerts.map((alert, index) => (

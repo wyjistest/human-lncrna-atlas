@@ -441,7 +441,7 @@ export function ChIPSeqPeaksTable({
         return (
           <Alert
             type="info"
-            message={t('detail.chipseq.matrixNoData', 'No matrix data available')}
+            title={t('detail.chipseq.matrixNoData', 'No matrix data available')}
             description={t(
               'detail.chipseq.matrixNoDataDescription',
               'The heatmap matrix data is loading or unavailable for this gene.'
@@ -473,7 +473,7 @@ export function ChIPSeqPeaksTable({
         return (
           <Alert
             type="warning"
-            message={t('detail.chipseq.selectMarkFirst', 'Select a mark first')}
+            title={t('detail.chipseq.selectMarkFirst', 'Select a mark first')}
             description={t(
               'detail.chipseq.selectMarkFirstDescription',
               'Please select a histone mark to compare across cell lines.'
@@ -496,7 +496,7 @@ export function ChIPSeqPeaksTable({
       return (
         <Alert
           type="info"
-          message={t('detail.chipseq.selectMarksToCompare', 'Select marks to compare')}
+          title={t('detail.chipseq.selectMarksToCompare', 'Select marks to compare')}
           description={t(
             'detail.chipseq.selectMarksDescription',
             'Choose 2 or more marks from the selector above to compare their ChIP-seq profiles.'
@@ -542,7 +542,7 @@ export function ChIPSeqPeaksTable({
           return (
             <Alert
               type="warning"
-              message={t('detail.chipseq.parallelRequiresTwoMarks', 'Select exactly 2 marks')}
+              title={t('detail.chipseq.parallelRequiresTwoMarks', 'Select exactly 2 marks')}
             />
           )
         }

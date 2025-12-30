@@ -100,7 +100,7 @@ export default function Stats() {
       {detailedError && (
         <Alert
           type="warning"
-          message={t('loadError.title')}
+          title={t('loadError.title')}
           description={t('loadError.desc')}
           style={{ marginBottom: 24 }}
         />

@@ -246,7 +246,7 @@ export default function Network() {
       {diseaseOptionsError && (
         <Alert
           type="warning"
-          message={t('disease.loadError') || 'Failed to load disease options'}
+          title={t('disease.loadError') || 'Failed to load disease options'}
           description={t('disease.loadErrorDesc') || 'Please try refreshing the page'}
           action={
             <Button size="small" onClick={() => refetchDiseaseOptions()}>

@@ -101,6 +101,22 @@ if (loading) return <Loading />
 
 ---
 
+## Ant Design 6 组件兼容
+
+### 问题：Alert 的 `message` 弃用警告
+
+**现象**：浏览器控制台出现警告：
+
+```
+Warning: [antd: Alert] message is deprecated. Please use title instead.
+```
+
+**原因**：Ant Design 6 将 Alert 的主标题字段统一为 `title`，`message` 已标记为 deprecated（仍可用，但会产生警告，E2E 也可能采集到）。
+
+**解决**：将所有 `<Alert message={...} />`（包括别名如 `<AntAlert ... />`）替换为 `<Alert title={...} />`，`description` 等字段保持不变。
+
+---
+
 ## pytest 测试
 
 ### 问题：pytest marker 过滤不阻止模块导入

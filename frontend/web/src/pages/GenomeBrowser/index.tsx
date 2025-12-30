@@ -663,7 +663,7 @@ export default function GenomeBrowserPage() {
                                 ) : chipseqMarksError ? (
                                   <Alert
                                     type="error"
-                                    message={t('chipseq.loadMarksFailed')}
+                                    title={t('chipseq.loadMarksFailed')}
                                   />
                                 ) : (
                                   <>

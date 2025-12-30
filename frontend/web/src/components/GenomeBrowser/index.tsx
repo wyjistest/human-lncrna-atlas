@@ -687,7 +687,7 @@ const GenomeBrowser = memo(({
     return (
       <Alert
         type="warning"
-        message={t('noConfig')}
+        title={t('noConfig')}
         description={t('noConfigDesc')}
         style={{ margin: 16 }}
       />

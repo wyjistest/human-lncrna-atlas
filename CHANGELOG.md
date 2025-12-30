@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Vite 兼容性：`process.env.NODE_ENV` → `import.meta.env.DEV`
   - 分页交互：搜索/筛选时重置页码到第一页
 
+- **Phase 9.51: 前端可访问性与 AntD6 兼容** (2025-12-30)
+  - Sankey Flow：加载态也渲染页面标题（`h1`），修复 Playwright 可访问性用例失败
+  - Ant Design 6：`Alert` 组件迁移 `message` → `title`，清理控制台弃用警告（降低 E2E flaky 风险）
+  - 涉及文件: `frontend/web/src/pages/Visualization/SankeyFlow/index.tsx`, `frontend/web/src/pages/**`, `frontend/web/src/components/**`
+
 ### Changed
 - **移除未使用依赖**: zustand (前端状态管理库，项目中未实际使用)
 

@@ -46,7 +46,6 @@ import type { SankeyParams } from '@/types/echarts'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 
-import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
 import { visualizationApi } from '@/api/visualization'
 import type { SankeyNode, SankeyLink } from '@/api/visualization'
@@ -312,11 +311,6 @@ export default function SankeyFlow() {
   // Handle search with debounce
   const handleSearch = (value: string) => {
     setTraitInput(value)
-  }
-
-  // Loading state
-  if (isLoading && !sankeyData) {
-    return <LoadingState />
   }
 
   // Error state
