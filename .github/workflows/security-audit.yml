@@ -58,6 +58,11 @@ jobs:
             --output pip-audit-report.md || true
           echo "::endgroup::"
 
+          # pip-audit 在“无漏洞/无输出”等场景可能不会生成文件；为 artifact 上传创建占位文件，避免 CI 注释噪音。
+          if [ ! -f pip-audit-report.md ]; then
+            echo "_pip-audit did not generate a report file._" > pip-audit-report.md
+          fi
+
           # 输出报告内容
           if [ -f pip-audit-report.md ]; then
             cat pip-audit-report.md
