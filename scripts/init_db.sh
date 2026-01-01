@@ -196,6 +196,13 @@ execute_core_schema() {
     log_info "执行核心层Schema (01_core.sql)..."
     run_psql "$DB_NAME" -f "$SCHEMA_DIR/01_core.sql" -q
     log_success "核心层Schema执行完成"
+
+    # 可选性能优化：/analysis/summary (High Affinity, BA>=100) 预聚合物化视图
+    # 依赖仅为核心表（regulations/genes），无需 ChIP-seq 扩展。
+    if [ -f "$SCHEMA_DIR/07_mv_analysis_summary_high_affinity_ba100.sql" ]; then
+        log_info "（可选）加速 /analysis/summary (High Affinity, BA>=100)："
+        log_info "  psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -f $SCHEMA_DIR/07_mv_analysis_summary_high_affinity_ba100.sql"
+    fi
 }
 
 execute_extension_schema() {
