@@ -10,7 +10,8 @@ schema/
 │   ├── 03_sample_data.sql   # 示例数据 (开发/测试)
 │   ├── 04_extension_phase2.sql  # 扩展表 (可选)
 │   ├── 05_mv_lncrna_chipseq_overlaps.sql  # ChIP-seq overlaps 物化视图
-│   └── 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql  # /analysis/summary 预聚合 (BA>=100)
+│   ├── 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql  # /analysis/summary 预聚合 (BA>=100)
+│   └── 07_mv_analysis_summary_high_affinity_ba100.sql  # /analysis/summary (High Affinity) 预聚合 (BA>=100)
 ├── migrations/              # 增量迁移脚本
 │
 └── (另见) frontend/backend/sql/
@@ -24,6 +25,9 @@ schema/
 ```bash
 # 1. 必需 - 核心表
 psql -d lncrna_production -f schema/v2.3/01_core.sql
+
+# 1.1 可选 - Analysis Summary 预聚合（加速 /analysis/summary 的 High Affinity）
+psql -d lncrna_production -f schema/v2.3/07_mv_analysis_summary_high_affinity_ba100.sql
 
 # 2. 可选 - 扩展功能 (RepeatMasker 基础)
 psql -d lncrna_production -f schema/v2.3/04_extension_phase2.sql
@@ -58,6 +62,7 @@ psql -d lncrna_production -f schema/v2.3/03_sample_data.sql
 | 04_extension_phase2.sql | v2.3.1 | ✅ 当前 | IF NOT EXISTS 安全版 |
 | 05_mv_lncrna_chipseq_overlaps.sql | v2.3 | ✅ 当前 | ChIP-seq 重叠物化视图 |
 | 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql | v2.3.3 | ✅ 当前 | Epigenetic 预聚合（BA>=100） |
+| 07_mv_analysis_summary_high_affinity_ba100.sql | v2.3.4 | ✅ 当前 | Analysis Summary 预聚合（BA>=100） |
 | frontend/backend/sql/chipseq_schema.sql | v1.0 | ✅ 当前 | ChIP-seq 表观遗传学扩展 |
 
 ## 迁移说明

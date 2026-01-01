@@ -78,6 +78,15 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     # ========================================================================
     # 1. High Affinity Analysis (BA >= 100)
     # ========================================================================
+    high_affinity_stats_mv_sql = text("""
+        SELECT
+            total_regulations,
+            unique_lncrnas,
+            unique_targets,
+            avg_ba,
+            max_ba
+        FROM mv_analysis_high_affinity_stats_ba100
+    """)
     high_affinity_sql = text("""
         WITH high_affinity_regs AS (
             SELECT
@@ -100,11 +109,24 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     """)
 
     try:
-        ha_stats = db.execute(high_affinity_sql).fetchone()
+        try:
+            ha_stats = db.execute(high_affinity_stats_mv_sql).fetchone()
+            if ha_stats is None:
+                raise RuntimeError("mv_analysis_high_affinity_stats_ba100 returned no rows")
+        except Exception:
+            ha_stats = db.execute(high_affinity_sql).fetchone()
     except Exception as e:
         raise sanitize_db_error(e, logger)
 
     # Top 20 lncRNAs by target count
+    top_lncrnas_mv_sql = text("""
+        SELECT
+            lncrna_name,
+            target_count,
+            avg_ba
+        FROM mv_analysis_top_lncrnas_ba100
+        ORDER BY row_num
+    """)
     top_lncrnas_sql = text("""
         SELECT
             lnc.gene_name as lncrna_name,
@@ -119,7 +141,10 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     """)
 
     try:
-        top_lncrnas_rows = db.execute(top_lncrnas_sql).fetchall()
+        try:
+            top_lncrnas_rows = db.execute(top_lncrnas_mv_sql).fetchall()
+        except Exception:
+            top_lncrnas_rows = db.execute(top_lncrnas_sql).fetchall()
     except Exception as e:
         raise sanitize_db_error(e, logger)
 

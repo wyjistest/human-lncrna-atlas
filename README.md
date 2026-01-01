@@ -148,11 +148,14 @@ npm run dev -- --host 0.0.0.0
 - Empty DNA sequences: 203 (0.025%) - located on unlocated scaffolds
 - BA range: 50.0 - 756.0
 
-### ChIP-seq Materialized Views (Optional, for Performance)
+### Materialized Views (Optional, for Performance)
 
-Some endpoints (e.g. `/api/v1/analysis/summary` epigenetic section) are significantly faster when the ChIP-seq materialized views exist.
+Some endpoints are significantly faster when the optional PostgreSQL materialized views exist (cache-miss latency, large exports, heavy aggregations).
 
 ```bash
+# Analysis summary (High Affinity section, BA >= 100)
+psql -d lncrna_production -f schema/v2.3/07_mv_analysis_summary_high_affinity_ba100.sql
+
 # ChIP-seq schema (tables + optional dashboard MVs)
 psql -d lncrna_production -f frontend/backend/sql/chipseq_schema.sql
 
@@ -162,7 +165,7 @@ psql -d lncrna_production -f schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql
 # Epigenetic summary MV (BA >= 100) for /analysis/summary
 psql -d lncrna_production -f schema/v2.3/06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql
 
-# Refresh MVs (weekly or after ETL)
+# Refresh managed MVs (weekly or after ETL)
 ./scripts/refresh_materialized_views.sh
 ```
 

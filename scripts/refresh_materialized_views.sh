@@ -2,7 +2,7 @@
 # ============================================================================
 # Human LncRNA Atlas - Materialized View Refresh Script
 # ============================================================================
-# Purpose: Refresh materialized views for lncRNA-ChIP-seq overlap optimization
+# Purpose: Refresh materialized views used by the API (optional performance optimizations)
 # Usage: ./refresh_materialized_views.sh [options]
 #
 # Options:
@@ -37,8 +37,13 @@ USE_CONCURRENT=true
 STATUS_ONLY=false
 VERBOSE=false
 
-# Materialized views managed by this script (order matters: base MV first).
+# Materialized views managed by this script (order matters when dependencies exist).
 MV_LIST=(
+    # Analysis summary cache-miss acceleration (fast to refresh)
+    "mv_analysis_high_affinity_stats_ba100"
+    "mv_analysis_top_lncrnas_ba100"
+
+    # ChIP-seq overlap optimization (base MV first, then dependent summary MV)
     "mv_lncrna_chipseq_overlaps"
     "mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100"
 )
@@ -222,6 +227,9 @@ show_status() {
                     ;;
                 mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100)
                     echo "  psql -d $DB_NAME -f schema/v2.3/06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql"
+                    ;;
+                mv_analysis_high_affinity_stats_ba100|mv_analysis_top_lncrnas_ba100)
+                    echo "  psql -d $DB_NAME -f schema/v2.3/07_mv_analysis_summary_high_affinity_ba100.sql"
                     ;;
                 *)
                     echo "  (unknown - please check schema scripts)"

@@ -584,26 +584,24 @@ def export_chipseq_overlaps(
     limit = _apply_json_memory_limit(request, limit, output_format)
 
     # 使用物化视图查询（性能优化）
+    # NOTE: mv_lncrna_chipseq_overlaps 已经做了必要的反范式化（gene_name / mark_name / binding_affinity 等），
+    # 这里避免额外 JOIN，减少 6M+ 行大表的 join 代价与 planner 复杂度。
     sql = text("""
         SELECT
             o.regulation_id,
-            lnc.gene_name as lncrna_name,
-            tgt.gene_name as target_name,
-            r.binding_affinity,
-            mt.mark_name,
+            o.lncrna_name as lncrna_name,
+            o.target_gene_name as target_name,
+            o.binding_affinity,
+            o.mark_name,
             o.fold_enrichment as peak_score,
             o.chromosome as peak_chr,
             o.peak_start,
             o.peak_end,
             o.cell_type
         FROM mv_lncrna_chipseq_overlaps o
-        JOIN regulations r ON o.regulation_id = r.regulation_id
-        JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
-        JOIN genes tgt ON r.target_gene_id = tgt.gene_id
-        JOIN epigenetic_mark_types mt ON o.mark_type_id = mt.mark_type_id
-        WHERE mt.mark_name = ANY(:mark_names)
-          AND r.binding_affinity >= :min_ba
-        ORDER BY r.binding_affinity DESC, o.fold_enrichment DESC
+        WHERE o.mark_name = ANY(:mark_names)
+          AND o.binding_affinity >= :min_ba
+        ORDER BY o.binding_affinity DESC, o.fold_enrichment DESC
         LIMIT :limit
     """)
 
