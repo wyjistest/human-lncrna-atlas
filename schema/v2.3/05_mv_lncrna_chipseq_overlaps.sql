@@ -149,6 +149,12 @@ CREATE INDEX IF NOT EXISTS idx_mv_overlap_cell
 CREATE INDEX IF NOT EXISTS idx_mv_overlap_ba
     ON mv_lncrna_chipseq_overlaps(binding_affinity DESC);
 
+-- Epigenetic summary (Analysis Results): GROUP BY mark/cell for high-confidence overlaps (BA >= 100)
+-- Helps /analysis/summary (epigenetic) avoid full MV scan on cache-miss.
+CREATE INDEX IF NOT EXISTS idx_mv_overlap_ba100_mark_cat_cell
+    ON mv_lncrna_chipseq_overlaps(mark_name, mark_category, cell_type)
+    WHERE binding_affinity >= 100;
+
 -- Overlap length for filtering/sorting
 CREATE INDEX IF NOT EXISTS idx_mv_overlap_length
     ON mv_lncrna_chipseq_overlaps(overlap_length DESC);

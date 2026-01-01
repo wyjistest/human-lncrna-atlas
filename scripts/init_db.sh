@@ -210,6 +210,10 @@ execute_extension_schema() {
         if [ -f "$SCHEMA_DIR/05_mv_lncrna_chipseq_overlaps.sql" ]; then
             log_warning "物化视图 (05_mv_lncrna_chipseq_overlaps.sql) 需在 ChIP-seq schema 后手动执行"
             log_info "  执行顺序: chipseq_schema.sql → 05_mv_lncrna_chipseq_overlaps.sql"
+            if [ -f "$SCHEMA_DIR/06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql" ]; then
+                log_info "  （可选）加速 /analysis/summary: 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql"
+                log_info "  执行顺序: chipseq_schema.sql → 05_mv_lncrna_chipseq_overlaps.sql → 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql"
+            fi
         fi
     else
         log_info "跳过扩展层Schema（设置 INSTALL_EXTENSION_LAYER=yes 以安装）"

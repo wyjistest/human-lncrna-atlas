@@ -37,6 +37,12 @@ USE_CONCURRENT=true
 STATUS_ONLY=false
 VERBOSE=false
 
+# Materialized views managed by this script (order matters: base MV first).
+MV_LIST=(
+    "mv_lncrna_chipseq_overlaps"
+    "mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100"
+)
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -173,47 +179,58 @@ show_status() {
     echo "=============================================="
     echo ""
 
-    # Check mv_lncrna_chipseq_overlaps
-    local mv_name="mv_lncrna_chipseq_overlaps"
+    for mv_name in "${MV_LIST[@]}"; do
+        if check_mv_exists "$mv_name"; then
+            local populated="No"
+            if check_mv_populated "$mv_name"; then
+                populated="Yes"
+            fi
 
-    if check_mv_exists "$mv_name"; then
-        local populated="No"
-        if check_mv_populated "$mv_name"; then
-            populated="Yes"
+            local row_count=$(get_mv_row_count "$mv_name")
+            local size=$(get_mv_size "$mv_name")
+
+            echo "View: $mv_name"
+            echo "  Exists: Yes"
+            echo "  Populated: $populated"
+            echo "  Row Count: $row_count"
+            echo "  Total Size: $size"
+
+            # Show distribution by chromosome for the base MV only.
+            if [ "$mv_name" = "mv_lncrna_chipseq_overlaps" ] && [ "$populated" = "Yes" ] && [ "$VERBOSE" = true ]; then
+                echo ""
+                echo "Distribution by Chromosome (Top 5):"
+                execute_sql_verbose "
+                    SELECT
+                        chromosome,
+                        COUNT(*) as overlap_count,
+                        ROUND(COUNT(*)::numeric / SUM(COUNT(*)) OVER () * 100, 2) as percentage
+                    FROM $mv_name
+                    GROUP BY chromosome
+                    ORDER BY overlap_count DESC
+                    LIMIT 5;
+                "
+            fi
+        else
+            echo "View: $mv_name"
+            echo "  Exists: No"
+            echo "  Status: Not created yet"
+            echo ""
+            echo "To create the materialized view, run:"
+            case "$mv_name" in
+                mv_lncrna_chipseq_overlaps)
+                    echo "  psql -d $DB_NAME -f schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql"
+                    ;;
+                mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100)
+                    echo "  psql -d $DB_NAME -f schema/v2.3/06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql"
+                    ;;
+                *)
+                    echo "  (unknown - please check schema scripts)"
+                    ;;
+            esac
         fi
 
-        local row_count=$(get_mv_row_count "$mv_name")
-        local size=$(get_mv_size "$mv_name")
-
-        echo "View: $mv_name"
-        echo "  Exists: Yes"
-        echo "  Populated: $populated"
-        echo "  Row Count: $row_count"
-        echo "  Total Size: $size"
         echo ""
-
-        # Show distribution by chromosome if populated
-        if [ "$populated" = "Yes" ] && [ "$VERBOSE" = true ]; then
-            echo "Distribution by Chromosome (Top 5):"
-            execute_sql_verbose "
-                SELECT
-                    chromosome,
-                    COUNT(*) as overlap_count,
-                    ROUND(COUNT(*)::numeric / SUM(COUNT(*)) OVER () * 100, 2) as percentage
-                FROM $mv_name
-                GROUP BY chromosome
-                ORDER BY overlap_count DESC
-                LIMIT 5;
-            "
-        fi
-    else
-        echo "View: $mv_name"
-        echo "  Exists: No"
-        echo "  Status: Not created yet"
-        echo ""
-        echo "To create the materialized view, run:"
-        echo "  psql -d $DB_NAME -f schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql"
-    fi
+    done
 
     echo "=============================================="
 }
@@ -289,9 +306,8 @@ main() {
     log INFO "Starting materialized view refresh..."
 
     local success=true
-    local mv_list=("mv_lncrna_chipseq_overlaps")
 
-    for mv_name in "${mv_list[@]}"; do
+    for mv_name in "${MV_LIST[@]}"; do
         if ! refresh_mv "$mv_name"; then
             success=false
         fi

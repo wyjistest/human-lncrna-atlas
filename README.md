@@ -148,6 +148,24 @@ npm run dev -- --host 0.0.0.0
 - Empty DNA sequences: 203 (0.025%) - located on unlocated scaffolds
 - BA range: 50.0 - 756.0
 
+### ChIP-seq Materialized Views (Optional, for Performance)
+
+Some endpoints (e.g. `/api/v1/analysis/summary` epigenetic section) are significantly faster when the ChIP-seq materialized views exist.
+
+```bash
+# ChIP-seq schema (tables + optional dashboard MVs)
+psql -d lncrna_production -f frontend/backend/sql/chipseq_schema.sql
+
+# Overlaps MV (may take a while on full data)
+psql -d lncrna_production -f schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql
+
+# Epigenetic summary MV (BA >= 100) for /analysis/summary
+psql -d lncrna_production -f schema/v2.3/06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql
+
+# Refresh MVs (weekly or after ETL)
+./scripts/refresh_materialized_views.sh
+```
+
 ## API Endpoints
 
 | Endpoint | Method | Description |
@@ -166,8 +184,14 @@ npm run dev -- --host 0.0.0.0
 # Run all tests
 ./scripts/run-tests.sh all
 
+# Backend lint (Ruff)
+./scripts/run-tests.sh backend-lint
+
 # Backend tests only
 cd frontend/backend && pytest tests/test_api_contracts.py -v
+
+# Frontend typecheck (TypeScript)
+cd frontend/web && npm run typecheck
 
 # Frontend unit tests
 cd frontend/web && npm run test:run
@@ -183,6 +207,12 @@ Recommended (starts backend+frontend in test mode, then runs Playwright):
 
 ```bash
 ./scripts/e2e.sh
+```
+
+Performance baseline (EXPLAIN for hot SQL queries, requires PostgreSQL + data):
+
+```bash
+cd frontend/backend && ./.venv/bin/python scripts/explain_hot_queries.py
 ```
 
 ## Troubleshooting

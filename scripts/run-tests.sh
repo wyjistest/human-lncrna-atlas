@@ -69,6 +69,49 @@ ensure_backend_pytest() {
     return 0
 }
 
+ensure_backend_ruff() {
+    local ruff_bin="$1"
+
+    # ruff_bin 可能是绝对路径或命令名
+    if [[ "$ruff_bin" == /* ]]; then
+        if [ ! -x "$ruff_bin" ]; then
+            echo -e "${RED}后端 ruff 不可执行: ${ruff_bin}${NC}"
+            return 1
+        fi
+    else
+        require_cmd "$ruff_bin" || return 1
+    fi
+
+    return 0
+}
+
+# 运行后端 Lint（ruff）
+run_backend_lint() {
+    echo -e "${YELLOW}运行后端 Lint (ruff check)...${NC}"
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+
+    local ruff_bin="ruff"
+    if [[ "$python_bin" == /* ]]; then
+        ruff_bin="$(dirname "$python_bin")/ruff"
+    fi
+
+    ensure_backend_ruff "$ruff_bin" || {
+        echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install -r requirements.txt${NC}"
+        return 1
+    }
+
+    cd "$BACKEND_DIR"
+
+    if "$ruff_bin" check .; then
+        echo -e "${GREEN}后端 Lint 通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}后端 Lint 失败${NC}"
+        return 1
+    fi
+}
+
 # 检查服务状态
 check_services() {
     echo -e "${YELLOW}检查服务状态...${NC}"
@@ -168,6 +211,9 @@ main() {
     local failed=0
 
     case "${1:-smoke}" in
+        backend-lint)
+            run_backend_lint || failed=1
+            ;;
         backend)
             check_services || exit 1
             run_backend_tests || failed=1
@@ -199,11 +245,12 @@ main() {
             run_e2e_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|unit|backend-unit|backend|e2e|all]"
+            echo "用法: $0 [smoke|unit|backend-unit|backend-lint|backend|e2e|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  unit         - 运行前端单元测试"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
+            echo "  backend-lint - 运行后端 Lint (ruff check)"
             echo "  backend      - 运行后端 API 合同测试（需要服务运行）"
             echo "  e2e          - 运行前端 E2E 测试（需要服务运行）"
             echo "  all          - 运行所有测试（需要服务运行）"

@@ -74,6 +74,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Run Ruff (backend)
+        working-directory: frontend/backend
+        run: |
+          ruff check .
+
       - name: Verify Python imports
         working-directory: frontend/backend
         run: |

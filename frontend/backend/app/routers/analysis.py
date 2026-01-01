@@ -180,6 +180,14 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     # Phase 9.13: 添加 MV 缺失时的降级处理，避免整页 500 错误
     # 与 /export/chipseq-overlaps 默认参数对齐：仅统计高置信度 (BA >= 100) 的重叠
     epigenetic_min_ba = 100.0
+    epigenetic_summary_sql = text("""
+        SELECT
+            o.overlap_count as total_overlaps,
+            o.mark_name,
+            o.mark_category,
+            o.cell_type
+        FROM mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100 o
+    """)
     epigenetic_sql = text("""
         SELECT
             COUNT(*) as total_overlaps,
@@ -199,10 +207,18 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     repressive_marks = 0
 
     try:
-        epi_result = db.execute(epigenetic_sql.execution_options(stream_results=True), {"min_ba": epigenetic_min_ba})
-        close = getattr(epi_result, "close", None)
         try:
-            for row in epi_result:
+            # Fast path: pre-aggregated MV (Phase 9.21)
+            epi_result = db.execute(epigenetic_summary_sql.execution_options(stream_results=True))
+        except Exception:
+            # Fallback: aggregate from the raw overlaps MV
+            epi_result = db.execute(
+                epigenetic_sql.execution_options(stream_results=True),
+                {"min_ba": epigenetic_min_ba},
+            )
+
+        with epi_result as rows:
+            for row in rows:
                 count = row.total_overlaps or 0
                 total_overlaps += count
 
@@ -222,9 +238,6 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
                     active_marks += count
                 elif category == "repressive":
                     repressive_marks += count
-        finally:
-            if callable(close):
-                close()
 
     except Exception as e:
         # MV 不存在或查询失败时，降级为空数据（不阻塞其他分析模块）
@@ -232,7 +245,7 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         logger.warning(
             "[ANALYSIS] Epigenetic analysis failed (MV may not exist): %s. "
             "Returning empty epigenetic data. "
-            "Consider running: CREATE MATERIALIZED VIEW mv_lncrna_chipseq_overlaps ...",
+            "Consider running schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql (and optional 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql).",
             safe_error,
         )
         # 保持默认的空值

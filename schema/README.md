@@ -9,11 +9,12 @@ schema/
 │   ├── 02_extension.sql     # ⚠️ 已弃用，使用 04 替代
 │   ├── 03_sample_data.sql   # 示例数据 (开发/测试)
 │   ├── 04_extension_phase2.sql  # 扩展表 (可选)
-│   └── 05_mv_lncrna_chipseq_overlaps.sql  # 物化视图
+│   ├── 05_mv_lncrna_chipseq_overlaps.sql  # ChIP-seq overlaps 物化视图
+│   └── 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql  # /analysis/summary 预聚合 (BA>=100)
 ├── migrations/              # 增量迁移脚本
 │
 └── (另见) frontend/backend/sql/
-    └── chipseq_schema.sql   # ChIP-seq 表观遗传学扩展 (可选)
+	    └── chipseq_schema.sql   # ChIP-seq 表观遗传学扩展 (可选)
 ```
 
 ## 执行顺序
@@ -32,6 +33,9 @@ psql -d lncrna_production -f frontend/backend/sql/chipseq_schema.sql
 
 # 4. 可选 - 物化视图 (用于预计算重叠，需先完成步骤 2-3)
 psql -d lncrna_production -f schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql
+
+# 4.1 可选 - Epigenetic 预聚合 (加速 /analysis/summary，需先完成步骤 4)
+psql -d lncrna_production -f schema/v2.3/06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql
 
 # 5. 仅开发 - 示例数据
 psql -d lncrna_production -f schema/v2.3/03_sample_data.sql
@@ -53,6 +57,7 @@ psql -d lncrna_production -f schema/v2.3/03_sample_data.sql
 | 03_sample_data.sql | v2.3 | ✅ 当前 | 开发测试数据 |
 | 04_extension_phase2.sql | v2.3.1 | ✅ 当前 | IF NOT EXISTS 安全版 |
 | 05_mv_lncrna_chipseq_overlaps.sql | v2.3 | ✅ 当前 | ChIP-seq 重叠物化视图 |
+| 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql | v2.3.3 | ✅ 当前 | Epigenetic 预聚合（BA>=100） |
 | frontend/backend/sql/chipseq_schema.sql | v1.0 | ✅ 当前 | ChIP-seq 表观遗传学扩展 |
 
 ## 迁移说明

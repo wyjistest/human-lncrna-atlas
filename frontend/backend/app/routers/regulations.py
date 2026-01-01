@@ -288,6 +288,8 @@ def list_regulations(
     # 规范化列表参数，提升缓存命中率（去空格、排序）
     normalized_species_ids = _normalize_list_param(species_ids, param_name="species_ids")
     normalized_chromosomes = _normalize_list_param(chromosomes, param_name="chromosomes")
+    parsed_species_ids = None
+    chrs_normalized = None
     if normalized_chromosomes:
         # Chromosome values are case-insensitive; normalize to reduce cache fragmentation.
         normalized_chromosomes = normalized_chromosomes.lower()
@@ -328,9 +330,9 @@ def list_regulations(
     # 物种筛选：优先使用数组参数
     # Phase 9.15: 使用安全验证器防止 DoS 攻击（限制项数和长度）
     if normalized_species_ids:
-        ids = parse_int_list(normalized_species_ids, param_name="species_ids", min_value=1, max_value=4)
-        if ids:
-            query = query.filter(Regulation.species_id.in_(ids))
+        parsed_species_ids = parse_int_list(normalized_species_ids, param_name="species_ids", min_value=1, max_value=4)
+        if parsed_species_ids:
+            query = query.filter(Regulation.species_id.in_(parsed_species_ids))
     elif species_id:
         query = query.filter(Regulation.species_id == species_id)
 
@@ -398,7 +400,42 @@ def list_regulations(
         chromosome=normalized_chromosome,
         chromosomes=normalized_chromosomes,
     )
-    total = cache.get_cached_count(query, count_cache_key)
+    # 性能优化：count() 不需要 JOIN species/genes（仅在 name 模糊搜索时需要 JOIN）
+    count_query = db.query(Regulation.regulation_id)
+
+    if parsed_species_ids:
+        count_query = count_query.filter(Regulation.species_id.in_(parsed_species_ids))
+    elif species_id:
+        count_query = count_query.filter(Regulation.species_id == species_id)
+
+    if lncrna_gene_id:
+        count_query = count_query.filter(Regulation.lncrna_gene_id == lncrna_gene_id)
+    if target_gene_id:
+        count_query = count_query.filter(Regulation.target_gene_id == target_gene_id)
+
+    if normalized_lncrna_gene_name:
+        escaped = escape_like_pattern(normalized_lncrna_gene_name)
+        count_query = count_query.join(LncRNAGene, Regulation.lncrna_gene_id == LncRNAGene.gene_id).filter(
+            LncRNAGene.gene_name.ilike(f"%{escaped}%", escape="\\")
+        )
+
+    if normalized_target_gene_name:
+        escaped = escape_like_pattern(normalized_target_gene_name)
+        count_query = count_query.join(TargetGene, Regulation.target_gene_id == TargetGene.gene_id).filter(
+            TargetGene.gene_name.ilike(f"%{escaped}%", escape="\\")
+        )
+
+    if min_ba is not None:
+        count_query = count_query.filter(Regulation.binding_affinity >= min_ba)
+    if max_ba is not None:
+        count_query = count_query.filter(Regulation.binding_affinity <= max_ba)
+
+    if chrs_normalized:
+        count_query = count_query.filter(Regulation.target_chromosome.in_(chrs_normalized))
+    elif normalized_chromosome:
+        count_query = count_query.filter(Regulation.target_chromosome == normalized_chromosome)
+
+    total = cache.get_cached_count(count_query, count_cache_key)
 
     # 分页
     offset = compute_pagination_offset(page, page_size)

@@ -17,6 +17,7 @@ Regulations数据导入脚本
 
 import sys
 import csv
+import os
 import psycopg2
 from psycopg2.extras import execute_values
 import argparse
@@ -734,11 +735,11 @@ def main():
     parser.add_argument('--file', required=True, help='Regulations TSV文件路径')
     parser.add_argument('--batch-name', help='批次名称')
     parser.add_argument('--species', help='物种代码（human/chimp/macaque/marmoset）')
-    parser.add_argument('--host', default='localhost', help='数据库主机')
-    parser.add_argument('--port', default='5432', help='数据库端口')
-    parser.add_argument('--dbname', default='lncrna_production', help='数据库名称')
-    parser.add_argument('--user', required=True, help='数据库用户')
-    parser.add_argument('--password', help='数据库密码（可选，使用.pgpass）')
+    parser.add_argument('--host', default=os.environ.get('DB_HOST', 'localhost'), help='数据库主机 (默认: $DB_HOST)')
+    parser.add_argument('--port', default=os.environ.get('DB_PORT', '5432'), help='数据库端口 (默认: $DB_PORT)')
+    parser.add_argument('--dbname', default=os.environ.get('DB_NAME', 'lncrna_production'), help='数据库名称 (默认: $DB_NAME)')
+    parser.add_argument('--user', default=os.environ.get('DB_USER'), help='数据库用户 (默认: $DB_USER)')
+    parser.add_argument('--password', default=os.environ.get('DB_PASSWORD', ''), help='数据库密码（可选，默认: $DB_PASSWORD / 可用 .pgpass）')
     parser.add_argument('--store-sequences', action='store_true', help='是否存储序列数据')
     parser.add_argument('--batch-size', type=int, default=5000, help='批量插入大小')
     parser.add_argument('--commit-every', type=int, default=50000,
@@ -748,6 +749,9 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='试运行模式')
 
     args = parser.parse_args()
+
+    if not args.user:
+        parser.error("Missing DB user: set $DB_USER or pass --user")
 
     db_config = {
         'host': args.host,
