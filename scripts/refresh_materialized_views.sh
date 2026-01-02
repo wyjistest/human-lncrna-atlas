@@ -15,12 +15,17 @@
 #   -H, --host          Database host (default: localhost)
 #   -p, --port          Database port (default: 5432)
 #   -U, --user          Database user (default: postgres)
+#   --notify-backend    After refresh, call backend Admin API to reset MV availability cache (best-effort)
+#   --backend-url       Backend base URL for Admin API calls (default: http://localhost:8000)
+#   --invalidate-cache  After refresh, also invalidate API cache namespaces via Admin API (best-effort)
+#   --invalidate-namespaces  Comma-separated namespaces to invalidate (default: all allowed)
 #
 # Examples:
 #   ./refresh_materialized_views.sh              # Concurrent refresh
 #   ./refresh_materialized_views.sh -f           # Full blocking refresh
 #   ./refresh_materialized_views.sh -s           # Status check only
 #   ./refresh_materialized_views.sh -d mydb -U admin  # Custom database/user
+#   ADMIN_API_KEY=... ./refresh_materialized_views.sh --notify-backend --invalidate-cache
 #
 # Cron example (weekly refresh at 3 AM on Sunday):
 #   0 3 * * 0 /path/to/refresh_materialized_views.sh >> /var/log/mv_refresh.log 2>&1
@@ -36,6 +41,16 @@ DB_USER="${PGUSER:-postgres}"
 USE_CONCURRENT=true
 STATUS_ONLY=false
 VERBOSE=false
+
+# Optional: notify backend after refresh (best-effort; failures do not fail the MV refresh)
+NOTIFY_BACKEND=false
+BACKEND_URL="${BACKEND_URL:-http://localhost:8000}"
+INVALIDATE_CACHE=false
+INVALIDATE_NAMESPACES_DEFAULT="regulations,genes,stats,export,conservation,chipseq,network,diseases,features,igv,analysis,visualization"
+INVALIDATE_NAMESPACES="${INVALIDATE_NAMESPACES:-$INVALIDATE_NAMESPACES_DEFAULT}"
+# curl timeouts (seconds)
+CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-5}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-10}"
 
 # Materialized views managed by this script (order matters when dependencies exist).
 MV_LIST=(
@@ -85,7 +100,8 @@ log() {
 
 # Show help
 show_help() {
-    head -37 "$0" | tail -35 | sed 's/^# //' | sed 's/^#//'
+    # Print the initial comment block (after shebang) as help text.
+    awk 'NR==1 {next} /^#/ {sub(/^# ?/, "", $0); print; next} {exit}' "$0"
 }
 
 require_arg_value() {
@@ -103,6 +119,12 @@ check_prereqs() {
     if ! command -v psql >/dev/null 2>&1; then
         log ERROR "psql not found. Please install the PostgreSQL client tools (psql)."
         exit 1
+    fi
+    if [ "$NOTIFY_BACKEND" = true ] || [ "$INVALIDATE_CACHE" = true ]; then
+        if ! command -v curl >/dev/null 2>&1; then
+            log ERROR "curl not found. Please install curl to use --notify-backend / --invalidate-cache."
+            exit 1
+        fi
     fi
 }
 
@@ -150,6 +172,24 @@ parse_args() {
                 DB_USER="$2"
                 shift 2
                 ;;
+            --notify-backend)
+                NOTIFY_BACKEND=true
+                shift
+                ;;
+            --backend-url)
+                require_arg_value "$1" "${2:-}"
+                BACKEND_URL="$2"
+                shift 2
+                ;;
+            --invalidate-cache)
+                INVALIDATE_CACHE=true
+                shift
+                ;;
+            --invalidate-namespaces)
+                require_arg_value "$1" "${2:-}"
+                INVALIDATE_NAMESPACES="$2"
+                shift 2
+                ;;
             *)
                 log ERROR "Unknown option: $1"
                 show_help
@@ -169,6 +209,113 @@ execute_sql() {
 execute_sql_verbose() {
     local sql=$1
     psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "$sql"
+}
+
+normalize_backend_url() {
+    local raw="$1"
+    # Strip trailing slashes to avoid double "//" in endpoint joins
+    echo "${raw%/}"
+}
+
+get_admin_api_key() {
+    # SECURITY: Prefer env var to avoid leaking keys into shell history.
+    # Supported variables:
+    # - ADMIN_API_KEY (project standard)
+    # - HLA_ADMIN_API_KEY (explicit, avoids clobbering other shells)
+    if [ -n "${HLA_ADMIN_API_KEY:-}" ]; then
+        echo "$HLA_ADMIN_API_KEY"
+        return 0
+    fi
+    if [ -n "${ADMIN_API_KEY:-}" ]; then
+        echo "$ADMIN_API_KEY"
+        return 0
+    fi
+    echo ""
+}
+
+admin_post() {
+    local endpoint="$1"
+    local base
+    base="$(normalize_backend_url "$BACKEND_URL")"
+    local url="${base}${endpoint}"
+    local key
+    key="$(get_admin_api_key)"
+    if [ -z "$key" ]; then
+        log WARN "Admin API key not set (ADMIN_API_KEY/HLA_ADMIN_API_KEY). Skip backend notification: $endpoint"
+        return 0
+    fi
+
+    log DEBUG "Calling Admin API: $url"
+    if ! curl -sS --fail \
+        --connect-timeout "$CURL_CONNECT_TIMEOUT" \
+        --max-time "$CURL_MAX_TIME" \
+        -X POST \
+        -H "X-Admin-API-Key: $key" \
+        -H "Content-Type: application/json" \
+        "$url" >/dev/null; then
+        log WARN "Admin API call failed (best-effort): $endpoint"
+        return 0
+    fi
+    return 0
+}
+
+invalidate_cache_namespaces() {
+    local csv="$1"
+    # Empty list => nothing to do.
+    if [ -z "${csv//[[:space:]]/}" ]; then
+        return 0
+    fi
+    local base
+    base="$(normalize_backend_url "$BACKEND_URL")"
+    local key
+    key="$(get_admin_api_key)"
+    if [ -z "$key" ]; then
+        log WARN "Admin API key not set (ADMIN_API_KEY/HLA_ADMIN_API_KEY). Skip cache invalidation"
+        return 0
+    fi
+
+    local IFS=','
+    # shellcheck disable=SC2206
+    read -r -a namespaces <<<"$csv"
+    for ns in "${namespaces[@]}"; do
+        # Trim whitespace
+        ns="$(echo "$ns" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+        if [ -z "$ns" ]; then
+            continue
+        fi
+        local url="${base}/api/v1/admin/cache/invalidate/${ns}"
+        log DEBUG "Invalidating cache namespace: $ns"
+        if ! curl -sS --fail \
+            --connect-timeout "$CURL_CONNECT_TIMEOUT" \
+            --max-time "$CURL_MAX_TIME" \
+            -X POST \
+            -H "X-Admin-API-Key: $key" \
+            "$url" >/dev/null; then
+            log WARN "Cache invalidation failed (best-effort): namespace=$ns"
+        fi
+    done
+    return 0
+}
+
+notify_backend_after_refresh() {
+    if [ "$NOTIFY_BACKEND" != true ] && [ "$INVALIDATE_CACHE" != true ]; then
+        return 0
+    fi
+
+    local base
+    base="$(normalize_backend_url "$BACKEND_URL")"
+    log INFO "Notifying backend (best-effort): $base"
+
+    if [ "$NOTIFY_BACKEND" = true ]; then
+        # Reset process-level MV availability caches in backend workers.
+        admin_post "/api/v1/admin/mv-cache/reset"
+    fi
+
+    if [ "$INVALIDATE_CACHE" = true ]; then
+        invalidate_cache_namespaces "$INVALIDATE_NAMESPACES"
+    fi
+
+    return 0
 }
 
 # Check if materialized view exists
@@ -349,6 +496,7 @@ main() {
 
     if [ "$success" = true ]; then
         log SUCCESS "All materialized views refreshed successfully"
+        notify_backend_after_refresh
         exit 0
     else
         log ERROR "Some materialized views failed to refresh"

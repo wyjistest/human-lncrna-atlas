@@ -25,6 +25,11 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional
 
+try:
+    from etl.backend_notify import notify_backend_best_effort
+except ImportError:  # pragma: no cover
+    notify_backend_best_effort = None
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -805,6 +810,9 @@ def main():
             cursor.close()
 
         logger.info("导入完成！")
+        # 可选：通知后端失效缓存 / 重置 MV 可用性缓存（best-effort）
+        if notify_backend_best_effort is not None and not args.dry_run:
+            notify_backend_best_effort(reason="etl/import_regulations")
 
     except Exception as e:
         logger.error(f"导入过程出错: {e}")

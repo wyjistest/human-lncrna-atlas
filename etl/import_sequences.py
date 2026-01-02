@@ -32,6 +32,11 @@ from contextlib import contextmanager
 import psycopg2
 from psycopg2.extras import execute_batch
 
+try:
+    from etl.backend_notify import notify_backend_best_effort
+except ImportError:  # pragma: no cover
+    notify_backend_best_effort = None
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -626,6 +631,9 @@ def main():
         if not args.dry_run:
             conn.commit()
             logger.info("事务已提交")
+            # 可选：通知后端失效缓存 / 重置 MV 可用性缓存（best-effort）
+            if notify_backend_best_effort is not None:
+                notify_backend_best_effort(reason="etl/import_sequences")
 
         # 检查最终状态
         with get_cursor(conn) as cursor:

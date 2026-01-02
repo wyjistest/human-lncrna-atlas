@@ -16,6 +16,7 @@ import csv
 from pathlib import Path
 
 from etl.templates.batch_manager import BatchManager
+from etl.backend_notify import notify_backend_best_effort
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +274,8 @@ class BaseImporter(ABC):
 
             # 5. 数据质量检查
             self._run_quality_checks()
+            # 6. 可选：通知后端失效缓存 / 重置 MV 可用性缓存（best-effort）
+            notify_backend_best_effort(reason=f"etl:{self.get_batch_type()}")
 
         except Exception as e:
             logger.error(f"导入失败: {e}")

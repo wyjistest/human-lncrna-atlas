@@ -32,6 +32,11 @@ from typing import Optional, Tuple
 import psycopg2
 from psycopg2.extras import execute_values, Json
 
+try:
+    from etl.backend_notify import notify_backend_best_effort
+except ImportError:  # pragma: no cover
+    notify_backend_best_effort = None
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -285,6 +290,10 @@ def main():
 
         # Update batch status
         update_batch(conn, batch_id, 'completed', total)
+
+        # 可选：通知后端失效缓存 / 重置 MV 可用性缓存（best-effort）
+        if notify_backend_best_effort is not None:
+            notify_backend_best_effort(reason="etl/import_ucsc_rmsk")
 
         print()
         print("=" * 60)

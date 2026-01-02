@@ -29,6 +29,11 @@ from datetime import datetime
 import psycopg2
 from psycopg2.extras import execute_values
 
+try:
+    from etl.backend_notify import notify_backend_best_effort
+except ImportError:  # pragma: no cover
+    notify_backend_best_effort = None
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -783,6 +788,9 @@ Examples:
             cursor.close()
 
         logger.info("Import completed!")
+        # 可选：通知后端失效缓存 / 重置 MV 可用性缓存（best-effort）
+        if notify_backend_best_effort is not None and not args.dry_run:
+            notify_backend_best_effort(reason="etl/import_repeatmasker")
 
     except Exception as e:
         logger.error(f"Import failed: {e}")
