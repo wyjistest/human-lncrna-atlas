@@ -74,6 +74,10 @@ export interface IGVTrackConfig {
   useScore?: boolean
 }
 
+export type IGVTrackConfigWithId = IGVTrackConfig & {
+  id: string
+}
+
 export interface IGVConfig {
   // 内置基因组 ID (如 "hg19")，使用时 reference 为 null
   genome?: string | null
@@ -198,4 +202,19 @@ export const genomeApi = {
       params: { mark_types: markTypes.join(',') },
       signal
     }),
+
+  /**
+   * Get UCSC multiz-derived conservation track configs (phastCons/phyloP)
+   *
+   * Notes:
+   * - Currently only supports Human/hg19 (species_id=1) to match the project's assembly.
+   * - Tracks are remote BigWig URLs served by UCSC (requires CORS + HTTP Range).
+   */
+  getUCSCMultizTracks: (speciesId: number, signal?: AbortSignal) =>
+    apiClient.get<ApiResponse<{
+      tracks: IGVTrackConfigWithId[]
+      species_id: number
+      species_name: string
+      genome_assembly?: string
+    }>>(`/api/v1/igv/config/ucsc-multiz/${speciesId}`, { signal }),
 }

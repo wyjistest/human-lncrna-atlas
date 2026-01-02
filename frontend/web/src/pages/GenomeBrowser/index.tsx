@@ -81,6 +81,7 @@ export default function GenomeBrowserPage() {
   const browserRef = useRef<HTMLDivElement>(null)
   const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [browserReadyNonce, setBrowserReadyNonce] = useState(0)
 
   // Track controls state - RepeatMasker class-based tracks
   const [enabledRepeatClasses, setEnabledRepeatClasses] = useState<Record<string, boolean>>({
@@ -98,6 +99,13 @@ export default function GenomeBrowserPage() {
   // ChIP-seq state
   const [showChIPSeq, setShowChIPSeq] = useState(false)
   const [selectedChIPSeqMarks, setSelectedChIPSeqMarks] = useState<string[]>([])
+
+  // UCSC multiz-derived conservation tracks (Human/hg19 only for now)
+  const [enabledMultizTracks, setEnabledMultizTracks] = useState<Record<string, boolean>>({
+    ucsc_multiz_phastCons100way_hg19: false,
+    ucsc_multiz_phyloP100way_hg19: false,
+  })
+  const [loadingMultizTracks, setLoadingMultizTracks] = useState<Record<string, boolean>>({})
 
   // Color configuration for repeat classes
   const REPEAT_CLASS_COLORS: Record<string, string> = {
@@ -167,6 +175,20 @@ export default function GenomeBrowserPage() {
     }
   }, [availableChIPSeqMarks, selectedChIPSeqMarks, t])
 
+  const {
+    data: ucscMultizTracks,
+    isLoading: isLoadingUCSCMultizTracks,
+    error: ucscMultizTracksError,
+  } = useQuery({
+    queryKey: ['ucsc-multiz-tracks', speciesId],
+    queryFn: async ({ signal }) => {
+      const response = await genomeApi.getUCSCMultizTracks(speciesId, signal)
+      return response.data.data.tracks
+    },
+    enabled: speciesId === 1,
+    staleTime: 60 * 60 * 1000, // 1 hour
+  })
+
   // Handle ChIP-seq toggle
   const handleChIPSeqToggle = useCallback((checked: boolean) => {
     setShowChIPSeq(checked)
@@ -180,6 +202,16 @@ export default function GenomeBrowserPage() {
   const handleChIPSeqMarksChange = useCallback((marks: string[]) => {
     setSelectedChIPSeqMarks(marks)
   }, [])
+
+  const enabledRepeatClassesRef = useRef(enabledRepeatClasses)
+  useEffect(() => {
+    enabledRepeatClassesRef.current = enabledRepeatClasses
+  }, [enabledRepeatClasses])
+
+  const enabledMultizTracksRef = useRef(enabledMultizTracks)
+  useEffect(() => {
+    enabledMultizTracksRef.current = enabledMultizTracks
+  }, [enabledMultizTracks])
 
   // Load a specific repeat class track
   const loadRepeatClassTrack = useCallback(async (repeatClass: string) => {
@@ -215,6 +247,9 @@ export default function GenomeBrowserPage() {
       const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
       if (track) {
         browserHandleRef.current.removeTrack(track.id)
+        if (track.name !== track.id) {
+          browserHandleRef.current.removeTrack(track.name)
+        }
         message.info(t('trackRemoved', { name: t(`repeatClasses.${repeatClass}`) }))
       }
     }
@@ -249,6 +284,68 @@ export default function GenomeBrowserPage() {
       }
     })
   }, [enabledRepeatClasses, handleRepeatClassToggle])
+
+  const getMultizTrackLabel = useCallback((trackId: string) => {
+    if (trackId === 'ucsc_multiz_phastCons100way_hg19') {
+      return t('conservationTracks.phastCons100way')
+    }
+    if (trackId === 'ucsc_multiz_phyloP100way_hg19') {
+      return t('conservationTracks.phyloP100way')
+    }
+    const fallback = ucscMultizTracks?.find(t => t.id === trackId)?.name
+    return fallback || trackId
+  }, [t, ucscMultizTracks])
+
+  const loadMultizTrack = useCallback(async (trackId: string) => {
+    if (!browserHandleRef.current) {
+      message.warning(t('exportNotReady'))
+      return
+    }
+    if (speciesId !== 1) {
+      message.warning(t('conservationTracks.humanOnly'))
+      return
+    }
+
+    const track = ucscMultizTracks?.find(t => t.id === trackId)
+    if (!track) {
+      message.error(t('trackLoadFailed', { name: getMultizTrackLabel(trackId) }))
+      return
+    }
+
+    setLoadingMultizTracks(prev => ({ ...prev, [trackId]: true }))
+    try {
+      await browserHandleRef.current.loadTrack(track as unknown as IGVTrackConfig)
+      message.success(t('trackLoaded', { name: getMultizTrackLabel(trackId) }))
+    } catch (error) {
+      console.error(`Failed to load UCSC multiz track ${trackId}:`, error)
+      message.error(t('trackLoadFailed', { name: getMultizTrackLabel(trackId) }))
+      setEnabledMultizTracks(prev => ({ ...prev, [trackId]: false }))
+    } finally {
+      setLoadingMultizTracks(prev => ({ ...prev, [trackId]: false }))
+    }
+  }, [getMultizTrackLabel, speciesId, t, ucscMultizTracks])
+
+  const removeMultizTrack = useCallback((trackId: string) => {
+    const handle = browserHandleRef.current
+    if (!handle) return
+
+    handle.removeTrack(trackId)
+    const track = ucscMultizTracks?.find(t => t.id === trackId)
+    if (track && track.name !== trackId) {
+      handle.removeTrack(track.name)
+    }
+    message.info(t('trackRemoved', { name: getMultizTrackLabel(trackId) }))
+  }, [getMultizTrackLabel, t, ucscMultizTracks])
+
+  const handleMultizTrackToggle = useCallback(async (trackId: string, enabled: boolean) => {
+    setEnabledMultizTracks(prev => ({ ...prev, [trackId]: enabled }))
+
+    if (enabled) {
+      await loadMultizTrack(trackId)
+    } else {
+      removeMultizTrack(trackId)
+    }
+  }, [loadMultizTrack, removeMultizTrack])
 
   // Species options
   const speciesOptions = [
@@ -302,6 +399,16 @@ export default function GenomeBrowserPage() {
     }
   }, [viewMode])
 
+  // UCSC multiz tracks are hg19-only for now; reset toggles when switching away from Human.
+  useEffect(() => {
+    if (speciesId === 1) return
+    setEnabledMultizTracks({
+      ucsc_multiz_phastCons100way_hg19: false,
+      ucsc_multiz_phyloP100way_hg19: false,
+    })
+    setLoadingMultizTracks({})
+  }, [speciesId])
+
   // Handle gene search
   const handleGeneSearch = useCallback((value: string) => {
     const trimmed = value.trim()
@@ -324,7 +431,35 @@ export default function GenomeBrowserPage() {
   // Handle browser ready callback
   const handleBrowserReady = useCallback((handle: GenomeBrowserHandle) => {
     browserHandleRef.current = handle
+    setBrowserReadyNonce(prev => prev + 1)
   }, [])
+
+  // When IGV browser is reinitialized (gene/species switch), re-apply user-enabled tracks.
+  useEffect(() => {
+    const handle = browserHandleRef.current
+    if (!handle) return
+
+    const existingTrackNames = new Set(handle.getTrackNames())
+
+    // Re-apply enabled RepeatMasker class tracks (if any)
+    for (const repeatClass of Object.keys(enabledRepeatClassesRef.current)) {
+      if (!enabledRepeatClassesRef.current[repeatClass]) continue
+      const track = repeatClassTracks.find(t => t.id.includes(repeatClass))
+      if (!track) continue
+      if (existingTrackNames.has(track.id) || existingTrackNames.has(track.name)) continue
+      // Best-effort: reload; errors are handled inside loadRepeatClassTrack
+      loadRepeatClassTrack(repeatClass)
+    }
+
+    // Re-apply enabled UCSC multiz tracks (if any)
+    for (const trackId of Object.keys(enabledMultizTracksRef.current)) {
+      if (!enabledMultizTracksRef.current[trackId]) continue
+      const track = ucscMultizTracks?.find(t => t.id === trackId)
+      if (!track) continue
+      if (existingTrackNames.has(track.id) || existingTrackNames.has(track.name)) continue
+      loadMultizTrack(trackId)
+    }
+  }, [browserReadyNonce, loadMultizTrack, loadRepeatClassTrack, repeatClassTracks, ucscMultizTracks])
 
   // Handle toolbar search - navigate IGV to the selected locus
   const handleToolbarSearch = useCallback((locus: string) => {
@@ -750,10 +885,10 @@ export default function GenomeBrowserPage() {
                     ]}
                   />
 
-                  {/* RepeatMasker Grouped Tracks */}
-                  <Collapse
-                    size="small"
-                    items={[
+	                  {/* RepeatMasker Grouped Tracks */}
+	                  <Collapse
+	                    size="small"
+	                    items={[
                       {
                         key: 'repeatMasker',
                         label: <span style={{ fontWeight: 500 }}>{t('repeatClasses.title')}</span>,
@@ -794,12 +929,67 @@ export default function GenomeBrowserPage() {
                         ),
                       },
                     ]}
-                  />
-                </Space>
-              ),
-            },
-          ]}
-        />
+	                  />
+
+	                  {/* UCSC Multiz (Conservation) Tracks */}
+	                  <Collapse
+	                    size="small"
+	                    items={[
+	                      {
+	                        key: 'ucscMultiz',
+	                        label: <span style={{ fontWeight: 500 }}>{t('conservationTracks.title')}</span>,
+	                        children: (
+	                          <Space orientation="vertical" style={{ width: '100%' }}>
+	                            <Text type="secondary" style={{ fontSize: 12 }}>
+	                              {t('conservationTracks.hint')}
+	                            </Text>
+
+	                            {speciesId !== 1 && (
+	                              <Alert
+	                                type="info"
+	                                showIcon
+	                                message={t('conservationTracks.humanOnly')}
+	                              />
+	                            )}
+
+	                            {speciesId === 1 && (
+	                              <>
+	                                {isLoadingUCSCMultizTracks ? (
+	                                  <Space>
+	                                    <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
+	                                    <span>{tCommon('status.loading') || 'Loading...'}</span>
+	                                  </Space>
+	                                ) : ucscMultizTracksError ? (
+	                                  <Alert
+	                                    type="error"
+	                                    showIcon
+	                                    message={t('trackLoadFailed', { name: t('conservationTracks.title') })}
+	                                  />
+	                                ) : (
+	                                  Object.keys(enabledMultizTracks).map((trackId) => (
+	                                    <Space key={trackId} align="center" style={{ width: '100%' }}>
+	                                      <Switch
+	                                        checked={enabledMultizTracks[trackId]}
+	                                        onChange={(checked) => handleMultizTrackToggle(trackId, checked)}
+	                                        loading={loadingMultizTracks[trackId]}
+	                                        size="small"
+	                                      />
+	                                      <span>{getMultizTrackLabel(trackId)}</span>
+	                                    </Space>
+	                                  ))
+	                                )}
+	                              </>
+	                            )}
+	                          </Space>
+	                        ),
+	                      },
+	                    ]}
+	                  />
+	                </Space>
+	              ),
+	            },
+	          ]}
+	        />
 
         {/* Genome Browser */}
         <div ref={browserRef} style={{ position: 'relative' }}>

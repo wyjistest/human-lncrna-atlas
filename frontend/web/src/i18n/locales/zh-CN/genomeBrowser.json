@@ -36,6 +36,13 @@
   "trackLoaded": "轨道 {{name}} 已加载",
   "trackLoadFailed": "轨道 {{name}} 加载失败",
   "trackRemoved": "轨道 {{name}} 已移除",
+  "conservationTracks": {
+    "title": "UCSC Multiz 保守性",
+    "hint": "来自 UCSC 的 multiz 衍生保守性分数（BigWig，按需远程加载）。",
+    "humanOnly": "当前仅支持人类（hg19）。",
+    "phastCons100way": "phastCons 100-way（hg19）",
+    "phyloP100way": "phyloP 100-way（hg19）"
+  },
   "tracks": {
     "repeatMasker": "RepeatMasker 重复序列",
     "repeatMaskerDesc": "显示基因组中的重复序列元件（LINE、SINE、LTR 等）"

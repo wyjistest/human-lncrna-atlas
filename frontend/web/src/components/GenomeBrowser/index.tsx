@@ -440,10 +440,23 @@ const GenomeBrowser = memo(({
                 await browserRef.current.loadTrack(processedConfig as IGVTrackConfig)
               }
             },
-            removeTrack: (name: string) => {
-              if (browserRef.current) {
-                browserRef.current.removeTrackByName(name)
+            removeTrack: (nameOrId: string) => {
+              const browser = browserRef.current
+              if (!browser) return
+
+              // IGV.js tracks may define both `id` and `name`.
+              // Some APIs in this repo use `id` as a stable identifier; support both for robustness.
+              const trackToRemove = browser.trackViews?.find(
+                (tv: { track?: { name?: string; id?: string } }) =>
+                  tv.track?.name === nameOrId || tv.track?.id === nameOrId
+              )
+              if (trackToRemove?.track) {
+                browser.removeTrack(trackToRemove.track)
+                return
               }
+
+              // Fallback to IGV.js helper (name-based)
+              browser.removeTrackByName(nameOrId)
             },
             getTrackNames: () => {
               if (browserRef.current?.trackViews) {

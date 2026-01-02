@@ -217,7 +217,11 @@ psql -U amax -d lncrna_production -c "
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/api/v1/igv/genomes` | GET | 基因组列表 |
-| `/api/v1/igv/tracks/{species}` | GET | 轨道配置 |
+| `/api/v1/igv/config/{species_id}` | GET | IGV.js 配置（物种模式） |
+| `/api/v1/igv/config/gene/{gene_name}` | GET | IGV.js 配置（基因模式） |
+| `/api/v1/igv/config/repeatmasker-classes/{species_id}` | GET | RepeatMasker 类轨道配置 |
+| `/api/v1/igv/config/ucsc-multiz/{species_id}` | GET | UCSC multiz 衍生保守性轨道配置（Human/hg19） |
+| `/api/v1/igv/overlap-track` | GET | lncRNA-ChIP-seq overlap 轨道（BED6，区域查询） |
 
 **完整 API 文档**: http://localhost:8000/docs
 

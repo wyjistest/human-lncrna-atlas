@@ -36,6 +36,13 @@
   "trackLoaded": "Track {{name}} loaded",
   "trackLoadFailed": "Failed to load track {{name}}",
   "trackRemoved": "Track {{name}} removed",
+  "conservationTracks": {
+    "title": "UCSC Multiz Conservation",
+    "hint": "Multiz-derived conservation scores from UCSC (BigWig, remote load via HTTP Range).",
+    "humanOnly": "Currently only available for Human (hg19).",
+    "phastCons100way": "phastCons 100-way (hg19)",
+    "phyloP100way": "phyloP 100-way (hg19)"
+  },
   "tracks": {
     "repeatMasker": "RepeatMasker Repeats",
     "repeatMaskerDesc": "Display repeat elements in the genome (LINE, SINE, LTR, etc.)"
