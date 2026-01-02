@@ -106,15 +106,16 @@ jobs:
       - name: Run npm audit
         run: |
           echo "::group::npm audit results"
+          # 某些环境默认 registry（例如 npmmirror）不支持 npm audit API；显式指定 npmjs registry 提升 CI 稳定性。
           # 生成 JSON 报告
-          npm audit --json > npm-audit-report.json 2>&1 || true
+          npm audit --registry=https://registry.npmjs.org --json > npm-audit-report.json 2>&1 || true
 
           # 人类可读格式输出
-          npm audit --audit-level=moderate || true
+          npm audit --registry=https://registry.npmjs.org --audit-level=moderate || true
           echo "::endgroup::"
 
           # 严格模式: high/critical 漏洞时失败
-          npm audit --audit-level=high
+          npm audit --registry=https://registry.npmjs.org --audit-level=high
 
       - name: Upload audit report
         uses: actions/upload-artifact@v4

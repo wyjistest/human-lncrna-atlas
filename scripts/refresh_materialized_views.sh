@@ -26,7 +26,7 @@
 #   0 3 * * 0 /path/to/refresh_materialized_views.sh >> /var/log/mv_refresh.log 2>&1
 # ============================================================================
 
-set -e
+set -euo pipefail
 
 # Default configuration
 DB_NAME="${PGDATABASE:-lncrna_production}"
@@ -88,6 +88,24 @@ show_help() {
     head -37 "$0" | tail -35 | sed 's/^# //' | sed 's/^#//'
 }
 
+require_arg_value() {
+    local opt=$1
+    local value=${2:-}
+
+    if [[ -z "$value" || "$value" == -* ]]; then
+        log ERROR "Option $opt requires a value"
+        show_help
+        exit 1
+    fi
+}
+
+check_prereqs() {
+    if ! command -v psql >/dev/null 2>&1; then
+        log ERROR "psql not found. Please install the PostgreSQL client tools (psql)."
+        exit 1
+    fi
+}
+
 # Parse command line arguments
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -113,18 +131,22 @@ parse_args() {
                 shift
                 ;;
             -d|--database)
+                require_arg_value "$1" "${2:-}"
                 DB_NAME="$2"
                 shift 2
                 ;;
             -H|--host)
+                require_arg_value "$1" "${2:-}"
                 DB_HOST="$2"
                 shift 2
                 ;;
             -p|--port)
+                require_arg_value "$1" "${2:-}"
                 DB_PORT="$2"
                 shift 2
                 ;;
             -U|--user)
+                require_arg_value "$1" "${2:-}"
                 DB_USER="$2"
                 shift 2
                 ;;
@@ -293,6 +315,7 @@ refresh_mv() {
 # Main function
 main() {
     parse_args "$@"
+    check_prereqs
 
     log INFO "Human LncRNA Atlas - Materialized View Manager"
     log DEBUG "Database: $DB_NAME @ $DB_HOST:$DB_PORT (user: $DB_USER)"

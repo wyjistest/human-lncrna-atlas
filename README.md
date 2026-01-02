@@ -80,6 +80,14 @@ human-lncrna-atlas/
 - PostgreSQL 15+
 - Redis (optional, for caching)
 
+### PostgreSQL Extensions (recommended)
+
+Some SQL scripts create/require PostgreSQL extensions. You may need elevated privileges (or enable them in managed PostgreSQL):
+
+- `pgcrypto` (required): used by `schema/v2.3/01_core.sql` for `gen_random_uuid()`
+- `pg_trgm` (optional): used by `frontend/backend/migrations/001_pg_trgm_indexes.sql` for faster `ILIKE` fuzzy search
+- `btree_gist` (optional): used by `frontend/backend/sql/chipseq_schema.sql` and overlap MVs for composite GiST indexes
+
 ### One-command (local/LAN)
 
 ```bash
