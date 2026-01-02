@@ -238,6 +238,26 @@ def _validate_security_config() -> None:
                 f"MAX_QUERY_STRING_LENGTH is very large ({max_qs} bytes). Consider lowering it to reduce DoS risk."
             )
 
+        # 3.4 Request logging sanity checks (operational cost)
+        # Default config logs all requests; this can be very expensive on high QPS production systems.
+        # We only warn here (no behavior changes) to preserve backward compatibility.
+        try:
+            if settings.REQUEST_LOG_ENABLED:
+                if settings.REQUEST_LOG_SLOW_THRESHOLD_MS <= 0 and settings.REQUEST_LOG_SAMPLE_RATE >= 1.0:
+                    warnings.append(
+                        "Request logging is configured to log ALL requests "
+                        "(REQUEST_LOG_SLOW_THRESHOLD_MS=0 and REQUEST_LOG_SAMPLE_RATE=1.0). "
+                        "This may cause high I/O in production. Consider setting "
+                        "REQUEST_LOG_SLOW_THRESHOLD_MS (e.g., 200) and/or REQUEST_LOG_SAMPLE_RATE (e.g., 0.1)."
+                    )
+                if settings.REQUEST_LOG_MAX_URL_LENGTH <= 0:
+                    warnings.append(
+                        "REQUEST_LOG_MAX_URL_LENGTH is 0 (unlimited). This may cause log bloat in production. "
+                        "Consider setting REQUEST_LOG_MAX_URL_LENGTH=2048."
+                    )
+        except Exception as e:  # pragma: no cover
+            warnings.append(f"Failed to validate request logging settings: {e}")
+
     # 4. 连接池配置检查（仅警告）
     pool_total = settings.DB_POOL_SIZE + settings.DB_POOL_MAX_OVERFLOW
     if pool_total < 20:

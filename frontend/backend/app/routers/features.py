@@ -125,7 +125,7 @@ def get_feature_track_statistics(
             track_stats[track_id]['total_features'] += row.count
 
     result = [FeatureTrackStats(**stats) for stats in track_stats.values()]
-    cache.set(cache_key, [item.model_dump() for item in result], cache.TTL_STATS)
+    cache.set(cache_key, result, cache.TTL_STATS)
     return result
 
 

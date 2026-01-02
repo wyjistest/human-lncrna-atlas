@@ -410,6 +410,17 @@ class Settings(BaseSettings):
     # 性能配置
     QUERY_TIMEOUT: int = Field(default=30, validation_alias="QUERY_TIMEOUT", ge=1)  # 查询超时（秒）
 
+    # 运维：物化视图刷新
+    # 说明：
+    # - 数据库连接默认会设置 statement_timeout=QUERY_TIMEOUT（见 app/core/database.py），用于保护线上查询。
+    # - 刷新 MV 可能远超默认查询超时，因此提供单独的运维超时配置（Admin 端点/脚本可用）。
+    MV_REFRESH_TIMEOUT: int = Field(
+        default=600,
+        validation_alias="MV_REFRESH_TIMEOUT",
+        description="物化视图刷新允许的 statement_timeout（秒）。0 表示不限制（不建议生产）。",
+        ge=0,
+    )
+	
     # 告警阈值配置
     ALERT_THRESHOLDS: AlertThresholds = AlertThresholds()
 

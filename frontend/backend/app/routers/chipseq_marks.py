@@ -86,7 +86,7 @@ def list_mark_types(
         )
         for row in rows
     ]
-    cache.set(cache_key, [item.model_dump() for item in result], cache.TTL_STATS)
+    cache.set(cache_key, result, cache.TTL_STATS)
     return result
 
 
@@ -144,7 +144,7 @@ def get_mark_relationships(
         )
         for row in rows
     ]
-    cache.set(cache_key, [item.model_dump() for item in result], cache.TTL_STATS)
+    cache.set(cache_key, result, cache.TTL_STATS)
     return result
 
 
@@ -227,5 +227,5 @@ def get_available_marks_for_species(
         total_experiments=total_experiments,
         total_peaks=total_peaks,
     )
-    cache.set(cache_key, result.model_dump(), cache.TTL_STATS)
+    cache.set(cache_key, result, cache.TTL_STATS)
     return result

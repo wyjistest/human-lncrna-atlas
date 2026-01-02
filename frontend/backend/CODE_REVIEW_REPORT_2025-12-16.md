@@ -1,6 +1,6 @@
 # Human LncRNA Atlas 代码审查报告
 
-**审查日期**: 2025-12-16 (更新: 2025-12-22)
+**审查日期**: 2025-12-16 (更新: 2025-12-22, 复核: 2026-01-01)
 **审查范围**: frontend/backend + ETL 全仓代码
 **审查者**: Claude Code (Opus 4.5) + GPT-5.2 Codex (交叉审查)
 **版本**: Phase 9.17
@@ -12,6 +12,8 @@
 本次审查涵盖安全、性能、一致性三个维度，共发现 **4 个 P0**、**10 个 P1**、**7 个 P2** 问题。
 已修复 **4 个 P0**、**5 个 P1**、**3 个 P2** 关键问题，其余问题已记录待后续迭代处理。
 
+> 注：以上统计为 2025-12-22 的快照；2026-01-01 已基于当前代码对“待修复问题清单”做状态复核并更新标注（✅ 已修复 / 🟡 仍建议优化）。
+
 ### 修复统计
 
 | 类型 | 发现 | 已修复 | 待修复 |
@@ -21,6 +23,14 @@
 | P2 (Medium) | 7 | 3 | 4 |
 
 ---
+
+## 2026-01-01 现状复核（摘要）
+
+- ✅ 核心路由已全量接入 `@rate_limit`（示例：`app/routers/genes.py:28`、`app/routers/regulations.py:38`、`app/routers/diseases.py:31`、`app/routers/network.py:23`、`app/routers/visualization.py:36`）
+- ✅ 安全头已统一由 `add_security_headers` 注入（`app/middleware/security/headers.py:12`，注册见 `main.py:406`）
+- ✅ 连接池默认值已提升且可配置（`app/core/config.py:85`，引擎使用见 `app/core/database.py:39`）
+- ✅ 内存回退缓存已为 LRU，且缓存指标已接入 Prometheus client（`app/core/cache.py:84`、`app/core/cache.py:104`）
+- 🟡 仍建议：生产环境按需调参请求日志采样/慢请求阈值（`app/core/config.py:364`、`app/middleware/logging.py:155`），MV 刷新可考虑定时化（`scripts/refresh_materialized_views.sh:1`）
 
 ## 已修复问题清单
 
@@ -81,60 +91,37 @@ from app.routers.chipseq_rate_limit import rate_limit
 
 ## 待修复问题清单
 
-### 🔴 P1-001: 核心路由缺少限流
-**文件**: `app/routers/genes.py`, `regulations.py`, `diseases.py`, `network.py`, `visualization.py`
-**影响**: DoS 攻击、资源耗尽风险
-**建议**: 添加 @rate_limit 装饰器
-```python
-@rate_limit("100/minute")  # GET 列表
-@rate_limit("30/minute")   # 复杂查询
-```
-**工作量**: 2h
+### ✅ P1-001: 核心路由缺少限流（已修复）
+**现状**: 核心路由已覆盖 `@rate_limit`，且 `router.get/post/...` 与 `@rate_limit` 调用数一致（90）。
+**参考**: `app/routers/genes.py:28`、`app/routers/regulations.py:38`、`app/routers/diseases.py:31`、`app/routers/network.py:23`、`app/routers/visualization.py:36`
 
-### 🔴 P1-002: Admin 私网自动信任
-**文件**: `app/routers/admin.py:115-117`
-**影响**: 反向代理场景下可能被绕过
-**建议**: 生产环境启用 ADMIN_REQUIRE_API_KEY=true
-**工作量**: 配置变更
+### ✅ P1-002: Admin 私网自动信任（已由默认严格 + fail-fast 覆盖）
+**现状**: `ADMIN_REQUIRE_API_KEY` 默认 `true`，并在启动时拒绝 `false`（除非非生产环境且显式设置 `SECURITY_ALLOW_INSECURE=true`）。
+**参考**: `app/core/config.py:426`、`main.py:109`
 
-### 🔴 P1-003: 缺少安全头
-**文件**: `main.py:115-121`
-**影响**: XSS、点击劫持风险
-**建议**: 添加 CSP、X-Frame-Options、HSTS 中间件
-```python
-response.headers["X-Frame-Options"] = "DENY"
-response.headers["Content-Security-Policy"] = "default-src 'self';"
-```
-**工作量**: 1h
+### ✅ P1-003: 缺少安全头（已修复）
+**现状**: 安全头由 `add_security_headers` 统一注入（含 CSP/XFO/HSTS(可选)），并在主应用中注册确保所有响应携带。
+**参考**: `app/middleware/security/headers.py:12`、`main.py:406`
 
-### 🔴 P1-004: 连接池过小
-**文件**: `app/core/database.py:39`
-**当前**: pool_size=5, max_overflow=10
-**建议**: 生产环境增加到 pool_size=20, max_overflow=30
-**工作量**: 配置变更
+### ✅ P1-004: 连接池过小（已修复默认值，可继续调优）
+**现状**: 默认 `DB_POOL_SIZE=10`、`DB_POOL_MAX_OVERFLOW=20`，均可通过环境变量调参。
+**参考**: `app/core/config.py:85`、`app/core/database.py:39`
 
-### 🔴 P1-005: 缓存无效化缺失
-**文件**: `app/core/cache.py:249`
-**影响**: 数据更新后缓存过期前显示旧数据
-**建议**: 在数据修改接口添加 cache.invalidate() 调用
-**工作量**: 2h
+### 🟡 P1-005: 缓存无效化缺失（现状：已提供运维入口，是否自动化取决于写接口）
+**现状**: 提供 Admin 命名空间失效接口，适用于 ETL/刷新后主动清缓存；当前后端以读 API 为主，暂无通用“写接口”触发自动失效的强需求。
+**参考**: `app/routers/admin.py:872`、`app/core/cache.py:474`
 
-### 🟡 P2-001: 内存缓存 FIFO 而非 LRU
-**文件**: `app/core/cache.py:54-61`
-**影响**: 缓存命中率低
-**工作量**: 30min
+### ✅ P2-001: 内存缓存 FIFO 而非 LRU（已修复）
+**现状**: 内存回退缓存为 `OrderedDict` LRU + TTL，并暴露淘汰指标。
+**参考**: `app/core/cache.py:104`
 
-### 🟡 P2-002: 日志过于详细
-**文件**: `app/middleware/logging.py:79-83`
-**影响**: 磁盘 I/O 开销
-**建议**: 正常请求改为 DEBUG 级别
-**工作量**: 15min
+### 🟡 P2-002: 日志过于详细（现状：可配置；建议生产调参）
+**现状**: 支持慢请求阈值/采样率/URL 截断等配置；默认全量 INFO 在高 QPS 下可能带来 I/O 压力。
+**参考**: `app/core/config.py:364`、`app/middleware/logging.py:155`
 
-### 🟡 P2-003: pool_pre_ping 开销
-**文件**: `app/core/database.py:43`
-**影响**: 每次查询额外 3-5ms
-**建议**: 考虑更积极的 pool_recycle
-**工作量**: 10min
+### 🟡 P2-003: pool_pre_ping 开销（权衡项）
+**现状**: 仍开启 `pool_pre_ping=True` 优先稳定性；如对延迟敏感，可结合 `DB_POOL_RECYCLE` 调整权衡。
+**参考**: `app/core/database.py:45`、`app/core/config.py:103`
 
 ### 🟡 P2-004: 物化视图刷新策略
 **文件**: `app/routers/lncrna_chipseq_overlap.py:73`
@@ -142,21 +129,17 @@ response.headers["Content-Security-Policy"] = "default-src 'self';"
 **建议**: 添加定时刷新任务或 Admin API
 **工作量**: 1h
 
-### 🟡 P2-005: 缺少缓存指标
-**文件**: `app/core/cache.py:313`
-**影响**: 无法监控缓存健康度
-**建议**: 添加 Prometheus 指标
-**工作量**: 1h
+### ✅ P2-005: 缺少缓存指标（已修复）
+**现状**: 已提供 cache hits/misses/evictions/redis connectivity 等指标（Prometheus client 可选依赖）。
+**参考**: `app/core/cache.py:84`
 
-### 🟡 P2-006: CORS_ORIGINS 无 URL 校验
-**文件**: `app/core/config.py:61-81`
-**影响**: 配置错误时无提示
-**工作量**: 30min
+### ✅ P2-006: CORS_ORIGINS 无 URL 校验（已修复）
+**现状**: `CORS_ORIGINS` 解析对 scheme/host/userinfo/path/query/fragment 做严格校验，避免误配置与潜在安全风险。
+**参考**: `app/core/config.py:142`
 
-### 🟡 P2-007: 网络查询 N+1 模式
-**文件**: `app/routers/network.py:365-422`
-**影响**: depth=2 时查询数 O(N)
-**工作量**: 2h
+### ✅ P2-007: 网络查询 N+1 模式（已修复/现状非 N+1）
+**现状**: depth=2 使用有限次数的聚合查询（`IN (...)`），不会按节点循环发起 O(N) 次 DB 查询。
+**参考**: `app/routers/network.py:340`
 
 ---
 
@@ -198,14 +181,14 @@ response.headers["Content-Security-Policy"] = "default-src 'self';"
    ```
 
 ### 下周 (High Priority)
-4. 添加核心路由限流 (P1-001)
-5. 添加安全头中间件 (P1-003)
-6. 增加连接池配置 (P1-004)
+4. ✅ 核心路由限流 (P1-001) - 已覆盖
+5. ✅ 安全头中间件 (P1-003) - 已实现
+6. ✅ 连接池配置 (P1-004) - 默认值已提升且可配置
 
 ### 后续迭代 (Medium)
-7. 缓存无效化机制 (P1-005)
-8. LRU 缓存改进 (P2-001)
-9. Prometheus 缓存指标 (P2-005)
+7. 🟡 缓存无效化机制 (P1-005) - 已提供 Admin 入口，是否自动化取决于写接口/更新频率
+8. ✅ LRU 缓存改进 (P2-001) - 已实现
+9. ✅ Prometheus 缓存指标 (P2-005) - 已实现
 
 ---
 

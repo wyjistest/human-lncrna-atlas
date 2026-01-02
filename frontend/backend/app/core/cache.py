@@ -453,13 +453,16 @@ class CacheService:
 
         return value
 
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    def set(self, key: str, value: Any, ttl: Optional[int] = None, *, pre_serialized: bool = False) -> bool:
         """设置缓存"""
         if not self.enabled:
             return False
 
         if ttl is None:
             ttl = settings.CACHE_TTL
+
+        if not pre_serialized:
+            value = self._serialize(value)
 
         if self._redis.connected:
             return self._redis.set(key, value, ttl)
@@ -544,18 +547,21 @@ class CacheService:
             result = compute_func()
             cache_data = self._serialize(result)
             if cache_data is not None:
-                self.set(key, cache_data, ttl)
+                self.set(key, cache_data, ttl, pre_serialized=True)
             return cache_data
 
     def _serialize(self, data: Any) -> Any:
         """将数据转换为可序列化的格式"""
-        if hasattr(data, 'model_dump'):
-            return data.model_dump()
-        elif hasattr(data, 'dict'):
-            return data.dict()
-        elif isinstance(data, list):
+        # Pydantic v2: prefer JSON mode to avoid non-JSON types (e.g. tuple, datetime) leaking into cache.
+        # Ref: Pydantic v2 serialization concepts (model_dump(mode='json')).
+        if hasattr(data, "model_dump"):
+            return data.model_dump(mode="json")
+        if hasattr(data, "dict"):
+            # Pydantic v1 / other model-like objects: dump then recursively normalize.
+            return self._serialize(data.dict())
+        if isinstance(data, list):
             return [self._serialize(item) for item in data]
-        elif isinstance(data, dict):
+        if isinstance(data, dict):
             return {k: self._serialize(v) for k, v in data.items()}
         return data
 
@@ -830,7 +836,7 @@ def cache_response(expire: int = 300):
 
             result = await func(*args, **kwargs)
             cache_data = cache._serialize(result)
-            cache.set(key, cache_data, expire)
+            cache.set(key, cache_data, expire, pre_serialized=True)
 
             return cache_data
 

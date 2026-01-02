@@ -441,7 +441,7 @@ def get_conservation_overview(request: Request, db: Session = Depends(get_db)):
     )
 
     # Cache for 1 hour
-    cache.set(cache_key, result.model_dump(), CacheService.TTL_STATS)
+    cache.set(cache_key, result, CacheService.TTL_STATS)
 
     return result
 
@@ -539,7 +539,7 @@ def get_conservation_matrix(request: Request, db: Session = Depends(get_db)):
     )
 
     # Cache for 1 hour
-    cache.set(cache_key, result.model_dump(), CacheService.TTL_STATS)
+    cache.set(cache_key, result, CacheService.TTL_STATS)
 
     return result
 
@@ -699,7 +699,7 @@ def export_conserved_regulations(
                 "species_ids": ",".join(str(x) for x in row_species_ids),
                 "avg_binding_affinity": row_avg_ba,
                 "species_binding_affinities": json.dumps(
-                    [x.model_dump() for x in row_species_ba_list],
+                    [x.model_dump(mode="json") for x in row_species_ba_list],
                     ensure_ascii=False,
                     default=str,
                 ),

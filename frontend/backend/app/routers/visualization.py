@@ -342,7 +342,7 @@ def get_sankey_data(
     )
 
     # 缓存 10 分钟（与 Chord 保持一致）
-    cache.set(cache_key, response.model_dump(), ttl=cache.TTL_DETAIL)
+    cache.set(cache_key, response, ttl=cache.TTL_DETAIL)
     logger.info("[SANKEY] Cache SET: %s", sanitize_for_log(cache_key, max_length=200))
 
     return response
@@ -632,11 +632,11 @@ def get_chord_data(
     response_data = {
         "success": True,
         "data": {
-            "nodes": [node.model_dump() for node in nodes],
-            "links": [link.model_dump() for link in links],
+            "nodes": [node.model_dump(mode="json") for node in nodes],
+            "links": [link.model_dump(mode="json") for link in links],
             "matrix": matrix,
         },
-        "stats": stats.model_dump(),
+        "stats": stats.model_dump(mode="json"),
         "query_params": query_params,
     }
 

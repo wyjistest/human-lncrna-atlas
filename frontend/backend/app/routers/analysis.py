@@ -343,8 +343,8 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
     )
 
     # 写入缓存（1 小时）
-    cache.set(cache_key, result.model_dump(), CacheService.TTL_STATS)
-
+    cache.set(cache_key, result, CacheService.TTL_STATS)
+	
     logger.info(f"[ANALYSIS] Summary computed: "
                 f"HA={high_affinity.total_regulations}, "
                 f"Conserved={conservation.total_conserved}, "

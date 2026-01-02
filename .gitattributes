@@ -28,6 +28,12 @@
 *.md text eol=lf
 *.txt text eol=lf
 
+# Env files (templates / docker-compose)
+.env text eol=lf
+.env.* text eol=lf
+*.env text eol=lf
+*.env.* text eol=lf
+
 # SQL files
 *.sql text eol=lf
 

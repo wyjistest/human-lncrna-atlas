@@ -118,7 +118,7 @@ def get_overview_stats(request: Request, db: Session = Depends(get_db)):
     )
 
     # 写入缓存（1小时）
-    cache.set(cache_key, result.model_dump(), CacheService.TTL_STATS)
+    cache.set(cache_key, result, CacheService.TTL_STATS)
 
     return result
 
@@ -192,7 +192,7 @@ def get_top_genes(
     ]
 
     # 写入缓存（1 小时）
-    cache.set(cache_key, [g.model_dump() for g in results], CacheService.TTL_STATS)
+    cache.set(cache_key, results, CacheService.TTL_STATS)
 
     return results
 
@@ -254,7 +254,7 @@ def get_top_diseases(
     ]
 
     # 写入缓存（1 小时）
-    cache.set(cache_key, [d.model_dump() for d in results], CacheService.TTL_STATS)
+    cache.set(cache_key, results, CacheService.TTL_STATS)
 
     return results
 
@@ -325,7 +325,7 @@ def get_conserved_regulations(
     ]
 
     # 写入缓存（1 小时）
-    cache.set(cache_key, [r.model_dump() for r in results], CacheService.TTL_STATS)
+    cache.set(cache_key, results, CacheService.TTL_STATS)
 
     return results
 
@@ -358,7 +358,7 @@ def get_ba_range(request: Request, db: Session = Depends(get_db)):
     )
 
     # 写入缓存
-    cache.set(cache_key, ba_range.model_dump(), CacheService.TTL_STATS)
+    cache.set(cache_key, ba_range, CacheService.TTL_STATS)
 
     return ba_range
 
@@ -496,7 +496,7 @@ def get_detailed_stats(
     )
 
     # 写入缓存（1 小时）
-    cache.set(cache_key, result.model_dump(), CacheService.TTL_STATS)
+    cache.set(cache_key, result, CacheService.TTL_STATS)
 
     return result
 

@@ -470,7 +470,7 @@ def list_regulations(
     )
 
     # 写入缓存（15 分钟 = 900 秒）
-    cache.set(cache_key, cache._serialize(result), 900)
+    cache.set(cache_key, result, 900)
 
     return result
 

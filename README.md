@@ -167,6 +167,12 @@ psql -d lncrna_production -f schema/v2.3/06_mv_lncrna_chipseq_overlaps_epigeneti
 
 # Refresh managed MVs (weekly or after ETL)
 ./scripts/refresh_materialized_views.sh
+
+# Admin API (optional): check status / trigger refresh (requires X-Admin-API-Key)
+curl -H "X-Admin-API-Key: <ADMIN_API_KEY>" "http://localhost:8000/api/v1/admin/materialized-views/status"
+curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application/json" \
+  "http://localhost:8000/api/v1/admin/materialized-views/refresh" \
+  -d '{"concurrently": true, "timeout_seconds": 600}'
 ```
 
 ## API Endpoints

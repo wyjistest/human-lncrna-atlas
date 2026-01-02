@@ -26,6 +26,7 @@ try:
 except ImportError:  # pragma: no cover
     psutil = None  # type: ignore[assignment]
 from fastapi import APIRouter, Request, Depends, HTTPException, Header
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from app.core.database import engine
@@ -951,3 +952,129 @@ async def reset_mv_cache(request: Request) -> dict:
         "message": "Materialized view availability caches reset. Next query will re-check MV status.",
         "affected_caches": ["lncrna_chipseq_overlap", "igv_overlap_track"],
     }
+
+
+# ============================================================================
+# Materialized View Refresh / Status (Phase 10.0)
+# ============================================================================
+
+
+class MaterializedViewRefreshRequest(BaseModel):
+    """刷新物化视图请求（仅允许白名单内的 MV）。"""
+
+    views: Optional[list[str]] = Field(
+        default=None,
+        description="要刷新的物化视图列表；null 表示刷新默认列表（按依赖顺序）。",
+    )
+    concurrently: bool = Field(default=True, description="是否使用 REFRESH MATERIALIZED VIEW CONCURRENTLY（默认 true）")
+    analyze: bool = Field(default=True, description="刷新后是否对 MV 执行 ANALYZE（默认 true）")
+    timeout_seconds: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description="刷新允许的 statement_timeout（秒）；null 表示使用 MV_REFRESH_TIMEOUT 配置。",
+    )
+
+
+@router.get(
+    "/materialized-views/status",
+    summary="查询物化视图状态",
+    description="返回后端使用的物化视图状态（exists/populated/size/rows_estimate）以及刷新锁是否可用。",
+)
+@rate_limit("10/minute")
+def get_materialized_views_status(request: Request) -> dict:
+    from app.core import materialized_views as mv_ops
+
+    autocommit_engine = engine.execution_options(isolation_level="AUTOCOMMIT")
+    with autocommit_engine.connect() as conn:
+        if conn.dialect.name != "postgresql":
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "UNSUPPORTED_DATABASE",
+                    "message": "Materialized view operations require PostgreSQL",
+                },
+            )
+
+        lock_available = mv_ops.get_refresh_lock_available(conn)
+        views = [mv_ops.get_mv_status(conn, name) for name in mv_ops.DEFAULT_MATERIALIZED_VIEWS]
+
+    return {
+        "status": "success",
+        "refresh_lock_available": bool(lock_available),
+        "views": views,
+    }
+
+
+@router.post(
+    "/materialized-views/refresh",
+    summary="刷新物化视图（Admin）",
+    description="""
+    触发物化视图刷新（同步执行）。
+
+    安全特性：
+    - 复用 Admin 全局鉴权（IP / API Key / 严格模式）
+    - 使用 PostgreSQL advisory lock 做跨进程互斥，避免多 worker 并发刷新
+    - 临时提升 statement_timeout（MV_REFRESH_TIMEOUT 或请求指定），并在结束后恢复默认 QUERY_TIMEOUT
+
+    定时化建议：生产环境更推荐使用 `scripts/refresh_materialized_views.sh` + cron/systemd 定时运行。
+    """,
+)
+@rate_limit("1/minute")
+def refresh_materialized_views_admin(request: Request, body: MaterializedViewRefreshRequest) -> dict:
+    from app.core import materialized_views as mv_ops
+
+    autocommit_engine = engine.execution_options(isolation_level="AUTOCOMMIT")
+    with autocommit_engine.connect() as conn:
+        try:
+            result = mv_ops.refresh_materialized_views(
+                conn,
+                views=body.views,
+                concurrently=body.concurrently,
+                analyze=body.analyze,
+                timeout_seconds=body.timeout_seconds,
+            )
+        except mv_ops.MaterializedViewRefreshInProgress as e:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "REFRESH_IN_PROGRESS",
+                    "message": str(e),
+                },
+            )
+        except ValueError as e:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "INVALID_REQUEST",
+                    "message": str(e),
+                },
+            )
+        except Exception as e:
+            logger.error("Materialized view refresh failed: %s", sanitize_for_log(e, max_length=2000), exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": "REFRESH_FAILED",
+                    "message": "Materialized view refresh failed",
+                },
+            )
+
+    # 刷新完成后，重置进程级 MV 可用性缓存，避免继续走 fallback 逻辑。
+    try:
+        from app.routers.lncrna_chipseq_overlap import reset_mv_cache as reset_overlap_mv_cache
+        from app.routers.igv_overlap_track import reset_mv_cache as reset_igv_mv_cache
+
+        reset_overlap_mv_cache()
+        reset_igv_mv_cache()
+        result["mv_availability_cache_reset"] = True
+    except Exception as e:  # pragma: no cover
+        # 不影响刷新结果，但记录告警便于排查。
+        logger.warning(
+            "Materialized view refreshed but failed to reset MV availability caches: %s",
+            sanitize_for_log(e, max_length=2000),
+            exc_info=True,
+        )
+        result["mv_availability_cache_reset"] = False
+
+    logger.info("Materialized views refreshed by admin: status=%s", result.get("status"))
+    return result

@@ -78,6 +78,15 @@ python3 main.py
 - `GET /api/v1/network/gene/{gene_id}` - 获取基因调控网络数据
 - `GET /api/v1/network/compare` - 跨物种网络对比
 
+### Admin 运维 (`/api/v1/admin`)
+
+> ⚠️ SECURITY：生产环境强烈建议启用 `ADMIN_REQUIRE_API_KEY=true`，并通过 `X-Admin-API-Key` 访问。
+
+- `GET /api/v1/admin/health` - 系统健康与资源指标（依赖 `psutil`）
+- `POST /api/v1/admin/cache/invalidate/{namespace}` - 使指定缓存命名空间失效（白名单）
+- `GET /api/v1/admin/materialized-views/status` - 查询物化视图状态与刷新锁状态
+- `POST /api/v1/admin/materialized-views/refresh` - 刷新物化视图（支持 CONCURRENTLY / 超时配置）
+
 ## 数据库连接
 
 默认连接配置：
@@ -129,6 +138,23 @@ python3 -c "from app.core.database import init_db; init_db()"
 
 # 测试API健康检查
 curl http://localhost:8000/health
+```
+
+### 刷新物化视图（可选，提升部分端点 cache-miss 性能）
+
+推荐生产环境使用脚本定时刷新（例如 cron/ systemd timer）：
+
+```bash
+./scripts/refresh_materialized_views.sh
+```
+
+也可使用 Admin API 触发（需要 `X-Admin-API-Key`）：
+
+```bash
+curl -H "X-Admin-API-Key: <ADMIN_API_KEY>" "http://localhost:8000/api/v1/admin/materialized-views/status"
+curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application/json" \
+  "http://localhost:8000/api/v1/admin/materialized-views/refresh" \
+  -d '{"concurrently": true, "timeout_seconds": 600}'
 ```
 
 ### 查看日志
