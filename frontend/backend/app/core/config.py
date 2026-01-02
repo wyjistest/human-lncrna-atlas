@@ -106,6 +106,14 @@ class Settings(BaseSettings):
         description="连接回收时间秒数 (默认 1800 = 30分钟)",
         ge=0,
     )
+    # P2-003 权衡项：pool_pre_ping 会在每次从连接池取连接时做一次轻量校验（通常 SELECT 1），
+    # 能显著降低“连接已断开”类错误，但会带来微小额外开销。
+    # 默认开启以提升稳定性；如对极致延迟敏感且数据库连接稳定，可在充分评估后关闭。
+    DB_POOL_PRE_PING: bool = Field(
+        default=True,
+        validation_alias="DB_POOL_PRE_PING",
+        description="连接取出前健康检查 (SQLAlchemy pool_pre_ping)，默认 true",
+    )
 
     # Redis配置
     REDIS_HOST: str = Field(default="localhost", validation_alias="REDIS_HOST")

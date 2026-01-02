@@ -10,6 +10,7 @@ def test_settings_env_aliases(monkeypatch):
     monkeypatch.setenv("DB_USER", "test_user")
     monkeypatch.setenv("DB_PASSWORD", "test_password")
     monkeypatch.setenv("DB_NAME", "test_db")
+    monkeypatch.setenv("DB_POOL_PRE_PING", "false")
 
     settings = Settings(_env_file=None)
 
@@ -19,4 +20,4 @@ def test_settings_env_aliases(monkeypatch):
     # DATABASE_PASSWORD is now SecretStr - use get_secret_value() to compare
     assert settings.DATABASE_PASSWORD.get_secret_value() == "test_password"
     assert settings.DATABASE_NAME == "test_db"
-
+    assert settings.DB_POOL_PRE_PING is False

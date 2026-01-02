@@ -4,7 +4,7 @@
 Performance and Security Features:
 - Connection pooling with QueuePool (PostgreSQL) or StaticPool (SQLite)
 - Query timeout protection (30s default, PostgreSQL only)
-- Connection health checks (pool_pre_ping)
+- Connection health checks (pool_pre_ping, configurable)
 - Automatic connection recycling
 - Multi-dialect support (PostgreSQL, SQLite)
 """
@@ -42,11 +42,13 @@ if _is_postgresql:
         "max_overflow": settings.DB_POOL_MAX_OVERFLOW,
         "pool_timeout": settings.DB_POOL_TIMEOUT,
         "pool_recycle": settings.DB_POOL_RECYCLE,
-        "pool_pre_ping": True,  # 连接前检查，避免使用已断开的连接
+        # pool_pre_ping: 取连接时做一次轻量校验，避免使用已断开的连接（可配置）
+        "pool_pre_ping": settings.DB_POOL_PRE_PING,
     })
     logger.info(
         f"Using PostgreSQL database engine with connection pooling "
-        f"(pool_size={settings.DB_POOL_SIZE}, max_overflow={settings.DB_POOL_MAX_OVERFLOW})"
+        f"(pool_size={settings.DB_POOL_SIZE}, max_overflow={settings.DB_POOL_MAX_OVERFLOW}, "
+        f"pool_pre_ping={settings.DB_POOL_PRE_PING})"
     )
 elif _is_sqlite:
     # SQLite: Use StaticPool for thread safety in multi-threaded environments
@@ -65,7 +67,7 @@ else:
         "max_overflow": settings.DB_POOL_MAX_OVERFLOW,
         "pool_timeout": settings.DB_POOL_TIMEOUT,
         "pool_recycle": settings.DB_POOL_RECYCLE,
-        "pool_pre_ping": True,
+        "pool_pre_ping": settings.DB_POOL_PRE_PING,
     })
     logger.info(f"Using generic database engine for: {_db_url.split(':')[0]}")
 
