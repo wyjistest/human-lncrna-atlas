@@ -8,6 +8,18 @@ cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
 npm run test:performance
 ```
 
+Compare latest run with baseline:
+```bash
+cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+npm run test:performance:compare
+```
+
+Run tests + compare (one command):
+```bash
+cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+npm run test:performance:check
+```
+
 Run specific performance test:
 ```bash
 npx playwright test e2e/performance/disease-dropdown-performance.spec.ts
@@ -42,26 +54,24 @@ npx playwright test e2e/performance
 ### 2. Baseline Performance Capture (Before Optimization)
 
 ```bash
-# Run tests and save baseline report
-npx playwright test e2e/performance --reporter=json:performance-baseline.json
+# Run tests (writes JSON report to test-results/performance-latest-metrics.json by default)
+npm run test:performance
 
-# Generate baseline markdown report
-node -e "
-const fs = require('fs');
-const data = JSON.parse(fs.readFileSync('performance-baseline.json', 'utf8'));
-console.log('Baseline captured:', new Date().toISOString());
-console.log('Total tests:', data.suites[0].specs.length);
-"
+# If you want to persist the baseline, copy the latest report:
+cp test-results/performance-latest-metrics.json performance-baseline-metrics.json
 ```
 
 ### 3. After Optimization Performance Verification
 
 ```bash
-# Run tests and save optimized report
-npx playwright test e2e/performance --reporter=json:performance-optimized.json
+# Run tests again (updates test-results/performance-latest-metrics.json)
+npm run test:performance
 
-# Compare with baseline (manual comparison for now)
-# TODO: Create comparison script
+# Compare with baseline
+npm run test:performance:compare
+
+# Or run both in one command
+npm run test:performance:check
 ```
 
 ---

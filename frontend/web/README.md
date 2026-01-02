@@ -77,6 +77,10 @@ npm run test:e2e
 
 # E2E tests with UI
 npm run test:e2e:ui
+
+# Performance tests (requires backend + frontend running)
+npm run test:performance
+npm run test:performance:compare
 ```
 
 ## Build

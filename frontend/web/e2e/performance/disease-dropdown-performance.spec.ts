@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { PerformanceMetrics } from './helpers/performanceMetrics'
 
 /**
@@ -28,6 +30,67 @@ function getEnvInt(name: string, fallback: number): number {
 const NETWORK_API_BUDGET_MS = getEnvInt('E2E_NETWORK_API_BUDGET_MS', 12000)
 const NETWORK_RENDER_BUDGET_MS = getEnvInt('E2E_NETWORK_RENDER_BUDGET_MS', 12000)
 
+type TestStatus = 'PASSED' | 'FAILED' | 'SKIPPED'
+
+type PerformanceReport = {
+  test_date: string
+  test_phase: string
+  environment: {
+    frontend_url: string
+    backend_url: string
+    browser: string
+    playwright_version?: string
+  }
+  critical_metrics: Record<string, any>
+  test_results: {
+    total_tests: number
+    passed: number
+    failed: number
+    pass_rate_percent: number
+    tests: Array<{ name: string; status: TestStatus; issue?: string; note?: string }>
+  }
+}
+
+const REPORT_OUTPUT_PATH = process.env.PERF_REPORT_PATH
+  ? path.resolve(process.cwd(), process.env.PERF_REPORT_PATH)
+  : path.resolve(process.cwd(), 'test-results', 'performance-latest-metrics.json')
+
+const report: PerformanceReport = {
+  test_date: new Date().toISOString().slice(0, 10),
+  test_phase: process.env.PERF_TEST_PHASE || 'current',
+  environment: {
+    frontend_url: BASE_URL,
+    backend_url: API_BASE,
+    browser: 'unknown',
+    playwright_version: process.env.PLAYWRIGHT_VERSION,
+  },
+  critical_metrics: {},
+  test_results: {
+    total_tests: 0,
+    passed: 0,
+    failed: 0,
+    pass_rate_percent: 0,
+    tests: [],
+  },
+}
+
+function toTestStatus(status: string): TestStatus {
+  if (status === 'passed') return 'PASSED'
+  if (status === 'skipped') return 'SKIPPED'
+  return 'FAILED'
+}
+
+function safeIssue(error: any): string | undefined {
+  const msg = error?.message
+  if (!msg || typeof msg !== 'string') return undefined
+  return msg.split('\n')[0].slice(0, 200)
+}
+
+function writeReport() {
+  fs.mkdirSync(path.dirname(REPORT_OUTPUT_PATH), { recursive: true })
+  fs.writeFileSync(REPORT_OUTPUT_PATH, JSON.stringify(report, null, 2) + '\n', 'utf8')
+}
+
 // Performance thresholds (environment-dependent; override via env vars)
 const THRESHOLDS = {
   API_RESPONSE_TIME: getEnvInt('E2E_DISEASE_OPTIONS_API_BUDGET_MS', 3000), // cold cache + dev server can be slower
@@ -46,7 +109,38 @@ function getSelectByTestId(page: any, testId: string) {
 }
 
 test.describe('Disease Dropdown Performance Tests', () => {
+  // Performance tests should run serially to reduce noise and avoid cross-test interference.
+  // Note: playwright.config.ts enables fullyParallel=true globally.
+  test.describe.configure({ mode: 'serial' })
+
   test.setTimeout(60000) // 1 minute timeout for performance tests
+
+  test.afterEach(async (_, testInfo) => {
+    // Update environment once (project name is the most reliable browser hint here).
+    if (report.environment.browser === 'unknown') {
+      report.environment.browser = testInfo.project.name || report.environment.browser
+    }
+
+    report.test_results.total_tests += 1
+    const status = toTestStatus(testInfo.status)
+    if (status === 'PASSED') report.test_results.passed += 1
+    if (status === 'FAILED') report.test_results.failed += 1
+
+    report.test_results.tests.push({
+      name: testInfo.title,
+      status,
+      issue: safeIssue(testInfo.error),
+    })
+  })
+
+  test.afterAll(async () => {
+    report.test_results.pass_rate_percent =
+      report.test_results.total_tests > 0
+        ? Number(((report.test_results.passed / report.test_results.total_tests) * 100).toFixed(1))
+        : 0
+    writeReport()
+    console.log(`\n[perf] Wrote metrics report: ${REPORT_OUTPUT_PATH}`)
+  })
 
   test('P0: Disease options API should load within performance budget', async ({ page }) => {
     const metrics = new PerformanceMetrics(page)
@@ -77,6 +171,17 @@ test.describe('Disease Dropdown Performance Tests', () => {
     console.log(`  - Deduplicated Count: ${returnedItems}`)
     console.log(`  - Payload Size: ${(payloadSize / 1024).toFixed(2)} KB`)
     console.log(`  - Cache Status: ${cacheStatus}`)
+
+    report.critical_metrics.api_response_time = {
+      value_ms: apiTime,
+      threshold_ms: THRESHOLDS.API_RESPONSE_TIME,
+      status: apiTime < THRESHOLDS.API_RESPONSE_TIME ? 'PASSED' : 'FAILED',
+      total_items: totalItems,
+      returned_items: returnedItems,
+      payload_size_kb: Number((payloadSize / 1024).toFixed(2)),
+      cache_status: cacheStatus,
+      endpoint: '/api/v1/diseases/options',
+    }
 
     // Performance assertions
     expect(apiTime).toBeLessThan(THRESHOLDS.API_RESPONSE_TIME)
@@ -124,6 +229,14 @@ test.describe('Disease Dropdown Performance Tests', () => {
     // Get memory usage after render
     const memoryAfterRender = await metrics.getMemoryUsage()
     console.log(`  - JS Heap Used: ${(memoryAfterRender.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`)
+
+    report.critical_metrics.dropdown_rendering = {
+      status: renderTime < THRESHOLDS.RENDER_TIME ? 'PASSED' : 'FAILED',
+      render_time_ms: renderTime,
+      threshold_ms: THRESHOLDS.RENDER_TIME,
+      options_rendered: optionCount,
+      js_heap_used_mb: Number((memoryAfterRender.usedJSHeapSize / 1024 / 1024).toFixed(2)),
+    }
 
     // Performance assertions
     expect(renderTime).toBeLessThan(THRESHOLDS.RENDER_TIME)
@@ -173,6 +286,14 @@ test.describe('Disease Dropdown Performance Tests', () => {
     // Get memory after scrolling
     const memoryAfterScroll = await metrics.getMemoryUsage()
     console.log(`  - JS Heap Used: ${(memoryAfterScroll.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`)
+
+    // Non-critical: keep scroll metrics in report for trend tracking.
+    report.critical_metrics.scroll_performance = {
+      average_scroll_time_ms: Number(avgScrollTime.toFixed(2)),
+      estimated_fps: Number((1000 / avgScrollTime).toFixed(2)),
+      js_heap_used_mb: Number((memoryAfterScroll.usedJSHeapSize / 1024 / 1024).toFixed(2)),
+      scroll_iterations: scrollIterations,
+    }
 
     // Performance assertions: average scroll time should be reasonable
     expect(avgScrollTime).toBeLessThan(150) // headless is noisier than interactive browsers
@@ -287,6 +408,34 @@ test.describe('Disease Dropdown Performance Tests', () => {
     console.log(`  - JS Heap Used: ${(memoryUsage.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`)
     console.log(`  - JS Heap Total: ${(memoryUsage.totalJSHeapSize / 1024 / 1024).toFixed(2)} MB`)
 
+    report.critical_metrics.e2e_flow = {
+      status: totalUserTime < THRESHOLDS.TOTAL_USER_TIME ? 'PASSED' : 'FAILED',
+      page_load_time_ms: pageLoadTime,
+      disease_select_time_ms: diseaseSelectTime,
+      network_api_time_ms: networkAPITime,
+      graph_render_time_ms: renderTime,
+      total_user_time_ms: totalUserTime,
+      thresholds: {
+        network_api_budget_ms: NETWORK_API_BUDGET_MS,
+        network_render_budget_ms: NETWORK_RENDER_BUDGET_MS,
+        total_user_budget_ms: THRESHOLDS.TOTAL_USER_TIME,
+      },
+      network_data: {
+        nodes: nodeCount,
+        edges: edgeCount,
+      },
+      web_vitals: {
+        LCP: Number(webVitals.LCP.toFixed(2)),
+        FID: Number(webVitals.FID.toFixed(2)),
+        CLS: Number(webVitals.CLS.toFixed(4)),
+        TTFB: Number(webVitals.TTFB.toFixed(2)),
+      },
+      memory_usage: {
+        used_js_heap_mb: Number((memoryUsage.usedJSHeapSize / 1024 / 1024).toFixed(2)),
+        total_js_heap_mb: Number((memoryUsage.totalJSHeapSize / 1024 / 1024).toFixed(2)),
+      },
+    }
+
     // Performance assertions (budgeted; override via env vars)
     expect(networkAPITime).toBeLessThan(NETWORK_API_BUDGET_MS)
     expect(renderTime).toBeLessThan(NETWORK_RENDER_BUDGET_MS)
@@ -350,6 +499,19 @@ test.describe('Disease Dropdown Performance Tests', () => {
     console.log(`  - Average Hit Time: ${avgHitTime.toFixed(2)}ms`)
     console.log(`  - Average Miss Time: ${avgMissTime.toFixed(2)}ms`)
     console.log(`  - Performance Improvement: ${performanceImprovement.toFixed(2)}%`)
+
+    report.critical_metrics.cache_performance = {
+      cold_cache_time_ms: coldTime,
+      warm_cache_time_ms: warmTime,
+      cache_hit_rate_percent: Number(hitRate.toFixed(2)),
+      cache_hits: hitCount,
+      cache_misses: hits.length - hitCount,
+      average_hit_time_ms: Number(avgHitTime.toFixed(2)),
+      average_miss_time_ms: Number(avgMissTime.toFixed(2)),
+      performance_improvement_percent: Number(performanceImprovement.toFixed(2)),
+      status: warmCacheStatus === 'HIT' ? 'OK' : 'NO_CACHE_DETECTED',
+      endpoint: '/api/v1/diseases?page=1&page_size=500',
+    }
 
     // Performance assertions
     // Note: Cache assertions are informational; may not be enabled in all environments
@@ -415,6 +577,14 @@ test.describe('Disease Dropdown Performance Tests', () => {
     console.log(`  - Baseline Memory: ${(baselineMemory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`)
     console.log(`  - Final Memory: ${(finalMemory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`)
     console.log(`  - Total Increase: ${(totalIncrease / 1024 / 1024).toFixed(2)} MB (+${totalIncreasePercent.toFixed(2)}%)`)
+
+    report.critical_metrics.memory_leak_test = {
+      status: totalIncreasePercent < 50 ? 'PASSED' : 'FAILED',
+      baseline_used_js_heap_mb: Number((baselineMemory.usedJSHeapSize / 1024 / 1024).toFixed(2)),
+      final_used_js_heap_mb: Number((finalMemory.usedJSHeapSize / 1024 / 1024).toFixed(2)),
+      total_increase_percent: Number(totalIncreasePercent.toFixed(2)),
+      memory_limit_mb: Number((THRESHOLDS.MEMORY_LIMIT / 1024 / 1024).toFixed(2)),
+    }
 
     // Memory leak assertion: memory increase should be < 50% of baseline
     expect(totalIncreasePercent).toBeLessThan(50)
