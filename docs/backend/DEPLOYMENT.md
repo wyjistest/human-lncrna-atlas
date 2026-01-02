@@ -59,7 +59,11 @@ source venv/bin/activate  # Linux/macOS
 ### 3. 安装依赖
 
 ```bash
-pip install -r requirements.txt
+# 运行服务（仅运行时依赖）
+python3 -m pip install -r requirements.txt
+
+# 开发/测试（包含 pytest/ruff 等）
+python3 -m pip install -r requirements-dev.txt
 ```
 
 ### 4. 配置环境变量
@@ -73,6 +77,9 @@ DB_PORT=5432
 DB_NAME=lncrna_production
 DB_USER=<YOUR_USER>
 DB_PASSWORD=<YOUR_SECURE_PASSWORD>
+
+# 连接池（可选，默认 true，避免长连接失效）
+DB_POOL_PRE_PING=true
 
 # 应用配置
 APP_NAME="Human LncRNA Atlas API"

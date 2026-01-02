@@ -62,7 +62,7 @@ ensure_backend_pytest() {
 
     if ! "$python_bin" -c "import pytest" > /dev/null 2>&1; then
         echo -e "${RED}后端 pytest 不可用（请在后端虚拟环境中安装依赖）${NC}"
-        echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install -r requirements.txt${NC}"
+        echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install -r requirements-dev.txt${NC}"
         return 1
     fi
 
@@ -97,7 +97,7 @@ run_backend_lint() {
     fi
 
     ensure_backend_ruff "$ruff_bin" || {
-        echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install -r requirements.txt${NC}"
+        echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install -r requirements-dev.txt${NC}"
         return 1
     }
 

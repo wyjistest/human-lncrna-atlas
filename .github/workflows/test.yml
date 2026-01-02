@@ -72,7 +72,7 @@ jobs:
         working-directory: frontend/backend
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Run Ruff (backend)
         working-directory: frontend/backend
@@ -136,7 +136,7 @@ jobs:
         working-directory: frontend/backend
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Run unit tests (marked with @pytest.mark.unit)
         working-directory: frontend/backend

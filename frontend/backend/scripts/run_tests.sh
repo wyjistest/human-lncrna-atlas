@@ -46,7 +46,7 @@ echo ""
 PYTHON_BIN="$(resolve_backend_python)"
 if ! "$PYTHON_BIN" -c "import pytest" > /dev/null 2>&1; then
     echo "❌ pytest 不可用（请先安装后端依赖）"
-    echo "   cd ${BACKEND_DIR} && pip install -r requirements.txt"
+    echo "   cd ${BACKEND_DIR} && pip install -r requirements-dev.txt"
     exit 1
 fi
 

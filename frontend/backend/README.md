@@ -6,11 +6,17 @@
 
 ### 1. 安装依赖
 
-依赖已安装在系统Python中（或使用venv）：
+推荐使用 venv/venv，并按用途安装依赖：
 
 ```bash
 # 如果使用虚拟环境
 source venv/bin/activate
+
+# 运行服务（仅运行时依赖）
+pip install -r requirements.txt
+
+# 开发/测试（包含 pytest/ruff 等）
+pip install -r requirements-dev.txt
 
 # 验证依赖
 python3 -c "import fastapi; print(f'FastAPI {fastapi.__version__}')"
@@ -105,6 +111,7 @@ Password: （从~/.pgpass读取）
 backend/
 ├── main.py                 # FastAPI应用入口
 ├── requirements.txt        # Python依赖
+├── requirements-dev.txt    # 开发/测试依赖
 ├── .env.example           # 配置示例
 ├── app/
 │   ├── __init__.py

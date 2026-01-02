@@ -296,7 +296,8 @@ start_backend() {
     fi
     if ! "$python_bin" -c "import uvicorn" > /dev/null 2>&1; then
         log_error "后端依赖未安装（uvicorn 不可用）。"
-        log_error "请先在 $BACKEND_DIR 安装依赖，例如：pip install -r requirements.txt"
+        log_error "请先在 $BACKEND_DIR 安装依赖，例如：$python_bin -m pip install -r requirements.txt"
+        log_error "（如需运行测试/ruff）再执行：$python_bin -m pip install -r requirements-dev.txt"
         return 1
     fi
 
