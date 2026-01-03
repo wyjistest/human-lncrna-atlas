@@ -292,6 +292,9 @@ const GenomeBrowser = memo(({
             options.genomeList = [builtin]
           }
         } else if (config.reference) {
+          // 在 reference 模式下也显式禁用默认基因组列表加载，避免 IGV.js 额外访问 igv.org。
+          options.loadDefaultGenomes = false
+
           // Build reference object - prefer twoBitURL over fastaURL for remote genomes
           options.reference = {
             id: config.reference.id,
@@ -316,6 +319,11 @@ const GenomeBrowser = memo(({
           // Add chromosome sizes if available
           if (config.reference.chromSizesURL) {
             options.reference.chromSizesURL = toAbsoluteURL(config.reference.chromSizesURL)
+          }
+
+          // Add chromosome aliases if available (e.g., chrM/MT)
+          if (config.reference.aliasURL) {
+            options.reference.aliasURL = toAbsoluteURL(config.reference.aliasURL)
           }
         }
         // Process track URLs: convert relative paths to absolute backend URLs

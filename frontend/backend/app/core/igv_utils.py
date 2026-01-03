@@ -2,10 +2,12 @@
 IGV utility functions
 包含基因组参考查询、颜色配置等工具函数
 """
+import os
 from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.config.igv_genomes import (
     GENOME_REFERENCES,
     CHIPSEQ_MARK_COLORS,
@@ -23,7 +25,33 @@ def get_genome_reference(species_id: int) -> GenomeReference:
             detail=f"Genome reference not found for species_id: {species_id}"
         )
 
-    ref_data = GENOME_REFERENCES[species_id]
+    ref_data = dict(GENOME_REFERENCES[species_id])
+
+    def genomes_file_exists(filename: str) -> bool:
+        genomes_dir = settings.GENOMES_DIR
+        if not genomes_dir:
+            return False
+        return os.path.exists(os.path.join(genomes_dir, filename))
+
+    # hg19 离线化：当本地 2bit 存在时，优先使用 /genomes 静态文件服务，避免 IGV 内置 hg19 触发外网依赖。
+    # 注意：保持向后兼容——若本地文件不存在，则继续使用内置 hg19（twoBitURL=None）。
+    if species_id == 1:
+        hg19_twobit = "hg19.2bit"
+        if genomes_file_exists(hg19_twobit):
+            ref_data["twoBitURL"] = f"/genomes/{hg19_twobit}"
+
+            # 可选：染色体大小文件（若存在则提供，提升离线一致性）
+            if genomes_file_exists("hg19.chrom.sizes"):
+                ref_data["chromSizesURL"] = "/genomes/hg19.chrom.sizes"
+
+            # 可选：cytoband（用于 ideogram，可缺省）
+            if genomes_file_exists("cytoBand.hg19.txt.gz"):
+                ref_data["cytobandURL"] = "/genomes/cytoBand.hg19.txt.gz"
+
+            # 可选：染色体别名表（chrM/MT 等别名解析，可缺省）
+            if genomes_file_exists("hg19_alias.tab"):
+                ref_data["aliasURL"] = "/genomes/hg19_alias.tab"
+
     return GenomeReference(**ref_data)
 
 

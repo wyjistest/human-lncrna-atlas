@@ -52,15 +52,16 @@ declare module 'igv' {
      * When provided as an array, no network request is needed.
      */
     genomeList?: string | IGVGenomeListEntry[]
-    reference?: {
-      id: string
-      name?: string
-      fastaURL?: string       // Optional now - not required if twoBitURL is provided
-      indexURL?: string
-      cytobandURL?: string
-      twoBitURL?: string      // New: 2bit format URL (preferred for remote genomes)
-      chromSizesURL?: string  // Optional: chromosome sizes file URL
-    }
+	    reference?: {
+	      id: string
+	      name?: string
+	      fastaURL?: string       // Optional now - not required if twoBitURL is provided
+	      indexURL?: string
+	      cytobandURL?: string
+	      twoBitURL?: string      // New: 2bit format URL (preferred for remote genomes)
+	      chromSizesURL?: string  // Optional: chromosome sizes file URL
+	      aliasURL?: string       // Optional: chromosome alias table URL
+	    }
     locus?: string
     tracks?: IGVTrackConfig[]
     showNavigation?: boolean

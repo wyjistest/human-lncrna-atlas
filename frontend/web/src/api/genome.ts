@@ -68,7 +68,19 @@ export interface IGVTrackConfig {
   logScale?: boolean
   /** Show blocks at arc endpoints */
   showBlocks?: boolean
-  /** Maximum value for scaling */
+
+  // Wig/BigWig track common options
+  /** Autoscale group ID (tracks in the same group share the Y-scale) */
+  autoscaleGroup?: string
+  /** Downsampling window function for WIG/BigWig ('min' | 'max' | 'none' | ...) */
+  windowFunction?: string
+  /** Wig graph type ('bar' | 'points' | 'heatmap' | ...) */
+  graphType?: string
+  /** Color scale configuration (e.g., diverging/gradient) */
+  colorScale?: Record<string, unknown>
+  /** Minimum value for scaling */
+  min?: number
+  /** Maximum value for scaling (also used by some track types) */
   max?: number
   /** Use score field for coloring/sizing */
   useScore?: boolean
@@ -82,15 +94,16 @@ export interface IGVConfig {
   // 内置基因组 ID (如 "hg19")，使用时 reference 为 null
   genome?: string | null
   // 自定义参考基因组配置，使用时 genome 为 null
-  reference?: {
-    id: string
-    name: string
-    fastaURL?: string | null
-    indexURL?: string | null
-    cytobandURL?: string | null
-    twoBitURL?: string | null      // New: 2bit format URL (preferred for remote genomes)
-    chromSizesURL?: string | null  // Optional: chromosome sizes file URL
-  } | null
+	  reference?: {
+	    id: string
+	    name: string
+	    fastaURL?: string | null
+	    indexURL?: string | null
+	    cytobandURL?: string | null
+	    twoBitURL?: string | null      // New: 2bit format URL (preferred for remote genomes)
+	    chromSizesURL?: string | null  // Optional: chromosome sizes file URL
+	    aliasURL?: string | null       // Optional: chromosome alias table URL
+	  } | null
   locus: string
   tracks: IGVTrackConfig[]
 }
@@ -207,8 +220,8 @@ export const genomeApi = {
    * Get UCSC multiz-derived conservation track configs (phastCons/phyloP)
    *
    * Notes:
-   * - Currently only supports Human/hg19 (species_id=1) to match the project's assembly.
-   * - Tracks are remote BigWig URLs served by UCSC (requires CORS + HTTP Range).
+   * - Backend returns tracks dynamically based on local files in GENOMES_DIR (/genomes static service).
+   * - If no matching BigWig files are installed for the current genome assembly, an empty list is returned.
    */
   getUCSCMultizTracks: (speciesId: number, signal?: AbortSignal) =>
     apiClient.get<ApiResponse<{

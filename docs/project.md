@@ -220,12 +220,18 @@ psql -U amax -d lncrna_production -c "
 | `/api/v1/igv/config/{species_id}` | GET | IGV.js 配置（物种模式） |
 | `/api/v1/igv/config/gene/{gene_name}` | GET | IGV.js 配置（基因模式） |
 | `/api/v1/igv/config/repeatmasker-classes/{species_id}` | GET | RepeatMasker 类轨道配置 |
-| `/api/v1/igv/config/ucsc-multiz/{species_id}` | GET | UCSC multiz 衍生保守性轨道配置（Human/hg19） |
+| `/api/v1/igv/config/ucsc-multiz/{species_id}` | GET | UCSC multiz 衍生保守性轨道配置（按本地文件可发现） |
 | `/api/v1/igv/overlap-track` | GET | lncRNA-ChIP-seq overlap 轨道（BED6，区域查询） |
 
-**UCSC multiz 保守性轨道（本地文件）**：
-- 需要启用后端静态基因组文件服务 `/genomes`（环境变量 `GENOMES_DIR` 指向基因组文件目录）。
-- 目录中需包含：`hg19.100way.phastCons.bw`、`hg19.100way.phyloP100way.bw`。
+**IGV 基因组文件离线化（推荐）**：
+- 设置环境变量 `GENOMES_DIR` 指向基因组文件目录，并确保后端已挂载静态文件服务 `/genomes`。
+- Human/hg19 若存在本地 `hg19.2bit`，后端会在运行时自动切换到 `reference.twoBitURL=/genomes/hg19.2bit`，从而避免 IGV 内置 hg19 触发外网依赖。
+- 一键下载（会下载大文件；不要提交到仓库）：`scripts/genomes/download_hg19_igv_assets.sh`（支持 `--with-conservation` 可选下载保守性 BigWig）。
+
+**UCSC multiz 保守性轨道（本地文件，可选）**：
+- 该端点会基于 `species_id -> genome_assembly`，在 `GENOMES_DIR` 下按模式搜索并返回可用的 BigWig 轨道；缺文件时返回空列表（不会报错）。
+- 命名规则（示例）：`${assembly}.*phastCons*.bw`、`${assembly}.*phyloP*.bw`，存在多份时优先选择 `100way`。
+- hg19 常见文件名：`hg19.100way.phastCons.bw`、`hg19.100way.phyloP100way.bw`。
 
 **完整 API 文档**: http://localhost:8000/docs
 

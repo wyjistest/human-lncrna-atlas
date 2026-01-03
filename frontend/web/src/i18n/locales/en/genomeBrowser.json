@@ -40,6 +40,24 @@
     "title": "UCSC Multiz Conservation",
     "hint": "Multiz-derived conservation scores (BigWig, local load via /genomes with HTTP Range).",
     "humanOnly": "Currently only available for Human (hg19).",
+    "notAvailable": "No local conservation BigWig found for this genome. Install the files in GENOMES_DIR to enable.",
+    "apply": "Apply",
+    "reset": "Reset",
+    "updated": "Track {{name}} updated",
+    "saved": "Display settings saved (will apply when the track is loaded).",
+    "resetSaved": "Display settings reset (will apply when the track is loaded).",
+    "settings": {
+      "default": "Default",
+      "min": "min",
+      "max": "max",
+      "height": "height",
+      "graphType": "graph",
+      "windowFunction": "window"
+    },
+    "graphType": {
+      "heatmap": "heatmap",
+      "points": "points"
+    },
     "phastCons100way": "phastCons 100-way (hg19)",
     "phyloP100way": "phyloP 100-way (hg19)"
   },

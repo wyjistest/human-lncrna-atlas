@@ -9,59 +9,114 @@ IGV UCSC Multiz / Conservation 轨道配置
   以 BigWig 形式加载，IGV.js 可直接通过 URL + HTTP Range 请求按需获取数据。
 
 范围与约束：
-- 当前项目人类参考基因组使用 hg19（见前端内置基因组配置），因此仅对 Human/species_id=1
-  提供 hg19 的 UCSC 保守性轨道；其它物种/assembly 后续可按需扩展。
+- 本端点仅提供 multiz 衍生的保守性分数轨道（phastCons/phyloP），不提供 UCSC MAF 多序列比对本身。
+- 轨道按 `species_id -> genome_assembly(reference.id)` 在 `GENOMES_DIR` 中“可发现”返回；缺文件时返回空列表（不报错）。
 - 本端点只返回静态 track 配置，不代理数据；数据由后端静态文件服务 `/genomes` 提供。
 - 使用前需设置 `GENOMES_DIR` 指向包含对应 `.bw` 文件的目录，并确保后端已挂载基因组文件服务。
 """
 
 from __future__ import annotations
 
+import os
+from glob import glob
+
 from fastapi import APIRouter, HTTPException, Path, Request
 
+from app.config.igv_genomes import SPECIES_NAMES
+from app.core.config import settings
+from app.core.igv_utils import get_genome_reference
 from app.routers.chipseq_rate_limit import rate_limit
 
 router = APIRouter()
 
 
-UCSC_HG19_MULTIZ_TRACKS = [
-    {
-        "id": "ucsc_multiz_phastCons100way_hg19",
-        "name": "Multiz Conservation (phastCons 100-way, hg19)",
-        "type": "wig",
-        "format": "bigwig",
-        "url": "/genomes/hg19.100way.phastCons.bw",
-        # phastCons 取值范围通常为 [0, 1]，固定范围能显著提升可比性与可读性
-        "min": 0,
-        "max": 1,
-        "color": "#1B5E20",
-        "height": 80,
-        "description": "phastCons conservation scores derived from hg19 multiz 100-way alignment (BigWig, local /genomes).",
-    },
-    {
-        "id": "ucsc_multiz_phyloP100way_hg19",
-        "name": "Multiz Conservation (phyloP 100-way, hg19)",
-        "type": "wig",
-        "format": "bigwig",
-        "url": "/genomes/hg19.100way.phyloP100way.bw",
-        # phyloP 同时包含正/负分数；用 diverging 色阶更直观地凸显保守/加速演化信号
-        "min": -2,
-        "max": 2,
-        "graphType": "heatmap",
-        "colorScale": {
-            "type": "diverging",
-            "min": -2,
-            "mid": 0,
-            "max": 2,
-            "minColor": "rgb(46,56,183)",
-            "midColor": "white",
-            "maxColor": "rgb(164,0,30)",
-        },
-        "color": "#1565C0",
-        "height": 80,
-        "description": "phyloP scores derived from hg19 multiz 100-way alignment (BigWig, local /genomes).",
-    },
-]
+def _find_best_bigwig(genomes_dir: str, patterns: list[str]) -> str | None:
+    candidates: set[str] = set()
+    for pattern in patterns:
+        for path in glob(os.path.join(genomes_dir, pattern)):
+            if os.path.isfile(path):
+                candidates.add(os.path.basename(path))
+
+    if not candidates:
+        return None
+
+    def score(name: str) -> tuple[int, int, str]:
+        # 经验优先级：优先 100way，其次文件名更短（更接近标准命名），最后按字典序稳定排序
+        return (0 if "100way" in name.lower() else 1, len(name), name)
+
+    return sorted(candidates, key=score)[0]
+
+
+def _build_multiz_conservation_tracks(genomes_dir: str, assembly: str) -> list[dict]:
+    tracks: list[dict] = []
+
+    phastcons = _find_best_bigwig(
+        genomes_dir,
+        [
+            f"{assembly}.*phastCons*.bw",
+            f"{assembly}*phastCons*.bw",
+        ],
+    )
+    if phastcons:
+        track_id = f"ucsc_multiz_phastCons_{assembly}"
+        if assembly == "hg19" and phastcons == "hg19.100way.phastCons.bw":
+            track_id = "ucsc_multiz_phastCons100way_hg19"
+
+        tracks.append(
+            {
+                "id": track_id,
+                "name": f"Multiz Conservation (phastCons, {assembly})",
+                "type": "wig",
+                "format": "bigwig",
+                "url": f"/genomes/{phastcons}",
+                # phastCons 取值范围通常为 [0, 1]，固定范围能显著提升可比性与可读性
+                "min": 0,
+                "max": 1,
+                "color": "#1B5E20",
+                "height": 80,
+                "description": f"phastCons conservation scores derived from {assembly} multiz alignment (BigWig, local /genomes).",
+            }
+        )
+
+    phylop = _find_best_bigwig(
+        genomes_dir,
+        [
+            f"{assembly}.*phyloP*.bw",
+            f"{assembly}*phyloP*.bw",
+        ],
+    )
+    if phylop:
+        track_id = f"ucsc_multiz_phyloP_{assembly}"
+        if assembly == "hg19" and phylop == "hg19.100way.phyloP100way.bw":
+            track_id = "ucsc_multiz_phyloP100way_hg19"
+
+        tracks.append(
+            {
+                "id": track_id,
+                "name": f"Multiz Conservation (phyloP, {assembly})",
+                "type": "wig",
+                "format": "bigwig",
+                "url": f"/genomes/{phylop}",
+                # phyloP 同时包含正/负分数；用 diverging 色阶更直观地凸显保守/加速演化信号
+                "min": -2,
+                "max": 2,
+                "graphType": "heatmap",
+                "colorScale": {
+                    "type": "diverging",
+                    "min": -2,
+                    "mid": 0,
+                    "max": 2,
+                    "minColor": "rgb(46,56,183)",
+                    "midColor": "white",
+                    "maxColor": "rgb(164,0,30)",
+                },
+                "color": "#1565C0",
+                "height": 80,
+                "description": f"phyloP scores derived from {assembly} multiz alignment (BigWig, local /genomes).",
+            }
+        )
+
+    return tracks
 
 
 @router.get("/config/ucsc-multiz/{species_id}")
@@ -73,21 +128,32 @@ def get_ucsc_multiz_track_configs(
     """
     获取 UCSC multiz 衍生轨道（保守性分数）IGV.js 配置
 
-    当前仅支持 Human/hg19（species_id=1），以避免 assembly 不一致导致坐标错位。
+    该端点按本地 GENOMES_DIR 中的文件“可发现”返回保守性轨道：
+    - 若对应 assembly 的 BigWig 文件不存在，则返回空列表（不会报错）。
+    - 这样可以在不引入仓库大文件的前提下，允许用户按需安装其它物种/assembly 的保守性数据。
     """
-    if species_id != 1:
-        raise HTTPException(
-            status_code=400,
-            detail="UCSC multiz conservation tracks are currently only available for Human (species_id=1, hg19).",
-        )
+    # 获取该物种的 assembly（与 IGV 主配置保持一致）
+    try:
+        reference = get_genome_reference(species_id)
+    except HTTPException as e:
+        raise HTTPException(status_code=404, detail=str(e.detail)) from e
+
+    genomes_dir = settings.GENOMES_DIR
+    if not genomes_dir or not os.path.exists(genomes_dir):
+        tracks: list[dict] = []
+    else:
+        tracks = _build_multiz_conservation_tracks(genomes_dir, reference.id)
 
     return {
         "success": True,
         "data": {
-            "tracks": UCSC_HG19_MULTIZ_TRACKS,
+            "tracks": tracks,
             "species_id": species_id,
-            "species_name": "Human",
-            "genome_assembly": "hg19",
+            "species_name": SPECIES_NAMES.get(species_id, f"Species {species_id}"),
+            "genome_assembly": reference.id,
         },
-        "message": "UCSC multiz-derived conservation tracks (hg19, 100-way): phastCons + phyloP",
+        "message": (
+            f"UCSC multiz-derived conservation tracks for {reference.id}: "
+            f"{', '.join([t['id'] for t in tracks]) if tracks else 'none'}"
+        ),
     }

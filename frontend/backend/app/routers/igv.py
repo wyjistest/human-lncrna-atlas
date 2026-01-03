@@ -192,12 +192,13 @@ def list_available_genomes(request: Request, db: Session = Depends(get_db)):
     result = []
     for species in species_list:
         if species.species_id in GENOME_REFERENCES:
-            ref_data = GENOME_REFERENCES[species.species_id]
+            # 使用工具函数获取 reference（包含 hg19 离线化的运行时判断）
+            reference = get_genome_reference(species.species_id)
             result.append(SpeciesGenomeInfo(
                 species_id=species.species_id,
                 species_name=species.display_name,
-                genome_assembly=species.genome_assembly or ref_data["id"],
-                reference=GenomeReference(**ref_data),
+                genome_assembly=species.genome_assembly or reference.id,
+                reference=reference,
                 available=True,
             ))
         else:

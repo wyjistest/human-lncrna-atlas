@@ -28,6 +28,7 @@ ALLOWED_GENOME_EXTENSIONS = {
     '.gz', '.bgz',             # 压缩文件
     '.tbi', '.csi',            # Tabix 索引
     '.cytoband', '.cytoband.txt',  # 染色体带型（避免泛 .txt 放行）
+    '.tab',                    # 染色体别名表（如 hg19_alias.tab）
     '.sizes', '.chrom.sizes',  # 染色体大小
     '.2bit',                   # 2bit 格式
     '.bed', '.bedgraph',       # BED 格式

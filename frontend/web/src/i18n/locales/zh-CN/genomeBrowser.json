@@ -40,6 +40,24 @@
     "title": "UCSC Multiz 保守性",
     "hint": "multiz 衍生保守性分数（BigWig，本地 /genomes 按需加载）。",
     "humanOnly": "当前仅支持人类（hg19）。",
+    "notAvailable": "当前基因组未检测到本地保守性 BigWig 文件，请在 GENOMES_DIR 中放置对应文件后再试。",
+    "apply": "应用",
+    "reset": "重置",
+    "updated": "轨道 {{name}} 已更新",
+    "saved": "显示设置已保存（轨道加载时生效）。",
+    "resetSaved": "显示设置已重置（轨道加载时生效）。",
+    "settings": {
+      "default": "默认",
+      "min": "min",
+      "max": "max",
+      "height": "高度",
+      "graphType": "图形",
+      "windowFunction": "窗口"
+    },
+    "graphType": {
+      "heatmap": "热图",
+      "points": "点"
+    },
     "phastCons100way": "phastCons 100-way（hg19）",
     "phyloP100way": "phyloP 100-way（hg19）"
   },

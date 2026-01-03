@@ -68,6 +68,7 @@ GENOME_REFERENCES = {
         "indexURL": None,
         "cytobandURL": None,
         "twoBitURL": None,  # Not needed for built-in genome
+        # 说明：hg19 的离线化（twoBit/cytoband/alias/chromSizes）由 get_genome_reference() 在运行时按文件存在性决定
     },
     2: {  # Chimp (panTro5) - Use 2bit format for better performance
         "id": "panTro5",
@@ -76,6 +77,7 @@ GENOME_REFERENCES = {
         "indexURL": None,
         "cytobandURL": "/genomes/cytoBand.panTro5.txt.gz",  # Local path
         "twoBitURL": "/genomes/panTro5.2bit",  # Local path
+        "chromSizesURL": "/genomes/panTro5.chrom.sizes",
     },
     3: {  # Macaque (rheMac10) - Use 2bit format for better performance
         "id": "rheMac10",
@@ -84,6 +86,7 @@ GENOME_REFERENCES = {
         "indexURL": None,
         "cytobandURL": "/genomes/cytoBand.rheMac10.txt.gz",  # Local path
         "twoBitURL": "/genomes/rheMac10.2bit",  # Local path
+        "chromSizesURL": "/genomes/rheMac10.chrom.sizes",
     },
     4: {  # Marmoset (calJac3) - Use 2bit format for better performance
         "id": "calJac3",
@@ -92,6 +95,7 @@ GENOME_REFERENCES = {
         "indexURL": None,
         "cytobandURL": None,  # calJac3 does not have cytoBand data in UCSC
         "twoBitURL": "/genomes/calJac3.2bit",  # Local path
+        "chromSizesURL": "/genomes/calJac3.chrom.sizes",
     },
 }
 

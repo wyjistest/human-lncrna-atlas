@@ -18,7 +18,7 @@
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio, Dropdown, Switch, Collapse, Tag, Spin } from 'antd'
+import { Typography, Card, Input, Button, Space, message, Divider, Alert, Select, Radio, Dropdown, Switch, Collapse, Tag, Spin, InputNumber } from 'antd'
 import type { MenuProps } from 'antd'
 import { SearchOutlined, ExperimentOutlined, GlobalOutlined, AimOutlined, DownloadOutlined, SettingOutlined, BgColorsOutlined, LoadingOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -100,12 +100,17 @@ export default function GenomeBrowserPage() {
   const [showChIPSeq, setShowChIPSeq] = useState(false)
   const [selectedChIPSeqMarks, setSelectedChIPSeqMarks] = useState<string[]>([])
 
-  // UCSC multiz-derived conservation tracks (Human/hg19 only for now)
-  const [enabledMultizTracks, setEnabledMultizTracks] = useState<Record<string, boolean>>({
-    ucsc_multiz_phastCons100way_hg19: false,
-    ucsc_multiz_phyloP100way_hg19: false,
-  })
+  // UCSC multiz-derived conservation tracks (backend returns available tracks dynamically per species/assembly)
+  const [enabledMultizTracks, setEnabledMultizTracks] = useState<Record<string, boolean>>({})
   const [loadingMultizTracks, setLoadingMultizTracks] = useState<Record<string, boolean>>({})
+  type MultizDisplayOverrides = {
+    min?: number
+    max?: number
+    height?: number
+    graphType?: string
+    windowFunction?: string
+  }
+  const [multizDisplayOverrides, setMultizDisplayOverrides] = useState<Record<string, MultizDisplayOverrides>>({})
 
   // Color configuration for repeat classes
   const REPEAT_CLASS_COLORS: Record<string, string> = {
@@ -185,9 +190,38 @@ export default function GenomeBrowserPage() {
       const response = await genomeApi.getUCSCMultizTracks(speciesId, signal)
       return response.data.data.tracks
     },
-    enabled: speciesId === 1,
     staleTime: 60 * 60 * 1000, // 1 hour
   })
+
+  // Sync multiz track toggles with backend-provided track list (dynamic, per species)
+  useEffect(() => {
+    if (!ucscMultizTracks) {
+      return
+    }
+    setEnabledMultizTracks((prev) => {
+      const next: Record<string, boolean> = {}
+      for (const track of ucscMultizTracks) {
+        next[track.id] = prev[track.id] ?? false
+      }
+      return next
+    })
+    setLoadingMultizTracks((prev) => {
+      const next: Record<string, boolean> = {}
+      for (const track of ucscMultizTracks) {
+        if (prev[track.id]) {
+          next[track.id] = true
+        }
+      }
+      return next
+    })
+    setMultizDisplayOverrides((prev) => {
+      const next: Record<string, MultizDisplayOverrides> = {}
+      for (const track of ucscMultizTracks) {
+        next[track.id] = prev[track.id] ?? {}
+      }
+      return next
+    })
+  }, [ucscMultizTracks])
 
   // Handle ChIP-seq toggle
   const handleChIPSeqToggle = useCallback((checked: boolean) => {
@@ -296,17 +330,21 @@ export default function GenomeBrowserPage() {
     return fallback || trackId
   }, [t, ucscMultizTracks])
 
-  const loadMultizTrack = useCallback(async (trackId: string) => {
+  const buildMultizTrackConfig = useCallback((trackId: string) => {
+    const base = ucscMultizTracks?.find(t => t.id === trackId)
+    if (!base) return undefined
+    const overrides = multizDisplayOverrides[trackId]
+    if (!overrides || Object.keys(overrides).length === 0) return base
+    return { ...base, ...overrides }
+  }, [ucscMultizTracks, multizDisplayOverrides])
+
+  const loadMultizTrack = useCallback(async (trackId: string, mode: 'load' | 'update' = 'load') => {
     if (!browserHandleRef.current) {
       message.warning(t('exportNotReady'))
       return
     }
-    if (speciesId !== 1) {
-      message.warning(t('conservationTracks.humanOnly'))
-      return
-    }
 
-    const track = ucscMultizTracks?.find(t => t.id === trackId)
+    const track = buildMultizTrackConfig(trackId)
     if (!track) {
       message.error(t('trackLoadFailed', { name: getMultizTrackLabel(trackId) }))
       return
@@ -315,7 +353,11 @@ export default function GenomeBrowserPage() {
     setLoadingMultizTracks(prev => ({ ...prev, [trackId]: true }))
     try {
       await browserHandleRef.current.loadTrack(track as unknown as IGVTrackConfig)
-      message.success(t('trackLoaded', { name: getMultizTrackLabel(trackId) }))
+      if (mode === 'update') {
+        message.success(t('conservationTracks.updated', { name: getMultizTrackLabel(trackId) }))
+      } else {
+        message.success(t('trackLoaded', { name: getMultizTrackLabel(trackId) }))
+      }
     } catch (error) {
       console.error(`Failed to load UCSC multiz track ${trackId}:`, error)
       message.error(t('trackLoadFailed', { name: getMultizTrackLabel(trackId) }))
@@ -323,9 +365,9 @@ export default function GenomeBrowserPage() {
     } finally {
       setLoadingMultizTracks(prev => ({ ...prev, [trackId]: false }))
     }
-  }, [getMultizTrackLabel, speciesId, t, ucscMultizTracks])
+  }, [buildMultizTrackConfig, getMultizTrackLabel, t])
 
-  const removeMultizTrack = useCallback((trackId: string) => {
+  const removeMultizTrack = useCallback((trackId: string, silent: boolean = false) => {
     const handle = browserHandleRef.current
     if (!handle) return
 
@@ -334,8 +376,63 @@ export default function GenomeBrowserPage() {
     if (track && track.name !== trackId) {
       handle.removeTrack(track.name)
     }
-    message.info(t('trackRemoved', { name: getMultizTrackLabel(trackId) }))
+    if (!silent) {
+      message.info(t('trackRemoved', { name: getMultizTrackLabel(trackId) }))
+    }
   }, [getMultizTrackLabel, t, ucscMultizTracks])
+
+  const setMultizOverrideNumber = useCallback(
+    (trackId: string, key: 'min' | 'max' | 'height', value: number | null) => {
+      setMultizDisplayOverrides((prev) => {
+        const current = { ...(prev[trackId] ?? {}) }
+        if (value === null) {
+          delete current[key]
+        } else {
+          current[key] = value
+        }
+        return { ...prev, [trackId]: current }
+      })
+    },
+    [],
+  )
+
+  const setMultizOverrideString = useCallback(
+    (trackId: string, key: 'graphType' | 'windowFunction', value: string | undefined) => {
+      setMultizDisplayOverrides((prev) => {
+        const current = { ...(prev[trackId] ?? {}) }
+        if (!value) {
+          delete current[key]
+        } else {
+          current[key] = value
+        }
+        return { ...prev, [trackId]: current }
+      })
+    },
+    [],
+  )
+
+  const applyMultizDisplay = useCallback(async (trackId: string) => {
+    if (!enabledMultizTracks[trackId]) {
+      message.info(t('conservationTracks.saved'))
+      return
+    }
+    removeMultizTrack(trackId, true)
+    await loadMultizTrack(trackId, 'update')
+  }, [enabledMultizTracks, loadMultizTrack, removeMultizTrack, t])
+
+  const resetMultizDisplay = useCallback(async (trackId: string) => {
+    setMultizDisplayOverrides((prev) => {
+      const next = { ...prev }
+      delete next[trackId]
+      return next
+    })
+    if (!enabledMultizTracks[trackId]) {
+      message.info(t('conservationTracks.resetSaved'))
+      return
+    }
+    removeMultizTrack(trackId, true)
+    await loadMultizTrack(trackId, 'update')
+  }, [enabledMultizTracks, loadMultizTrack, removeMultizTrack, t])
 
   const handleMultizTrackToggle = useCallback(async (trackId: string, enabled: boolean) => {
     setEnabledMultizTracks(prev => ({ ...prev, [trackId]: enabled }))
@@ -398,16 +495,6 @@ export default function GenomeBrowserPage() {
       setSearchInput('')
     }
   }, [viewMode])
-
-  // UCSC multiz tracks are hg19-only for now; reset toggles when switching away from Human.
-  useEffect(() => {
-    if (speciesId === 1) return
-    setEnabledMultizTracks({
-      ucsc_multiz_phastCons100way_hg19: false,
-      ucsc_multiz_phyloP100way_hg19: false,
-    })
-    setLoadingMultizTracks({})
-  }, [speciesId])
 
   // Handle gene search
   const handleGeneSearch = useCallback((value: string) => {
@@ -932,59 +1019,123 @@ export default function GenomeBrowserPage() {
 	                  />
 
 	                  {/* UCSC Multiz (Conservation) Tracks */}
-	                  <Collapse
-	                    size="small"
-	                    items={[
-	                      {
-	                        key: 'ucscMultiz',
-	                        label: <span style={{ fontWeight: 500 }}>{t('conservationTracks.title')}</span>,
-	                        children: (
-	                          <Space orientation="vertical" style={{ width: '100%' }}>
-	                            <Text type="secondary" style={{ fontSize: 12 }}>
-	                              {t('conservationTracks.hint')}
-	                            </Text>
-
-	                            {speciesId !== 1 && (
-	                              <Alert
-	                                type="info"
-	                                showIcon
-	                                message={t('conservationTracks.humanOnly')}
-	                              />
-	                            )}
-
-	                            {speciesId === 1 && (
-	                              <>
-	                                {isLoadingUCSCMultizTracks ? (
-	                                  <Space>
-	                                    <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
-	                                    <span>{tCommon('status.loading') || 'Loading...'}</span>
-	                                  </Space>
-	                                ) : ucscMultizTracksError ? (
-	                                  <Alert
-	                                    type="error"
-	                                    showIcon
-	                                    message={t('trackLoadFailed', { name: t('conservationTracks.title') })}
-	                                  />
-	                                ) : (
-	                                  Object.keys(enabledMultizTracks).map((trackId) => (
-	                                    <Space key={trackId} align="center" style={{ width: '100%' }}>
-	                                      <Switch
-	                                        checked={enabledMultizTracks[trackId]}
-	                                        onChange={(checked) => handleMultizTrackToggle(trackId, checked)}
-	                                        loading={loadingMultizTracks[trackId]}
-	                                        size="small"
-	                                      />
-	                                      <span>{getMultizTrackLabel(trackId)}</span>
-	                                    </Space>
-	                                  ))
-	                                )}
-	                              </>
-	                            )}
-	                          </Space>
-	                        ),
-	                      },
-	                    ]}
-	                  />
+		                  <Collapse
+		                    size="small"
+		                    items={[
+		                      {
+		                        key: 'ucscMultiz',
+		                        label: <span style={{ fontWeight: 500 }}>{t('conservationTracks.title')}</span>,
+		                        children: (
+		                          <Space orientation="vertical" style={{ width: '100%' }}>
+		                            <Text type="secondary" style={{ fontSize: 12 }}>
+		                              {t('conservationTracks.hint')}
+		                            </Text>
+	
+		                            {isLoadingUCSCMultizTracks ? (
+		                              <Space>
+		                                <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
+		                                <span>{tCommon('status.loading') || 'Loading...'}</span>
+		                              </Space>
+		                            ) : ucscMultizTracksError ? (
+		                              <Alert
+		                                type="error"
+		                                showIcon
+		                                message={t('trackLoadFailed', { name: t('conservationTracks.title') })}
+		                              />
+		                            ) : !ucscMultizTracks || ucscMultizTracks.length === 0 ? (
+		                              <Alert
+		                                type="info"
+		                                showIcon
+		                                message={t('conservationTracks.notAvailable')}
+		                              />
+		                            ) : (
+		                              <Space orientation="vertical" style={{ width: '100%' }} size={12}>
+		                                {ucscMultizTracks.map((track) => {
+		                                  const overrides = multizDisplayOverrides[track.id] || {}
+		                                  const graphTypeValue = overrides.graphType || (track.graphType as string | undefined) || '__default__'
+		                                  const windowFnValue = overrides.windowFunction || (track.windowFunction as string | undefined) || '__default__'
+		                                  return (
+		                                    <Space key={track.id} orientation="vertical" style={{ width: '100%' }} size={6}>
+		                                      <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+		                                        <Space align="center">
+		                                          <Switch
+		                                            checked={!!enabledMultizTracks[track.id]}
+		                                            onChange={(checked) => handleMultizTrackToggle(track.id, checked)}
+		                                            loading={loadingMultizTracks[track.id]}
+		                                            size="small"
+		                                          />
+		                                          <span>{getMultizTrackLabel(track.id)}</span>
+		                                        </Space>
+		                                        <Space size={6}>
+		                                          <Button size="small" onClick={() => applyMultizDisplay(track.id)}>
+		                                            {t('conservationTracks.apply')}
+		                                          </Button>
+		                                          <Button size="small" onClick={() => resetMultizDisplay(track.id)}>
+		                                            {t('conservationTracks.reset')}
+		                                          </Button>
+		                                        </Space>
+		                                      </Space>
+	
+		                                      <Space size="small" wrap>
+		                                        <Text type="secondary">{t('conservationTracks.settings.min')}</Text>
+		                                        <InputNumber
+		                                          size="small"
+		                                          style={{ width: 92 }}
+		                                          value={overrides.min ?? track.min}
+		                                          onChange={(v) => setMultizOverrideNumber(track.id, 'min', v)}
+		                                        />
+		                                        <Text type="secondary">{t('conservationTracks.settings.max')}</Text>
+		                                        <InputNumber
+		                                          size="small"
+		                                          style={{ width: 92 }}
+		                                          value={overrides.max ?? track.max}
+		                                          onChange={(v) => setMultizOverrideNumber(track.id, 'max', v)}
+		                                        />
+		                                        <Text type="secondary">{t('conservationTracks.settings.height')}</Text>
+		                                        <InputNumber
+		                                          size="small"
+		                                          style={{ width: 92 }}
+		                                          min={20}
+		                                          max={300}
+		                                          value={overrides.height ?? track.height}
+		                                          onChange={(v) => setMultizOverrideNumber(track.id, 'height', v)}
+		                                        />
+		                                        <Text type="secondary">{t('conservationTracks.settings.graphType')}</Text>
+		                                        <Select
+		                                          size="small"
+		                                          style={{ width: 120 }}
+		                                          value={graphTypeValue}
+		                                          options={[
+		                                            { value: '__default__', label: t('conservationTracks.settings.default') },
+		                                            { value: 'heatmap', label: t('conservationTracks.graphType.heatmap') },
+		                                            { value: 'points', label: t('conservationTracks.graphType.points') },
+		                                          ]}
+		                                          onChange={(v) => setMultizOverrideString(track.id, 'graphType', v === '__default__' ? undefined : v)}
+		                                        />
+		                                        <Text type="secondary">{t('conservationTracks.settings.windowFunction')}</Text>
+		                                        <Select
+		                                          size="small"
+		                                          style={{ width: 120 }}
+		                                          value={windowFnValue}
+		                                          options={[
+		                                            { value: '__default__', label: t('conservationTracks.settings.default') },
+		                                            { value: 'none', label: 'none' },
+		                                            { value: 'min', label: 'min' },
+		                                            { value: 'max', label: 'max' },
+		                                          ]}
+		                                          onChange={(v) => setMultizOverrideString(track.id, 'windowFunction', v === '__default__' ? undefined : v)}
+		                                        />
+		                                      </Space>
+		                                    </Space>
+		                                  )
+		                                })}
+		                              </Space>
+		                            )}
+		                          </Space>
+		                        ),
+		                      },
+		                    ]}
+		                  />
 	                </Space>
 	              ),
 	            },

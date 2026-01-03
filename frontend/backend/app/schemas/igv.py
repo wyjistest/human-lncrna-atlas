@@ -23,6 +23,8 @@ class GenomeReference(BaseModel):
     indexURL: Optional[str] = None
     cytobandURL: Optional[str] = None
     twoBitURL: Optional[str] = None  # UCSC 2bit format for better performance
+    chromSizesURL: Optional[str] = None  # Optional: chromosome sizes file URL
+    aliasURL: Optional[str] = None  # Optional: chromosome alias table (e.g., hg19_alias.tab)
 
 
 class IGVTrack(BaseModel):
