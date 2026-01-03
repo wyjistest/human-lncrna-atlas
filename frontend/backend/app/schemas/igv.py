@@ -38,6 +38,13 @@ class IGVTrack(BaseModel):
     displayMode: Optional[str] = "EXPANDED"
     color: Optional[str] = None
     height: Optional[int] = None
+    # Wig/BigWig 可视化相关参数（可选）
+    min: Optional[float] = None
+    max: Optional[float] = None
+    graphType: Optional[str] = None
+    windowFunction: Optional[str] = None
+    autoscaleGroup: Optional[str] = None
+    colorScale: Optional[dict] = None
     visibilityWindow: Optional[int] = None
     # 标签显示相关配置
     labelFields: Optional[str] = None

@@ -194,7 +194,19 @@ declare module 'igv' {
     logScale?: boolean
     /** Show blocks at arc endpoints */
     showBlocks?: boolean
-    /** Maximum value for scaling */
+
+    // Wig/BigWig track common options
+    /** Autoscale group ID (tracks in the same group share the Y-scale) */
+    autoscaleGroup?: string
+    /** Downsampling window function for WIG/BigWig ('min' | 'max' | 'none' | ...) */
+    windowFunction?: string
+    /** Wig graph type ('bar' | 'points' | 'heatmap' | ...) */
+    graphType?: string
+    /** Color scale configuration (e.g., diverging/gradient) */
+    colorScale?: Record<string, unknown>
+    /** Minimum value for scaling */
+    min?: number
+    /** Maximum value for scaling (also used by some track types) */
     max?: number
     /** Use score field for coloring/sizing */
     useScore?: boolean

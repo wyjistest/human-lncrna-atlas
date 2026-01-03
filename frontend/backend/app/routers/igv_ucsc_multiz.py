@@ -31,8 +31,11 @@ UCSC_HG19_MULTIZ_TRACKS = [
         "type": "wig",
         "format": "bigwig",
         "url": "/genomes/hg19.100way.phastCons.bw",
-        "color": "#27AE60",
-        "height": 60,
+        # phastCons 取值范围通常为 [0, 1]，固定范围能显著提升可比性与可读性
+        "min": 0,
+        "max": 1,
+        "color": "#1B5E20",
+        "height": 80,
         "description": "phastCons conservation scores derived from hg19 multiz 100-way alignment (BigWig, local /genomes).",
     },
     {
@@ -41,8 +44,21 @@ UCSC_HG19_MULTIZ_TRACKS = [
         "type": "wig",
         "format": "bigwig",
         "url": "/genomes/hg19.100way.phyloP100way.bw",
-        "color": "#2980B9",
-        "height": 60,
+        # phyloP 同时包含正/负分数；用 diverging 色阶更直观地凸显保守/加速演化信号
+        "min": -2,
+        "max": 2,
+        "graphType": "heatmap",
+        "colorScale": {
+            "type": "diverging",
+            "min": -2,
+            "mid": 0,
+            "max": 2,
+            "minColor": "rgb(46,56,183)",
+            "midColor": "white",
+            "maxColor": "rgb(164,0,30)",
+        },
+        "color": "#1565C0",
+        "height": 80,
         "description": "phyloP scores derived from hg19 multiz 100-way alignment (BigWig, local /genomes).",
     },
 ]
