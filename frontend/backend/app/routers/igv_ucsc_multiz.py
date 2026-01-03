@@ -11,7 +11,8 @@ IGV UCSC Multiz / Conservation 轨道配置
 范围与约束：
 - 当前项目人类参考基因组使用 hg19（见前端内置基因组配置），因此仅对 Human/species_id=1
   提供 hg19 的 UCSC 保守性轨道；其它物种/assembly 后续可按需扩展。
-- 本端点只返回静态 track 配置，不代理数据；稳定性依赖客户端网络与 UCSC 服务可达性。
+- 本端点只返回静态 track 配置，不代理数据；数据由后端静态文件服务 `/genomes` 提供。
+- 使用前需设置 `GENOMES_DIR` 指向包含对应 `.bw` 文件的目录，并确保后端已挂载基因组文件服务。
 """
 
 from __future__ import annotations
@@ -29,20 +30,20 @@ UCSC_HG19_MULTIZ_TRACKS = [
         "name": "Multiz Conservation (phastCons 100-way, hg19)",
         "type": "wig",
         "format": "bigwig",
-        "url": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/phastCons100way/hg19.100way.phastCons.bw",
+        "url": "/genomes/hg19.100way.phastCons.bw",
         "color": "#27AE60",
         "height": 60,
-        "description": "UCSC phastCons conservation scores derived from hg19 multiz 100-way alignment (BigWig, remote).",
+        "description": "phastCons conservation scores derived from hg19 multiz 100-way alignment (BigWig, local /genomes).",
     },
     {
         "id": "ucsc_multiz_phyloP100way_hg19",
         "name": "Multiz Conservation (phyloP 100-way, hg19)",
         "type": "wig",
         "format": "bigwig",
-        "url": "https://hgdownload.soe.ucsc.edu/goldenPath/hg19/phyloP100way/hg19.100way.phyloP100way.bw",
+        "url": "/genomes/hg19.100way.phyloP100way.bw",
         "color": "#2980B9",
         "height": 60,
-        "description": "UCSC phyloP scores derived from hg19 multiz 100-way alignment (BigWig, remote).",
+        "description": "phyloP scores derived from hg19 multiz 100-way alignment (BigWig, local /genomes).",
     },
 ]
 
@@ -74,4 +75,3 @@ def get_ucsc_multiz_track_configs(
         },
         "message": "UCSC multiz-derived conservation tracks (hg19, 100-way): phastCons + phyloP",
     }
-

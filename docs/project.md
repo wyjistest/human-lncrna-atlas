@@ -223,6 +223,10 @@ psql -U amax -d lncrna_production -c "
 | `/api/v1/igv/config/ucsc-multiz/{species_id}` | GET | UCSC multiz 衍生保守性轨道配置（Human/hg19） |
 | `/api/v1/igv/overlap-track` | GET | lncRNA-ChIP-seq overlap 轨道（BED6，区域查询） |
 
+**UCSC multiz 保守性轨道（本地文件）**：
+- 需要启用后端静态基因组文件服务 `/genomes`（环境变量 `GENOMES_DIR` 指向基因组文件目录）。
+- 目录中需包含：`hg19.100way.phastCons.bw`、`hg19.100way.phyloP100way.bw`。
+
 **完整 API 文档**: http://localhost:8000/docs
 
 ---

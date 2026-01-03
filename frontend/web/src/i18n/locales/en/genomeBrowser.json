@@ -38,7 +38,7 @@
   "trackRemoved": "Track {{name}} removed",
   "conservationTracks": {
     "title": "UCSC Multiz Conservation",
-    "hint": "Multiz-derived conservation scores from UCSC (BigWig, remote load via HTTP Range).",
+    "hint": "Multiz-derived conservation scores (BigWig, local load via /genomes with HTTP Range).",
     "humanOnly": "Currently only available for Human (hg19).",
     "phastCons100way": "phastCons 100-way (hg19)",
     "phyloP100way": "phyloP 100-way (hg19)"
