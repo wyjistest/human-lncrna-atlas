@@ -487,6 +487,7 @@ export function LncRNAChIPSeqOverlapTable({
     },
     enabled: showChIPSeq && showIGV,
     staleTime: 5 * 60 * 1000,
+    meta: { skipGlobalErrorHandler: true },
   })
 
   // Validate selected marks when available marks change
@@ -1444,7 +1445,11 @@ export function LncRNAChIPSeqOverlapTable({
                                         <span>{tGenomeBrowser('chipseq.loadingMarks')}</span>
                                       </Space>
                                     ) : chipseqMarksError ? (
-                                      <Alert type="error" title={tGenomeBrowser('chipseq.loadMarksFailed')} />
+                                      <Alert
+                                        type="error"
+                                        showIcon
+                                        message={tGenomeBrowser('chipseq.loadMarksFailed')}
+                                      />
                                     ) : (
                                       <>
                                         <Text type="secondary" style={{ fontSize: 12 }}>

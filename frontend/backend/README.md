@@ -171,6 +171,17 @@ curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application
 uvicorn main:app --log-level debug
 ```
 
+### 生产环境请求日志调优（建议）
+
+默认会记录所有请求（`REQUEST_LOG_SLOW_THRESHOLD_MS=0` 且 `REQUEST_LOG_SAMPLE_RATE=1.0`）。在高 QPS 场景建议通过环境变量降低日志 I/O 压力：
+
+- `REQUEST_LOG_SLOW_THRESHOLD_MS=200`：仅记录慢请求（按需调整阈值）
+- `REQUEST_LOG_SAMPLE_RATE=0.1`：采样率 10%（按需调整）
+- `REQUEST_LOG_MAX_URL_LENGTH=2048`：限制 URL 长度，避免超长查询字符串导致日志膨胀
+- 如无需请求日志：`REQUEST_LOG_ENABLED=false`
+
+配置示例见 `frontend/backend/.env.example`（已包含上述选项的注释说明）。
+
 ### 生产部署
 
 ```bash

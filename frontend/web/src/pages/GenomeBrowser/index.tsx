@@ -161,6 +161,7 @@ export default function GenomeBrowserPage() {
     },
     enabled: showChIPSeq, // Only fetch when ChIP-seq toggle is enabled
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    meta: { skipGlobalErrorHandler: true },
   })
 
   // Validate selected marks when available marks change
@@ -191,6 +192,7 @@ export default function GenomeBrowserPage() {
       return response.data.data.tracks
     },
     staleTime: 60 * 60 * 1000, // 1 hour
+    meta: { skipGlobalErrorHandler: true },
   })
 
   // Sync multiz track toggles with backend-provided track list (dynamic, per species)
@@ -885,7 +887,8 @@ export default function GenomeBrowserPage() {
                                 ) : chipseqMarksError ? (
                                   <Alert
                                     type="error"
-                                    title={t('chipseq.loadMarksFailed')}
+                                    showIcon
+                                    message={t('chipseq.loadMarksFailed')}
                                   />
                                 ) : (
                                   <>
