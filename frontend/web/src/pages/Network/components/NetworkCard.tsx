@@ -209,13 +209,19 @@ export const NetworkCard = memo(({
     ]
 
     // 基于原始数据计算 BA 映射范围（避免过滤时频繁重建 style）
-    const baValues = data.edges
-      .map((e: NetworkEdge) => e.binding_affinity)
-      .filter((ba: number) => ba != null && ba > 0)
-
-    const minBARange = baValues.length > 0 ? Math.min(...baValues) : 0
-    let maxBARange = baValues.length > 0 ? Math.max(...baValues) : 100
-    if (minBARange === maxBARange) {
+    // 注意：避免 Math.min(...arr) 在大数组下的参数长度上限与性能问题
+    let minBARange = Number.POSITIVE_INFINITY
+    let maxBARange = Number.NEGATIVE_INFINITY
+    for (const edge of data.edges) {
+      const ba = edge.binding_affinity
+      if (ba == null || ba <= 0) continue
+      if (ba < minBARange) minBARange = ba
+      if (ba > maxBARange) maxBARange = ba
+    }
+    if (!Number.isFinite(minBARange) || !Number.isFinite(maxBARange)) {
+      minBARange = 0
+      maxBARange = 100
+    } else if (minBARange === maxBARange) {
       maxBARange = minBARange + 1
     }
 

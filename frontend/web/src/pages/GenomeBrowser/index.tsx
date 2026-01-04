@@ -30,6 +30,7 @@ import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/f
 import { genomeApi, type IGVTrackConfig } from '@/api/genome'
 import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
+import { parseError } from '@/utils/errorParser'
 
 const { Title, Paragraph, Text } = Typography
 const { Search } = Input
@@ -152,7 +153,8 @@ export default function GenomeBrowserPage() {
   const {
     data: availableChIPSeqMarks,
     isLoading: isLoadingChIPSeqMarks,
-    error: chipseqMarksError
+    error: chipseqMarksError,
+    refetch: refetchChIPSeqMarks,
   } = useQuery({
     queryKey: ['chipseq-marks', speciesId],
     queryFn: async ({ signal }) => {
@@ -163,6 +165,8 @@ export default function GenomeBrowserPage() {
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     meta: { skipGlobalErrorHandler: true },
   })
+
+  const parsedChIPSeqMarksError = chipseqMarksError ? parseError(chipseqMarksError) : null
 
   // Validate selected marks when available marks change
   // This ensures any previously selected marks that are no longer available get cleared
@@ -876,24 +880,54 @@ export default function GenomeBrowserPage() {
                               <span>{t('chipseq.enableTracks')}</span>
                             </Space>
 
-                            {/* ChIP-seq Mark Selector */}
-                            {showChIPSeq && (
-                              <>
-                                {isLoadingChIPSeqMarks ? (
-                                  <Space>
-                                    <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
-                                    <span>{t('chipseq.loadingMarks')}</span>
-                                  </Space>
-	                                ) : chipseqMarksError ? (
-	                                  <Alert
-	                                    type="error"
-	                                    showIcon
-	                                    title={t('chipseq.loadMarksFailed')}
-	                                  />
-	                                ) : (
-                                  <>
-                                    <Text type="secondary" style={{ fontSize: 12 }}>
-                                      {t('chipseq.selectMarksHint')}
+	                            {/* ChIP-seq Mark Selector */}
+	                            {showChIPSeq && (
+	                              <>
+	                                {isLoadingChIPSeqMarks || parsedChIPSeqMarksError?.type === 'canceled' ? (
+	                                  <Space>
+	                                    <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
+	                                    <span>{t('chipseq.loadingMarks')}</span>
+	                                  </Space>
+		                                ) : chipseqMarksError ? (
+		                                  <Alert
+		                                    type="error"
+		                                    showIcon
+		                                    title={t('chipseq.loadMarksFailed')}
+		                                    description={
+		                                      <Space direction="vertical" size={2}>
+		                                        {parsedChIPSeqMarksError?.statusCode != null && (
+		                                          <Text type="secondary">HTTP {parsedChIPSeqMarksError.statusCode}</Text>
+		                                        )}
+		                                        <Text type="secondary">
+		                                          {parsedChIPSeqMarksError?.message ||
+		                                            tCommon('error.loadFailed', 'Loading Failed')}
+		                                        </Text>
+		                                        <Text type="secondary" style={{ fontSize: 12 }}>
+		                                          需要 ChIP-seq 数据与数据库就绪；参考 docs/QUICKSTART_CHIPSEQ.md
+		                                        </Text>
+		                                      </Space>
+		                                    }
+		                                    action={
+		                                      <Button size="small" onClick={() => refetchChIPSeqMarks()}>
+		                                        {tCommon('action.retry', 'Retry')}
+		                                      </Button>
+		                                    }
+		                                  />
+		                                ) : (availableChIPSeqMarks?.length ?? 0) === 0 ? (
+		                                  <Alert
+		                                    type="info"
+		                                    showIcon
+		                                    title={t('chipseq.noMarksAvailable')}
+		                                    description={
+		                                      <Text type="secondary" style={{ fontSize: 12 }}>
+		                                        如已导入数据但仍为空，请检查物化视图/统计是否刷新；参考 docs/QUICKSTART_CHIPSEQ.md
+		                                      </Text>
+		                                    }
+		                                  />
+		                                ) : (
+		                                  <>
+		                                    <Text type="secondary" style={{ fontSize: 12 }}>
+		                                      {t('chipseq.selectMarksHint')}
                                     </Text>
                                     <Select
                                       mode="multiple"

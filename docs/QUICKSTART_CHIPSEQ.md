@@ -369,7 +369,19 @@ SELECT COUNT(*) FROM chipseq_experiments;
 REFRESH MATERIALIZED VIEW mv_chipseq_mark_stats;
 ```
 
-### 问题 2: API 返回 500 错误
+### 问题 2: 前端显示 "加载表观基因组标记失败"
+
+**原因**: 后端未启动 / API 不可达 / 数据库未就绪，导致 marks 列表请求失败
+
+**排查**:
+```bash
+# 直接检查 marks 列表 API（1=Human）
+curl -i "http://localhost:8000/api/v1/igv/chipseq/marks/1" | head
+```
+
+如果返回非 200 或长时间无响应，请优先检查后端进程与数据库连接（下一条）。
+
+### 问题 3: API 返回 500 错误
 
 **原因**: 数据库连接问题或表未创建
 
@@ -382,7 +394,7 @@ psql -U amax -d lncrna_production -c "\dt chipseq*"
 tail -f /tmp/backend.log
 ```
 
-### 问题 3: 导入脚本报错 "mark_type not found"
+### 问题 4: 导入脚本报错 "mark_type not found"
 
 **原因**: `epigenetic_mark_types` 表未初始化
 

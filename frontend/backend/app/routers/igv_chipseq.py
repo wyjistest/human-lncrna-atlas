@@ -110,8 +110,15 @@ def get_igv_chipseq_marks(
                     "peak_count": int(row[6] or 0),
                 }
             )
-    except Exception:
+    except Exception as e:
         # Fallback below (best-effort; avoid failing the whole endpoint)
+        logger.debug(
+            "mv_chipseq_mark_stats unavailable for species_id=%s species_code=%s: %s",
+            species_id,
+            sanitize_for_log(species.species_code),
+            sanitize_for_log(e),
+            exc_info=True,
+        )
         marks = []
 
     # Fallback: direct aggregation (slower on large peak tables; cached by TTL)
@@ -137,7 +144,16 @@ def get_igv_chipseq_marks(
             ORDER BY MIN(m.sort_order), m.mark_name
             """
         )
-        rows = db.execute(query, {"species_id": species_id}).fetchall()
+        try:
+            rows = db.execute(query, {"species_id": species_id}).fetchall()
+        except Exception as e:
+            logger.warning(
+                "Failed to aggregate chipseq marks for species_id=%s: %s",
+                species_id,
+                sanitize_for_log(e),
+                exc_info=True,
+            )
+            raise
         for row in rows:
             marks.append(
                 {
