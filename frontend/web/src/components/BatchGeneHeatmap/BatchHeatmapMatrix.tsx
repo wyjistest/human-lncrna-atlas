@@ -15,6 +15,7 @@ import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { escapeHtml } from '@/utils/escapeHtml'
+import { getMinMax } from '@/utils/minMax'
 import { getCellTypeColor, getCellTypeLabel, CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import { getMarkConfig, MARK_CONFIGS } from '@/config/markConfigs'
 import type { HeatmapMetricType, MarkType } from '@/types/chipseq'
@@ -218,15 +219,9 @@ export function BatchHeatmapMatrix({
       })
     })
 
-    // Compute value range
+    // Compute value range（安全遍历：避免 Math.min/max(...arr) 大数组问题）
     const validValues = values.filter((v): v is number => v !== null && v !== undefined)
-    const range =
-      validValues.length > 0
-        ? {
-            min: Math.min(...validValues, 0),
-            max: Math.max(...validValues, 1),
-          }
-        : { min: 0, max: 1 }
+    const range = getMinMax(validValues, { defaultMin: 0, defaultMax: 1, include: [0, 1] })
 
     return {
       yLabels: labels,

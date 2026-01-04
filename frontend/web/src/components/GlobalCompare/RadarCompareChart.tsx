@@ -22,6 +22,7 @@ import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
 import { getMarkColor, getMarkConfig } from '@/config/markConfigs'
+import { getMax } from '@/utils/minMax'
 import type { GlobalMarkSummary } from '@/types/globalCompare'
 import type { RadarParams } from '@/types/echarts'
 
@@ -89,12 +90,12 @@ export function RadarCompareChart({
     }
 
     return {
-      total_peaks: Math.max(...data.map((d) => d.total_peaks), 1),
-      avg_signal: Math.max(...data.map((d) => d.avg_signal), 1),
-      total_coverage_bp: Math.max(...data.map((d) => d.total_coverage_bp), 1),
-      cell_type_count: Math.max(...data.map((d) => d.cell_type_count), 1),
-      gene_count: Math.max(...data.map((d) => d.gene_count), 1),
-      avg_fold_enrichment: Math.max(...data.map((d) => d.avg_fold_enrichment), 1),
+      total_peaks: Math.max(getMax(data.map((d) => d.total_peaks), 0), 1),
+      avg_signal: Math.max(getMax(data.map((d) => d.avg_signal), 0), 1),
+      total_coverage_bp: Math.max(getMax(data.map((d) => d.total_coverage_bp), 0), 1),
+      cell_type_count: Math.max(getMax(data.map((d) => d.cell_type_count), 0), 1),
+      gene_count: Math.max(getMax(data.map((d) => d.gene_count), 0), 1),
+      avg_fold_enrichment: Math.max(getMax(data.map((d) => d.avg_fold_enrichment), 0), 1),
     }
   }, [data])
 

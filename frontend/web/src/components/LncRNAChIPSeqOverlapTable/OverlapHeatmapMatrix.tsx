@@ -37,6 +37,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { getMinMax } from '@/utils/minMax'
 import { MARK_CONFIGS } from '@/config/markConfigs'
 import { getCellTypeLabel } from '@/config/cellTypeConfigs'
 import { useOverlapHeatmap } from '@/hooks/useLncRNAChIPSeqOverlap'
@@ -243,10 +244,9 @@ export function OverlapHeatmapMatrix({
       }
     }
 
-    // Calculate value range
+    // Calculate value range（安全遍历：避免 Math.min/max(...arr) 大数组问题）
     const validValues = points.map((d) => d[2]).filter((v): v is number => v !== null)
-    const min = validValues.length > 0 ? Math.min(...validValues, 0) : 0
-    const max = validValues.length > 0 ? Math.max(...validValues, 1) : 1
+    const { min, max } = getMinMax(validValues, { defaultMin: 0, defaultMax: 1, include: [0, 1] })
 
     return {
       heatmapPoints: points,

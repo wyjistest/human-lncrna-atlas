@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { getMax } from '@/utils/minMax'
 import { getMarkColor, getMarkConfig } from '@/config/markConfigs'
 import type { MarkType, ChIPSeqCompareResponse, MarkComparisonData, OverlapRegion } from '@/types/chipseq'
 import type { TooltipFormatterParams, BarParams, HeatmapParams, BoxplotParams } from '@/types/echarts'
@@ -689,7 +690,7 @@ function OverlapHeatmapChart({
     // Create matrix data for heatmap
     const markLabels = marks.map((m) => getMarkConfig(m).shortName)
     const heatmapData: Array<[number, number, number]> = []
-    const maxValue = Math.max(...overlapRegions.map((r) => r.region_count), 1)
+    const maxValue = Math.max(getMax(overlapRegions.map((r) => r.region_count), 0), 1)
 
     // Build the heatmap matrix
     marks.forEach((mark1, i) => {

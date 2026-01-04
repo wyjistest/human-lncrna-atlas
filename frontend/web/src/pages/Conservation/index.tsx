@@ -47,6 +47,7 @@ import { ConservationDetailsDrawer } from './components/ConservationDetailsDrawe
 import type { ConservedRegulation } from '@/types/conservationPage'
 import { CONSERVATION_SPECIES } from '@/types/conservationPage'
 import { CONSERVATION_COLORS, getConservationCategory } from '@/types/conservation'
+import { getMinMax } from '@/utils/minMax'
 
 const { Title, Paragraph, Text } = Typography
 
@@ -140,10 +141,9 @@ export default function Conservation() {
     const sourceMatrix = matrixApiData.regulation_matrix || []
     const matrix = indices.map(i => indices.map(j => sourceMatrix[i]?.[j] ?? 0))
 
-    // Calculate min/max values
+    // Calculate min/max values（安全遍历：避免 Math.min/max(...arr) 大数组问题）
     const flatValues = matrix.flat().filter((v): v is number => typeof v === 'number')
-    const maxValue = flatValues.length > 0 ? Math.max(...flatValues) : 0
-    const minValue = flatValues.length > 0 ? Math.min(...flatValues) : 0
+    const { min: minValue, max: maxValue } = getMinMax(flatValues, { defaultMin: 0, defaultMax: 0 })
 
     return {
       species: selectedOrdered,

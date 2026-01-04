@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import { chipseqApi, chipseqQueryKeys } from '@/api/chipseq'
 import { getMarkConfig } from '@/config/markConfigs'
+import { getMax } from '@/utils/minMax'
 import type {
   MarkType,
   ChIPSeqFilters,
@@ -216,9 +217,7 @@ export function useChIPSeqCompare(
         const peakFoldEnrichments = (m.peaks || [])
           .map((p) => p.fold_enrichment)
           .filter((fe): fe is number => fe !== null && fe !== undefined)
-        const maxFoldEnrichment = peakFoldEnrichments.length > 0
-          ? Math.max(...peakFoldEnrichments)
-          : 0
+        const maxFoldEnrichment = getMax(peakFoldEnrichments, 0)
 
         return {
           mark_type: m.mark_type,

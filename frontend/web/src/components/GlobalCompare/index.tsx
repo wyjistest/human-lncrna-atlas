@@ -37,6 +37,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { getMarksGroupedByCategory, getAllMarkTypes, getMarkColor, getMarkConfig } from '@/config/markConfigs'
 import { getCellTypeOptions, getAllCellTypes, getCellTypeLabel } from '@/config/cellTypeConfigs'
+import { getMax } from '@/utils/minMax'
 import RadarCompareChart from './RadarCompareChart'
 import GlobalBarChart from './GlobalBarChart'
 import BoxPlotChart from './BoxPlotChart'
@@ -483,7 +484,7 @@ export function GlobalCompareSection({
           <Card size="small">
             <Statistic
               title={t('stats.totalGenes', 'Total Genes')}
-              value={Math.max(...mockCompareData.marks.map((m) => m.gene_count))}
+              value={getMax(mockCompareData.marks.map((m) => m.gene_count), 0)}
               formatter={(value) => {
                 const num = Number(value)
                 if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
@@ -497,7 +498,7 @@ export function GlobalCompareSection({
           <Card size="small">
             <Statistic
               title={t('stats.cellTypes', 'Cell Types')}
-              value={Math.max(...mockCompareData.marks.map((m) => m.cell_type_count))}
+              value={getMax(mockCompareData.marks.map((m) => m.cell_type_count), 0)}
               styles={{ content: { color: '#eb2f96' } }}
             />
           </Card>

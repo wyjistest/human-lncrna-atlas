@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { getMinMax } from '@/utils/minMax'
 import { getCellTypeColor, getCellTypeLabel, CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import { getMarkConfig, MARK_CONFIGS } from '@/config/markConfigs'
 import type { HeatmapMatrixResponse, HeatmapMetricType, MarkType } from '@/types/chipseq'
@@ -162,14 +163,7 @@ export function CellLineHeatmapMatrix({
       .map((d) => d[2])
       .filter((v): v is number => v !== null && v !== undefined)
 
-    if (validValues.length === 0) {
-      return { min: 0, max: 1 }
-    }
-
-    return {
-      min: Math.min(...validValues, 0),
-      max: Math.max(...validValues, 1),
-    }
+    return getMinMax(validValues, { defaultMin: 0, defaultMax: 1, include: [0, 1] })
   }, [heatmapData])
 
   // Generate cell type labels (Y-axis)

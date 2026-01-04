@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
 import { getChartToolbox } from '@/utils/chart-export'
+import { getMax } from '@/utils/minMax'
 import { getCellTypeColor, getCellTypeLabel, CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import { getMarkConfig } from '@/config/markConfigs'
 import type { CellLineComparisonResponse, MarkType } from '@/types/chipseq'
@@ -140,7 +141,7 @@ export function CellLineHeatmap({
       return [idx, 0, value]
     })
 
-    const maxValue = Math.max(...values.map((v) => v[2] as number), 1)
+    const maxValue = Math.max(getMax(values.map((v) => v[2] as number), 0), 1)
 
     // Get cell type labels
     const cellTypeLabels = cellTypes.map((ct) => getCellTypeLabel(ct, i18n.language))

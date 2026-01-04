@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver'
 import type { Core } from 'cytoscape'
 import type { NetworkData, NetworkNode, NetworkEdge } from '@/types/network'
 import { escapeCSV } from '@/utils/csv'
+import { getMax } from '@/utils/minMax'
 import { SPECIES_EN_NAMES } from '../types'
 import { exportCytoscapePngBlob } from './cytoscapeExport'
 
@@ -230,8 +231,8 @@ export const handleBatchExport = ({
             const padding = 40
             const titleHeight = 60
 
-            const maxWidth = Math.max(...speciesImages.map(img => img.width))
-            const maxHeight = Math.max(...speciesImages.map(img => img.height))
+            const maxWidth = getMax(speciesImages.map(img => img.width), 0)
+            const maxHeight = getMax(speciesImages.map(img => img.height), 0)
 
             const cellWidth = maxWidth
             const cellHeight = maxHeight + titleHeight
