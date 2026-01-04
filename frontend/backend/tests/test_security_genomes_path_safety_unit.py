@@ -25,6 +25,7 @@ def test_genomes_whitelist_allows_known_extensions():
     assert client.get("/panTro5.2bit").status_code == 200
     assert client.get("/cytoBand.panTro5.txt.gz").status_code == 200
     assert client.get("/tracks/repeatmasker_human.bb").status_code == 200
+    assert client.get("/hg19.fa.bgz").status_code == 200
 
 
 def test_genomes_blocks_dotfiles_and_traversal_defense_in_depth():
@@ -47,3 +48,14 @@ def test_genomes_blocks_dotfiles_and_traversal_defense_in_depth():
     assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/dir/%2e%2e/secret.fa")
     assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/%2eenv.gz")
     assert not GenomeFileWhitelistMiddleware._is_safe_static_path("/dir/%2ehidden.fa")
+
+
+def test_genomes_blocks_suspicious_compressed_files():
+    client = TestClient(GenomeFileWhitelistMiddleware(_ok_app))
+
+    # Block generic ".gz" without a known inner extension (reduces accidental exposure risk).
+    assert client.get("/secrets.gz").status_code == 403
+
+    # Block compressed scripts/configs even though ".gz" is broadly used for genome assets.
+    assert client.get("/script.py.gz").status_code == 403
+    assert client.get("/config.yaml.gz").status_code == 403

@@ -41,7 +41,8 @@ export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
 if (import.meta.env.DEV && /\/api\/v1\/?$/i.test(API_BASE_URL)) {
   console.warn(
     '[API] VITE_API_BASE_URL seems to include /api/v1. ' +
-    'The client already prefixes requests with /api/v1, so this may cause double /api/v1/api/v1.',
+    'Most API calls in this app already include /api/v1 in their request paths, ' +
+    'so this may cause double /api/v1/api/v1.',
   )
 }
 

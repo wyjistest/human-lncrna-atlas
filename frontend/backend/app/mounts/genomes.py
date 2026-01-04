@@ -37,6 +37,26 @@ ALLOWED_GENOME_EXTENSIONS = {
     '.bw', '.bigwig',          # BigWig
 }
 
+# 对压缩文件进行额外约束：必须是“已知的基因组数据类型 + .gz/.bgz”组合。
+# 这样可以避免误把脚本/配置等压缩文件（如 foo.py.gz / secrets.gz）暴露到 /genomes。
+#
+# 注意：这不是强安全边界（仍需确保 GENOMES_DIR 仅包含公开数据），但能显著降低误配置风险。
+ALLOWED_COMPRESSED_INNER_EXTENSIONS = {
+    '.fa', '.fasta', '.fna',
+    '.bed', '.bedgraph',
+    '.gff', '.gff3', '.gtf',
+    '.txt', '.tab',
+    '.sizes', '.chrom.sizes',
+    '.cytoband.txt',
+}
+
+
+def _is_allowed_compressed_path(path_lower: str) -> bool:
+    if path_lower.endswith(('.gz', '.bgz')):
+        suffix = ".bgz" if path_lower.endswith(".bgz") else ".gz"
+        return any(path_lower.endswith(f"{inner}{suffix}") for inner in ALLOWED_COMPRESSED_INNER_EXTENSIONS)
+    return True
+
 
 class GenomeFileWhitelistMiddleware:
     """只允许访问白名单内的文件扩展名"""
@@ -102,6 +122,15 @@ class GenomeFileWhitelistMiddleware:
                 if path_lower.endswith(ext):
                     allowed = True
                     break
+
+            if allowed and not _is_allowed_compressed_path(path_lower) and path != "/" and not path.endswith("/"):
+                response = StarletteResponse(
+                    content=b"Forbidden: Compressed file type not allowed",
+                    status_code=403,
+                    media_type="text/plain",
+                )
+                await response(scope, receive, send)
+                return
 
             if not allowed and path != "/" and not path.endswith("/"):
                 # 返回 403 Forbidden

@@ -968,13 +968,13 @@ export function LncRNAChIPSeqOverlapTable({
       <div style={enableIGV && showIGV ? { flex: '0 0 40%', overflow: 'auto', borderBottom: '2px solid #e8e8e8', padding: '16px' } : {}}>
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Error Alert - Show at top but allow filter panel to remain visible */}
-      {dataError && (
-        <Alert
-          type="error"
-          message={t('error.title', 'Loading Failed')}
-          description={
-            <Space orientation="vertical" size="small">
-              <span>{dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
+	      {dataError && (
+	        <Alert
+	          type="error"
+	          title={t('error.title', 'Loading Failed')}
+	          description={
+	            <Space orientation="vertical" size="small">
+	              <span>{dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
               <span style={{ fontSize: 12, color: '#999' }}>
                 {t('error.tryAdjustFilters', 'Try adjusting filters or retry the request')}
               </span>
@@ -1128,13 +1128,13 @@ export function LncRNAChIPSeqOverlapTable({
       </Card>
 
       {/* Phase 2 Notice */}
-      {enableStats && !showStats && (
-        <Alert
-          type="info"
-          message={t('notice.statsPhase2Title', 'Statistics Feature')}
-          description={t(
-            'notice.statsPhase2Desc',
-            'Enable statistics to see aggregate metrics and distributions (Phase 2 feature)'
+	      {enableStats && !showStats && (
+	        <Alert
+	          type="info"
+	          title={t('notice.statsPhase2Title', 'Statistics Feature')}
+	          description={t(
+	            'notice.statsPhase2Desc',
+	            'Enable statistics to see aggregate metrics and distributions (Phase 2 feature)'
           )}
           showIcon
           closable
@@ -1326,13 +1326,13 @@ export function LncRNAChIPSeqOverlapTable({
       </Card>
 
       {/* Context Info */}
-      {(lncrnaGeneId || targetGeneId) && (
-        <Alert
-          type="info"
-          message={t('info.filteredView', 'Filtered View')}
-          description={
-            <Space orientation="vertical" size={0}>
-              {lncrnaGeneId && (
+	      {(lncrnaGeneId || targetGeneId) && (
+	        <Alert
+	          type="info"
+	          title={t('info.filteredView', 'Filtered View')}
+	          description={
+	            <Space orientation="vertical" size={0}>
+	              {lncrnaGeneId && (
                 <span>
                   {t('info.filteredByLncRNA', 'Filtered by lncRNA')}:{' '}
                   <strong>Gene ID {lncrnaGeneId}</strong>
@@ -1444,13 +1444,13 @@ export function LncRNAChIPSeqOverlapTable({
                                         <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
                                         <span>{tGenomeBrowser('chipseq.loadingMarks')}</span>
                                       </Space>
-                                    ) : chipseqMarksError ? (
-                                      <Alert
-                                        type="error"
-                                        showIcon
-                                        message={tGenomeBrowser('chipseq.loadMarksFailed')}
-                                      />
-                                    ) : (
+	                                    ) : chipseqMarksError ? (
+	                                      <Alert
+	                                        type="error"
+	                                        showIcon
+	                                        title={tGenomeBrowser('chipseq.loadMarksFailed')}
+	                                      />
+	                                    ) : (
                                       <>
                                         <Text type="secondary" style={{ fontSize: 12 }}>
                                           {tGenomeBrowser('chipseq.selectMarksHint')}

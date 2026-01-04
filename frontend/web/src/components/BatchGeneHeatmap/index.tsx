@@ -211,34 +211,34 @@ export function BatchGeneHeatmapViewer({
       {/* Status Alerts */}
       {selectedGenes.length > 0 && (
         <>
-          {queryStatus.failedCount > 0 && (
-            <Alert
-              type="error"
-              message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
-              description={`Failed genes: ${queryStatus.failedGenes.join(', ')}`}
-              showIcon
-              closable
-            />
-          )}
+	          {queryStatus.failedCount > 0 && (
+	            <Alert
+	              type="error"
+	              title={t('batchGeneHeatmap.loadError', 'Failed to load data')}
+	              description={`Failed genes: ${queryStatus.failedGenes.join(', ')}`}
+	              showIcon
+	              closable
+	            />
+	          )}
 
-          {queryStatus.loadingCount > 0 && (
-            <Alert
-              type="info"
-              message={t('batchGeneHeatmap.loading', 'Loading data')}
-              description={`Fetching data for: ${queryStatus.loadingGenes.join(', ')}`}
-              showIcon
-            />
-          )}
+	          {queryStatus.loadingCount > 0 && (
+	            <Alert
+	              type="info"
+	              title={t('batchGeneHeatmap.loading', 'Loading data')}
+	              description={`Fetching data for: ${queryStatus.loadingGenes.join(', ')}`}
+	              showIcon
+	            />
+	          )}
 
-          {queryStatus.anySuccess && (
-            <Alert
-              type="success"
-              message={t('batchGeneHeatmap.loadSuccess', 'Data loaded successfully')}
-              description={`${queryStatus.successCount} of ${selectedGenes.length} genes loaded`}
-              showIcon
-              closable
-            />
-          )}
+	          {queryStatus.anySuccess && (
+	            <Alert
+	              type="success"
+	              title={t('batchGeneHeatmap.loadSuccess', 'Data loaded successfully')}
+	              description={`${queryStatus.successCount} of ${selectedGenes.length} genes loaded`}
+	              showIcon
+	              closable
+	            />
+	          )}
         </>
       )}
 

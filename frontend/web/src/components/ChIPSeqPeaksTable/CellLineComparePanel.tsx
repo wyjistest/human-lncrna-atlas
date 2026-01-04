@@ -140,13 +140,13 @@ export function CellLineComparePanel({
     >
       <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* Info Alert */}
-        <Alert
-          message={t(
-            'detail.chipseq.compareCellLinesHint',
-            'Select 2 or more cell lines to compare the same histone mark across different cell types'
-          )}
-          type="info"
-          showIcon
+	        <Alert
+	          title={t(
+	            'detail.chipseq.compareCellLinesHint',
+	            'Select 2 or more cell lines to compare the same histone mark across different cell types'
+	          )}
+	          type="info"
+	          showIcon
           icon={<InfoCircleOutlined />}
         />
 
@@ -234,14 +234,14 @@ export function CellLineComparePanel({
         </Button>
 
         {/* Selection Hint */}
-        {selectedCellTypes.length < 2 && selectedCellTypes.length > 0 && (
-          <Alert
-            message={t(
-              'detail.chipseq.selectMoreCellLines',
-              'Select at least one more cell line to enable comparison'
-            )}
-            type="warning"
-            showIcon
+	        {selectedCellTypes.length < 2 && selectedCellTypes.length > 0 && (
+	          <Alert
+	            title={t(
+	              'detail.chipseq.selectMoreCellLines',
+	              'Select at least one more cell line to enable comparison'
+	            )}
+	            type="warning"
+	            showIcon
             banner
           />
         )}

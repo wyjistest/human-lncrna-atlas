@@ -320,7 +320,7 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
       {isOverLimit && (
         <Alert
           type="warning"
-          message={t('visualization.overLimit', { limit: BATCH_LIMITS.MAX_VISUALIZATION })}
+          title={t('visualization.overLimit', { limit: BATCH_LIMITS.MAX_VISUALIZATION })}
           style={{ marginBottom: 12 }}
           showIcon
         />

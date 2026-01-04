@@ -704,16 +704,16 @@ const GenomeBrowser = memo(({
   }
 
   // No config state
-  if (!config) {
-    return (
-      <Alert
-        type="warning"
-        message={t('noConfig')}
-        description={t('noConfigDesc')}
-        style={{ margin: 16 }}
-      />
-    )
-  }
+	  if (!config) {
+	    return (
+	      <Alert
+	        type="warning"
+	        title={t('noConfig')}
+	        description={t('noConfigDesc')}
+	        style={{ margin: 16 }}
+	      />
+	    )
+	  }
 
   return (
     <div

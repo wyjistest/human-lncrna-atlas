@@ -437,18 +437,18 @@ export function BatchHeatmapMatrix({
     )
   }
 
-  if (error) {
-    return (
-      <Card loading={loading}>
-        <Alert
-          type="error"
-          message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
-          description={error?.message}
-          showIcon
-        />
-      </Card>
-    )
-  }
+	  if (error) {
+	    return (
+	      <Card loading={loading}>
+	        <Alert
+	          type="error"
+	          title={t('batchGeneHeatmap.loadError', 'Failed to load data')}
+	          description={error?.message}
+	          showIcon
+	        />
+	      </Card>
+	    )
+	  }
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>

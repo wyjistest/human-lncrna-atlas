@@ -59,7 +59,7 @@ export const ComparisonDrawer = ({
           <div>
             {speciesData.truncated && (
               <Alert
-                message={t('comparison.truncatedWarning', {
+                title={t('comparison.truncatedWarning', {
                   count: speciesData.target_count,
                   total: speciesData.total_target_count
                 })}

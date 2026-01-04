@@ -437,14 +437,14 @@ export function ChIPSeqPeaksTable({
         return <ErrorState error={matrixError} />
       }
 
-      if (!matrixData) {
-        return (
-          <Alert
-            type="info"
-            message={t('detail.chipseq.matrixNoData', 'No matrix data available')}
-            description={t(
-              'detail.chipseq.matrixNoDataDescription',
-              'The heatmap matrix data is loading or unavailable for this gene.'
+	      if (!matrixData) {
+	        return (
+	          <Alert
+	            type="info"
+	            title={t('detail.chipseq.matrixNoData', 'No matrix data available')}
+	            description={t(
+	              'detail.chipseq.matrixNoDataDescription',
+	              'The heatmap matrix data is loading or unavailable for this gene.'
             )}
             showIcon
           />
@@ -469,14 +469,14 @@ export function ChIPSeqPeaksTable({
 
     // Handle cell line comparison view
     if (viewMode === 'cellLines') {
-      if (!selectedMark) {
-        return (
-          <Alert
-            type="warning"
-            message={t('detail.chipseq.selectMarkFirst', 'Select a mark first')}
-            description={t(
-              'detail.chipseq.selectMarkFirstDescription',
-              'Please select a histone mark to compare across cell lines.'
+	      if (!selectedMark) {
+	        return (
+	          <Alert
+	            type="warning"
+	            title={t('detail.chipseq.selectMarkFirst', 'Select a mark first')}
+	            description={t(
+	              'detail.chipseq.selectMarkFirstDescription',
+	              'Please select a histone mark to compare across cell lines.'
             )}
             showIcon
           />
@@ -492,14 +492,14 @@ export function ChIPSeqPeaksTable({
       )
     }
 
-    if (selectedMarksForCompare.length === 0) {
-      return (
-        <Alert
-          type="info"
-          message={t('detail.chipseq.selectMarksToCompare', 'Select marks to compare')}
-          description={t(
-            'detail.chipseq.selectMarksDescription',
-            'Choose 2 or more marks from the selector above to compare their ChIP-seq profiles.'
+	    if (selectedMarksForCompare.length === 0) {
+	      return (
+	        <Alert
+	          type="info"
+	          title={t('detail.chipseq.selectMarksToCompare', 'Select marks to compare')}
+	          description={t(
+	            'detail.chipseq.selectMarksDescription',
+	            'Choose 2 or more marks from the selector above to compare their ChIP-seq profiles.'
           )}
           showIcon
         />
@@ -538,14 +538,14 @@ export function ChIPSeqPeaksTable({
         )
 
       case 'parallel':
-        if (selectedMarksForCompare.length !== 2) {
-          return (
-            <Alert
-              type="warning"
-              message={t('detail.chipseq.parallelRequiresTwoMarks', 'Select exactly 2 marks')}
-            />
-          )
-        }
+	        if (selectedMarksForCompare.length !== 2) {
+	          return (
+	            <Alert
+	              type="warning"
+	              title={t('detail.chipseq.parallelRequiresTwoMarks', 'Select exactly 2 marks')}
+	            />
+	          )
+	        }
         // Render parallel view with two tables
         return (
           <Row gutter={16}>

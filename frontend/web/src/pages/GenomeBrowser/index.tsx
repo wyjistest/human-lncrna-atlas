@@ -741,34 +741,34 @@ export default function GenomeBrowserPage() {
           </Space>
 
           {/* Mode-specific Alert */}
-          {viewMode === 'gene' ? (
-            <Alert
-              type="info"
-              showIcon
-              message={t('geneLoadMode')}
-              description={t('geneLoadModeDesc')}
-              style={{ marginTop: 8 }}
-            />
-          ) : (
-            <Alert
-              type="success"
-              showIcon
-              message={t('speciesBrowseMode')}
-              description={t('speciesBrowseModeDesc')}
-              style={{ marginTop: 8 }}
-            />
-          )}
+	          {viewMode === 'gene' ? (
+	            <Alert
+	              type="info"
+	              showIcon
+	              title={t('geneLoadMode')}
+	              description={t('geneLoadModeDesc')}
+	              style={{ marginTop: 8 }}
+	            />
+	          ) : (
+	            <Alert
+	              type="success"
+	              showIcon
+	              title={t('speciesBrowseMode')}
+	              description={t('speciesBrowseModeDesc')}
+	              style={{ marginTop: 8 }}
+	            />
+	          )}
 
           {/* Remote genome loading note for non-Human species */}
-          {speciesId !== 1 && viewMode === 'species' && (
-            <Alert
-              type="warning"
-              showIcon
-              message={t('remoteGenomeNote')}
-              description={t('remoteGenomeNoteDesc')}
-              style={{ marginTop: 8 }}
-            />
-          )}
+	          {speciesId !== 1 && viewMode === 'species' && (
+	            <Alert
+	              type="warning"
+	              showIcon
+	              title={t('remoteGenomeNote')}
+	              description={t('remoteGenomeNoteDesc')}
+	              style={{ marginTop: 8 }}
+	            />
+	          )}
         </Space>
 
         <Divider style={{ margin: '12px 0' }} />
@@ -884,13 +884,13 @@ export default function GenomeBrowserPage() {
                                     <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
                                     <span>{t('chipseq.loadingMarks')}</span>
                                   </Space>
-                                ) : chipseqMarksError ? (
-                                  <Alert
-                                    type="error"
-                                    showIcon
-                                    message={t('chipseq.loadMarksFailed')}
-                                  />
-                                ) : (
+	                                ) : chipseqMarksError ? (
+	                                  <Alert
+	                                    type="error"
+	                                    showIcon
+	                                    title={t('chipseq.loadMarksFailed')}
+	                                  />
+	                                ) : (
                                   <>
                                     <Text type="secondary" style={{ fontSize: 12 }}>
                                       {t('chipseq.selectMarksHint')}
@@ -1039,19 +1039,19 @@ export default function GenomeBrowserPage() {
 		                                <Spin indicator={<LoadingOutlined style={{ fontSize: 16 }} spin />} />
 		                                <span>{tCommon('status.loading') || 'Loading...'}</span>
 		                              </Space>
-		                            ) : ucscMultizTracksError ? (
-		                              <Alert
-		                                type="error"
-		                                showIcon
-		                                message={t('trackLoadFailed', { name: t('conservationTracks.title') })}
-		                              />
-		                            ) : !ucscMultizTracks || ucscMultizTracks.length === 0 ? (
-		                              <Alert
-		                                type="info"
-		                                showIcon
-		                                message={t('conservationTracks.notAvailable')}
-		                              />
-		                            ) : (
+			                            ) : ucscMultizTracksError ? (
+			                              <Alert
+			                                type="error"
+			                                showIcon
+			                                title={t('trackLoadFailed', { name: t('conservationTracks.title') })}
+			                              />
+			                            ) : !ucscMultizTracks || ucscMultizTracks.length === 0 ? (
+			                              <Alert
+			                                type="info"
+			                                showIcon
+			                                title={t('conservationTracks.notAvailable')}
+			                              />
+			                            ) : (
 		                              <Space orientation="vertical" style={{ width: '100%' }} size={12}>
 		                                {ucscMultizTracks.map((track) => {
 		                                  const overrides = multizDisplayOverrides[track.id] || {}

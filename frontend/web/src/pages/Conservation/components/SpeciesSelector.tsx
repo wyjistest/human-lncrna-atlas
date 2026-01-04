@@ -129,7 +129,7 @@ export function SpeciesSelector({
         {!isValid && (
           <Alert
             type="warning"
-            message={t(
+            title={t(
               'speciesSelector.validationError',
               `Please select between ${minSelection} and ${maxSelection} species`
             )}
