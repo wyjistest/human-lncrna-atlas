@@ -188,6 +188,11 @@ export function BatchHeatmapMatrix({
     const heatData: Array<[number, number, number | null]> = []
     const values: Array<number> = []
 
+    const markIndexMap = new Map<string, number>()
+    for (let i = 0; i < allMarks.length; i++) {
+      markIndexMap.set(allMarks[i], i)
+    }
+
     let yIndex = 0
 
     // For each gene, add all cell type rows
@@ -196,20 +201,18 @@ export function BatchHeatmapMatrix({
       labels.push(`${geneData.gene_name}`)
       yIndex++
 
+      const geneMarkIndices = geneData.marks.map((mark) => markIndexMap.get(mark))
+
       // Add rows for each cell type
-      geneData.cell_types.forEach((cellType) => {
+      geneData.cell_types.forEach((cellType, cellTypeIdx) => {
         const cellTypeLabel = getCellTypeLabel(cellType, i18n.language)
         labels.push(`  ${cellTypeLabel}`)
 
-        // For each mark, find the corresponding value in the matrix
-        geneData.marks.forEach((mark, markIdx) => {
-          const cellTypeIdx = geneData.cell_types.indexOf(cellType)
-          const value = geneData.matrix[cellTypeIdx]?.[markIdx]
-
-          // Map mark to global mark index
-          const globalMarkIdx = allMarks.indexOf(mark)
+        const row = geneData.matrix[cellTypeIdx] || []
+        geneMarkIndices.forEach((globalMarkIdx, markIdx) => {
+          if (globalMarkIdx == null) return
+          const value = row[markIdx]
           heatData.push([globalMarkIdx, yIndex, value])
-
           if (value !== null && value !== undefined) {
             values.push(value)
           }

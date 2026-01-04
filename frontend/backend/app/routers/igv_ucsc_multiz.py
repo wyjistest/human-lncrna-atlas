@@ -17,17 +17,21 @@ IGV UCSC Multiz / Conservation 轨道配置
 
 from __future__ import annotations
 
+import logging
 import os
 from glob import glob
 
 from fastapi import APIRouter, HTTPException, Path, Request
 
 from app.config.igv_genomes import SPECIES_NAMES
+from app.core.cache import cache
 from app.core.config import settings
+from app.core.utils import sanitize_for_log
 from app.core.igv_utils import get_genome_reference
 from app.routers.chipseq_rate_limit import rate_limit
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _find_best_bigwig(genomes_dir: str, patterns: list[str]) -> str | None:
@@ -139,12 +143,36 @@ def get_ucsc_multiz_track_configs(
         raise HTTPException(status_code=404, detail=str(e.detail)) from e
 
     genomes_dir = settings.GENOMES_DIR
+    dir_mtime: int | None = None
+    if genomes_dir and os.path.exists(genomes_dir):
+        try:
+            dir_mtime = int(os.stat(genomes_dir).st_mtime)
+        except OSError as e:
+            logger.debug(
+                "Failed to stat GENOMES_DIR=%s: %s",
+                sanitize_for_log(genomes_dir),
+                sanitize_for_log(e),
+                exc_info=True,
+            )
+            dir_mtime = None
+
+    cache_key = cache.make_key(
+        "igv:ucsc_multiz_tracks",
+        species_id=species_id,
+        genome_assembly=reference.id,
+        genomes_dir=genomes_dir or "",
+        dir_mtime=dir_mtime,
+    )
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
     if not genomes_dir or not os.path.exists(genomes_dir):
         tracks: list[dict] = []
     else:
         tracks = _build_multiz_conservation_tracks(genomes_dir, reference.id)
 
-    return {
+    result = {
         "success": True,
         "data": {
             "tracks": tracks,
@@ -157,3 +185,6 @@ def get_ucsc_multiz_track_configs(
             f"{', '.join([t['id'] for t in tracks]) if tracks else 'none'}"
         ),
     }
+
+    cache.set(cache_key, result, cache.TTL_STATS)
+    return result
