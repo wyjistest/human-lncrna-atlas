@@ -6,6 +6,7 @@ ETL 结束后通知后端刷新缓存（可选）
 - ETL/脚本导入完成后，可选触发后端 Admin API：
   1) 重置 MV 可用性缓存（避免继续走 fallback）
   2) 按命名空间失效业务缓存（避免 TTL 窗口内读到旧数据）
+  3) （可选）刷新后端使用的物化视图（可能较慢，默认关闭）
 - 默认关闭；失败不影响主流程（best-effort）。
 
 启用方式（环境变量）：
@@ -16,6 +17,11 @@ ETL 结束后通知后端刷新缓存（可选）
 - HLA_INVALIDATE_NAMESPACES=regulations,genes,stats   # 可选（默认所有白名单）
 - HLA_RESET_MV_CACHE=true|false                       # 默认 true
 - HLA_NOTIFY_TIMEOUT_SECONDS=10                       # 可选
+ - HLA_REFRESH_MATERIALIZED_VIEWS=true|false           # 默认 false
+ - HLA_MV_REFRESH_TIMEOUT_SECONDS=600                  # 可选（同时用于 HTTP 请求等待与 statement_timeout；0 表示使用后端默认）
+ - HLA_MV_REFRESH_CONCURRENTLY=true|false              # 默认 true
+ - HLA_MV_REFRESH_ANALYZE=true|false                   # 默认 true
+ - HLA_MV_REFRESH_VIEWS=mv_xxx,mv_yyy                  # 可选（为空则刷新后端默认列表）
 """
 
 from __future__ import annotations
@@ -61,6 +67,11 @@ class BackendNotifyConfig:
     invalidate_cache: bool
     invalidate_namespaces: list[str]
     reset_mv_cache: bool
+    refresh_materialized_views: bool
+    mv_refresh_timeout_seconds: Optional[int]
+    mv_refresh_concurrently: bool
+    mv_refresh_analyze: bool
+    mv_refresh_views: Optional[list[str]]
     timeout_seconds: int
 
 
@@ -90,6 +101,17 @@ def load_config_from_env(*, enabled_default: bool = False) -> BackendNotifyConfi
     reset_mv_cache = _env_bool("HLA_RESET_MV_CACHE", True)
     timeout_seconds = max(1, _env_int("HLA_NOTIFY_TIMEOUT_SECONDS", 10))
 
+    refresh_materialized_views = _env_bool("HLA_REFRESH_MATERIALIZED_VIEWS", False)
+    mv_refresh_timeout_raw = _env_int("HLA_MV_REFRESH_TIMEOUT_SECONDS", 600)
+    mv_refresh_timeout_seconds: Optional[int] = None if mv_refresh_timeout_raw <= 0 else mv_refresh_timeout_raw
+    mv_refresh_concurrently = _env_bool("HLA_MV_REFRESH_CONCURRENTLY", True)
+    mv_refresh_analyze = _env_bool("HLA_MV_REFRESH_ANALYZE", True)
+
+    mv_views_raw = os.getenv("HLA_MV_REFRESH_VIEWS")
+    mv_refresh_views = _split_csv(mv_views_raw) if mv_views_raw else None
+    if mv_refresh_views is not None and len(mv_refresh_views) == 0:
+        mv_refresh_views = None
+
     namespaces_raw = os.getenv("HLA_INVALIDATE_NAMESPACES")
     invalidate_namespaces = _split_csv(namespaces_raw) if namespaces_raw else list(DEFAULT_INVALIDATE_NAMESPACES)
 
@@ -100,6 +122,11 @@ def load_config_from_env(*, enabled_default: bool = False) -> BackendNotifyConfi
         invalidate_cache=invalidate_cache,
         invalidate_namespaces=invalidate_namespaces,
         reset_mv_cache=reset_mv_cache,
+        refresh_materialized_views=refresh_materialized_views,
+        mv_refresh_timeout_seconds=mv_refresh_timeout_seconds,
+        mv_refresh_concurrently=mv_refresh_concurrently,
+        mv_refresh_analyze=mv_refresh_analyze,
+        mv_refresh_views=mv_refresh_views,
         timeout_seconds=timeout_seconds,
     )
 
@@ -140,6 +167,24 @@ def notify_backend_best_effort(
         return
 
     base = cfg.backend_url.rstrip("/")
+
+    try:
+        if cfg.refresh_materialized_views:
+            payload = {
+                "views": cfg.mv_refresh_views,
+                "concurrently": bool(cfg.mv_refresh_concurrently),
+                "analyze": bool(cfg.mv_refresh_analyze),
+                "timeout_seconds": cfg.mv_refresh_timeout_seconds,
+            }
+            _post_json(
+                url=f"{base}/api/v1/admin/materialized-views/refresh",
+                admin_api_key=cfg.admin_api_key,
+                payload=payload,
+                timeout_seconds=cfg.mv_refresh_timeout_seconds or cfg.timeout_seconds,
+            )
+            logger.info("[%s] Admin notified: materialized-views/refresh", reason)
+    except (HTTPError, URLError, TimeoutError, ValueError) as e:
+        logger.warning("[%s] Admin notify failed (materialized-views/refresh): %s", reason, str(e)[:200])
 
     try:
         if cfg.reset_mv_cache:

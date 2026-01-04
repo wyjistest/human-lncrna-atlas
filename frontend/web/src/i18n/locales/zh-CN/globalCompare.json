@@ -2,6 +2,11 @@
   "title": "ChIP-seq 全局组蛋白修饰对比",
   "subtitle": "跨所有基因和细胞类型比较组蛋白修饰",
 
+  "demo": {
+    "title": "演示模式",
+    "description": "当前页面使用 mock 演示数据，后端真实接口尚未实现。"
+  },
+
   "filters": {
     "title": "筛选条件",
     "marks": "选择组蛋白修饰",

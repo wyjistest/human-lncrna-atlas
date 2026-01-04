@@ -2,6 +2,11 @@
   "title": "ChIP-seq Global Mark Comparison",
   "subtitle": "Compare histone modifications across all genes and cell types",
 
+  "demo": {
+    "title": "Demo mode",
+    "description": "This page currently uses mock data. Backend endpoints are not implemented yet."
+  },
+
   "filters": {
     "title": "Filters",
     "marks": "Select Marks",

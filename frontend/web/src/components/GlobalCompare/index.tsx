@@ -26,6 +26,7 @@ import {
   Space,
   Typography,
   Tag,
+  Alert,
 } from 'antd'
 import {
   RadarChartOutlined,
@@ -373,6 +374,17 @@ export function GlobalCompareSection({
           {t('title', 'ChIP-seq Global Mark Comparison')}
         </Title>
       )}
+
+      <Alert
+        type="info"
+        showIcon
+        banner
+        title={t('demo.title', 'Demo mode')}
+        description={t(
+          'demo.description',
+          'This page currently uses mock data. Backend endpoints are not implemented yet.'
+        )}
+      />
 
       {/* Filters Card */}
       <Card size="small" title={<><FilterOutlined /> {t('filters.title', 'Filters')}</>}>
