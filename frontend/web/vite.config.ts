@@ -66,7 +66,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     // Increase warning limit slightly since we now have more fine-grained chunks
-    chunkSizeWarningLimit: 650,
+    // Vite compares against uncompressed chunk size (kB).
+    // This project includes expected large, route-lazy dependencies (antd / echarts / igv).
+    // Keep warnings meaningful by setting the threshold above known vendors.
+    chunkSizeWarningLimit: 1500,
   },
   })
 })
