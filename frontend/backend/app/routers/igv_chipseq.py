@@ -10,8 +10,10 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache
 from app.core.database import get_db
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
@@ -49,6 +51,118 @@ MAX_LIMIT = 100_000
 # =============================================================================
 # ChIP-seq IGV Track Endpoints
 # =============================================================================
+
+@router.get("/chipseq/marks/{species_id}")
+@rate_limit("60/minute")
+def get_igv_chipseq_marks(
+    request: Request,
+    species_id: int = Path(..., ge=1, le=4, description="Species ID"),
+    db: Session = Depends(get_db),
+):
+    """
+    获取 IGV Genome Browser 可用的表观基因组 marks 列表。
+
+    说明：
+    - 前端用于决定哪些 marks 可以被选择并加载为轨道。
+    - 返回值使用标准 wrapper：{ success, data, message }。
+    - 优先尝试使用物化视图 mv_chipseq_mark_stats（更快）；不可用时回退到直接聚合查询。
+    """
+    cache_key = cache.make_key("igv:chipseq_marks", species_id=species_id)
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
+    species = db.query(Species).filter(Species.species_id == species_id).first()
+    if not species:
+        raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
+
+    marks: list[dict] = []
+
+    # Fast path: materialized view (if available)
+    try:
+        mv_stmt = text(
+            """
+            SELECT
+                m.mark_name,
+                m.display_name,
+                m.mark_category,
+                m.display_color,
+                m.description,
+                s.experiment_count,
+                s.total_peaks
+            FROM mv_chipseq_mark_stats s
+            JOIN epigenetic_mark_types m ON s.mark_name = m.mark_name
+            WHERE s.species_code = :species_code
+              AND m.is_active = TRUE
+            ORDER BY m.sort_order, m.mark_name
+            """
+        )
+        rows = db.execute(mv_stmt, {"species_code": species.species_code}).fetchall()
+        for row in rows:
+            marks.append(
+                {
+                    "mark_name": row[0],
+                    "display_name": row[1] or row[0],
+                    "mark_category": row[2],
+                    "display_color": row[3] or "#666666",
+                    "description": row[4],
+                    "experiment_count": int(row[5] or 0),
+                    "peak_count": int(row[6] or 0),
+                }
+            )
+    except Exception:
+        # Fallback below (best-effort; avoid failing the whole endpoint)
+        marks = []
+
+    # Fallback: direct aggregation (slower on large peak tables; cached by TTL)
+    if not marks:
+        query = text(
+            """
+            SELECT DISTINCT
+                m.mark_name,
+                m.display_name,
+                m.mark_category,
+                m.display_color,
+                m.description,
+                COUNT(DISTINCT e.experiment_id) AS experiment_count,
+                COUNT(p.peak_id) AS peak_count
+            FROM epigenetic_mark_types m
+            JOIN chipseq_experiments e ON m.mark_type_id = e.mark_type_id
+            LEFT JOIN chipseq_peaks p ON e.experiment_id = p.experiment_id
+            WHERE e.species_id = :species_id
+              AND e.is_active = TRUE
+              AND m.is_active = TRUE
+            GROUP BY m.mark_name, m.display_name, m.mark_category, m.display_color, m.description
+            HAVING COUNT(DISTINCT e.experiment_id) > 0
+            ORDER BY MIN(m.sort_order), m.mark_name
+            """
+        )
+        rows = db.execute(query, {"species_id": species_id}).fetchall()
+        for row in rows:
+            marks.append(
+                {
+                    "mark_name": row[0],
+                    "display_name": row[1] or row[0],
+                    "mark_category": row[2],
+                    "display_color": row[3] or "#666666",
+                    "description": row[4],
+                    "experiment_count": int(row[5] or 0),
+                    "peak_count": int(row[6] or 0),
+                }
+            )
+
+    result = {
+        "success": True,
+        "data": {
+            "species_id": species_id,
+            "species_name": species.display_name,
+            "marks": marks,
+        },
+        "message": f"Available epigenomic marks for {species.display_name}: {len(marks)}",
+    }
+    cache.set(cache_key, result, cache.TTL_STATS)
+    return result
+
 
 @router.get("/tracks/chipseq/{species_id}.bed")
 @rate_limit("60/minute")
