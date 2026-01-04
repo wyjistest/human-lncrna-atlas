@@ -17,11 +17,11 @@ ETL 结束后通知后端刷新缓存（可选）
 - HLA_INVALIDATE_NAMESPACES=regulations,genes,stats   # 可选（默认所有白名单）
 - HLA_RESET_MV_CACHE=true|false                       # 默认 true
 - HLA_NOTIFY_TIMEOUT_SECONDS=10                       # 可选
- - HLA_REFRESH_MATERIALIZED_VIEWS=true|false           # 默认 false
- - HLA_MV_REFRESH_TIMEOUT_SECONDS=600                  # 可选（同时用于 HTTP 请求等待与 statement_timeout；0 表示使用后端默认）
- - HLA_MV_REFRESH_CONCURRENTLY=true|false              # 默认 true
- - HLA_MV_REFRESH_ANALYZE=true|false                   # 默认 true
- - HLA_MV_REFRESH_VIEWS=mv_xxx,mv_yyy                  # 可选（为空则刷新后端默认列表）
+- HLA_REFRESH_MATERIALIZED_VIEWS=true|false           # 默认 false
+- HLA_MV_REFRESH_TIMEOUT_SECONDS=600                  # 可选（同时用于 HTTP 请求等待与 statement_timeout；0 表示使用后端默认）
+- HLA_MV_REFRESH_CONCURRENTLY=true|false              # 默认 true
+- HLA_MV_REFRESH_ANALYZE=true|false                   # 默认 true
+- HLA_MV_REFRESH_VIEWS=mv_xxx,mv_yyy                  # 可选（为空则刷新后端默认列表）
 """
 
 from __future__ import annotations
