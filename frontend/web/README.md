@@ -63,6 +63,9 @@ src/
 Create `.env.local` for local development:
 
 ```env
+# Optional (DEV):
+# If not set, the frontend defaults to http(s)://<frontend-hostname>:8000
+# This helps when accessing the Vite dev server via LAN IP.
 VITE_API_BASE_URL=http://localhost:8000
 ```
 

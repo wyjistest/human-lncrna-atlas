@@ -8,11 +8,23 @@
 
 /**
  * Base URL for the API server.
- * - Development: http://localhost:8000 (default)
+ * - Development: default to http(s)://<frontend-hostname>:8000 (supports LAN access)
  * - Production: default to same-origin (empty string), or set via VITE_API_BASE_URL
  */
 const ENV_API_BASE_URL = import.meta.env.VITE_API_BASE_URL
-const DEFAULT_API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:8000'
+
+const getDefaultDevApiBaseUrl = () => {
+  // Vite supports SSR builds; keep a safe fallback when window is unavailable.
+  if (import.meta.env.SSR || typeof window === 'undefined') {
+    return 'http://localhost:8000'
+  }
+
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:'
+  const hostname = window.location.hostname || 'localhost'
+  return `${protocol}//${hostname}:8000`
+}
+
+const DEFAULT_API_BASE_URL = import.meta.env.PROD ? '' : getDefaultDevApiBaseUrl()
 const RAW_API_BASE_URL =
   typeof ENV_API_BASE_URL === 'string' ? ENV_API_BASE_URL : DEFAULT_API_BASE_URL
 
