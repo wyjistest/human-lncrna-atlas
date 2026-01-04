@@ -214,7 +214,7 @@ export function BatchGeneHeatmapViewer({
           {queryStatus.failedCount > 0 && (
             <Alert
               type="error"
-              title={t('batchGeneHeatmap.loadError', 'Failed to load data')}
+              message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
               description={`Failed genes: ${queryStatus.failedGenes.join(', ')}`}
               showIcon
               closable
@@ -224,7 +224,7 @@ export function BatchGeneHeatmapViewer({
           {queryStatus.loadingCount > 0 && (
             <Alert
               type="info"
-              title={t('batchGeneHeatmap.loading', 'Loading data')}
+              message={t('batchGeneHeatmap.loading', 'Loading data')}
               description={`Fetching data for: ${queryStatus.loadingGenes.join(', ')}`}
               showIcon
             />
@@ -233,7 +233,7 @@ export function BatchGeneHeatmapViewer({
           {queryStatus.anySuccess && (
             <Alert
               type="success"
-              title={t('batchGeneHeatmap.loadSuccess', 'Data loaded successfully')}
+              message={t('batchGeneHeatmap.loadSuccess', 'Data loaded successfully')}
               description={`${queryStatus.successCount} of ${selectedGenes.length} genes loaded`}
               showIcon
               closable

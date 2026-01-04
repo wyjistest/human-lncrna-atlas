@@ -141,7 +141,7 @@ export function CellLineComparePanel({
       <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         {/* Info Alert */}
         <Alert
-          title={t(
+          message={t(
             'detail.chipseq.compareCellLinesHint',
             'Select 2 or more cell lines to compare the same histone mark across different cell types'
           )}
@@ -236,7 +236,7 @@ export function CellLineComparePanel({
         {/* Selection Hint */}
         {selectedCellTypes.length < 2 && selectedCellTypes.length > 0 && (
           <Alert
-            title={t(
+            message={t(
               'detail.chipseq.selectMoreCellLines',
               'Select at least one more cell line to enable comparison'
             )}

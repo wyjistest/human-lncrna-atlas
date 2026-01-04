@@ -13,6 +13,7 @@ export const useRegulations = (params: Parameters<typeof regulationsApi.list>[0]
       const { data } = await regulationsApi.list(params, signal)
       return data
     },
+    meta: { skipGlobalErrorHandler: true },
   })
 }
 

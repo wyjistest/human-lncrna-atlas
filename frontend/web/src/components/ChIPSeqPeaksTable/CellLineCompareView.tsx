@@ -132,7 +132,7 @@ export function CellLineCompareView({
       {/* Initial State - before comparison started */}
       {!comparisonStarted && (
         <Alert
-          title={t('detail.chipseq.cellLineCompare.getStarted', 'Get Started')}
+          message={t('detail.chipseq.cellLineCompare.getStarted', 'Get Started')}
           description={t(
             'detail.chipseq.cellLineCompare.getStartedDescription',
             'Select 2 or more cell lines from the panel above and click Compare to see how the same histone mark behaves across different cell types.'

@@ -971,7 +971,7 @@ export function LncRNAChIPSeqOverlapTable({
       {dataError && (
         <Alert
           type="error"
-          title={t('error.title', 'Loading Failed')}
+          message={t('error.title', 'Loading Failed')}
           description={
             <Space orientation="vertical" size="small">
               <span>{dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
@@ -1131,7 +1131,7 @@ export function LncRNAChIPSeqOverlapTable({
       {enableStats && !showStats && (
         <Alert
           type="info"
-          title={t('notice.statsPhase2Title', 'Statistics Feature')}
+          message={t('notice.statsPhase2Title', 'Statistics Feature')}
           description={t(
             'notice.statsPhase2Desc',
             'Enable statistics to see aggregate metrics and distributions (Phase 2 feature)'
@@ -1329,7 +1329,7 @@ export function LncRNAChIPSeqOverlapTable({
       {(lncrnaGeneId || targetGeneId) && (
         <Alert
           type="info"
-          title={t('info.filteredView', 'Filtered View')}
+          message={t('info.filteredView', 'Filtered View')}
           description={
             <Space orientation="vertical" size={0}>
               {lncrnaGeneId && (

@@ -89,6 +89,7 @@ export const useGenes = (params: Parameters<typeof genesApi.list>[0]) => {
       const { data } = await genesApi.list(params, signal)
       return data
     },
+    meta: { skipGlobalErrorHandler: true },
   })
 }
 
@@ -189,6 +190,7 @@ export const useGeneDetail = (geneId: number) => {
       return data
     },
     enabled: !!geneId,
+    meta: { skipGlobalErrorHandler: true },
   })
 }
 

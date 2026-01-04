@@ -442,7 +442,7 @@ export function BatchHeatmapMatrix({
       <Card loading={loading}>
         <Alert
           type="error"
-          title={t('batchGeneHeatmap.loadError', 'Failed to load data')}
+          message={t('batchGeneHeatmap.loadError', 'Failed to load data')}
           description={error?.message}
           showIcon
         />

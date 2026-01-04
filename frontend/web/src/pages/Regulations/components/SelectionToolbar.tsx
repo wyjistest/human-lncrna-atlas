@@ -54,7 +54,7 @@ export function SelectionToolbar({
     <Alert
       type={showWarning ? 'warning' : 'info'}
       showIcon
-      title={
+      message={
         <Space wrap>
           <span>
             {t('selection.selected', { count: selectedCount })}

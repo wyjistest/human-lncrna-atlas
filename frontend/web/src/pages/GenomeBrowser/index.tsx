@@ -745,7 +745,7 @@ export default function GenomeBrowserPage() {
             <Alert
               type="info"
               showIcon
-              title={t('geneLoadMode')}
+              message={t('geneLoadMode')}
               description={t('geneLoadModeDesc')}
               style={{ marginTop: 8 }}
             />
@@ -753,7 +753,7 @@ export default function GenomeBrowserPage() {
             <Alert
               type="success"
               showIcon
-              title={t('speciesBrowseMode')}
+              message={t('speciesBrowseMode')}
               description={t('speciesBrowseModeDesc')}
               style={{ marginTop: 8 }}
             />
@@ -764,7 +764,7 @@ export default function GenomeBrowserPage() {
             <Alert
               type="warning"
               showIcon
-              title={t('remoteGenomeNote')}
+              message={t('remoteGenomeNote')}
               description={t('remoteGenomeNoteDesc')}
               style={{ marginTop: 8 }}
             />

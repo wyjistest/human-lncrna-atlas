@@ -129,7 +129,8 @@ export const NetworkCard = memo(({
       }, signal)
       return res.data
     },
-    enabled: !!selectedLncrnaForComparison && comparisonDrawerOpen
+    enabled: !!selectedLncrnaForComparison && comparisonDrawerOpen,
+    meta: { skipGlobalErrorHandler: true },
   })
 
   // Handler for opening comparison

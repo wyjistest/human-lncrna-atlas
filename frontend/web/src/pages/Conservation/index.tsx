@@ -103,7 +103,8 @@ export default function Conservation() {
         by_combination: apiData.top_combinations || []
       }
     },
-    staleTime: 5 * 60 * 1000 // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    meta: { skipGlobalErrorHandler: true },
   })
 
   const {
@@ -114,7 +115,8 @@ export default function Conservation() {
     queryKey: ['conservation-matrix'],
     queryFn: ({ signal }) => conservationApi.getMatrix([1, 2, 3, 4], signal),
     enabled: selectedSpecies.length >= 2,
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    meta: { skipGlobalErrorHandler: true },
   })
 
   const matrixData = useMemo(() => {
@@ -168,7 +170,8 @@ export default function Conservation() {
       target_gene_name: targetSearch || undefined
     }, signal),
     enabled: selectedSpecies.length >= 2,
-    staleTime: 2 * 60 * 1000
+    staleTime: 2 * 60 * 1000,
+    meta: { skipGlobalErrorHandler: true },
   })
 
   // Handlers

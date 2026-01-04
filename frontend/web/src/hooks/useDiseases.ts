@@ -9,6 +9,7 @@ export const useDiseases = (params: Parameters<typeof diseasesApi.list>[0]) => {
       const { data } = await diseasesApi.list(params, signal)
       return data
     },
+    meta: { skipGlobalErrorHandler: true },
   })
 }
 
@@ -23,5 +24,6 @@ export const useDiseaseGenes = (
       return data
     },
     enabled: !!traitId,
+    meta: { skipGlobalErrorHandler: true },
   })
 }

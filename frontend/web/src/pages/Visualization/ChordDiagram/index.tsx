@@ -111,6 +111,7 @@ export default function ChordDiagram() {
         signal
       ),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    meta: { skipGlobalErrorHandler: true },
   })
 
   // Transform data for ECharts Circular Graph

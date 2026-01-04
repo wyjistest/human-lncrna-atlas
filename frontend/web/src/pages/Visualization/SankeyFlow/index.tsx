@@ -122,6 +122,7 @@ export default function SankeyFlow() {
         signal
       ),
     staleTime: 5 * 60 * 1000, // 5 minutes
+    meta: { skipGlobalErrorHandler: true },
   })
 
   // Transform data for ECharts Sankey
