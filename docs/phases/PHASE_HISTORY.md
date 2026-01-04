@@ -168,27 +168,12 @@ Overlap 页面 IGV 升级：
 | 功能 | 技术实现 |
 |------|---------|
 | Chord 图 | ECharts graph + circular layout |
-| 聚类热力图 | ECharts heatmap + SVG dendrogram |
 | 交互式保守性矩阵 | ECharts click + Ant Design Drawer |
 | 可视化导航中心 | 响应式卡片布局 |
 
-### 新增后端依赖
-
-```
-scipy>=1.12.0
-scikit-learn>=1.4.0
-```
-
 ### API 端点
 
-`GET /api/visualization/chord-data` - Chord 图数据
-
-### 聚类工具函数
-
-- `hierarchical_cluster()` - 层级聚类
-- `kmeans_cluster()` - K-means 聚类
-- `compute_correlation_matrix()` - 相关性矩阵
-- `find_optimal_clusters()` - 最优聚类数
+`GET /api/v1/visualization/chord-data` - Chord 图数据
 
 ---
 
@@ -268,7 +253,7 @@ scikit-learn>=1.4.0
 ### 涉及文件 (31 个)
 
 - **ETL 脚本**: `import_*.py`, `fix_chimp_empty_dna.py`
-- **后端核心**: `main.py`, `visualization.py`, `clustering.py`
+- **后端核心**: `main.py`, `visualization.py`
 - **测试文件**: `test_*.py` (11 个文件)
 - **验证脚本**: `scripts/*.py`
 - **Notebook**: `01_high_affinity_analysis.ipynb`
