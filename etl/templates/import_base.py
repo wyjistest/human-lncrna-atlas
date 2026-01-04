@@ -16,7 +16,15 @@ import csv
 from pathlib import Path
 
 from etl.templates.batch_manager import BatchManager
-from etl.backend_notify import notify_backend_best_effort
+
+try:
+    from etl.backend_notify import notify_backend_best_effort
+except ImportError:  # pragma: no cover
+    try:
+        from backend_notify import notify_backend_best_effort  # type: ignore
+    except ImportError:  # pragma: no cover
+        def notify_backend_best_effort(*_args, **_kwargs):  # type: ignore
+            return None
 
 logger = logging.getLogger(__name__)
 

@@ -28,7 +28,10 @@ from typing import Dict, List, Optional
 try:
     from etl.backend_notify import notify_backend_best_effort
 except ImportError:  # pragma: no cover
-    notify_backend_best_effort = None
+    try:
+        from backend_notify import notify_backend_best_effort  # type: ignore
+    except ImportError:  # pragma: no cover
+        notify_backend_best_effort = None
 
 logging.basicConfig(
     level=logging.INFO,

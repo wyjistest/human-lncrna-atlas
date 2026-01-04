@@ -25,7 +25,15 @@ from typing import Dict, Iterable, Iterator, List, Tuple
 try:
     from etl.backend_notify import notify_backend_best_effort
 except ImportError:  # pragma: no cover
-    notify_backend_best_effort = None
+    try:
+        from backend_notify import notify_backend_best_effort  # type: ignore
+    except ImportError:  # pragma: no cover
+        notify_backend_best_effort = None
+
+try:
+    from etl.db_config import get_db_config_from_env, finalize_db_config
+except ImportError:  # pragma: no cover
+    from db_config import get_db_config_from_env, finalize_db_config  # type: ignore
 
 logging.basicConfig(
     level=logging.INFO,
@@ -444,24 +452,32 @@ def main():
     parser = argparse.ArgumentParser(description='导入Ortholog数据')
     parser.add_argument('--lncrna-file', required=True, help='lncRNA ortholog CSV文件路径')
     parser.add_argument('--gene-file', required=True, help='基因ortholog CSV文件路径')
-    parser.add_argument('--host', default='localhost', help='数据库主机')
-    parser.add_argument('--port', default='5432', help='数据库端口')
-    parser.add_argument('--dbname', default='lncrna_production', help='数据库名称')
-    parser.add_argument('--user', required=True, help='数据库用户')
-    parser.add_argument('--password', help='数据库密码（可选，使用.pgpass）')
+    parser.add_argument('--host', help='数据库主机（或设置 DB_HOST 环境变量）')
+    parser.add_argument('--port', help='数据库端口（或设置 DB_PORT 环境变量）')
+    parser.add_argument('--dbname', help='数据库名称（或设置 DB_NAME 环境变量）')
+    parser.add_argument('--user', help='数据库用户（或设置 DB_USER 环境变量）')
+    parser.add_argument('--password', help='数据库密码（可选；也可用 DB_PASSWORD 或 .pgpass）')
     parser.add_argument('--dry-run', action='store_true', help='试运行模式')
 
     args = parser.parse_args()
 
-    db_config = {
-        'host': args.host,
-        'port': args.port,
-        'dbname': args.dbname,
-        'user': args.user,
-    }
-
+    db_config = get_db_config_from_env()
+    if args.host:
+        db_config["host"] = args.host
+    if args.port:
+        db_config["port"] = args.port
+    if args.dbname:
+        db_config["dbname"] = args.dbname
+    if args.user:
+        db_config["user"] = args.user
     if args.password:
-        db_config['password'] = args.password
+        db_config["password"] = args.password
+
+    if not db_config.get("user"):
+        logger.error("必须提供数据库用户名（--user 参数或 DB_USER 环境变量）")
+        sys.exit(1)
+
+    db_config = finalize_db_config(db_config)
 
     importer = OrthologImporter(db_config)
 

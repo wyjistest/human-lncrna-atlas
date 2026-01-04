@@ -32,7 +32,15 @@ from psycopg2.extras import execute_values
 try:
     from etl.backend_notify import notify_backend_best_effort
 except ImportError:  # pragma: no cover
-    notify_backend_best_effort = None
+    try:
+        from backend_notify import notify_backend_best_effort  # type: ignore
+    except ImportError:  # pragma: no cover
+        notify_backend_best_effort = None
+
+try:
+    from etl.db_config import get_db_config_from_env, finalize_db_config
+except ImportError:  # pragma: no cover
+    from db_config import get_db_config_from_env, finalize_db_config  # type: ignore
 
 logging.basicConfig(
     level=logging.INFO,
@@ -701,11 +709,11 @@ Examples:
                        help='Resume into an existing import_batches.batch_id (use with --skip-records)')
 
     # Database connection
-    parser.add_argument('--host', default='localhost', help='Database host')
-    parser.add_argument('--port', default='5432', help='Database port')
-    parser.add_argument('--dbname', default='lncrna_production', help='Database name')
-    parser.add_argument('--user', required=True, help='Database user')
-    parser.add_argument('--password', help='Database password (optional if using .pgpass)')
+    parser.add_argument('--host', help='Database host (or set DB_HOST env var)')
+    parser.add_argument('--port', help='Database port (or set DB_PORT env var)')
+    parser.add_argument('--dbname', help='Database name (or set DB_NAME env var)')
+    parser.add_argument('--user', help='Database user (or set DB_USER env var)')
+    parser.add_argument('--password', help='Database password (optional; or DB_PASSWORD / .pgpass)')
 
     args = parser.parse_args()
 
@@ -714,15 +722,23 @@ Examples:
         logger.error(f"File not found: {args.file}")
         sys.exit(1)
 
-    # Build database config
-    db_config = {
-        'host': args.host,
-        'port': args.port,
-        'dbname': args.dbname,
-        'user': args.user,
-    }
+    db_config = get_db_config_from_env()
+    if args.host:
+        db_config["host"] = args.host
+    if args.port:
+        db_config["port"] = args.port
+    if args.dbname:
+        db_config["dbname"] = args.dbname
+    if args.user:
+        db_config["user"] = args.user
     if args.password:
-        db_config['password'] = args.password
+        db_config["password"] = args.password
+
+    if not db_config.get("user"):
+        logger.error("DB user is required (--user or DB_USER)")
+        sys.exit(1)
+
+    db_config = finalize_db_config(db_config)
 
     # Run import
     importer = RepeatMaskerImporter(db_config)
