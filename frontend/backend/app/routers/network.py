@@ -92,6 +92,19 @@ def get_disease_network(
 
     返回该组合下所有相关lncRNA及其调控的靶基因网络
     """
+    cache_key = cache.make_key(
+        "network:disease",
+        trait_id=trait_id,
+        ontology_id=ontology_id,
+        species_id=species_id,
+        min_ba=min_ba,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # 验证trait和ontology存在
     trait = db.query(Trait).filter(Trait.trait_id == trait_id).first()
     ontology = db.query(Ontology).filter(Ontology.ontology_id == ontology_id).first()
@@ -194,7 +207,9 @@ def get_disease_network(
         "ontology_name": ontology.ontology_name,
     }
 
-    return NetworkData(nodes=list(nodes_dict.values()), edges=edges, stats=stats)
+    result = NetworkData(nodes=list(nodes_dict.values()), edges=edges, stats=stats)
+    cache.set(cache_key, result, cache.TTL_LIST)
+    return result
 
 
 @router.get("/gene/{gene_id}/detail", response_model=NetworkGeneDetail)
@@ -309,6 +324,19 @@ def get_gene_network(
     - depth: 网络深度（1=直接调控，2=二度调控）
     - max_edges: 最大边数限制，避免高连接度基因返回过多数据
     """
+    cache_key = cache.make_key(
+        "network:gene",
+        gene_id=gene_id,
+        species_id=species_id,
+        min_ba=min_ba,
+        max_distance=max_distance,
+        depth=depth,
+        max_edges=max_edges,
+    )
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # 验证基因存在
     center_gene = (
         db.query(Gene, CoreGene)
@@ -468,11 +496,13 @@ def get_gene_network(
         "max_edges_limit": max_edges,
     }
 
-    return NetworkData(
+    result = NetworkData(
         nodes=list(nodes_dict.values()),
         edges=edges,
         stats=stats,
     )
+    cache.set(cache_key, result, cache.TTL_DETAIL)
+    return result
 
 
 @router.get("/compare", response_model=SpeciesNetworkComparisonResponse)
