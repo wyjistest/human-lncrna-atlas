@@ -178,14 +178,23 @@ psql -d lncrna_production -f schema/v2.3/06_mv_lncrna_chipseq_overlaps_epigeneti
 # Refresh managed MVs (weekly or after ETL)
 ./scripts/refresh_materialized_views.sh
 
-# Admin API (optional): check status / trigger refresh (requires X-Admin-API-Key)
-curl -H "X-Admin-API-Key: <ADMIN_API_KEY>" "http://localhost:8000/api/v1/admin/materialized-views/status"
-curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application/json" \
-  "http://localhost:8000/api/v1/admin/materialized-views/refresh" \
-  -d '{"concurrently": true, "timeout_seconds": 600}'
-```
+	# Admin API (optional): check status / trigger refresh (requires X-Admin-API-Key)
+	curl -H "X-Admin-API-Key: <ADMIN_API_KEY>" "http://localhost:8000/api/v1/admin/materialized-views/status"
+	curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application/json" \
+	  "http://localhost:8000/api/v1/admin/materialized-views/refresh" \
+	  -d '{"concurrently": true, "timeout_seconds": 600}'
 
-## API Endpoints
+	# Optional: ETL post-run backend notify (best-effort)
+	# Enable cache invalidation and (optionally) refresh materialized views after ETL scripts finish.
+	export HLA_NOTIFY_BACKEND=true
+	export HLA_BACKEND_URL="http://localhost:8000"
+	export HLA_ADMIN_API_KEY="<ADMIN_API_KEY>"
+	# Optional (default=false): trigger MV refresh (can take a while)
+	export HLA_REFRESH_MATERIALIZED_VIEWS=true
+	export HLA_MV_REFRESH_TIMEOUT_SECONDS=600
+	```
+	
+	## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|

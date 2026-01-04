@@ -240,6 +240,8 @@ SELECT 'Refreshed' AS status;
 SQL
 ```
 
+可选：如果你是通过本仓库的 ETL/导入脚本批量更新数据，可以启用 `HLA_NOTIFY_BACKEND=true`，让脚本在结束时 best-effort 调用后端 Admin API 来失效缓存/刷新物化视图（默认关闭、失败不影响导入流程）。参考：`etl/backend_notify.py` 与 `README.md` 的 “Materialized Views” 小节。
+
 ---
 
 ### 步骤 4：验证导入结果
