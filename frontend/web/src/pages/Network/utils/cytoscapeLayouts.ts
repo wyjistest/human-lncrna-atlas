@@ -1,12 +1,21 @@
 import type { NodeSingular } from 'cytoscape'
 
+export type LayoutOptions = {
+  animate?: boolean
+  animationDuration?: number
+}
+
 /**
  * Get layout configuration for Cytoscape
  * @param layoutName - Name of the layout algorithm
+ * @param options - Override common layout options (e.g. disable animation for large graphs)
  * @returns Cytoscape layout configuration object
  */
-export const getLayoutConfig = (layoutName: string) => {
-  const baseConfig = { animate: true, animationDuration: 500 }
+export const getLayoutConfig = (layoutName: string, options?: LayoutOptions) => {
+  const baseConfig = {
+    animate: options?.animate ?? true,
+    animationDuration: options?.animationDuration ?? 500
+  }
 
   switch (layoutName) {
     case 'concentric':

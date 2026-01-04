@@ -65,6 +65,9 @@ declare module 'cytoscape' {
    * 用于存储临时、不可序列化的数据（推荐用于 DOM 引用/函数等）。
    */
   export interface Singular {
+    /** 元素 ID（等价于 ele.id()） */
+    id(): string
+
     scratch(): Record<string, unknown>
     scratch(namespace: string): unknown
     scratch(namespace: string, value: unknown): unknown
@@ -81,6 +84,11 @@ declare module 'cytoscape' {
     nodes(selector?: string): NodeCollection
     edges(selector?: string): EdgeCollection
     $id(id: string): NodeSingular | EdgeSingular
+
+    // 批量更新（减少多次重绘）
+    batch(callback: () => void): void
+    startBatch(): void
+    endBatch(): void
 
     // 视图方法
     fit(eles?: Collection, padding?: number): this

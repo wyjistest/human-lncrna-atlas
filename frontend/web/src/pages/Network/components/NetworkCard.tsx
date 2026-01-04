@@ -14,6 +14,7 @@ import { networkApi } from '@/api/network'
 import { escapeCSV } from '@/utils/csv'
 import { getLayoutConfig } from '../utils/cytoscapeLayouts'
 import { exportCytoscapePngBlob } from '../utils/cytoscapeExport'
+import { applyNetworkFilters } from '../utils/networkFiltering'
 import { GeneDetailDrawer } from './GeneDetailDrawer'
 import { ComparisonDrawer } from './ComparisonDrawer'
 import type { NetworkCardProps } from '../types'
@@ -25,31 +26,6 @@ type EdgeSingular = cytoscape.EdgeSingular
 
 // cytoscape 调用包装（绕过 TypeScript 类型检查）
 const createCytoscape = cytoscape as unknown as (options: cytoscape.CytoscapeOptions) => Core
-
-const EDGE_TOOLTIP_SCRATCH = '_hlaEdgeTooltip'
-type EdgeTooltipState = {
-  tooltipDiv: HTMLDivElement
-  updatePosition: (e: cytoscape.EventObject) => void
-}
-
-const cleanupEdgeTooltip = (edge: EdgeSingular) => {
-  const scratch = edge.scratch(EDGE_TOOLTIP_SCRATCH) as EdgeTooltipState | null | undefined
-  const tooltipDiv = scratch?.tooltipDiv ?? (edge.data('tooltipDiv') as HTMLDivElement | undefined)
-  const updatePosition =
-    scratch?.updatePosition ??
-    (edge.data('updatePosition') as ((e: cytoscape.EventObject) => void) | undefined)
-
-  if (tooltipDiv && document.body.contains(tooltipDiv)) {
-    document.body.removeChild(tooltipDiv)
-  }
-  if (updatePosition) {
-    edge.off('mousemove', updatePosition)
-  }
-
-  edge.scratch(EDGE_TOOLTIP_SCRATCH, null)
-  edge.removeData('tooltipDiv')
-  edge.removeData('updatePosition')
-}
 
 /**
  * NetworkCard Component
@@ -75,6 +51,11 @@ export const NetworkCard = memo(({
   const { t } = useTranslation('network')
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<Core | null>(null)
+  const onRefReadyRef = useRef(onRefReady)
+  const tRef = useRef(t)
+  const tooltipDivRef = useRef<HTMLDivElement | null>(null)
+  const hoveredEdgeIdRef = useRef<string | null>(null)
+
   const [selectedGeneId, setSelectedGeneId] = useState<number | null>(null)
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -90,16 +71,39 @@ export const NetworkCard = memo(({
 
   // 高级过滤器状态
   const [minBA, setMinBA] = useState<number>(0)
+  const [minBAApplied, setMinBAApplied] = useState<number>(0)
   const [nodeTypeFilter, setNodeTypeFilter] = useState<string>('all')
   const [minDegree, setMinDegree] = useState<number>(0)
+  const [minDegreeApplied, setMinDegreeApplied] = useState<number>(0)
   const [currentLayout, setCurrentLayout] = useState<string>('concentric')
+  const currentLayoutRef = useRef(currentLayout)
+
+  useEffect(() => {
+    currentLayoutRef.current = currentLayout
+  }, [currentLayout])
+
+  useEffect(() => {
+    onRefReadyRef.current = onRefReady
+  }, [onRefReady])
+
+  useEffect(() => {
+    tRef.current = t
+  }, [t])
 
   // 布局切换函数
   const handleLayoutChange = (layoutName: string) => {
+    setCurrentLayout(layoutName)
+    currentLayoutRef.current = layoutName
     if (!cyRef.current) return
 
-    setCurrentLayout(layoutName)
-    const layout = cyRef.current.layout(getLayoutConfig(layoutName))
+    const nodeCount = data?.nodes?.length ?? 0
+    const edgeCount = data?.edges?.length ?? 0
+    const shouldAnimate = nodeCount <= 300 && edgeCount <= 1000
+
+    const layout = cyRef.current.layout(getLayoutConfig(layoutName, {
+      animate: shouldAnimate,
+      animationDuration: shouldAnimate ? 500 : 0
+    }))
     layout.run()
   }
 
@@ -138,84 +142,45 @@ export const NetworkCard = memo(({
     setComparisonDrawerOpen(true)
   }
 
-  // 确保组件卸载时总是销毁Cytoscape实例和清理tooltip
-  useEffect(() => {
-    return () => {
-      // 清理所有残留的tooltip
-      document.querySelectorAll('[data-cy-tooltip]').forEach(el => {
-        if (document.body.contains(el)) {
-          document.body.removeChild(el)
-        }
-      })
-
-      // 销毁Cytoscape实例
-      if (cyRef.current) {
-        cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
-        cyRef.current.destroy()
-        cyRef.current = null
-      }
+  const removeTooltipDiv = () => {
+    const tooltipDiv = tooltipDivRef.current
+    if (tooltipDiv && document.body.contains(tooltipDiv)) {
+      document.body.removeChild(tooltipDiv)
     }
-  }, [])
+    tooltipDivRef.current = null
+    hoveredEdgeIdRef.current = null
+  }
 
-  // 当error或loading状态时，销毁现有实例
-  useEffect(() => {
-    if (error || loading) {
-      if (cyRef.current) {
-        cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
-        cyRef.current.destroy()
-        cyRef.current = null
-      }
+  const ensureTooltipDiv = () => {
+    if (tooltipDivRef.current && document.body.contains(tooltipDivRef.current)) {
+      return tooltipDivRef.current
     }
-  }, [error, loading])
 
-  // 渲染Cytoscape图表
+    const tooltipDiv = document.createElement('div')
+    tooltipDiv.setAttribute('data-cy-tooltip', 'true')
+    tooltipDiv.style.cssText = `
+      position: fixed;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 9999;
+      display: none;
+      white-space: nowrap;
+    `
+    document.body.appendChild(tooltipDiv)
+    tooltipDivRef.current = tooltipDiv
+    return tooltipDiv
+  }
+
+  // 渲染 Cytoscape 图表：仅在 data/error/loading 变化时重建，避免过滤/交互导致 destroy+create
   useEffect(() => {
     if (!data || !containerRef.current || error || loading) return
 
-    // 清理所有残留的tooltip
-    document.querySelectorAll('[data-cy-tooltip]').forEach(el => {
-      if (document.body.contains(el)) {
-        document.body.removeChild(el)
-      }
-    })
-
-    // 销毁旧实例
-    if (cyRef.current) {
-      cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
-      cyRef.current.off('mouseover', 'edge')
-      cyRef.current.off('mouseout', 'edge')
-      cyRef.current.off('tap', 'node')
-      cyRef.current.destroy()
-      cyRef.current = null
-    }
-
-    // 应用过滤器
-    const filteredEdges = data.edges.filter((edge: NetworkEdge) => {
-      const ba = edge.binding_affinity || 0
-      return ba >= minBA
-    })
-
-    const nodeDegrees = new Map<string, number>()
-    filteredEdges.forEach((edge: NetworkEdge) => {
-      nodeDegrees.set(edge.source, (nodeDegrees.get(edge.source) || 0) + 1)
-      nodeDegrees.set(edge.target, (nodeDegrees.get(edge.target) || 0) + 1)
-    })
-
-    const filteredNodes = data.nodes.filter((node: NetworkNode) => {
-      if (nodeTypeFilter !== 'all' && node.type !== nodeTypeFilter) {
-        return false
-      }
-      const degree = nodeDegrees.get(node.id) || 0
-      return degree >= minDegree
-    })
-
-    const nodeIds = new Set(filteredNodes.map((n: NetworkNode) => n.id))
-    const finalEdges = filteredEdges.filter((edge: NetworkEdge) =>
-      nodeIds.has(edge.source) && nodeIds.has(edge.target)
-    )
-
     const elements = [
-      ...filteredNodes.map((node: NetworkNode) => {
+      ...data.nodes.map((node: NetworkNode) => {
         const conservationData = parseConservationLabel(
           node.conservation_label,
           node.conservation_count
@@ -231,8 +196,9 @@ export const NetworkCard = memo(({
           }
         }
       }),
-      ...finalEdges.map((edge: NetworkEdge) => ({
+      ...data.edges.map((edge: NetworkEdge) => ({
         data: {
+          id: String(edge.regulation_id),
           source: edge.source,
           target: edge.target,
           ba: edge.binding_affinity || 0,
@@ -241,22 +207,39 @@ export const NetworkCard = memo(({
       }))
     ]
 
-    // 动态计算BA值范围
-    const baValues = finalEdges
+    // 基于原始数据计算 BA 映射范围（避免过滤时频繁重建 style）
+    const baValues = data.edges
       .map((e: NetworkEdge) => e.binding_affinity)
       .filter((ba: number) => ba != null && ba > 0)
 
     const minBARange = baValues.length > 0 ? Math.min(...baValues) : 0
     let maxBARange = baValues.length > 0 ? Math.max(...baValues) : 100
-
     if (minBARange === maxBARange) {
       maxBARange = minBARange + 1
     }
 
-    cyRef.current = createCytoscape({
+    const nodeCount = data.nodes?.length ?? 0
+    const edgeCount = data.edges?.length ?? 0
+    const shouldAnimate = nodeCount <= 300 && edgeCount <= 1000
+
+    const layoutName = currentLayoutRef.current
+
+    const cy = createCytoscape({
       container: containerRef.current,
       elements,
       style: [
+        {
+          selector: 'node.filtered-out',
+          style: {
+            'display': 'none'
+          }
+        },
+        {
+          selector: 'edge.filtered-out',
+          style: {
+            'display': 'none'
+          }
+        },
         {
           selector: 'node[type="lncRNA"]',
           style: {
@@ -333,92 +316,129 @@ export const NetworkCard = memo(({
           }
         }
       ],
-      layout: getLayoutConfig(currentLayout)
+      layout: getLayoutConfig(layoutName, {
+        animate: shouldAnimate,
+        animationDuration: shouldAnimate ? 500 : 0
+      })
     })
 
-    // 通知父组件 cyRef 已准备好
-    onRefReady?.(cyRef as React.RefObject<Core>, true)
+    cyRef.current = cy
+    onRefReadyRef.current?.(cyRef as React.RefObject<Core>, true)
 
-    // 添加边的tooltip
-    cyRef.current.on('mouseover', 'edge', (evt: cytoscape.EventObject) => {
+    const hideTooltip = () => {
+      hoveredEdgeIdRef.current = null
+      const tooltipDiv = tooltipDivRef.current
+      if (tooltipDiv) {
+        tooltipDiv.style.display = 'none'
+      }
+    }
+
+    const updateTooltipPosition = (evt: cytoscape.EventObject) => {
+      const tooltipDiv = tooltipDivRef.current
+      if (!tooltipDiv) return
+      const mouseEvent = evt.originalEvent as MouseEvent | undefined
+      if (!mouseEvent) return
+      tooltipDiv.style.left = `${mouseEvent.clientX + 10}px`
+      tooltipDiv.style.top = `${mouseEvent.clientY + 10}px`
+    }
+
+    // tooltip：使用 delegated 事件，避免为每条 edge 绑定 mousemove
+    const handleEdgeMouseOver = (evt: cytoscape.EventObject) => {
       const edge = evt.target as EdgeSingular
       const baRaw = edge.data('ba')
       if (baRaw === undefined || baRaw === null) return
       const ba = typeof baRaw === 'number' ? baRaw : Number(baRaw)
       if (Number.isNaN(ba)) return
 
-      cleanupEdgeTooltip(edge)
+      const tooltipDiv = ensureTooltipDiv()
+      hoveredEdgeIdRef.current = edge.id()
 
-      const tooltipDiv = document.createElement('div')
-      tooltipDiv.setAttribute('data-cy-tooltip', 'true')
-      tooltipDiv.style.cssText = `
-        position: fixed;
-        background: white;
-        padding: 8px 12px;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-        font-size: 12px;
-        pointer-events: none;
-        z-index: 9999;
-      `
+      tooltipDiv.innerHTML = ''
       const labelSpan = document.createElement('strong')
-      labelSpan.textContent = t('edge.bindingAffinityLabel')
+      labelSpan.textContent = tRef.current('edge.bindingAffinityLabel')
       const valueSpan = document.createElement('span')
       valueSpan.textContent = ba.toFixed(2)
       tooltipDiv.appendChild(labelSpan)
       tooltipDiv.appendChild(valueSpan)
-      document.body.appendChild(tooltipDiv)
+      tooltipDiv.style.display = 'block'
+      updateTooltipPosition(evt)
+    }
 
-      const origEvent = evt.originalEvent as MouseEvent | undefined
-      if (origEvent) {
-        tooltipDiv.style.left = `${origEvent.clientX + 10}px`
-        tooltipDiv.style.top = `${origEvent.clientY + 10}px`
-      }
-
-      const updatePosition = (e: cytoscape.EventObject) => {
-        if (tooltipDiv && document.body.contains(tooltipDiv)) {
-          const mouseEvent = e.originalEvent as MouseEvent | undefined
-          if (mouseEvent) {
-            tooltipDiv.style.left = `${mouseEvent.clientX + 10}px`
-            tooltipDiv.style.top = `${mouseEvent.clientY + 10}px`
-          }
-        }
-      }
-
-      edge.on('mousemove', updatePosition)
-      edge.scratch(EDGE_TOOLTIP_SCRATCH, { tooltipDiv, updatePosition } satisfies EdgeTooltipState)
-    })
-
-    cyRef.current.on('mouseout', 'edge', (evt: cytoscape.EventObject) => {
+    const handleEdgeMouseMove = (evt: cytoscape.EventObject) => {
       const edge = evt.target as EdgeSingular
-      cleanupEdgeTooltip(edge)
-    })
+      if (hoveredEdgeIdRef.current !== edge.id()) return
+      updateTooltipPosition(evt)
+    }
 
-    // 添加节点点击事件
-    cyRef.current.on('tap', 'node', (evt: cytoscape.EventObject) => {
+    const handleEdgeMouseOut = (evt: cytoscape.EventObject) => {
+      const edge = evt.target as EdgeSingular
+      if (hoveredEdgeIdRef.current !== edge.id()) return
+      hideTooltip()
+    }
+
+    const handleNodeTap = (evt: cytoscape.EventObject) => {
       const node = evt.target as NodeSingular
       const geneId = node.data('gene_id') as number | undefined
       if (geneId) {
         setSelectedGeneId(geneId)
         setDetailDrawerOpen(true)
       }
-    })
+    }
+
+    cy.on('mouseover', 'edge', handleEdgeMouseOver)
+    cy.on('mousemove', 'edge', handleEdgeMouseMove)
+    cy.on('mouseout', 'edge', handleEdgeMouseOut)
+    cy.on('tap', 'node', handleNodeTap)
 
     return () => {
-      document.querySelectorAll('[data-cy-tooltip]').forEach(el => {
-        if (document.body.contains(el)) {
-          document.body.removeChild(el)
+      hideTooltip()
+      removeTooltipDiv()
+
+      cy.off('mouseover', 'edge', handleEdgeMouseOver)
+      cy.off('mousemove', 'edge', handleEdgeMouseMove)
+      cy.off('mouseout', 'edge', handleEdgeMouseOut)
+      cy.off('tap', 'node', handleNodeTap)
+
+      cy.destroy()
+      if (cyRef.current === cy) {
+        cyRef.current = null
+      }
+      onRefReadyRef.current?.(cyRef as React.RefObject<Core>, false)
+    }
+  }, [data, error, loading])
+
+  // 过滤器只对现有元素加/去 class，不触发实例重建
+  useEffect(() => {
+    if (!cyRef.current || !data) return
+
+    const { filteredNodes, finalEdges } = applyNetworkFilters(
+      data,
+      minBAApplied,
+      nodeTypeFilter,
+      minDegreeApplied
+    )
+
+    const visibleNodeIds = new Set(filteredNodes.map((n: NetworkNode) => n.id))
+    const visibleEdgeIds = new Set(finalEdges.map((e: NetworkEdge) => String(e.regulation_id)))
+
+    const cy = cyRef.current
+    cy.batch(() => {
+      cy.nodes().forEach((node: NodeSingular) => {
+        if (visibleNodeIds.has(node.id())) {
+          node.removeClass('filtered-out')
+        } else {
+          node.addClass('filtered-out')
         }
       })
-
-      if (cyRef.current) {
-        cyRef.current.edges().forEach((edge: EdgeSingular) => cleanupEdgeTooltip(edge))
-        cyRef.current.off('mouseover', 'edge')
-        cyRef.current.off('mouseout', 'edge')
-        cyRef.current.off('tap', 'node')
-      }
-    }
-  }, [data, error, loading, minBA, nodeTypeFilter, minDegree, currentLayout, t, onRefReady])
+      cy.edges().forEach((edge: EdgeSingular) => {
+        if (visibleEdgeIds.has(edge.id())) {
+          edge.removeClass('filtered-out')
+        } else {
+          edge.addClass('filtered-out')
+        }
+      })
+    })
+  }, [data, minBAApplied, nodeTypeFilter, minDegreeApplied])
 
   // 独立的搜索高亮 Effect
   useEffect(() => {
@@ -450,7 +470,7 @@ export const NetworkCard = memo(({
     } else {
       setSearchResults([])
     }
-  }, [searchTerm, data, minBA, nodeTypeFilter, minDegree, currentLayout])
+  }, [searchTerm, data])
 
   const handleSearch = (value: string) => {
     setSearchTerm(value)
@@ -732,7 +752,7 @@ export const NetworkCard = memo(({
               label: (
                 <span style={{ fontSize: 12 }}>
                   <FilterOutlined /> {t('filters.title')}
-                  {(minBA > 0 || nodeTypeFilter !== 'all' || minDegree > 0) && (
+                  {(minBAApplied > 0 || nodeTypeFilter !== 'all' || minDegreeApplied > 0) && (
                     <Tag color="blue" style={{ marginLeft: 8, fontSize: 11 }}>{t('filters.enabled')}</Tag>
                   )}
                 </span>
@@ -747,7 +767,8 @@ export const NetworkCard = memo(({
                       min={0}
                       max={100}
                       value={minBA}
-                      onChange={setMinBA}
+                      onChange={(value) => setMinBA(value as number)}
+                      onAfterChange={(value) => setMinBAApplied(value as number)}
                       marks={{ 0: '0', 50: '50', 100: '100' }}
                       tooltip={{ formatter: (value) => t('filters.baTooltip', { value }) }}
                     />
@@ -772,7 +793,8 @@ export const NetworkCard = memo(({
                       min={0}
                       max={10}
                       value={minDegree}
-                      onChange={setMinDegree}
+                      onChange={(value) => setMinDegree(value as number)}
+                      onAfterChange={(value) => setMinDegreeApplied(value as number)}
                       marks={{ 0: '0', 5: '5', 10: '10' }}
                       tooltip={{ formatter: (value) => t('filters.degreeTooltip', { value }) }}
                     />
@@ -798,8 +820,10 @@ export const NetworkCard = memo(({
                     size="small"
                     onClick={() => {
                       setMinBA(0)
+                      setMinBAApplied(0)
                       setNodeTypeFilter('all')
                       setMinDegree(0)
+                      setMinDegreeApplied(0)
                       handleLayoutChange('concentric')
                     }}
                   >

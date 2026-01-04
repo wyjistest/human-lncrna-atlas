@@ -59,6 +59,11 @@ declare module 'cytoscape' {
     edges(selector?: string): EdgeCollection
     $id(id: string): NodeSingular | EdgeSingular
 
+    // 批量更新（减少多次重绘）
+    batch(callback: () => void): void
+    startBatch(): void
+    endBatch(): void
+
     // 视图方法
     fit(eles?: Collection, padding?: number): this
     center(eles?: Collection): this
