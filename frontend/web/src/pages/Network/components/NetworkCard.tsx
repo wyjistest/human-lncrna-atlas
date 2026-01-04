@@ -454,11 +454,12 @@ export const NetworkCard = memo(({
     cyRef.current.nodes().removeClass('highlighted')
 
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
       const newResults: Array<{id: string, label: string}> = []
       cyRef.current.nodes().forEach((node: NodeSingular) => {
         const nodeLabel = node.data('label') as string
         const nodeId = node.data('id') as string
-        if (nodeLabel.toLowerCase().includes(searchTerm.toLowerCase()) || nodeId.toLowerCase().includes(searchTerm.toLowerCase())) {
+        if (nodeLabel.toLowerCase().includes(searchLower) || nodeId.toLowerCase().includes(searchLower)) {
           node.addClass('highlighted')
           newResults.push({ id: nodeId, label: nodeLabel })
         }
