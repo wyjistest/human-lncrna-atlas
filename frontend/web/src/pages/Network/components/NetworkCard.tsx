@@ -62,6 +62,9 @@ export const NetworkCard = memo(({
   const [searchResults, setSearchResults] = useState<Array<{id: string, label: string}>>([])
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const highlightedNodeIdsRef = useRef<Set<string>>(new Set())
+  const prevVisibleNodeIdsRef = useRef<Set<string> | null>(null)
+  const prevVisibleEdgeIdsRef = useRef<Set<string> | null>(null)
+  const filterCyInstanceRef = useRef<Core | null>(null)
 
   const searchIndex = useMemo(() => {
     if (!data?.nodes) return []
@@ -444,22 +447,60 @@ export const NetworkCard = memo(({
     const visibleEdgeIds = new Set(finalEdges.map((e: NetworkEdge) => String(e.regulation_id)))
 
     const cy = cyRef.current
+    // data 变化会重建 cy；此时需要重置上一次可见集合，避免差集应用到旧实例
+    if (filterCyInstanceRef.current !== cy) {
+      filterCyInstanceRef.current = cy
+      prevVisibleNodeIdsRef.current = null
+      prevVisibleEdgeIdsRef.current = null
+    }
+
+    const prevVisibleNodeIds = prevVisibleNodeIdsRef.current
+    const prevVisibleEdgeIds = prevVisibleEdgeIdsRef.current
     cy.batch(() => {
-      cy.nodes().forEach((node: NodeSingular) => {
-        if (visibleNodeIds.has(node.id())) {
-          node.removeClass('filtered-out')
-        } else {
-          node.addClass('filtered-out')
+      // 首次（或重建后首次）需要全量设置 filtered-out
+      if (!prevVisibleNodeIds || !prevVisibleEdgeIds) {
+        cy.nodes().forEach((node: NodeSingular) => {
+          if (visibleNodeIds.has(node.id())) {
+            node.removeClass('filtered-out')
+          } else {
+            node.addClass('filtered-out')
+          }
+        })
+        cy.edges().forEach((edge: EdgeSingular) => {
+          if (visibleEdgeIds.has(edge.id())) {
+            edge.removeClass('filtered-out')
+          } else {
+            edge.addClass('filtered-out')
+          }
+        })
+        return
+      }
+
+      // 后续仅对差集做增量更新（超大图场景更省）
+      for (const id of prevVisibleNodeIds) {
+        if (!visibleNodeIds.has(id)) {
+          cy.$id(id).addClass('filtered-out')
         }
-      })
-      cy.edges().forEach((edge: EdgeSingular) => {
-        if (visibleEdgeIds.has(edge.id())) {
-          edge.removeClass('filtered-out')
-        } else {
-          edge.addClass('filtered-out')
+      }
+      for (const id of visibleNodeIds) {
+        if (!prevVisibleNodeIds.has(id)) {
+          cy.$id(id).removeClass('filtered-out')
         }
-      })
+      }
+      for (const id of prevVisibleEdgeIds) {
+        if (!visibleEdgeIds.has(id)) {
+          cy.$id(id).addClass('filtered-out')
+        }
+      }
+      for (const id of visibleEdgeIds) {
+        if (!prevVisibleEdgeIds.has(id)) {
+          cy.$id(id).removeClass('filtered-out')
+        }
+      }
     })
+
+    prevVisibleNodeIdsRef.current = visibleNodeIds
+    prevVisibleEdgeIdsRef.current = visibleEdgeIds
   }, [data, minBAApplied, nodeTypeFilter, minDegreeApplied])
 
   // 独立的搜索高亮 Effect
@@ -829,7 +870,7 @@ export const NetworkCard = memo(({
                       max={100}
                       value={minBA}
                       onChange={(value) => setMinBA(value as number)}
-                      onAfterChange={(value) => setMinBAApplied(value as number)}
+                      onChangeComplete={(value) => setMinBAApplied(value as number)}
                       marks={{ 0: '0', 50: '50', 100: '100' }}
                       tooltip={{ formatter: (value) => t('filters.baTooltip', { value }) }}
                     />
@@ -855,7 +896,7 @@ export const NetworkCard = memo(({
                       max={10}
                       value={minDegree}
                       onChange={(value) => setMinDegree(value as number)}
-                      onAfterChange={(value) => setMinDegreeApplied(value as number)}
+                      onChangeComplete={(value) => setMinDegreeApplied(value as number)}
                       marks={{ 0: '0', 5: '5', 10: '10' }}
                       tooltip={{ formatter: (value) => t('filters.degreeTooltip', { value }) }}
                     />

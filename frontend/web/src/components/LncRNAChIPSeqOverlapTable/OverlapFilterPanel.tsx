@@ -343,7 +343,7 @@ export function OverlapFilterPanel({
                   step={100}
                   value={overlapLengthRange}
                   onChange={setOverlapLengthRange}
-                  onAfterChange={applyOverlapLengthFilter}
+                  onChangeComplete={applyOverlapLengthFilter}
                   tooltip={{ formatter: (val) => `${val} bp` }}
                 />
                 <InputNumber
