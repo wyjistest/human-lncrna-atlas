@@ -15,6 +15,7 @@ set -euo pipefail
 # - python3
 
 API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-30}"
 
 PASS_COUNT=0
 FAIL_COUNT=0
@@ -44,11 +45,11 @@ require_cmd curl
 require_cmd python3
 
 http_status() {
-  curl -sS -o /dev/null -w "%{http_code}" "$1"
+  curl -sS --connect-timeout 5 --max-time "$CURL_MAX_TIME" -o /dev/null -w "%{http_code}" "$1"
 }
 
 http_body() {
-  curl -sS "$1"
+  curl -sS --connect-timeout 5 --max-time "$CURL_MAX_TIME" "$1"
 }
 
 assert_status() {
