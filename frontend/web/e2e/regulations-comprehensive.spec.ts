@@ -480,18 +480,12 @@ test.describe('Regulations Page - Error States', () => {
     })
 
     await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForTimeout(3000)
+    // ErrorState renders Ant Design Result for error pages; wait for it to appear.
+    const errorResult = page.locator('.ant-result-500, .ant-result-error').first()
+    await expect(errorResult).toBeVisible({ timeout: 15000 })
 
-    // Check for error indication
-    const errorNotification = page.locator('.ant-notification-notice-error, .ant-message-error')
-    const errorAlert = page.locator('.ant-alert-error')
-    const errorText = page.getByText(/Error|Failed|错误/i)
-
-    const hasError = await errorNotification.isVisible().catch(() => false) ||
-                     await errorAlert.isVisible().catch(() => false) ||
-                     await errorText.isVisible().catch(() => false)
-
-    expect(hasError).toBe(true)
+    // Mocked API error message should be visible.
+    await expect(page.getByText(/Internal Server Error/i)).toBeVisible()
     console.log('API error handled')
   })
 

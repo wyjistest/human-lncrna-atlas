@@ -115,7 +115,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
 
   test.setTimeout(60000) // 1 minute timeout for performance tests
 
-  test.afterEach(async (_, testInfo) => {
+  test.afterEach(async ({}, testInfo) => {
     // Update environment once (project name is the most reliable browser hint here).
     if (report.environment.browser === 'unknown') {
       report.environment.browser = testInfo.project.name || report.environment.browser
