@@ -358,7 +358,15 @@ curl "http://localhost:8000/api/v1/features/chipseq/genes/12345/summary?mark_typ
 
 ### 问题 1: 前端显示 "No marks available"
 
-**原因**: 数据未导入或物化视图未刷新
+**原因**:
+- 数据未导入或物化视图未刷新
+- 或数据库未初始化 ChIP-seq schema（`chipseq_*` / `epigenetic_mark_types` / `mv_*` 相关表或视图缺失）
+
+**排查**:
+```bash
+# marks 列表 API 会返回 chipseq_schema_ready 字段：
+curl -s "http://localhost:8000/api/v1/igv/chipseq/marks/1" | jq '.data.chipseq_schema_ready'
+```
 
 **解决**:
 ```sql
@@ -383,7 +391,7 @@ curl -i "http://localhost:8000/api/v1/igv/chipseq/marks/1" | head
 
 ### 问题 3: API 返回 500 错误
 
-**原因**: 数据库连接问题或表未创建
+**原因**: 数据库连接问题（或其他 ChIP-seq 端点触发了未创建的表/视图）
 
 **解决**:
 ```bash

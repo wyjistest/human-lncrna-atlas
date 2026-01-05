@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
+from sqlalchemy.exc import ProgrammingError
 
 from app.core.cache import cache
 from app.core.database import get_db
@@ -74,4 +75,38 @@ def test_igv_chipseq_marks_endpoint_returns_wrapper(monkeypatch: pytest.MonkeyPa
     assert payload["success"] is True
     assert payload["data"]["species_id"] == 1
     assert payload["data"]["marks"][0]["mark_name"] == "H3K27me3"
+    assert payload["data"]["chipseq_schema_ready"] is True
 
+
+def test_igv_chipseq_marks_schema_missing_degrades_to_empty(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(cache, "get", lambda *args, **kwargs: None)
+    monkeypatch.setattr(cache, "set", lambda *args, **kwargs: True)
+
+    class _MissingSchemaSession(_DummySession):
+        def execute(self, stmt, params=None):  # noqa: ARG002
+            sql = str(stmt)
+            if "mv_chipseq_mark_stats" in sql:
+                return SimpleNamespace(fetchall=lambda: [])
+            raise ProgrammingError(
+                "SELECT ...",
+                {},
+                Exception('relation \"chipseq_experiments\" does not exist'),
+            )
+
+    app = FastAPI()
+    app.include_router(igv_chipseq.router, prefix="/api/v1/igv")
+
+    def _override_get_db():
+        yield _MissingSchemaSession()
+
+    app.dependency_overrides[get_db] = _override_get_db
+    client = TestClient(app)
+
+    resp = client.get("/api/v1/igv/chipseq/marks/1")
+    assert resp.status_code == 200
+    payload = resp.json()
+
+    assert payload["success"] is True
+    assert payload["data"]["species_id"] == 1
+    assert payload["data"]["marks"] == []
+    assert payload["data"]["chipseq_schema_ready"] is False

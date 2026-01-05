@@ -11,10 +11,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.core.cache import cache
 from app.core.database import get_db
+from app.core.exceptions import sanitize_db_error
 from app.routers.chipseq_rate_limit import rate_limit
 from app.core.config import settings
 from app.core.validators import normalize_optional_str, parse_comma_list
@@ -48,6 +50,41 @@ DEFAULT_MAX_RECORDS_NO_REGION = 50_000
 MAX_LIMIT = 100_000
 
 
+def _is_chipseq_schema_missing_error(e: Exception) -> bool:
+    """
+    判断是否为 ChIP-seq schema 未初始化导致的 SQL 错误（缺表/缺视图）。
+
+    说明：
+    - marks 列表属于“可选增强功能”；当 schema 缺失时，最好返回空 marks（200）而不是 500，
+      以便前端以“无可用 marks”态降级展示。
+    - 这里尽量做宽松识别：优先用 Postgres SQLSTATE，其次兜底用错误文本关键字。
+    """
+    try:
+        pgcode = getattr(getattr(e, "orig", None), "pgcode", None)
+        # Postgres: undefined_table / missing relation
+        if pgcode == "42P01":
+            return True
+    except Exception:  # pragma: no cover
+        pass
+
+    message = str(e).lower()
+    if "undefinedtable" in message:
+        return True
+
+    if "does not exist" in message and any(
+        token in message
+        for token in (
+            "chipseq_experiments",
+            "chipseq_peaks",
+            "epigenetic_mark_types",
+            "mv_chipseq_mark_stats",
+        )
+    ):
+        return True
+
+    return False
+
+
 # =============================================================================
 # ChIP-seq IGV Track Endpoints
 # =============================================================================
@@ -77,6 +114,7 @@ def get_igv_chipseq_marks(
         raise HTTPException(status_code=404, detail=f"Species not found: {species_id}")
 
     marks: list[dict] = []
+    chipseq_schema_ready = True
 
     # Fast path: materialized view (if available)
     try:
@@ -147,13 +185,18 @@ def get_igv_chipseq_marks(
         try:
             rows = db.execute(query, {"species_id": species_id}).fetchall()
         except Exception as e:
-            logger.warning(
-                "Failed to aggregate chipseq marks for species_id=%s: %s",
-                species_id,
-                sanitize_for_log(e),
-                exc_info=True,
-            )
-            raise
+            # 缺表/缺视图：返回空 marks 降级（避免前端“加载失败”）
+            if isinstance(e, ProgrammingError) and _is_chipseq_schema_missing_error(e):
+                chipseq_schema_ready = False
+                rows = []
+                logger.info(
+                    "ChIP-seq schema not ready (missing relations) for species_id=%s; return empty marks: %s",
+                    species_id,
+                    sanitize_for_log(e),
+                    exc_info=True,
+                )
+            else:
+                raise sanitize_db_error(e, logger)
         for row in rows:
             marks.append(
                 {
@@ -173,10 +216,15 @@ def get_igv_chipseq_marks(
             "species_id": species_id,
             "species_name": species.display_name,
             "marks": marks,
+            "chipseq_schema_ready": chipseq_schema_ready,
         },
-        "message": f"Available epigenomic marks for {species.display_name}: {len(marks)}",
+        "message": (
+            f"Available epigenomic marks for {species.display_name}: {len(marks)}"
+            if chipseq_schema_ready
+            else f"ChIP-seq schema not ready for {species.display_name}; returning 0 marks"
+        ),
     }
-    cache.set(cache_key, result, cache.TTL_STATS)
+    cache.set(cache_key, result, cache.TTL_STATS if chipseq_schema_ready else cache.TTL_SHORT)
     return result
 
 

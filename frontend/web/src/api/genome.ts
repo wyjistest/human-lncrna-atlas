@@ -147,7 +147,9 @@ export interface ChIPSeqMarkInfo {
 /** Response from /api/v1/igv/chipseq/marks/{speciesId} */
 export interface ChIPSeqMarksResponse {
   species_id: number
+  species_name?: string
   marks: ChIPSeqMarkInfo[]
+  chipseq_schema_ready?: boolean
 }
 
 export const genomeApi = {
