@@ -3,7 +3,7 @@ from collections import Counter
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, or_, and_
+from sqlalchemy import func, case, or_, and_, select
 
 from app.core.cache import cache
 from app.core.database import get_db
@@ -592,17 +592,6 @@ def compare_species_networks(
     # 批量查询所有同源基因的调控关系（修复 N+1 查询问题）
     gene_ids = [gene_id for gene_id, _ in ortholog_genes]
 
-    # 单次查询获取所有调控关系
-    all_regulations = (
-        db.query(Regulation, Gene, CoreGene)
-        .join(Gene, Regulation.target_gene_id == Gene.gene_id)
-        .join(CoreGene, Gene.core_id == CoreGene.core_id)
-        .filter(Regulation.lncrna_gene_id.in_(gene_ids))
-        .filter(Regulation.binding_affinity >= min_ba)
-        .order_by(Regulation.lncrna_gene_id, Regulation.binding_affinity.desc())
-        .all()
-    )
-
     # 单次查询获取每个基因的总调控关系数
     count_results = (
         db.query(
@@ -618,26 +607,55 @@ def compare_species_networks(
     # 构建 gene_id -> total_count 映射
     count_map = {gene_id: total_count for gene_id, total_count in count_results}
 
-    # 按 gene_id 分组调控关系
-    from itertools import groupby
-    regulations_by_gene = {
-        gene_id: list(group)
-        for gene_id, group in groupby(all_regulations, key=lambda x: x[0].lncrna_gene_id)
-    }
+    # 单次查询获取每个基因的 top-N targets（SQL 侧截断，避免拉取全量 regulations）
+    regulations_by_gene: dict[int, list[dict]] = {}
+    if gene_ids:
+        row_num = func.row_number().over(
+            partition_by=Regulation.lncrna_gene_id,
+            order_by=(Regulation.binding_affinity.desc(), Regulation.regulation_id.desc()),
+        ).label("row_num")
+
+        base_stmt = (
+            select(
+                Regulation.lncrna_gene_id.label("lncrna_gene_id"),
+                Gene.gene_id.label("target_gene_id"),
+                Gene.gene_name.label("target_name"),
+                Gene.core_id.label("target_core_id"),
+                Regulation.binding_affinity.label("binding_affinity"),
+                row_num,
+            )
+            .select_from(Regulation)
+            .join(Gene, Regulation.target_gene_id == Gene.gene_id)
+            .where(Regulation.lncrna_gene_id.in_(gene_ids))
+            .where(Regulation.binding_affinity >= min_ba)
+        )
+
+        subq = base_stmt.subquery()
+        rows = (
+            db.execute(
+                select(subq)
+                .where(subq.c.row_num <= max_targets_per_species)
+                .order_by(subq.c.lncrna_gene_id, subq.c.binding_affinity.desc(), subq.c.target_gene_id)
+            )
+            .mappings()
+            .all()
+        )
+        for row in rows:
+            regulations_by_gene.setdefault(int(row["lncrna_gene_id"]), []).append(dict(row))
 
     # 为每个物种构建网络数据
     for gene_id, species_id in ortholog_genes:
-        regulations = regulations_by_gene.get(gene_id, [])[:max_targets_per_species]
+        regulations = regulations_by_gene.get(gene_id, [])
         total_count = count_map.get(gene_id, 0)
 
         targets = [
             {
-                "target_gene_id": target_gene.gene_id,
-                "target_name": target_gene.gene_name,
-                "target_core_id": target_gene.core_id,
-                "binding_affinity": float(reg.binding_affinity) if reg.binding_affinity else None,
+                "target_gene_id": reg["target_gene_id"],
+                "target_name": reg["target_name"],
+                "target_core_id": reg["target_core_id"],
+                "binding_affinity": float(reg["binding_affinity"]) if reg["binding_affinity"] else None,
             }
-            for reg, target_gene, target_core in regulations
+            for reg in regulations
         ]
 
         species_networks[species_id] = {
