@@ -85,9 +85,9 @@ assert_json_shape_statistics() {
   local body
   body="$(http_body "$url" || true)"
   local output
-  output="$(python3 -c $'import json,sys\nraw=sys.stdin.read()\ntry:\n    data=json.loads(raw)\nexcept Exception as e:\n    print(\"INVALID_JSON:\", e)\n    raise SystemExit(0)\nrequired=[\"total_overlaps\",\"unique_lncrnas\",\"unique_targets\",\"unique_marks\"]\nmissing=[k for k in required if k not in data]\nif missing:\n    print(\"MISSING_KEYS:\", \",\".join(missing))\n    raise SystemExit(0)\nfor k in required:\n    if not isinstance(data.get(k), (int,float)):\n        print(\"INVALID_TYPE:\", k)\n        raise SystemExit(0)\nprint(\"OK\")' <<<"$body" 2>&1 || true)"
+  output="$(python3 -c $'import json,sys\nraw=sys.stdin.read()\ntry:\n    data=json.loads(raw)\nexcept Exception as e:\n    print(\"INVALID_JSON:\", e)\n    raise SystemExit(0)\n\nrequired=[\"total_overlaps\",\"unique_lncrnas\",\"unique_marks\"]\nmissing=[k for k in required if k not in data]\nif missing:\n    print(\"MISSING_KEYS:\", \",\".join(missing))\n    raise SystemExit(0)\n\n# Backward/forward compatible field name\n# - Current: unique_target_genes\n# - Legacy: unique_targets\nif \"unique_target_genes\" in data:\n    target_key=\"unique_target_genes\"\n    status=\"OK\"\nelif \"unique_targets\" in data:\n    target_key=\"unique_targets\"\n    status=\"OK_LEGACY_unique_targets\"\nelse:\n    print(\"MISSING_KEYS: unique_target_genes\")\n    raise SystemExit(0)\n\nfor k in required + [target_key]:\n    if not isinstance(data.get(k), (int,float)):\n        print(\"INVALID_TYPE:\", k)\n        raise SystemExit(0)\nprint(status)' <<<"$body" 2>&1 || true)"
 
-  if [ "$output" = "OK" ]; then
+  if [[ "$output" == OK* ]]; then
     pass "$name (json shape ok)"
   else
     fail "$name (json shape invalid) url=$url; detail=$output"

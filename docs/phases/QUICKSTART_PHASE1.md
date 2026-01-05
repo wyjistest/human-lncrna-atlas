@@ -73,7 +73,7 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?chromosome=
 {
   "total_overlaps": 219213,
   "unique_lncrnas": 1706,
-  "unique_targets": 519,
+  "unique_target_genes": 519,
   "unique_marks": 7,
   "avg_overlap_length": 96.3,
   "avg_binding_affinity": 69.6,

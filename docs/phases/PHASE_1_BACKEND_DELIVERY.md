@@ -116,14 +116,14 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?mark_type=H3K27me3,H3K
 
 # Statistics
 curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?chromosome=chr1"
-# ✅ Returns:
-# - total_overlaps: 219,213
-# - unique_lncrnas: 1,706
-# - unique_targets: 519
-# - unique_marks: 7
-# - avg_overlap_length: 96.34 bp
-# - avg_binding_affinity: 69.62
-# - avg_peak_strength: 17.15
+   # ✅ Returns:
+   # - total_overlaps: 219,213
+   # - unique_lncrnas: 1,706
+   # - unique_target_genes: 519
+   # - unique_marks: 7
+   # - avg_overlap_length: 96.34 bp
+   # - avg_binding_affinity: 69.62
+   # - avg_peak_strength: 17.15
 ```
 
 ---

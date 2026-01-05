@@ -107,7 +107,7 @@ Get summary statistics for lncRNA-ChIP-seq overlaps.
 {
   "total_overlaps": 219213,
   "unique_lncrnas": 1706,
-  "unique_targets": 519,
+  "unique_target_genes": 519,
   "unique_marks": 7,
   "avg_overlap_length": 96.34,
   "avg_binding_affinity": 69.62,
