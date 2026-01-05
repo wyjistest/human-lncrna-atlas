@@ -37,17 +37,19 @@ npx playwright test e2e/performance --reporter=html
 ### 1. Local Development Testing
 
 ```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
 # Start backend (Terminal 1)
-cd /data/wenyujianData/humanLncAtlas/backend/app
+cd "$REPO_ROOT/frontend/backend"
 source venv/bin/activate
 uvicorn main:app --reload --port 8000
 
 # Start frontend (Terminal 2)
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd "$REPO_ROOT/frontend/web"
 npm run dev
 
 # Run performance tests (Terminal 3)
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd "$REPO_ROOT/frontend/web"
 npx playwright test e2e/performance
 ```
 

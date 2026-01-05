@@ -33,13 +33,16 @@ Ensure the following services are running:
 
 1. **Backend API** (port 8000)
    ```bash
-   cd /data/wenyujianData/humanLncAtlas/backend
-   poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+   REPO_ROOT="$(git rev-parse --show-toplevel)"
+   cd "$REPO_ROOT/frontend/backend"
+   source venv/bin/activate
+   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 2. **Frontend Dev Server** (port 5173)
    ```bash
-   cd /data/wenyujianData/humanLncAtlas/frontend/web
+   REPO_ROOT="$(git rev-parse --show-toplevel)"
+   cd "$REPO_ROOT/frontend/web"
    npm run dev
    ```
 
@@ -52,7 +55,8 @@ Ensure the following services are running:
 ### Full Test Suite
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
 npx playwright test e2e/a549-validation.spec.ts --reporter=list
 ```
 

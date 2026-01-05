@@ -12,7 +12,7 @@
 
 ```bash
 # 本地访问
-http://localhost:5174/lncrna-chipseq-overlap
+http://localhost:5173/lncrna-chipseq-overlap
 ```
 
 ### API 文档
@@ -33,7 +33,8 @@ GET http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics
 ### 后端（如未运行）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/backend/app
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/backend"
 source venv/bin/activate
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
@@ -41,7 +42,8 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 ### 前端（如未运行）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
 npm run dev
 ```
 
@@ -92,15 +94,15 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?mark_type=H3K27me3&cel
 ### 后端代码
 
 ```
-/data/wenyujianData/humanLncAtlas/backend/app/
-├── routers/lncrna_chipseq_overlap.py      # API 端点（340 行）
-└── schemas/lncrna_chipseq_overlap.py      # Pydantic schemas（105 行）
+frontend/backend/app/
+├── routers/lncrna_chipseq_overlap.py      # API 端点
+└── schemas/lncrna_chipseq_overlap.py      # Pydantic schemas
 ```
 
 ### 前端代码
 
 ```
-/data/wenyujianData/humanLncAtlas/frontend/web/src/
+frontend/web/src/
 ├── types/lncRNAChIPSeqOverlap.ts          # TypeScript 类型
 ├── api/lncRNAChIPSeqOverlapApi.ts         # API 客户端
 ├── hooks/useLncRNAChIPSeqOverlap.ts       # React Query hooks
@@ -118,24 +120,21 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?mark_type=H3K27me3&cel
 ### 测试代码
 
 ```
-/data/wenyujianData/humanLncAtlas/frontend/web/
-├── e2e/lncrna-chipseq-overlap.spec.ts     # E2E 测试（34 tests）
-└── test_lncrna_chipseq_overlap_api.sh     # API 测试脚本
+frontend/web/e2e/lncrna-chipseq-overlap.spec.ts  # E2E 测试（34 tests）
+test_lncrna_chipseq_overlap_api.sh               # API 冒烟测试脚本
 ```
 
 ### 文档
 
 ```
-/data/wenyujianData/humanLncAtlas/docs/
+docs/
 ├── PHASE_3.0_LNCRNA_CHIPSEQ_OVERLAP.md    # 开发计划（27 任务）
 ├── PHASE_1_MVP_COMPLETION_REPORT.md       # 中期报告
 ├── PHASE_1_FINAL_ACCEPTANCE.md            # 验收报告
 └── PHASE_1_SUCCESS_STORY.md               # 成功案例
-
-/data/wenyujianData/humanLncAtlas/
-├── LNCRNA_CHIPSEQ_OVERLAP_API.md          # API 文档
-├── PHASE_3.0_OVERLAP_FRONTEND_DELIVERY.md # 前端交付
-└── HOW_TO_TEST_OVERLAP_PAGE.md            # 测试指南
+docs/api/LNCRNA_CHIPSEQ_OVERLAP_API.md     # API 文档
+docs/PHASE_3.0_OVERLAP_FRONTEND_DELIVERY.md # 前端交付
+docs/reports/HOW_TO_TEST_OVERLAP_PAGE.md    # 测试指南
 ```
 
 ---
@@ -189,7 +188,8 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?min_binding_affinity=8
 ### E2E 测试
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
 
 # 运行所有 P0 测试（26 个）
 npx playwright test e2e/lncrna-chipseq-overlap.spec.ts --grep-invert "should filter|should paginate|should sort"
@@ -204,7 +204,8 @@ npx playwright show-report
 ### API 测试
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
 
 # 运行完整测试脚本（11 个测试）
 chmod +x test_lncrna_chipseq_overlap_api.sh
@@ -330,10 +331,11 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?cell_type=GM12878&page
 **解决**:
 ```bash
 # 检查前端服务是否运行
-curl http://localhost:5174
+curl http://localhost:5173
 
 # 重启前端服务
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
 npm run dev
 ```
 
@@ -348,7 +350,8 @@ curl http://localhost:8000/health
 tail -f /tmp/backend.log
 
 # 重启后端服务
-cd /data/wenyujianData/humanLncAtlas/backend/app
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/backend"
 python3 -m uvicorn main:app --reload --port 8000
 ```
 
@@ -389,9 +392,9 @@ python3 -m uvicorn main:app --reload --port 8000
 
 ## 📞 联系与反馈
 
-**项目文档**: `/data/wenyujianData/humanLncAtlas/docs/`
+**项目文档**: `docs/`
 
-**GitHub**: （待推送）
+**GitHub**: https://github.com/wyjistest/human-lncrna-atlas
 
 **问题报告**: 请查看文档或运行测试
 

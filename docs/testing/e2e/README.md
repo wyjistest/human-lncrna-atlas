@@ -89,8 +89,10 @@ E2E_OVERLAP_INITIAL_RENDER_BUDGET_MS=12000 npm run test:e2e -- e2e/lncrna-chipse
 ### 1. Install Dependencies
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
-npm install
+# 在仓库任意子目录都可运行
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+npm ci
 ```
 
 ### 2. Install Playwright Browsers
@@ -102,6 +104,8 @@ npx playwright install chromium
 ### 3. Start Frontend Development Server
 
 ```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
 npm run dev
 ```
 
@@ -110,7 +114,9 @@ Server should run at `http://localhost:5173`
 ### 4. Start Backend Server (Optional - for P1 tests)
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/backend/app
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/backend"
+source venv/bin/activate
 uvicorn main:app --port 8000 --reload
 ```
 
@@ -121,7 +127,8 @@ API should run at `http://localhost:8000`
 ### Run All Tests
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
 
 # Run all tests in lncrna-chipseq-overlap.spec.ts
 npm run test:e2e -- e2e/lncrna-chipseq-overlap.spec.ts

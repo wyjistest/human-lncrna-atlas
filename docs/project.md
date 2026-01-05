@@ -145,13 +145,16 @@
 
 ### 启动服务
 ```bash
+# 在仓库任意子目录都可运行
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
 # 后端
-cd /data/wenyujianData/humanLncAtlas/backend/app
+cd "$REPO_ROOT/frontend/backend"
 source venv/bin/activate
 uvicorn main:app --reload --port 8000
 
 # 前端
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd "$REPO_ROOT/frontend/web"
 npm run dev
 ```
 

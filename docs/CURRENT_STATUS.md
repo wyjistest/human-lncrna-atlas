@@ -307,13 +307,16 @@
 ## 🚀 快速启动
 
 ```bash
+# 在仓库任意子目录都可运行
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
 # 后端
-cd /data/wenyujianData/humanLncAtlas/backend/app
+cd "$REPO_ROOT/frontend/backend"
 source venv/bin/activate
 uvicorn main:app --reload --port 8000
 
 # 前端
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd "$REPO_ROOT/frontend/web"
 npm run dev
 ```
 
@@ -322,8 +325,9 @@ npm run dev
 ```
 /data/wenyujianData/
 ├── humanLncAtlas/           # 工作目录
-│   ├── backend/app/         # FastAPI 后端
-│   └── frontend/web/        # React 前端
+│   └── frontend/
+│       ├── backend/         # FastAPI 后端
+│       └── web/             # React 前端
 ├── human-lncrna-atlas-github/  # GitHub 仓库
 └── encode_data/             # ENCODE 下载数据
     ├── k562/               # K562 细胞系 BED 文件
