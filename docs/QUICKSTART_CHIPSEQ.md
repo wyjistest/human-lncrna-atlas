@@ -379,15 +379,30 @@ REFRESH MATERIALIZED VIEW mv_chipseq_mark_stats;
 
 ### 问题 2: 前端显示 "加载表观基因组标记失败"
 
-**原因**: 后端未启动 / API 不可达 / 数据库未就绪，导致 marks 列表请求失败
+**原因**（常见）:
+- 后端未启动 / API 不可达
+- 数据库未就绪，导致 marks 列表请求 5xx
+- 通过局域网 IP 访问前端时，后端未放行该 Origin（CORS_ORIGINS 未包含 `http://<server-ip>:5173`）
 
 **排查**:
 ```bash
 # 直接检查 marks 列表 API（1=Human）
 curl -i "http://localhost:8000/api/v1/igv/chipseq/marks/1" | head
+
+# 如果你是通过局域网 IP 访问前端（例如 http://192.168.x.x:5173），
+# 请额外检查 CORS 响应头是否放行该 Origin：
+curl -s -D- -o /dev/null \
+  -H "Origin: http://192.168.x.x:5173" \
+  "http://localhost:8000/api/v1/igv/chipseq/marks/1" | rg -i "access-control-allow-origin|vary|http/"
 ```
 
 如果返回非 200 或长时间无响应，请优先检查后端进程与数据库连接（下一条）。
+
+**解决（CORS/LAN）**:
+- 推荐：使用 `./scripts/dev.sh` 启动（会自动注入 `TRUSTED_HOSTS` / `CORS_ORIGINS` / `VITE_API_BASE_URL`，支持局域网访问）
+- 或手动设置后端环境变量（示例）：
+  - `export CORS_ORIGINS='["http://localhost:5173","http://127.0.0.1:5173","http://192.168.x.x:5173"]'`
+  - 然后重启后端 `uvicorn main:app --host 0.0.0.0 --port 8000`
 
 ### 问题 3: API 返回 500 错误
 

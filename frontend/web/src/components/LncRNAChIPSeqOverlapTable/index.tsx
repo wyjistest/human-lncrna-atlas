@@ -476,19 +476,20 @@ export function LncRNAChIPSeqOverlapTable({
 
   // Fetch available ChIP-seq marks for the selected species
   const {
-    data: availableChIPSeqMarks,
+    data: chipseqMarksData,
     isLoading: isLoadingChIPSeqMarks,
     error: chipseqMarksError
   } = useQuery({
     queryKey: ['chipseq-marks', igvSpeciesId],
     queryFn: async ({ signal }) => {
       const response = await genomeApi.getChIPSeqMarks(igvSpeciesId, signal)
-      return response.data.data.marks
+      return response.data.data
     },
     enabled: showChIPSeq && showIGV,
     staleTime: 5 * 60 * 1000,
     meta: { skipGlobalErrorHandler: true },
   })
+  const availableChIPSeqMarks = chipseqMarksData?.marks
 
   // Validate selected marks when available marks change
   useEffect(() => {

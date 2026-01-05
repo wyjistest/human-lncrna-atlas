@@ -28,6 +28,7 @@ import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolba
 import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
 import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/features'
 import { genomeApi, type IGVTrackConfig } from '@/api/genome'
+import { API_BASE_URL } from '@/config/api'
 import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 import { parseError } from '@/utils/errorParser'
@@ -151,7 +152,7 @@ export default function GenomeBrowserPage() {
 
   // Fetch available ChIP-seq marks for the selected species
   const {
-    data: availableChIPSeqMarks,
+    data: chipseqMarksData,
     isLoading: isLoadingChIPSeqMarks,
     error: chipseqMarksError,
     refetch: refetchChIPSeqMarks,
@@ -159,7 +160,7 @@ export default function GenomeBrowserPage() {
     queryKey: ['chipseq-marks', speciesId],
     queryFn: async ({ signal }) => {
       const response = await genomeApi.getChIPSeqMarks(speciesId, signal)
-      return response.data.data.marks
+      return response.data.data
     },
     enabled: showChIPSeq, // Only fetch when ChIP-seq toggle is enabled
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
@@ -167,6 +168,8 @@ export default function GenomeBrowserPage() {
   })
 
   const parsedChIPSeqMarksError = chipseqMarksError ? parseError(chipseqMarksError) : null
+  const availableChIPSeqMarks = chipseqMarksData?.marks
+  const chipseqSchemaReady = chipseqMarksData?.chipseq_schema_ready ?? true
 
   // Validate selected marks when available marks change
   // This ensures any previously selected marks that are no longer available get cleared
@@ -902,8 +905,17 @@ export default function GenomeBrowserPage() {
 		                                          {parsedChIPSeqMarksError?.message ||
 		                                            tCommon('error.loadFailed', 'Loading Failed')}
 		                                        </Text>
+		                                        {(parsedChIPSeqMarksError?.type === 'network' ||
+		                                          parsedChIPSeqMarksError?.type === 'timeout') && (
+		                                          <Text type="secondary" style={{ fontSize: 12 }}>
+		                                            {t('chipseq.networkOrCorsHint', {
+		                                              origin: (typeof window !== 'undefined' ? window.location.origin : ''),
+		                                              url: `${API_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/api/v1/igv/chipseq/marks/${speciesId}`,
+		                                            })}
+		                                          </Text>
+		                                        )}
 		                                        <Text type="secondary" style={{ fontSize: 12 }}>
-		                                          需要 ChIP-seq 数据与数据库就绪；参考 docs/QUICKSTART_CHIPSEQ.md
+		                                          {t('chipseq.prereqHint')}
 		                                        </Text>
 		                                      </Space>
 		                                    }
@@ -913,6 +925,17 @@ export default function GenomeBrowserPage() {
 		                                      </Button>
 		                                    }
 		                                  />
+		                                ) : chipseqSchemaReady === false ? (
+		                                  <Alert
+		                                    type="warning"
+		                                    showIcon
+		                                    title={t('chipseq.schemaNotReadyTitle')}
+		                                    description={
+		                                      <Text type="secondary" style={{ fontSize: 12 }}>
+		                                        {t('chipseq.schemaNotReadyDesc')}
+		                                      </Text>
+		                                    }
+		                                  />
 		                                ) : (availableChIPSeqMarks?.length ?? 0) === 0 ? (
 		                                  <Alert
 		                                    type="info"
@@ -920,7 +943,7 @@ export default function GenomeBrowserPage() {
 		                                    title={t('chipseq.noMarksAvailable')}
 		                                    description={
 		                                      <Text type="secondary" style={{ fontSize: 12 }}>
-		                                        如已导入数据但仍为空，请检查物化视图/统计是否刷新；参考 docs/QUICKSTART_CHIPSEQ.md
+		                                        {t('chipseq.noMarksAvailableHint')}
 		                                      </Text>
 		                                    }
 		                                  />

@@ -246,11 +246,19 @@ export const NetworkCard = memo(({
     const nodeCount = data.nodes?.length ?? 0
     const edgeCount = data.edges?.length ?? 0
     const shouldAnimate = nodeCount <= 300 && edgeCount <= 1000
+    const hideLabelsOnViewport = nodeCount > 200 || edgeCount > 800
+    const hideEdgesOnViewport = edgeCount > 1200
+    const showNodeLabels = nodeCount <= 300 && edgeCount <= 1000
+    const useHaystackEdges = edgeCount > 2000
 
     const layoutName = currentLayoutRef.current
 
     const cy = createCytoscape({
       container: containerRef.current,
+      hideEdgesOnViewport,
+      hideLabelsOnViewport,
+      textureOnViewport: hideEdgesOnViewport || hideLabelsOnViewport,
+      pixelRatio: hideEdgesOnViewport || hideLabelsOnViewport ? 1 : 'auto',
       elements,
       style: [
         {
@@ -270,14 +278,14 @@ export const NetworkCard = memo(({
           style: {
             'shape': 'ellipse',
             'background-color': '#1890ff',
-            'label': 'data(label)',
+            'label': showNodeLabels ? 'data(label)' : '',
             'width': 50,
             'height': 50,
-            'font-size': 10,
+            'font-size': showNodeLabels ? 10 : 0,
             'text-valign': 'center',
             'text-halign': 'center',
             'color': '#000',
-            'text-outline-width': 2,
+            'text-outline-width': showNodeLabels ? 2 : 0,
             'text-outline-color': '#fff'
           }
         },
@@ -286,14 +294,14 @@ export const NetworkCard = memo(({
           style: {
             'shape': 'rectangle',
             'background-color': '#52c41a',
-            'label': 'data(label)',
+            'label': showNodeLabels ? 'data(label)' : '',
             'width': 45,
             'height': 45,
-            'font-size': 10,
+            'font-size': showNodeLabels ? 10 : 0,
             'text-valign': 'center',
             'text-halign': 'center',
             'color': '#000',
-            'text-outline-width': 2,
+            'text-outline-width': showNodeLabels ? 2 : 0,
             'text-outline-color': '#fff'
           }
         },
@@ -304,7 +312,8 @@ export const NetworkCard = memo(({
             'line-color': `mapData(ba, ${minBARange}, ${maxBARange}, #d9d9d9, #ff4d4f)`,
             'target-arrow-color': `mapData(ba, ${minBARange}, ${maxBARange}, #d9d9d9, #ff4d4f)`,
             'target-arrow-shape': 'triangle',
-            'curve-style': 'bezier',
+            'curve-style': useHaystackEdges ? 'haystack' : 'bezier',
+            ...(useHaystackEdges ? { 'haystack-radius': 0 } : {}),
             'opacity': 0.8
           }
         },
@@ -313,6 +322,9 @@ export const NetworkCard = memo(({
           style: {
             'border-width': 4,
             'border-color': '#faad14',
+            'label': 'data(label)',
+            'font-size': 10,
+            'text-outline-width': 2,
             'z-index': 999
           }
         },
@@ -358,13 +370,31 @@ export const NetworkCard = memo(({
       }
     }
 
-    const updateTooltipPosition = (evt: cytoscape.EventObject) => {
+    const applyTooltipPosition = (mouseEvent: MouseEvent) => {
       const tooltipDiv = tooltipDivRef.current
       if (!tooltipDiv) return
-      const mouseEvent = evt.originalEvent as MouseEvent | undefined
-      if (!mouseEvent) return
       tooltipDiv.style.left = `${mouseEvent.clientX + 10}px`
       tooltipDiv.style.top = `${mouseEvent.clientY + 10}px`
+    }
+
+    // Throttle tooltip updates to animation frames to reduce layout thrash on large graphs.
+    let tooltipRafId: number | null = null
+    let pendingMouseEvent: MouseEvent | null = null
+
+    const scheduleTooltipPosition = (evt: cytoscape.EventObject) => {
+      const mouseEvent = evt.originalEvent as MouseEvent | undefined
+      if (!mouseEvent) return
+
+      pendingMouseEvent = mouseEvent
+      if (tooltipRafId != null) return
+
+      tooltipRafId = window.requestAnimationFrame(() => {
+        tooltipRafId = null
+        const latest = pendingMouseEvent
+        pendingMouseEvent = null
+        if (!latest) return
+        applyTooltipPosition(latest)
+      })
     }
 
     // tooltip：使用 delegated 事件，避免为每条 edge 绑定 mousemove
@@ -386,13 +416,13 @@ export const NetworkCard = memo(({
       tooltipDiv.appendChild(labelSpan)
       tooltipDiv.appendChild(valueSpan)
       tooltipDiv.style.display = 'block'
-      updateTooltipPosition(evt)
+      scheduleTooltipPosition(evt)
     }
 
     const handleEdgeMouseMove = (evt: cytoscape.EventObject) => {
       const edge = evt.target as EdgeSingular
       if (hoveredEdgeIdRef.current !== edge.id()) return
-      updateTooltipPosition(evt)
+      scheduleTooltipPosition(evt)
     }
 
     const handleEdgeMouseOut = (evt: cytoscape.EventObject) => {
@@ -416,6 +446,10 @@ export const NetworkCard = memo(({
     cy.on('tap', 'node', handleNodeTap)
 
     return () => {
+      if (tooltipRafId != null) {
+        window.cancelAnimationFrame(tooltipRafId)
+        tooltipRafId = null
+      }
       hideTooltip()
       removeTooltipDiv()
 
