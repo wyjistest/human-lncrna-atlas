@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo } from 'react'
+import { useState, useEffect, useRef, useMemo, useDeferredValue, memo } from 'react'
 import { Button, Space, Input, Dropdown, message, Collapse, Tag, Slider, Radio, Select } from 'antd'
 import { SearchOutlined, DownloadOutlined, FileImageOutlined, FileTextOutlined, FilterOutlined, SwapOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
@@ -60,6 +60,21 @@ export const NetworkCard = memo(({
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Array<{id: string, label: string}>>([])
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const highlightedNodeIdsRef = useRef<Set<string>>(new Set())
+
+  const searchIndex = useMemo(() => {
+    if (!data?.nodes) return []
+    return data.nodes.map((node: NetworkNode) => {
+      const label = node.label || node.id
+      return {
+        id: node.id,
+        label,
+        idLower: node.id.toLowerCase(),
+        labelLower: label.toLowerCase(),
+      }
+    })
+  }, [data])
 
   // Cross-species comparison state
   const [comparisonDrawerOpen, setComparisonDrawerOpen] = useState(false)
@@ -451,52 +466,90 @@ export const NetworkCard = memo(({
   useEffect(() => {
     if (!cyRef.current) return
 
-    cyRef.current.nodes().removeClass('highlighted')
+    const cy = cyRef.current
+    const searchLower = deferredSearchTerm.trim().toLowerCase()
 
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      const newResults: Array<{id: string, label: string}> = []
-      cyRef.current.nodes().forEach((node: NodeSingular) => {
-        const nodeLabel = node.data('label') as string
-        const nodeId = node.data('id') as string
-        if (nodeLabel.toLowerCase().includes(searchLower) || nodeId.toLowerCase().includes(searchLower)) {
-          node.addClass('highlighted')
-          newResults.push({ id: nodeId, label: nodeLabel })
-        }
-      })
-      setSearchResults(newResults)
-
-      if (newResults.length === 1) {
-        const node = cyRef.current.$id(newResults[0].id)
-        cyRef.current.animate({
-          center: { eles: node },
-          zoom: 2
-        }, {
-          duration: 500
+    if (!searchLower) {
+      const prevIds = highlightedNodeIdsRef.current
+      if (prevIds.size > 0) {
+        cy.batch(() => {
+          for (const id of prevIds) {
+            cy.$id(id).removeClass('highlighted')
+          }
         })
+        highlightedNodeIdsRef.current = new Set()
       }
-    } else {
       setSearchResults([])
+      return
     }
-  }, [searchTerm, data])
+
+    const newResults: Array<{ id: string; label: string }> = []
+    const nextIds = new Set<string>()
+    for (const node of searchIndex) {
+      if (node.labelLower.includes(searchLower) || node.idLower.includes(searchLower)) {
+        nextIds.add(node.id)
+        newResults.push({ id: node.id, label: node.label })
+      }
+    }
+
+    const prevIds = highlightedNodeIdsRef.current
+    cy.batch(() => {
+      for (const id of prevIds) {
+        if (!nextIds.has(id)) {
+          cy.$id(id).removeClass('highlighted')
+        }
+      }
+      for (const id of nextIds) {
+        if (!prevIds.has(id)) {
+          cy.$id(id).addClass('highlighted')
+        }
+      }
+    })
+    highlightedNodeIdsRef.current = nextIds
+
+    setSearchResults(newResults)
+
+    if (newResults.length === 1) {
+      const node = cy.$id(newResults[0].id)
+      const nodeCount = data?.nodes?.length ?? 0
+      const edgeCount = data?.edges?.length ?? 0
+      const shouldAnimate = nodeCount <= 300 && edgeCount <= 1000
+      cy.animate(
+        { center: { eles: node }, zoom: 2 },
+        { duration: shouldAnimate ? 500 : 0 },
+      )
+    }
+  }, [deferredSearchTerm, searchIndex, data])
 
   const handleSearch = (value: string) => {
     setSearchTerm(value)
   }
 
   const highlightNode = (nodeId: string) => {
-    if (!cyRef.current) return
+    const cy = cyRef.current
+    if (!cy) return
 
-    const node = cyRef.current.$id(nodeId)
-    cyRef.current.nodes().removeClass('highlighted')
-    node.addClass('highlighted')
+    const node = cy.$id(nodeId)
+    const prevIds = highlightedNodeIdsRef.current
 
-    cyRef.current.animate({
-      center: { eles: node },
-      zoom: 2
-    }, {
-      duration: 500
+    cy.batch(() => {
+      for (const id of prevIds) {
+        if (id !== nodeId) {
+          cy.$id(id).removeClass('highlighted')
+        }
+      }
+      node.addClass('highlighted')
     })
+
+    highlightedNodeIdsRef.current = new Set([nodeId])
+
+    const nodeCount = data?.nodes?.length ?? 0
+    const edgeCount = data?.edges?.length ?? 0
+    const shouldAnimate = nodeCount <= 300 && edgeCount <= 1000
+    cy.animate(
+      { center: { eles: node }, zoom: 2 },
+      { duration: shouldAnimate ? 500 : 0 },
+    )
   }
 
   // 导出功能
