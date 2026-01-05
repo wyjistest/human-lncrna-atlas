@@ -14,8 +14,8 @@
 import { test, expect, Page } from '@playwright/test';
 
 // 配置
-const BASE_URL = 'http://localhost:5173';
-const API_BASE = 'http://localhost:8000';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000';
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || './test-results/screenshots';
 
 // 测试结果收集
@@ -35,6 +35,81 @@ async function waitForNetworkIdle(page: Page, timeout = 10000) {
   } catch {
     // 继续测试，即使网络未完全空闲
   }
+}
+
+async function selectFirstOptionByTestId(
+  page: Page,
+  testId: string,
+  result: TestResult,
+  label: string,
+): Promise<boolean> {
+  const select = page.getByTestId(testId);
+  const selectVisible = await select.isVisible({ timeout: 10000 }).catch(() => false);
+  if (!selectVisible) {
+    result.issues.push(`${label}选择器不存在: data-testid=${testId}`);
+    return false;
+  }
+
+  await select.click();
+
+  // Ant Design Select 的可见下拉层（portal）
+  const dropdown = page.locator('.ant-select-dropdown:visible').first();
+  try {
+    await dropdown.waitFor({ state: 'visible', timeout: 10000 });
+  } catch {
+    result.issues.push(`${label}下拉菜单未打开`);
+    return false;
+  }
+
+  const options = dropdown.locator('.ant-select-item-option');
+  // 等待选项渲染（虚拟列表/异步加载可能导致首次 count=0）
+  let optionsCount = await options.count();
+  for (let i = 0; i < 10 && optionsCount === 0; i++) {
+    await page.waitForTimeout(200);
+    optionsCount = await options.count();
+  }
+  result.details.push(`${label}选项数量: ${optionsCount}`);
+  if (optionsCount === 0) {
+    result.issues.push(`${label}无可选项`);
+    await page.keyboard.press('Escape').catch(() => {});
+    return false;
+  }
+
+  const firstOption = options.first();
+  try {
+    await firstOption.scrollIntoViewIfNeeded();
+    await firstOption.click();
+  } catch {
+    // 兜底：键盘选择第一个选项，避免虚拟列表/滚动导致 click flaky
+    await page.keyboard.press('ArrowDown').catch(() => {});
+    await page.keyboard.press('Enter').catch(() => {});
+  }
+  return true;
+}
+
+async function triggerNetworkQuery(page: Page, result: TestResult): Promise<boolean> {
+  const diseaseOk = await selectFirstOptionByTestId(page, 'network-disease-select', result, '疾病');
+  if (!diseaseOk) return false;
+
+  // 等待 Ontology 选择器可用
+  await page.waitForTimeout(500);
+  const ontologyOk = await selectFirstOptionByTestId(page, 'network-ontology-select', result, 'Ontology');
+  if (!ontologyOk) return false;
+
+  const queryButton = page.getByTestId('network-query-button');
+  const enabled = await queryButton.isEnabled().catch(() => false);
+  if (!enabled) {
+    result.issues.push('查询按钮不可用，无法触发网络查询');
+    return false;
+  }
+
+  await queryButton.click();
+  await waitForNetworkIdle(page, 20000);
+
+  // 等待网络卡片出现（Nodes/节点文案只会在查询后渲染）
+  const nodesLabel = page.getByText(/Nodes:|节点:/);
+  await nodesLabel.first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+  return true;
 }
 
 // 辅助函数：检查控制台错误
@@ -478,13 +553,19 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
       details: [],
       issues: []
     };
-
+  
     await page.goto(`${BASE_URL}/network`);
     await waitForNetworkIdle(page, 20000);
 
-    // 等待网络图加载
-    await page.waitForTimeout(5000);
-
+    // 触发一次查询后再检查渲染（否则页面默认不加载网络图）
+    const queryTriggered = await triggerNetworkQuery(page, result);
+    if (queryTriggered) {
+      // 等待网络图加载
+      await page.waitForTimeout(5000);
+    } else {
+      result.details.push('未触发网络查询，跳过 Cytoscape 渲染检查');
+    }
+  
     // 检查 Cytoscape 容器
     const cytoscapeContainer = page.locator('[class*="cytoscape"], [id*="cy"], canvas').first();
     const hasCytoscape = await cytoscapeContainer.isVisible({ timeout: 15000 }).catch(() => false);
@@ -497,11 +578,11 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
 
     await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-network.png`, fullPage: true });
     result.details.push('截图: e2e-network.png');
-
-    if (canvasCount === 0 && !hasCytoscape) {
+  
+    if (queryTriggered && canvasCount === 0 && !hasCytoscape) {
       result.issues.push('网络图可能未渲染');
     }
-
+  
     testResults.push(result);
   });
 
@@ -512,30 +593,15 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
       details: [],
       issues: []
     };
-
+  
     await page.goto(`${BASE_URL}/network`);
     await waitForNetworkIdle(page, 15000);
 
-    // 查找疾病选择器
-    const diseaseSelector = page.locator('.ant-select, [data-testid*="disease"], [class*="disease"]').first();
-    const hasSelector = await diseaseSelector.isVisible({ timeout: 10000 }).catch(() => false);
-    result.details.push(`疾病选择器: ${hasSelector ? '存在' : '不存在'}`);
-
-    if (hasSelector) {
-      try {
-        await diseaseSelector.click();
-        await page.waitForTimeout(1000);
-
-        const options = page.locator('.ant-select-item, .ant-select-dropdown-menu-item');
-        const optionsCount = await options.count();
-        result.details.push(`疾病选项数量: ${optionsCount}`);
-
-        await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-network-diseases.png` });
-      } catch (e) {
-        result.issues.push(`选择器交互失败: ${e}`);
-      }
-    }
-
+    // 使用更稳定的 data-testid 定位
+    const ok = await selectFirstOptionByTestId(page, 'network-disease-select', result, '疾病');
+    result.details.push(`疾病选择器交互: ${ok ? '成功' : '失败'}`);
+    await page.screenshot({ path: `${SCREENSHOT_DIR}/e2e-network-diseases.png` });
+  
     testResults.push(result);
   });
 
@@ -546,10 +612,17 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
       details: [],
       issues: []
     };
-
+  
     await page.goto(`${BASE_URL}/network`);
     await waitForNetworkIdle(page, 20000);
-    await page.waitForTimeout(5000);
+    const queryTriggered = await triggerNetworkQuery(page, result);
+    if (queryTriggered) {
+      await page.waitForTimeout(5000);
+    } else {
+      result.issues.push('未触发网络查询，跳过节点点击交互');
+      testResults.push(result);
+      return;
+    }
 
     // 尝试点击网络图区域
     const networkArea = page.locator('canvas, [class*="cytoscape"]').first();
@@ -794,10 +867,12 @@ test.describe('7. API 响应测试', () => {
     try {
       const response = await request.get(`${API_BASE}/api/v1/diseases/options`);
       result.details.push(`状态码: ${response.status()}`);
-
+  
       if (response.ok()) {
         const data = await response.json();
-        const optionsCount = Array.isArray(data) ? data.length : data.items?.length || 0;
+        // /api/v1/diseases/options 返回形如 { traits: [...] }
+        const traits = data?.traits || data?.data?.traits || data?.items || data?.data || [];
+        const optionsCount = Array.isArray(traits) ? traits.length : 0;
         result.details.push(`疾病选项数: ${optionsCount}`);
       } else {
         result.issues.push(`API 返回错误: ${response.status()}`);
