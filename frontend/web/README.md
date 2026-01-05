@@ -86,6 +86,15 @@ npm run test:performance
 npm run test:performance:compare
 ```
 
+### E2E Environment Overrides
+
+Playwright supports overriding the target servers via env vars:
+
+```bash
+# Override frontend and backend URLs (e.g. when testing via LAN IP)
+BASE_URL=http://localhost:5173 API_BASE_URL=http://localhost:8000 npm run test:e2e
+```
+
 ## Build
 
 ```bash
