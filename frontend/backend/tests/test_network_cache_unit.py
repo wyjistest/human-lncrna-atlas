@@ -95,3 +95,43 @@ def test_network_gene_cache_hit(monkeypatch):
         "max_edges": 500,
     }
 
+
+def test_network_compare_cache_hit(monkeypatch):
+    calls: dict[str, object] = {}
+    cached_value = {
+        "lncrna_core_id": 11,
+        "species_names": {"1": "Human"},
+        "species_networks": {},
+        "conserved_target_count": 0,
+        "conserved_targets": [],
+    }
+
+    def make_key(namespace: str, **kwargs):
+        calls["namespace"] = namespace
+        calls["kwargs"] = kwargs
+        return "dummy-key"
+
+    def get(key: str):
+        calls["get_key"] = key
+        return cached_value
+
+    monkeypatch.setattr(network_router.cache, "make_key", make_key)
+    monkeypatch.setattr(network_router.cache, "get", get)
+
+    func = _unwrap(network_router.compare_species_networks)
+    result = func(
+        request=None,
+        lncrna_gene_id=17276,
+        min_ba=50,
+        max_targets_per_species=100,
+        db=_DummyDB(),
+    )
+
+    assert result == cached_value
+    assert calls["namespace"] == "network:compare"
+    assert calls["get_key"] == "dummy-key"
+    assert calls["kwargs"] == {
+        "lncrna_gene_id": 17276,
+        "min_ba": 50,
+        "max_targets_per_species": 100,
+    }

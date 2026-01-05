@@ -555,6 +555,16 @@ def compare_species_networks(
     curl "http://localhost:8000/api/v1/network/compare?lncrna_gene_id=17276&min_ba=50"
     ```
     """
+    cache_key = cache.make_key(
+        "network:compare",
+        lncrna_gene_id=lncrna_gene_id,
+        min_ba=min_ba,
+        max_targets_per_species=max_targets_per_species,
+    )
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # Species names mapping (English)
     SPECIES_NAMES = {
         1: "Human",
@@ -655,10 +665,12 @@ def compare_species_networks(
         for species_id in species_networks.keys()
     }
 
-    return {
+    result = {
         "lncrna_core_id": lncrna.core_id,
         "species_names": species_names_map,
         "species_networks": species_networks,
         "conserved_target_count": len(conserved_targets),
         "conserved_targets": conserved_targets,
     }
+    cache.set(cache_key, result, cache.TTL_LIST)
+    return result
