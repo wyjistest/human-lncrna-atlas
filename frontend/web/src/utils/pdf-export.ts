@@ -28,7 +28,7 @@ export async function exportToPDF(
 
   try {
     // 动态导入，减少首屏 bundle
-    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+    const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
       import('jspdf'),
       import('html2canvas')
     ])
@@ -201,7 +201,7 @@ export async function exportChartsToPDF(
   } = options
 
   try {
-    const { default: jsPDF } = await import('jspdf')
+    const { jsPDF } = await import('jspdf')
 
     const pdf = new jsPDF({
       orientation: 'landscape',
