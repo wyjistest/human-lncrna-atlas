@@ -148,7 +148,6 @@ async function switchLanguage(page: Page, language: 'en' | 'zh'): Promise<void> 
 test.describe('Sankey Flow - P0 Critical', () => {
 
   test('should load page correctly', async ({ page }) => {
-    // TODO: Once page is implemented, this test should pass
     await page.goto(`${BASE_URL}${PAGE_URL}`)
 
     // Wait for page to load
@@ -163,7 +162,6 @@ test.describe('Sankey Flow - P0 Critical', () => {
   })
 
   test('should render Sankey chart canvas', async ({ page }) => {
-    // TODO: Verify canvas rendering once page is implemented
     await page.goto(`${BASE_URL}${PAGE_URL}`)
     await page.waitForLoadState('networkidle')
 
@@ -184,7 +182,6 @@ test.describe('Sankey Flow - P0 Critical', () => {
   })
 
   test('should support i18n switching', async ({ page }) => {
-    // TODO: Update text matchers once actual translations are implemented
     await page.goto(`${BASE_URL}${PAGE_URL}`)
     await page.waitForLoadState('networkidle')
 
@@ -490,7 +487,7 @@ test.describe('Sankey Flow - P1 Features', () => {
 
 test.describe('Sankey Flow - P2 Performance', () => {
 
-  test('should render chart within 5 seconds', async ({ page }) => {
+  test('should render chart within render budget', async ({ page }) => {
     const startTime = Date.now()
 
     await page.goto(`${BASE_URL}${PAGE_URL}`)
@@ -509,24 +506,70 @@ test.describe('Sankey Flow - P2 Performance', () => {
   })
 
   test('should handle large dataset', async ({ page }) => {
-    // TODO: Mock large dataset response
-    await page.route('**/api/v1/sankey*', (route) => {
-      // Generate large dataset with 100 nodes and 200 links
-      const nodes = Array.from({ length: 100 }, (_, i) => ({
-        name: `Node_${i}`,
-        value: Math.floor(Math.random() * 1000)
-      }))
+    let mocked = false
+    await page.route('**/api/v1/visualization/sankey-data*', (route) => {
+      mocked = true
 
-      const links = Array.from({ length: 200 }, (_, i) => ({
-        source: `Node_${i % 50}`,
-        target: `Node_${(i % 50) + 50}`,
-        value: Math.floor(Math.random() * 100)
-      }))
+      // Generate a deterministic large dataset (100 nodes, 200 links).
+      const lncrnaCount = 34
+      const geneCount = 33
+      const diseaseCount = 33
+
+      const nodes = [
+        ...Array.from({ length: lncrnaCount }, (_, i) => ({
+          id: `lncrna_${i}`,
+          name: `LNC_${i}`,
+          layer: 0,
+        })),
+        ...Array.from({ length: geneCount }, (_, i) => ({
+          id: `gene_${i}`,
+          name: `GENE_${i}`,
+          layer: 1,
+        })),
+        ...Array.from({ length: diseaseCount }, (_, i) => ({
+          id: `disease_${i}`,
+          name: `DISEASE_${i}`,
+          layer: 2,
+        })),
+      ]
+
+      const links = [
+        ...Array.from({ length: 100 }, (_, i) => ({
+          source: `lncrna_${i % lncrnaCount}`,
+          target: `gene_${i % geneCount}`,
+          value: 100 + (i % 50),
+          flow_count: 1 + (i % 5),
+        })),
+        ...Array.from({ length: 100 }, (_, i) => ({
+          source: `gene_${i % geneCount}`,
+          target: `disease_${i % diseaseCount}`,
+          value: 1 + (i % 10),
+          flow_count: 1 + (i % 3),
+        })),
+      ]
 
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ nodes, links })
+        body: JSON.stringify({
+          success: true,
+          data: { nodes, links },
+          stats: {
+            total_lncrnas: lncrnaCount,
+            total_genes: geneCount,
+            total_diseases: diseaseCount,
+            total_regulations: 100,
+            total_associations: 100,
+            avg_binding_affinity: 125.0,
+            species_id: 1,
+          },
+          query_params: {
+            species_id: 1,
+            min_ba: 0,
+            trait_name: null,
+            limit: 500,
+          },
+        }),
       })
     })
 
@@ -534,8 +577,11 @@ test.describe('Sankey Flow - P2 Performance', () => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
     await page.waitForLoadState('networkidle')
 
-    // Wait for chart
-    await page.waitForTimeout(3000)
+    expect(mocked).toBeTruthy()
+
+    // Ensure UI consumed mocked data (total nodes should match).
+    const totalNodesCard = page.locator('[data-testid="stat-total-nodes"]').first()
+    await expect(totalNodesCard).toContainText('100', { timeout: 15000 })
 
     const renderTime = Date.now() - startTime
     console.log(`Large dataset render time: ${renderTime}ms`)

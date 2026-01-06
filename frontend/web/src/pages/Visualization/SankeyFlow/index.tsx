@@ -452,14 +452,15 @@ export default function SankeyFlow() {
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('sankey.filters.minBA', 'Min. Binding Affinity')}: {minBA}
               </Text>
-              <Slider
-                min={0}
-                max={100}
-                value={minBA}
-                onChange={setMinBA}
-                marks={{ 0: '0', 50: '50', 100: '100' }}
-                data-testid="ba-slider"
-              />
+              <div data-testid="ba-slider">
+                <Slider
+                  min={0}
+                  max={100}
+                  value={minBA}
+                  onChange={setMinBA}
+                  marks={{ 0: '0', 50: '50', 100: '100' }}
+                />
+              </div>
             </Space>
           </Col>
           <Col xs={24} sm={12} md={6}>
@@ -467,15 +468,16 @@ export default function SankeyFlow() {
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {t('sankey.filters.limit', 'Node Limit')}: {limit}
               </Text>
-              <Slider
-                min={50}
-                max={500}
-                step={50}
-                value={limit}
-                onChange={setLimit}
-                marks={{ 50: '50', 250: '250', 500: '500' }}
-                data-testid="limit-slider"
-              />
+              <div data-testid="limit-slider">
+                <Slider
+                  min={50}
+                  max={500}
+                  step={50}
+                  value={limit}
+                  onChange={setLimit}
+                  marks={{ 50: '50', 250: '250', 500: '500' }}
+                />
+              </div>
             </Space>
           </Col>
         </Row>

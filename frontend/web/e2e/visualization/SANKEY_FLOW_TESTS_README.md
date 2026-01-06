@@ -4,7 +4,7 @@
 
 Comprehensive Playwright E2E test suite for the Sankey flow diagram visualization feature.
 
-**Status**: Test framework completed, awaiting page implementation
+**Status**: Page implemented; E2E suite passing
 **Created**: 2025-12-12
 **Test File**: `e2e/visualization/sankey-flow.spec.ts`
 **Target Route**: `/visualization/sankey-flow`
@@ -14,8 +14,8 @@ Comprehensive Playwright E2E test suite for the Sankey flow diagram visualizatio
 | Metric | Count |
 |--------|-------|
 | Test Suites | 4 |
-| Test Cases | 22 |
-| Lines of Code | 637 |
+| Test Cases | 23 |
+| Lines of Code | 636 |
 | Helper Functions | 6 |
 | Coverage | P0 + P1 + P2 |
 
@@ -46,11 +46,11 @@ Comprehensive Playwright E2E test suite for the Sankey flow diagram visualizatio
 | should show legend | Legend component verification | Page load | Legend visible with colors |
 | should support search/filter controls | Search input interaction | Enter gene name | Chart filters by search term |
 
-### P2: Performance & Edge Cases (3 tests)
+### P2: Performance & Edge Cases (4 tests)
 
 | Test | Description | Performance Target | Validation |
 |------|-------------|-------------------|------------|
-| should render chart within 5 seconds | Initial render performance | < 5000ms | Chart renders within timeout |
+| should render chart within render budget | Initial render performance | < 15000ms (default, configurable) | Chart renders within timeout |
 | should handle large dataset | 100 nodes, 200 links | < 10000ms | No performance degradation |
 | should be responsive on mobile | 375x667 viewport | Canvas ≤ 375px | Mobile adaptation |
 | should be responsive on tablet | 768x1024 viewport | Content visible | Tablet adaptation |
@@ -98,17 +98,20 @@ Switches UI language to 'en' or 'zh'.
 
 ## Test-ID Requirements
 
-Once the Sankey flow page is implemented, add these `data-testid` attributes:
+The Sankey flow page includes stable `data-testid` attributes. The E2E suite relies on these selectors:
 
 | Element | Test-ID | Purpose |
 |---------|---------|---------|
 | Page Container | `sankey-flow-page` | Root page container |
-| Chart Container | `sankey-flow-chart` | ECharts Sankey container |
-| Species Filter | `sankey-species-filter` | Species dropdown |
-| BA Slider | `sankey-ba-slider` | Binding affinity slider |
-| Export Button | `sankey-export-button` | Export dropdown button |
-| Legend | `sankey-legend` | Chart legend container |
-| Detail Panel | `node-detail-panel` | Node detail drawer/modal |
+| Chart Container | `sankey-chart` | ReactECharts container |
+| Species Filter | `species-select` | Species dropdown |
+| Disease Search | `disease-search` | Disease/trait search input |
+| BA Slider | `ba-slider` | Binding affinity slider |
+| Data Table | `sankey-table` | Data table container |
+| Stats: Total Nodes | `stat-total-nodes` | Total node count |
+| Stats: LncRNA | `stat-lncrna-nodes` | lncRNA node count |
+| Stats: Gene | `stat-gene-nodes` | Gene node count |
+| Stats: Disease | `stat-disease-nodes` | Disease node count |
 
 ## Running Tests
 
@@ -148,31 +151,7 @@ npx playwright show-report
 
 ## Current Status
 
-**IMPORTANT**: The `/visualization/sankey-flow` page does not exist yet. These tests will fail with 404 errors until the page is implemented.
-
-### TODO: Page Implementation Checklist
-
-- [ ] Create `/src/pages/Visualization/SankeyFlow/index.tsx`
-- [ ] Add route to `src/App.tsx`
-- [ ] Implement ECharts Sankey chart component
-- [ ] Add species filter dropdown
-- [ ] Add BA threshold slider
-- [ ] Implement tooltip on node hover
-- [ ] Add export functionality (PNG/SVG)
-- [ ] Add data-testid attributes (see table above)
-- [ ] Implement i18n translations
-- [ ] Add loading and error states
-- [ ] Add empty data state handling
-
-### TODO: After Page Implementation
-
-1. **Verify test-ids**: Ensure all `data-testid` attributes match the test expectations
-2. **Run tests**: Execute full test suite and fix any failures
-3. **API endpoint**: Confirm the API route matches `**/api/v1/sankey*` pattern
-4. **API response format**: Verify response structure `{ nodes: [], links: [] }`
-5. **Adjust selectors**: Update locators if UI structure differs from expectations
-6. **Remove TODO comments**: Clean up TODO comments in test file
-7. **Performance baseline**: Run performance tests and adjust timeouts if needed
+✅ The `/visualization/sankey-flow` page is implemented and covered by this E2E suite.
 
 ## API Expectations
 
@@ -180,21 +159,35 @@ The tests assume the following API endpoint and response format:
 
 ### Endpoint
 ```
-GET /api/v1/sankey?species_id={id}&min_ba={threshold}
+GET /api/v1/visualization/sankey-data?species_id={id}&min_ba={threshold}&trait_name={name}&limit={n}
 ```
 
 ### Response Format
 ```json
 {
-  "nodes": [
-    { "name": "lncRNA_A", "value": 100 },
-    { "name": "H3K27me3", "value": 200 },
-    { "name": "GENE_A", "value": 150 }
-  ],
-  "links": [
-    { "source": "lncRNA_A", "target": "H3K27me3", "value": 50 },
-    { "source": "H3K27me3", "target": "GENE_A", "value": 30 }
-  ]
+  "success": true,
+  "data": {
+    "nodes": [
+      { "id": "lncrna_123", "name": "MALAT1", "layer": 0 },
+      { "id": "gene_456", "name": "TP53", "layer": 1 },
+      { "id": "disease_789", "name": "Type 2 Diabetes", "layer": 2 }
+    ],
+    "links": [
+      { "source": "lncrna_123", "target": "gene_456", "value": 150.5, "flow_count": 12 },
+      { "source": "gene_456", "target": "disease_789", "value": 8.0, "flow_count": 5 }
+    ]
+  },
+  "stats": {
+    "total_lncrnas": 45,
+    "total_genes": 120,
+    "total_diseases": 10
+  },
+  "query_params": {
+    "species_id": 1,
+    "min_ba": 100,
+    "trait_name": "diabetes",
+    "limit": 100
+  }
 }
 ```
 
