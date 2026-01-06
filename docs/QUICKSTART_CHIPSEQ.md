@@ -399,9 +399,10 @@ curl -s -D- -o /dev/null \
 如果返回非 200 或长时间无响应，请优先检查后端进程与数据库连接（下一条）。
 
 **解决（CORS/LAN）**:
-- 推荐：使用 `./scripts/dev.sh` 启动（会自动注入 `TRUSTED_HOSTS` / `CORS_ORIGINS` / `VITE_API_BASE_URL`，支持局域网访问）
+- 推荐：使用 `./scripts/dev.sh` 启动（会自动注入 `TRUSTED_HOSTS` / `CORS_ORIGINS` / `VITE_API_BASE_URL` / `RATE_LIMIT_BYPASS_PRIVATE`，支持局域网访问）
 - 或手动设置后端环境变量（示例）：
   - `export CORS_ORIGINS='["http://localhost:5173","http://127.0.0.1:5173","http://192.168.x.x:5173"]'`
+  - 如遇到 `429 Too many requests`（常见于 Playwright 并发 E2E 或频繁交互），可在开发环境设置 `export RATE_LIMIT_BYPASS_PRIVATE=true`
   - 然后重启后端 `uvicorn main:app --host 0.0.0.0 --port 8000`
 
 ### 问题 3: API 返回 500 错误

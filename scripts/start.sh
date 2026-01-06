@@ -156,6 +156,14 @@ apply_dev_env_overrides() {
         log_info "dev: 自动注入 CORS_ORIGINS=$CORS_ORIGINS"
     fi
 
+    # LAN 友好开发模式下，前端默认会通过 LAN IP 访问后端（VITE_API_BASE_URL=http://<lan_ip>:8000）。
+    # 这会导致限流 key 变为 LAN IP（非 127.0.0.1），并在 Playwright 并发测试或频繁交互时触发 429。
+    # 仅在用户未显式配置时，开启私网 IP 限流 bypass（生产环境请保持 false）。
+    if [ -z "${RATE_LIMIT_BYPASS_PRIVATE:-}" ]; then
+        export RATE_LIMIT_BYPASS_PRIVATE="true"
+        log_info "dev: 自动注入 RATE_LIMIT_BYPASS_PRIVATE=$RATE_LIMIT_BYPASS_PRIVATE"
+    fi
+
     if [ -z "${ADMIN_API_KEY:-}" ]; then
         export ADMIN_API_KEY="$(generate_admin_api_key)"
         export ADMIN_REQUIRE_API_KEY="true"

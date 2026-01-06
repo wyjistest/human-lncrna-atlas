@@ -32,6 +32,10 @@ import {
   RadarComponent,
 } from 'echarts/components'
 
+// ECharts v6: grid.containLabel 已废弃但仍被历史配置使用；注册 LegacyGridContainLabel 可避免控制台警告
+// 参考：https://echarts.apache.org/en/option.html#grid.containLabel
+import { LegacyGridContainLabel } from 'echarts/features'
+
 // 渲染器
 import { CanvasRenderer } from 'echarts/renderers'
 
@@ -99,6 +103,7 @@ echarts.use([
   ToolboxComponent,
   VisualMapComponent,
   RadarComponent,
+  LegacyGridContainLabel,
   CanvasRenderer,
 ])
 

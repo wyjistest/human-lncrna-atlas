@@ -94,6 +94,8 @@ Some SQL scripts create/require PostgreSQL extensions. You may need elevated pri
 ./scripts/dev.sh
 ```
 
+This will auto-inject LAN-friendly defaults (`TRUSTED_HOSTS`, `CORS_ORIGINS`, `VITE_API_BASE_URL`) and enable private-IP rate-limit bypass for local development (`RATE_LIMIT_BYPASS_PRIVATE=true`).
+
 Stop services:
 
 ```bash

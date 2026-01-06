@@ -190,8 +190,9 @@ def should_bypass_rate_limit(request: Request) -> bool:
     """
     判断是否应跳过限流
 
-    根据 settings.RATE_LIMIT_BYPASS_PRIVATE 配置决定是否对私网 IP 放行。
-    生产环境建议关闭此选项。
+    规则：
+    - 非 production 环境：回环地址（127.0.0.0/8, ::1）默认跳过限流，避免本机开发/端到端测试因并发触发 429。
+    - 任意环境：当 settings.RATE_LIMIT_BYPASS_PRIVATE=true 时，私网 IP 可跳过限流（生产环境建议关闭）。
 
     Args:
         request: FastAPI Request 对象
@@ -199,12 +200,22 @@ def should_bypass_rate_limit(request: Request) -> bool:
     Returns:
         True 如果应跳过限流，否则 False
     """
-    # 如果配置禁用私网 bypass，总是执行限流
-    if not getattr(settings, 'RATE_LIMIT_BYPASS_PRIVATE', False):
-        return False
-
     client_ip = get_client_ip(request)
-    return is_private_ip(client_ip)
+
+    # 开发/测试环境：本机请求默认不受限流影响，避免 UI / Playwright E2E 在高并发下触发 429。
+    if getattr(settings, "ENV", "development") != "production":
+        try:
+            ip = ipaddress.ip_address(client_ip)
+            if ip.is_loopback:
+                return True
+        except ValueError:
+            pass
+
+    # 可选：私网 bypass（仅当显式开启时）
+    if getattr(settings, "RATE_LIMIT_BYPASS_PRIVATE", False):
+        return is_private_ip(client_ip)
+
+    return False
 
 
 __all__ = [

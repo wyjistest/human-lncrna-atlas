@@ -685,7 +685,17 @@ class CacheService:
 
             from sqlalchemy import func
 
-            return int(q.with_entities(func.count()).scalar() or 0)
+            # SQLAlchemy 2.0: Query.with_entities(func.count()) 可能在“无 JOIN/无 WHERE”的简单查询中丢失 FROM，
+            # 生成 `SELECT count(*)`（无 FROM），导致结果恒为 1（严重错误）。
+            #
+            # 使用 Select.with_only_columns(..., maintain_column_froms=True) 保留原始列所隐含的 FROM，
+            # 从而生成正确且更高效的 COUNT(*) 语句。
+            try:
+                stmt = q.statement.with_only_columns(func.count(), maintain_column_froms=True).order_by(None)
+                return int(q.session.execute(stmt).scalar() or 0)
+            except Exception:
+                # 保底：保持与 Query.count() 一致的语义（可能更慢，但更安全）
+                return int(q.count())
 
         if not self.enabled:
             return _count_query(query)

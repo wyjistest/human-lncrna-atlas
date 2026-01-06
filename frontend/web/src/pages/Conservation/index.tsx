@@ -518,7 +518,11 @@ export default function Conservation() {
         <Table<ConservedRegulation>
           columns={columns}
           dataSource={regulationsData?.items || []}
-          rowKey="core_id"
+          rowKey={(record) => {
+            // 注意：同一个 core_id 可能对应多个 target gene，不能直接用 core_id 作为 key（会触发 React 重复 key 警告）
+            const targetKey = record.target_ensembl_id || record.target_gene_name || 'unknown-target'
+            return `${record.core_id}-${targetKey}-${record.conservation_label}`
+          }}
           loading={regulationsLoading}
           pagination={{
             current: page,

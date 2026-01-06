@@ -21,6 +21,7 @@ import zhGenes from './locales/zh-CN/genes.json'
 import zhDiseases from './locales/zh-CN/diseases.json'
 import zhRegulations from './locales/zh-CN/regulations.json'
 import zhNetwork from './locales/zh-CN/network.json'
+import zhConservation from './locales/zh-CN/conservation.json'
 import zhGenomeBrowser from './locales/zh-CN/genomeBrowser.json'
 import zhOverlap from './locales/zh-CN/overlap.json'
 import zhGlobalCompare from './locales/zh-CN/globalCompare.json'
@@ -36,6 +37,7 @@ import enGenes from './locales/en/genes.json'
 import enDiseases from './locales/en/diseases.json'
 import enRegulations from './locales/en/regulations.json'
 import enNetwork from './locales/en/network.json'
+import enConservation from './locales/en/conservation.json'
 import enGenomeBrowser from './locales/en/genomeBrowser.json'
 import enOverlap from './locales/en/overlap.json'
 import enGlobalCompare from './locales/en/globalCompare.json'
@@ -52,14 +54,15 @@ const resources = {
     stats: zhStats,
     genes: zhGenes,
     diseases: zhDiseases,
-    regulations: zhRegulations,
-    network: zhNetwork,
-    genomeBrowser: zhGenomeBrowser,
-    overlap: zhOverlap,
-    globalCompare: zhGlobalCompare,
-    analysis: zhAnalysis,
-    visualization: zhVisualization
-  },
+	    regulations: zhRegulations,
+	    network: zhNetwork,
+	    conservation: zhConservation,
+	    genomeBrowser: zhGenomeBrowser,
+	    overlap: zhOverlap,
+	    globalCompare: zhGlobalCompare,
+	    analysis: zhAnalysis,
+	    visualization: zhVisualization
+	  },
   en: {
     common: enCommon,
     nav: enNav,
@@ -67,15 +70,16 @@ const resources = {
     stats: enStats,
     genes: enGenes,
     diseases: enDiseases,
-    regulations: enRegulations,
-    network: enNetwork,
-    genomeBrowser: enGenomeBrowser,
-    overlap: enOverlap,
-    globalCompare: enGlobalCompare,
-    analysis: enAnalysis,
-    visualization: enVisualization
-  }
-}
+	    regulations: enRegulations,
+	    network: enNetwork,
+	    conservation: enConservation,
+	    genomeBrowser: enGenomeBrowser,
+	    overlap: enOverlap,
+	    globalCompare: enGlobalCompare,
+	    analysis: enAnalysis,
+	    visualization: enVisualization
+	  }
+	}
 
 // ============ 支持的语言 ============
 
@@ -92,10 +96,10 @@ i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources,
-    fallbackLng: 'zh-CN',
-    defaultNS: 'common',
-    ns: ['common', 'nav', 'home', 'stats', 'genes', 'diseases', 'regulations', 'network', 'genomeBrowser', 'overlap', 'globalCompare', 'analysis', 'visualization'],
+	    resources,
+	    fallbackLng: 'zh-CN',
+	    defaultNS: 'common',
+	    ns: ['common', 'nav', 'home', 'stats', 'genes', 'diseases', 'regulations', 'network', 'conservation', 'genomeBrowser', 'overlap', 'globalCompare', 'analysis', 'visualization'],
 
     interpolation: {
       escapeValue: false // React 已处理 XSS
