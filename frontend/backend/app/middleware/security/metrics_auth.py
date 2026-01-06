@@ -58,7 +58,7 @@ async def metrics_auth_middleware(request: Request, call_next):
         if settings.ADMIN_REQUIRE_API_KEY:
             if not admin_key:
                 return _error(500, "SERVER_CONFIG_ERROR", "Admin API key not configured")
-            if api_key and secrets.compare_digest(api_key.encode('utf-8'), admin_key.encode('utf-8')):
+            if api_key and secrets.compare_digest(api_key, admin_key):
                 return await call_next(request)
 
             if api_key:
@@ -68,7 +68,7 @@ async def metrics_auth_middleware(request: Request, call_next):
         # 普通模式：有效 API Key 或私有 IP 可访问
         # SECURITY: 若配置了 admin_key 且客户端提供了错误的 API Key，则直接拒绝（不回退到私网放行）
         if admin_key and api_key:
-            if secrets.compare_digest(api_key.encode('utf-8'), admin_key.encode('utf-8')):
+            if secrets.compare_digest(api_key, admin_key):
                 return await call_next(request)
             logger.warning("Invalid Admin API Key for /metrics from %s", safe_ip)
             return _error(403, "ACCESS_DENIED", "Invalid API Key provided")

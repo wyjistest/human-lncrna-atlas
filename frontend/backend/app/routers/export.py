@@ -728,8 +728,11 @@ def export_disease_network(
     if not is_effective_like_filter(trait_name):
         effective_limit = min(limit, 500)  # 无过滤时最多返回 500 条
         logger.warning(
-            f"[EXPORT] disease-network: No effective trait_name filter provided "
-            f"(value={trait_name!r}), limiting to {effective_limit} rows (requested: {limit})"
+            "[EXPORT] disease-network: No effective trait_name filter provided (value=%s), "
+            "limiting to %s rows (requested: %s)",
+            sanitize_for_log(trait_name, max_length=200),
+            effective_limit,
+            limit,
         )
         # 无效过滤时传递 None，避免纯通配符查询
         escaped_trait_name = None

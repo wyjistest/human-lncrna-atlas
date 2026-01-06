@@ -169,10 +169,7 @@ async def verify_admin_access(
                 detail={"error": "SERVER_CONFIG_ERROR", "message": "Admin API key not configured"}
             )
         # SECURITY: 使用 secrets.compare_digest 防止时序攻击
-        if x_admin_api_key and secrets.compare_digest(
-            x_admin_api_key.encode('utf-8'),
-            admin_key.encode('utf-8')
-        ):
+        if x_admin_api_key and secrets.compare_digest(x_admin_api_key, admin_key):
             logger.debug(f"Admin API access granted via API Key (strict mode) from {client_ip}")
             return
         logger.warning(f"Admin API access denied (strict mode): invalid or missing API Key from {client_ip}")
@@ -189,10 +186,7 @@ async def verify_admin_access(
     admin_key = settings.ADMIN_API_KEY.get_secret_value() if settings.ADMIN_API_KEY else None
     if admin_key:
         # SECURITY: 使用 secrets.compare_digest 防止时序攻击
-        if x_admin_api_key and secrets.compare_digest(
-            x_admin_api_key.encode('utf-8'),
-            admin_key.encode('utf-8')
-        ):
+        if x_admin_api_key and secrets.compare_digest(x_admin_api_key, admin_key):
             logger.debug(f"Admin API access granted via API Key from {client_ip}")
             return
         # SECURITY: 提供了错误的 API Key 时直接拒绝，不继续 IP 检查

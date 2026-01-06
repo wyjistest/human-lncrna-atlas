@@ -72,6 +72,37 @@ mimetypes.add_type("application/octet-stream", ".bigwig")
 # 初始化日志
 logger = setup_logging(settings.LOG_LEVEL)
 
+def _get_weak_admin_api_key_reason(admin_key: str) -> str | None:
+    """
+    检测 Admin API Key 是否过弱/疑似占位符（防止误把示例值用于生产环境）。
+
+    说明：
+    - 这里只做“明显危险”的最小集合判断，避免误伤真实 key。
+    - 不返回/不记录 key 本身，防止日志泄露。
+    """
+    key = str(admin_key or "").strip()
+    if not key:
+        return None
+
+    # 典型占位符（CHANGE_ME / change-me / change_me / "default" 等）
+    import re
+
+    canonical = re.sub(r"[-_\s]+", "", key.lower())
+    if canonical in {"changeme", "default", "password", "admin", "secret"}:
+        return (
+            "ADMIN_API_KEY appears to be a placeholder/weak value (e.g., CHANGE_ME/default/password). "
+            "Generate a strong random key: openssl rand -hex 32"
+        )
+
+    # 最低强度要求：避免过短 key（生产环境至少 16 字符）
+    if len(key) < 16:
+        return (
+            "ADMIN_API_KEY is too short (<16 chars). "
+            "Generate a strong random key: openssl rand -hex 32"
+        )
+
+    return None
+
 
 def _validate_security_config() -> None:
     """
@@ -115,6 +146,15 @@ def _validate_security_config() -> None:
                 "ADMIN_REQUIRE_API_KEY=true but ADMIN_API_KEY is not set. "
                 "Generate a key: openssl rand -hex 32"
             )
+        else:
+            weak_reason = _get_weak_admin_api_key_reason(admin_key)
+            if weak_reason:
+                # 生产环境：视为致命错误（避免把示例值/弱口令带到线上）
+                # 非生产环境：仅告警，不改变行为，保持向后兼容
+                if settings.is_production:
+                    fatal_errors.append(weak_reason)
+                else:
+                    warnings.append(weak_reason)
     else:
         # 非严格模式视为致命错误（生产环境必须启用 API Key）
         fatal_errors.append(

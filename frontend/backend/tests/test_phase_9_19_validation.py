@@ -306,6 +306,36 @@ class TestSecurityValidationIntegration:
         # 包含实际域名，不应抛出异常
         _validate_security_config()  # Should not raise
 
+    @pytest.mark.unit
+    def test_admin_api_key_placeholder_raises_in_production(self, monkeypatch):
+        """测试生产环境拒绝明显占位符/弱口令的 ADMIN_API_KEY（防误用 .env.example）"""
+        monkeypatch.setenv("ENV", "production")
+        monkeypatch.setenv("TRUSTED_HOSTS", '["example.com"]')
+        monkeypatch.setenv("ADMIN_REQUIRE_API_KEY", "true")
+        monkeypatch.setenv("ADMIN_API_KEY", "CHANGE_ME")
+        monkeypatch.setenv("RATELIMIT_STORAGE_URL", "redis://localhost:6379/1")
+
+        _validate_security_config = _reload_and_get_validate_func()
+
+        with pytest.raises(RuntimeError) as exc_info:
+            _validate_security_config()
+        assert "ADMIN_API_KEY appears to be a placeholder/weak value" in str(exc_info.value)
+
+    @pytest.mark.unit
+    def test_admin_api_key_too_short_raises_in_production(self, monkeypatch):
+        """测试生产环境拒绝过短的 ADMIN_API_KEY（最低强度要求）"""
+        monkeypatch.setenv("ENV", "production")
+        monkeypatch.setenv("TRUSTED_HOSTS", '["example.com"]')
+        monkeypatch.setenv("ADMIN_REQUIRE_API_KEY", "true")
+        monkeypatch.setenv("ADMIN_API_KEY", "short-key")
+        monkeypatch.setenv("RATELIMIT_STORAGE_URL", "redis://localhost:6379/1")
+
+        _validate_security_config = _reload_and_get_validate_func()
+
+        with pytest.raises(RuntimeError) as exc_info:
+            _validate_security_config()
+        assert "ADMIN_API_KEY is too short" in str(exc_info.value)
+
 
 class TestSecurityValidationLogic:
     """安全配置验证逻辑测试（不调用真实函数，验证逻辑正确性）"""

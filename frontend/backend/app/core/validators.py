@@ -21,6 +21,8 @@ from typing import List, Optional
 
 from fastapi import HTTPException
 
+from app.core.utils import sanitize_for_log
+
 logger = logging.getLogger(__name__)
 
 # ============================================================================
@@ -265,7 +267,11 @@ def parse_int_list(
         try:
             parsed_int = int(item)
         except ValueError:
-            logger.warning(f"Invalid integer in {param_name}: {item}")
+            logger.warning(
+                "Invalid integer in %s: %s",
+                param_name,
+                sanitize_for_log(item, max_length=200),
+            )
             raise HTTPException(
                 status_code=400,
                 detail=f"{param_name}: '{item}' is not a valid integer"
