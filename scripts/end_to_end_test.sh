@@ -39,6 +39,12 @@ TEST_DB_NAME="lncrna_e2e_test"
 DB_USER="${DB_USER:-postgres}"
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
+DB_PASSWORD="${DB_PASSWORD:-}"
+
+# 若需要密码，请通过环境变量 DB_PASSWORD 或 ~/.pgpass 提供；避免在非交互环境下卡住等待输入。
+if [ -n "$DB_PASSWORD" ]; then
+    export PGPASSWORD="$DB_PASSWORD"
+fi
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
@@ -60,7 +66,7 @@ echo ""
 
 log_step 1 "清理测试环境"
 
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS $TEST_DB_NAME;" 2>/dev/null || true
+psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS $TEST_DB_NAME;" 2>/dev/null || true
 
 log_success "测试环境已清理"
 echo ""
@@ -95,7 +101,7 @@ echo ""
 
 log_step 3 "验证核心表结构"
 
-TABLE_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "
+TABLE_COUNT=$(psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "
     SELECT COUNT(*) FROM information_schema.tables
     WHERE table_schema = 'public'
       AND table_name IN ('species', 'core_id_assignments', 'core_genes', 'genes',
@@ -112,7 +118,7 @@ else
 fi
 
 # 验证species表有4行
-SPECIES_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM species")
+SPECIES_COUNT=$(psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM species")
 if [ "$SPECIES_COUNT" -eq 4 ]; then
     log_success "species表数据正确: $SPECIES_COUNT/4"
 else
@@ -128,7 +134,7 @@ echo ""
 
 log_step 4 "插入样本测试数据"
 
-if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f schema/v2.3/03_sample_data.sql > /tmp/sample_data_output.log 2>&1; then
+if psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f schema/v2.3/03_sample_data.sql > /tmp/sample_data_output.log 2>&1; then
     log_success "样本数据插入成功"
 else
     log_error "样本数据插入失败，查看日志: /tmp/sample_data_output.log"
@@ -144,10 +150,10 @@ echo ""
 
 log_step 5 "验证样本数据行数"
 
-GENES_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM genes")
-REGULATIONS_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM regulations")
-TRAITS_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM traits")
-TGA_COUNT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM trait_gene_associations")
+GENES_COUNT=$(psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM genes")
+REGULATIONS_COUNT=$(psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM regulations")
+TRAITS_COUNT=$(psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM traits")
+TGA_COUNT=$(psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "SELECT COUNT(*) FROM trait_gene_associations")
 
 echo "实际行数:"
 echo "  genes: $GENES_COUNT (预期: 12)"
@@ -191,7 +197,7 @@ echo ""
 
 log_step 6 "执行冒烟测试"
 
-if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f tests/smoke_test.sql > /tmp/smoke_test_output.log 2>&1; then
+if psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f tests/smoke_test.sql > /tmp/smoke_test_output.log 2>&1; then
     log_success "冒烟测试执行成功"
 
     # 检查关键验证点
@@ -252,7 +258,7 @@ echo ""
 log_step 8 "测试关键查询"
 
 # 查询1: Autism MTG网络
-AUTISM_RESULT=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "
+AUTISM_RESULT=$(psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -tAc "
     WITH target_genes AS (
         SELECT g.gene_id, g.gene_name
         FROM genes g

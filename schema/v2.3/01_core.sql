@@ -486,8 +486,7 @@ SELECT
     r.binding_affinity,
     r.best_peak_chr,
     r.best_peak_start,
-    r.best_peak_end,
-    r.regulation_id
+    r.best_peak_end
 
 FROM regulations r
 JOIN species s ON r.species_id = s.species_id

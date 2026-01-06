@@ -21,7 +21,7 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-postgres}"
 DB_NAME="${DB_NAME:-lncrna_production}"
-DB_PASSWORD="${DB_PASSWORD:-}"  # 如果为空，将提示输入
+DB_PASSWORD="${DB_PASSWORD:-}"  # 若需要密码，请设置 DB_PASSWORD 或 ~/.pgpass（脚本不会在非交互模式下等待密码输入）
 
 SCHEMA_DIR="$(cd "$(dirname "$0")/../schema/v2.3" && pwd)"
 INSTALL_EXTENSION_LAYER="${INSTALL_EXTENSION_LAYER:-no}"  # yes/no
@@ -59,18 +59,20 @@ run_psql() {
     local db="$1"
     shift
     if [ -n "$DB_PASSWORD" ]; then
-        PGPASSWORD="$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
+        PGPASSWORD="$DB_PASSWORD" psql -w -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
     else
-        psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
+        # -w: 禁止交互式密码提示，避免在 CI/非交互 shell 中卡住
+        psql -w -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$db" "$@"
     fi
 }
 
 # 执行psql命令（连接postgres数据库）
 run_psql_postgres() {
     if [ -n "$DB_PASSWORD" ]; then
-        PGPASSWORD="$DB_PASSWORD" psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
+        PGPASSWORD="$DB_PASSWORD" psql -w -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
     else
-        psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
+        # -w: 禁止交互式密码提示，避免在 CI/非交互 shell 中卡住
+        psql -w -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres "$@"
     fi
 }
 
@@ -182,8 +184,16 @@ check_database_exists() {
 
 create_database() {
     log_info "创建数据库 '$DB_NAME'..."
-    run_psql_postgres -c "CREATE DATABASE $DB_NAME ENCODING 'UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE=template0"
-    log_success "数据库创建成功"
+    # P1 兼容性：某些环境（例如非 en_US locale 的系统）可能不存在 en_US.UTF-8，导致 CREATE DATABASE 失败。
+    # 先尝试显式指定 locale（便于在多数 Linux 环境获得一致排序/比较行为），失败则回退到集群默认 locale。
+    if run_psql_postgres -c "CREATE DATABASE $DB_NAME ENCODING 'UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE=template0"; then
+        log_success "数据库创建成功"
+        return
+    fi
+
+    log_warning "创建数据库失败：系统可能不支持 en_US.UTF-8 locale，回退使用 PostgreSQL 默认 locale"
+    run_psql_postgres -c "CREATE DATABASE $DB_NAME ENCODING 'UTF8' TEMPLATE=template0"
+    log_success "数据库创建成功（默认 locale）"
 }
 
 install_extensions() {
