@@ -321,7 +321,7 @@ def main():
             last_line_num = progress.get("last_line_num", 0) if "progress" in locals() else 0
             resume_hint = (
                 f"PARTIAL_IMPORT: {imported} records committed before error. "
-                f"Resume: python import_ucsc_rmsk.py {args.input_file} "
+                f"Resume: python3 import_ucsc_rmsk.py {args.input_file} "
                 f"--species {args.species} --skip-lines={max(last_line_num - 1, 0)}"
             )
             try:

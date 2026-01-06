@@ -214,7 +214,7 @@ $ ./scripts/offline_validation.sh
 ### 🔴 验证的层次
 
 ```
-Level 1: 语法检查     ✅ python -m py_compile
+Level 1: 语法检查     ✅ python3 -m py_compile
 Level 2: 列名检查     ✅ grep验证列是否存在
 Level 3: 数据完整性   ✅ 检查FK引用是否存在  <-- 本次新增
 Level 4: 语义正确性   ⚠️  需要实际执行SQL

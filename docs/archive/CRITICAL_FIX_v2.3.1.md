@@ -199,7 +199,7 @@ CREATE TABLE regulations (
 # 在声称"生产就绪"前，应执行：
 1. ./scripts/init_db.sh                          # 建库
 2. psql -d lncrna_network -f schema/v2.3/03_sample_data.sql  # ✅ 必须成功
-3. python etl/examples/import_regulations.py --dry-run ...  # ✅ 必须成功
+3. python3 etl/examples/import_regulations.py --dry-run ...  # ✅ 必须成功
 4. psql -d lncrna_network -f tests/smoke_test.sql           # ✅ 必须成功
 ```
 
@@ -246,7 +246,7 @@ psql -U postgres -d lncrna_test -f tests/smoke_test.sql
 psql -d test_db -f schema/v2.3/03_sample_data.sql --dry-run
 
 # 验证ETL脚本语法
-python -m py_compile etl/examples/import_regulations.py
+python3 -m py_compile etl/examples/import_regulations.py
 ```
 
 ### 2. 添加集成测试
@@ -286,7 +286,7 @@ psql -d lncrna_network -f tests/smoke_test.sql
 ### ✅ 必须做
 
 1. **任何SQL必须实际执行** - 尤其是样本数据
-2. **任何Python脚本必须至少语法检查** - `python -m py_compile`
+2. **任何Python脚本必须至少语法检查** - `python3 -m py_compile`
 3. **README中的任何命令必须实际运行** - 复制粘贴测试
 4. **版本号升级前必须过集成测试** - 自动化检查
 

@@ -189,7 +189,7 @@ After tests pass, manually verify:
 **Solution**:
 ```bash
 cd /data/wenyujianData/humanLncAtlas/backend
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
+poetry run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 ### Tests Fail: "Page not found (404)"

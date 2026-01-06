@@ -7,7 +7,7 @@
 更新数据库中的sequences表。
 
 Usage:
-    python fix_chimp_empty_dna.py [--dna-dir /path/to/dna/files]
+    python3 fix_chimp_empty_dna.py [--dna-dir /path/to/dna/files]
 
 Environment Variables:
     CHIMP_DNA_DIR: DNA文件目录路径

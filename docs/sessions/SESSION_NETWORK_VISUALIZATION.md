@@ -708,7 +708,7 @@ return {
 # 1. Start backend
 cd /data/wenyujianData/humanLncAtlas/frontend/backend
 source venv/bin/activate
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 2. Start frontend
 cd /data/wenyujianData/humanLncAtlas/frontend/web

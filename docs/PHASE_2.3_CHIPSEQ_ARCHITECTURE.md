@@ -1082,7 +1082,7 @@ export function useChIPSeqData(
 ### 5.1 统一导入脚本
 
 ```bash
-python scripts/import_chipseq.py \
+python3 scripts/import_chipseq.py \
     --input H3K27me3_brain_peaks.narrowPeak.gz \
     --mark-type H3K27me3 \
     --species human \
@@ -1146,7 +1146,7 @@ options:
 ```
 
 ```bash
-python scripts/batch_import_chipseq.py batch_import_chipseq.yaml
+python3 scripts/batch_import_chipseq.py batch_import_chipseq.yaml
 ```
 
 ---

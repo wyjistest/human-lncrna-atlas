@@ -18,6 +18,7 @@ Regulations数据导入器
 
 import sys
 import argparse
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
@@ -27,6 +28,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent / 'templates'))
 from import_base import BaseImporter, safe_int, safe_float, safe_str
 from batch_manager import BatchManager
 from psycopg2.extras import execute_values
+
+logger = logging.getLogger(__name__)
 
 
 class RegulationsImporter(BaseImporter):
@@ -283,6 +286,8 @@ def main():
 
 
 if __name__ == "__main__":
-    import logging
-    logger = logging.getLogger(__name__)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
     sys.exit(main())

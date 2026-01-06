@@ -233,7 +233,7 @@ Step 8: 测试关键查询          ✅
 | 验证层次 | 验证内容 | 工具 | 状态 |
 |---------|---------|------|------|
 | Level 1 | 文件存在 | find, ls | ✅ |
-| Level 2 | 语法正确 | python -m py_compile, bash -n | ✅ |
+| Level 2 | 语法正确 | python3 -m py_compile, bash -n | ✅ |
 | Level 3 | 列名匹配 | grep验证 | ✅ |
 | Level 4 | 数据完整性 | FK检查脚本 | ✅ |
 

@@ -461,7 +461,7 @@ class RegulationsImporter:
                     )
                     self._set_batch_error(batch_id, error_detail)
                     logger.info(f"批次 {batch_id} 已标记为失败")
-                    logger.info(f"断点续传提示: python import_regulations.py --file {file_path} --skip-rows={current_row - 1}")
+                    logger.info(f"断点续传提示: python3 import_regulations.py --file {file_path} --skip-rows={current_row - 1}")
             raise
 
     def _batch_insert(self, regulations: List[Dict], sequences: Optional[List[Dict]], batch_id: Optional[int]):

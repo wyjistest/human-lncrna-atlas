@@ -351,10 +351,10 @@ Create experiment configuration JSON:
 
 ```bash
 # Using config file
-python scripts/import_chipseq.py --config experiment.json
+python3 scripts/import_chipseq.py --config experiment.json
 
 # Or with CLI arguments
-python scripts/import_chipseq.py \
+python3 scripts/import_chipseq.py \
     --input H3K27me3_peaks.narrowPeak.gz \
     --mark-type H3K27me3 \
     --species human \

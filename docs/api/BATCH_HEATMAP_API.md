@@ -221,10 +221,10 @@ with httpx.Client() as client:
 cd /data/wenyujianData/humanLncAtlas/frontend/backend
 
 # 确保后端正在运行
-python -m uvicorn app.main:app --reload
+python3 -m uvicorn main:app --reload
 
 # 在另一个终端运行测试
-python test_batch_heatmap.py
+python3 test_batch_heatmap.py
 ```
 
 ### 运行 Curl 测试

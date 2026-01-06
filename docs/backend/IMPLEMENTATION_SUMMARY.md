@@ -142,7 +142,7 @@ query_time_ms = int((time.time() - start_time) * 1000)
 
 **运行命令:**
 ```bash
-python test_batch_heatmap.py
+python3 test_batch_heatmap.py
 ```
 
 **预期输出:**
@@ -278,10 +278,10 @@ with httpx.Client() as client:
 ```bash
 # 启动后端
 cd /data/wenyujianData/humanLncAtlas/frontend/backend
-python -m uvicorn app.main:app --reload
+python3 -m uvicorn main:app --reload
 
 # 在新终端运行测试
-python test_batch_heatmap.py
+python3 test_batch_heatmap.py
 ```
 
 ### 2. OpenAPI 文档验证
