@@ -474,6 +474,112 @@ test.describe('Genome Browser - Epigenomic Tracks', () => {
       .first()
     await expect(dropdown).toBeVisible({ timeout: 15000 })
 
+	    await expect(
+	      dropdown.getByText(/H3K27me3\s*\(Repressive\)|H3K27me3（抑制性）/i).first(),
+	    ).toBeVisible({ timeout: 15000 })
+	  })
+
+  test('Epigenomic marks error shows hint and allows retry (mocked)', async ({ page }) => {
+    // Simulate network/CORS/timeout: fail twice (initial + React Query retry), then succeed on manual retry.
+    let marksRequestCount = 0
+    await page.route('**/api/v1/igv/chipseq/marks/*', async (route) => {
+      marksRequestCount += 1
+      if (marksRequestCount <= 2) {
+        await route.abort('failed')
+        return
+      }
+
+      await route.fulfill({
+        json: {
+          success: true,
+          data: {
+            species_id: 1,
+            species_name: 'Human',
+            chipseq_schema_ready: true,
+            marks: [
+              {
+                mark_name: 'H3K27me3',
+                display_name: 'H3K27me3',
+                mark_category: 'repressive',
+                display_color: '#722ed1',
+                description: null,
+                experiment_count: 1,
+                peak_count: 1000,
+              },
+            ],
+          },
+          message: 'ok',
+        },
+      })
+    })
+
+    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.waitForLoadState('domcontentloaded')
+
+    const trackControlsHeader = page.locator('.ant-collapse-header').filter({ hasText: /Track Controls|轨道控制/i }).first()
+    const trackControlsExpanded = await trackControlsHeader.getAttribute('aria-expanded').catch(() => null)
+    if (trackControlsExpanded !== 'true') {
+      await trackControlsHeader.click()
+    }
+
+    const chipseqHeader = page.locator('.ant-collapse-header').filter({ hasText: /Epigenomic Tracks|表观基因组轨道/i }).first()
+    const chipseqExpanded = await chipseqHeader.getAttribute('aria-expanded').catch(() => null)
+    if (chipseqExpanded !== 'true') {
+      await chipseqHeader.click()
+    }
+
+    const enableText = page.getByText(/Enable Epigenomic Tracks|启用表观基因组轨道/i).first()
+    await expect(enableText).toBeVisible({ timeout: 15000 })
+
+    const enableRow = enableText.locator('..').locator('..')
+    const chipseqSwitch = enableRow.getByRole('switch').first()
+    const isChecked = (await chipseqSwitch.getAttribute('aria-checked').catch(() => null)) === 'true'
+    if (!isChecked) {
+      await chipseqSwitch.click()
+    }
+
+    // Wait for error UI after retry is exhausted.
+    const errorAlert = page.locator('.ant-alert-error').filter({ hasText: /Failed to load epigenomic marks|加载表观基因组标记失败/i }).first()
+    await expect(errorAlert).toBeVisible({ timeout: 20000 })
+
+    // Network/CORS hint should be present for network-like failures.
+    await expect(errorAlert.getByText(/CORS_ORIGINS/i).first()).toBeVisible()
+
+    const retryButton = errorAlert.getByRole('button', { name: /Retry|重试/i }).first()
+    await expect(retryButton).toBeVisible()
+    await retryButton.click()
+
+    // After retry succeeds, selector should be available and error should disappear.
+    await expect(errorAlert).toBeHidden({ timeout: 20000 })
+
+    const marksPlaceholder = page
+      .locator('.ant-select-placeholder, .ant-select-selection-placeholder')
+      .filter({ hasText: /Select epigenomic marks|选择表观基因组标记/i })
+      .first()
+    await expect(marksPlaceholder).toBeVisible({ timeout: 15000 })
+
+    const marksSelect = page.locator('.ant-select', { has: marksPlaceholder }).first()
+    await expect(marksSelect).toBeVisible()
+
+    const marksSelector = marksSelect.locator('.ant-select-selector').first()
+    try {
+      if ((await marksSelector.count()) > 0) {
+        await marksSelector.click({ timeout: 5000 })
+      } else {
+        throw new Error('Missing .ant-select-selector')
+      }
+    } catch {
+      const combobox = marksSelect.getByRole('combobox').first()
+      await combobox.click({ force: true })
+      await page.keyboard.press('ArrowDown')
+    }
+
+    const dropdown = page
+      .locator('.ant-select-dropdown')
+      .filter({ hasText: /Repressive Marks|抑制性标记/i })
+      .first()
+    await expect(dropdown).toBeVisible({ timeout: 15000 })
+
     await expect(
       dropdown.getByText(/H3K27me3\s*\(Repressive\)|H3K27me3（抑制性）/i).first(),
     ).toBeVisible({ timeout: 15000 })
