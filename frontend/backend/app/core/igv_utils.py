@@ -6,6 +6,7 @@ import os
 from typing import Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import ProgrammingError
 
 from app.core.config import settings
 from app.config.igv_genomes import (
@@ -83,7 +84,17 @@ def get_repeatmasker_track_id(db: Session) -> Optional[int]:
     Returns:
         track_id if RepeatMasker track exists, None otherwise
     """
-    track = db.query(FeatureTrack).filter(
-        FeatureTrack.track_name == 'repeatmasker_repeats'
-    ).first()
+    try:
+        track = db.query(FeatureTrack).filter(
+            FeatureTrack.track_name == 'repeatmasker_repeats'
+        ).first()
+    except ProgrammingError as e:
+        # RepeatMasker / FeatureTrack 属于扩展层能力：在仅初始化 core schema 的环境中，
+        # 相关表可能不存在。此时应视为“功能不可用”，由上层路由返回 404，而不是 500。
+        orig = getattr(e, "orig", None)
+        pgcode = getattr(orig, "pgcode", None) or getattr(orig, "sqlstate", None)
+        message = str(orig or e).lower()
+        if pgcode == "42P01" or ("does not exist" in message and "feature_tracks" in message):
+            return None
+        raise
     return track.track_id if track else None

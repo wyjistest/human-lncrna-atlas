@@ -2,17 +2,24 @@
 # ==============================================================================
 # PostgreSQL 安装脚本 (Ubuntu/Debian)
 # ==============================================================================
-# 版本: v2.1
+# 版本: v2.2
 # 支持: PostgreSQL 15/16/17/18
 # 默认: PostgreSQL 17 (推荐稳定版)
 # 兼容: Ubuntu 20.04+, Debian 11+
 # ==============================================================================
 
-set -e
+set -euo pipefail
 
 # 可配置版本（默认17）
 PG_VERSION="${PG_VERSION:-17}"
 GRANT_SUPERUSER="${GRANT_SUPERUSER:-no}"  # 默认不授予超级权限
+ASSUME_YES="${ASSUME_YES:-no}"            # 非交互模式下默认继续（慎用）
+
+# 指定要创建的应用数据库用户（默认取 SUDO_USER/USER）
+APP_DB_USER="${APP_DB_USER:-${SUDO_USER:-${USER:-}}}"
+if [ -z "$APP_DB_USER" ]; then
+    APP_DB_USER="$(id -un 2>/dev/null || true)"
+fi
 
 # 运行时路径（用于输出提示）
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,6 +48,79 @@ log_warning() {
     echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
+is_interactive() {
+    [ -t 0 ]
+}
+
+confirm_continue() {
+    local prompt="${1:-是否继续？(y/N) }"
+    if [ "$ASSUME_YES" = "yes" ]; then
+        return 0
+    fi
+    if ! is_interactive; then
+        return 1
+    fi
+    read -p "$prompt" -n 1 -r
+    echo
+    [[ $REPLY =~ ^[Yy]$ ]]
+}
+
+validate_role_name() {
+    local role_name="$1"
+    if [[ ! "$role_name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+        log_error "应用数据库用户 '$role_name' 不是安全的 PostgreSQL role 标识符"
+        echo "请设置一个安全值（字母/数字/_，且不能以数字开头），例如："
+        echo "  export APP_DB_USER=amax"
+        exit 1
+    fi
+}
+
+# sudo/权限处理：root 下不强制依赖 sudo；非交互环境避免 sudo 等待密码卡死
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    if ! command -v sudo >/dev/null 2>&1; then
+        log_error "需要 sudo，但系统未安装 sudo。请安装 sudo 或以 root 身份运行。"
+        exit 1
+    fi
+    SUDO="sudo"
+fi
+
+ensure_privileges() {
+    if [ -z "$SUDO" ]; then
+        return 0
+    fi
+    if sudo -n true >/dev/null 2>&1; then
+        return 0
+    fi
+    if ! is_interactive; then
+        log_error "需要 sudo 权限，但当前为非交互环境且 sudo 可能需要密码，已停止以避免卡死"
+        echo "解决方案："
+        echo "  1) 以可交互终端运行该脚本；或"
+        echo "  2) 配置免密 sudo；或"
+        echo "  3) 以 root 身份运行"
+        exit 1
+    fi
+    echo "需要 sudo 权限以安装/配置 PostgreSQL，请输入密码（如提示）..."
+    sudo -v
+}
+
+run_as_postgres() {
+    if [ -n "$SUDO" ]; then
+        $SUDO -u postgres "$@"
+        return
+    fi
+    if command -v runuser >/dev/null 2>&1; then
+        runuser -u postgres -- "$@"
+        return
+    fi
+    if command -v su >/dev/null 2>&1; then
+        su - postgres -c "$(printf '%q ' "$@")"
+        return
+    fi
+    log_error "无法切换到 postgres 用户执行命令（缺少 sudo/runuser/su）"
+    exit 1
+}
+
 echo "========================================="
 echo " PostgreSQL $PG_VERSION 安装向导"
 echo "========================================="
@@ -50,7 +130,7 @@ echo "  • PostgreSQL 18 (最新): 2025-11-13发布，最新特性"
 echo "  • PostgreSQL 17 (推荐): 稳定版，适合生产环境"
 echo "  • PostgreSQL 15/16: 旧版本，也很稳定"
 echo ""
-echo "💡 切换版本: export PG_VERSION=18 && ./install_postgresql.sh"
+echo "💡 切换版本（项目根目录执行）: export PG_VERSION=18 && ./scripts/install_postgresql.sh"
 echo ""
 
 # ==============================================================================
@@ -62,9 +142,9 @@ log_step 0 "系统环境检查"
 # 检测发行版
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    OS_NAME=$ID
-    OS_VERSION=$VERSION_ID
-    OS_CODENAME=$VERSION_CODENAME
+    OS_NAME="${ID:-unknown}"
+    OS_VERSION="${VERSION_ID:-unknown}"
+    OS_CODENAME="${VERSION_CODENAME:-}"
 
     # 如果没有VERSION_CODENAME，尝试用lsb_release
     if [ -z "$OS_CODENAME" ]; then
@@ -77,6 +157,19 @@ fi
 
 echo "检测到系统: $OS_NAME $OS_VERSION ($OS_CODENAME)"
 
+# 基本输入校验：避免 role 名导致 SQL/命令异常
+if [ -z "$APP_DB_USER" ]; then
+    log_error "无法确定要创建的应用数据库用户（APP_DB_USER/SUDO_USER/USER 均为空）"
+    exit 1
+fi
+validate_role_name "$APP_DB_USER"
+
+# 无法检测发行版代号时，无法配置 pgdg 仓库
+if [ -z "$OS_CODENAME" ]; then
+    log_error "无法检测发行版代号（VERSION_CODENAME 或 lsb_release -cs）"
+    exit 1
+fi
+
 # 验证支持的发行版
 case "$OS_NAME" in
     ubuntu|debian)
@@ -85,9 +178,7 @@ case "$OS_NAME" in
     *)
         log_warning "未测试的操作系统: $OS_NAME"
         echo "脚本仅在Ubuntu/Debian测试过，继续安装可能失败"
-        read -p "是否继续？(y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        if ! confirm_continue "是否继续？(y/N) "; then
             exit 1
         fi
         ;;
@@ -109,19 +200,22 @@ echo ""
 
 log_step 1 "添加PostgreSQL官方APT仓库"
 
+# 需要 sudo/root 权限，提前检查避免在 apt/tee 时卡死
+ensure_privileges
+
 # 安装必要的工具
-sudo apt-get update
-sudo apt-get install -y wget ca-certificates gnupg
+$SUDO apt-get update
+$SUDO apt-get install -y wget ca-certificates gnupg
 
 # 【修复1】：使用新的GPG key方法，不使用弃用的apt-key
 KEYRING_DIR="/usr/share/keyrings"
-sudo mkdir -p "$KEYRING_DIR"
+$SUDO mkdir -p "$KEYRING_DIR"
 
 if [ ! -f "$KEYRING_DIR/postgresql-archive-keyring.gpg" ]; then
     echo "下载PostgreSQL GPG key..."
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | \
         gpg --dearmor | \
-        sudo tee "$KEYRING_DIR/postgresql-archive-keyring.gpg" > /dev/null
+        $SUDO tee "$KEYRING_DIR/postgresql-archive-keyring.gpg" > /dev/null
     log_success "GPG key已添加"
 else
     echo "GPG key已存在"
@@ -143,7 +237,7 @@ else
 fi
 
 echo "deb [signed-by=$KEYRING_DIR/postgresql-archive-keyring.gpg] $REPO_URL $OS_CODENAME-pgdg main" | \
-    sudo tee "$REPO_FILE"
+    $SUDO tee "$REPO_FILE"
 
 log_success "PostgreSQL仓库已添加 (使用 $OS_CODENAME-pgdg)"
 echo ""
@@ -154,8 +248,8 @@ echo ""
 
 log_step 2 "安装PostgreSQL $PG_VERSION"
 
-sudo apt-get update
-sudo apt-get install -y postgresql-$PG_VERSION postgresql-contrib-$PG_VERSION
+$SUDO apt-get update
+$SUDO apt-get install -y postgresql-$PG_VERSION postgresql-contrib-$PG_VERSION
 
 log_success "PostgreSQL $PG_VERSION 安装完成"
 echo ""
@@ -167,11 +261,11 @@ echo ""
 log_step 3 "启动PostgreSQL服务"
 
 if [ "$HAS_SYSTEMD" = "yes" ]; then
-    sudo systemctl start postgresql
-    sudo systemctl enable postgresql
+    $SUDO systemctl start postgresql
+    $SUDO systemctl enable postgresql
 
     # 检查状态
-    if sudo systemctl is-active --quiet postgresql; then
+    if $SUDO systemctl is-active --quiet postgresql; then
         log_success "PostgreSQL服务已启动"
     else
         log_error "PostgreSQL服务启动失败"
@@ -180,7 +274,7 @@ if [ "$HAS_SYSTEMD" = "yes" ]; then
     fi
 else
     log_warning "无systemd，尝试使用pg_ctlcluster..."
-    sudo pg_ctlcluster $PG_VERSION main start || {
+    $SUDO pg_ctlcluster $PG_VERSION main start || {
         log_error "PostgreSQL启动失败"
         exit 1
     }
@@ -196,7 +290,7 @@ echo ""
 log_step 4 "配置PostgreSQL用户"
 
 echo "当前PostgreSQL版本："
-sudo -u postgres psql -c "SELECT version();" 2>/dev/null || {
+run_as_postgres psql -c "SELECT version();" 2>/dev/null || {
     log_error "无法连接到PostgreSQL"
     exit 1
 }
@@ -210,22 +304,22 @@ echo ""
 log_step 5 "创建应用数据库用户"
 
 # 检查用户是否已存在
-if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$USER'" | grep -q 1; then
-    echo "用户 $USER 已存在"
+if run_as_postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$APP_DB_USER'" | grep -q 1; then
+    echo "用户 $APP_DB_USER 已存在"
 else
-    echo "创建PostgreSQL用户: $USER"
+    echo "创建PostgreSQL用户: $APP_DB_USER"
 
     # 【修复3】：根据GRANT_SUPERUSER变量决定是否授予超级权限
     if [ "$GRANT_SUPERUSER" = "yes" ]; then
-        sudo -u postgres createuser -s "$USER"
-        log_success "用户 $USER 创建成功（拥有超级用户权限）"
+        run_as_postgres createuser -s "$APP_DB_USER"
+        log_success "用户 $APP_DB_USER 创建成功（拥有超级用户权限）"
         log_warning "生产环境不建议授予超级权限！"
     else
-        sudo -u postgres createuser -d "$USER"  # 只授予创建数据库权限
-        log_success "用户 $USER 创建成功（可创建数据库）"
+        run_as_postgres createuser -d "$APP_DB_USER"  # 只授予创建数据库权限
+        log_success "用户 $APP_DB_USER 创建成功（可创建数据库）"
         echo "提示：如需超级权限，运行:"
-        echo "  sudo -u postgres psql -c \"ALTER USER $USER WITH SUPERUSER;\""
-        echo "  或: export GRANT_SUPERUSER=yes && ./install_postgresql.sh"
+        echo "  sudo -u postgres psql -c \"ALTER USER $APP_DB_USER WITH SUPERUSER;\""
+        echo "  或: export GRANT_SUPERUSER=yes && ./scripts/install_postgresql.sh"
     fi
 fi
 
@@ -241,7 +335,7 @@ PG_HBA="/etc/postgresql/$PG_VERSION/main/pg_hba.conf"
 
 if [ -f "$PG_HBA" ]; then
     echo "当前认证配置（仅显示local连接）："
-    sudo grep "^local" "$PG_HBA" | head -3
+    $SUDO grep "^local" "$PG_HBA" | head -3
 
     echo ""
     log_warning "默认认证方式为 'peer'（本地用户名匹配）"
@@ -273,7 +367,7 @@ echo ""
 echo "📦 安装信息:"
 echo "  版本: PostgreSQL $PG_VERSION"
 echo "  系统: $OS_NAME $OS_VERSION ($OS_CODENAME)"
-echo "  用户: $USER (已创建)"
+echo "  用户: $APP_DB_USER (已创建)"
 if [ "$GRANT_SUPERUSER" = "yes" ]; then
     echo "  权限: SUPERUSER ⚠️"
 else
@@ -287,10 +381,10 @@ echo "     psql --version"
 echo ""
 echo "  2. 连接数据库:"
 echo "     sudo -u postgres psql"
-echo "     或: psql -U $USER postgres  # 如果peer认证配置正确"
+echo "     或: psql -U $APP_DB_USER postgres  # 如果peer认证配置正确"
 echo ""
 echo "  3. 创建测试数据库:"
-echo "     sudo -u postgres createdb test_db -O $USER"
+echo "     sudo -u postgres createdb test_db -O $APP_DB_USER"
 echo ""
 echo "  4. 运行端到端测试:"
 echo "     cd ${PROJECT_ROOT}"
@@ -316,4 +410,6 @@ echo ""
 echo "⚙️  环境变量:"
 echo "  PG_VERSION=18          # 安装指定版本"
 echo "  GRANT_SUPERUSER=yes    # 授予超级权限（慎用）"
+echo "  APP_DB_USER=amax       # 指定要创建的数据库用户"
+echo "  ASSUME_YES=yes         # 非交互模式默认继续（慎用）"
 echo ""

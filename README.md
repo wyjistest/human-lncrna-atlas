@@ -80,6 +80,19 @@ human-lncrna-atlas/
 - PostgreSQL 15+
 - Redis (optional, for caching)
 
+### Install PostgreSQL (Ubuntu/Debian)
+
+If you don't have PostgreSQL installed locally (Ubuntu/Debian only):
+
+```bash
+./scripts/install_postgresql.sh
+```
+
+Notes:
+- Requires root/sudo privileges.
+- Creates a PostgreSQL role matching your OS user by default (override via `APP_DB_USER`).
+- In non-interactive environments, the script exits safely to avoid hanging on sudo prompts (use `ASSUME_YES=yes` only if you know what you're doing).
+
 ### PostgreSQL Extensions (recommended)
 
 Some SQL scripts create/require PostgreSQL extensions. You may need elevated privileges (or enable them in managed PostgreSQL):
@@ -231,6 +244,12 @@ cd frontend/web && npm run test:e2e
 
 # Note: Some E2E specs include environment-dependent performance assertions.
 # You can override budgets via E2E_* env vars (see docs/testing/e2e/README.md).
+```
+
+Minimal end-to-end database bootstrap (creates `lncrna_e2e_test` and loads `schema/v2.3/03_sample_data.sql`):
+
+```bash
+DB_USER=postgres ./scripts/end_to_end_test.sh
 ```
 
 Recommended (starts backend+frontend in test mode, then runs Playwright):
