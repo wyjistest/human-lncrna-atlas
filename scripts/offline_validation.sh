@@ -63,8 +63,20 @@ bash -n scripts/end_to_end_test.sh && echo -e "  ${GREEN}✅${NC} end_to_end_tes
 
 echo ""
 
-# 4. SQL文件基础语法检查
-echo "4️⃣  SQL文件基础检查"
+# 4. 文档同步验证（verify_sync）
+echo "4️⃣  文档同步验证（verify_sync.sh）"
+if command -v md5sum >/dev/null 2>&1 || command -v md5 >/dev/null 2>&1; then
+    bash scripts/verify_sync.sh
+    echo -e "  ${GREEN}✅${NC} verify_sync.sh 运行通过"
+else
+    echo -e "  ${YELLOW}⚠️${NC}  未找到 md5sum/md5，跳过 verify_sync 运行验证"
+    echo -e "      提示：Linux 可安装 coreutils；macOS 自带 md5；也可仅运行 bash -n 检查语法。"
+fi
+
+echo ""
+
+# 5. SQL文件基础语法检查
+echo "5️⃣  SQL文件基础检查"
 if grep -q "CREATE TABLE" schema/v2.3/01_core.sql; then
     echo -e "  ${GREEN}✅${NC} 01_core.sql 包含CREATE TABLE语句"
 fi
@@ -75,8 +87,8 @@ fi
 
 echo ""
 
-# 5. 关键修复验证（精确检查，排除注释）
-echo "5️⃣  关键修复验证（v2.3.1）"
+# 6. 关键修复验证（精确检查，排除注释）
+echo "6️⃣  关键修复验证（v2.3.1）"
 
 # 检查core_id_assignments INSERT（排除注释行）
 if grep "INSERT INTO core_id_assignments" -A 2 schema/v2.3/03_sample_data.sql | grep -v "^--" | grep -q "species_id\|species_gene_id"; then
@@ -116,8 +128,8 @@ fi
 
 echo ""
 
-# 6. 外键完整性检查（新增 - ultrathink第6轮审查）
-echo "6️⃣  外键完整性检查（样本数据）"
+# 7. 外键完整性检查（新增 - ultrathink第6轮审查）
+echo "7️⃣  外键完整性检查（样本数据）"
 
 # 提取core_genes中的core_id列表
 CORE_GENES_IDS=$(grep "INSERT INTO core_genes" -A 20 schema/v2.3/03_sample_data.sql | grep -E "^\([0-9]+" | sed 's/^(\([0-9]*\).*/\1/' | sort -u)
