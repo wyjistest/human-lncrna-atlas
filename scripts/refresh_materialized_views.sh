@@ -38,6 +38,7 @@ DB_NAME="${PGDATABASE:-lncrna_production}"
 DB_HOST="${PGHOST:-localhost}"
 DB_PORT="${PGPORT:-5432}"
 DB_USER="${PGUSER:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-}"
 USE_CONCURRENT=true
 STATUS_ONLY=false
 VERBOSE=false
@@ -51,6 +52,11 @@ INVALIDATE_NAMESPACES="${INVALIDATE_NAMESPACES:-$INVALIDATE_NAMESPACES_DEFAULT}"
 # curl timeouts (seconds)
 CURL_CONNECT_TIMEOUT="${CURL_CONNECT_TIMEOUT:-5}"
 CURL_MAX_TIME="${CURL_MAX_TIME:-10}"
+
+# 若需要密码，请通过环境变量 DB_PASSWORD 或 ~/.pgpass/PGPASSWORD 提供；脚本使用 psql -w 避免非交互卡死。
+if [ -n "$DB_PASSWORD" ]; then
+    export PGPASSWORD="$DB_PASSWORD"
+fi
 
 # Materialized views managed by this script (order matters when dependencies exist).
 MV_LIST=(
@@ -202,13 +208,13 @@ parse_args() {
 # Execute SQL and return result
 execute_sql() {
     local sql=$1
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -A -c "$sql" 2>/dev/null
+    psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -A -c "$sql" 2>/dev/null
 }
 
 # Execute SQL with full output
 execute_sql_verbose() {
     local sql=$1
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "$sql"
+    psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "$sql"
 }
 
 normalize_backend_url() {

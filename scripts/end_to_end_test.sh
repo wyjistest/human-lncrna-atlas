@@ -82,7 +82,7 @@ export DB_NAME="$TEST_DB_NAME"
 export DB_HOST="$DB_HOST"
 export DB_PORT="$DB_PORT"
 export DB_USER="$DB_USER"
-export DB_PASSWORD=""
+export DB_PASSWORD="$DB_PASSWORD"
 export INSTALL_EXTENSION_LAYER="no"  # MVP只测试核心层
 
 # 执行建库脚本
