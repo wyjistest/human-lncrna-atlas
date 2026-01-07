@@ -11,7 +11,7 @@ sqlalchemy==2.0.23
 
 # 缓存
 redis==5.0.1
-hiredis==2.2.3
+hiredis==3.3.0
 
 # 限流 (Rate Limiting)
 slowapi==0.1.9
