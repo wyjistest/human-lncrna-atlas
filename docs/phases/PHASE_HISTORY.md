@@ -307,8 +307,8 @@ Overlap 页面 IGV 升级：
 
 | ID | 问题 | 文件 | 修复内容 |
 |----|------|------|----------|
-| CR-FIX-005 | 缺少 JOIN 索引 | `scripts/add_regulation_indexes.sql` | 4 个新索引 |
-| CR-FIX-006 | ILIKE 全表扫描 | `scripts/add_pg_trgm_indexes.sql` | 2 个 GIN 索引 |
+| CR-FIX-005 | 缺少 JOIN 索引 | `frontend/backend/scripts/add_regulation_indexes.sql` | 4 个新索引 |
+| CR-FIX-006 | ILIKE 全表扫描 | `frontend/backend/scripts/add_pg_trgm_indexes.sql` | 2 个 GIN 索引 |
 
 ### 数据库迁移
 
@@ -316,10 +316,10 @@ Overlap 页面 IGV 升级：
 
 ```bash
 # Regulation 表索引 (优化 JOIN 和排序)
-psql -d lncrna_production -f scripts/add_regulation_indexes.sql
+psql -d lncrna_production -f frontend/backend/scripts/add_regulation_indexes.sql
 
 # pg_trgm GIN 索引 (优化 ILIKE '%pattern%')
-psql -d lncrna_production -f scripts/add_pg_trgm_indexes.sql
+psql -d lncrna_production -f frontend/backend/scripts/add_pg_trgm_indexes.sql
 ```
 
 | 索引 | 表 | 用途 |

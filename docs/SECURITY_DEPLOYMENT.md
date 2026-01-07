@@ -172,6 +172,100 @@ CORS_ORIGINS=["https://your-domain.com"]
 - [ ] `CORS_ORIGINS` 仅包含实际前端域名
 - [ ] Admin 端点有 IP 白名单或二次认证
 
+## 裸机/虚拟机部署方案（systemd + Nginx）
+
+适用场景：你使用裸机/虚拟机部署，希望后端仅对本机监听，通过 Nginx 统一做 TLS、静态资源与 Admin Key 注入。
+
+### 1) 后端（systemd）
+
+建议把后端绑定到 `127.0.0.1:8000`，仅允许本机反代访问。
+
+**环境变量（示例）**：`/etc/lncrna-atlas/backend.env`
+
+> 提示：systemd `EnvironmentFile` 支持引号。`TRUSTED_HOSTS`/`CORS_ORIGINS` 是 JSON 数组，推荐用单引号包起来。
+
+```bash
+ENV=production
+
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=lncrna
+DB_PASSWORD=REPLACE_ME
+DB_NAME=lncrna_production
+
+# 连接池调参（可选；默认值已可用）
+# - 稳定性优先：保持 DB_POOL_PRE_PING=true（默认）
+# - 延迟极致优先：可尝试关闭 pre_ping，并用 recycle/timeout 控制断链风险（需压测验证）
+# DB_POOL_SIZE=10
+# DB_POOL_MAX_OVERFLOW=20
+# DB_POOL_TIMEOUT=30
+# DB_POOL_RECYCLE=1800
+# DB_POOL_PRE_PING=true
+
+ENABLE_CACHE=true
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_DB=0
+
+ADMIN_REQUIRE_API_KEY=true
+ADMIN_API_KEY=REPLACE_ME
+
+TRUSTED_HOSTS='["your-domain.com"]'
+CORS_ORIGINS='["https://your-domain.com"]'
+
+LOG_LEVEL=INFO
+
+# 请求日志：默认全量（如需降低开销，见后文“生产日志回滚配置”）
+REQUEST_LOG_ENABLED=true
+REQUEST_LOG_SLOW_THRESHOLD_MS=0
+REQUEST_LOG_SAMPLE_RATE=1.0
+REQUEST_LOG_MAX_URL_LENGTH=2048
+```
+
+**生产日志回滚配置（降低 I/O）**：
+
+- 仅记录慢请求：`REQUEST_LOG_SLOW_THRESHOLD_MS=200`（按需调整）
+- 采样：`REQUEST_LOG_SAMPLE_RATE=0.1`（按需调整）
+- 关闭请求日志：`REQUEST_LOG_ENABLED=false`
+
+**systemd service（示例）**：`/etc/systemd/system/lncrna-atlas-backend.service`
+
+> 注意：`WorkingDirectory`/`ExecStart` 请按你的实际部署目录调整；建议使用虚拟环境的 python/uvicorn。
+
+```ini
+[Unit]
+Description=Human LncRNA Atlas Backend (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lncrna
+Group=lncrna
+WorkingDirectory=/opt/human-lncrna-atlas/frontend/backend
+EnvironmentFile=/etc/lncrna-atlas/backend.env
+ExecStart=/opt/human-lncrna-atlas/frontend/backend/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --workers 4
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启动：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now lncrna-atlas-backend
+sudo systemctl status lncrna-atlas-backend
+```
+
+### 2) 前端（构建 + Nginx 静态托管）
+
+1. 在构建前端时**不要设置** `VITE_ADMIN_API_KEY`（否则会进入构建产物）。
+2. 将 `frontend/web/dist` 部署到 Nginx 的静态目录（示例见上文 Nginx 配置中的 `root /var/www/...`）。
+3. 通过 Nginx 的 `location /api/v1/admin` 注入 `X-Admin-API-Key` 并配置 IP 白名单。
+
 ## Docker 部署方案 (推荐)
 
 Phase 9.24: 提供完整的 Docker 部署示例，确保"默认安全"。

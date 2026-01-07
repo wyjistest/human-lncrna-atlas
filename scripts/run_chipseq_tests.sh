@@ -134,7 +134,7 @@ run_backend_tests() {
     python_bin="$(resolve_backend_python)"
     if ! "$python_bin" -c "import pytest" > /dev/null 2>&1; then
         print_error "pytest not available in backend python: ${python_bin}"
-        print_error "Hint: cd ${BACKEND_DIR} && pip install -r requirements-dev.txt"
+        print_error "Hint: cd ${BACKEND_DIR} && pip install -r requirements-dev.txt -c constraints.txt"
         return 1
     fi
 

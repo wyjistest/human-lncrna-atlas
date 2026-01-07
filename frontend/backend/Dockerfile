@@ -11,8 +11,8 @@ WORKDIR /app
 # Run as non-root for defense-in-depth
 RUN useradd --create-home --home-dir /home/app --shell /usr/sbin/nologin --uid 10001 app
 
-COPY requirements.txt ./requirements.txt
-RUN pip install -r requirements.txt
+COPY requirements.txt constraints.txt ./
+RUN pip install -r requirements.txt -c constraints.txt
 
 COPY . .
 
@@ -25,4 +25,3 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()" || exit 1
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
-

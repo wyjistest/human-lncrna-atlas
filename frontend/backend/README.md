@@ -13,10 +13,10 @@
 source venv/bin/activate
 
 # 运行服务（仅运行时依赖）
-pip install -r requirements.txt
+pip install -r requirements.txt -c constraints.txt
 
 # 开发/测试（包含 pytest/ruff 等）
-pip install -r requirements-dev.txt
+pip install -r requirements-dev.txt -c constraints.txt
 
 # 验证依赖
 python3 -c "import fastapi; print(f'FastAPI {fastapi.__version__}')"

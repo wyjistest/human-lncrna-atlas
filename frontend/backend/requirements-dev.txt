@@ -1,7 +1,7 @@
 # Development / Test dependencies
 # ==================================
 # Usage:
-#   pip install -r requirements-dev.txt
+#   pip install -r requirements-dev.txt -c constraints.txt
 #
 # This file includes runtime dependencies from requirements.txt, plus tools used
 # in CI and local development (linting / unit tests).

@@ -72,7 +72,7 @@ from app.routers.chipseq_rate_limit import rate_limit
 ```
 
 ### ✅ CR-FIX-005: 数据库索引迁移 (P0)
-**文件**: `scripts/add_regulation_indexes.sql`
+**文件**: `frontend/backend/scripts/add_regulation_indexes.sql`
 **问题**: regulations 表缺少 JOIN 和排序索引
 **修复**: 创建迁移脚本（需手动执行）
 - `idx_regulations_lncrna_gene_id`
@@ -81,7 +81,7 @@ from app.routers.chipseq_rate_limit import rate_limit
 - `idx_regulations_species_chr`
 
 ### ✅ CR-FIX-006: pg_trgm 索引 (P1)
-**文件**: `scripts/add_pg_trgm_indexes.sql`
+**文件**: `frontend/backend/scripts/add_pg_trgm_indexes.sql`
 **问题**: ILIKE '%pattern%' 查询全表扫描
 **修复**: 创建迁移脚本（需手动执行）
 - `idx_traits_trait_name_trgm`
@@ -170,8 +170,8 @@ from app.routers.chipseq_rate_limit import rate_limit
 1. ✅ 已完成所有 P0 修复
 2. 运行数据库迁移脚本：
    ```bash
-   psql -d lncrna_production -f scripts/add_regulation_indexes.sql
-   psql -d lncrna_production -f scripts/add_pg_trgm_indexes.sql
+   psql -d lncrna_production -f frontend/backend/scripts/add_regulation_indexes.sql
+   psql -d lncrna_production -f frontend/backend/scripts/add_pg_trgm_indexes.sql
    ```
 3. 生产环境配置：
    ```env

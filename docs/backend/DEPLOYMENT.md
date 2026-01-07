@@ -60,10 +60,10 @@ source venv/bin/activate  # Linux/macOS
 
 ```bash
 # 运行服务（仅运行时依赖）
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt -c constraints.txt
 
 # 开发/测试（包含 pytest/ruff 等）
-python3 -m pip install -r requirements-dev.txt
+python3 -m pip install -r requirements-dev.txt -c constraints.txt
 ```
 
 ### 4. 配置环境变量
