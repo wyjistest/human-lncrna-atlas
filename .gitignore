@@ -70,6 +70,7 @@ htmlcov/
 
 # Data files (too large for GitHub)
 *.txt
+!requirements.txt
 !requirements*.txt
 !frontend/backend/constraints*.txt
 *.fa
