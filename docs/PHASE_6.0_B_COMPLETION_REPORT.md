@@ -377,7 +377,7 @@ notebooks/
 ### Step 1: 环境准备（5-10 分钟）
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/notebooks
+cd <repo-root>/notebooks
 
 # 安装依赖
 pip install -r requirements.txt
@@ -388,12 +388,12 @@ pip install matplotlib-venn python-louvain
 
 ```bash
 # 终端 1: 启动后端 API
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 source venv/bin/activate
 python3 -m uvicorn main:app --reload --port 8000
 
 # 终端 2: 启动 Jupyter
-cd /data/wenyujianData/human-lncrna-atlas-github/notebooks
+cd <repo-root>/notebooks
 jupyter notebook  # 或 jupyter lab
 ```
 

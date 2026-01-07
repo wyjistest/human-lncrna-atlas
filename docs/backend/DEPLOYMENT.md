@@ -45,7 +45,7 @@
 ### 1. 克隆项目
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 ```
 
 ### 2. 创建虚拟环境
@@ -136,9 +136,9 @@ After=network.target postgresql.service
 [Service]
 Type=simple
 User=amax
-WorkingDirectory=/data/wenyujianData/humanLncAtlas/frontend/backend
-Environment="PATH=/data/wenyujianData/humanLncAtlas/frontend/backend/venv/bin"
-ExecStart=/data/wenyujianData/humanLncAtlas/frontend/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+WorkingDirectory=<repo-root>/frontend/backend
+Environment="PATH=<repo-root>/frontend/backend/venv/bin"
+ExecStart=<repo-root>/frontend/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 Restart=always
 RestartSec=10
 
@@ -614,7 +614,7 @@ sudo journalctl -u lncrna-api -n 50
 lsof -i :8000
 
 # 手动启动测试
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 source venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```

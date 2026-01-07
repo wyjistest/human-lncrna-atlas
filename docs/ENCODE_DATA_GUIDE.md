@@ -26,7 +26,7 @@
 ### 方案 A：使用我们的下载脚本（自动化）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 预览要下载的文件（dry-run）
 python3 scripts/download_encode_chipseq.py \
@@ -58,7 +58,7 @@ python3 scripts/download_encode_chipseq.py \
 ### 方案 B：手动下载（更灵活）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/chipseq_data
+cd <repo-root>/chipseq_data
 mkdir -p encode_gm12878
 
 # 下载 H3K27me3
@@ -152,7 +152,7 @@ gunzip *.gz
 #### 选项 A：逐个导入（推荐新手）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 导入 H3K27me3
 python3 scripts/import_chipseq.py \
@@ -456,7 +456,7 @@ python3 scripts/import_chipseq.py \
 
 **检查**:
 ```bash
-df -h /data/wenyujianData/
+df -h <data-root>/
 ```
 
 **解决**:
@@ -482,7 +482,7 @@ python3 scripts/download_encode_chipseq.py --all --cell-line GM12878
 ### 选项 2：继续使用测试数据，开始前端测试
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev -- --host 0.0.0.0
 ```
 

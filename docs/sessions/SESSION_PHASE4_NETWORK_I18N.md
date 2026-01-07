@@ -359,7 +359,7 @@ const speciesNames = [
 
 ```bash
 # 读取本文档继续实施
-cat /data/wenyujianData/humanLncAtlas/frontend/SESSION_PHASE4_NETWORK_I18N.md
+cat <repo-root>/frontend/SESSION_PHASE4_NETWORK_I18N.md
 ```
 
 ---

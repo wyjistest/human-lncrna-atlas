@@ -345,7 +345,7 @@ humanLncAtlas/
 
 1. **查看离线验证结果**
    ```bash
-   cd /data/wenyujianData/humanLncAtlas
+   cd <repo-root>
    ./scripts/offline_validation.sh
    ```
 
@@ -427,7 +427,7 @@ humanLncAtlas/
 
 ```bash
 # 切换到项目目录
-cd /data/wenyujianData/humanLncAtlas
+cd <repo-root>
 
 # 离线验证（当前环境可用）
 ./scripts/offline_validation.sh

@@ -203,7 +203,7 @@ curl "http://localhost:8000/api/v1/network/gene/17276/detail"
 
 | File | Lines Changed | Description |
 |------|---------------|-------------|
-| `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/routers/network.py` | +60, -9 | Enhanced `/compare` endpoint with species names and documentation |
+| `<repo-root>/frontend/backend/app/routers/network.py` | +60, -9 | Enhanced `/compare` endpoint with species names and documentation |
 
 ### 3.2 Detailed Changes
 

@@ -188,7 +188,7 @@ After tests pass, manually verify:
 
 **Solution**:
 ```bash
-cd /data/wenyujianData/humanLncAtlas/backend
+cd <repo-root>/frontend/backend
 poetry run uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -198,7 +198,7 @@ poetry run uvicorn main:app --host 0.0.0.0 --port 8000
 
 **Solution**:
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev
 ```
 

@@ -11,9 +11,9 @@
 # - 保守性 BigWig（phastCons/phyloP）同样很大，默认不下载，需显式加 --with-conservation
 #
 # 用法：
-#   GENOMES_DIR=/data/wenyujianData/humanLncAtlas/genomes ./scripts/genomes/download_hg19_igv_assets.sh
-#   ./scripts/genomes/download_hg19_igv_assets.sh /data/wenyujianData/humanLncAtlas/genomes
-#   ./scripts/genomes/download_hg19_igv_assets.sh --with-conservation /data/wenyujianData/humanLncAtlas/genomes
+#   GENOMES_DIR=<repo-root>/genomes ./scripts/genomes/download_hg19_igv_assets.sh
+#   ./scripts/genomes/download_hg19_igv_assets.sh <repo-root>/genomes
+#   ./scripts/genomes/download_hg19_igv_assets.sh --with-conservation <repo-root>/genomes
 # ==============================================================================
 
 set -euo pipefail
@@ -29,8 +29,8 @@ usage() {
   --with-conservation   同时下载 hg19 的 phastCons/phyloP BigWig（文件很大）
 
 示例：
-  GENOMES_DIR=/data/wenyujianData/humanLncAtlas/genomes ./scripts/genomes/download_hg19_igv_assets.sh
-  ./scripts/genomes/download_hg19_igv_assets.sh /data/wenyujianData/humanLncAtlas/genomes
+  GENOMES_DIR=<repo-root>/genomes ./scripts/genomes/download_hg19_igv_assets.sh
+  ./scripts/genomes/download_hg19_igv_assets.sh <repo-root>/genomes
 EOF
 }
 

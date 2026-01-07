@@ -188,7 +188,7 @@ eb17f899a7a423bfb06e63826106e6f5  DATABASE_DESIGN_FINAL.md
 
 **验证命令**:
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+cd <data-root>/humanLncAtlas
 md5sum schema_mvp_core.sql DATABASE_DESIGN_FINAL.md
 ```
 
@@ -200,7 +200,7 @@ md5sum schema_mvp_core.sql DATABASE_DESIGN_FINAL.md
 
 ### 方案A: 验证文件哈希
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+cd <data-root>/humanLncAtlas
 md5sum schema_mvp_core.sql DATABASE_DESIGN_FINAL.md
 
 # 如果输出与以下一致，则所有问题已修复：
@@ -210,7 +210,7 @@ md5sum schema_mvp_core.sql DATABASE_DESIGN_FINAL.md
 
 ### 方案B: 运行自动化验证
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+cd <data-root>/humanLncAtlas
 bash verify_sync.sh
 
 # 如果全部通过，则文件已同步

@@ -15,7 +15,7 @@
 ### 1. 代码改动
 
 **修改文件**:
-- `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/routers/stats.py`
+- `<repo-root>/frontend/backend/app/routers/stats.py`
 
 **新增代码**: +32 行
 
@@ -145,7 +145,7 @@ cache.set(cache_key, [r.model_dump() for r in results], CacheService.TTL_STATS)
 ### 运行验证脚本
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/backend
+cd <repo-root>/frontend/backend
 ./scripts/verify_stats_cache.sh
 ```
 

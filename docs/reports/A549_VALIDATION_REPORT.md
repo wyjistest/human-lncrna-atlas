@@ -55,7 +55,7 @@ A comprehensive validation test suite has been created for A549 (lung cancer cel
 ## Test Suite Overview
 
 ### Test File Location
-`/data/wenyujianData/human-lncrna-atlas-github/frontend/web/e2e/a549-validation.spec.ts`
+`<repo-root>/frontend/web/e2e/a549-validation.spec.ts`
 
 ### Test Coverage
 
@@ -186,7 +186,7 @@ curl http://localhost:5173
 **Status**: ✅ Installed
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 npx playwright --version
 ```
 
@@ -205,7 +205,7 @@ Expected output: "✓ READY FOR VALIDATION TESTING"
 ### Step 2: Run Full Test Suite
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 npx playwright test e2e/a549-validation.spec.ts --reporter=list
 ```
 
@@ -321,11 +321,11 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?cell_type=A549&chromos
 **Solutions**:
 ```bash
 # Start backend
-cd /data/wenyujianData/humanLncAtlas/backend
+cd <repo-root>/frontend/backend
 poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Start frontend
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev
 ```
 
@@ -373,10 +373,10 @@ psql -U amax -d lncrna_production -c "SELECT cell_type, COUNT(*) FROM chipseq_ex
 
 | File | Purpose |
 |------|---------|
-| `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/e2e/a549-validation.spec.ts` | Playwright test suite (8 tests) |
-| `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/e2e/RUN_A549_VALIDATION.md` | Test execution guide |
+| `<repo-root>/frontend/web/e2e/a549-validation.spec.ts` | Playwright test suite (8 tests) |
+| `<repo-root>/frontend/web/e2e/RUN_A549_VALIDATION.md` | Test execution guide |
 | `/tmp/a549_validation_status.sh` | Prerequisites check script |
-| `/data/wenyujianData/human-lncrna-atlas-github/A549_VALIDATION_REPORT.md` | This report |
+| `<repo-root>/A549_VALIDATION_REPORT.md` | This report |
 
 ### Test Execution Commands
 
@@ -385,7 +385,7 @@ psql -U amax -d lncrna_production -c "SELECT cell_type, COUNT(*) FROM chipseq_ex
 bash /tmp/a549_validation_status.sh
 
 # Run all tests
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 npx playwright test e2e/a549-validation.spec.ts --reporter=list
 
 # Run specific test
@@ -427,9 +427,9 @@ npx playwright show-report
 - Frontend issues: Check browser console (F12)
 
 **Documentation**:
-- Test execution: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/e2e/RUN_A549_VALIDATION.md`
-- Architecture: `/data/wenyujianData/human-lncrna-atlas-github/CLAUDE.md`
-- Playwright config: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/playwright.config.ts`
+- Test execution: `<repo-root>/frontend/web/e2e/RUN_A549_VALIDATION.md`
+- Architecture: `<repo-root>/CLAUDE.md`
+- Playwright config: `<repo-root>/frontend/web/playwright.config.ts`
 
 ---
 

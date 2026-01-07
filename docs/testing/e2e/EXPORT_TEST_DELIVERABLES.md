@@ -10,7 +10,7 @@ I've successfully created comprehensive E2E tests for the lncRNA-ChIP-seq overla
 
 ### 1. ✅ E2E Test File Created
 
-**Location**: `/data/wenyujianData/humanLncAtlas/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts`
+**Location**: `<repo-root>/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts`
 
 **Test Coverage**: 13 comprehensive test cases organized into 5 suites:
 - Basic Functionality (3 tests)
@@ -224,7 +224,7 @@ Chromosome filter not found, using default data
 
 ## 📄 Test Report
 
-**Full Report**: `/data/wenyujianData/humanLncAtlas/frontend/web/e2e/TEST_REPORT_lncrna-chipseq-overlap-export.md`
+**Full Report**: `<repo-root>/frontend/web/e2e/TEST_REPORT_lncrna-chipseq-overlap-export.md`
 
 **Contents**:
 - Detailed test results (13 tests)
@@ -323,7 +323,7 @@ Chromosome filter not found, using default data
 
 1. **Re-run E2E Tests After Implementation**
    ```bash
-   cd /data/wenyujianData/humanLncAtlas/frontend/web
+   cd <repo-root>/frontend/web
    npx playwright test e2e/lncrna-chipseq-overlap-export.spec.ts
    ```
 
@@ -391,16 +391,16 @@ npx playwright show-report
 ## 📚 Related Files
 
 **Test Files**:
-- `/data/wenyujianData/humanLncAtlas/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts` - Main test suite
-- `/data/wenyujianData/humanLncAtlas/frontend/web/e2e/TEST_REPORT_lncrna-chipseq-overlap-export.md` - Detailed report
+- `<repo-root>/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts` - Main test suite
+- `<repo-root>/frontend/web/e2e/TEST_REPORT_lncrna-chipseq-overlap-export.md` - Detailed report
 
 **Frontend Components**:
-- `/data/wenyujianData/humanLncAtlas/frontend/web/src/components/LncRNAChIPSeqOverlapTable/index.tsx`
-- `/data/wenyujianData/humanLncAtlas/frontend/web/src/hooks/useLncRNAChIPSeqOverlap.ts`
-- `/data/wenyujianData/humanLncAtlas/frontend/web/src/hooks/lncRNAChIPSeqOverlapApi.ts`
+- `<repo-root>/frontend/web/src/components/LncRNAChIPSeqOverlapTable/index.tsx`
+- `<repo-root>/frontend/web/src/hooks/useLncRNAChIPSeqOverlap.ts`
+- `<repo-root>/frontend/web/src/hooks/lncRNAChIPSeqOverlapApi.ts`
 
 **Backend (To Be Implemented)**:
-- `/data/wenyujianData/humanLncAtlas/backend/app/api/v1/endpoints/lncrna_chipseq_overlap.py`
+- `<repo-root>/frontend/backend/app/api/v1/endpoints/lncrna_chipseq_overlap.py`
 
 ---
 

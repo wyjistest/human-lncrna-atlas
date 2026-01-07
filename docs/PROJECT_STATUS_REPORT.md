@@ -1195,12 +1195,12 @@ docs/
 ```bash
 # 重启后端
 pkill -f uvicorn
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 # 重启前端
 pkill -f vite
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev -- --host 0.0.0.0
 
 # 检查数据库

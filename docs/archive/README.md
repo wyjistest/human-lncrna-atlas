@@ -34,16 +34,16 @@ python3 analyze_peaks_binding_affinity.py \
 # 先生成目录树索引（一次性操作，耗时约3分钟）
 cd marmoset/inputForShenzhen
 python3 generate_directory_tree.py scan \
-    /data/wenyujianData/humanLncAtlas \
-    /data/wenyujianData/humanLncAtlas_tree.pkl
+    <data-root>/humanLncAtlas \
+    <data-root>/humanLncAtlas_tree.pkl
 
 # 使用pickle运行分析（快100-1000倍）
-cd /data/wenyujianData/humanLncAtlas
+cd <data-root>/humanLncAtlas
 python3 analyze_peaks_binding_affinity.py \
     resultAllLongTarget/CATG00000000034.1 \
     60 \
     output.txt \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --target-dna-dir allMergedTranscriptSeq
 ```
 
@@ -65,7 +65,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     output.txt \
     --config human_lncrna_config.yaml \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 ```
 
 ### 4. Strand-Based路由（同时使用minus和all目录）
@@ -76,7 +76,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     output.txt \
     --extra-result-dirs resultAllLongTarget \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --target-dna-dir allMergedTranscriptSeq
 ```
 
@@ -87,7 +87,7 @@ python3 analyze_peaks_binding_affinity.py \
 | `result_directory` | 结果目录路径 | `resultAllLongTarget/CATG00000000034.1` |
 | `threshold` | Binding Affinity阈值 | `60` |
 | `output_file` | 输出文件路径 | `output.txt` |
-| `--tree-pickle` | 目录树pickle文件 | `/data/humanLncAtlas_tree.pkl` |
+| `--tree-pickle` | 目录树pickle文件 | `<data-root>/humanLncAtlas_tree.pkl` |
 | `--overlap-mode` | 重叠检测模式 | `strict` 或 `overlap` |
 | `--target-dna-dir` | DNA序列目录 | `allMergedTranscriptSeq` |
 | `--config` | YAML配置文件 | `human_lncrna_config.yaml` |
@@ -223,7 +223,7 @@ python3 analyze_peaks_binding_affinity.py \
     resultAllLongTarget \
     60 \
     all_lncrnas.txt \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 ```
 
 ## 📝 版本历史

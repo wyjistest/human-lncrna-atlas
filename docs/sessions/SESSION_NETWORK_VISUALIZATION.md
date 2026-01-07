@@ -451,7 +451,7 @@ message.success('All items processed!')
 
 ### Frontend Files
 
-#### `/data/wenyujianData/humanLncAtlas/frontend/web/src/pages/Network/index.tsx`
+#### `<repo-root>/frontend/web/src/pages/Network/index.tsx`
 **Lines Modified**: 30-1296 (entire component)
 
 **Key Sections**:
@@ -464,7 +464,7 @@ message.success('All items processed!')
 - Lines 827-892: Gene detail drawer with conservation labels
 - Lines 1000-1189: Batch export implementation
 
-#### `/data/wenyujianData/humanLncAtlas/frontend/web/src/types/network.ts`
+#### `<repo-root>/frontend/web/src/types/network.ts`
 **Lines Modified**: 17-18
 
 **Changes**:
@@ -484,7 +484,7 @@ export interface GeneDetail {
 
 ### Backend Files
 
-#### `/data/wenyujianData/humanLncAtlas/frontend/backend/app/routers/network.py`
+#### `<repo-root>/frontend/backend/app/routers/network.py`
 **Lines Modified**: 203-244
 
 **Changes**:
@@ -658,9 +658,9 @@ return {
 - [JSZip Documentation](https://stuk.github.io/jszip/)
 
 ### Internal Documentation
-- API Schema: `/data/wenyujianData/humanLncAtlas/frontend/web/src/types/api.ts`
-- Network Types: `/data/wenyujianData/humanLncAtlas/frontend/web/src/types/network.ts`
-- Backend Router: `/data/wenyujianData/humanLncAtlas/frontend/backend/app/routers/network.py`
+- API Schema: `<repo-root>/frontend/web/src/types/api.ts`
+- Network Types: `<repo-root>/frontend/web/src/types/network.ts`
+- Backend Router: `<repo-root>/frontend/backend/app/routers/network.py`
 
 ---
 
@@ -706,12 +706,12 @@ return {
 ### Testing Checklist
 ```bash
 # 1. Start backend
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 source venv/bin/activate
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 2. Start frontend
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev
 
 # 3. Test in browser

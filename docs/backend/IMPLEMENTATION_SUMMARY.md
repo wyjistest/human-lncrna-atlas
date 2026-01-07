@@ -8,7 +8,7 @@
 
 ### 1. 新增 Schema - BatchHeatmapMatrixRequest
 
-文件: `/data/wenyujianData/humanLncAtlas/frontend/backend/app/schemas/chipseq.py` (第 801-856 行)
+文件: `<repo-root>/frontend/backend/app/schemas/chipseq.py` (第 801-856 行)
 
 ```python
 class BatchHeatmapMatrixRequest(BaseModel):
@@ -59,7 +59,7 @@ class BatchHeatmapMatrixRequest(BaseModel):
 
 ### 2. 新增 Schema - BatchHeatmapMatrixResponse
 
-文件: `/data/wenyujianData/humanLncAtlas/frontend/backend/app/schemas/chipseq.py` (第 859-910 行)
+文件: `<repo-root>/frontend/backend/app/schemas/chipseq.py` (第 859-910 行)
 
 ```python
 class BatchHeatmapMatrixResponse(BaseModel):
@@ -91,7 +91,7 @@ class BatchHeatmapMatrixResponse(BaseModel):
 
 ### 3. 新增端点 - POST /genes/batch-heatmap-matrix
 
-文件: `/data/wenyujianData/humanLncAtlas/frontend/backend/app/routers/chipseq.py` (第 1634-1870 行)
+文件: `<repo-root>/frontend/backend/app/routers/chipseq.py` (第 1634-1870 行)
 
 端点实现要点：
 
@@ -131,7 +131,7 @@ query_time_ms = int((time.time() - start_time) * 1000)
 
 ### 1. Python 测试脚本 - test_batch_heatmap.py
 
-文件: `/data/wenyujianData/humanLncAtlas/frontend/backend/test_batch_heatmap.py`
+文件: `<repo-root>/frontend/backend/test_batch_heatmap.py`
 
 包含 5 个测试用例：
 1. **基本批量查询** - 3 个基因，2 个 marks，3 个 cell_types
@@ -152,7 +152,7 @@ python3 test_batch_heatmap.py
 
 ### 2. Curl 测试脚本 - test_batch_heatmap.sh
 
-文件: `/data/wenyujianData/humanLncAtlas/frontend/backend/test_batch_heatmap.sh`
+文件: `<repo-root>/frontend/backend/test_batch_heatmap.sh`
 
 包含 6 个 curl 测试：
 1. 基本批量查询 (3 基因)
@@ -263,13 +263,13 @@ with httpx.Client() as client:
 
 | 文件 | 路径 | 描述 |
 |------|------|------|
-| 开发版本 | `/data/wenyujianData/humanLncAtlas/frontend/backend/` | |
+| 开发版本 | `<repo-root>/frontend/backend/` | |
 | schemas/chipseq.py | app/schemas/chipseq.py | 新增两个 Schema (801-910 行) |
 | routers/chipseq.py | app/routers/chipseq.py | 新增端点实现 (1634-1870 行) |
 | 测试脚本 | test_batch_heatmap.py | Python 测试套件 |
 | 测试命令 | test_batch_heatmap.sh | Curl 测试脚本 |
 | 文档 | BATCH_HEATMAP_API.md | 完整 API 文档 |
-| GitHub 版本 | `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/` | 同步副本 |
+| GitHub 版本 | `<repo-root>/frontend/backend/` | 同步副本 |
 
 ## 验证方式
 
@@ -277,7 +277,7 @@ with httpx.Client() as client:
 
 ```bash
 # 启动后端
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 python3 -m uvicorn main:app --reload
 
 # 在新终端运行测试
@@ -365,7 +365,7 @@ import time  # 用于性能测试
 
 ## 文档文件
 
-详见: `/data/wenyujianData/humanLncAtlas/frontend/backend/BATCH_HEATMAP_API.md`
+详见: `<repo-root>/frontend/backend/BATCH_HEATMAP_API.md`
 
 包含:
 - 详细的 API 文档

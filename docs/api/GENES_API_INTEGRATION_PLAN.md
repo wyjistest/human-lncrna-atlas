@@ -23,7 +23,7 @@ Prepare lightweight Genes Options API integration following the proven Phase 5.1
 
 ### 2.1 Current State
 
-**File**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/genes.ts`
+**File**: `<repo-root>/frontend/web/src/api/genes.ts`
 
 ```typescript
 // Current Implementation (19 lines)
@@ -76,7 +76,7 @@ export const genesApi = {
 
 ### 3.1 Backend Schema Reference
 
-From `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/schemas/gene.py`:
+From `<repo-root>/frontend/backend/app/schemas/gene.py`:
 
 ```python
 class GeneOption(BaseModel):
@@ -100,7 +100,7 @@ class GeneOptionsResponse(BaseModel):
 
 ### 3.2 Frontend TypeScript Types
 
-**File**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/genes.ts`
+**File**: `<repo-root>/frontend/web/src/api/genes.ts`
 
 ```typescript
 /**

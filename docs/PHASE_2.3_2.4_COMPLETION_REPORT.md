@@ -640,7 +640,7 @@ python3 scripts/batch_import_chipseq.py encode_data/config.json
 
 启动前端，在浏览器中测试 ChIPSeqPeaksTable 组件：
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev -- --host 0.0.0.0
 ```
 

@@ -29,7 +29,7 @@
 ### Step 1: 创建数据库表（2 分钟）
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 执行建表脚本
 psql -U amax -d lncrna_production -f sql/chipseq_schema.sql
@@ -42,7 +42,7 @@ psql -U amax -d lncrna_production -c "SELECT COUNT(*) FROM epigenetic_mark_types
 ### Step 2: 启动后端（1 分钟）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 确保 chipseq router 已注册到 main.py
 # （如果还没有，参考实施检查清单）
@@ -56,7 +56,7 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ### Step 3: 下载示例数据（取决于网速）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+cd <repo-root>
 
 # 创建数据目录
 mkdir -p chipseq_data/demo
@@ -75,7 +75,7 @@ gunzip chipseq_data/demo/H3K27me3_peaks.bed.gz
 ### Step 4: 导入数据（1-2 分钟）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 创建元数据文件
 cat > /tmp/demo_metadata.json << 'EOF'
@@ -90,7 +90,7 @@ EOF
 
 # 执行导入（小数据集，约 1-2 分钟）
 python3 scripts/import_chipseq.py \
-    --input /data/wenyujianData/humanLncAtlas/chipseq_data/demo/H3K27me3_peaks.bed \
+    --input <repo-root>/chipseq_data/demo/H3K27me3_peaks.bed \
     --mark-type H3K27me3 \
     --species human \
     --experiment-name "Demo_H3K27me3" \
@@ -108,7 +108,7 @@ SQL
 ### Step 5: 启动前端（1 分钟）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # 启动
 npm run dev -- --host 0.0.0.0

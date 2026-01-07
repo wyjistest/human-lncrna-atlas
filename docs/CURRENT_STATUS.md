@@ -323,7 +323,7 @@ npm run dev
 ## 📁 关键目录
 
 ```
-/data/wenyujianData/
+<data-root>/
 ├── humanLncAtlas/           # 工作目录
 │   └── frontend/
 │       ├── backend/         # FastAPI 后端

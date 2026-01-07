@@ -48,7 +48,7 @@
 
 ### 后端代码文件
 
-#### 开发目录: `/data/wenyujianData/humanLncAtlas/frontend/backend/`
+#### 开发目录: `<repo-root>/frontend/backend/`
 
 | 文件 | 行数 | 描述 |
 |------|------|------|
@@ -59,7 +59,7 @@
 | BATCH_HEATMAP_API.md | 346 | 完整 API 文档 |
 | IMPLEMENTATION_SUMMARY.md | 381 | 实现总结文档 |
 
-#### GitHub 同步: `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/`
+#### GitHub 同步: `<repo-root>/frontend/backend/`
 
 所有文件已同步到 GitHub 仓库。
 
@@ -299,7 +299,7 @@ with httpx.Client() as client:
 
 ### 启动后端
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 python -m uvicorn app.main:app --reload
 ```
 

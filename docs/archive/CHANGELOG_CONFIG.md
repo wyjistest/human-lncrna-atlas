@@ -40,7 +40,7 @@
 species:
   human:
     target_dna_dirs:
-      - /data/wenyujianData/humanLncAtlas/allMergedTranscriptSeq
+      - <data-root>/humanLncAtlas/allMergedTranscriptSeq
 ```
 
 **作用**: 自动设置DNA序列目录，相当于 `--target-dna-dir`
@@ -61,7 +61,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     output.txt \
     --config human_lncrna_config.yaml \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --overlap-mode overlap \
     --extra-result-dirs resultAllLongTarget
 

@@ -15,7 +15,7 @@ eb17f899a7a423bfb06e63826106e6f5  DATABASE_DESIGN_FINAL.md
 
 **验证方法**：
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+cd <data-root>/humanLncAtlas
 md5sum -c <<EOF
 1b3ab40c3d82a15386e010ea4a1d4af4  schema_mvp_core.sql
 eb17f899a7a423bfb06e63826106e6f5  DATABASE_DESIGN_FINAL.md
@@ -207,7 +207,7 @@ network_snapshots: 2个  [idx_snapshot_job, idx_snapshot_species]
 
 ```bash
 # 1. 验证文件哈希
-cd /data/wenyujianData/humanLncAtlas
+cd <data-root>/humanLncAtlas
 md5sum schema_mvp_core.sql DATABASE_DESIGN_FINAL.md
 
 # 预期输出：

@@ -39,7 +39,7 @@
 
 ### 2.1 新增 API 方法
 
-**文件**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/regulations.ts`
+**文件**: `<repo-root>/frontend/web/src/api/regulations.ts`
 
 ```typescript
 // 新增类型定义
@@ -313,9 +313,9 @@ const { data: targetOptions, isLoading } = useQuery({
 ### 10.3 文件清单
 
 **已创建/修改**:
-- ✅ `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/REGULATIONS_API_INTEGRATION_PLAN.md`（新建）
-- ✅ `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/REGULATIONS_API_SUMMARY.md`（新建）
-- ✅ `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/regulations.ts`（已更新）
+- ✅ `<repo-root>/frontend/web/REGULATIONS_API_INTEGRATION_PLAN.md`（新建）
+- ✅ `<repo-root>/frontend/web/REGULATIONS_API_SUMMARY.md`（新建）
+- ✅ `<repo-root>/frontend/web/src/api/regulations.ts`（已更新）
 
 **待修改**:
 - [ ] `src/pages/Regulations/components/AdvancedFilters.tsx`

@@ -170,7 +170,7 @@ VALUES %s
 在有PostgreSQL 15+的环境中执行：
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+cd <repo-root>
 
 # 完整端到端测试（需PostgreSQL）
 ./scripts/end_to_end_test.sh

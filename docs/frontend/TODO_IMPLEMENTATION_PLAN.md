@@ -93,7 +93,7 @@ TraitGeneAssociationDetail: {
 
 #### Step 1.1: 安装依赖并添加类型声明
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm install cytoscape-svg
 ```
 

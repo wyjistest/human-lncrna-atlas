@@ -891,7 +891,7 @@ Phase 3 (Testing):    [░░░░░░░░░░] 0%  (Day 11-14)
 #### Step 1: 数据质量验证
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas
+cd <repo-root>
 
 # 1. 验证 regulations 表坐标数据完整性
 psql -U amax -d lncrna_production <<'EOF'
@@ -922,7 +922,7 @@ EOF
 #### Step 2: 创建后端文件结构
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/backend/app
+cd <repo-root>/frontend/backend/app
 
 # 创建文件
 touch routers/lncrna_chipseq_overlap.py
@@ -935,7 +935,7 @@ code routers/lncrna_chipseq_overlap.py
 #### Step 3: 创建前端文件结构
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web/src
+cd <repo-root>/frontend/web/src
 
 # 创建目录和文件
 mkdir -p components/LncRNAChIPSeqOverlapTable
@@ -954,12 +954,12 @@ code components/LncRNAChIPSeqOverlapTable/index.tsx
 
 ```bash
 # 后端
-cd /data/wenyujianData/humanLncAtlas/backend/app
+cd <repo-root>/frontend/backend/app
 source venv/bin/activate
 uvicorn main:app --reload --port 8000
 
 # 前端
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev
 
 # 数据库

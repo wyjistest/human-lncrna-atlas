@@ -140,7 +140,7 @@ LIMIT 10000
 
 ## 📁 修改的文件
 
-### 1. `/data/wenyujianData/humanLncAtlas/frontend/backend/app/routers/igv.py`
+### 1. `<repo-root>/frontend/backend/app/routers/igv.py`
 
 **修改内容**:
 - 添加 `PlainTextResponse` 导入
@@ -149,7 +149,7 @@ LIMIT 10000
 
 **代码位置**: 第 2513-2691 行
 
-### 2. `/data/wenyujianData/humanLncAtlas/frontend/backend/test_overlap_track.sh` (新建)
+### 2. `<repo-root>/frontend/backend/test_overlap_track.sh` (新建)
 
 **内容**: 完整的测试脚本,包含10个测试用例
 
@@ -288,13 +288,13 @@ API 自动集成到 Swagger UI:
 ### 相关文档
 
 - **API 文档**: http://localhost:8000/docs#/igv/get_overlap_track_api_v1_igv_overlap_track_get
-- **项目状态**: `/data/wenyujianData/humanLncAtlas/docs/PROJECT_STATUS_REPORT.md`
-- **数据库设计**: `/data/wenyujianData/humanLncAtlas/docs/DATABASE_DESIGN_FINAL.md`
+- **项目状态**: `<repo-root>/docs/PROJECT_STATUS_REPORT.md`
+- **数据库设计**: `<repo-root>/docs/DATABASE_DESIGN_FINAL.md`
 
 ### 测试脚本
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 bash test_overlap_track.sh
 ```
 

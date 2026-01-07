@@ -162,7 +162,7 @@ networkApi.getGeneDetail(geneId)
 
 ### Build Verification
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 npm run build
 ```
 

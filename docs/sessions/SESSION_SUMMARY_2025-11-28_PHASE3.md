@@ -135,11 +135,11 @@ export const BA_CONFIG = {
 
 ```bash
 # 启动后端
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
 
 # 启动前端
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev -- --host
 
 # 清理 Vite 缓存（如遇问题）

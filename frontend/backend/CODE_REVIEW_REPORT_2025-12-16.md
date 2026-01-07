@@ -1,6 +1,6 @@
 # Human LncRNA Atlas 代码审查报告
 
-**审查日期**: 2025-12-16 (更新: 2025-12-22, 复核: 2026-01-01)
+**审查日期**: 2025-12-16 (更新: 2025-12-22, 复核: 2026-01-01, 迭代复核: 2026-01-07)
 **审查范围**: frontend/backend + ETL 全仓代码
 **审查者**: Claude Code (Opus 4.5) + GPT-5.2 Codex (交叉审查)
 **版本**: Phase 9.17
@@ -10,27 +10,27 @@
 ## 执行摘要
 
 本次审查涵盖安全、性能、一致性三个维度，共发现 **4 个 P0**、**10 个 P1**、**7 个 P2** 问题。
-已修复 **4 个 P0**、**5 个 P1**、**3 个 P2** 关键问题，其余问题已记录待后续迭代处理。
+已修复 **4 个 P0**、**10 个 P1**、**7 个 P2** 问题（含以运维文档/脚本闭环方式落地的项）。
 
-> 注：以上统计为 2025-12-22 的快照；2026-01-01 已基于当前代码对“待修复问题清单”做状态复核并更新标注（✅ 已修复 / 🟡 仍建议优化）。
+> 注：以上统计为 2025-12-22 的快照；2026-01-01 做状态复核；2026-01-07 完成剩余 Backlog 的运维闭环与文档落地。
 
 ### 修复统计
 
 | 类型 | 发现 | 已修复 | 待修复 |
 |------|------|--------|--------|
 | P0 (Critical) | 4 | 4 | 0 |
-| P1 (High) | 10 | 5 | 5 |
-| P2 (Medium) | 7 | 3 | 4 |
+| P1 (High) | 10 | 10 | 0 |
+| P2 (Medium) | 7 | 7 | 0 |
 
 ---
 
-## 2026-01-01 现状复核（摘要）
+## 2026-01-07 现状复核（摘要）
 
 - ✅ 核心路由已全量接入 `@rate_limit`（示例：`app/routers/genes.py:28`、`app/routers/regulations.py:38`、`app/routers/diseases.py:31`、`app/routers/network.py:23`、`app/routers/visualization.py:36`）
 - ✅ 安全头已统一由 `add_security_headers` 注入（`app/middleware/security/headers.py:12`，注册见 `main.py:406`）
 - ✅ 连接池默认值已提升且可配置（`app/core/config.py:85`，引擎使用见 `app/core/database.py:39`）
 - ✅ 内存回退缓存已为 LRU，且缓存指标已接入 Prometheus client（`app/core/cache.py:84`、`app/core/cache.py:104`）
-- 🟡 仍建议：生产环境按需调参请求日志采样/慢请求阈值（`app/core/config.py:364`、`app/middleware/logging.py:155`），MV 刷新可考虑定时化（`scripts/refresh_materialized_views.sh:1`）
+- ✅ 已补齐：生产环境日志调参/回滚建议 + MV 刷新定时化与缓存无效化运维指引（见 `docs/SECURITY_DEPLOYMENT.md` 与 `scripts/refresh_materialized_views.sh:1`）
 
 ## 已修复问题清单
 
@@ -107,27 +107,25 @@ from app.routers.chipseq_rate_limit import rate_limit
 **现状**: 默认 `DB_POOL_SIZE=10`、`DB_POOL_MAX_OVERFLOW=20`，均可通过环境变量调参。
 **参考**: `app/core/config.py:85`、`app/core/database.py:39`
 
-### 🟡 P1-005: 缓存无效化缺失（现状：已提供运维入口，是否自动化取决于写接口）
-**现状**: 提供 Admin 命名空间失效接口，适用于 ETL/刷新后主动清缓存；当前后端以读 API 为主，暂无通用“写接口”触发自动失效的强需求。
-**参考**: `app/routers/admin.py:872`、`app/core/cache.py:474`
+### ✅ P1-005: 缓存无效化闭环（已落地运维脚本与文档）
+**现状**: 已提供 Admin 命名空间失效接口，可用于 ETL/MV 刷新后主动清缓存；并提供运维脚本与部署文档把该能力落地为可重复动作。
+**参考**: `app/routers/admin.py:848`（`/cache/invalidate/{namespace}`）、`scripts/refresh_materialized_views.sh:268`（`--invalidate-cache`）、`docs/SECURITY_DEPLOYMENT.md:175`
 
 ### ✅ P2-001: 内存缓存 FIFO 而非 LRU（已修复）
 **现状**: 内存回退缓存为 `OrderedDict` LRU + TTL，并暴露淘汰指标。
 **参考**: `app/core/cache.py:104`
 
-### 🟡 P2-002: 日志过于详细（现状：可配置；建议生产调参）
-**现状**: 支持慢请求阈值/采样率/URL 截断等配置；默认全量 INFO 在高 QPS 下可能带来 I/O 压力。
-**参考**: `app/core/config.py:364`、`app/middleware/logging.py:155`
+### ✅ P2-002: 生产日志调参建议已补齐（配置 + 回滚）
+**现状**: 支持慢请求阈值/采样率/URL 截断等配置；部署文档已补齐“全量/采样/仅慢请求/关闭”的推荐与回滚策略。
+**参考**: `docs/SECURITY_DEPLOYMENT.md:218`、`.env.example:1`
 
-### 🟡 P2-003: pool_pre_ping 开销（权衡项）
-**现状**: 仍开启 `pool_pre_ping=True` 优先稳定性；如对延迟敏感，可结合 `DB_POOL_RECYCLE` 调整权衡。
-**参考**: `app/core/database.py:45`、`app/core/config.py:103`
+### ✅ P2-003: pool_pre_ping 权衡与验证建议已补齐
+**现状**: 默认开启 `pool_pre_ping=True`（稳定性优先）；文档已补齐“何时关闭 + 如何压测/模拟断链 + 如何回滚”的验证闭环。
+**参考**: `docs/SECURITY_DEPLOYMENT.md:196`、`docs/SECURITY_DEPLOYMENT.md:225`
 
-### 🟡 P2-004: 物化视图刷新策略
-**文件**: `app/routers/lncrna_chipseq_overlap.py:73`
-**影响**: 数据导入后 MV 过期
-**建议**: 添加定时刷新任务或 Admin API
-**工作量**: 1h
+### ✅ P2-004: 物化视图刷新策略已闭环（脚本 + Admin API + 部署指引）
+**现状**: 支持脚本定时刷新（CONCURRENTLY/全量、状态检查），并通过 Admin API best-effort 重置 MV 可用性缓存与失效 API 缓存命名空间。
+**参考**: `scripts/refresh_materialized_views.sh:1`、`app/routers/admin.py:916`（`/mv-cache/reset`）、`app/routers/admin.py:1003`（`/materialized-views/refresh`）、`docs/SECURITY_DEPLOYMENT.md:270`
 
 ### ✅ P2-005: 缺少缓存指标（已修复）
 **现状**: 已提供 cache hits/misses/evictions/redis connectivity 等指标（Prometheus client 可选依赖）。
@@ -186,7 +184,7 @@ from app.routers.chipseq_rate_limit import rate_limit
 6. ✅ 连接池配置 (P1-004) - 默认值已提升且可配置
 
 ### 后续迭代 (Medium)
-7. 🟡 缓存无效化机制 (P1-005) - 已提供 Admin 入口，是否自动化取决于写接口/更新频率
+7. ✅ 缓存无效化机制 (P1-005) - 已落地（运维脚本 + 部署文档闭环）
 8. ✅ LRU 缓存改进 (P2-001) - 已实现
 9. ✅ Prometheus 缓存指标 (P2-005) - 已实现
 
@@ -218,11 +216,9 @@ from app.routers.chipseq_rate_limit import rate_limit
 **修复**: 改用 `json.dumps()` 正确转义
 **提交**: `c8f2b3d fix(etl): use json.dumps for safe JSONB construction`
 
-### 🟡 ETL-005: 依赖版本混用 (P2) - Backlog
-**文件**: `frontend/backend/requirements.txt:3`
-**问题**: 混用 `==` 与 `>=`，测试/科学计算依赖混在运行时依赖
-**建议**: 拆分 requirements.txt / requirements-dev.txt，引入 lock/constraints
-**工作量**: 1h
+### ✅ ETL-005: 依赖可复现性（requirements 分层 + constraints）- 已落地
+**现状**: 运行时依赖与开发/测试依赖已分层（`requirements.txt` / `requirements-dev.txt`），并引入 `constraints.txt` 锁定解析结果用于 CI/跨机器一致安装。
+**参考**: `frontend/backend/requirements.txt:1`、`frontend/backend/requirements-dev.txt:1`、`frontend/backend/constraints.txt:1`
 
 ### ✅ ETL-006: CI Secret 扫描门禁 (P2) - 已修复
 **文件**: `.github/workflows/test.yml`

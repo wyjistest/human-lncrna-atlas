@@ -11,19 +11,19 @@ python3 analyze_peaks_binding_affinity.py resultAllLongTarget/CATG00000000034.1 
 ### 高性能分析（推荐）
 ```bash
 # 使用tree-pickle加速
-python3 analyze_peaks_binding_affinity.py resultAllLongTarget/CATG00000000034.1 60 out.txt --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl --target-dna-dir allMergedTranscriptSeq
+python3 analyze_peaks_binding_affinity.py resultAllLongTarget/CATG00000000034.1 60 out.txt --tree-pickle <data-root>/humanLncAtlas_tree.pkl --target-dna-dir allMergedTranscriptSeq
 ```
 
 ### Overlap模式
 ```bash
 # 更宽松的匹配，找到更多结果
-python3 analyze_peaks_binding_affinity.py resultAllLongTarget/CATG00000000034.1 60 out.txt --overlap-mode overlap --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+python3 analyze_peaks_binding_affinity.py resultAllLongTarget/CATG00000000034.1 60 out.txt --overlap-mode overlap --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 ```
 
 ### Strand-Based路由
 ```bash
 # 自动根据链方向选择minus或all目录
-python3 analyze_peaks_binding_affinity.py resultMinusLongTarget 60 out.txt --extra-result-dirs resultAllLongTarget --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl --target-dna-dir allMergedTranscriptSeq
+python3 analyze_peaks_binding_affinity.py resultMinusLongTarget 60 out.txt --extra-result-dirs resultAllLongTarget --tree-pickle <data-root>/humanLncAtlas_tree.pkl --target-dna-dir allMergedTranscriptSeq
 ```
 
 ### 使用配置文件
@@ -35,7 +35,7 @@ python3 analyze_peaks_binding_affinity.py resultAllLongTarget/CATG00000000034.1 
 ### 生成Tree-Pickle（一次性操作）
 ```bash
 cd marmoset/inputForShenzhen
-python3 generate_directory_tree.py scan /data/wenyujianData/humanLncAtlas /data/wenyujianData/humanLncAtlas_tree.pkl
+python3 generate_directory_tree.py scan <data-root>/humanLncAtlas <data-root>/humanLncAtlas_tree.pkl
 ```
 
 ## 常用数据分析命令

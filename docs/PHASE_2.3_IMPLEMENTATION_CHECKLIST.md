@@ -49,7 +49,7 @@ ENCSR000AOF - HepG2 H3K27me3
 ### 任务 1.1: 执行 SQL DDL
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 连接数据库
 psql -U amax -d lncrna_production
@@ -200,7 +200,7 @@ app.include_router(chipseq.router, prefix="/api/v1")
 ### 任务 3.3: 启动后端测试
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 启动开发服务器
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
@@ -243,7 +243,7 @@ curl "http://localhost:8000/api/v1/features/chipseq/stats"
 ### 任务 4.1: 准备导入脚本
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 确认导入脚本存在
 ls -lh scripts/import_chipseq.py
@@ -295,7 +295,7 @@ EOF
 
 ```bash
 # 下载 H3K27me3 peaks 文件（示例）
-cd /data/wenyujianData/humanLncAtlas/chipseq_data
+cd <repo-root>/chipseq_data
 mkdir -p h3k27me3
 
 # 下载示例数据（替换为实际 ENCODE URL）
@@ -314,11 +314,11 @@ gunzip h3k27me3/brain_peaks.narrowPeak.gz
 ### 任务 4.4: 执行数据导入
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 执行导入
 python3 scripts/import_chipseq.py \
-    --input /data/wenyujianData/humanLncAtlas/chipseq_data/h3k27me3/brain_peaks.narrowPeak \
+    --input <repo-root>/chipseq_data/h3k27me3/brain_peaks.narrowPeak \
     --mark-type H3K27me3 \
     --species human \
     --experiment-name "ENCODE_Brain_H3K27me3" \
@@ -383,7 +383,7 @@ SELECT * FROM mv_chipseq_mark_stats WHERE mark_name = 'H3K27me3';
 ### 任务 5.1: 确认前端文件已生成
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 
 # 检查类型定义
 ls -lh src/types/chipseq.ts
@@ -411,7 +411,7 @@ ls -lh src/components/ChIPSeqPeaksTable/
 ### 任务 5.2: 安装依赖（如果需要）
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # 检查 package.json，确认所需依赖
 # 如果缺少依赖，运行：
@@ -487,7 +487,7 @@ import { ChIPSeqPeaksTable } from '@/components/ChIPSeqPeaksTable'
 ### 任务 5.5: 启动前端测试
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # 启动开发服务器
 npm run dev -- --host 0.0.0.0
@@ -545,7 +545,7 @@ npm run dev -- --host 0.0.0.0
 ### 任务 6.1: E2E 测试
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # 运行 E2E 测试
 npm run test:e2e

@@ -11,7 +11,7 @@
 ## 任务 1.9: 路由和页面集成 ✅
 
 ### 1.9.1 创建页面组件
-**文件**: `/data/wenyujianData/humanLncAtlas/frontend/web/src/pages/LncRNAChIPSeqOverlapPage.tsx`
+**文件**: `<repo-root>/frontend/web/src/pages/LncRNAChIPSeqOverlapPage.tsx`
 
 **特性**:
 - 面包屑导航（Home → Regulations → lncRNA-ChIP-seq Overlap）
@@ -20,7 +20,7 @@
 - 使用 Card 容器包裹内容
 
 ### 1.9.2 添加路由到 App.tsx
-**修改文件**: `/data/wenyujianData/humanLncAtlas/frontend/web/src/App.tsx`
+**修改文件**: `<repo-root>/frontend/web/src/App.tsx`
 
 **变更**:
 ```typescript
@@ -34,7 +34,7 @@ import LncRNAChIPSeqOverlapPage from './pages/LncRNAChIPSeqOverlapPage'
 **路由路径**: `/lncrna-chipseq-overlap`
 
 ### 1.9.3 添加导航菜单
-**修改文件**: `/data/wenyujianData/humanLncAtlas/frontend/web/src/layouts/MainLayout.tsx`
+**修改文件**: `<repo-root>/frontend/web/src/layouts/MainLayout.tsx`
 
 **变更**:
 ```typescript
@@ -52,7 +52,7 @@ import { InteractionOutlined } from '@ant-design/icons'
 ## 任务 1.10: 国际化翻译 ✅
 
 ### 1.10.1 中文翻译文件
-**文件**: `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/locales/zh-CN/overlap.json`
+**文件**: `<repo-root>/frontend/web/src/i18n/locales/zh-CN/overlap.json`
 
 **内容统计**:
 - 总翻译键: 71 个
@@ -69,14 +69,14 @@ import { InteractionOutlined } from '@ant-design/icons'
   - error (3)
 
 ### 1.10.2 英文翻译文件
-**文件**: `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/locales/en/overlap.json`
+**文件**: `<repo-root>/frontend/web/src/i18n/locales/en/overlap.json`
 
 **内容统计**:
 - 总翻译键: 71 个（与中文完全对应）
 - 所有文本均已翻译，无硬编码字符串
 
 ### 1.10.3 注册 overlap 命名空间
-**修改文件**: `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/index.ts`
+**修改文件**: `<repo-root>/frontend/web/src/i18n/index.ts`
 
 **变更**:
 ```typescript
@@ -102,8 +102,8 @@ ns: [..., 'overlap']
 
 ### 1.10.4 更新导航翻译
 **修改文件**:
-- `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/locales/zh-CN/nav.json`
-- `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/locales/en/nav.json`
+- `<repo-root>/frontend/web/src/i18n/locales/zh-CN/nav.json`
+- `<repo-root>/frontend/web/src/i18n/locales/en/nav.json`
 
 **新增键**:
 ```json
@@ -159,25 +159,25 @@ ns: [..., 'overlap']
 ## 最终交付文件清单
 
 ### 新增文件 (4)
-1. `/data/wenyujianData/humanLncAtlas/frontend/web/src/pages/LncRNAChIPSeqOverlapPage.tsx`
-2. `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/locales/zh-CN/overlap.json`
-3. `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/locales/en/overlap.json`
-4. `/data/wenyujianData/humanLncAtlas/PHASE1_FINAL_INTEGRATION_COMPLETE.md`
+1. `<repo-root>/frontend/web/src/pages/LncRNAChIPSeqOverlapPage.tsx`
+2. `<repo-root>/frontend/web/src/i18n/locales/zh-CN/overlap.json`
+3. `<repo-root>/frontend/web/src/i18n/locales/en/overlap.json`
+4. `<repo-root>/PHASE1_FINAL_INTEGRATION_COMPLETE.md`
 
 ### 修改文件 (4)
-1. `/data/wenyujianData/humanLncAtlas/frontend/web/src/App.tsx`
+1. `<repo-root>/frontend/web/src/App.tsx`
    - 添加 LncRNAChIPSeqOverlapPage 导入
    - 添加 /lncrna-chipseq-overlap 路由
 
-2. `/data/wenyujianData/humanLncAtlas/frontend/web/src/layouts/MainLayout.tsx`
+2. `<repo-root>/frontend/web/src/layouts/MainLayout.tsx`
    - 导入 InteractionOutlined 图标
    - 添加导航菜单项
 
-3. `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/index.ts`
+3. `<repo-root>/frontend/web/src/i18n/index.ts`
    - 导入 overlap 翻译文件
    - 注册 overlap 命名空间
 
-4. `/data/wenyujianData/humanLncAtlas/frontend/web/src/i18n/locales/*/nav.json` (2 files)
+4. `<repo-root>/frontend/web/src/i18n/locales/*/nav.json` (2 files)
    - 添加 overlap 菜单翻译
 
 ---
@@ -213,13 +213,13 @@ ns: [..., 'overlap']
 ### 测试步骤
 1. 启动后端服务器:
    ```bash
-   cd /data/wenyujianData/humanLncAtlas/frontend/backend
+   cd <repo-root>/frontend/backend
    python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
    ```
 
 2. 启动前端开发服务器:
    ```bash
-   cd /data/wenyujianData/humanLncAtlas/frontend/web
+   cd <repo-root>/frontend/web
    npm run dev -- --host 0.0.0.0
    ```
 

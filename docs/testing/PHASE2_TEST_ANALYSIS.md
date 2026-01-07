@@ -16,7 +16,7 @@ Phase 2 testing has revealed a **critical test configuration issue**: The perfor
 ### Test Run Details
 - **Execution Time**: 2025-12-10 12:36:13 - 12:36:29 (15 seconds)
 - **Environment**: Frontend (localhost:5173) + Backend (localhost:8000)
-- **Test Suite**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/e2e/performance/disease-dropdown-performance.spec.ts`
+- **Test Suite**: `<repo-root>/frontend/web/e2e/performance/disease-dropdown-performance.spec.ts`
 - **Results**: 1 Pass / 5 Failures
 
 ### Test Results Summary
@@ -73,7 +73,7 @@ const { response, time: apiTime, data, headers } = await metrics.measureAPIRespo
 **Symptom**: Even though the correct code is deployed in the GitHub directory (where the frontend server is running from), the test might be loading cached JavaScript.
 
 **Evidence**:
-- Process `100536` (frontend server) is running from `/data/wenyujianData/human-lncrna-atlas-github/frontend/web` ✅
+- Process `100536` (frontend server) is running from `<repo-root>/frontend/web` ✅
 - File `src/api/diseases.ts` in GitHub directory contains `getOptions()` method ✅
 - But test shows old API behavior (3404ms response time)
 
@@ -108,7 +108,7 @@ curl "http://localhost:8000/api/v1/diseases/options"
 
 ### ✅ Frontend Optimization Status
 
-**File**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/diseases.ts`
+**File**: `<repo-root>/frontend/web/src/api/diseases.ts`
 
 ```typescript
 // ✅ New interface defined
@@ -130,7 +130,7 @@ export const diseasesApi = {
 }
 ```
 
-**Network Page Usage**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/pages/Network/index.tsx:1033`
+**Network Page Usage**: `<repo-root>/frontend/web/src/pages/Network/index.tsx:1033`
 
 ```typescript
 const { data: diseaseOptions } = useQuery({
@@ -263,7 +263,7 @@ b. Clear Playwright browser cache before test:
 
 c. Restart frontend server (force fresh build):
    ```bash
-   cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+   cd <repo-root>/frontend/web
    npm run build
    # Restart dev server
    ```

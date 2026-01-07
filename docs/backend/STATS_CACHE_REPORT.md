@@ -11,7 +11,7 @@
 ## 代码改动摘要
 
 ### 修改文件
-- `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/routers/stats.py`
+- `<repo-root>/frontend/backend/app/routers/stats.py`
 
 ### 新增代码统计
 

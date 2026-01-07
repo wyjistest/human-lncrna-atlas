@@ -30,15 +30,15 @@ python3 analyze_peaks_binding_affinity.py \
 # 先生成目录树索引（一次性操作）
 cd marmoset/inputForShenzhen
 python3 generate_directory_tree.py scan \
-    /data/wenyujianData/humanLncAtlas \
-    /data/wenyujianData/humanLncAtlas_tree.pkl
+    <data-root>/humanLncAtlas \
+    <data-root>/humanLncAtlas_tree.pkl
 
 # 使用pickle文件运行分析（快100-1000倍）
 python3 analyze_peaks_binding_affinity.py \
     resultAllLongTarget/CATG00000000034.1 \
     60 \
     output_with_pickle.txt \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --target-dna-dir allMergedTranscriptSeq
 ```
 
@@ -51,7 +51,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     strict_output.txt \
     --overlap-mode strict \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 
 # Overlap模式：任何重叠都算（通常能找到更多结果）
 python3 analyze_peaks_binding_affinity.py \
@@ -59,7 +59,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     overlap_output.txt \
     --overlap-mode overlap \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 ```
 
 ### 5. Strand-Based目录路由（Human lncRNA特有）
@@ -71,7 +71,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     strand_based_output.txt \
     --extra-result-dirs resultAllLongTarget \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --target-dna-dir allMergedTranscriptSeq
 
 # 注意：
@@ -89,7 +89,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     human_lncrna_BA60_complete.txt \
     --extra-result-dirs resultAllLongTarget \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --overlap-mode overlap \
     --target-dna-dir allMergedTranscriptSeq \
     --config human_lncrna_config.yaml
@@ -115,9 +115,9 @@ real    1m45s
 ```bash
 # 使用pickle后
 $ time python3 analyze_peaks_binding_affinity.py resultAllLongTarget/CATG00000000034.1 60 out.txt \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 
-正在加载目录树索引: /data/wenyujianData/humanLncAtlas_tree.pkl
+正在加载目录树索引: <data-root>/humanLncAtlas_tree.pkl
 ✓ 目录树索引加载成功，耗时: 56.04 秒    # ← 一次性加载
 DNA 文件索引完成，共索引 88704 个文件    # ← 从内存查找，<1秒
 
@@ -171,7 +171,7 @@ python3 analyze_peaks_binding_affinity.py \
     resultAllLongTarget \
     60 \
     all_lncrna_output.txt \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --target-dna-dir allMergedTranscriptSeq
 
 # 方式2：使用strand-based routing处理所有lncRNA
@@ -180,7 +180,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     all_strand_based_output.txt \
     --extra-result-dirs resultAllLongTarget \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --target-dna-dir allMergedTranscriptSeq
 ```
 
@@ -230,15 +230,15 @@ awk -F'\t' 'BEGIN{none=0; found=0} NR>1 {
 # 创建符号链接到临时目录
 mkdir -p temp_analysis
 cd temp_analysis
-ln -s /data/wenyujianData/humanLncAtlas/resultAllLongTarget/CATG00000000034.1 .
-ln -s /data/wenyujianData/humanLncAtlas/resultAllLongTarget/CATG00000000072.1 .
+ln -s <data-root>/humanLncAtlas/resultAllLongTarget/CATG00000000034.1 .
+ln -s <data-root>/humanLncAtlas/resultAllLongTarget/CATG00000000072.1 .
 
 # 运行分析
 python3 analyze_peaks_binding_affinity.py \
     . \
     60 \
     selected_lncrnas.txt \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 ```
 
 ### Q3: 内存不足怎么办？

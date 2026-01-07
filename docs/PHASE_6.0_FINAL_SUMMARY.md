@@ -279,7 +279,7 @@ frontend/backend/app/
 
 ```bash
 # 1. 进入目录
-cd /data/wenyujianData/human-lncrna-atlas-github/notebooks
+cd <repo-root>/notebooks
 
 # 2. 安装环境（首次）
 pip install -r requirements.txt
@@ -483,7 +483,7 @@ jupyter notebook 04_disease_networks.ipynb
 将所有成果提交到 GitHub：
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github
+cd <repo-root>
 
 # 查看改动
 git status

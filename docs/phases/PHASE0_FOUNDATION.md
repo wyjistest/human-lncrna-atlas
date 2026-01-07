@@ -518,7 +518,7 @@ enableMocking().then(() => {
 #### 2.4 安装 MSW
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # 安装依赖
 npm install msw --save-dev
@@ -1011,7 +1011,7 @@ export default function Regulations() {
 ## 🚀 依赖安装
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # ✅ Phase 0 需要安装的依赖
 npm install msw --save-dev

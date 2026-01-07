@@ -1,7 +1,7 @@
 # lncRNA-ChIP-seq Overlap Export E2E Test Report
 
 **Date**: 2025-12-07
-**Test File**: `/data/wenyujianData/humanLncAtlas/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts`
+**Test File**: `<repo-root>/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts`
 **Status**: ⚠️ **BLOCKED - Feature Not Implemented**
 
 ---
@@ -455,7 +455,7 @@ const handleExport = useCallback(
 
 **Full Suite**:
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npx playwright test e2e/lncrna-chipseq-overlap-export.spec.ts
 ```
 

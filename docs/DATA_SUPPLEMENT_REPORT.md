@@ -79,7 +79,7 @@ H1-hESC    ████     ████     ████     ████     �
 ## 📁 下载的文件路径
 
 ```
-/data/wenyujianData/encode_data/
+<data-root>/encode_data/
 ├── hepg2/additional/
 │   └── wgEncodeBroadHistoneHepg2H3k36me3StdPk.broadPeak.gz
 ├── gm12878/additional/
@@ -90,7 +90,7 @@ H1-hESC    ████     ████     ████     ████     �
     └── wgEncodeBroadHistoneH1hescH3k09me3StdPk.broadPeak.gz
 ```
 
-**配置文件**: `/data/wenyujianData/encode_data/configs/additional_marks_batch.json`
+**配置文件**: `<data-root>/encode_data/configs/additional_marks_batch.json`
 
 ---
 

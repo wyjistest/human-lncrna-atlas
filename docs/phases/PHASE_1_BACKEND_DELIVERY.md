@@ -351,7 +351,7 @@ chmod +x test_lncrna_chipseq_overlap_api.sh
 ## File Structure
 
 ```
-/data/wenyujianData/humanLncAtlas/
+<repo-root>/
 ├── frontend/backend/
 │   ├── app/
 │   │   ├── __init__.py (fixed encoding)

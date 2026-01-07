@@ -218,7 +218,7 @@ with httpx.Client() as client:
 ### 运行 Python 测试脚本
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 确保后端正在运行
 python3 -m uvicorn main:app --reload
@@ -339,8 +339,8 @@ from app.schemas.chipseq import (
 
 ## 文件清单
 
-- `/data/wenyujianData/humanLncAtlas/frontend/backend/app/schemas/chipseq.py` - Schema 定义
-- `/data/wenyujianData/humanLncAtlas/frontend/backend/app/routers/chipseq.py` - 端点实现
-- `/data/wenyujianData/humanLncAtlas/frontend/backend/test_batch_heatmap.py` - Python 测试
-- `/data/wenyujianData/humanLncAtlas/frontend/backend/test_batch_heatmap.sh` - Curl 测试
+- `<repo-root>/frontend/backend/app/schemas/chipseq.py` - Schema 定义
+- `<repo-root>/frontend/backend/app/routers/chipseq.py` - 端点实现
+- `<repo-root>/frontend/backend/test_batch_heatmap.py` - Python 测试
+- `<repo-root>/frontend/backend/test_batch_heatmap.sh` - Curl 测试
 

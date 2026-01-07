@@ -101,7 +101,7 @@ npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-
 ## 测试命令
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # 运行所有测试
 npm run test:run

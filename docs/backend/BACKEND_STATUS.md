@@ -178,7 +178,7 @@ sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn)
 ### 当前启动方式
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 
 # 方式1: 直接启动
 uvicorn main:app --host 0.0.0.0 --port 8000
@@ -219,7 +219,7 @@ kill <PID>
 
 ### 步骤2: 修复Gene ORM模型
 
-编辑 `/data/wenyujianData/humanLncAtlas/frontend/backend/app/models/models.py`:
+编辑 `<repo-root>/frontend/backend/app/models/models.py`:
 
 ```python
 class Gene(Base):
@@ -291,8 +291,8 @@ curl "http://localhost:8000/api/v1/genes?page=1&page_size=2"
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 - **健康检查**: http://localhost:8000/health
-- **后端README**: `/data/wenyujianData/humanLncAtlas/frontend/backend/README.md`
-- **数据库验证报告**: `/data/wenyujianData/VERIFICATION_REPORT_2025-11-24.md`
+- **后端README**: `<repo-root>/frontend/backend/README.md`
+- **数据库验证报告**: `<data-root>/VERIFICATION_REPORT_2025-11-24.md`
 
 ---
 

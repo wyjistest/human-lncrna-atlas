@@ -276,7 +276,7 @@ async def get_target_options(
 
 ### 3.1 TypeScript 类型定义
 
-**文件**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/regulations.ts`
+**文件**: `<repo-root>/frontend/web/src/api/regulations.ts`
 
 **完整代码**:
 ```typescript

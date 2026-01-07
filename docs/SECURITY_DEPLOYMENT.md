@@ -222,6 +222,12 @@ REQUEST_LOG_SAMPLE_RATE=1.0
 REQUEST_LOG_MAX_URL_LENGTH=2048
 ```
 
+**关于 `DB_POOL_PRE_PING` 的验证建议**：
+
+1. 默认保持开启（稳定性优先），观察一段时间的连接错误与 5xx。
+2. 如要关闭（极端低延迟场景），建议先做压测对比 p95/p99，并模拟空闲断连（如长时间无请求或连接被代理/NAT 回收）验证是否出现 `server closed the connection unexpectedly` 等错误。
+3. 发现错误立即回滚：重新设置 `DB_POOL_PRE_PING=true`，并结合 `DB_POOL_RECYCLE` 控制长连接寿命。
+
 **生产日志回滚配置（降低 I/O）**：
 
 - 仅记录慢请求：`REQUEST_LOG_SLOW_THRESHOLD_MS=200`（按需调整）
@@ -265,6 +271,80 @@ sudo systemctl status lncrna-atlas-backend
 1. 在构建前端时**不要设置** `VITE_ADMIN_API_KEY`（否则会进入构建产物）。
 2. 将 `frontend/web/dist` 部署到 Nginx 的静态目录（示例见上文 Nginx 配置中的 `root /var/www/...`）。
 3. 通过 Nginx 的 `location /api/v1/admin` 注入 `X-Admin-API-Key` 并配置 IP 白名单。
+
+## 物化视图（MV）刷新与缓存无效化（运维闭环）
+
+某些分析/导出接口在缺少物化视图时会走 fallback 路径（更慢）。数据导入后，如希望保持性能稳定，建议把 MV 刷新变成可重复、可回滚的运维动作，并在刷新后主动清理相关缓存。
+
+推荐方式：使用脚本 `scripts/refresh_materialized_views.sh` 进行数据库侧刷新，并在脚本中用 Admin API 做 best-effort 的后端通知与缓存失效：
+
+- MV 可用性缓存重置：`POST /api/v1/admin/mv-cache/reset`
+- API 缓存命名空间失效：`POST /api/v1/admin/cache/invalidate/{namespace}`（白名单）
+- 鉴权：`X-Admin-API-Key: <ADMIN_API_KEY>`（脚本支持 `ADMIN_API_KEY` 或 `HLA_ADMIN_API_KEY` 环境变量）
+
+### systemd timer（示例）
+
+1) 环境变量文件（示例）：`/etc/lncrna-atlas/mv-refresh.env`
+
+```bash
+# PostgreSQL（建议优先使用 ~/.pgpass；如用密码可用 DB_PASSWORD/PGPASSWORD 注入）
+PGDATABASE=lncrna_production
+PGHOST=127.0.0.1
+PGPORT=5432
+PGUSER=lncrna
+DB_PASSWORD=REPLACE_ME
+
+# Backend Admin API（仅服务端使用，避免进入前端构建产物）
+BACKEND_URL=http://127.0.0.1:8000
+HLA_ADMIN_API_KEY=REPLACE_ME
+
+# 可选：仅失效部分 namespace（默认会失效全部允许列表）
+# INVALIDATE_NAMESPACES=regulations,genes,stats,export
+```
+
+2) service（示例）：`/etc/systemd/system/lncrna-atlas-mv-refresh.service`
+
+```ini
+[Unit]
+Description=Human LncRNA Atlas - Refresh Materialized Views
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lncrna
+Group=lncrna
+WorkingDirectory=/opt/human-lncrna-atlas
+EnvironmentFile=/etc/lncrna-atlas/mv-refresh.env
+ExecStart=/opt/human-lncrna-atlas/scripts/refresh_materialized_views.sh --notify-backend --invalidate-cache
+```
+
+3) timer（示例）：`/etc/systemd/system/lncrna-atlas-mv-refresh.timer`
+
+```ini
+[Unit]
+Description=Human LncRNA Atlas - MV Refresh (weekly)
+
+[Timer]
+OnCalendar=Sun 03:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+启用：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now lncrna-atlas-mv-refresh.timer
+systemctl list-timers | rg lncrna-atlas-mv-refresh
+```
+
+### 回滚/止损
+
+- 立即停止：禁用 timer（`systemctl disable --now lncrna-atlas-mv-refresh.timer`）
+- 降低影响：改为 `--status` 仅检查，或减少刷新频率；必要时用 `-f/--full` 改为非并发刷新（注意锁与阻塞）
 
 ## Docker 部署方案 (推荐)
 

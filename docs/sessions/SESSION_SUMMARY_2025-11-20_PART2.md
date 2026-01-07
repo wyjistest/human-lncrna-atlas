@@ -352,7 +352,7 @@ END $$;
 
 ```bash
 # 1. 导入真实数据（第一批）
-cd /data/wenyujianData/humanLncAtlas
+cd <repo-root>
 python3 etl/examples/import_regulations.py \
     --file /path/to/human_batch_BA60.txt \
     --species-id 1 \
@@ -424,7 +424,7 @@ psql -U amax -h localhost -c "CREATE DATABASE lncrna_production;"
 
 ```bash
 # 重新运行端到端测试
-cd /data/wenyujianData/humanLncAtlas
+cd <repo-root>
 export DB_USER=amax DB_HOST=localhost
 ./scripts/end_to_end_test.sh
 

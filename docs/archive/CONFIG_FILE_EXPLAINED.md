@@ -10,7 +10,7 @@
 species:
   human:
     target_dna_dirs:
-      - /data/wenyujianData/humanLncAtlas/allMergedTranscriptSeq
+      - <data-root>/humanLncAtlas/allMergedTranscriptSeq
 ```
 
 **作用**：
@@ -53,7 +53,7 @@ python3 analyze_peaks_binding_affinity.py \
     resultAllLongTarget/CATG00000000034.1 \
     60 \
     output.txt \
-    --target-dna-dir /data/wenyujianData/humanLncAtlas/allMergedTranscriptSeq
+    --target-dna-dir <data-root>/humanLncAtlas/allMergedTranscriptSeq
 ```
 
 ### 示例2：配置文件 + 性能优化
@@ -65,7 +65,7 @@ python3 analyze_peaks_binding_affinity.py \
     60 \
     output.txt \
     --config human_lncrna_config.yaml \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl
 ```
 
 ### 示例3：配置文件 + 所有选项
@@ -78,7 +78,7 @@ python3 analyze_peaks_binding_affinity.py \
     output.txt \
     --config human_lncrna_config.yaml \
     --extra-result-dirs resultAllLongTarget \
-    --tree-pickle /data/wenyujianData/humanLncAtlas_tree.pkl \
+    --tree-pickle <data-root>/humanLncAtlas_tree.pkl \
     --overlap-mode overlap
 ```
 
@@ -111,7 +111,7 @@ python3 analyze_peaks_binding_affinity.py \
 ```yaml
 # 未来可能的配置（当前不支持）
 settings:
-  tree_pickle_path: /data/humanLncAtlas_tree.pkl  # 自动加载pickle
+  tree_pickle_path: <data-root>/humanLncAtlas_tree.pkl  # 自动加载pickle
   default_overlap_mode: strict                     # 默认模式
   default_threshold: 60                            # 默认阈值
 
@@ -149,8 +149,8 @@ strand_routing:
    ```bash
    #!/bin/bash
    # 批量处理脚本
-   CONFIG=/data/humanLncAtlas/human_lncrna_config.yaml
-   PICKLE=/data/humanLncAtlas_tree.pkl
+   CONFIG=<data-root>/humanLncAtlas/human_lncrna_config.yaml
+   PICKLE=<data-root>/humanLncAtlas_tree.pkl
 
    for threshold in 50 60 70; do
        for mode in strict overlap; do

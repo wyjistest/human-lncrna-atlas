@@ -257,11 +257,11 @@ class GeneListItem(BaseModel):
 
 ## 🔗 相关文件
 
-- **ORM模型**: `/data/wenyujianData/humanLncAtlas/frontend/backend/app/models/models.py`
-- **Schemas**: `/data/wenyujianData/humanLncAtlas/frontend/backend/app/schemas/gene.py`
-- **Routers**: `/data/wenyujianData/humanLncAtlas/frontend/backend/app/routers/*.py`
+- **ORM模型**: `<repo-root>/frontend/backend/app/models/models.py`
+- **Schemas**: `<repo-root>/frontend/backend/app/schemas/gene.py`
+- **Routers**: `<repo-root>/frontend/backend/app/routers/*.py`
 - **启动日志**: `/tmp/fastapi_final.log`
-- **状态文档**: `/data/wenyujianData/humanLncAtlas/frontend/backend/BACKEND_STATUS.md`
+- **状态文档**: `<repo-root>/frontend/backend/BACKEND_STATUS.md`
 
 ---
 
@@ -312,7 +312,7 @@ class GeneListItem(BaseModel):
 
 ```bash
 # 1. 启动服务
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 # 2. 测试健康检查

@@ -5,7 +5,7 @@
 This document summarizes the comprehensive work on multi-species closed regulatory network analysis for disease-associated genes, focusing on autism spectrum disorder, neuroblastoma, and hepatocellular carcinoma.
 
 **Date**: 2025-11-19
-**Working Directory**: `/data/wenyujianData/humanLncAtlas/`
+**Working Directory**: `<data-root>/humanLncAtlas/`
 **Main Script**: `draw_multispecies_network.py`
 **Total Networks Generated**: 23 images (4 autism + 12 neuroblastoma + 11 HCC)
 
@@ -47,20 +47,20 @@ This document summarizes the comprehensive work on multi-species closed regulato
 ## Files and Data
 
 ### Main Script
-**`/data/wenyujianData/humanLncAtlas/draw_multispecies_network.py`**
+**`<data-root>/humanLncAtlas/draw_multispecies_network.py`**
 - Generates 4-species closed regulatory networks
 - Creates 20×20 inch PNG files with statistics panels, colorbars, and legends
 - Handles ortholog mapping, gene name display, and edge weight normalization
 
 ### Input Data
-1. **`/data/wenyujianData/standard_data/table15_normalized_full.csv`**
+1. **`<data-root>/standard_data/table15_normalized_full.csv`**
    - 67,763 rows of trait-gene associations
    - Used to identify disease-specific gene sets
 
 2. **Ortholog Tables**:
-   - Human-Chimp: `/data/wenyujianData/standard_data/human_chimp_orthologs.csv`
-   - Human-Macaque: `/data/wenyujianData/standard_data/human_macaque_orthologs.csv`
-   - Human-Marmoset: `/data/wenyujianData/standard_data/human_marmoset_orthologs.csv`
+   - Human-Chimp: `<data-root>/standard_data/human_chimp_orthologs.csv`
+   - Human-Macaque: `<data-root>/standard_data/human_macaque_orthologs.csv`
+   - Human-Marmoset: `<data-root>/standard_data/human_marmoset_orthologs.csv`
 
 3. **Binding Affinity Files**:
    - Human: `human_batch_human.txt`
@@ -69,8 +69,8 @@ This document summarizes the comprehensive work on multi-species closed regulato
    - Marmoset: `marmoset_batch_BA50.txt`
 
 4. **Gene Name Mappings**:
-   - lncRNA: `/data/wenyujianData/standard_data/human_lncRNA_id_to_name.csv`
-   - Coding: `/data/wenyujianData/standard_data/human_gene_id_to_name.csv`
+   - lncRNA: `<data-root>/standard_data/human_lncRNA_id_to_name.csv`
+   - Coding: `<data-root>/standard_data/human_gene_id_to_name.csv`
 
 ### Generated Files
 
@@ -286,8 +286,8 @@ Potential future work:
 
 - **Platform**: Linux 5.15.0-46-generic
 - **Python**: 3.x with NetworkX, Matplotlib, Pandas, NumPy
-- **Working Directory**: `/data/wenyujianData/humanLncAtlas/`
-- **Data Location**: `/data/wenyujianData/standard_data/`
+- **Working Directory**: `<data-root>/humanLncAtlas/`
+- **Data Location**: `<data-root>/standard_data/`
 
 ---
 

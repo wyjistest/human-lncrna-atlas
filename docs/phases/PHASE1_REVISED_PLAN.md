@@ -661,7 +661,7 @@ export default defineConfig({
 
 #### 1. 依赖安装
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 
 # ✅ 仅安装缺失的依赖
 npm install msw --save-dev

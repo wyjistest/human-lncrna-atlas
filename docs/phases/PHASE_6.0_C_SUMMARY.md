@@ -248,8 +248,8 @@ redis-cli GET "lncrna:analysis:summary" | jq
 
 ## Documentation Links
 
-- **Detailed Report**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/PHASE_6.0_C_COMPLETION_REPORT.md`
-- **Frontend Guide**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/ANALYSIS_API_FRONTEND_GUIDE.md`
+- **Detailed Report**: `<repo-root>/frontend/backend/PHASE_6.0_C_COMPLETION_REPORT.md`
+- **Frontend Guide**: `<repo-root>/frontend/backend/ANALYSIS_API_FRONTEND_GUIDE.md`
 - **API Docs**: http://localhost:8000/docs#/analysis
 - **ReDoc**: http://localhost:8000/redoc#tag/analysis
 

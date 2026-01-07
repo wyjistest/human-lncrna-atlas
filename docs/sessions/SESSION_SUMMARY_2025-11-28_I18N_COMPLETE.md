@@ -207,11 +207,11 @@ toolbox: getChartToolbox(t('charts.topLncRNA'), t('export.saveImage'))
 
 ```bash
 # 启动后端
-cd /data/wenyujianData/humanLncAtlas/frontend/backend
+cd <repo-root>/frontend/backend
 nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
 
 # 启动前端
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run dev -- --host 0.0.0.0 --port 5173
 
 # TypeScript 检查
@@ -245,7 +245,7 @@ curl -s "http://localhost:8000/api/v1/stats/detailed?top_limit=2" | python3 -c "
 
 ```bash
 # 读取本文档继续工作
-cat /data/wenyujianData/humanLncAtlas/frontend/SESSION_SUMMARY_2025-11-28_I18N_COMPLETE.md
+cat <repo-root>/frontend/SESSION_SUMMARY_2025-11-28_I18N_COMPLETE.md
 ```
 
 ---

@@ -335,12 +335,12 @@ API Response Time         | ~200ms  | < 1000ms | ✅ PASS
 
 ### Generated Files
 
-1. **Test Spec**: `/data/wenyujianData/humanLncAtlas/frontend/web/e2e/lncrna-chipseq-overlap.spec.ts`
+1. **Test Spec**: `<repo-root>/frontend/web/e2e/lncrna-chipseq-overlap.spec.ts`
    - 34 test cases (26 P0, 8 P1 skipped)
    - 822 lines of test code
    - Comprehensive coverage of user flows
 
-2. **Test Documentation**: `/data/wenyujianData/humanLncAtlas/frontend/web/e2e/README.md`
+2. **Test Documentation**: `<repo-root>/frontend/web/e2e/README.md`
    - Complete test execution guide
    - Troubleshooting tips
    - CI/CD integration examples
@@ -425,7 +425,7 @@ The page is **ready for staging deployment**. Priority 1 tests (filtering, sorti
 ### Run All P0 Tests
 
 ```bash
-cd /data/wenyujianData/humanLncAtlas/frontend/web
+cd <repo-root>/frontend/web
 npm run test:e2e -- e2e/lncrna-chipseq-overlap.spec.ts --grep-invert "should filter|should paginate|should sort|should reset|should display row details"
 ```
 

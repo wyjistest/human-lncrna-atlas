@@ -7,7 +7,7 @@
 ## 1. Replace genes.ts (One Command)
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 mv src/api/genes.ts src/api/genes.ts.backup
 mv src/api/genes.ts.NEW src/api/genes.ts
 ```

@@ -57,7 +57,7 @@ The test file `e2e/performance/disease-dropdown-performance.spec.ts` is hardcode
 ### Step 4: Clear Browser Cache
 
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 
 # Option A: Hard refresh (recommended)
 # Just run tests with --headed to visually verify
@@ -118,12 +118,12 @@ After making changes, verify:
    lsof -i :5173 | grep LISTEN
    # Get PID, then:
    pwdx <PID>
-   # Should show: /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+   # Should show: <repo-root>/frontend/web
    ```
 
 2. Force rebuild frontend:
    ```bash
-   cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+   cd <repo-root>/frontend/web
    rm -rf dist node_modules/.vite
    npm run build
    npm run dev

@@ -21,7 +21,7 @@
 
 ### 1. Current State Analysis
 
-**Existing Implementation**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/genes.ts`
+**Existing Implementation**: `<repo-root>/frontend/web/src/api/genes.ts`
 - 19 lines, simple structure
 - Two methods: `list()` (paginated) and `detail()` (single gene)
 - Uses OpenAPI-generated types from `@/types`
@@ -92,13 +92,13 @@ Four ready-to-use templates:
 - [ ] Auto-remove species suffixes (`_chimp`, `_macaque`, `_marmoset`)
 - [ ] Performance test (target < 500ms)
 
-**Backend Schema Reference**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/schemas/gene.py` lines 103-119
+**Backend Schema Reference**: `<repo-root>/frontend/backend/app/schemas/gene.py` lines 103-119
 
 ### Step 2: Frontend Integration (Day 1-2)
 
 **One Command Replacement**:
 ```bash
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 mv src/api/genes.ts src/api/genes.ts.backup
 mv src/api/genes.ts.NEW src/api/genes.ts
 ```
@@ -242,17 +242,17 @@ console.table([
 ## File Locations (Absolute Paths)
 
 ### Documentation
-- **Integration Plan**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/GENES_API_INTEGRATION_PLAN.md`
-- **Quick Start Guide**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/GENES_API_QUICK_START.md`
-- **This Summary**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/GENES_API_DELIVERABLES.md`
+- **Integration Plan**: `<repo-root>/frontend/web/GENES_API_INTEGRATION_PLAN.md`
+- **Quick Start Guide**: `<repo-root>/frontend/web/GENES_API_QUICK_START.md`
+- **This Summary**: `<repo-root>/frontend/web/GENES_API_DELIVERABLES.md`
 
 ### Code Files
-- **New Implementation**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/genes.ts.NEW`
-- **Current File (to be replaced)**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/genes.ts`
+- **New Implementation**: `<repo-root>/frontend/web/src/api/genes.ts.NEW`
+- **Current File (to be replaced)**: `<repo-root>/frontend/web/src/api/genes.ts`
 
 ### Backend Reference
-- **Schema Definition**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/schemas/gene.py`
-- **Router (to be updated)**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/backend/app/routers/genes.py`
+- **Schema Definition**: `<repo-root>/frontend/backend/app/schemas/gene.py`
+- **Router (to be updated)**: `<repo-root>/frontend/backend/app/routers/genes.py`
 
 ---
 
@@ -274,11 +274,11 @@ console.table([
 ### Phase 5.1 Success Pattern (Diseases API)
 - **Response Time**: 5.5s → 0.2s (550x improvement)
 - **Response Size**: 240 KB → 20 KB (92% reduction)
-- **Implementation**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/src/api/diseases.ts`
-- **Test Report**: `/data/wenyujianData/human-lncrna-atlas-github/frontend/web/PHASE2_TEST_ANALYSIS.md`
+- **Implementation**: `<repo-root>/frontend/web/src/api/diseases.ts`
+- **Test Report**: `<repo-root>/frontend/web/PHASE2_TEST_ANALYSIS.md`
 
 ### Project Documentation
-- **Project Memory**: `/data/wenyujianData/human-lncrna-atlas-github/CLAUDE.md`
+- **Project Memory**: `<repo-root>/CLAUDE.md`
 - **API Documentation**: `http://localhost:8000/docs` (after backend starts)
 
 ---
@@ -287,7 +287,7 @@ console.table([
 
 ```bash
 # Integration
-cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+cd <repo-root>/frontend/web
 mv src/api/genes.ts.NEW src/api/genes.ts
 npm run build
 
