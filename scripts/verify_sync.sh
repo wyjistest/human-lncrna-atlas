@@ -84,7 +84,15 @@ if [ -z "${DOC_FILE}" ]; then
 fi
 
 # 文件指纹（固定值用于验证“是否为已声明的官方版本”）
-EXPECTED_DOC="eb17f899a7a423bfb06e63826106e6f5"
+#
+# 注意：这不是“schema/文档一致性”的唯一判断依据（后续还有版本/索引/示例校验），
+# 但可用于快速识别是否在检查预期版本的文件。
+if [[ "$(relpath "$DOC_FILE")" == "docs/DATABASE_DESIGN_FINAL.md" ]]; then
+    EXPECTED_DOC="d8209f2f7cd7bf6d14410c440f84e658"
+else
+    # 旧路径（历史文件名）
+    EXPECTED_DOC="eb17f899a7a423bfb06e63826106e6f5"
+fi
 if [[ "$(relpath "$SCHEMA_FILE")" == "schema/v2.3/01_core.sql" ]]; then
     EXPECTED_SCHEMA="540c38797a68b72655a9390128ddf64e"
 else
