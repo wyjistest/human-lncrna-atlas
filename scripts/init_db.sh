@@ -126,7 +126,6 @@ print_config() {
 check_prerequisites() {
     log_info "检查依赖..."
     check_command psql
-    check_command md5sum
 
     # 基本输入校验（避免 SQL/命令拼接异常）
     validate_identifier "DB_NAME" "$DB_NAME"
