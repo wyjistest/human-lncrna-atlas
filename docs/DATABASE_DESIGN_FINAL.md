@@ -121,7 +121,7 @@ CREATE INDEX idx_genes_region ON genes USING GIST (gene_region);
 SELECT * FROM genes WHERE gene_region && int8range(1000000, 2000000);
 ```
 
-> **注意**：MVP阶段的schema_mvp_core.sql不包含gene_region列和GiST索引，以保持简单。
+> **注意**：MVP阶段的核心 schema 文件为 `schema/v2.3/01_core.sql`（历史命名为 `schema_mvp_core.sql`），不包含 gene_region 列和 GiST 索引，以保持简单。
 
 #### 决策2: 去除 core_id 冗余字段
 
@@ -527,7 +527,7 @@ CREATE INDEX idx_tga_ontology ON trait_gene_associations(ontology_id);
 CREATE INDEX idx_tga_composite ON trait_gene_associations(trait_id, ontology_id);
 ```
 
-> **注意**：MVP阶段不包含GiST索引（idx_genes_region、idx_reg_target_region），可在Phase 2根据性能需求添加。以上索引定义与schema_mvp_core.sql完全一致。
+> **注意**：MVP阶段不包含GiST索引（idx_genes_region、idx_reg_target_region），可在Phase 2根据性能需求添加。以上索引定义与 `schema/v2.3/01_core.sql`（历史命名为 `schema_mvp_core.sql`）完全一致。
 
 ### 6.2 扩展层索引
 
@@ -869,7 +869,7 @@ def import_h3k27me3(session, peak_file, tissue, cell_type):
 11. `network_jobs` - 网络生成任务
 12. `network_snapshots` - 网络缓存数据
 
-**MVP总计：12张表**（schema_mvp_core.sql包含全部12张）
+**MVP总计：12张表**（`schema/v2.3/01_core.sql`，历史命名为 `schema_mvp_core.sql`，包含全部12张）
 
 ---
 
