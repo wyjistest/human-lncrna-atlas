@@ -80,6 +80,8 @@ human-lncrna-atlas/
 - PostgreSQL 15+
 - Redis (optional, for caching)
 
+CI reference (GitHub Actions): Python 3.11 + Node.js 20 (see `.github/workflows/test.yml`).
+
 ### Install PostgreSQL (Ubuntu/Debian)
 
 If you don't have PostgreSQL installed locally (Ubuntu/Debian only):
@@ -155,6 +157,34 @@ npm run dev -- --host 0.0.0.0
 |---------|-------|---------------|
 | Frontend | http://localhost:5173 | http://<server-ip>:5173 |
 | API Docs | http://localhost:8000/docs | http://<server-ip>:8000/docs |
+
+### CI / Quality Gates (recommended before push)
+
+These match the checks in `.github/workflows/test.yml`.
+
+```bash
+# Frontend
+cd frontend/web
+npm ci
+npm run test:run
+npm run lint
+npm run build
+
+# Backend
+cd frontend/backend
+python3 -m pip install -r requirements-dev.txt -c constraints.txt
+ruff check .
+pytest -m unit -v
+python -c "import main"
+python -m py_compile main.py
+find app -name "*.py" -exec python -m py_compile {} \;
+```
+
+After pushing:
+
+```bash
+gh run list --limit 1
+```
 
 ## Database
 
