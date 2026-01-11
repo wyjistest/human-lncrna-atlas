@@ -9,7 +9,7 @@
 -r requirements.txt
 
 # 代码质量
-ruff==0.14.10
+ruff==0.14.11
 
 # 测试
 pytest==7.4.3
