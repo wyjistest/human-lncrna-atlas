@@ -117,3 +117,18 @@ class GeneOptionsResponse(BaseModel):
     """基因选项响应"""
 
     genes: List[GeneOption]
+
+
+class GeneBatchResolveRequest(BaseModel):
+    """批量基因解析请求"""
+
+    identifiers: List[str] = Field(description="基因标识符列表（gene_id / gene_name / gene_ensembl_id）")
+    species_id: Optional[int] = Field(default=None, description="物种ID")
+    gene_type: Optional[str] = Field(default=None, description="基因类型（lncRNA/protein_coding）")
+
+
+class GeneBatchResolveResponse(BaseModel):
+    """批量基因解析响应"""
+
+    items: List[GeneListItem]
+    missing: List[str]

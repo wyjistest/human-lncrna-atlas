@@ -8,13 +8,15 @@ from math import ceil
 from app.core.utils import escape_like_pattern
 from app.core.database import get_db
 from app.core.cache import cache
-from app.core.validators import compute_pagination_offset, normalize_optional_str
+from app.core.validators import MAX_ITEM_LENGTH, compute_pagination_offset, normalize_optional_str
 from app.models import Gene, CoreGene, Species, Regulation, TraitGeneAssociation
 from app.schemas.gene import (
     GeneDetail,
     GeneListItem,
     OrthologInfo,
     GeneOptionsResponse,
+    GeneBatchResolveRequest,
+    GeneBatchResolveResponse,
 )
 from app.schemas.common import PaginatedResponse
 
@@ -22,6 +24,10 @@ from app.schemas.common import PaginatedResponse
 from app.routers.chipseq_rate_limit import rate_limit
 
 router = APIRouter(prefix="/genes", tags=["genes"])
+
+MAX_BATCH_IDENTIFIERS = 200
+MAX_BATCH_TOTAL_CHARS = 5000
+_SPECIES_SUFFIXES = ("_chimp", "_chimpanzee", "_macaque", "_marmoset")
 
 
 @router.get("/options", response_model=GeneOptionsResponse)
@@ -151,12 +157,37 @@ def _remove_species_suffix(gene_name: Optional[str]) -> Optional[str]:
         return gene_name
 
     # 检查并移除后缀
-    suffixes = ['_chimp', '_macaque', '_marmoset']
-    for suffix in suffixes:
-        if gene_name.endswith(suffix):
+    lower = gene_name.lower()
+    for suffix in _SPECIES_SUFFIXES:
+        if lower.endswith(suffix):
             return gene_name[:-len(suffix)]
 
     return gene_name
+
+
+def _strip_species_suffix(value: str) -> str:
+    lower = value.lower()
+    for suffix in _SPECIES_SUFFIXES:
+        if lower.endswith(suffix):
+            return value[:-len(suffix)]
+    return value
+
+
+def _expand_species_suffix_variants(value: str) -> List[str]:
+    base = _strip_species_suffix(value)
+    variants = {base}
+    for suffix in _SPECIES_SUFFIXES:
+        variants.add(base + suffix)
+    return list(variants)
+
+
+def _normalize_identifier_for_compare(value: str) -> str:
+    if value.isdigit():
+        try:
+            return str(int(value))
+        except Exception:
+            return value
+    return _strip_species_suffix(value).lower()
 
 
 @router.get("", response_model=PaginatedResponse[GeneListItem])
@@ -328,8 +359,9 @@ def list_genes(
         # 注意：使用 endswith 而非 split，避免截断含下划线的基因名（如 TP53_AS1）
         gene_name = item.gene_name
         if gene_name:
-            for suffix in ['_chimp', '_macaque', '_marmoset']:
-                if gene_name.endswith(suffix):
+            lower = gene_name.lower()
+            for suffix in _SPECIES_SUFFIXES:
+                if lower.endswith(suffix):
                     gene_name = gene_name[:-len(suffix)]
                     break
 
@@ -353,6 +385,160 @@ def list_genes(
         page_size=page_size,
         total_pages=ceil(total / page_size) if total > 0 else 0,
     )
+
+
+@router.post("/batch", response_model=GeneBatchResolveResponse)
+@rate_limit("30/minute")  # Rate limit: 30 requests per minute per IP
+def batch_resolve_genes(
+    request: Request,  # Required for rate limiting
+    payload: GeneBatchResolveRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    批量解析基因标识符（gene_id / gene_name / gene_ensembl_id）。
+
+    用途：
+    - 前端 Genes 页的“批量查询”入口
+    - 支持可选 species_id / gene_type 过滤，缩小匹配范围
+    """
+    normalized_gene_type = normalize_optional_str(payload.gene_type)
+    if normalized_gene_type is not None and normalized_gene_type not in ("lncRNA", "protein_coding"):
+        raise HTTPException(
+            status_code=400,
+            detail="gene_type must be 'lncRNA' or 'protein_coding'",
+        )
+
+    identifiers_raw: List[str] = []
+    total_chars = 0
+    for raw in payload.identifiers or []:
+        normalized = normalize_optional_str(raw)
+        if normalized is None:
+            continue
+        if len(normalized) > MAX_ITEM_LENGTH:
+            raise HTTPException(
+                status_code=400,
+                detail=f"identifier too long (max {MAX_ITEM_LENGTH} chars)",
+            )
+        total_chars += len(normalized)
+        if total_chars > MAX_BATCH_TOTAL_CHARS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"identifiers total length too large (max {MAX_BATCH_TOTAL_CHARS} chars)",
+            )
+        identifiers_raw.append(normalized)
+
+    if not identifiers_raw:
+        raise HTTPException(status_code=400, detail="identifiers must not be empty")
+
+    if len(identifiers_raw) > MAX_BATCH_IDENTIFIERS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"too many identifiers (max {MAX_BATCH_IDENTIFIERS})",
+        )
+
+    # 去重（保留输入顺序）
+    seen = set()
+    identifiers: List[str] = []
+    for v in identifiers_raw:
+        key = v.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        identifiers.append(v)
+
+    gene_ids: List[int] = []
+    tokens: List[str] = []
+    for v in identifiers:
+        if v.isdigit():
+            try:
+                gene_ids.append(int(v))
+            except Exception:
+                tokens.append(v)
+        else:
+            tokens.append(v)
+
+    expanded_tokens: set[str] = set()
+    for token in tokens:
+        for variant in _expand_species_suffix_variants(token):
+            expanded_tokens.add(variant.lower())
+
+    if not gene_ids and not expanded_tokens:
+        raise HTTPException(status_code=400, detail="identifiers must not be empty")
+
+    query = (
+        db.query(
+            Gene.gene_id,
+            Gene.core_id,
+            Gene.gene_name,
+            Gene.gene_ensembl_id,
+            func.coalesce(CoreGene.gene_type, literal('unknown')).label("gene_type"),
+            Species.display_name.label("species_name"),
+            Gene.chromosome,
+            Gene.gene_start,
+            Gene.gene_end,
+            func.count(Regulation.regulation_id).label("regulation_count"),
+        )
+        .outerjoin(CoreGene, Gene.core_id == CoreGene.core_id)
+        .join(Species, Gene.species_id == Species.species_id)
+        .outerjoin(Regulation, Regulation.lncrna_gene_id == Gene.gene_id)
+        .group_by(
+            Gene.gene_id,
+            Gene.core_id,
+            Gene.gene_name,
+            Gene.gene_ensembl_id,
+            CoreGene.gene_type,
+            Species.display_name,
+            Gene.chromosome,
+            Gene.gene_start,
+            Gene.gene_end,
+        )
+    )
+
+    conditions = []
+    if gene_ids:
+        conditions.append(Gene.gene_id.in_(gene_ids))
+    if expanded_tokens:
+        conditions.append(func.lower(Gene.gene_name).in_(expanded_tokens))
+        conditions.append(func.lower(Gene.gene_ensembl_id).in_(expanded_tokens))
+
+    query = query.filter(or_(*conditions))
+
+    if normalized_gene_type:
+        query = query.filter(CoreGene.gene_type == normalized_gene_type)
+    if payload.species_id:
+        query = query.filter(Gene.species_id == payload.species_id)
+
+    rows = query.order_by(Gene.gene_id).limit(2000).all()
+
+    gene_list: List[GeneListItem] = []
+    matched_norm: set[str] = set()
+    for row in rows:
+        gene_name = _remove_species_suffix(row.gene_name)
+        gene_list.append(GeneListItem(
+            gene_id=row.gene_id,
+            core_id=row.core_id,
+            gene_name=gene_name,
+            gene_ensembl_id=row.gene_ensembl_id,
+            gene_type=row.gene_type,
+            species_name=row.species_name,
+            chromosome=row.chromosome,
+            gene_start=row.gene_start,
+            gene_end=row.gene_end,
+            regulation_count=row.regulation_count,
+        ))
+
+        matched_norm.add(str(row.gene_id))
+        if row.gene_name:
+            matched_norm.add(_normalize_identifier_for_compare(row.gene_name))
+        if row.gene_ensembl_id:
+            matched_norm.add(_normalize_identifier_for_compare(row.gene_ensembl_id))
+
+    missing = [
+        raw for raw in identifiers
+        if _normalize_identifier_for_compare(raw) not in matched_norm
+    ]
+
+    return GeneBatchResolveResponse(items=gene_list, missing=missing)
 
 
 @router.get("/{gene_id}", response_model=GeneDetail)
