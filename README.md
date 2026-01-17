@@ -243,6 +243,33 @@ export HLA_REFRESH_MATERIALIZED_VIEWS=true
 export HLA_MV_REFRESH_TIMEOUT_SECONDS=600
 ```
 
+### IGV Offline Genome Assets (Optional)
+
+If you want IGV.js to avoid external network dependencies (UCSC/GitHub) and run fully offline, place genome assets under `GENOMES_DIR` (served by backend as `/genomes`).
+
+```bash
+# Core hg19 assets (2bit / cytoband / chrom.sizes / alias table)
+GENOMES_DIR="/path/to/genomes" ./scripts/genomes/download_hg19_igv_assets.sh
+
+# Optional: download conservation BigWig (large files)
+./scripts/genomes/download_hg19_igv_assets.sh --with-conservation "/path/to/genomes"
+
+# Optional: write a manifest (bytes + SHA256; large-file SHA256 is opt-in)
+./scripts/genomes/download_hg19_igv_assets.sh --write-manifest "/path/to/genomes"
+./scripts/genomes/download_hg19_igv_assets.sh --write-manifest --hash-large-files "/path/to/genomes"
+```
+
+Optional SHA256 verification (fails fast if mismatch):
+
+```bash
+export HG19_2BIT_SHA256="<64-hex>"
+export HG19_CYTOBAND_SHA256="<64-hex>"
+export HG19_CHROMSIZES_SHA256="<64-hex>"
+export HG19_ALIAS_SHA256="<64-hex>"
+export HG19_PHASTCONS_SHA256="<64-hex>"
+export HG19_PHYLOP_SHA256="<64-hex>"
+```
+
 ## API Endpoints
 
 | Endpoint | Method | Description |
