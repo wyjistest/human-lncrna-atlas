@@ -163,6 +163,9 @@ npm run dev -- --host 0.0.0.0
 These match the checks in `.github/workflows/test.yml`.
 
 ```bash
+# One-shot (mirrors CI core checks, excluding secret scan / security-audit)
+./scripts/run-tests.sh ci
+
 # Frontend
 cd frontend/web
 npm ci

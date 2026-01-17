@@ -7,6 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BACKEND_DIR="$PROJECT_ROOT/frontend/backend"
+FRONTEND_DIR="$PROJECT_ROOT/frontend/web"
 
 # 颜色定义
 RED='\033[0;31m'
@@ -25,6 +26,22 @@ require_cmd() {
         echo -e "${RED}缺少依赖命令: ${cmd}${NC}"
         return 1
     fi
+    return 0
+}
+
+ensure_frontend_deps() {
+    require_cmd npm || return 1
+    if [ ! -f "$FRONTEND_DIR/package-lock.json" ]; then
+        echo -e "${RED}未找到前端锁文件: ${FRONTEND_DIR}/package-lock.json${NC}"
+        return 1
+    fi
+
+    # 仅在 node_modules 缺失时自动安装，避免每次都重装依赖导致本地过慢。
+    if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+        echo -e "${YELLOW}前端依赖未安装，执行 npm ci...${NC}"
+        (cd "$FRONTEND_DIR" && npm ci)
+    fi
+
     return 0
 }
 
@@ -47,7 +64,7 @@ resolve_backend_python() {
     echo "python3"
 }
 
-ensure_backend_pytest() {
+ensure_backend_python() {
     local python_bin="$1"
 
     # python_bin 可能是绝对路径或命令名
@@ -59,6 +76,14 @@ ensure_backend_pytest() {
     else
         require_cmd "$python_bin" || return 1
     fi
+
+    return 0
+}
+
+ensure_backend_pytest() {
+    local python_bin="$1"
+
+    ensure_backend_python "$python_bin" || return 1
 
     if ! "$python_bin" -c "import pytest" > /dev/null 2>&1; then
         echo -e "${RED}后端 pytest 不可用（请在后端虚拟环境中安装依赖）${NC}"
@@ -176,11 +201,32 @@ run_backend_unit_tests() {
     fi
 }
 
+run_backend_checks() {
+    echo -e "${YELLOW}运行后端导入与语法检查（对齐 CI）...${NC}"
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+    ensure_backend_python "$python_bin" || return 1
+
+    cd "$BACKEND_DIR"
+
+    "$python_bin" -c "from app.core.config import settings; print('Config loaded')"
+    "$python_bin" -c "from app.core.database import engine; print('Database module loaded')"
+    "$python_bin" -c "from app.core.cache import cache; print('Cache module loaded')"
+    "$python_bin" -c "from app.core.exceptions import sanitize_db_error; print('Exceptions module loaded')"
+    "$python_bin" -c "import main; print('Main app loaded')"
+
+    "$python_bin" -m py_compile main.py
+    find app -name "*.py" -exec "$python_bin" -m py_compile {} \;
+
+    echo -e "${GREEN}后端导入与语法检查通过!${NC}"
+    return 0
+}
+
 # 运行前端单元测试
 run_frontend_unit_tests() {
     echo -e "${YELLOW}运行前端单元测试...${NC}"
-    require_cmd npm || return 1
-    cd "$PROJECT_ROOT/frontend/web"
+    ensure_frontend_deps || return 1
+    cd "$FRONTEND_DIR"
 
     if npm run test:run; then
         echo -e "${GREEN}前端单元测试通过!${NC}"
@@ -191,11 +237,39 @@ run_frontend_unit_tests() {
     fi
 }
 
+run_frontend_lint() {
+    echo -e "${YELLOW}运行前端 Lint (ESLint)...${NC}"
+    ensure_frontend_deps || return 1
+    cd "$FRONTEND_DIR"
+
+    if npm run lint; then
+        echo -e "${GREEN}前端 Lint 通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}前端 Lint 失败${NC}"
+        return 1
+    fi
+}
+
+run_frontend_build() {
+    echo -e "${YELLOW}运行前端构建 (Vite build)...${NC}"
+    ensure_frontend_deps || return 1
+    cd "$FRONTEND_DIR"
+
+    if npm run build; then
+        echo -e "${GREEN}前端构建通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}前端构建失败${NC}"
+        return 1
+    fi
+}
+
 # 运行 E2E 测试
 run_e2e_tests() {
     echo -e "${YELLOW}运行 E2E 测试...${NC}"
-    require_cmd npm || return 1
-    cd "$PROJECT_ROOT/frontend/web"
+    ensure_frontend_deps || return 1
+    cd "$FRONTEND_DIR"
 
     if npm run test:e2e; then
         echo -e "${GREEN}E2E 测试通过!${NC}"
@@ -214,6 +288,9 @@ main() {
         backend-lint)
             run_backend_lint || failed=1
             ;;
+        backend-checks)
+            run_backend_checks || failed=1
+            ;;
         backend)
             check_services || exit 1
             run_backend_tests || failed=1
@@ -224,6 +301,12 @@ main() {
         unit)
             run_frontend_unit_tests || failed=1
             ;;
+        frontend-lint)
+            run_frontend_lint || failed=1
+            ;;
+        frontend-build)
+            run_frontend_build || failed=1
+            ;;
         e2e)
             check_services || exit 1
             run_e2e_tests || failed=1
@@ -233,6 +316,20 @@ main() {
             run_backend_unit_tests || failed=1
             echo ""
             run_frontend_unit_tests || failed=1
+            ;;
+        ci)
+            # 对齐 GitHub Actions `.github/workflows/test.yml` 的核心质量门禁（不含 secret scan / security-audit）
+            run_backend_lint || failed=1
+            echo ""
+            run_backend_checks || failed=1
+            echo ""
+            run_backend_unit_tests || failed=1
+            echo ""
+            run_frontend_unit_tests || failed=1
+            echo ""
+            run_frontend_lint || failed=1
+            echo ""
+            run_frontend_build || failed=1
             ;;
         all)
             # 完整测试: 需要后端和前端服务运行
@@ -250,7 +347,11 @@ main() {
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  unit         - 运行前端单元测试"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
+            echo "  backend-checks - 运行后端导入与语法检查（对齐 CI）"
             echo "  backend-lint - 运行后端 Lint (ruff check)"
+            echo "  frontend-lint  - 运行前端 Lint (ESLint)"
+            echo "  frontend-build - 运行前端构建 (Vite build)"
+            echo "  ci           - 对齐 GitHub Actions 的核心检查集合"
             echo "  backend      - 运行后端 API 合同测试（需要服务运行）"
             echo "  e2e          - 运行前端 E2E 测试（需要服务运行）"
             echo "  all          - 运行所有测试（需要服务运行）"
