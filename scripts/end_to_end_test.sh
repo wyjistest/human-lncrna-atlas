@@ -6,7 +6,7 @@
 # 用途: 验证整个系统可以"开箱即跑"
 # ==============================================================================
 
-set -e  # 遇到错误立即退出
+set -euo pipefail  # 遇到错误立即退出（含未定义变量与管道失败）
 
 # 颜色输出
 RED='\033[0;31m'
@@ -31,6 +31,38 @@ log_warning() {
     echo -e "${YELLOW}⚠️  $1${NC}"
 }
 
+require_cmd() {
+    local cmd="$1"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        log_error "缺少依赖命令: $cmd"
+        exit 1
+    fi
+}
+
+confirm_drop_db() {
+    local db_name="$1"
+    local target="${DB_HOST}:${DB_PORT} (user=${DB_USER})"
+
+    log_warning "即将执行 DROP DATABASE IF EXISTS ${db_name} 目标: ${target}"
+    log_warning "请确保这是用于本地/测试环境的数据库（不要用于生产库）"
+
+    if [ "${ALLOW_DROP_DB:-}" = "true" ]; then
+        return 0
+    fi
+
+    if [ -t 0 ]; then
+        read -r -p "输入 DROP 以确认继续: " confirm
+        if [ "$confirm" != "DROP" ]; then
+            log_error "已取消。若要跳过交互确认，请设置 ALLOW_DROP_DB=true。"
+            exit 1
+        fi
+        return 0
+    fi
+
+    log_error "非交互环境下默认拒绝执行。请设置 ALLOW_DROP_DB=true 以继续。"
+    exit 1
+}
+
 # ==============================================================================
 # 配置
 # ==============================================================================
@@ -49,6 +81,15 @@ fi
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# 依赖检查（尽早失败，避免跑到中途才报错）
+require_cmd psql
+require_cmd mktemp
+require_cmd grep
+
+# 临时日志文件（避免并发运行时互相覆盖）
+SAMPLE_DATA_LOG="$(mktemp "/tmp/lncrna_sample_data_output.XXXXXX.log")"
+SMOKE_TEST_LOG="$(mktemp "/tmp/lncrna_smoke_test_output.XXXXXX.log")"
+
 echo "========================================="
 echo " 端到端验证测试"
 echo " 项目: lncRNA调控网络数据库 v2.3.1"
@@ -66,6 +107,7 @@ echo ""
 
 log_step 1 "清理测试环境"
 
+confirm_drop_db "$TEST_DB_NAME"
 psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS $TEST_DB_NAME;" 2>/dev/null || true
 
 log_success "测试环境已清理"
@@ -134,11 +176,11 @@ echo ""
 
 log_step 4 "插入样本测试数据"
 
-if psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f schema/v2.3/03_sample_data.sql > /tmp/sample_data_output.log 2>&1; then
+if psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f schema/v2.3/03_sample_data.sql > "$SAMPLE_DATA_LOG" 2>&1; then
     log_success "样本数据插入成功"
 else
-    log_error "样本数据插入失败，查看日志: /tmp/sample_data_output.log"
-    cat /tmp/sample_data_output.log
+    log_error "样本数据插入失败，查看日志: $SAMPLE_DATA_LOG"
+    cat "$SAMPLE_DATA_LOG"
     exit 1
 fi
 
@@ -197,18 +239,18 @@ echo ""
 
 log_step 6 "执行冒烟测试"
 
-if psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f tests/smoke_test.sql > /tmp/smoke_test_output.log 2>&1; then
+if psql -w -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$TEST_DB_NAME" -f tests/smoke_test.sql > "$SMOKE_TEST_LOG" 2>&1; then
     log_success "冒烟测试执行成功"
 
     # 检查关键验证点
-    if grep -q "❌" /tmp/smoke_test_output.log; then
-        log_warning "冒烟测试发现问题，查看详细日志: /tmp/smoke_test_output.log"
+    if grep -q "❌" "$SMOKE_TEST_LOG"; then
+        log_warning "冒烟测试发现问题，查看详细日志: $SMOKE_TEST_LOG"
     else
         log_success "冒烟测试所有检查通过"
     fi
 else
     log_error "冒烟测试执行失败"
-    cat /tmp/smoke_test_output.log
+    cat "$SMOKE_TEST_LOG"
     exit 1
 fi
 

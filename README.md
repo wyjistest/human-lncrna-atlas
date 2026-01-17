@@ -279,7 +279,8 @@ cd frontend/web && npm run test:e2e
 Minimal end-to-end database bootstrap (creates `lncrna_e2e_test` and loads `schema/v2.3/03_sample_data.sql`):
 
 ```bash
-DB_USER=postgres ./scripts/end_to_end_test.sh
+# The script will prompt before DROP DATABASE; for non-interactive use set ALLOW_DROP_DB=true
+ALLOW_DROP_DB=true DB_USER=postgres ./scripts/end_to_end_test.sh
 ```
 
 Recommended (starts backend+frontend in test mode, then runs Playwright):

@@ -2,7 +2,20 @@
 # ChIP-seq API Tests Script
 # Run all ChIP-seq related tests including cell line comparison
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error (incl. undefined vars and pipe failures)
+
+require_cmd() {
+    local cmd="$1"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "ERROR: Missing required command: $cmd"
+        exit 1
+    fi
+}
+
+require_cmd curl
+require_cmd pytest
+require_cmd grep
+require_cmd wc
 
 echo "=================================="
 echo "ChIP-seq API Tests"
@@ -36,7 +49,7 @@ echo "Test Summary"
 echo "=================================="
 
 # Count test results
-TOTAL_TESTS=$(pytest tests/test_chipseq_api.py --collect-only -q 2>/dev/null | grep "test" | wc -l)
+TOTAL_TESTS=$(pytest tests/test_chipseq_api.py --collect-only -q 2>/dev/null | grep "test" | wc -l || true)
 echo "Total ChIP-seq tests: $TOTAL_TESTS"
 
 # Run with more verbose output for cell line comparison tests specifically

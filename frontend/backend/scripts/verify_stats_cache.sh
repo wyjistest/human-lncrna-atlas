@@ -4,9 +4,63 @@
 # 用于验证所有统计端点的缓存功能
 #
 
-set -e
+set -euo pipefail
 
-BASE_URL="http://localhost:8000/api/v1"
+BASE_URL="${BASE_URL:-http://localhost:8000/api/v1}"
+REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
+REDIS_PORT="${REDIS_PORT:-6379}"
+REDIS_DB="${REDIS_DB:-0}"
+
+require_command() {
+    local cmd="$1"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "缺少依赖命令: $cmd"
+        exit 1
+    fi
+}
+
+redis_cli() {
+    redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" -n "$REDIS_DB" "$@"
+}
+
+confirm_flushdb() {
+    local target="${REDIS_HOST}:${REDIS_PORT}/${REDIS_DB}"
+    echo ""
+    echo "WARNING: 即将对 Redis (${target}) 执行 FLUSHDB（清空当前 DB）。"
+    echo "如确认是本地/测试环境，请继续；否则请 Ctrl+C 退出。"
+    echo ""
+
+    if [ "${ALLOW_FLUSHDB:-}" = "true" ]; then
+        return 0
+    fi
+
+    if [ -t 0 ]; then
+        read -r -p "输入 FLUSH 以确认继续: " confirm
+        if [ "$confirm" != "FLUSH" ]; then
+            echo "已取消。若要跳过交互确认，请设置 ALLOW_FLUSHDB=true。"
+            exit 1
+        fi
+        return 0
+    fi
+
+    echo "非交互环境下默认拒绝执行。请设置 ALLOW_FLUSHDB=true 以继续。"
+    exit 1
+}
+
+require_command curl
+require_command redis-cli
+require_command jq
+require_command bc
+require_command mktemp
+
+tmp_first="$(mktemp)"
+tmp_cached="$(mktemp)"
+tmp_endpoint="$(mktemp)"
+
+cleanup_tmp_files() {
+    rm -f "$tmp_first" "$tmp_cached" "$tmp_endpoint"
+}
+trap cleanup_tmp_files EXIT
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -30,7 +84,7 @@ fi
 
 # 检查 Redis 是否运行
 echo -n "检查 Redis 服务状态..."
-if redis-cli PING > /dev/null 2>&1; then
+if redis_cli PING > /dev/null 2>&1; then
     echo -e " ${GREEN}✓${NC} 运行中"
 else
     echo -e " ${RED}✗${NC} 未运行"
@@ -42,7 +96,8 @@ echo ""
 echo "=========================================="
 echo "测试 1: 清空缓存"
 echo "=========================================="
-redis-cli FLUSHDB > /dev/null
+confirm_flushdb
+redis_cli FLUSHDB > /dev/null
 echo -e "${GREEN}✓${NC} 缓存已清空"
 
 echo ""
@@ -71,7 +126,7 @@ for endpoint_data in "${endpoints[@]}"; do
     echo "  URL: $path"
 
     # 首次查询
-    time1=$(curl -s -w "%{time_total}" -o /tmp/test_first.json "$BASE_URL$path")
+    time1=$(curl -s -w "%{time_total}" -o "$tmp_first" "$BASE_URL$path")
     first_ms=$(echo "$time1 * 1000" | bc | cut -d'.' -f1)
     echo -e "  首次查询: ${YELLOW}${first_ms}ms${NC}"
 
@@ -79,7 +134,7 @@ for endpoint_data in "${endpoints[@]}"; do
     sleep 0.3
 
     # 缓存查询
-    time2=$(curl -s -w "%{time_total}" -o /tmp/test_cached.json "$BASE_URL$path")
+    time2=$(curl -s -w "%{time_total}" -o "$tmp_cached" "$BASE_URL$path")
     cached_ms=$(echo "$time2 * 1000" | bc | cut -d'.' -f1)
     echo -e "  缓存查询: ${GREEN}${cached_ms}ms${NC}"
 
@@ -88,7 +143,7 @@ for endpoint_data in "${endpoints[@]}"; do
     echo -e "  加速比: ${BLUE}${speedup}x${NC}"
 
     # 验证响应
-    if jq empty /tmp/test_first.json 2>/dev/null && jq empty /tmp/test_cached.json 2>/dev/null; then
+    if jq empty "$tmp_first" 2>/dev/null && jq empty "$tmp_cached" 2>/dev/null; then
         echo -e "  响应验证: ${GREEN}✓${NC} JSON 格式正确"
     else
         echo -e "  响应验证: ${RED}✗${NC} JSON 格式错误"
@@ -120,16 +175,16 @@ echo "=========================================="
 echo ""
 
 # 检查缓存键
-cache_keys=$(redis-cli KEYS "lncrna:stats:*")
-cache_count=$(echo "$cache_keys" | wc -l)
+mapfile -t cache_keys < <(redis_cli KEYS "lncrna:stats:*")
+cache_count="${#cache_keys[@]}"
 
 echo "缓存键数量: $cache_count"
 echo ""
 echo "缓存键列表:"
-echo "$cache_keys" | while read -r key; do
+for key in "${cache_keys[@]}"; do
     if [ -n "$key" ]; then
-        ttl=$(redis-cli TTL "$key")
-        size=$(redis-cli MEMORY USAGE "$key" 2>/dev/null || echo "N/A")
+        ttl=$(redis_cli TTL "$key")
+        size=$(redis_cli MEMORY USAGE "$key" 2>/dev/null || echo "N/A")
         echo -e "  ${GREEN}✓${NC} $key"
         echo "    TTL: ${ttl}s, Size: ${size} bytes"
     fi
@@ -144,9 +199,9 @@ echo ""
 expected_ttl=3600
 ttl_pass=true
 
-echo "$cache_keys" | while read -r key; do
+for key in "${cache_keys[@]}"; do
     if [ -n "$key" ]; then
-        ttl=$(redis-cli TTL "$key")
+        ttl=$(redis_cli TTL "$key")
         # TTL 应该在 3500-3600 范围内（允许测试期间的时间流逝）
         if [ "$ttl" -ge 3500 ] && [ "$ttl" -le 3600 ]; then
             echo -e "${GREEN}✓${NC} $key: ${ttl}s (有效)"
@@ -179,10 +234,10 @@ echo "---------------------------|------|----------"
 for endpoint_data in "${all_endpoints[@]}"; do
     IFS=':' read -r name path <<< "$endpoint_data"
 
-    time=$(curl -s -w "%{time_total}" -o /tmp/test_endpoint.json "$BASE_URL$path")
+    time=$(curl -s -w "%{time_total}" -o "$tmp_endpoint" "$BASE_URL$path")
     time_ms=$(echo "$time * 1000" | bc | cut -d'.' -f1)
 
-    if jq empty /tmp/test_endpoint.json 2>/dev/null; then
+    if jq empty "$tmp_endpoint" 2>/dev/null; then
         printf "%-27s | ${GREEN}✓${NC}    | %sms\n" "$name" "$time_ms"
     else
         printf "%-27s | ${RED}✗${NC}    | %sms\n" "$name" "$time_ms"
@@ -219,5 +274,4 @@ echo "=========================================="
 echo "验证完成！"
 echo "=========================================="
 
-# 清理临时文件
-rm -f /tmp/test_first.json /tmp/test_cached.json /tmp/test_endpoint.json
+# 临时文件由 trap 自动清理

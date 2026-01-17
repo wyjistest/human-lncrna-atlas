@@ -10,7 +10,7 @@
 #   ./run_chipseq_tests.sh --help    # Show help
 #
 
-set -e  # Exit on error
+set -euo pipefail  # Exit on error (incl. undefined vars and pipe failures)
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,6 +22,18 @@ NC='\033[0m' # No Color
 # Project directories (support overrides via env vars)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+require_cmd() {
+    local cmd="$1"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo -e "${RED}[ERROR]${NC} Missing required command: $cmd"
+        return 1
+    fi
+    return 0
+}
+
+require_cmd curl || exit 1
+require_cmd grep || exit 1
 
 GITHUB_REPO="${GITHUB_REPO:-${REPO_DIR}}"
 BACKEND_DIR="${BACKEND_DIR:-${GITHUB_REPO}/frontend/backend}"
@@ -150,6 +162,8 @@ run_backend_tests() {
 
 run_e2e_tests() {
     print_header "Running Frontend E2E ChIP-seq Tests"
+
+    require_cmd npx || return 1
 
     if [ ! -d "${FRONTEND_DIR}" ]; then
         print_error "Frontend directory not found: ${FRONTEND_DIR}"

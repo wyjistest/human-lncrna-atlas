@@ -7,6 +7,13 @@
 # 用途: 停止前后端服务
 # ==============================================================================
 
+# 遇到错误立即退出（含未定义变量与管道失败）
+set -euo pipefail
+
+has_command() {
+    command -v "$1" >/dev/null 2>&1
+}
+
 # ==============================================================================
 # 配置区域
 # ==============================================================================
@@ -60,7 +67,7 @@ stop_backend() {
     if [ -f "$LOG_DIR/backend.pid" ]; then
         local pid=$(cat "$LOG_DIR/backend.pid")
         if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null
+            kill "$pid" 2>/dev/null || true
             log_info "已发送停止信号到后端进程 (PID: $pid)"
             stopped=1
         fi
@@ -68,19 +75,28 @@ stop_backend() {
     fi
 
     # 方法2: 按端口查找
-    local pids=$(pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" 2>/dev/null)
+    local pids=""
+    if has_command pgrep; then
+        pids="$(pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" 2>/dev/null || true)"
+    fi
     if [ -n "$pids" ]; then
-        echo "$pids" | while read pid; do
-            kill "$pid" 2>/dev/null
-            log_info "停止后端进程 (PID: $pid)"
-        done
+        while IFS= read -r pid; do
+            if [ -n "${pid:-}" ]; then
+                kill "$pid" 2>/dev/null || true
+                log_info "停止后端进程 (PID: $pid)"
+            fi
+        done <<< "$pids"
         stopped=1
     fi
 
     # 方法3: 使用 lsof 按端口查找
-    local port_pid=$(lsof -ti:$BACKEND_PORT 2>/dev/null)
+    local port_pid=""
+    if has_command lsof; then
+        port_pid="$(lsof -ti:$BACKEND_PORT 2>/dev/null || true)"
+    fi
     if [ -n "$port_pid" ]; then
-        kill $port_pid 2>/dev/null
+        # port_pid 可能包含多个 PID（按空白分隔），此处故意不加引号
+        kill $port_pid 2>/dev/null || true
         log_info "停止端口 $BACKEND_PORT 上的进程"
         stopped=1
     fi
@@ -88,9 +104,11 @@ stop_backend() {
     if [ $stopped -eq 1 ]; then
         sleep 1
         # 验证是否停止
-        if pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" > /dev/null 2>&1; then
+        if has_command pgrep && pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" > /dev/null 2>&1; then
             log_warning "后端服务仍在运行，尝试强制停止..."
-            pkill -9 -f "uvicorn.*main:app.*$BACKEND_PORT" 2>/dev/null
+            if has_command pkill; then
+                pkill -9 -f "uvicorn.*main:app.*$BACKEND_PORT" 2>/dev/null || true
+            fi
         fi
         log_success "后端服务已停止"
     else
@@ -107,7 +125,7 @@ stop_frontend() {
     if [ -f "$LOG_DIR/frontend.pid" ]; then
         local pid=$(cat "$LOG_DIR/frontend.pid")
         if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null
+            kill "$pid" 2>/dev/null || true
             log_info "已发送停止信号到前端进程 (PID: $pid)"
             stopped=1
         fi
@@ -115,29 +133,43 @@ stop_frontend() {
     fi
 
     # 方法2: 按进程名查找 (vite)
-    local pids=$(pgrep -f "vite.*$FRONTEND_PORT" 2>/dev/null)
+    local pids=""
+    if has_command pgrep; then
+        pids="$(pgrep -f "vite.*$FRONTEND_PORT" 2>/dev/null || true)"
+    fi
     if [ -n "$pids" ]; then
-        echo "$pids" | while read pid; do
-            kill "$pid" 2>/dev/null
-            log_info "停止前端进程 (PID: $pid)"
-        done
+        while IFS= read -r pid; do
+            if [ -n "${pid:-}" ]; then
+                kill "$pid" 2>/dev/null || true
+                log_info "停止前端进程 (PID: $pid)"
+            fi
+        done <<< "$pids"
         stopped=1
     fi
 
     # 方法3: 查找 node 进程 (npm run dev)
-    pids=$(pgrep -f "node.*vite" 2>/dev/null)
+    pids=""
+    if has_command pgrep; then
+        pids="$(pgrep -f "node.*vite" 2>/dev/null || true)"
+    fi
     if [ -n "$pids" ]; then
-        echo "$pids" | while read pid; do
-            kill "$pid" 2>/dev/null
-            log_info "停止 Node 进程 (PID: $pid)"
-        done
+        while IFS= read -r pid; do
+            if [ -n "${pid:-}" ]; then
+                kill "$pid" 2>/dev/null || true
+                log_info "停止 Node 进程 (PID: $pid)"
+            fi
+        done <<< "$pids"
         stopped=1
     fi
 
     # 方法4: 使用 lsof 按端口查找
-    local port_pid=$(lsof -ti:$FRONTEND_PORT 2>/dev/null)
+    local port_pid=""
+    if has_command lsof; then
+        port_pid="$(lsof -ti:$FRONTEND_PORT 2>/dev/null || true)"
+    fi
     if [ -n "$port_pid" ]; then
-        kill $port_pid 2>/dev/null
+        # port_pid 可能包含多个 PID（按空白分隔），此处故意不加引号
+        kill $port_pid 2>/dev/null || true
         log_info "停止端口 $FRONTEND_PORT 上的进程"
         stopped=1
     fi
@@ -157,16 +189,27 @@ show_status() {
     echo "=============================================="
 
     # 检查后端
-    if pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" > /dev/null 2>&1; then
-        local backend_pid=$(pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" | head -1)
+    if has_command pgrep && pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" > /dev/null 2>&1; then
+        local backend_pid
+        backend_pid="$(pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" 2>/dev/null | head -1 || true)"
         echo -e "  后端: ${GREEN}运行中${NC} (PID: $backend_pid, 端口: $BACKEND_PORT)"
     else
         echo -e "  后端: ${RED}已停止${NC}"
     fi
 
     # 检查前端
-    if pgrep -f "vite.*$FRONTEND_PORT" > /dev/null 2>&1 || lsof -ti:$FRONTEND_PORT > /dev/null 2>&1; then
-        local frontend_pid=$(lsof -ti:$FRONTEND_PORT 2>/dev/null | head -1)
+    local frontend_running=0
+    if has_command pgrep && pgrep -f "vite.*$FRONTEND_PORT" > /dev/null 2>&1; then
+        frontend_running=1
+    fi
+    if [ "$frontend_running" -eq 0 ] && has_command lsof && lsof -ti:$FRONTEND_PORT > /dev/null 2>&1; then
+        frontend_running=1
+    fi
+    if [ "$frontend_running" -eq 1 ]; then
+        local frontend_pid=""
+        if has_command lsof; then
+            frontend_pid="$(lsof -ti:$FRONTEND_PORT 2>/dev/null | head -1 || true)"
+        fi
         echo -e "  前端: ${GREEN}运行中${NC} (PID: $frontend_pid, 端口: $FRONTEND_PORT)"
     else
         echo -e "  前端: ${RED}已停止${NC}"

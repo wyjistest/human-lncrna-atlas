@@ -26,7 +26,7 @@ import csv
 import sys
 import logging
 import argparse
-from typing import Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional
 from contextlib import contextmanager
 
 import psycopg2
@@ -48,7 +48,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def get_db_config_from_env() -> Dict[str, any]:
+def get_db_config_from_env() -> Dict[str, Any]:
     """
     从环境变量获取数据库配置
 

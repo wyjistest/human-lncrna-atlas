@@ -203,7 +203,7 @@ VALIDATION_REPORT_v2.3.1.md  # 验证报告
 
 ### 完整端到端测试（需PostgreSQL环境）
 
-**脚本**: `./scripts/end_to_end_test.sh`
+**脚本**: `ALLOW_DROP_DB=true ./scripts/end_to_end_test.sh`（会提示确认 DROP；非交互可用 `ALLOW_DROP_DB=true`）
 
 **环境要求**:
 - PostgreSQL 15+
@@ -364,7 +364,7 @@ humanLncAtlas/
 
 4. **执行完整测试**
    ```bash
-   ./scripts/end_to_end_test.sh
+   ALLOW_DROP_DB=true ./scripts/end_to_end_test.sh
    ```
 
 5. **如果测试通过**
@@ -433,7 +433,7 @@ cd <repo-root>
 ./scripts/offline_validation.sh
 
 # 完整测试（需PostgreSQL）
-./scripts/end_to_end_test.sh
+   ALLOW_DROP_DB=true ./scripts/end_to_end_test.sh
 
 # 一键建库（需PostgreSQL）
 ./scripts/init_db.sh

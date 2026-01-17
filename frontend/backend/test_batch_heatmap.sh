@@ -1,7 +1,23 @@
 #!/bin/bash
 # Curl test commands for batch heatmap matrix API
 
-API_URL="http://localhost:8000/api/v1/features/chipseq"
+set -euo pipefail
+
+API_URL="${API_URL:-http://localhost:8000/api/v1/features/chipseq}"
+CURL_MAX_TIME="${CURL_MAX_TIME:-30}"
+
+require_cmd() {
+  local cmd="$1"
+  if ! command -v "$cmd" >/dev/null 2>&1; then
+    echo "ERROR: Missing required command: $cmd"
+    exit 1
+  fi
+}
+
+require_cmd curl
+require_cmd jq
+
+CURL_ARGS=(-fsS --connect-timeout 5 --max-time "$CURL_MAX_TIME")
 
 echo "=========================================="
 echo "Batch Heatmap Matrix API - Curl Tests"
@@ -12,6 +28,7 @@ echo ""
 echo "Test 1: Basic batch query (3 genes)"
 echo "----"
 curl -X POST "${API_URL}/genes/batch-heatmap-matrix" \
+  "${CURL_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -d '{
     "gene_ids": [17276, 17277, 17278],
@@ -28,6 +45,7 @@ echo ""
 echo "Test 2: Single gene with peak_count metric and details"
 echo "----"
 curl -X POST "${API_URL}/genes/batch-heatmap-matrix" \
+  "${CURL_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -d '{
     "gene_ids": [17276],
@@ -44,6 +62,7 @@ echo ""
 echo "Test 3: 5 genes with total_coverage_bp metric"
 echo "----"
 curl -X POST "${API_URL}/genes/batch-heatmap-matrix" \
+  "${CURL_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -d '{
     "gene_ids": [17276, 17277, 17278, 17279, 17280],
@@ -59,6 +78,7 @@ echo ""
 echo "Test 4: Average signal metric"
 echo "----"
 curl -X POST "${API_URL}/genes/batch-heatmap-matrix" \
+  "${CURL_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -d '{
     "gene_ids": [17276, 17277],
@@ -74,6 +94,7 @@ echo ""
 echo "Test 5: Error handling - empty gene_ids (should fail)"
 echo "----"
 curl -X POST "${API_URL}/genes/batch-heatmap-matrix" \
+  "${CURL_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -d '{
     "gene_ids": [],
@@ -87,6 +108,7 @@ echo ""
 echo "Test 6: Non-existent genes (should return empty results)"
 echo "----"
 curl -X POST "${API_URL}/genes/batch-heatmap-matrix" \
+  "${CURL_ARGS[@]}" \
   -H "Content-Type: application/json" \
   -d '{
     "gene_ids": [999999, 999998],

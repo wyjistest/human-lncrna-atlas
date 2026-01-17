@@ -146,7 +146,8 @@ cache.set(cache_key, [r.model_dump() for r in results], CacheService.TTL_STATS)
 
 ```bash
 cd <repo-root>/frontend/backend
-./scripts/verify_stats_cache.sh
+# WARNING: the script will FLUSHDB; for non-interactive use set ALLOW_FLUSHDB=true
+ALLOW_FLUSHDB=true ./scripts/verify_stats_cache.sh
 ```
 
 ### 手动验证

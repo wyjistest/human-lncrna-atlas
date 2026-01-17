@@ -1,7 +1,7 @@
 #!/bin/bash
 # 离线验证（无需PostgreSQL）- 增强版
 
-set -e
+set -euo pipefail
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -171,5 +171,5 @@ echo "  ✅ 外键完整性检查通过"
 echo ""
 echo -e "${YELLOW}⚠️  限制:${NC} 未验证SQL语义正确性（需要PostgreSQL环境）"
 echo ""
-echo "下一步: 在有PostgreSQL的环境中运行 ./scripts/end_to_end_test.sh"
+echo "下一步: 在有PostgreSQL的环境中运行 ./scripts/end_to_end_test.sh（会提示确认 DROP；非交互可用 ALLOW_DROP_DB=true）"
 echo "========================================="

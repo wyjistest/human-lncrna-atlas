@@ -423,10 +423,10 @@ psql -U amax -h localhost -c "CREATE DATABASE lncrna_production;"
 ### 项目管理
 
 ```bash
-# 重新运行端到端测试
-cd <repo-root>
-export DB_USER=amax DB_HOST=localhost
-./scripts/end_to_end_test.sh
+	# 重新运行端到端测试
+	cd <repo-root>
+	export DB_USER=amax DB_HOST=localhost
+	ALLOW_DROP_DB=true ./scripts/end_to_end_test.sh
 
 # 创建新数据库
 export DB_NAME="lncrna_production"

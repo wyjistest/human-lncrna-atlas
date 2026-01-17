@@ -173,7 +173,8 @@ VALUES %s
 cd <repo-root>
 
 # 完整端到端测试（需PostgreSQL）
-./scripts/end_to_end_test.sh
+# 注意：脚本会提示确认 DROP DATABASE；非交互环境可用 ALLOW_DROP_DB=true
+ALLOW_DROP_DB=true ./scripts/end_to_end_test.sh
 
 # 预期结果:
 # ✅ 一键建库成功（12张表）
@@ -223,7 +224,8 @@ cd <repo-root>
 ### 完整端到端测试（需PostgreSQL）
 
 ```bash
-./scripts/end_to_end_test.sh
+# 注意：脚本会提示确认 DROP DATABASE；非交互环境可用 ALLOW_DROP_DB=true
+ALLOW_DROP_DB=true ./scripts/end_to_end_test.sh
 ```
 
 **功能**:
@@ -254,7 +256,7 @@ cd <repo-root>
 **验证范围**: 离线检查（语法、结构、修复验证）
 **验证结果**: ✅ **通过**
 
-**下一步**: 在PostgreSQL环境中执行 `end_to_end_test.sh` 进行完整验证
+**下一步**: 在PostgreSQL环境中执行 `end_to_end_test.sh` 进行完整验证（会提示确认 DROP；非交互可用 `ALLOW_DROP_DB=true`）
 
 ---
 
