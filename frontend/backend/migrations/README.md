@@ -6,13 +6,13 @@ Simple, lightweight migration system for managing PostgreSQL schema changes.
 
 ```bash
 # Check migration status
-python migrations/run_migrations.py --status
+python3 migrations/run_migrations.py --status
 
 # Preview changes (dry run)
-python migrations/run_migrations.py --dry-run
+python3 migrations/run_migrations.py --dry-run
 
 # Apply pending migrations
-python migrations/run_migrations.py
+python3 migrations/run_migrations.py
 ```
 
 ## How It Works
@@ -57,13 +57,13 @@ Migrations containing `CREATE INDEX` (without `CONCURRENTLY`) will **LOCK the ta
 
 ```bash
 # 1. Check current status
-python migrations/run_migrations.py --status
+python3 migrations/run_migrations.py --status
 
 # 2. Review pending migrations
-python migrations/run_migrations.py --dry-run
+python3 migrations/run_migrations.py --dry-run
 
 # 3a. For EMPTY database or maintenance window:
-python migrations/run_migrations.py
+python3 migrations/run_migrations.py
 
 # 3b. For LIVE database with data (SAFE - No Locking):
 # Option A: Manually run CONCURRENTLY version (see migration file comments)
@@ -71,7 +71,7 @@ psql -U user -d dbname -c "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_name ON t
 
 # Option B: Create a migration using CONCURRENTLY and run the migration runner
 # (the runner will automatically switch to AUTOCOMMIT for that migration file)
-# python migrations/run_migrations.py
+# python3 migrations/run_migrations.py
 
 # 4. Verify indexes created
 psql -d lncrna_production -c "\\di+ idx_*"

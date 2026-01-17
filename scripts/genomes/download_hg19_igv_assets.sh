@@ -62,9 +62,36 @@ need_cmd() {
 
 need_cmd curl
 
+file_size_bytes() {
+  # Portable file size (bytes) without relying on GNU/BSD stat flags.
+  wc -c < "$1" | tr -d '[:space:]'
+}
+
+ensure_min_size() {
+  local path="$1"
+  local min_bytes="$2"
+
+  if [ -z "${min_bytes:-}" ] || [ "$min_bytes" -le 0 ]; then
+    return 0
+  fi
+  if [ ! -f "$path" ]; then
+    echo "[hg19] ERROR: 下载后文件不存在: $path"
+    exit 1
+  fi
+
+  local size
+  size="$(file_size_bytes "$path")"
+  if [ "$size" -lt "$min_bytes" ]; then
+    echo "[hg19] ERROR: 下载文件体积异常（可能下载中断或拿到错误页面）"
+    echo "[hg19]        file=$path size=${size}B min=${min_bytes}B"
+    exit 1
+  fi
+}
+
 download() {
   local url="$1"
   local dest="$2"
+  local min_bytes="${3:-0}"
 
   if [ -f "$dest" ]; then
     echo "[hg19] SKIP  已存在: $dest"
@@ -81,6 +108,7 @@ download() {
   fi
   curl "${curl_args[@]}" -C - -o "$tmp" "$url"
   mv "$tmp" "$dest"
+  ensure_min_size "$dest" "$min_bytes"
 }
 
 # ------------------------------------------------------------------------------
@@ -94,9 +122,14 @@ HG19_CHROMSIZES_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg1
 HG19_ALIAS_URL="https://raw.githubusercontent.com/igvteam/igv-data/refs/heads/main/data/hg19/hg19_alias.tab"
 
 download "$HG19_TWOBIT_URL"      "$TARGET_DIR/hg19.2bit"
-download "$HG19_CYTOBAND_URL"    "$TARGET_DIR/cytoBand.hg19.txt.gz"
-download "$HG19_CHROMSIZES_URL"  "$TARGET_DIR/hg19.chrom.sizes"
-download "$HG19_ALIAS_URL"       "$TARGET_DIR/hg19_alias.tab"
+download "$HG19_CYTOBAND_URL"    "$TARGET_DIR/cytoBand.hg19.txt.gz" 10000
+download "$HG19_CHROMSIZES_URL"  "$TARGET_DIR/hg19.chrom.sizes" 1000
+download "$HG19_ALIAS_URL"       "$TARGET_DIR/hg19_alias.tab" 100
+
+# hg19.2bit / bigWig files are large; use a conservative minimum size guard.
+if [ -f "$TARGET_DIR/hg19.2bit" ]; then
+  ensure_min_size "$TARGET_DIR/hg19.2bit" 100000000
+fi
 
 echo "[hg19] OK    离线资源已就绪（/genomes 将暴露这些文件）"
 
@@ -107,7 +140,7 @@ if [ "$WITH_CONSERVATION" = "true" ]; then
   HG19_PHASTCONS_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/phastCons100way/hg19.100way.phastCons.bw"
   HG19_PHYLOP_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/phyloP100way/hg19.100way.phyloP100way.bw"
 
-  download "$HG19_PHASTCONS_URL" "$TARGET_DIR/hg19.100way.phastCons.bw"
-  download "$HG19_PHYLOP_URL"    "$TARGET_DIR/hg19.100way.phyloP100way.bw"
+  download "$HG19_PHASTCONS_URL" "$TARGET_DIR/hg19.100way.phastCons.bw" 100000000
+  download "$HG19_PHYLOP_URL"    "$TARGET_DIR/hg19.100way.phyloP100way.bw" 100000000
   echo "[hg19] OK    保守性 BigWig 已下载"
 fi

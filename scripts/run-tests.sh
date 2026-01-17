@@ -110,6 +110,20 @@ ensure_backend_ruff() {
     return 0
 }
 
+ensure_backend_pip_audit() {
+    local python_bin="$1"
+
+    ensure_backend_python "$python_bin" || return 1
+
+    if ! "$python_bin" -c "import pip_audit" > /dev/null 2>&1; then
+        echo -e "${RED}后端 pip-audit 不可用（请在后端虚拟环境中安装依赖）${NC}"
+        echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install pip-audit${NC}"
+        return 1
+    fi
+
+    return 0
+}
+
 # 运行后端 Lint（ruff）
 run_backend_lint() {
     echo -e "${YELLOW}运行后端 Lint (ruff check)...${NC}"
@@ -162,6 +176,23 @@ check_services() {
 
     echo ""
     return 0
+}
+
+run_backend_security_audit() {
+    echo -e "${YELLOW}运行后端依赖安全审计 (pip-audit --strict)...${NC}"
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+    ensure_backend_pip_audit "$python_bin" || return 1
+
+    cd "$BACKEND_DIR"
+
+    if "$python_bin" -m pip_audit -r requirements.txt --strict --progress-spinner off; then
+        echo -e "${GREEN}后端依赖安全审计通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}后端依赖安全审计失败（发现漏洞）${NC}"
+        return 1
+    fi
 }
 
 # 运行后端 API 合同测试 (需要服务运行)
@@ -237,6 +268,20 @@ run_frontend_unit_tests() {
     fi
 }
 
+run_frontend_security_audit() {
+    echo -e "${YELLOW}运行前端依赖安全审计 (npm audit --audit-level=high)...${NC}"
+    ensure_frontend_deps || return 1
+    cd "$FRONTEND_DIR"
+
+    if npm audit --registry=https://registry.npmjs.org --audit-level=high; then
+        echo -e "${GREEN}前端依赖安全审计通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}前端依赖安全审计失败（发现 high/critical 漏洞）${NC}"
+        return 1
+    fi
+}
+
 run_frontend_lint() {
     echo -e "${YELLOW}运行前端 Lint (ESLint)...${NC}"
     ensure_frontend_deps || return 1
@@ -285,6 +330,11 @@ main() {
     local failed=0
 
     case "${1:-smoke}" in
+        security-audit)
+            run_backend_security_audit || failed=1
+            echo ""
+            run_frontend_security_audit || failed=1
+            ;;
         backend-lint)
             run_backend_lint || failed=1
             ;;
@@ -345,6 +395,7 @@ main() {
             echo "用法: $0 [smoke|unit|backend-unit|backend-lint|backend|e2e|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
+            echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
             echo "  unit         - 运行前端单元测试"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
             echo "  backend-checks - 运行后端导入与语法检查（对齐 CI）"

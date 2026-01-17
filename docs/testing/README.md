@@ -57,6 +57,16 @@ cd frontend/web && npm run test:e2e -- phase-3-1-validation.spec.ts
 
 ---
 
+## API Snapshot Baseline (Optional)
+
+When the backend is running (ideally on a fixed sample dataset), generate a deterministic JSON snapshot for regression baselining:
+
+```bash
+python3 scripts/api_snapshot.py --base-url http://localhost:8000 --output /tmp/api-snapshot.json --pretty
+```
+
+---
+
 ## Test Coverage
 
 ```

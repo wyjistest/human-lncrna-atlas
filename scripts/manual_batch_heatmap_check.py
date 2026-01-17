@@ -304,7 +304,7 @@ def main():
             return 1
     except Exception:
         print(f"ERROR: Cannot connect to API at {BASE_URL}")
-        print("Make sure the backend is running: python3 -m uvicorn app.main:app --reload")
+        print("Make sure the backend is running: cd frontend/backend && python3 -m uvicorn main:app --reload")
         return 1
 
     print("✓ API is accessible")

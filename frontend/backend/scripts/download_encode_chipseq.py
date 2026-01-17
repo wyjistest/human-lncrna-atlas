@@ -13,7 +13,7 @@ Usage:
 import argparse
 import subprocess
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 import json
 
 
@@ -194,7 +194,7 @@ CELL_LINE_METADATA = {
 }
 
 
-def download_file(url: str, output_path: Path, dry_run: bool = False) -> bool:
+def download_file(url: str, output_path: Path, *, dry_run: bool = False, min_bytes: Optional[int] = None) -> bool:
     """Download a file using wget"""
     if dry_run:
         print(f'  [DRY RUN] Would download: {url}')
@@ -209,6 +209,25 @@ def download_file(url: str, output_path: Path, dry_run: bool = False) -> bool:
             timeout=600  # 10 minutes timeout
         )
         if result.returncode == 0:
+            if min_bytes is not None:
+                try:
+                    size = output_path.stat().st_size
+                except OSError as e:
+                    print(f'  ✗ Cannot stat downloaded file: {e}')
+                    return False
+
+                if size < min_bytes:
+                    print(
+                        f'  ✗ Downloaded file too small: {size} bytes '
+                        f'(expected >= {min_bytes} bytes). '
+                        'Possible truncated download or error page.'
+                    )
+                    try:
+                        output_path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    return False
+
             print(f'  ✓ Downloaded: {output_path.name}')
             return True
         else:
@@ -285,7 +304,11 @@ def download_mark_data(mark_type: str, cell_lines: List[str], output_dir: Path, 
         peaks_filename = file_info['file']
         peaks_path = output_dir / peaks_filename
 
-        if download_file(file_info['url'], peaks_path, dry_run):
+        expected_mb = float(file_info.get("size_mb") or 0)
+        # Allow some variance; this is a sanity guard against empty/error-page downloads.
+        min_bytes = int(expected_mb * 1024 * 1024 * 0.5) if expected_mb > 0 else None
+
+        if download_file(file_info['url'], peaks_path, dry_run=dry_run, min_bytes=min_bytes):
             # Generate metadata
             metadata = generate_metadata(mark_type, cell_line, file_info)
             metadata_path = output_dir / f'{mark_type}_{cell_line}_metadata.json'

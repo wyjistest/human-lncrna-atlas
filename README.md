@@ -165,6 +165,7 @@ These match the checks in `.github/workflows/test.yml`.
 ```bash
 # One-shot (mirrors CI core checks, excluding secret scan / security-audit)
 ./scripts/run-tests.sh ci
+# Note: does NOT require PostgreSQL/Redis (unit tests + import/syntax checks only).
 
 # Frontend
 cd frontend/web
@@ -178,9 +179,9 @@ cd frontend/backend
 python3 -m pip install -r requirements-dev.txt -c constraints.txt
 ruff check .
 pytest -m unit -v
-python -c "import main"
-python -m py_compile main.py
-find app -name "*.py" -exec python -m py_compile {} \;
+python3 -c "import main"
+python3 -m py_compile main.py
+find app -name "*.py" -exec python3 -m py_compile {} \;
 ```
 
 After pushing:
