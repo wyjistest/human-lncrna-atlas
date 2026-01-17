@@ -4,6 +4,32 @@
     "placeholder": "搜索基因名或ID",
     "geneType": "基因类型"
   },
+  "tabs": {
+    "browse": "浏览",
+    "batch": "批量查询"
+  },
+  "filters": {
+    "species": "物种",
+    "chromosome": "染色体",
+    "hasRegulation": "调控关系",
+    "hasRegulationAll": "全部",
+    "hasRegulationYes": "有调控",
+    "hasRegulationNo": "无调控",
+    "minRegulationCount": "最小调控数量"
+  },
+  "batch": {
+    "placeholder": "粘贴 gene_id / Ensembl ID / 基因名（逗号/空格/换行分隔）",
+    "run": "查询",
+    "empty": "请先粘贴至少一个标识符",
+    "tooMany": "标识符过多（最多 {{max}} 个）",
+    "summary": "命中 {{matched}} 条 / 未找到 {{missing}} 条",
+    "missingWarning": "有 {{count}} 个标识符未找到"
+  },
+  "export": {
+    "csv": "导出 CSV",
+    "noData": "没有可导出的数据",
+    "started": "开始导出"
+  },
   "conservation": {
     "high": "高",
     "medium": "中",

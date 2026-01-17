@@ -86,6 +86,30 @@ test.describe('基因浏览流程', () => {
     await expect(page.locator('.ant-table-tbody')).toBeVisible()
   })
 
+  test('批量查询（gene_id）', async ({ page }) => {
+    await page.goto('/genes')
+    await expect(page.locator('.ant-table')).toBeVisible({ timeout: 15000 })
+
+    // 切换到批量查询 Tab（支持中英文）
+    const batchTab = page.getByRole('tab', { name: /Batch Query|批量查询/i })
+    if (await batchTab.count() > 0) {
+      await batchTab.click()
+    }
+
+    const textarea = page.locator('textarea')
+    await expect(textarea).toBeVisible()
+    await textarea.fill('17276')
+
+    await page.getByRole('button', { name: /Query|查询/i }).click()
+
+    await page.waitForResponse((response) =>
+      response.url().includes('/api/v1/genes/batch') && response.status() === 200
+    )
+
+    // 表格应刷新并显示结果
+    await expect(page.locator('.ant-table-tbody tr').first()).toBeVisible()
+  })
+
   test('查看基因详情', async ({ page }) => {
     await page.goto('/genes')
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 15000 })

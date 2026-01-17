@@ -82,13 +82,17 @@ import { queryKeys } from './queryKeys'
  * })
  * ```
  */
-export const useGenes = (params: Parameters<typeof genesApi.list>[0]) => {
+export const useGenes = (
+  params: Parameters<typeof genesApi.list>[0],
+  options?: { enabled?: boolean }
+) => {
   return useQuery({
     queryKey: queryKeys.genes.list(params),
     queryFn: async ({ signal }) => {
       const { data } = await genesApi.list(params, signal)
       return data
     },
+    enabled: options?.enabled ?? true,
     meta: { skipGlobalErrorHandler: true },
   })
 }

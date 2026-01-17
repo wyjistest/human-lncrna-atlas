@@ -40,6 +40,17 @@ export interface GeneOptionsResponse {
   genes: GeneOption[]
 }
 
+export interface GeneBatchResolveRequest {
+  identifiers: string[]
+  species_id?: number
+  gene_type?: string
+}
+
+export interface GeneBatchResolveResponse {
+  items: GeneListItem[]
+  missing: string[]
+}
+
 export const genesApi = {
   /**
    * Get paginated gene list with full details
@@ -51,6 +62,9 @@ export const genesApi = {
    * @param params.page_size - Items per page (default: 100)
    * @param params.gene_type - Filter by type (lncRNA/protein_coding)
    * @param params.species_id - Filter by species ID (1-4)
+   * @param params.chromosome - Filter by chromosome
+   * @param params.has_regulation - Filter by regulation existence
+   * @param params.min_regulation_count - Filter by minimum regulation count
    * @param params.search - Search by gene name or ID
    * @returns Paginated gene list with full details
    */
@@ -59,6 +73,9 @@ export const genesApi = {
     page_size?: number
     gene_type?: string
     species_id?: number
+    chromosome?: string
+    has_regulation?: boolean
+    min_regulation_count?: number
     search?: string
   }, signal?: AbortSignal) =>
     apiClient.get<PaginatedResponse<GeneListItem>>('/api/v1/genes', { params, signal }),
@@ -164,4 +181,18 @@ export const genesApi = {
    */
   getOrthologs: (geneId: number, signal?: AbortSignal) =>
     apiClient.get<OrthologInfo[]>(`/api/v1/genes/${geneId}/orthologs`, { signal }),
+
+  /**
+   * Batch resolve genes by identifiers (gene_id / gene_name / gene_ensembl_id)
+   *
+   * Used by: Genes batch query tab (/genes)
+   */
+  batchResolve: async (payload: GeneBatchResolveRequest, signal?: AbortSignal): Promise<GeneBatchResolveResponse> => {
+    const response = await apiClient.post<GeneBatchResolveResponse>(
+      '/api/v1/genes/batch',
+      payload,
+      { signal }
+    )
+    return response.data
+  },
 }

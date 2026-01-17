@@ -4,6 +4,32 @@
     "placeholder": "Search gene name or ID",
     "geneType": "Gene Type"
   },
+  "tabs": {
+    "browse": "Browse",
+    "batch": "Batch Query"
+  },
+  "filters": {
+    "species": "Species",
+    "chromosome": "Chromosome",
+    "hasRegulation": "Has regulations",
+    "hasRegulationAll": "All",
+    "hasRegulationYes": "With regulations",
+    "hasRegulationNo": "Without regulations",
+    "minRegulationCount": "Min regulation count"
+  },
+  "batch": {
+    "placeholder": "Paste gene_id / Ensembl ID / gene name (comma/space/newline separated)",
+    "run": "Query",
+    "empty": "Please paste at least one identifier",
+    "tooMany": "Too many identifiers (max {{max}})",
+    "summary": "Matched {{matched}} / Missing {{missing}}",
+    "missingWarning": "{{count}} identifiers not found"
+  },
+  "export": {
+    "csv": "Export CSV",
+    "noData": "No data to export",
+    "started": "Export started"
+  },
   "conservation": {
     "high": "High",
     "medium": "Medium",
