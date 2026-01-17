@@ -244,6 +244,8 @@ export HLA_MV_REFRESH_TIMEOUT_SECONDS=600
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/v1/genes` | GET | Gene list (paginated) |
+| `/api/v1/genes/options` | GET | Gene options (lightweight, for selectors) |
+| `/api/v1/genes/batch` | POST | Batch resolve genes by identifiers |
 | `/api/v1/genes/{id}` | GET | Gene details |
 | `/api/v1/regulations` | GET | Regulation list (multi-filter) |
 | `/api/v1/regulations/{id}` | GET | Regulation details with sequences |

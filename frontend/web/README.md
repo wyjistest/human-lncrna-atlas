@@ -50,7 +50,7 @@ src/
 
 ## Key Features
 
-- **Gene Browser**: Search and explore lncRNA/protein-coding genes
+- **Gene Browser**: Search, filter, and batch query genes (with CSV export)
 - **Regulation Analysis**: View regulatory relationships with binding affinity
 - **Genome Browser**: IGV.js integration for genomic visualization
 - **ChIP-seq Overlap**: Visualize lncRNA-ChIP-seq peak overlaps
