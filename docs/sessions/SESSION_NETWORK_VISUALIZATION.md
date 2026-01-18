@@ -708,7 +708,7 @@ return {
 # 1. Start backend
 cd <repo-root>/frontend/backend
 source venv/bin/activate
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 2. Start frontend
 cd <repo-root>/frontend/web

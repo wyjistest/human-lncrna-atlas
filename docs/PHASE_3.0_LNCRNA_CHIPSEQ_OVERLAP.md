@@ -922,7 +922,7 @@ EOF
 #### Step 2: 创建后端文件结构
 
 ```bash
-cd <repo-root>/frontend/backend/app
+cd <repo-root>/frontend/backend
 
 # 创建文件
 touch routers/lncrna_chipseq_overlap.py
@@ -954,9 +954,9 @@ code components/LncRNAChIPSeqOverlapTable/index.tsx
 
 ```bash
 # 后端
-cd <repo-root>/frontend/backend/app
+cd <repo-root>/frontend/backend
 source venv/bin/activate
-uvicorn main:app --reload --port 8000
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 前端
 cd <repo-root>/frontend/web

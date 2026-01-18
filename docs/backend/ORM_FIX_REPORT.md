@@ -313,7 +313,7 @@ class GeneListItem(BaseModel):
 ```bash
 # 1. 启动服务
 cd <repo-root>/frontend/backend
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 # 2. 测试健康检查
 curl http://localhost:8000/health

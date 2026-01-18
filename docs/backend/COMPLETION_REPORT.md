@@ -300,7 +300,7 @@ with httpx.Client() as client:
 ### 启动后端
 ```bash
 cd <repo-root>/frontend/backend
-python -m uvicorn app.main:app --reload
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 验证 API

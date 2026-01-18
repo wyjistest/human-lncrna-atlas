@@ -117,7 +117,7 @@ Server should run at `http://localhost:5173`
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT/frontend/backend"
 source venv/bin/activate
-uvicorn main:app --port 8000 --reload
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 API should run at `http://localhost:8000`

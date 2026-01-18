@@ -258,7 +258,7 @@ class Gene(Base):
 ### 步骤4: 重启服务并测试
 
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 测试
 curl "http://localhost:8000/api/v1/genes?page=1&page_size=2"

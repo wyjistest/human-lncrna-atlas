@@ -36,7 +36,7 @@ Ensure the following services are running:
    REPO_ROOT="$(git rev-parse --show-toplevel)"
    cd "$REPO_ROOT/frontend/backend"
    source venv/bin/activate
-   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
 2. **Frontend Dev Server** (port 5173)
@@ -189,7 +189,7 @@ After tests pass, manually verify:
 **Solution**:
 ```bash
 cd <repo-root>/frontend/backend
-poetry run uvicorn main:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 ### Tests Fail: "Page not found (404)"

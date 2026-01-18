@@ -322,7 +322,7 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?cell_type=A549&chromos
 ```bash
 # Start backend
 cd <repo-root>/frontend/backend
-poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 # Start frontend
 cd <repo-root>/frontend/web

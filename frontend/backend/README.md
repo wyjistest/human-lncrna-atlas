@@ -13,10 +13,10 @@
 source venv/bin/activate
 
 # 运行服务（仅运行时依赖）
-pip install -r requirements.txt -c constraints.txt
+python3 -m pip install -r requirements.txt -c constraints.txt
 
 # 开发/测试（包含 pytest/ruff 等）
-pip install -r requirements-dev.txt -c constraints.txt
+python3 -m pip install -r requirements-dev.txt -c constraints.txt
 
 # 验证依赖
 python3 -c "import fastapi; print(f'FastAPI {fastapi.__version__}')"
@@ -36,8 +36,8 @@ nano .env
 ### 3. 启动服务
 
 ```bash
-# 方式1: 使用uvicorn直接启动
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+# 方式1: 使用 uvicorn 启动（推荐）
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 方式2: 使用Python运行
 python3 main.py
@@ -169,7 +169,7 @@ curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application
 
 ```bash
 # 启动时会显示详细日志
-uvicorn main:app --log-level debug
+python3 -m uvicorn main:app --log-level debug
 ```
 
 ### 生产环境请求日志调优（建议）
@@ -187,7 +187,7 @@ uvicorn main:app --log-level debug
 
 ```bash
 # 使用多worker模式
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 
 # 或使用gunicorn
 gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
@@ -208,7 +208,7 @@ gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
 lsof -i :8000
 
 # 使用其他端口
-uvicorn main:app --port 8001
+python3 -m uvicorn main:app --port 8001
 ```
 
 ## 技术栈
