@@ -57,7 +57,32 @@ def _git_ls_files(pattern: str) -> list[Path]:
 def iter_markdown_files() -> list[Path]:
     files = _git_ls_files("*.md")
     # 仅检查仓库内文件，避免把 git 子模块/外部路径带进来
-    return [p for p in files if p.is_file() and REPO_ROOT in p.resolve().parents]
+    filtered: list[Path] = []
+    for p in files:
+        try:
+            rel = p.relative_to(REPO_ROOT)
+        except ValueError:
+            continue
+
+        # 规划类文档允许包含“坏例子/对比”，避免误报导致 CI 卡死在计划文件上。
+        rel_posix = rel.as_posix()
+        if rel_posix.startswith("docs/plans/") or rel_posix.startswith("plan/"):
+            continue
+
+        if not p.is_file():
+            continue
+
+        try:
+            resolved = p.resolve()
+        except Exception:
+            continue
+
+        if REPO_ROOT not in resolved.parents:
+            continue
+
+        filtered.append(p)
+
+    return filtered
 
 
 def main() -> int:
@@ -92,4 +117,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
