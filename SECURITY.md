@@ -154,6 +154,9 @@ This project uses:
 Run security audits regularly:
 
 ```bash
+# Repo helper (recommended): matches CI gates
+bash scripts/run-tests.sh security-audit
+
 # Backend
 pip-audit
 
@@ -161,6 +164,10 @@ pip-audit
 npm audit
 ```
 
+CI reference:
+- Workflow: `.github/workflows/security-audit.yml`
+- Policy: Python uses `pip-audit --strict`; Node uses `npm audit --audit-level=high`
+
 ---
 
-*Last updated: 2025-12-18*
+*Last updated: 2026-01-18*
