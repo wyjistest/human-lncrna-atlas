@@ -801,6 +801,74 @@ async def get_metrics(request: Request) -> MetricsResponse:
     )
 
 
+@router.post(
+    "/metrics/reset-stats",
+    summary="重置监控指标统计",
+    description="仅重置 /api/v1/admin/metrics 的 in-memory 统计计数，不影响 Prometheus /metrics。",
+)
+@rate_limit("5/minute")
+async def reset_metrics_stats(request: Request) -> dict:
+    """
+    重置 Admin Monitoring 指标统计（in-memory）
+
+    说明：
+    - 仅影响 `/api/v1/admin/metrics` 使用的 in-memory 聚合数据
+    - 不影响 Prometheus `/metrics`（如已接入，仍建议用于长期观测）
+    """
+    metrics_data = getattr(request.app.state, "metrics_data", None)
+    if not isinstance(metrics_data, dict):
+        from app.middleware.admin_metrics import create_metrics_data
+
+        request.app.state.metrics_data = create_metrics_data()
+        logger.info("Admin metrics stats reset by admin (recreated metrics_data)")
+        return {"status": "success", "message": "Admin monitoring metrics reset"}
+
+    lock = metrics_data.get("_lock")
+    if isinstance(lock, _LOCK_TYPE):
+        with lock:
+            metrics_data["total_requests"] = 0
+            metrics_data["total_errors"] = 0
+            metrics_data["total_time"] = 0.0
+
+            # 清空样本与时间序列（保留 maxlen）
+            response_times = metrics_data.get("response_times")
+            if hasattr(response_times, "clear"):
+                response_times.clear()
+            else:
+                metrics_data["response_times"] = []
+
+            time_series = metrics_data.get("time_series")
+            if hasattr(time_series, "clear"):
+                time_series.clear()
+            else:
+                metrics_data["time_series"] = []
+
+            metrics_data["current_second"] = {"timestamp": 0, "requests": 0, "errors": 0}
+
+            endpoints = metrics_data.get("endpoints")
+            if isinstance(endpoints, dict):
+                endpoints.clear()
+            else:
+                metrics_data["endpoints"] = {}
+
+            # 重置 bucket（保留标签集合）
+            buckets = metrics_data.get("response_time_buckets")
+            if isinstance(buckets, dict):
+                for k in list(buckets.keys()):
+                    buckets[k] = 0
+            else:
+                metrics_data["response_time_buckets"] = {"0-50": 0, "50-100": 0, "100-200": 0, "200-500": 0, "500+": 0}
+
+    else:
+        # 历史/异常场景：无锁结构直接重建（best-effort）
+        from app.middleware.admin_metrics import create_metrics_data
+
+        request.app.state.metrics_data = create_metrics_data()
+
+    logger.info("Admin metrics stats reset by admin")
+    return {"status": "success", "message": "Admin monitoring metrics reset"}
+
+
 # ============================================================================
 # Cache Management Endpoints
 # ============================================================================

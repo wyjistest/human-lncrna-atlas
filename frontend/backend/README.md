@@ -90,6 +90,7 @@ python3 main.py
 
 - `GET /api/v1/admin/health` - 系统健康与资源指标（依赖 `psutil`）
 - `GET /api/v1/admin/metrics` - 系统监控指标汇总（轻量 in-memory 聚合；服务重启后清零）
+- `POST /api/v1/admin/metrics/reset-stats` - 重置监控指标统计（不影响 Prometheus `/metrics`）
 - `GET /api/v1/admin/cache/stats` - 缓存统计（命中率 + namespaces/keys top + compute 耗时）
 - `POST /api/v1/admin/cache/reset-stats` - 重置缓存统计计数器（不清缓存）
 - `POST /api/v1/admin/cache/clear` - 清空全部缓存（危险操作，谨慎使用）

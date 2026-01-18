@@ -12,6 +12,13 @@ export const adminApi = {
    */
   metrics: (signal?: AbortSignal) =>
     apiClient.get<MonitoringMetrics>('/api/v1/admin/metrics', { signal }),
+
+  /**
+   * Reset in-memory monitoring stats (does not affect Prometheus /metrics)
+   * POST /api/v1/admin/metrics/reset-stats
+   */
+  resetMetrics: () =>
+    apiClient.post<{ status: string; message?: string }>('/api/v1/admin/metrics/reset-stats'),
 }
 
 /**

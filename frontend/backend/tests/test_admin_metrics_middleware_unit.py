@@ -116,3 +116,47 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.response_time_distribution.counts and sum(metrics.response_time_distribution.counts) == 12
     assert metrics.endpoints and sum(e.requests for e in metrics.endpoints) == 12
     assert metrics.percentiles is not None
+
+
+@pytest.mark.unit
+def test_admin_metrics_reset_stats_clears_in_memory_counters():
+    app = FastAPI()
+    app.state.start_time = time.time() - 10
+    app.state.metrics_data = create_metrics_data()
+
+    @app.get("/api/v1/test")
+    def ok():
+        return {"ok": True}
+
+    app.add_middleware(AdminMetricsMiddleware)
+
+    with TestClient(app) as client:
+        for _ in range(3):
+            resp = client.get("/api/v1/test")
+            assert resp.status_code == 200
+
+    data = app.state.metrics_data
+    with data["_lock"]:
+        assert data["total_requests"] == 3
+        assert len(data["response_times"]) == 3
+
+    request = _make_request(app, path="/api/v1/admin/metrics/reset-stats")
+
+    reset_metrics_stats = admin_module.reset_metrics_stats
+    if hasattr(reset_metrics_stats, "__wrapped__"):
+        reset_metrics_stats = reset_metrics_stats.__wrapped__
+
+    result = asyncio.run(reset_metrics_stats(request))
+    assert result["status"] == "success"
+
+    with data["_lock"]:
+        assert data["total_requests"] == 0
+        assert data["total_errors"] == 0
+        assert data["total_time"] == 0.0
+        assert len(data["response_times"]) == 0
+        assert sum(data["response_time_buckets"].values()) == 0
+        assert len(data["time_series"]) == 0
+        assert data["current_second"]["timestamp"] == 0
+        assert data["current_second"]["requests"] == 0
+        assert data["current_second"]["errors"] == 0
+        assert data["endpoints"] == {}

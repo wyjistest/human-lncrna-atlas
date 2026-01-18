@@ -1,5 +1,7 @@
-import { Card, Row, Col, Statistic, Button, Space, Tag } from 'antd'
-import { ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons'
+import { useState } from 'react'
+import { Card, Row, Col, Statistic, Button, Space, Tag, Popconfirm, message } from 'antd'
+import { ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, DeleteOutlined } from '@ant-design/icons'
+import { adminApi } from '@/api/admin'
 import { useMonitoringMetrics } from '@/hooks/useMonitoringMetrics'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -48,23 +50,50 @@ const formatUptime = (seconds: number): string => {
 
 export default function Monitoring() {
   const { data, isLoading, error, refetch, isFetching } = useMonitoringMetrics()
+  const [isResetting, setIsResetting] = useState(false)
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />
 
   const statusConfig = data ? getStatusConfig(data.health.status) : null
 
+  const handleReset = async () => {
+    setIsResetting(true)
+    try {
+      await adminApi.resetMetrics()
+      message.success('Monitoring metrics reset')
+      refetch()
+    } catch {
+      message.error('Failed to reset monitoring metrics')
+    } finally {
+      setIsResetting(false)
+    }
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <Space style={{ marginBottom: 24, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>System Monitoring</h1>
-        <Button
-          icon={<ReloadOutlined spin={isFetching} />}
-          onClick={() => refetch()}
-          loading={isFetching}
-        >
-          Refresh
-        </Button>
+        <Space>
+          <Popconfirm
+            title="Reset monitoring metrics?"
+            description="This clears in-memory counters used by this page (Prometheus /metrics is not affected)."
+            onConfirm={handleReset}
+            okText="Reset"
+            cancelText="Cancel"
+          >
+            <Button danger icon={<DeleteOutlined />} loading={isResetting}>
+              Reset Stats
+            </Button>
+          </Popconfirm>
+          <Button
+            icon={<ReloadOutlined spin={isFetching} />}
+            onClick={() => refetch()}
+            loading={isFetching}
+          >
+            Refresh
+          </Button>
+        </Space>
       </Space>
 
       {/* Phase 3: Alerts Banner - conditionally rendered at top */}
