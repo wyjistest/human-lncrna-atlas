@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2025-12-10
+> 最后更新: 2026-01-18
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,17 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-18 ⭐ 可观测与 CI 基础设施补齐
+
+1. **CI 与本地一致性**
+   - 以 GitHub Actions 为准统一本地复刻入口：`./scripts/run-tests.sh ci`
+   - 文档命令漂移检查已接入 CI（`scripts/check_docs_commands.py`）
+
+2. **Admin Monitoring 可观测性闭环**
+   - `GET /api/v1/admin/metrics`：轻量 in-memory 请求级指标（包含 `cache_stats` 摘要）
+   - `POST /api/v1/admin/metrics/reset-stats`：一键清零 in-memory 指标（不影响 Prometheus `/metrics`）
+   - `GET /api/v1/admin/cache/stats` + `POST /api/v1/admin/cache/reset-stats`：缓存命中率/回源耗时统计与重置
 
 ### 2025-12-10 (Phase 3.5) ⭐ 动态 Overlap 轨道加载
 

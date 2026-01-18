@@ -183,6 +183,12 @@ export default function Monitoring() {
                   {data?.health.cache ?? '-'}
                 </Tag>
               </div>
+              <div style={{ marginTop: 4 }}>
+                Cache Hit Rate:{' '}
+                {data?.cache_stats?.enabled
+                  ? `${data.cache_stats.hit_rate_pct.toFixed(1)}% (${data.cache_stats.backend || 'unknown'})`
+                  : '-'}
+              </div>
             </div>
           </Card>
         </Col>

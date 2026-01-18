@@ -126,6 +126,24 @@ export interface PercentileMetrics {
 }
 
 /**
+ * Cache statistics summary (hit rate, requests)
+ */
+export interface CacheStatsSummary {
+  /** Cache backend type e.g., "redis" | "memory" */
+  backend: string
+  /** Whether cache is enabled */
+  enabled: boolean
+  /** Total cache hits */
+  hits: number
+  /** Total cache misses */
+  misses: number
+  /** Total cache requests */
+  total_requests: number
+  /** Cache hit rate percentage (0-100) */
+  hit_rate_pct: number
+}
+
+/**
  * Monitoring metrics returned by GET /api/v1/admin/metrics
  */
 export interface MonitoringMetrics {
@@ -156,6 +174,8 @@ export interface MonitoringMetrics {
     /** System uptime in seconds */
     uptime_seconds: number
   }
+  /** Cache stats summary (hit rate, requests) */
+  cache_stats?: CacheStatsSummary
 
   // Phase 2 fields
   /** Response time distribution histogram data */

@@ -48,6 +48,19 @@ class HealthMetrics(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CacheStats(BaseModel):
+    """缓存统计摘要"""
+
+    backend: str = Field(description="缓存后端类型（redis/memory）")
+    enabled: bool = Field(description="是否启用缓存")
+    hits: int = Field(ge=0, description="命中次数")
+    misses: int = Field(ge=0, description="未命中次数")
+    total_requests: int = Field(ge=0, description="缓存请求总数")
+    hit_rate_pct: float = Field(ge=0, le=100, description="缓存命中率(%)")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Phase 2 新增模型
 class ResponseTimeDistribution(BaseModel):
     """响应时间分布"""
@@ -158,6 +171,7 @@ class MetricsResponse(BaseModel):
     errors: ErrorMetrics = Field(description="错误指标")
     response_time: ResponseTimeMetrics = Field(description="响应时间指标")
     health: HealthMetrics = Field(description="健康状态指标")
+    cache_stats: Optional[CacheStats] = Field(default=None, description="缓存统计摘要")
 
     # Phase 2 - 新增指标
     response_time_distribution: ResponseTimeDistribution = Field(

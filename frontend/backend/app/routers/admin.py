@@ -42,6 +42,7 @@ from app.schemas.monitoring import (
     ErrorMetrics,
     ResponseTimeMetrics,
     HealthMetrics,
+    CacheStats,
     ResponseTimeDistribution,
     ErrorTrend,
     EndpointStats,
@@ -751,6 +752,24 @@ async def get_metrics(request: Request) -> MetricsResponse:
     cache_status = check_cache_status()
     health_status = determine_health_status(db_status, cache_status)
 
+    # 缓存统计摘要（命中率等）。注意：不返回 Redis host 等敏感/环境信息。
+    cache_stats: Optional[CacheStats] = None
+    try:
+        stats = cache.get_stats()
+        if isinstance(stats, dict):
+            hit_rate_pct = float(stats.get("hit_rate_pct", 0.0) or 0.0)
+            hit_rate_pct = max(0.0, min(100.0, hit_rate_pct))
+            cache_stats = CacheStats(
+                backend=str(stats.get("backend") or ""),
+                enabled=bool(stats.get("enabled")),
+                hits=int(stats.get("hits", 0) or 0),
+                misses=int(stats.get("misses", 0) or 0),
+                total_requests=int(stats.get("total_requests", 0) or 0),
+                hit_rate_pct=hit_rate_pct,
+            )
+    except Exception as e:  # pragma: no cover
+        logger.debug("Failed to build cache stats summary: %s", sanitize_for_log(e, max_length=2000))
+
     # Phase 2 - 构建新增指标
     response_time_distribution = build_response_time_distribution(metrics_data)
     error_trend = build_error_trend(metrics_data)
@@ -790,6 +809,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
             cache=cache_status,
             uptime_seconds=uptime_seconds,
         ),
+        cache_stats=cache_stats,
         # Phase 2 - 新增指标
         response_time_distribution=response_time_distribution,
         error_trend=error_trend,

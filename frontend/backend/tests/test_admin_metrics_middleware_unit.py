@@ -92,6 +92,18 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     monkeypatch.setattr(admin_module, "check_database_status", lambda: "ok")
     monkeypatch.setattr(admin_module, "check_cache_status", lambda: "not_configured")
     monkeypatch.setattr(
+        admin_module.cache,
+        "get_stats",
+        lambda: {
+            "backend": "memory",
+            "enabled": True,
+            "hits": 7,
+            "misses": 3,
+            "total_requests": 10,
+            "hit_rate_pct": 70.0,
+        },
+    )
+    monkeypatch.setattr(
         admin_module,
         "get_system_metrics",
         lambda: SystemMetrics(
@@ -116,6 +128,9 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.response_time_distribution.counts and sum(metrics.response_time_distribution.counts) == 12
     assert metrics.endpoints and sum(e.requests for e in metrics.endpoints) == 12
     assert metrics.percentiles is not None
+    assert metrics.cache_stats is not None
+    assert metrics.cache_stats.backend == "memory"
+    assert metrics.cache_stats.hit_rate_pct == 70.0
 
 
 @pytest.mark.unit

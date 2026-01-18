@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **P2 Medium**: IGV 相关日志字段统一 `sanitize_for_log()`（降低日志注入/日志膨胀风险）
   - 涉及文件: `frontend/backend/app/routers/igv_chipseq.py`, `frontend/backend/app/routers/igv_overlap_track.py`, `frontend/backend/tests/test_security_igv_track_dos_limits_unit.py`
 
+### Added
+- **Admin Monitoring 可观测性补齐** (2026-01-18)
+  - `GET /api/v1/admin/metrics`：轻量 in-memory 请求级指标（包含 `cache_stats` 摘要）
+  - `POST /api/v1/admin/metrics/reset-stats`：重置 in-memory 监控统计（不影响 Prometheus `/metrics`）
+  - `POST /api/v1/admin/cache/reset-stats`：重置缓存统计计数器（不清缓存）
+  - 后端回归脚本改为 Prometheus 文本校验（避免把 `/metrics` 当 JSON）
+
 ### Fixed
 - **Phase 9.3: 代码审查修复** (2025-12-15)
   - 全局异常返回结构：统一为 `{detail: {...}}` 格式与前端约定一致
