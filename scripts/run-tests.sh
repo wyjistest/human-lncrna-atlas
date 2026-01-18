@@ -281,6 +281,20 @@ run_scripts_smoke_tests() {
     fi
 }
 
+run_docs_checks() {
+    echo -e "${YELLOW}运行文档命令漂移检查...${NC}"
+    require_cmd python3 || return 1
+
+    cd "$PROJECT_ROOT"
+    if python3 scripts/check_docs_commands.py; then
+        echo -e "${GREEN}文档命令漂移检查通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}文档命令漂移检查失败${NC}"
+        return 1
+    fi
+}
+
 # 运行前端单元测试
 run_frontend_unit_tests() {
     echo -e "${YELLOW}运行前端单元测试...${NC}"
@@ -408,6 +422,8 @@ main() {
             echo ""
             run_scripts_smoke_tests || failed=1
             echo ""
+            run_docs_checks || failed=1
+            echo ""
             run_backend_unit_tests || failed=1
             echo ""
             run_frontend_unit_tests || failed=1
@@ -426,13 +442,17 @@ main() {
             echo ""
             run_e2e_tests || failed=1
             ;;
+        docs-check)
+            run_docs_checks || failed=1
+            ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|ci|backend|e2e|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|ci|backend|e2e|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
             echo "  unit         - 运行前端单元测试"
             echo "  etl-checks   - 运行 ETL 输入校验单元测试 (pytest etl/tests)"
+            echo "  docs-check   - 检查文档命令漂移（启动命令示例）"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
             echo "  backend-checks - 运行后端导入与语法检查（对齐 CI）"
             echo "  backend-lint - 运行后端 Lint (ruff check)"

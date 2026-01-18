@@ -99,6 +99,10 @@ jobs:
           find app -name "*.py" -exec python -m py_compile {} \;
           echo "All Python files have valid syntax"
 
+      - name: Docs drift check (startup commands)
+        run: |
+          python3 scripts/check_docs_commands.py
+
       - name: Run ETL input checks (unit tests)
         run: |
           python -m pytest -q etl/tests
