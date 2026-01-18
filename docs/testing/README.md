@@ -71,6 +71,13 @@ bash scripts/baselines/generate_api_snapshot_baseline_local.sh
 bash scripts/baselines/generate_api_snapshot_baseline.sh
 ```
 
+Verify it (recommended):
+
+```bash
+# One command (local Postgres + local backend venv)
+python3 scripts/verify_baselines.py --mode local
+```
+
 If the backend is already running (ideally on a fixed dataset), generate a stable snapshot manually:
 
 ```bash

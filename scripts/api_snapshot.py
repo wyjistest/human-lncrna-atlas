@@ -12,17 +12,22 @@ API Snapshot（最小基线快照）
   # 生成更稳定的 baseline（去除波动元信息，并省略完整 JSON body）
   python3 scripts/api_snapshot.py --base-url http://localhost:8000 --deterministic --no-json --pretty \
     --output /tmp/api-snapshot.baseline.json
+
+  # 校验当前后端输出是否与 baseline 一致（与 baseline 对比时会隐式启用 --deterministic --no-json）
+  python3 scripts/api_snapshot.py --base-url http://localhost:8000 --check-baseline docs/baselines/api-snapshot.sample.json
 """
 
 from __future__ import annotations
 
 import argparse
+import difflib
 import hashlib
 import json
 import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -42,6 +47,10 @@ def _git_sha() -> Optional[str]:
 
 def _stable_json_bytes(obj: Any) -> bytes:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def _stable_json_text(obj: Any) -> str:
+    return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
 def _sha256_hex(data: bytes) -> str:
@@ -170,6 +179,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not include full JSON bodies (keep status_code/sha256/error only)",
     )
+    parser.add_argument(
+        "--check-baseline",
+        default="",
+        help="Compare snapshot against a baseline JSON file and exit non-zero on diff",
+    )
     return parser.parse_args()
 
 
@@ -177,13 +191,16 @@ def main() -> int:
     args = parse_args()
     snap = _snapshot(args.base_url, timeout_seconds=float(args.timeout))
 
-    if args.deterministic:
+    deterministic = bool(args.deterministic) or bool(args.check_baseline)
+    no_json = bool(args.no_json) or bool(args.check_baseline)
+
+    if deterministic:
         # Normalize volatile metadata so outputs can be diffed and committed as baselines.
         snap["generated_at"] = "1970-01-01T00:00:00Z"
         snap["git_sha"] = None
         snap["base_url"] = ""
 
-    if args.no_json:
+    if no_json:
         for r in snap.get("endpoints", {}).values():
             if isinstance(r, dict):
                 r["json"] = None
@@ -206,6 +223,34 @@ def main() -> int:
     if failures:
         print(f"ERROR: snapshot failures: {', '.join(failures)}", file=sys.stderr)
         return 2
+
+    if args.check_baseline:
+        baseline_path = args.check_baseline
+        try:
+            baseline_obj = json.loads(Path(baseline_path).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            print(f"ERROR: baseline file not found: {baseline_path}", file=sys.stderr)
+            return 4
+        except Exception as e:
+            print(f"ERROR: failed to read baseline: {baseline_path}: {e}", file=sys.stderr)
+            return 4
+
+        if baseline_obj != snap:
+            expected = _stable_json_text(baseline_obj)
+            actual = _stable_json_text(snap)
+            diff = "".join(
+                difflib.unified_diff(
+                    expected.splitlines(True),
+                    actual.splitlines(True),
+                    fromfile=baseline_path,
+                    tofile="generated",
+                )
+            )
+            print("ERROR: baseline mismatch", file=sys.stderr)
+            if diff:
+                sys.stderr.write(diff)
+            return 3
+
     return 0
 
 
