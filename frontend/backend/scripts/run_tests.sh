@@ -33,9 +33,17 @@ echo "🧪 Human LncRNA Atlas - 回归测试"
 echo "=================================="
 echo ""
 
+# 可选：为受保护端点（例如 /metrics）提供 Admin API Key
+# - 生产环境通常启用 ADMIN_REQUIRE_API_KEY=true，此时需要提供 X-Admin-API-Key 才能访问 /metrics
+# - 本脚本默认从环境变量 ADMIN_API_KEY 读取（与后端配置一致）
+ADMIN_HEADER_ARGS=()
+if [ -n "${ADMIN_API_KEY:-}" ]; then
+    ADMIN_HEADER_ARGS=(-H "X-Admin-API-Key: ${ADMIN_API_KEY}")
+fi
+
 # 检查服务是否运行
 echo "📡 检查服务状态..."
-if ! curl -s http://localhost:8000/health > /dev/null; then
+if ! curl -fsS http://localhost:8000/health > /dev/null; then
     echo "❌ 服务未运行！请先启动服务："
     echo "   uvicorn main:app --host 0.0.0.0 --port 8000"
     exit 1
@@ -64,7 +72,7 @@ echo ""
 echo "🎯 验证关键端点..."
 
 # 健康检查
-HEALTH=$(curl -s http://localhost:8000/health | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['status'])")
+HEALTH=$(curl -fsS http://localhost:8000/health | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['status'])")
 if [ "$HEALTH" = "healthy" ]; then
     echo "✅ /health - OK"
 else
@@ -73,16 +81,16 @@ else
 fi
 
 # 监控指标
-METRICS=$(curl -s http://localhost:8000/metrics | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total_requests'])")
-if [ -n "$METRICS" ]; then
-    echo "✅ /metrics - OK (${METRICS} requests)"
+METRICS_LINES=$(curl -fsS "${ADMIN_HEADER_ARGS[@]}" http://localhost:8000/metrics | wc -l | tr -d '[:space:]')
+if [ "${METRICS_LINES:-0}" -gt 0 ]; then
+    echo "✅ /metrics - OK (${METRICS_LINES} lines, Prometheus text format)"
 else
-    echo "❌ /metrics - FAILED"
+    echo "❌ /metrics - FAILED (empty response)"
     exit 1
 fi
 
 # 基因列表
-GENES=$(curl -s "http://localhost:8000/api/v1/genes?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
+GENES=$(curl -fsS "http://localhost:8000/api/v1/genes?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
 if [ "$GENES" = "17248" ]; then
     echo "✅ /api/v1/genes - OK (total: ${GENES})"
 else
@@ -91,7 +99,7 @@ else
 fi
 
 # 调控关系
-REGS=$(curl -s "http://localhost:8000/api/v1/regulations?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
+REGS=$(curl -fsS "http://localhost:8000/api/v1/regulations?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
 if [ "$REGS" = "804630" ]; then
     echo "✅ /api/v1/regulations - OK (total: ${REGS})"
 else
