@@ -89,10 +89,13 @@ python3 main.py
 > ⚠️ SECURITY：生产环境强烈建议启用 `ADMIN_REQUIRE_API_KEY=true`，并通过 `X-Admin-API-Key` 访问。
 
 - `GET /api/v1/admin/health` - 系统健康与资源指标（依赖 `psutil`）
+- `GET /api/v1/admin/metrics` - 系统监控指标汇总（QPS/错误率/响应时间分布等）
 - `GET /api/v1/admin/cache/stats` - 缓存统计（命中率 + namespaces/keys top + compute 耗时）
 - `POST /api/v1/admin/cache/invalidate/{namespace}` - 使指定缓存命名空间失效（白名单）
 - `GET /api/v1/admin/materialized-views/status` - 查询物化视图状态与刷新锁状态
 - `POST /api/v1/admin/materialized-views/refresh` - 刷新物化视图（支持 CONCURRENTLY / 超时配置）
+
+> 提示：Prometheus 指标端点为 `GET /metrics`（默认也受 `X-Admin-API-Key` 保护，详见 `app/middleware/security/metrics_auth.py`）。
 
 ## 数据库连接
 
