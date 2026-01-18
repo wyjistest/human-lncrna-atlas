@@ -254,6 +254,11 @@ GENOMES_DIR="/path/to/genomes" ./scripts/genomes/download_hg19_igv_assets.sh
 # Optional: download conservation BigWig (large files)
 ./scripts/genomes/download_hg19_igv_assets.sh --with-conservation "/path/to/genomes"
 
+# Other UCSC assemblies (examples)
+./scripts/genomes/download_hg19_igv_assets.sh --assembly panTro5 "/path/to/genomes"
+./scripts/genomes/download_hg19_igv_assets.sh --assembly rheMac10 "/path/to/genomes"
+./scripts/genomes/download_hg19_igv_assets.sh --assembly calJac3 "/path/to/genomes"
+
 # Optional: write a manifest (bytes + SHA256; large-file SHA256 is opt-in)
 ./scripts/genomes/download_hg19_igv_assets.sh --write-manifest "/path/to/genomes"
 ./scripts/genomes/download_hg19_igv_assets.sh --write-manifest --hash-large-files "/path/to/genomes"
@@ -262,12 +267,26 @@ GENOMES_DIR="/path/to/genomes" ./scripts/genomes/download_hg19_igv_assets.sh
 Optional SHA256 verification (fails fast if mismatch):
 
 ```bash
+# Prefix rule: <ASSEMBLY> uppercased, non-alnum removed (hg19 -> HG19, panTro5 -> PANTRO5)
 export HG19_2BIT_SHA256="<64-hex>"
 export HG19_CYTOBAND_SHA256="<64-hex>"
 export HG19_CHROMSIZES_SHA256="<64-hex>"
 export HG19_ALIAS_SHA256="<64-hex>"
 export HG19_PHASTCONS_SHA256="<64-hex>"
 export HG19_PHYLOP_SHA256="<64-hex>"
+```
+
+### ETL Input Manifest (Optional)
+
+Create a small, portable baseline for external input files (bytes/lines/SHA256), then verify before running ETL imports:
+
+```bash
+# Build a manifest (record lines/SHA256 only when you need strong verification)
+python3 -m etl.input_manifest build --output etl-inputs.manifest.tsv --lines --sha256 \
+  /path/to/input1.tsv /path/to/input2.tsv
+
+# Verify (fails fast on mismatch)
+python3 -m etl.input_manifest verify etl-inputs.manifest.tsv
 ```
 
 ## API Endpoints

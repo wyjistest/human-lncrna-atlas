@@ -99,6 +99,14 @@ jobs:
           find app -name "*.py" -exec python -m py_compile {} \;
           echo "All Python files have valid syntax"
 
+      - name: Run ETL input checks (unit tests)
+        run: |
+          python -m pytest -q etl/tests
+
+      - name: Run scripts smoke tests (offline genome assets)
+        run: |
+          bash scripts/genomes/tests/test_download_igv_assets.sh
+
   lint:
     name: Lint
     runs-on: ubuntu-latest

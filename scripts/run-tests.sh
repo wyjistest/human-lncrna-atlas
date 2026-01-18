@@ -253,6 +253,34 @@ run_backend_checks() {
     return 0
 }
 
+run_etl_checks() {
+    echo -e "${YELLOW}运行 ETL 输入校验单元测试 (pytest etl/tests)...${NC}"
+    local python_bin
+    python_bin="$(resolve_backend_python)"
+    ensure_backend_pytest "$python_bin" || return 1
+
+    cd "$PROJECT_ROOT"
+
+    if "$python_bin" -m pytest -q etl/tests; then
+        echo -e "${GREEN}ETL 单元测试通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}ETL 单元测试失败${NC}"
+        return 1
+    fi
+}
+
+run_scripts_smoke_tests() {
+    echo -e "${YELLOW}运行脚本冒烟测试（离线资源下载脚本）...${NC}"
+    if bash scripts/genomes/tests/test_download_igv_assets.sh; then
+        echo -e "${GREEN}脚本冒烟测试通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}脚本冒烟测试失败${NC}"
+        return 1
+    fi
+}
+
 # 运行前端单元测试
 run_frontend_unit_tests() {
     echo -e "${YELLOW}运行前端单元测试...${NC}"
@@ -341,6 +369,9 @@ main() {
         backend-checks)
             run_backend_checks || failed=1
             ;;
+        etl-checks)
+            run_etl_checks || failed=1
+            ;;
         backend)
             check_services || exit 1
             run_backend_tests || failed=1
@@ -373,6 +404,10 @@ main() {
             echo ""
             run_backend_checks || failed=1
             echo ""
+            run_etl_checks || failed=1
+            echo ""
+            run_scripts_smoke_tests || failed=1
+            echo ""
             run_backend_unit_tests || failed=1
             echo ""
             run_frontend_unit_tests || failed=1
@@ -397,6 +432,7 @@ main() {
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
             echo "  unit         - 运行前端单元测试"
+            echo "  etl-checks   - 运行 ETL 输入校验单元测试 (pytest etl/tests)"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
             echo "  backend-checks - 运行后端导入与语法检查（对齐 CI）"
             echo "  backend-lint - 运行后端 Lint (ruff check)"

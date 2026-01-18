@@ -21,28 +21,33 @@ set -euo pipefail
 WITH_CONSERVATION="false"
 WRITE_MANIFEST="false"
 HASH_LARGE_FILES="false"
+ASSEMBLY="hg19"
+ALIAS_URL=""
 
 usage() {
   cat <<'EOF'
 用法：
-  download_hg19_igv_assets.sh [--with-conservation] [--write-manifest] [--hash-large-files] [GENOMES_DIR]
+  download_hg19_igv_assets.sh [--assembly <assembly>] [--alias-url <url>] [--with-conservation] [--write-manifest] [--hash-large-files] [GENOMES_DIR]
 
 参数：
+  --assembly             UCSC genome assembly（默认: hg19；示例: panTro5, rheMac10, calJac3）
+  --alias-url            染色体别名表 URL（默认会尝试从 igvteam/igv-data 下载；失败则跳过）
   --with-conservation   同时下载 hg19 的 phastCons/phyloP BigWig（文件很大）
   --write-manifest      写入下载清单（文件大小 + 可选 SHA256）
   --hash-large-files    在写 manifest 时也计算大文件的 SHA256（很慢）
 
 环境变量（可选校验）：
-  HG19_2BIT_SHA256          校验 hg19.2bit 的 SHA256（64 hex）
-  HG19_CYTOBAND_SHA256      校验 cytoBand.hg19.txt.gz 的 SHA256（64 hex）
-  HG19_CHROMSIZES_SHA256    校验 hg19.chrom.sizes 的 SHA256（64 hex）
-  HG19_ALIAS_SHA256         校验 hg19_alias.tab 的 SHA256（64 hex）
-  HG19_PHASTCONS_SHA256     校验 hg19.100way.phastCons.bw 的 SHA256（64 hex）
-  HG19_PHYLOP_SHA256        校验 hg19.100way.phyloP100way.bw 的 SHA256（64 hex）
+  <ASSEMBLY>_2BIT_SHA256          校验 <assembly>.2bit 的 SHA256（64 hex；如 HG19_2BIT_SHA256 / PANTRO5_2BIT_SHA256）
+  <ASSEMBLY>_CYTOBAND_SHA256      校验 cytoBand.<assembly>.txt.gz 的 SHA256（64 hex）
+  <ASSEMBLY>_CHROMSIZES_SHA256    校验 <assembly>.chrom.sizes 的 SHA256（64 hex）
+  <ASSEMBLY>_ALIAS_SHA256         校验 <assembly>_alias.tab 的 SHA256（64 hex）
+  <ASSEMBLY>_PHASTCONS_SHA256     校验 <assembly>.100way.phastCons.bw 的 SHA256（64 hex）
+  <ASSEMBLY>_PHYLOP_SHA256        校验 <assembly>.100way.phyloP100way.bw 的 SHA256（64 hex）
 
 示例：
   GENOMES_DIR=<repo-root>/genomes ./scripts/genomes/download_hg19_igv_assets.sh
   ./scripts/genomes/download_hg19_igv_assets.sh <repo-root>/genomes
+  ./scripts/genomes/download_hg19_igv_assets.sh --assembly panTro5 <repo-root>/genomes
   ./scripts/genomes/download_hg19_igv_assets.sh --write-manifest <repo-root>/genomes
 EOF
 }
@@ -52,6 +57,24 @@ while [ $# -gt 0 ]; do
     --help|-h)
       usage
       exit 0
+      ;;
+    --assembly)
+      if [ -z "${2:-}" ]; then
+        echo "[hg19] ERROR: --assembly 需要参数"
+        usage
+        exit 1
+      fi
+      ASSEMBLY="${2:-}"
+      shift 2
+      ;;
+    --alias-url)
+      if [ -z "${2:-}" ]; then
+        echo "[hg19] ERROR: --alias-url 需要参数"
+        usage
+        exit 1
+      fi
+      ALIAS_URL="${2:-}"
+      shift 2
       ;;
     --with-conservation)
       WITH_CONSERVATION="true"
@@ -88,6 +111,19 @@ if [ -z "${TARGET_DIR:-}" ]; then
 fi
 
 mkdir -p "$TARGET_DIR"
+
+ASSEMBLY="$(printf '%s' "$ASSEMBLY" | tr -d '[:space:]')"
+if [ -z "${ASSEMBLY:-}" ]; then
+  echo "[hg19] ERROR: assembly 不能为空"
+  exit 1
+fi
+
+# 统一 env 变量前缀：<assembly> -> <ASSEMBLY>，去掉非字母数字字符
+ASSEMBLY_ENV_PREFIX="$(printf '%s' "$ASSEMBLY" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')"
+if [ -z "${ASSEMBLY_ENV_PREFIX:-}" ]; then
+  echo "[hg19] ERROR: assembly 非法: $ASSEMBLY"
+  exit 1
+fi
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -283,12 +319,42 @@ download() {
   ensure_min_size "$dest" "$min_bytes"
 }
 
+download_optional() {
+  local url="$1"
+  local dest="$2"
+  local min_bytes="${3:-0}"
+
+  if [ -f "$dest" ]; then
+    echo "[hg19] SKIP  已存在: $dest"
+    return 0
+  fi
+
+  local tmp="${dest}.part"
+  echo "[hg19] GET?  $url"
+  echo "[hg19] INTO  $dest"
+
+  local curl_args=(-L --fail --retry 3 --connect-timeout 15)
+  if curl --help 2>/dev/null | grep -q -- '--retry-all-errors'; then
+    curl_args+=(--retry-all-errors)
+  fi
+
+  if curl "${curl_args[@]}" -C - -o "$tmp" "$url"; then
+    mv "$tmp" "$dest"
+    ensure_min_size "$dest" "$min_bytes"
+    return 0
+  fi
+
+  rm -f "$tmp"
+  echo "[hg19] WARN  资源不可用，已跳过: $url" >&2
+  return 0
+}
+
 write_manifest_if_enabled() {
   if [ "$WRITE_MANIFEST" != "true" ]; then
     return 0
   fi
 
-  local out="$TARGET_DIR/hg19_igv_assets.manifest.tsv"
+  local out="$TARGET_DIR/${ASSEMBLY}_igv_assets.manifest.tsv"
   local now
   now="$(date -u +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || date)"
 
@@ -299,12 +365,12 @@ write_manifest_if_enabled() {
 
     local f path size sha
     for f in \
-      hg19.2bit \
-      cytoBand.hg19.txt.gz \
-      hg19.chrom.sizes \
-      hg19_alias.tab \
-      hg19.100way.phastCons.bw \
-      hg19.100way.phyloP100way.bw \
+      "${ASSEMBLY}.2bit" \
+      "cytoBand.${ASSEMBLY}.txt.gz" \
+      "${ASSEMBLY}.chrom.sizes" \
+      "${ASSEMBLY}_alias.tab" \
+      "${ASSEMBLY}.100way.phastCons.bw" \
+      "${ASSEMBLY}.100way.phyloP100way.bw" \
       ; do
       path="$TARGET_DIR/$f"
       if [ ! -f "$path" ]; then
@@ -313,7 +379,7 @@ write_manifest_if_enabled() {
       size="$(file_size_bytes "$path")"
       sha=""
 
-      if [ "$f" = "hg19.2bit" ] || [[ "$f" == *.bw ]]; then
+      if [ "$f" = "${ASSEMBLY}.2bit" ] || [[ "$f" == *.bw ]]; then
         if [ "$HASH_LARGE_FILES" = "true" ]; then
           sha="$(sha256_hex_file "$path" 2>/dev/null || true)"
         fi
@@ -331,35 +397,67 @@ write_manifest_if_enabled() {
 # ------------------------------------------------------------------------------
 # 核心离线资源
 # ------------------------------------------------------------------------------
-HG19_TWOBIT_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.2bit"
-HG19_CYTOBAND_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/database/cytoBand.txt.gz"
-HG19_CHROMSIZES_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/bigZips/hg19.chrom.sizes"
+TWOBIT_URL="https://hgdownload.soe.ucsc.edu/goldenPath/${ASSEMBLY}/bigZips/${ASSEMBLY}.2bit"
+CYTOBAND_URL="https://hgdownload.soe.ucsc.edu/goldenPath/${ASSEMBLY}/database/cytoBand.txt.gz"
+CHROMSIZES_URL="https://hgdownload.soe.ucsc.edu/goldenPath/${ASSEMBLY}/bigZips/${ASSEMBLY}.chrom.sizes"
 
-# 染色体别名表（IGV 官方数据仓库）
-HG19_ALIAS_URL="https://raw.githubusercontent.com/igvteam/igv-data/refs/heads/main/data/hg19/hg19_alias.tab"
+TWOBIT_FILE="$TARGET_DIR/${ASSEMBLY}.2bit"
+CYTOBAND_FILE="$TARGET_DIR/cytoBand.${ASSEMBLY}.txt.gz"
+CHROMSIZES_FILE="$TARGET_DIR/${ASSEMBLY}.chrom.sizes"
+ALIAS_FILE="$TARGET_DIR/${ASSEMBLY}_alias.tab"
 
-download "$HG19_TWOBIT_URL"      "$TARGET_DIR/hg19.2bit"
-download "$HG19_CYTOBAND_URL"    "$TARGET_DIR/cytoBand.hg19.txt.gz" 10000
-download "$HG19_CHROMSIZES_URL"  "$TARGET_DIR/hg19.chrom.sizes" 1000
-download "$HG19_ALIAS_URL"       "$TARGET_DIR/hg19_alias.tab" 100
-
-# hg19.2bit / bigWig files are large; use a conservative minimum size guard.
-if [ -f "$TARGET_DIR/hg19.2bit" ]; then
-  ensure_min_size "$TARGET_DIR/hg19.2bit" 100000000
+# 染色体别名表（IGV 官方数据仓库；部分 assembly 可能不存在，默认 best-effort）
+DEFAULT_ALIAS_URL="https://raw.githubusercontent.com/igvteam/igv-data/refs/heads/main/data/${ASSEMBLY}/${ASSEMBLY}_alias.tab"
+if [ -z "${ALIAS_URL:-}" ]; then
+  ALIAS_URL="$DEFAULT_ALIAS_URL"
 fi
 
-verify_sha256_if_set "$TARGET_DIR/hg19.2bit" "${HG19_2BIT_SHA256-}"
-verify_sha256_if_set "$TARGET_DIR/cytoBand.hg19.txt.gz" "${HG19_CYTOBAND_SHA256-}"
-verify_sha256_if_set "$TARGET_DIR/hg19.chrom.sizes" "${HG19_CHROMSIZES_SHA256-}"
-verify_sha256_if_set "$TARGET_DIR/hg19_alias.tab" "${HG19_ALIAS_SHA256-}"
+download "$TWOBIT_URL"      "$TWOBIT_FILE"
+download_optional "$CYTOBAND_URL"    "$CYTOBAND_FILE" 10000
+download "$CHROMSIZES_URL"  "$CHROMSIZES_FILE" 1000
+download_optional "$ALIAS_URL"       "$ALIAS_FILE" 100
 
-ensure_gzip_ok_if_possible "$TARGET_DIR/cytoBand.hg19.txt.gz"
-ensure_lines_between_gz "$TARGET_DIR/cytoBand.hg19.txt.gz" 100 100000
+twobit_min_bytes=1000000
+if [ "$ASSEMBLY" = "hg19" ]; then
+  twobit_min_bytes=100000000
+fi
 
-ensure_lines_between_plain "$TARGET_DIR/hg19.chrom.sizes" 20 10000
-verify_chrom_sizes_format "$TARGET_DIR/hg19.chrom.sizes"
+# <ASSEMBLY>_2BIT_MIN_BYTES 可覆盖默认阈值（例如 HG19_2BIT_MIN_BYTES=...）
+twobit_min_env_var="${ASSEMBLY_ENV_PREFIX}_2BIT_MIN_BYTES"
+twobit_min_env_value="${!twobit_min_env_var-}"
+if [ -n "${twobit_min_env_value:-}" ]; then
+  twobit_min_bytes="$twobit_min_env_value"
+fi
 
-ensure_lines_between_plain "$TARGET_DIR/hg19_alias.tab" 10 200000
+if [ -f "$TWOBIT_FILE" ]; then
+  ensure_min_size "$TWOBIT_FILE" "$twobit_min_bytes"
+fi
+
+expected_2bit_var="${ASSEMBLY_ENV_PREFIX}_2BIT_SHA256"
+expected_cytoband_var="${ASSEMBLY_ENV_PREFIX}_CYTOBAND_SHA256"
+expected_chromsizes_var="${ASSEMBLY_ENV_PREFIX}_CHROMSIZES_SHA256"
+expected_alias_var="${ASSEMBLY_ENV_PREFIX}_ALIAS_SHA256"
+
+verify_sha256_if_set "$TWOBIT_FILE" "${!expected_2bit_var-}"
+if [ -f "$CYTOBAND_FILE" ]; then
+  verify_sha256_if_set "$CYTOBAND_FILE" "${!expected_cytoband_var-}"
+fi
+verify_sha256_if_set "$CHROMSIZES_FILE" "${!expected_chromsizes_var-}"
+if [ -f "$ALIAS_FILE" ]; then
+  verify_sha256_if_set "$ALIAS_FILE" "${!expected_alias_var-}"
+fi
+
+if [ -f "$CYTOBAND_FILE" ]; then
+  ensure_gzip_ok_if_possible "$CYTOBAND_FILE"
+  ensure_lines_between_gz "$CYTOBAND_FILE" 100 100000
+fi
+
+ensure_lines_between_plain "$CHROMSIZES_FILE" 20 10000
+verify_chrom_sizes_format "$CHROMSIZES_FILE"
+
+if [ -f "$ALIAS_FILE" ]; then
+  ensure_lines_between_plain "$ALIAS_FILE" 10 200000
+fi
 
 echo "[hg19] OK    离线资源已就绪（/genomes 将暴露这些文件）"
 
@@ -367,14 +465,23 @@ echo "[hg19] OK    离线资源已就绪（/genomes 将暴露这些文件）"
 # 可选：multiz 保守性 BigWig（体积很大）
 # ------------------------------------------------------------------------------
 if [ "$WITH_CONSERVATION" = "true" ]; then
-  HG19_PHASTCONS_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/phastCons100way/hg19.100way.phastCons.bw"
-  HG19_PHYLOP_URL="https://hgdownload.soe.ucsc.edu/goldenPath/hg19/phyloP100way/hg19.100way.phyloP100way.bw"
+  PHASTCONS_URL="https://hgdownload.soe.ucsc.edu/goldenPath/${ASSEMBLY}/phastCons100way/${ASSEMBLY}.100way.phastCons.bw"
+  PHYLOP_URL="https://hgdownload.soe.ucsc.edu/goldenPath/${ASSEMBLY}/phyloP100way/${ASSEMBLY}.100way.phyloP100way.bw"
 
-  download "$HG19_PHASTCONS_URL" "$TARGET_DIR/hg19.100way.phastCons.bw" 100000000
-  download "$HG19_PHYLOP_URL"    "$TARGET_DIR/hg19.100way.phyloP100way.bw" 100000000
+  PHASTCONS_FILE="$TARGET_DIR/${ASSEMBLY}.100way.phastCons.bw"
+  PHYLOP_FILE="$TARGET_DIR/${ASSEMBLY}.100way.phyloP100way.bw"
 
-  verify_sha256_if_set "$TARGET_DIR/hg19.100way.phastCons.bw" "${HG19_PHASTCONS_SHA256-}"
-  verify_sha256_if_set "$TARGET_DIR/hg19.100way.phyloP100way.bw" "${HG19_PHYLOP_SHA256-}"
+  download_optional "$PHASTCONS_URL" "$PHASTCONS_FILE" 100000000
+  download_optional "$PHYLOP_URL"    "$PHYLOP_FILE" 100000000
+
+  expected_phastcons_var="${ASSEMBLY_ENV_PREFIX}_PHASTCONS_SHA256"
+  expected_phylop_var="${ASSEMBLY_ENV_PREFIX}_PHYLOP_SHA256"
+  if [ -f "$PHASTCONS_FILE" ]; then
+    verify_sha256_if_set "$PHASTCONS_FILE" "${!expected_phastcons_var-}"
+  fi
+  if [ -f "$PHYLOP_FILE" ]; then
+    verify_sha256_if_set "$PHYLOP_FILE" "${!expected_phylop_var-}"
+  fi
 
   echo "[hg19] OK    保守性 BigWig 已下载"
 fi
