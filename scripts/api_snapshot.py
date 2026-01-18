@@ -8,6 +8,10 @@ API Snapshot（最小基线快照）
 
 示例：
   python3 scripts/api_snapshot.py --base-url http://localhost:8000 --output /tmp/api-snapshot.json
+
+  # 生成更稳定的 baseline（去除波动元信息，并省略完整 JSON body）
+  python3 scripts/api_snapshot.py --base-url http://localhost:8000 --deterministic --no-json --pretty \
+    --output /tmp/api-snapshot.baseline.json
 """
 
 from __future__ import annotations
@@ -156,12 +160,33 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Pretty-print JSON (default: false)",
     )
+    parser.add_argument(
+        "--deterministic",
+        action="store_true",
+        help="Make output stable for baselining (strip varying metadata like timestamps/sha/base_url)",
+    )
+    parser.add_argument(
+        "--no-json",
+        action="store_true",
+        help="Do not include full JSON bodies (keep status_code/sha256/error only)",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     snap = _snapshot(args.base_url, timeout_seconds=float(args.timeout))
+
+    if args.deterministic:
+        # Normalize volatile metadata so outputs can be diffed and committed as baselines.
+        snap["generated_at"] = "1970-01-01T00:00:00Z"
+        snap["git_sha"] = None
+        snap["base_url"] = ""
+
+    if args.no_json:
+        for r in snap.get("endpoints", {}).values():
+            if isinstance(r, dict):
+                r["json"] = None
 
     data = json.dumps(snap, ensure_ascii=False, indent=2 if args.pretty else None, sort_keys=True)
     if args.output:
@@ -186,4 +211,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

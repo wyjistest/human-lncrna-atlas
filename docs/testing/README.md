@@ -59,10 +59,27 @@ cd frontend/web && npm run test:e2e -- phase-3-1-validation.spec.ts
 
 ## API Snapshot Baseline (Optional)
 
-When the backend is running (ideally on a fixed sample dataset), generate a deterministic JSON snapshot for regression baselining:
+This repo includes a small, commit-friendly API snapshot baseline at `docs/baselines/api-snapshot.sample.json`.
+
+Regenerate it (recommended):
 
 ```bash
-python3 scripts/api_snapshot.py --base-url http://localhost:8000 --output /tmp/api-snapshot.json --pretty
+# Local PostgreSQL + local backend venv (creates a temp DB, loads schema/v2.3 sample data, runs snapshot)
+bash scripts/baselines/generate_api_snapshot_baseline_local.sh
+
+# Or Docker Compose (if you have docker + docker compose available)
+bash scripts/baselines/generate_api_snapshot_baseline.sh
+```
+
+If the backend is already running (ideally on a fixed dataset), generate a stable snapshot manually:
+
+```bash
+python3 scripts/api_snapshot.py \
+  --base-url http://localhost:8000 \
+  --deterministic \
+  --no-json \
+  --pretty \
+  --output /tmp/api-snapshot.json
 ```
 
 ---

@@ -1,0 +1,44 @@
+{
+  "base_url": "",
+  "endpoints": {
+    "diseases_options": {
+      "error": null,
+      "json": null,
+      "sha256": "4d3652729761d8117a04b3cc748904addae885da75f21c960c4087486a42cb91",
+      "status_code": 200
+    },
+    "genes_page_1": {
+      "error": null,
+      "json": null,
+      "sha256": "f845a502cab47e3d1b4a6270400021909b46c876361b364adbb55ef58fb2296d",
+      "status_code": 200
+    },
+    "health": {
+      "error": null,
+      "json": null,
+      "sha256": "7fc14a8e8120d64b87de59df12a0be3c7ed2d449c996f50b48ea0b7b62c593ef",
+      "status_code": 200
+    },
+    "regulations_page_1": {
+      "error": null,
+      "json": null,
+      "sha256": "3e2817fbfbdad0e5939ccd1345272a144bfa57d52145e5b061f2b6c6ad345858",
+      "status_code": 200
+    },
+    "stats_overview": {
+      "error": null,
+      "json": null,
+      "sha256": "74cd7e75093357c3f277d8a8ebb5a42d7119739f0fde409cc5d09e5abdded6f9",
+      "status_code": 200
+    }
+  },
+  "generated_at": "1970-01-01T00:00:00Z",
+  "git_sha": null,
+  "summaries": {
+    "genes_items_len": 1,
+    "genes_total": 5,
+    "regulations_items_len": 1,
+    "regulations_total": 6,
+    "traits_len": 5
+  }
+}
