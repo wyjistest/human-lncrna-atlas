@@ -802,6 +802,28 @@ async def get_cache_stats(request: Request) -> dict:
 
 
 @router.post(
+    "/cache/reset-stats",
+    summary="重置缓存统计计数器",
+    description="仅重置 cache 命中/未命中与 namespace/key 统计，不会清空缓存内容。",
+)
+@rate_limit("5/minute")
+async def reset_cache_stats(request: Request) -> dict:
+    """
+    重置缓存统计计数器（不影响缓存内容）
+
+    Returns:
+        重置后的缓存统计快照（hits/misses 归零）
+    """
+    cache.reset_stats()
+    logger.info("Cache stats reset by admin")
+    return {
+        "status": "success",
+        "message": "Cache stats reset",
+        "stats": cache.get_stats(),
+    }
+
+
+@router.post(
     "/cache/clear",
     summary="清空全部缓存",
     description="清空所有 lncrna: 前缀的缓存。操作不可撤销。",

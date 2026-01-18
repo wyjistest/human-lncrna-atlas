@@ -91,6 +91,8 @@ python3 main.py
 - `GET /api/v1/admin/health` - 系统健康与资源指标（依赖 `psutil`）
 - `GET /api/v1/admin/metrics` - 系统监控指标汇总（QPS/错误率/响应时间分布等）
 - `GET /api/v1/admin/cache/stats` - 缓存统计（命中率 + namespaces/keys top + compute 耗时）
+- `POST /api/v1/admin/cache/reset-stats` - 重置缓存统计计数器（不清缓存）
+- `POST /api/v1/admin/cache/clear` - 清空全部缓存（危险操作，谨慎使用）
 - `POST /api/v1/admin/cache/invalidate/{namespace}` - 使指定缓存命名空间失效（白名单）
 - `GET /api/v1/admin/materialized-views/status` - 查询物化视图状态与刷新锁状态
 - `POST /api/v1/admin/materialized-views/refresh` - 刷新物化视图（支持 CONCURRENTLY / 超时配置）
