@@ -49,10 +49,48 @@ export interface ConservedRegulation {
  * API: GET /api/v1/stats/cache-status
  */
 export interface CacheStats {
-  connected: boolean
-  memory_used_mb?: number
-  total_keys?: number
-  hit_rate?: number
+  backend: 'redis' | 'memory'
+  enabled: boolean
+  hits: number
+  misses: number
+  total_requests: number
+  hit_rate: string
+  hit_rate_pct: number
+  namespaces: {
+    tracked: number
+    top: Array<{
+      namespace: string
+      requests: number
+      hits: number
+      misses: number
+      hit_rate_pct: number
+      compute_count: number
+      compute_avg_ms: number
+      compute_max_ms: number
+    }>
+    limit: number
+  }
+  keys?: {
+    tracked: number
+    top: Array<{
+      key: string
+      namespace?: string | null
+      requests: number
+      hits: number
+      misses: number
+      hit_rate_pct: number
+    }>
+    limit: number
+  }
+  redis?: {
+    host: string
+    connected: boolean
+  }
+  memory?: {
+    size: number
+    max_size: number
+    evictions: number
+  }
 }
 
 /**

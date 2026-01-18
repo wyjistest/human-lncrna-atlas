@@ -58,4 +58,14 @@ def test_cache_stats_includes_namespace_breakdown(monkeypatch):
     assert "stats:overview" in top
     assert top["stats:overview"]["compute_count"] >= 1
     assert top["stats:overview"]["compute_avg_ms"] >= 0
+    # Max compute time should be present once we record timing stats.
+    assert top["stats:overview"]["compute_max_ms"] >= 0
 
+    keys = stats.get("keys")
+    assert isinstance(keys, dict)
+    assert isinstance(keys.get("top"), list)
+    top_keys = {item["key"]: item for item in keys["top"]}
+    assert key in top_keys
+    assert top_keys[key]["requests"] >= 2
+    assert top_keys[key]["hits"] >= 1
+    assert top_keys[key]["misses"] >= 1

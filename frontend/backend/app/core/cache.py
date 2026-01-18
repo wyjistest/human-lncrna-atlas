@@ -46,6 +46,7 @@ T = TypeVar('T')
 
 # Namespace strings are used as stats keys; keep them bounded and predictable.
 _NAMESPACE_STATS_PATTERN = re.compile(r"^[a-z0-9:_-]{1,64}$")
+_KEY_STATS_PATTERN = re.compile(r"^[a-z0-9:_-]{1,200}$")
 
 # ============== Prometheus Metrics (optional) ==============
 
@@ -390,6 +391,8 @@ class CacheService:
     # 可观测性：缓存命名空间统计（仅用于监控/诊断，不参与业务逻辑）
     _MAX_TRACKED_NAMESPACES = 200
     _TOP_NAMESPACES_LIMIT = 10
+    _MAX_TRACKED_KEYS = 500
+    _TOP_KEYS_LIMIT = 10
 
     def __init__(self):
         self._redis = RedisCache()
@@ -401,6 +404,9 @@ class CacheService:
         # Namespace-level stats (best-effort). Keys are logical namespaces (no hash suffix).
         # Example: "genes:list", "stats:overview"
         self._namespace_stats: dict[str, dict[str, float]] = {}
+        # Key-level stats (best-effort). Keys are full cache keys (including hash suffix).
+        # Example: "lncrna:genes:options", "lncrna:stats:overview:abc123def4"
+        self._key_stats: dict[str, dict[str, float]] = {}
         # Prevent cache stampede (per-process) on hot keys.
         # Use WeakValueDictionary to avoid unbounded growth when keys are high-cardinality.
         self._singleflight_guard = threading.Lock()
@@ -415,6 +421,16 @@ class CacheService:
         if not _NAMESPACE_STATS_PATTERN.match(ns):
             return "unknown"
         return ns
+
+    def _normalize_key_for_stats(self, key: str) -> str:
+        k = (key or "").strip().lower()
+        if not k:
+            return "unknown"
+        if len(k) > 200:
+            k = k[:200]
+        if not _KEY_STATS_PATTERN.match(k):
+            return "unknown"
+        return k
 
     def _extract_namespace_from_key(self, key: str) -> Optional[str]:
         """
@@ -439,6 +455,29 @@ class CacheService:
 
         return raw or None
 
+    def _record_key_request_locked(self, key: str, *, hit: bool) -> None:
+        if not key or not isinstance(key, str):
+            return
+        if not key.startswith(self.PREFIX):
+            return
+        k = self._normalize_key_for_stats(key)
+
+        stats = self._key_stats.get(k)
+        if stats is None:
+            # Prevent unbounded growth: cache keys can be high-cardinality due to hashed params.
+            if len(self._key_stats) >= self._MAX_TRACKED_KEYS and k != "other":
+                k = "other"
+                stats = self._key_stats.get(k)
+            if stats is None:
+                stats = {"requests": 0.0, "hits": 0.0, "misses": 0.0}
+                self._key_stats[k] = stats
+
+        stats["requests"] += 1.0
+        if hit:
+            stats["hits"] += 1.0
+        else:
+            stats["misses"] += 1.0
+
     def _record_namespace_request_locked(self, namespace: Optional[str], *, hit: bool) -> None:
         if not namespace:
             return
@@ -457,6 +496,7 @@ class CacheService:
                     "misses": 0.0,
                     "compute_count": 0.0,
                     "compute_seconds_total": 0.0,
+                    "compute_seconds_max": 0.0,
                 }
                 self._namespace_stats[ns] = stats
 
@@ -480,11 +520,14 @@ class CacheService:
                     "misses": 0.0,
                     "compute_count": 0.0,
                     "compute_seconds_total": 0.0,
+                    "compute_seconds_max": 0.0,
                 }
                 self._namespace_stats[ns] = stats
 
+        sec = max(0.0, float(seconds))
         stats["compute_count"] += 1.0
-        stats["compute_seconds_total"] += max(0.0, float(seconds))
+        stats["compute_seconds_total"] += sec
+        stats["compute_seconds_max"] = max(stats.get("compute_seconds_max", 0.0), sec)
 
     def _get_singleflight_lock(self, key: str) -> threading.Lock:
         """
@@ -544,12 +587,14 @@ class CacheService:
             with self._stats_lock:
                 self._hits += 1
                 self._record_namespace_request_locked(namespace, hit=True)
+                self._record_key_request_locked(key, hit=True)
             if _CACHE_HITS_TOTAL is not None:
                 _CACHE_HITS_TOTAL.labels(backend=backend).inc()
         else:
             with self._stats_lock:
                 self._misses += 1
                 self._record_namespace_request_locked(namespace, hit=False)
+                self._record_key_request_locked(key, hit=False)
             if _CACHE_MISSES_TOTAL is not None:
                 _CACHE_MISSES_TOTAL.labels(backend=backend).inc()
 
@@ -678,6 +723,7 @@ class CacheService:
             hits = self._hits
             misses = self._misses
             namespace_stats = {k: dict(v) for k, v in self._namespace_stats.items()}
+            key_stats = {k: dict(v) for k, v in self._key_stats.items()}
         total = hits + misses
         hit_rate = (hits / max(total, 1)) * 100
         stats = {
@@ -703,6 +749,7 @@ class CacheService:
             ns_misses = int(s.get("misses", 0.0))
             compute_count = int(s.get("compute_count", 0.0))
             compute_seconds_total = float(s.get("compute_seconds_total", 0.0))
+            compute_seconds_max = float(s.get("compute_seconds_max", 0.0))
             avg_compute_ms = (
                 (compute_seconds_total / max(compute_count, 1)) * 1000.0 if compute_count > 0 else 0.0
             )
@@ -717,6 +764,7 @@ class CacheService:
                     "hit_rate_pct": round(ns_hit_rate, 2),
                     "compute_count": compute_count,
                     "compute_avg_ms": round(avg_compute_ms, 2),
+                    "compute_max_ms": round(compute_seconds_max * 1000.0, 2),
                 }
             )
 
@@ -724,6 +772,37 @@ class CacheService:
             "tracked": len(namespace_stats),
             "top": top,
             "limit": self._TOP_NAMESPACES_LIMIT,
+        }
+
+        # Key-level breakdown (top N by request count)
+        top_key_items = sorted(
+            key_stats.items(),
+            key=lambda kv: kv[1].get("requests", 0.0),
+            reverse=True,
+        )[: self._TOP_KEYS_LIMIT]
+        top_keys = []
+        for k, s in top_key_items:
+            requests = int(s.get("requests", 0.0))
+            hits = int(s.get("hits", 0.0))
+            misses = int(s.get("misses", 0.0))
+            total = hits + misses
+            hit_rate = (hits / max(total, 1)) * 100.0
+            ns = self._extract_namespace_from_key(k)
+            top_keys.append(
+                {
+                    "key": k,
+                    "namespace": ns,
+                    "requests": requests,
+                    "hits": hits,
+                    "misses": misses,
+                    "hit_rate_pct": round(hit_rate, 2),
+                }
+            )
+
+        stats["keys"] = {
+            "tracked": len(key_stats),
+            "top": top_keys,
+            "limit": self._TOP_KEYS_LIMIT,
         }
 
         # 添加后端特定统计
@@ -743,6 +822,7 @@ class CacheService:
             self._hits = 0
             self._misses = 0
             self._namespace_stats.clear()
+            self._key_stats.clear()
 
     # ============== 新增：缓存键生成辅助方法 ==============
 

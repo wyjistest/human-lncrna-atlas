@@ -339,22 +339,21 @@ export const statsApi = {
     apiClient.get<ConservedRegulation[]>('/api/v1/stats/conserved-regulations', { params, signal }),
 
   /**
-   * Get Redis cache status and metrics
+   * Get cache status and observability stats
    *
-   * Returns cache health information including connection status,
-   * memory usage, and hit rate metrics. Used for admin monitoring
+   * Returns cache health information (backend + connectivity) and lightweight
+   * observability stats (hit/miss, namespaces/keys top). Used for monitoring
    * and debugging cache-related issues.
    *
    * **Performance**:
    * - Response time: 10-30ms (direct Redis query)
-   * - Response size: ~200 bytes
+   * - Response size: ~1-5 KB (depends on tracked namespaces/keys)
    * - No caching (always live data)
    *
    * **Metrics Returned**:
-   * - connected: Boolean connection status
-   * - memory_used_mb: Redis memory consumption
-   * - total_keys: Number of cached keys
-   * - hit_rate: Cache hit percentage (if available)
+   * - backend/enabled/hits/misses/hit_rate_pct
+   * - namespaces: top namespaces + compute timing
+   * - keys: top cache keys (bounded, best-effort)
    *
    * @returns Cache status with connection and usage metrics
    *
