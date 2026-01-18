@@ -108,8 +108,16 @@ export default function MaterializedViews() {
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />
 
   const lockAvailable = data?.refresh_lock_available
+  const lockColor = lockAvailable === undefined ? 'default' : (lockAvailable ? 'success' : 'error')
+  const lockLabel = lockAvailable === undefined ? 'unknown' : (lockAvailable ? 'available' : 'busy')
+  const refreshDisabled = lockAvailable === false
 
   const handleRefresh = async () => {
+    if (lockAvailable === false) {
+      message.warning('MV refresh lock is busy')
+      return
+    }
+
     setIsRefreshing(true)
     try {
       const body = {
@@ -136,9 +144,7 @@ export default function MaterializedViews() {
         <Space>
           <div>
             <span style={{ marginRight: 8 }}>MV Refresh Lock</span>
-            <Tag color={lockAvailable ? 'success' : 'error'}>
-              {lockAvailable ? 'available' : 'busy'}
-            </Tag>
+            <Tag color={lockColor}>{lockLabel}</Tag>
           </div>
           <Button
             icon={<ReloadOutlined spin={isFetching} />}
@@ -154,7 +160,7 @@ export default function MaterializedViews() {
             okText="Refresh"
             cancelText="Cancel"
           >
-            <Button type="primary" loading={isRefreshing}>
+            <Button type="primary" loading={isRefreshing} disabled={isRefreshing || refreshDisabled}>
               Refresh Views
             </Button>
           </Popconfirm>
@@ -211,4 +217,3 @@ export default function MaterializedViews() {
     </div>
   )
 }
-

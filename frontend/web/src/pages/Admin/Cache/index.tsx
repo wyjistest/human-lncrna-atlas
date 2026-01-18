@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Col, Popconfirm, Row, Select, Space, Statistic, message } from 'antd'
 import { DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
 
@@ -8,7 +8,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { useAdminCacheStats } from '@/hooks/useAdminCacheStats'
 import { CacheKeysTable, CacheNamespacesTable } from '../Monitoring/components'
 
-const ALLOWED_CACHE_NAMESPACES = [
+const FALLBACK_CACHE_NAMESPACES = [
   'regulations',
   'genes',
   'stats',
@@ -21,21 +21,34 @@ const ALLOWED_CACHE_NAMESPACES = [
   'igv',
   'analysis',
   'visualization',
-] as const
-
-type CacheNamespace = (typeof ALLOWED_CACHE_NAMESPACES)[number]
+] as string[]
 
 export default function CacheManagement() {
   const { data, isLoading, error, refetch, isFetching } = useAdminCacheStats()
   const [isResetting, setIsResetting] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const [isInvalidating, setIsInvalidating] = useState(false)
-  const [selectedNamespace, setSelectedNamespace] = useState<CacheNamespace>('stats')
+  const [selectedNamespace, setSelectedNamespace] = useState<string>('stats')
+
+  const allowedNamespaces = useMemo(() => {
+    const fromApi = data?.allowed_namespaces
+    if (Array.isArray(fromApi) && fromApi.length) {
+      return [...fromApi].sort()
+    }
+    return [...FALLBACK_CACHE_NAMESPACES].sort()
+  }, [data?.allowed_namespaces])
 
   const namespaceOptions = useMemo(
-    () => ALLOWED_CACHE_NAMESPACES.map((ns) => ({ label: ns, value: ns })),
-    []
+    () => allowedNamespaces.map((ns) => ({ label: ns, value: ns })),
+    [allowedNamespaces]
   )
+
+  useEffect(() => {
+    if (!allowedNamespaces.length) return
+    if (!allowedNamespaces.includes(selectedNamespace)) {
+      setSelectedNamespace(allowedNamespaces[0])
+    }
+  }, [allowedNamespaces, selectedNamespace])
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />
@@ -43,8 +56,8 @@ export default function CacheManagement() {
   const handleResetStats = async () => {
     setIsResetting(true)
     try {
-      await adminApi.resetCacheStats()
-      message.success('Cache stats reset')
+      const resp = await adminApi.resetCacheStats()
+      message.success(resp.data.message || 'Cache stats reset')
       refetch()
     } catch {
       message.error('Failed to reset cache stats')
@@ -56,8 +69,10 @@ export default function CacheManagement() {
   const handleClearCache = async () => {
     setIsClearing(true)
     try {
-      await adminApi.clearCache()
-      message.success('Cache cleared')
+      const resp = await adminApi.clearCache()
+      const deleted = resp.data.deleted
+      const suffix = typeof deleted === 'number' ? ` (${deleted.toLocaleString()} deleted)` : ''
+      message.success((resp.data.message || 'Cache cleared') + suffix)
       refetch()
     } catch {
       message.error('Failed to clear cache')
@@ -69,8 +84,10 @@ export default function CacheManagement() {
   const handleInvalidateNamespace = async () => {
     setIsInvalidating(true)
     try {
-      await adminApi.invalidateCacheNamespace(selectedNamespace)
-      message.success(`Namespace invalidated: ${selectedNamespace}`)
+      const resp = await adminApi.invalidateCacheNamespace(selectedNamespace)
+      const deleted = resp.data.deleted
+      const suffix = typeof deleted === 'number' ? ` (${deleted.toLocaleString()} deleted)` : ''
+      message.success(`Namespace invalidated: ${selectedNamespace}${suffix}`)
       refetch()
     } catch {
       message.error('Failed to invalidate namespace cache')
@@ -144,7 +161,7 @@ export default function CacheManagement() {
                 style={{ minWidth: 220 }}
                 options={namespaceOptions}
                 value={selectedNamespace}
-                onChange={(value) => setSelectedNamespace(value as CacheNamespace)}
+                onChange={(value) => setSelectedNamespace(value)}
               />
               <Popconfirm
                 title="Invalidate namespace cache?"
@@ -198,4 +215,3 @@ export default function CacheManagement() {
     </div>
   )
 }
-

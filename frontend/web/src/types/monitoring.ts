@@ -205,6 +205,8 @@ export interface CacheBreakdown {
 export interface CacheStatsDetails extends CacheStatsSummary {
   /** Human-readable hit rate e.g., "70.0%" */
   hit_rate: string
+  /** Server-side allowlist of cache namespaces (for admin UI dropdowns) */
+  allowed_namespaces?: string[]
   /** Namespace-level breakdown */
   namespaces: CacheNamespacesBreakdown
   /** Key-level breakdown */

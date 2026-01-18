@@ -28,8 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GET /api/v1/admin/metrics`：轻量 in-memory 请求级指标（包含 `cache_stats` 摘要 + `cache_breakdown`（namespaces/keys top））
   - `POST /api/v1/admin/metrics/reset-stats`：重置 in-memory 监控统计（不影响 Prometheus `/metrics`）
   - `POST /api/v1/admin/cache/reset-stats`：重置缓存统计计数器（不清缓存）
+  - `GET /api/v1/admin/cache/stats`：新增返回 `allowed_namespaces`（前端下拉选项对齐后端白名单，避免漂移）
   - Admin/Monitoring 页面新增 Cache Namespaces / Hot Keys 表格，并支持重置缓存统计
   - 新增 Admin 运维页面：`/admin/cache`（缓存管理）与 `/admin/materialized-views`（物化视图状态/刷新）
+  - lncRNA-ChIP-seq overlap：表格行点击跳转 IGV 时新增 ROI 高亮（精确 overlap 区域）
   - 后端回归脚本改为 Prometheus 文本校验（避免把 `/metrics` 当 JSON）
 
 ### Fixed

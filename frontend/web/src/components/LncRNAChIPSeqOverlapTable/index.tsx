@@ -77,6 +77,7 @@ import { OverlapStatsCards } from './OverlapStatsCards'
 import { OverlapMarkDistChart } from './OverlapMarkDistChart'
 import { OverlapCellTypeChart } from './OverlapCellTypeChart'
 import { OverlapHeatmapMatrix } from './OverlapHeatmapMatrix'
+import { buildOverlapIgvNavigation } from './igvUtils'
 import { LoadingState } from '@/components/LoadingState'
 import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
 import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
@@ -838,21 +839,33 @@ export function LncRNAChIPSeqOverlapTable({
       return
     }
 
-    // Calculate locus with padding (50kb on each side)
-    const padding = 50000
-    const start = Math.max(0, record.overlap_start - padding)
-    const end = record.overlap_end + padding
-    const locus = `${record.chromosome}:${start}-${end}`
+    const { locus, roiConfigs } = buildOverlapIgvNavigation({
+      chromosome: record.chromosome,
+      overlap_start: record.overlap_start,
+      overlap_end: record.overlap_end,
+      overlap_id: record.overlap_id,
+    })
+
+    const lncrnaLabel = record.lncrna_name || `Gene ${record.lncrna_gene_id}`
 
     // Navigate IGV
     browserHandleRef.current.navigateToLocus(locus)
-      .then(() => {
+      .then(async () => {
         message.success(
           t('igv.navigateSuccess', {
-            lncrna: record.lncrna_name || `Gene ${record.lncrna_gene_id}`,
-            defaultValue: `Navigated to ${record.lncrna_name}`
+            lncrna: lncrnaLabel,
+            defaultValue: `Navigated to ${lncrnaLabel}`
           })
         )
+
+        const handle = browserHandleRef.current
+        if (!handle) return
+        try {
+          handle.clearROIs()
+          await handle.loadROI(roiConfigs)
+        } catch (error) {
+          console.warn('Failed to highlight ROI:', error)
+        }
       })
       .catch((error) => {
         console.error('IGV navigation failed:', error)

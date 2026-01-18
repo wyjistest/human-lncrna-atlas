@@ -30,6 +30,11 @@ type IGVBrowserWithUnsubscribe = IGVBrowser & {
   un?: (eventName: string, handlerFn: (...args: unknown[]) => void) => void
 }
 
+type IGVBrowserWithROIs = IGVBrowser & {
+  loadROI?: (roiConfigs: unknown) => Promise<void> | void
+  clearROIs?: () => void
+}
+
 let igvModule: IGVModule | null = null
 
 // 避免 IGV.js 初始化时访问 https://igv.org/genomes/genomes3.json（默认 2s 超时，E2E/离线环境易报错）。
@@ -70,6 +75,18 @@ const loadIGV = async (): Promise<IGVModule> => {
 }
 
 /** Handle type for accessing GenomeBrowser methods */
+export interface GenomeBrowserROIFeature {
+  chr: string
+  start: number
+  end: number
+  name?: string
+}
+
+export interface GenomeBrowserROIConfig {
+  color?: string
+  features: GenomeBrowserROIFeature[]
+}
+
 export interface GenomeBrowserHandle {
   /** Get SVG representation of current view */
   toSVG: () => string | undefined
@@ -77,6 +94,10 @@ export interface GenomeBrowserHandle {
   navigateToLocus: (locus: string) => Promise<void>
   /** Load a new track dynamically */
   loadTrack: (config: import('@/api/genome').IGVTrackConfig) => Promise<void>
+  /** Highlight regions of interest (ROI) */
+  loadROI: (roiConfigs: GenomeBrowserROIConfig[]) => Promise<void>
+  /** Clear all highlighted ROIs */
+  clearROIs: () => void
   /** Remove a track by name */
   removeTrack: (name: string) => void
   /** Get list of current track names */
@@ -446,6 +467,46 @@ const GenomeBrowser = memo(({
                   indexURL: toAbsoluteURL(trackConfig.indexURL),
                 }
                 await browserRef.current.loadTrack(processedConfig as IGVTrackConfig)
+              }
+            },
+            loadROI: async (roiConfigs) => {
+              const browser = browserRef.current as IGVBrowserWithROIs | null
+              if (!browser) {
+                console.warn('No browser instance available')
+                return
+              }
+              if (typeof browser.loadROI !== 'function') {
+                console.warn('IGV browser does not support ROI API (loadROI)')
+                return
+              }
+
+              try {
+                await browser.loadROI(roiConfigs as unknown)
+                // Force repaint for immediate highlight feedback
+                window.dispatchEvent(new Event('resize'))
+                if (typeof (browser as unknown as { updateViews?: () => void }).updateViews === 'function') {
+                  ;(browser as unknown as { updateViews: () => void }).updateViews()
+                }
+              } catch (err) {
+                console.error('Failed to load ROIs:', err)
+                throw err
+              }
+            },
+            clearROIs: () => {
+              const browser = browserRef.current as IGVBrowserWithROIs | null
+              if (!browser) return
+              if (typeof browser.clearROIs !== 'function') {
+                console.warn('IGV browser does not support ROI API (clearROIs)')
+                return
+              }
+              try {
+                browser.clearROIs()
+                window.dispatchEvent(new Event('resize'))
+                if (typeof (browser as unknown as { updateViews?: () => void }).updateViews === 'function') {
+                  ;(browser as unknown as { updateViews: () => void }).updateViews()
+                }
+              } catch (err) {
+                console.error('Failed to clear ROIs:', err)
               }
             },
             removeTrack: (nameOrId: string) => {

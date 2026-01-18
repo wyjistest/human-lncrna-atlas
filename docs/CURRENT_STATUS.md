@@ -51,6 +51,9 @@
    - Admin/Monitoring 页面：新增 Cache Namespaces / Hot Keys 表格与 “Reset Cache Stats” 按钮
    - Admin 运维页面：新增 `/admin/cache`（缓存管理）与 `/admin/materialized-views`（物化视图状态/刷新）
 
+3. **IGV 交互增强（ROI 高亮）**
+   - lncRNA-ChIP-seq overlap 表格行点击跳转 IGV 时，同时以 ROI 高亮精确 overlap 区间（P2 扩展功能）
+
 ### 2025-12-10 (Phase 3.5) ⭐ 动态 Overlap 轨道加载
 
 1. **动态轨道加载功能** ⭐ P1 功能完成
@@ -372,7 +375,7 @@ npm run dev
 - [x] ~~基因组浏览器集成重叠轨道~~ ✅ 已完成 (2025-12-10, Phase 3.4)
 - [x] ~~动态 Overlap 轨道加载~~ ✅ 已完成 (2025-12-10, Phase 3.5)
 - [ ] 跨物种重叠比较
-- [ ] ROI 高亮显示重叠区域（P2 扩展功能）
+- [x] ~~ROI 高亮显示重叠区域（P2 扩展功能）~~ ✅ 已完成 (2026-01-18)
 
 ### 优先级 3: 性能优化
 - [ ] chr1 等大染色体查询优化

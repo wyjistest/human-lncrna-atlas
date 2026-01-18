@@ -972,7 +972,13 @@ async def get_cache_stats(request: Request) -> dict:
     Returns:
         缓存统计数据，包括命中率、后端类型、请求计数等
     """
-    return cache.get_stats()
+    stats = cache.get_stats()
+    if isinstance(stats, dict):
+        # Provide allowlist for admin UI to avoid frontend/backend drift.
+        # SECURITY: This list is informational; the server still enforces allowlist checks.
+        stats = dict(stats)
+        stats["allowed_namespaces"] = sorted(ALLOWED_CACHE_NAMESPACES)
+    return stats
 
 
 @router.post(
