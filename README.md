@@ -167,6 +167,9 @@ These match the checks in `.github/workflows/test.yml`.
 ./scripts/run-tests.sh ci
 # Note: does NOT require PostgreSQL/Redis (unit tests + import/syntax checks only).
 
+# Docs-only (fast fail: check for drift in startup command examples)
+./scripts/run-tests.sh docs-check
+
 # Frontend
 cd frontend/web
 npm ci
