@@ -10,6 +10,8 @@
   "conservation": "保守性分析",
   "analysis": "分析结果",
   "genomeBrowser": "基因组浏览器",
+  "cache": "缓存管理",
+  "materializedViews": "物化视图",
   "monitoring": "系统监控",
   "siteTitle": "Human LncRNA Atlas"
 }

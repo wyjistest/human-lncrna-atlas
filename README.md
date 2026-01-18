@@ -246,6 +246,11 @@ export HLA_REFRESH_MATERIALIZED_VIEWS=true
 export HLA_MV_REFRESH_TIMEOUT_SECONDS=600
 ```
 
+Frontend Admin pages (require Admin access):
+- `/admin/monitoring` - JSON monitoring dashboard
+- `/admin/cache` - cache management (stats/reset/invalidate/clear)
+- `/admin/materialized-views` - MV status + refresh controls
+
 ### IGV Offline Genome Assets (Optional)
 
 If you want IGV.js to avoid external network dependencies (UCSC/GitHub) and run fully offline, place genome assets under `GENOMES_DIR` (served by backend as `/genomes`).

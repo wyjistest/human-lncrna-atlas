@@ -49,6 +49,7 @@
    - `POST /api/v1/admin/metrics/reset-stats`：一键清零 in-memory 指标（不影响 Prometheus `/metrics`）
    - `GET /api/v1/admin/cache/stats` + `POST /api/v1/admin/cache/reset-stats`：缓存命中率/回源耗时统计与重置
    - Admin/Monitoring 页面：新增 Cache Namespaces / Hot Keys 表格与 “Reset Cache Stats” 按钮
+   - Admin 运维页面：新增 `/admin/cache`（缓存管理）与 `/admin/materialized-views`（物化视图状态/刷新）
 
 ### 2025-12-10 (Phase 3.5) ⭐ 动态 Overlap 轨道加载
 

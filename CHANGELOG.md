@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `POST /api/v1/admin/metrics/reset-stats`：重置 in-memory 监控统计（不影响 Prometheus `/metrics`）
   - `POST /api/v1/admin/cache/reset-stats`：重置缓存统计计数器（不清缓存）
   - Admin/Monitoring 页面新增 Cache Namespaces / Hot Keys 表格，并支持重置缓存统计
+  - 新增 Admin 运维页面：`/admin/cache`（缓存管理）与 `/admin/materialized-views`（物化视图状态/刷新）
   - 后端回归脚本改为 Prometheus 文本校验（避免把 `/metrics` 当 JSON）
 
 ### Fixed

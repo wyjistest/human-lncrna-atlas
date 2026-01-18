@@ -10,6 +10,8 @@
   "conservation": "Conservation",
   "analysis": "Analysis Results",
   "genomeBrowser": "Genome Browser",
+  "cache": "Cache",
+  "materializedViews": "Materialized Views",
   "monitoring": "Monitoring",
   "siteTitle": "Human LncRNA Atlas"
 }

@@ -202,6 +202,26 @@ export interface CacheBreakdown {
   keys: CacheKeysBreakdown
 }
 
+export interface CacheStatsDetails extends CacheStatsSummary {
+  /** Human-readable hit rate e.g., "70.0%" */
+  hit_rate: string
+  /** Namespace-level breakdown */
+  namespaces: CacheNamespacesBreakdown
+  /** Key-level breakdown */
+  keys: CacheKeysBreakdown
+  /** Redis backend details (when connected) */
+  redis?: {
+    host: string
+    connected: boolean
+  }
+  /** In-memory backend details (when redis is unavailable) */
+  memory?: {
+    size: number
+    max_size: number
+    evictions: number
+  }
+}
+
 /**
  * Monitoring metrics returned by GET /api/v1/admin/metrics
  */

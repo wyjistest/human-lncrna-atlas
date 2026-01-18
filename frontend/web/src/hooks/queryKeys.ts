@@ -105,6 +105,8 @@ export const queryKeys = {
   admin: {
     all: ['admin'] as const,
     metrics: () => [...queryKeys.admin.all, 'metrics'] as const,
+    cacheStats: () => [...queryKeys.admin.all, 'cache-stats'] as const,
+    materializedViewsStatus: () => [...queryKeys.admin.all, 'materialized-views-status'] as const,
   },
 
   // Analysis

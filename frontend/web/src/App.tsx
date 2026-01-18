@@ -28,6 +28,8 @@ const Regulations = lazy(() => import('./pages/Regulations'))
 const Diseases = lazy(() => import('./pages/Diseases'))
 const Conservation = lazy(() => import('./pages/Conservation'))
 const Monitoring = lazy(() => import('./pages/Admin/Monitoring'))
+const CacheManagement = lazy(() => import('./pages/Admin/Cache'))
+const MaterializedViews = lazy(() => import('./pages/Admin/MaterializedViews'))
 const LncRNAChIPSeqOverlapPage = lazy(() => import('./pages/LncRNAChIPSeqOverlapPage'))
 const ChIPSeqComparePage = lazy(() => import('./pages/ChIPSeqComparePage'))
 
@@ -123,6 +125,16 @@ function App() {
             <Route path="admin/monitoring" element={
               <Suspense fallback={<LazyLoadFallback />}>
                 <Monitoring />
+              </Suspense>
+            } />
+            <Route path="admin/cache" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <CacheManagement />
+              </Suspense>
+            } />
+            <Route path="admin/materialized-views" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <MaterializedViews />
               </Suspense>
             } />
           </Route>
