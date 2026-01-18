@@ -10,6 +10,13 @@ This API provides endpoints for querying overlaps between lncRNA binding sites a
 
 Get paginated list of lncRNA-ChIP-seq overlaps with flexible filtering.
 
+#### Performance Notes
+
+- When the materialized view `mv_lncrna_chipseq_overlaps` is available and populated, the API uses it automatically (`using_materialized_view=true`).
+- When MV is **not** available (fallback join query):
+  - If no selective filters are provided (`lncrna_gene_id`, `target_gene_id`, `chromosome`, `mark_type`, `cell_type`, or `min_binding_affinity > 0`), the server applies a default `chromosome=chr22` (`default_filter_applied=true`) to prevent timeouts.
+  - For large chromosomes (`chr1`, `chr2`, `chr3`), a **chromosome-only** request is rejected with `400` (`error=QUERY_TOO_BROAD`) unless you add at least one additional narrowing filter (e.g. `mark_type`, `cell_type`, `lncrna_gene_id`, `target_gene_id`, `min_binding_affinity`, `min_peak_strength`, `min_overlap_length`).
+
 #### Query Parameters
 
 | Parameter | Type | Required | Default | Description |
@@ -59,7 +66,10 @@ Get paginated list of lncRNA-ChIP-seq overlaps with flexible filtering.
       "peak_fold_enrichment": "2.9803",
       "peak_qvalue": null
     }
-  ]
+  ],
+  "default_filter_applied": false,
+  "effective_chromosome": "chr1",
+  "using_materialized_view": true
 }
 ```
 
@@ -67,7 +77,7 @@ Get paginated list of lncRNA-ChIP-seq overlaps with flexible filtering.
 
 **Basic query:**
 ```bash
-curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?chromosome=chr1&page=1&page_size=10"
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?chromosome=chr22&page=1&page_size=10"
 ```
 
 **Filter by mark type and binding affinity:**
@@ -82,7 +92,7 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?mark_type=H3K27me3,H3K
 
 **Sort by overlap length:**
 ```bash
-curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?chromosome=chr1&sort_by=overlap_length&sort_order=desc&page=1&page_size=10"
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?chromosome=chr1&mark_type=H3K27me3&sort_by=overlap_length&sort_order=desc&page=1&page_size=10"
 ```
 
 ### 2. Get Statistics (GET `/api/v1/lncrna-chipseq-overlap/statistics`)
@@ -109,9 +119,14 @@ Get summary statistics for lncRNA-ChIP-seq overlaps.
   "unique_lncrnas": 1706,
   "unique_target_genes": 519,
   "unique_marks": 7,
+  "unique_cell_types": 0,
   "avg_overlap_length": 96.34,
   "avg_binding_affinity": 69.62,
-  "avg_peak_strength": 17.15
+  "avg_peak_strength": 17.15,
+  "by_mark_type": [],
+  "by_cell_type": [],
+  "default_filter_applied": true,
+  "effective_chromosome": "chr22"
 }
 ```
 
@@ -163,9 +178,8 @@ Overlap coordinates:
 
 ### Current Performance
 
-- Query time: ~15-50 seconds for complex queries (with multiple joins and filters)
-- Total overlaps: 219,213 for chr1 (human, species_id=1)
-- Database: PostgreSQL with partitioned chipseq_peaks table
+- **With MV (`mv_lncrna_chipseq_overlaps`)**: optimized for interactive queries, including large chromosomes.
+- **Without MV (fallback join query)**: can be slow for broad requests; the API applies safety defaults (chr22) and rejects chromosome-only queries for chr1/chr2/chr3 unless additional filters are provided.
 
 ### Optimization Opportunities
 
@@ -206,6 +220,22 @@ The API validates all input parameters and returns detailed error messages:
 }
 ```
 
+### Query Too Broad (fallback without MV)
+
+When MV is unavailable and the request is too broad (e.g. `chromosome=chr1` without additional filters),
+the API returns `400` with a structured error payload:
+
+```json
+{
+  "detail": {
+    "error": "QUERY_TOO_BROAD",
+    "message": "Query for chr1 is too broad without materialized view 'mv_lncrna_chipseq_overlaps'. Please add additional filters (...)",
+    "chromosome": "chr1",
+    "using_materialized_view": false
+  }
+}
+```
+
 ### Empty Results
 
 When no overlaps match the criteria:
@@ -242,7 +272,7 @@ curl http://localhost:8000/health
 open http://localhost:8000/docs
 
 # Test basic query
-curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?chromosome=chr1&page=1&page_size=5" | jq
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?chromosome=chr22&page=1&page_size=5" | jq
 ```
 
 ## Implementation Files

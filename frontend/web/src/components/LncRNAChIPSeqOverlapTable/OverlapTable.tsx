@@ -368,7 +368,7 @@ export function OverlapTable({
         showSizeChanger: true,
         showQuickJumper: true,
         showTotal: (total) => t('table.total', { total, defaultValue: `Total ${total} overlaps` }),
-        pageSizeOptions: ['10', '20', '50', '100'],
+        pageSizeOptions: ['10', '20', '50', '100', '500', '1000'],
         placement: ['bottomCenter'],
       }}
       onChange={handleTableChange}
@@ -376,7 +376,8 @@ export function OverlapTable({
         onClick: () => onRowClick?.(record),
         style: onRowClick ? { cursor: 'pointer' } : {}
       })}
-      scroll={{ x: 1200 }}
+      virtual
+      scroll={{ x: 1200, y: 520 }}
       size="small"
     />
   )

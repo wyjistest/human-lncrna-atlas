@@ -77,6 +77,10 @@ MAX_EXPORT_ROWS = 100000
 DEFAULT_EXPORT_CHROMOSOME = 'chr22'
 DEFAULT_QUERY_CHROMOSOME = 'chr22'
 
+# Large chromosomes that can time out when MV is unavailable and the query is too broad.
+# This guard is only applied in the NO-MV fallback path to prevent accidental full-scale joins.
+LARGE_CHROMOSOMES_NO_MV_GUARD = {"chr1", "chr2", "chr3"}
+
 # Materialized view name
 MV_LNCRNA_CHIPSEQ_OVERLAPS = 'mv_lncrna_chipseq_overlaps'
 
@@ -320,21 +324,6 @@ def get_lncrna_chipseq_overlaps_from_mv(
 
     data_stmt = data_stmt.order_by(sort_expr).limit(bindparam("page_size")).offset(bindparam("offset"))
 
-    # Cache COUNT(*) separately (hot path for pagination).
-    count_cache_key = cache.make_key(
-        "overlap:list_count",
-        source="mv",
-        lncrna_gene_id=filters.lncrna_gene_id,
-        target_gene_id=filters.target_gene_id,
-        chromosome=filters.chromosome,
-        mark_types=cache_mark_types,
-        cell_types=cache_cell_types,
-        min_binding_affinity=filters.min_binding_affinity,
-        min_peak_strength=filters.min_peak_strength,
-        max_qvalue=filters.max_qvalue,
-        min_overlap_length=filters.min_overlap_length,
-    )
-
     # Calculate offset (not part of count cache key)
     offset = compute_pagination_offset(filters.page, filters.page_size)
 
@@ -346,14 +335,29 @@ def get_lncrna_chipseq_overlaps_from_mv(
     )
 
     try:
-        # Get total count (cached)
-        cached_total = cache.get(count_cache_key)
-        if cached_total is not None:
-            total = int(cached_total)
-        else:
+        def compute_total() -> int:
             count_result = db.execute(count_stmt, params).fetchone()
-            total = int(count_result[0] if count_result else 0)
-            cache.set(count_cache_key, total, cache.TTL_COUNT)
+            return int(count_result[0] if count_result else 0)
+
+        # Cache COUNT(*) separately (hot path for pagination) with singleflight stampede protection.
+        total = int(
+            cache.get_or_compute(
+                "overlap:list_count",
+                compute_total,
+                ttl=cache.TTL_COUNT,
+                source="mv",
+                lncrna_gene_id=filters.lncrna_gene_id,
+                target_gene_id=filters.target_gene_id,
+                chromosome=filters.chromosome,
+                mark_types=cache_mark_types,
+                cell_types=cache_cell_types,
+                min_binding_affinity=filters.min_binding_affinity,
+                min_peak_strength=filters.min_peak_strength,
+                max_qvalue=filters.max_qvalue,
+                min_overlap_length=filters.min_overlap_length,
+            )
+            or 0
+        )
 
         # Get data
         results = db.execute(data_stmt, params).fetchall()
@@ -518,21 +522,6 @@ def get_lncrna_chipseq_overlaps_query(
         .offset(bindparam("offset"))
     )
 
-    # Cache COUNT(*) separately (hot path for pagination).
-    count_cache_key = cache.make_key(
-        "overlap:list_count",
-        source="join",
-        lncrna_gene_id=filters.lncrna_gene_id,
-        target_gene_id=filters.target_gene_id,
-        chromosome=filters.chromosome,
-        mark_types=cache_mark_types,
-        cell_types=cache_cell_types,
-        min_binding_affinity=filters.min_binding_affinity,
-        min_peak_strength=filters.min_peak_strength,
-        max_qvalue=filters.max_qvalue,
-        min_overlap_length=filters.min_overlap_length,
-    )
-
     # Calculate offset (not part of count cache key)
     offset = compute_pagination_offset(filters.page, filters.page_size)
 
@@ -544,14 +533,29 @@ def get_lncrna_chipseq_overlaps_query(
     )
 
     try:
-        # Get total count (cached)
-        cached_total = cache.get(count_cache_key)
-        if cached_total is not None:
-            total = int(cached_total)
-        else:
+        def compute_total() -> int:
             count_result = db.execute(count_stmt, params).fetchone()
-            total = int(count_result[0] if count_result else 0)
-            cache.set(count_cache_key, total, cache.TTL_COUNT)
+            return int(count_result[0] if count_result else 0)
+
+        # Cache COUNT(*) separately (hot path for pagination) with singleflight stampede protection.
+        total = int(
+            cache.get_or_compute(
+                "overlap:list_count",
+                compute_total,
+                ttl=cache.TTL_COUNT,
+                source="join",
+                lncrna_gene_id=filters.lncrna_gene_id,
+                target_gene_id=filters.target_gene_id,
+                chromosome=filters.chromosome,
+                mark_types=cache_mark_types,
+                cell_types=cache_cell_types,
+                min_binding_affinity=filters.min_binding_affinity,
+                min_peak_strength=filters.min_peak_strength,
+                max_qvalue=filters.max_qvalue,
+                min_overlap_length=filters.min_overlap_length,
+            )
+            or 0
+        )
 
         # Get data
         results = db.execute(data_stmt, params).fetchall()
@@ -634,9 +638,12 @@ def get_lncrna_chipseq_overlaps(
     chromosomes including chr1. No default chromosome filter is applied.
 
     **Without Materialized View (fallback):**
-    If no selective filters are provided (lncrna_gene_id, target_gene_id, chromosome, or
-    min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent timeout on
-    the full spatial join of 4.6M peaks x 800K regulations.
+    If no selective filters are provided (lncrna_gene_id, target_gene_id, chromosome, mark_type,
+    cell_type, or min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent
+    timeout on the full spatial join of 4.6M peaks x 800K regulations.
+
+    For large chromosomes (chr1/chr2/chr3) without MV, a chromosome-only query is rejected with
+    `400 QUERY_TOO_BROAD` unless you add at least one additional narrowing filter.
 
     The response includes:
     - `default_filter_applied`: True if default chromosome filter was applied
@@ -685,8 +692,8 @@ def get_lncrna_chipseq_overlaps(
             lncrna_gene_id,
             target_gene_id,
             chromosome,
-            mark_type,  # ADD THIS
-            cell_type,  # ADD THIS
+            mark_type,
+            cell_type,
             min_binding_affinity and min_binding_affinity > 0,
         ])
 
@@ -694,6 +701,34 @@ def get_lncrna_chipseq_overlaps(
             effective_chromosome = DEFAULT_QUERY_CHROMOSOME
             default_filter_applied = True
             logger.info(f"No selective filter provided and MV not available, applying default chromosome='{DEFAULT_QUERY_CHROMOSOME}'")
+        else:
+            # Guard: even with a chromosome filter, chr1/chr2/chr3 can still be too broad without MV.
+            # Require at least one additional narrowing filter, otherwise fail fast with a clear message.
+            has_narrowing_filter = any([
+                lncrna_gene_id,
+                target_gene_id,
+                mark_type,
+                cell_type,
+                min_overlap_length,
+                min_peak_strength and min_peak_strength > 0,
+                min_binding_affinity and min_binding_affinity > 0,
+            ])
+
+            if chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD and not has_narrowing_filter:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "error": "QUERY_TOO_BROAD",
+                        "message": (
+                            f"Query for {chromosome} is too broad without materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}'. "
+                            "Please add additional filters (mark_type/cell_type/lncrna_gene_id/target_gene_id/"
+                            "min_binding_affinity/min_peak_strength/min_overlap_length), or create/refresh the "
+                            "materialized view."
+                        ),
+                        "chromosome": chromosome,
+                        "using_materialized_view": False,
+                    },
+                )
 
     # Build filters object with effective chromosome
     filters = OverlapFilters(
@@ -781,7 +816,8 @@ def get_overlap_statistics(
 
     ## Performance Note
     For performance optimization, if no selective filters are provided (lncrna_gene_id, target_gene_id,
-    chromosome, or min_binding_affinity > 0), the query defaults to chromosome='chr22' to prevent timeout.
+    chromosome, mark_type, cell_type, or min_binding_affinity > 0), the query defaults to chromosome='chr22'
+    to prevent timeout.
     The response includes `default_filter_applied` and `effective_chromosome` fields to indicate this.
 
     **Caching:** Results are cached for 5 minutes.
@@ -796,8 +832,8 @@ def get_overlap_statistics(
         lncrna_gene_id,
         target_gene_id,
         chromosome,
-        mark_type,  # ADD THIS
-        cell_type,  # ADD THIS
+        mark_type,
+        cell_type,
         min_binding_affinity and min_binding_affinity > 0,
     ])
 
@@ -1381,8 +1417,8 @@ def generate_overlap_export(
         lncrna_gene_id,
         target_gene_id,
         chromosome,
-        mark_type,  # ADD THIS
-        cell_type,  # ADD THIS
+        mark_type,
+        cell_type,
         min_binding_affinity and min_binding_affinity > 0,
     ])
 
