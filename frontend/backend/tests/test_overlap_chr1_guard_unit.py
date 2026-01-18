@@ -1,5 +1,6 @@
 import pytest
 from fastapi import HTTPException
+from starlette.responses import StreamingResponse
 from starlette.requests import Request
 
 from app.schemas.lncrna_chipseq_overlap import OverlapSortField, OverlapSortOrder
@@ -102,3 +103,113 @@ def test_large_chr_query_with_mark_type_allowed_without_mv(monkeypatch, chromoso
     assert resp.using_materialized_view is False
     assert resp.default_filter_applied is False
     assert resp.effective_chromosome == chromosome
+
+
+@pytest.mark.parametrize("chromosome", ["chr1", "chr2", "chr3"])
+def test_large_chr_statistics_without_mv_requires_narrowing_filter(monkeypatch, chromosome):
+    import app.routers.lncrna_chipseq_overlap as mod
+
+    monkeypatch.setattr(mod, "check_materialized_view_exists", lambda db: False)
+
+    handler = _unwrap(mod.get_overlap_statistics)
+
+    with pytest.raises(HTTPException) as exc:
+        handler(
+            _make_request(path="/api/v1/lncrna-chipseq-overlap/statistics"),
+            lncrna_gene_id=None,
+            target_gene_id=None,
+            mark_type=None,
+            cell_type=None,
+            chromosome=chromosome,
+            min_binding_affinity=None,
+            max_qvalue=0.05,
+            db=object(),
+        )
+
+    assert exc.value.status_code == 400
+    assert isinstance(exc.value.detail, dict)
+    assert exc.value.detail.get("error") == "QUERY_TOO_BROAD"
+    assert exc.value.detail.get("chromosome") == chromosome
+
+
+@pytest.mark.parametrize("chromosome", ["chr1", "chr2", "chr3"])
+def test_large_chr_heatmap_without_mv_requires_narrowing_filter(monkeypatch, chromosome):
+    import app.routers.lncrna_chipseq_overlap as mod
+
+    monkeypatch.setattr(mod, "check_materialized_view_exists", lambda db: False)
+
+    handler = _unwrap(mod.get_overlap_heatmap)
+
+    with pytest.raises(HTTPException) as exc:
+        handler(
+            _make_request(path="/api/v1/lncrna-chipseq-overlap/heatmap"),
+            x_axis="mark_type",
+            y_axis="lncrna",
+            metric="count",
+            top_n=50,
+            chromosome=chromosome,
+            min_binding_affinity=None,
+            max_qvalue=0.05,
+            db=object(),
+        )
+
+    assert exc.value.status_code == 400
+    assert isinstance(exc.value.detail, dict)
+    assert exc.value.detail.get("error") == "QUERY_TOO_BROAD"
+    assert exc.value.detail.get("chromosome") == chromosome
+
+
+@pytest.mark.parametrize("chromosome", ["chr1", "chr2", "chr3"])
+def test_large_chr_export_without_mv_requires_narrowing_filter(monkeypatch, chromosome):
+    import app.routers.lncrna_chipseq_overlap as mod
+
+    monkeypatch.setattr(mod, "check_materialized_view_exists", lambda db: False)
+
+    handler = _unwrap(mod.export_lncrna_chipseq_overlaps)
+
+    with pytest.raises(HTTPException) as exc:
+        handler(
+            _make_request(path="/api/v1/lncrna-chipseq-overlap/export"),
+            format="bed",
+            lncrna_gene_id=None,
+            target_gene_id=None,
+            mark_type=None,
+            cell_type=None,
+            chromosome=chromosome,
+            min_overlap_length=None,
+            min_binding_affinity=None,
+            min_peak_strength=None,
+            max_qvalue=0.05,
+            max_rows=1000,
+            db=object(),
+        )
+
+    assert exc.value.status_code == 400
+    assert isinstance(exc.value.detail, dict)
+    assert exc.value.detail.get("error") == "QUERY_TOO_BROAD"
+    assert exc.value.detail.get("chromosome") == chromosome
+
+
+def test_large_chr_export_with_mark_type_allowed_without_mv(monkeypatch):
+    import app.routers.lncrna_chipseq_overlap as mod
+
+    monkeypatch.setattr(mod, "check_materialized_view_exists", lambda db: False)
+
+    handler = _unwrap(mod.export_lncrna_chipseq_overlaps)
+    resp = handler(
+        _make_request(path="/api/v1/lncrna-chipseq-overlap/export"),
+        format="bed",
+        lncrna_gene_id=None,
+        target_gene_id=None,
+        mark_type="H3K27me3",
+        cell_type=None,
+        chromosome="chr1",
+        min_overlap_length=None,
+        min_binding_affinity=None,
+        min_peak_strength=None,
+        max_qvalue=0.05,
+        max_rows=1000,
+        db=object(),
+    )
+
+    assert isinstance(resp, StreamingResponse)

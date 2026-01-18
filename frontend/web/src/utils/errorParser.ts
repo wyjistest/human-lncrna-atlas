@@ -20,6 +20,8 @@ export interface ParsedError {
   message: string
   /** 错误类型分类 */
   type: ErrorType
+  /** 后端错误码（如果后端返回了 detail.error） */
+  errorCode?: string
   /** 错误 ID（如果后端返回了） */
   errorId?: string
   /** HTTP 状态码 */
@@ -63,12 +65,14 @@ export function parseError(error: unknown): ParsedError {
       if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
         // 提取 error_id（如果存在）用于调试追踪
         const errorId = 'error_id' in detail ? String(detail.error_id) : undefined
+        const errorCode = 'error' in detail && typeof detail.error === 'string' ? detail.error : undefined
 
         // 优先使用 message 字段
         if ('message' in detail && typeof detail.message === 'string') {
           return {
             message: errorId ? `${detail.message} [${errorId}]` : detail.message,
             type: errorType,
+            errorCode,
             errorId,
             statusCode: status,
           }
@@ -78,6 +82,7 @@ export function parseError(error: unknown): ParsedError {
           return {
             message: errorId ? `${detail.error} [${errorId}]` : detail.error,
             type: errorType,
+            errorCode,
             errorId,
             statusCode: status,
           }
@@ -87,6 +92,7 @@ export function parseError(error: unknown): ParsedError {
           return {
             message: JSON.stringify(detail),
             type: errorType,
+            errorCode,
             errorId,
             statusCode: status,
           }

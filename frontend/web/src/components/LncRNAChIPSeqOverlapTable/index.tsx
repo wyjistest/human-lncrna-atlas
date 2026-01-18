@@ -88,6 +88,7 @@ import { getRepeatMaskerClassTracks, type RepeatMaskerClassTrack } from '@/api/f
 import { genomeApi, type IGVTrackConfig } from '@/api/genome'
 import { API_BASE_URL } from '@/config/api'
 import { openInNewTab } from '@/utils/safeWindow'
+import { parseError } from '@/utils/errorParser'
 import { getMarkColor, getMarksGroupedByCategory, MARK_CONFIGS } from '@/config/markConfigs'
 import type { MarkType } from '@/types/chipseq'
 
@@ -789,6 +790,8 @@ export function LncRNAChIPSeqOverlapTable({
     refetch: refetchData,
   } = useLncRNAChIPSeqOverlaps(filters)
 
+  const parsedDataError = useMemo(() => (dataError ? parseError(dataError) : null), [dataError])
+
   const {
     data: summaryData,
     isLoading: summaryLoading,
@@ -988,7 +991,7 @@ export function LncRNAChIPSeqOverlapTable({
 	          title={t('error.title', 'Loading Failed')}
 	          description={
 	            <Space orientation="vertical" size="small">
-	              <span>{dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
+	              <span>{parsedDataError?.message || dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
               <span style={{ fontSize: 12, color: '#999' }}>
                 {t('error.tryAdjustFilters', 'Try adjusting filters or retry the request')}
               </span>

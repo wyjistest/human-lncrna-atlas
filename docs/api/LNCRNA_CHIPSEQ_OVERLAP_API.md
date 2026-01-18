@@ -99,6 +99,13 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap?chromosome=chr1&mark_t
 
 Get summary statistics for lncRNA-ChIP-seq overlaps.
 
+#### Performance Notes
+
+- When the materialized view `mv_lncrna_chipseq_overlaps` is available and populated, the API uses it automatically (`using_materialized_view=true`).
+- When MV is **not** available (fallback join query):
+  - If no selective filters are provided (`lncrna_gene_id`, `target_gene_id`, `chromosome`, `mark_type`, `cell_type`, or `min_binding_affinity > 0`), the server applies a default `chromosome=chr22` (`default_filter_applied=true`) to prevent timeouts.
+  - For large chromosomes (`chr1`, `chr2`, `chr3`), a **chromosome-only** request is rejected with `400` (`error=QUERY_TOO_BROAD`) unless you add at least one additional narrowing filter (e.g. `mark_type`, `cell_type`, `lncrna_gene_id`, `target_gene_id`, `min_binding_affinity`).
+
 #### Query Parameters
 
 | Parameter | Type | Required | Default | Description |
@@ -137,15 +144,88 @@ Get summary statistics for lncRNA-ChIP-seq overlaps.
 curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics"
 ```
 
-**Statistics for chr1:**
+**Statistics for chr1 (requires additional filter when MV is unavailable):**
 ```bash
-curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?chromosome=chr1"
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?chromosome=chr1&mark_type=H3K27me3"
 ```
 
 **Statistics for specific mark type:**
 ```bash
 curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?mark_type=H3K27me3"
 ```
+
+### 3. Get Heatmap (GET `/api/v1/lncrna-chipseq-overlap/heatmap`)
+
+Get heatmap matrix data for lncRNA-ChIP-seq overlap visualization (ECharts/D3 friendly).
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `x_axis` | string | Yes | - | X-axis dimension: `mark_type` or `cell_type` |
+| `y_axis` | string | Yes | - | Y-axis dimension: `lncrna` or `target_gene` |
+| `metric` | string | No | `count` | Cell metric: `count`, `avg_binding_affinity`, `total_overlap_length` |
+| `top_n` | integer | No | 50 | Limit Y-axis items (1-100) |
+| `chromosome` | string | No | - | Filter by chromosome |
+| `min_binding_affinity` | float | No | - | Minimum binding affinity score (>= 0) |
+| `max_qvalue` | float | No | 0.05 | Maximum Q-value (FDR) for peaks (0-1) |
+
+#### Response Schema
+
+```json
+{
+  "x_labels": ["H3K27me3", "H3K4me3"],
+  "y_labels": ["RP11-243A14.1", "MALAT1"],
+  "data": [
+    { "x": "H3K27me3", "y": "RP11-243A14.1", "value": 12 }
+  ],
+  "metric": "count",
+  "total_combinations": 100,
+  "valid_combinations": 42,
+  "default_filter_applied": true,
+  "effective_chromosome": "chr22"
+}
+```
+
+#### Example Requests
+
+```bash
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/heatmap?x_axis=mark_type&y_axis=lncrna&metric=count&top_n=30"
+```
+
+#### Performance Notes
+
+- Cached for 10 minutes and rate-limited (30/minute).
+- Without MV, if neither `chromosome` nor `min_binding_affinity` is provided, the server defaults to `chromosome=chr22`.
+- Without MV, for `chromosome=chr1/chr2/chr3` you must set `min_binding_affinity > 0`, otherwise the API returns `400` (`error=QUERY_TOO_BROAD`).
+
+### 4. Export Overlaps (GET `/api/v1/lncrna-chipseq-overlap/export`)
+
+Export overlaps in `bed` (BED6) or `csv` format. Large exports are streamed to reduce memory usage.
+
+#### Query Parameters
+
+All filters from the main query endpoint are supported, plus:
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `format` | string | No | `bed` | Export format: `bed` or `csv` |
+| `max_rows` | integer | No | 100000 | Maximum rows to export (1-100000) |
+
+#### Example Requests
+
+```bash
+# Export chr22 overlaps as BED6
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=bed&chromosome=chr22" -o overlaps_chr22.bed
+
+# Export H3K27me3 overlaps as CSV
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=csv&mark_type=H3K27me3&chromosome=chr22" -o overlaps_H3K27me3.csv
+```
+
+#### Performance Notes
+
+- Rate-limited (5/minute). Without MV, if no selective filters are provided, the server defaults to `chromosome=chr22`.
+- Without MV, for `chromosome=chr1/chr2/chr3` you must add at least one additional narrowing filter (e.g. `mark_type`, `cell_type`, `lncrna_gene_id`, `target_gene_id`, `min_binding_affinity`, `min_peak_strength`, `min_overlap_length`), otherwise the API returns `400` (`error=QUERY_TOO_BROAD`).
 
 ## Database Schema
 
@@ -224,6 +304,12 @@ The API validates all input parameters and returns detailed error messages:
 
 When MV is unavailable and the request is too broad (e.g. `chromosome=chr1` without additional filters),
 the API returns `400` with a structured error payload:
+
+This can happen on:
+- `GET /api/v1/lncrna-chipseq-overlap`
+- `GET /api/v1/lncrna-chipseq-overlap/statistics`
+- `GET /api/v1/lncrna-chipseq-overlap/heatmap`
+- `GET /api/v1/lncrna-chipseq-overlap/export`
 
 ```json
 {

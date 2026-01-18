@@ -18,6 +18,7 @@
 
 import { useMemo, useState, useRef, useEffect } from 'react'
 import { escapeHtml } from '@/utils/escapeHtml'
+import { parseError } from '@/utils/errorParser'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsInstance } from 'echarts-for-react'
 import {
@@ -417,9 +418,10 @@ export function OverlapHeatmapMatrix({
 
   // Handle error state
   if (error) {
+    const parsed = parseError(error)
     return (
       <Empty
-        description={t('charts.heatmap.error', 'Failed to load heatmap data')}
+        description={parsed.message || t('charts.heatmap.error', 'Failed to load heatmap data')}
       />
     )
   }

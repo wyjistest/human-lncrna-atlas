@@ -117,6 +117,29 @@ def check_materialized_view_exists(db: Session) -> bool:
     """
     return mv_cache.is_available(db)
 
+
+def _raise_query_too_broad(chromosome: str, *, suggest_filters: list[str]) -> None:
+    """
+    Fail fast for overly broad queries in the NO-MV fallback path.
+
+    Motivation:
+    - Without MV, large chromosomes can trigger accidental full-scale joins and time out.
+    - Provide a consistent, actionable error for clients to guide narrowing filters or MV setup.
+    """
+    suggested = "/".join([f for f in suggest_filters if f])
+    raise HTTPException(
+        status_code=400,
+        detail={
+            "error": "QUERY_TOO_BROAD",
+            "message": (
+                f"Query for {chromosome} is too broad without materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}'. "
+                f"Please add additional filters ({suggested}), or create/refresh the materialized view."
+            ),
+            "chromosome": chromosome,
+            "using_materialized_view": False,
+        },
+    )
+
 # CSV export columns (in order)
 CSV_EXPORT_COLUMNS = [
     'overlap_id', 'chromosome', 'overlap_start', 'overlap_end', 'overlap_length',
@@ -715,19 +738,17 @@ def get_lncrna_chipseq_overlaps(
             ])
 
             if chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD and not has_narrowing_filter:
-                raise HTTPException(
-                    status_code=400,
-                    detail={
-                        "error": "QUERY_TOO_BROAD",
-                        "message": (
-                            f"Query for {chromosome} is too broad without materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}'. "
-                            "Please add additional filters (mark_type/cell_type/lncrna_gene_id/target_gene_id/"
-                            "min_binding_affinity/min_peak_strength/min_overlap_length), or create/refresh the "
-                            "materialized view."
-                        ),
-                        "chromosome": chromosome,
-                        "using_materialized_view": False,
-                    },
+                _raise_query_too_broad(
+                    chromosome,
+                    suggest_filters=[
+                        "mark_type",
+                        "cell_type",
+                        "lncrna_gene_id",
+                        "target_gene_id",
+                        "min_binding_affinity",
+                        "min_peak_strength",
+                        "min_overlap_length",
+                    ],
                 )
 
     # Build filters object with effective chromosome
@@ -824,6 +845,9 @@ def get_overlap_statistics(
     **Rate Limit:** 60 requests per minute per IP.
     """
 
+    # If MV is available, large chromosome queries are safe to serve.
+    use_materialized_view = check_materialized_view_exists(db)
+
     # Performance optimization: Check if any selective filter is provided
     # chr22 chosen as it's small enough for fast response (~9s) while having meaningful data (~87K overlaps)
     DEFAULT_CHROMOSOME = 'chr22'
@@ -843,6 +867,28 @@ def get_overlap_statistics(
 
     if default_filter_applied:
         logger.info(f"Statistics: No selective filter provided, applying default chromosome='{DEFAULT_CHROMOSOME}' for performance")
+
+    # Guard: even with a chromosome filter, chr1/chr2/chr3 can still be too broad without MV.
+    # Require at least one additional narrowing filter, otherwise fail fast with a clear message.
+    if not use_materialized_view and chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD:
+        has_narrowing_filter = any([
+            lncrna_gene_id,
+            target_gene_id,
+            mark_type,
+            cell_type,
+            min_binding_affinity and min_binding_affinity > 0,
+        ])
+        if not has_narrowing_filter:
+            _raise_query_too_broad(
+                chromosome,
+                suggest_filters=[
+                    "mark_type",
+                    "cell_type",
+                    "lncrna_gene_id",
+                    "target_gene_id",
+                    "min_binding_affinity",
+                ],
+            )
 
     # Phase 9.23: 使用统一的 parse_comma_list 验证，防止 DoS 攻击
     mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
@@ -1111,6 +1157,21 @@ def get_overlap_heatmap(
     the query defaults to chromosome='chr22' to prevent timeout on the full spatial join.
     The response includes `default_filter_applied` and `effective_chromosome` fields to indicate this.
     """
+
+    # If MV is available, large chromosome queries are safe to serve.
+    use_materialized_view = check_materialized_view_exists(db)
+
+    # Guard: even with a chromosome filter, chr1/chr2/chr3 can still be too broad without MV.
+    # Require at least one additional narrowing filter, otherwise fail fast with a clear message.
+    if not use_materialized_view and chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD:
+        has_narrowing_filter = bool(min_binding_affinity and min_binding_affinity > 0)
+        if not has_narrowing_filter:
+            _raise_query_too_broad(
+                chromosome,
+                suggest_filters=[
+                    "min_binding_affinity",
+                ],
+            )
 
     # Performance optimization: Check if any selective filter is provided
     # chr22 chosen as it's small enough for fast response (~9s) while having meaningful data (~87K overlaps)
@@ -1709,6 +1770,35 @@ def export_lncrna_chipseq_overlaps(
     # Validate format
     if format not in ['bed', 'csv']:
         raise HTTPException(status_code=400, detail="format must be 'bed' or 'csv'")
+
+    # If MV is available, large chromosome exports are safe to serve.
+    use_materialized_view = check_materialized_view_exists(db)
+
+    # Guard: even with a chromosome filter, chr1/chr2/chr3 can still be too broad without MV.
+    # Require at least one additional narrowing filter, otherwise fail fast with a clear message.
+    if not use_materialized_view and chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD:
+        has_narrowing_filter = any([
+            lncrna_gene_id,
+            target_gene_id,
+            mark_type,
+            cell_type,
+            min_overlap_length,
+            min_peak_strength and min_peak_strength > 0,
+            min_binding_affinity and min_binding_affinity > 0,
+        ])
+        if not has_narrowing_filter:
+            _raise_query_too_broad(
+                chromosome,
+                suggest_filters=[
+                    "mark_type",
+                    "cell_type",
+                    "lncrna_gene_id",
+                    "target_gene_id",
+                    "min_binding_affinity",
+                    "min_peak_strength",
+                    "min_overlap_length",
+                ],
+            )
 
     logger.info(
         f"Export requested: format={format}, chromosome={chromosome}, "
