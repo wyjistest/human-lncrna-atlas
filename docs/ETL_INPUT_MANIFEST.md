@@ -30,6 +30,22 @@ python3 -m etl.input_manifest verify etl-inputs.manifest.tsv
 - `bytes` / `lines` / `sha256` 字段为空时会跳过对应检查
 - manifest 中的相对路径会按 manifest 所在目录解析
 
+## 无需 manifest 的快速校验（阈值模式）
+
+当你不方便维护 manifest（例如文件会频繁更新，但仍希望避免“截断/损坏/明显异常”）时，可以使用 `etl.file_checks` 做可选校验（min-bytes / line-range / sha256）：
+
+```bash
+# 最小尺寸 / 行数范围（0 表示不校验）
+python3 -m etl.file_checks verify --min-bytes 1000000 --min-lines 1 --max-lines 0 /path/to/input.tsv
+
+# checksum（严格一致）
+python3 -m etl.file_checks verify --sha256 <expected_sha256_hex> /path/to/input.tsv
+```
+
+说明：
+- 输出为 JSON Lines（每行一个文件指纹：path/bytes/lines/sha256）
+- 失败时返回非 0，并将错误输出到 stderr
+
 ## 推荐用法（团队协作）
 
 - 不要把大文件提交到仓库；可以提交 manifest（小文件、可审查）
