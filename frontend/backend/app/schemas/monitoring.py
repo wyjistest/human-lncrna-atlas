@@ -61,6 +61,63 @@ class CacheStats(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CacheNamespaceBreakdownItem(BaseModel):
+    """缓存命名空间统计（Top N）"""
+
+    namespace: str = Field(description="缓存命名空间")
+    requests: int = Field(ge=0, description="请求数")
+    hits: int = Field(ge=0, description="命中数")
+    misses: int = Field(ge=0, description="未命中数")
+    hit_rate_pct: float = Field(ge=0, le=100, description="命中率(%)")
+    compute_count: int = Field(ge=0, description="回源计算次数")
+    compute_avg_ms: float = Field(ge=0, description="回源平均耗时(ms)")
+    compute_max_ms: float = Field(ge=0, description="回源最大耗时(ms)")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CacheKeyBreakdownItem(BaseModel):
+    """缓存热点 key 统计（Top N）"""
+
+    key: str = Field(description="缓存键（可能包含 hash；用于定位热点）")
+    namespace: Optional[str] = Field(default=None, description="best-effort 解析出的命名空间")
+    requests: int = Field(ge=0, description="请求数")
+    hits: int = Field(ge=0, description="命中数")
+    misses: int = Field(ge=0, description="未命中数")
+    hit_rate_pct: float = Field(ge=0, le=100, description="命中率(%)")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CacheNamespacesBreakdown(BaseModel):
+    """缓存命名空间分布"""
+
+    tracked: int = Field(ge=0, description="已跟踪命名空间数量")
+    limit: int = Field(ge=0, description="Top N 限制")
+    top: list[CacheNamespaceBreakdownItem] = Field(default_factory=list, description="Top 命名空间列表")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CacheKeysBreakdown(BaseModel):
+    """缓存 key 分布"""
+
+    tracked: int = Field(ge=0, description="已跟踪 key 数量")
+    limit: int = Field(ge=0, description="Top N 限制")
+    top: list[CacheKeyBreakdownItem] = Field(default_factory=list, description="Top key 列表")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CacheBreakdown(BaseModel):
+    """缓存统计分解（命名空间/热点 key）"""
+
+    namespaces: CacheNamespacesBreakdown = Field(description="命名空间维度统计")
+    keys: CacheKeysBreakdown = Field(description="热点 key 维度统计")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Phase 2 新增模型
 class ResponseTimeDistribution(BaseModel):
     """响应时间分布"""
@@ -172,6 +229,10 @@ class MetricsResponse(BaseModel):
     response_time: ResponseTimeMetrics = Field(description="响应时间指标")
     health: HealthMetrics = Field(description="健康状态指标")
     cache_stats: Optional[CacheStats] = Field(default=None, description="缓存统计摘要")
+    cache_breakdown: Optional[CacheBreakdown] = Field(
+        default=None,
+        description="缓存命名空间/热点 key 分布（不包含 Redis host 等敏感信息）",
+    )
 
     # Phase 2 - 新增指标
     response_time_distribution: ResponseTimeDistribution = Field(

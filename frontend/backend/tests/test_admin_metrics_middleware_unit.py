@@ -101,6 +101,36 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
             "misses": 3,
             "total_requests": 10,
             "hit_rate_pct": 70.0,
+            "namespaces": {
+                "tracked": 2,
+                "limit": 10,
+                "top": [
+                    {
+                        "namespace": "genes",
+                        "requests": 8,
+                        "hits": 6,
+                        "misses": 2,
+                        "hit_rate_pct": 75.0,
+                        "compute_count": 2,
+                        "compute_avg_ms": 10.0,
+                        "compute_max_ms": 20.0,
+                    }
+                ],
+            },
+            "keys": {
+                "tracked": 2,
+                "limit": 10,
+                "top": [
+                    {
+                        "key": "lncrna:genes:abcdef0123",
+                        "namespace": "genes",
+                        "requests": 8,
+                        "hits": 6,
+                        "misses": 2,
+                        "hit_rate_pct": 75.0,
+                    }
+                ],
+            },
         },
     )
     monkeypatch.setattr(
@@ -131,6 +161,9 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.cache_stats is not None
     assert metrics.cache_stats.backend == "memory"
     assert metrics.cache_stats.hit_rate_pct == 70.0
+    assert metrics.cache_breakdown is not None
+    assert metrics.cache_breakdown.namespaces.top[0].namespace == "genes"
+    assert metrics.cache_breakdown.keys.top[0].namespace == "genes"
 
 
 @pytest.mark.unit

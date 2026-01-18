@@ -7,6 +7,8 @@
 export { ResponseTimeChart } from './ResponseTimeChart'
 export { ErrorTrendChart } from './ErrorTrendChart'
 export { EndpointTable } from './EndpointTable'
+export { CacheNamespacesTable } from './CacheNamespacesTable'
+export { CacheKeysTable } from './CacheKeysTable'
 
 // Phase 3 components
 export { SystemGauge } from './SystemGauge'

@@ -43,6 +43,11 @@ from app.schemas.monitoring import (
     ResponseTimeMetrics,
     HealthMetrics,
     CacheStats,
+    CacheBreakdown,
+    CacheNamespacesBreakdown,
+    CacheNamespaceBreakdownItem,
+    CacheKeysBreakdown,
+    CacheKeyBreakdownItem,
     ResponseTimeDistribution,
     ErrorTrend,
     EndpointStats,
@@ -692,6 +697,7 @@ def calculate_percentiles(response_times: Sequence[float]) -> Optional[Percentil
     **说明**：
     - 此端点用于前端 Admin/Monitoring 页面（JSON）
     - 请求级指标为轻量 in-memory 聚合（不依赖 Prometheus 抓取）
+    - cache_stats/cache_breakdown 提供缓存命中率与热点分布（namespaces/keys top）
     - 生产环境建议同时接入 Prometheus `/metrics` 获取更完整指标与长期存储
     """,
 )
@@ -754,6 +760,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
 
     # 缓存统计摘要（命中率等）。注意：不返回 Redis host 等敏感/环境信息。
     cache_stats: Optional[CacheStats] = None
+    cache_breakdown: Optional[CacheBreakdown] = None
     try:
         stats = cache.get_stats()
         if isinstance(stats, dict):
@@ -767,6 +774,63 @@ async def get_metrics(request: Request) -> MetricsResponse:
                 total_requests=int(stats.get("total_requests", 0) or 0),
                 hit_rate_pct=hit_rate_pct,
             )
+
+            # 仅返回统计分解信息（namespaces/keys），不返回 Redis host 等敏感信息。
+            namespaces = stats.get("namespaces")
+            keys = stats.get("keys")
+            if isinstance(namespaces, dict) and isinstance(keys, dict):
+                ns_top_raw = namespaces.get("top")
+                keys_top_raw = keys.get("top")
+                if isinstance(ns_top_raw, list) and isinstance(keys_top_raw, list):
+                    ns_top: list[CacheNamespaceBreakdownItem] = []
+                    for item in ns_top_raw:
+                        if not isinstance(item, dict):
+                            continue
+                        ns_hit_rate_pct = float(item.get("hit_rate_pct", 0.0) or 0.0)
+                        ns_hit_rate_pct = max(0.0, min(100.0, ns_hit_rate_pct))
+                        ns_top.append(
+                            CacheNamespaceBreakdownItem(
+                                namespace=str(item.get("namespace") or ""),
+                                requests=int(item.get("requests", 0) or 0),
+                                hits=int(item.get("hits", 0) or 0),
+                                misses=int(item.get("misses", 0) or 0),
+                                hit_rate_pct=ns_hit_rate_pct,
+                                compute_count=int(item.get("compute_count", 0) or 0),
+                                compute_avg_ms=max(0.0, float(item.get("compute_avg_ms", 0.0) or 0.0)),
+                                compute_max_ms=max(0.0, float(item.get("compute_max_ms", 0.0) or 0.0)),
+                            )
+                        )
+
+                    key_top: list[CacheKeyBreakdownItem] = []
+                    for item in keys_top_raw:
+                        if not isinstance(item, dict):
+                            continue
+                        key_hit_rate_pct = float(item.get("hit_rate_pct", 0.0) or 0.0)
+                        key_hit_rate_pct = max(0.0, min(100.0, key_hit_rate_pct))
+                        ns = item.get("namespace")
+                        key_top.append(
+                            CacheKeyBreakdownItem(
+                                key=str(item.get("key") or ""),
+                                namespace=str(ns) if ns is not None else None,
+                                requests=int(item.get("requests", 0) or 0),
+                                hits=int(item.get("hits", 0) or 0),
+                                misses=int(item.get("misses", 0) or 0),
+                                hit_rate_pct=key_hit_rate_pct,
+                            )
+                        )
+
+                    cache_breakdown = CacheBreakdown(
+                        namespaces=CacheNamespacesBreakdown(
+                            tracked=int(namespaces.get("tracked", 0) or 0),
+                            limit=int(namespaces.get("limit", 0) or 0),
+                            top=ns_top,
+                        ),
+                        keys=CacheKeysBreakdown(
+                            tracked=int(keys.get("tracked", 0) or 0),
+                            limit=int(keys.get("limit", 0) or 0),
+                            top=key_top,
+                        ),
+                    )
     except Exception as e:  # pragma: no cover
         logger.debug("Failed to build cache stats summary: %s", sanitize_for_log(e, max_length=2000))
 
@@ -810,6 +874,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
             uptime_seconds=uptime_seconds,
         ),
         cache_stats=cache_stats,
+        cache_breakdown=cache_breakdown,
         # Phase 2 - 新增指标
         response_time_distribution=response_time_distribution,
         error_trend=error_trend,

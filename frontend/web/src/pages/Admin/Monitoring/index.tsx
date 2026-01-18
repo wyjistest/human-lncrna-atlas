@@ -9,6 +9,8 @@ import {
   ResponseTimeChart,
   ErrorTrendChart,
   EndpointTable,
+  CacheNamespacesTable,
+  CacheKeysTable,
   SystemGauge,
   AlertsBanner,
   PercentilesCard
@@ -51,6 +53,7 @@ const formatUptime = (seconds: number): string => {
 export default function Monitoring() {
   const { data, isLoading, error, refetch, isFetching } = useMonitoringMetrics()
   const [isResetting, setIsResetting] = useState(false)
+  const [isResettingCache, setIsResettingCache] = useState(false)
 
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />
@@ -70,6 +73,19 @@ export default function Monitoring() {
     }
   }
 
+  const handleResetCacheStats = async () => {
+    setIsResettingCache(true)
+    try {
+      await adminApi.resetCacheStats()
+      message.success('Cache stats reset')
+      refetch()
+    } catch {
+      message.error('Failed to reset cache stats')
+    } finally {
+      setIsResettingCache(false)
+    }
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <Space style={{ marginBottom: 24, width: '100%', justifyContent: 'space-between' }}>
@@ -84,6 +100,17 @@ export default function Monitoring() {
           >
             <Button danger icon={<DeleteOutlined />} loading={isResetting}>
               Reset Stats
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="Reset cache stats?"
+            description="This clears cache hit/miss counters and hot-key breakdown (does not clear cached values)."
+            onConfirm={handleResetCacheStats}
+            okText="Reset"
+            cancelText="Cancel"
+          >
+            <Button danger icon={<DeleteOutlined />} loading={isResettingCache}>
+              Reset Cache Stats
             </Button>
           </Popconfirm>
           <Button
@@ -243,6 +270,34 @@ export default function Monitoring() {
         <Col span={24}>
           <Card title="Endpoint Statistics">
             <EndpointTable data={data?.endpoints} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Cache Breakdown: Namespaces & Hot Keys */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Cache Namespaces"
+            extra={
+              data?.cache_breakdown?.namespaces
+                ? `tracked: ${data.cache_breakdown.namespaces.tracked}`
+                : undefined
+            }
+          >
+            <CacheNamespacesTable data={data?.cache_breakdown?.namespaces?.top} />
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Cache Hot Keys"
+            extra={
+              data?.cache_breakdown?.keys
+                ? `tracked: ${data.cache_breakdown.keys.tracked}`
+                : undefined
+            }
+          >
+            <CacheKeysTable data={data?.cache_breakdown?.keys?.top} />
           </Card>
         </Col>
       </Row>

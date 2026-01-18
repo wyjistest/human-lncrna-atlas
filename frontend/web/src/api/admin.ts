@@ -19,6 +19,13 @@ export const adminApi = {
    */
   resetMetrics: () =>
     apiClient.post<{ status: string; message?: string }>('/api/v1/admin/metrics/reset-stats'),
+
+  /**
+   * Reset cache stats counters (does not clear cached values)
+   * POST /api/v1/admin/cache/reset-stats
+   */
+  resetCacheStats: () =>
+    apiClient.post<{ status: string; message?: string }>('/api/v1/admin/cache/reset-stats'),
 }
 
 /**

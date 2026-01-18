@@ -143,6 +143,65 @@ export interface CacheStatsSummary {
   hit_rate_pct: number
 }
 
+export interface CacheNamespaceBreakdownItem {
+  /** Cache namespace name */
+  namespace: string
+  /** Total requests for this namespace */
+  requests: number
+  /** Cache hits */
+  hits: number
+  /** Cache misses */
+  misses: number
+  /** Cache hit rate percentage (0-100) */
+  hit_rate_pct: number
+  /** Number of backend compute operations */
+  compute_count: number
+  /** Average backend compute time in ms */
+  compute_avg_ms: number
+  /** Max backend compute time in ms */
+  compute_max_ms: number
+}
+
+export interface CacheKeyBreakdownItem {
+  /** Cache key (may include hash) */
+  key: string
+  /** Best-effort parsed namespace */
+  namespace?: string | null
+  /** Total requests for this key */
+  requests: number
+  /** Cache hits */
+  hits: number
+  /** Cache misses */
+  misses: number
+  /** Cache hit rate percentage (0-100) */
+  hit_rate_pct: number
+}
+
+export interface CacheNamespacesBreakdown {
+  /** Number of tracked namespaces */
+  tracked: number
+  /** Top N limit */
+  limit: number
+  /** Top namespaces */
+  top: CacheNamespaceBreakdownItem[]
+}
+
+export interface CacheKeysBreakdown {
+  /** Number of tracked keys */
+  tracked: number
+  /** Top N limit */
+  limit: number
+  /** Top keys */
+  top: CacheKeyBreakdownItem[]
+}
+
+export interface CacheBreakdown {
+  /** Breakdown by cache namespace */
+  namespaces: CacheNamespacesBreakdown
+  /** Breakdown by cache key */
+  keys: CacheKeysBreakdown
+}
+
 /**
  * Monitoring metrics returned by GET /api/v1/admin/metrics
  */
@@ -176,6 +235,8 @@ export interface MonitoringMetrics {
   }
   /** Cache stats summary (hit rate, requests) */
   cache_stats?: CacheStatsSummary
+  /** Cache breakdown (namespaces / hot keys) */
+  cache_breakdown?: CacheBreakdown
 
   // Phase 2 fields
   /** Response time distribution histogram data */
