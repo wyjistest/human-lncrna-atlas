@@ -427,7 +427,7 @@ main() {
             run_e2e_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|unit|backend-unit|backend-lint|backend|e2e|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|ci|backend|e2e|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
