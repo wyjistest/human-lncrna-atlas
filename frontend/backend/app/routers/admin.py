@@ -16,9 +16,10 @@ import secrets
 import time
 import logging
 import shutil
+import threading
 from datetime import datetime
-from typing import Literal, Optional
-from collections import defaultdict, deque
+from typing import Literal, Optional, Sequence
+from collections import defaultdict
 from urllib.parse import urlsplit
 
 try:
@@ -54,6 +55,7 @@ from app.schemas.monitoring import (
 )
 
 logger = logging.getLogger(__name__)
+_LOCK_TYPE = type(threading.Lock())
 
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -646,7 +648,7 @@ def generate_alerts(
     return alerts
 
 
-def calculate_percentiles(response_times: deque) -> Optional[PercentileMetrics]:
+def calculate_percentiles(response_times: Sequence[float]) -> Optional[PercentileMetrics]:
     """
     计算响应时间百分位
 
@@ -686,8 +688,10 @@ def calculate_percentiles(response_times: deque) -> Optional[PercentileMetrics]:
     - 系统资源（CPU、内存）
     - 告警信息
 
-    **注意**：详细请求指标（QPS、响应时间分布等）请使用 Prometheus `/metrics` 端点。
-    此端点主要提供健康检查和系统资源监控。
+    **说明**：
+    - 此端点用于前端 Admin/Monitoring 页面（JSON）
+    - 请求级指标为轻量 in-memory 聚合（不依赖 Prometheus 抓取）
+    - 生产环境建议同时接入 Prometheus `/metrics` 获取更完整指标与长期存储
     """,
 )
 @rate_limit("10/minute")
@@ -700,12 +704,29 @@ async def get_metrics(request: Request) -> MetricsResponse:
     - 系统资源监控（CPU、内存）
     - 运行时间和告警
 
-    注意：请求级别的详细指标（QPS、响应时间百分位等）
-    已迁移到 Prometheus /metrics 端点。此端点返回的
-    request/error 计数为 0（历史兼容）。
+    说明：
+    - 该端点用于前端 Admin/Monitoring 页面（JSON）
+    - 请求级指标通过 in-memory 方式采集（见 AdminMetricsMiddleware），适合快速排障与轻量监控
+    - Prometheus `/metrics` 仍是更完整的观测出口（建议生产环境接入）
     """
-    # 获取 metrics_data
-    metrics_data = getattr(request.app.state, "metrics_data", {})
+    # 获取 metrics_data（优先做快照，避免并发写入导致容器遍历异常）
+    metrics_data = getattr(request.app.state, "metrics_data", {}) or {}
+    lock = metrics_data.get("_lock")
+    if isinstance(lock, _LOCK_TYPE):
+        with lock:
+            metrics_data = {
+                "total_requests": int(metrics_data.get("total_requests", 0) or 0),
+                "total_errors": int(metrics_data.get("total_errors", 0) or 0),
+                "total_time": float(metrics_data.get("total_time", 0.0) or 0.0),
+                "response_time_buckets": dict(metrics_data.get("response_time_buckets", {}) or {}),
+                "time_series": list(metrics_data.get("time_series", []) or []),
+                "current_second": dict(metrics_data.get("current_second", {}) or {}),
+                "endpoints": {
+                    k: dict(v) for k, v in (metrics_data.get("endpoints", {}) or {}).items()
+                },
+                "response_times": list(metrics_data.get("response_times", []) or []),
+            }
+
     total_requests = metrics_data.get("total_requests", 0)
     total_errors = metrics_data.get("total_errors", 0)
     total_time = metrics_data.get("total_time", 0.0)
@@ -747,7 +768,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
     )
 
     # Phase 3 - 计算响应时间百分位
-    response_times = metrics_data.get("response_times", deque())
+    response_times = metrics_data.get("response_times", [])
     percentiles = calculate_percentiles(response_times)
 
     return MetricsResponse(

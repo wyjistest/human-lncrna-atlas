@@ -30,6 +30,7 @@ from app.core.exceptions import (
 )
 from app.core.utils import sanitize_for_log
 from app.middleware import (
+    AdminMetricsMiddleware,
     LoggingMiddleware,
     RequestLimitsMiddleware,
     add_security_headers,
@@ -369,8 +370,12 @@ async def lifespan(app: FastAPI):
     app.state.start_time = time.time()
 
     # 初始化空的 metrics_data（兼容 admin metrics 端点）
-    # 注意：详细请求指标请使用 Prometheus /metrics 端点
-    app.state.metrics_data = {}
+    # 注意：
+    # - Prometheus /metrics 提供更完整的观测出口
+    # - Admin /api/v1/admin/metrics 需要轻量 in-memory 指标支持（用于前端 Monitoring 页）
+    from app.middleware.admin_metrics import create_metrics_data
+
+    app.state.metrics_data = create_metrics_data()
 
     # 初始化数据库连接（Phase 9.18 - Codex审查修复：生产环境fail-fast）
     db_connected = init_db()
@@ -427,7 +432,8 @@ app = FastAPI(
 
 # 配置中间件
 # 注意：RateLimitMiddleware 已移除，统一使用 slowapi 进行端点级别限流
-# MetricsMiddleware 已移除，统一使用 Prometheus Metrics (prometheus-fastapi-instrumentator)
+# Prometheus Metrics 统一由 prometheus-fastapi-instrumentator 提供（/metrics）
+# Admin Monitoring 页（/api/v1/admin/metrics）使用轻量 in-memory 指标（AdminMetricsMiddleware）
 # FastAPI 中间件执行顺序：后添加的中间件在外层（最先执行）。
 app.add_middleware(LoggingMiddleware)
 
@@ -514,6 +520,12 @@ if PROMETHEUS_AVAILABLE and Instrumentator:
     logger.info("Prometheus metrics enabled at /metrics endpoint")
 else:
     logger.warning("prometheus-fastapi-instrumentator not available, /metrics endpoint disabled")
+
+# ============================================================================
+# Admin In-memory Metrics (for /api/v1/admin/metrics)
+# ============================================================================
+# 放在最外层：统计口径包含 CORS/安全中间件等完整链路耗时（但默认跳过 /metrics 与 /api/v1/admin 自身）
+app.add_middleware(AdminMetricsMiddleware)
 
 
 # ============================================================================
