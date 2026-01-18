@@ -36,6 +36,14 @@ python3 -m etl.input_manifest verify etl-inputs.manifest.tsv
 - 每次外部下载/更新输入数据后，重新生成 manifest 并留档
 - 在 ETL 运行前先 `verify`，确认输入未被意外替换/损坏
 
+## 仓库内样例（可选）
+
+仓库内提供了一个可提交的极小样例，用于演示 manifest 校验流程：
+
+```bash
+python3 -m etl.input_manifest verify etl/sample_inputs/etl-inputs.manifest.tsv
+```
+
 ## 与导入脚本集成（可选）
 
 多数 `etl/import_*.py` 导入脚本支持 `--input-manifest` 参数，会在连接数据库/开始导入前先校验 manifest，并确保“本次导入用到的输入文件”确实在 manifest 中列出（避免误以为已校验）。
