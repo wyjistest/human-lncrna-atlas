@@ -181,10 +181,10 @@ sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn)
 cd <repo-root>/frontend/backend
 
 # 方式1: 直接启动
-uvicorn main:app --host 0.0.0.0 --port 8000
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 # 方式2: 后台启动
-nohup uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/fastapi.log 2>&1 &
+nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > /tmp/fastapi.log 2>&1 &
 
 # 查看日志
 tail -f /tmp/fastapi.log

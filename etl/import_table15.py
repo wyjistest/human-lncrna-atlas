@@ -389,6 +389,10 @@ class Table15Importer:
 def main():
     parser = argparse.ArgumentParser(description='导入Table15数据')
     parser.add_argument('--file', required=True, help='Table15 CSV文件路径')
+    parser.add_argument(
+        '--input-manifest',
+        help='可选：输入文件 manifest TSV（导入前 fail-fast 校验 bytes/lines/sha256）',
+    )
     parser.add_argument('--species-id', type=int, default=1, help='物种ID（默认1=human）')
     parser.add_argument('--host', help='数据库主机（或设置 DB_HOST 环境变量）')
     parser.add_argument('--port', help='数据库端口（或设置 DB_PORT 环境变量）')
@@ -399,6 +403,18 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='试运行模式')
 
     args = parser.parse_args()
+
+    if args.input_manifest:
+        try:
+            from etl.preflight import verify_manifest_for_paths
+        except ImportError:  # pragma: no cover
+            from preflight import verify_manifest_for_paths  # type: ignore
+
+        errors = verify_manifest_for_paths(args.input_manifest, [args.file])
+        if errors:
+            for e in errors:
+                print(e, file=sys.stderr)
+            sys.exit(1)
 
     db_config = get_db_config_from_env()
     if args.host:

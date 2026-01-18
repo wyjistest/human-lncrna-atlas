@@ -101,7 +101,7 @@ psql -U amax -h localhost -d lncrna_production -c "SELECT COUNT(*) FROM genes;"
 ### 6. 启动开发服务器
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 7. 验证部署
@@ -137,8 +137,9 @@ After=network.target postgresql.service
 Type=simple
 User=amax
 WorkingDirectory=<repo-root>/frontend/backend
-Environment="PATH=<repo-root>/frontend/backend/venv/bin"
-ExecStart=<repo-root>/frontend/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+# 如果你的虚拟环境目录是 venv/，把 .venv 替换为 venv
+Environment="PATH=<repo-root>/frontend/backend/.venv/bin"
+ExecStart=<repo-root>/frontend/backend/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 Restart=always
 RestartSec=10
 
@@ -355,10 +356,10 @@ find $BACKUP_DIR -name "lncrna_*.sql.gz" -mtime +7 -delete
 # 推荐: workers = (2 × CPU核心数) + 1
 
 # 4核服务器
-uvicorn main:app --workers 9 --host 0.0.0.0 --port 8000
+python3 -m uvicorn main:app --workers 9 --host 0.0.0.0 --port 8000
 
 # 8核服务器
-uvicorn main:app --workers 17 --host 0.0.0.0 --port 8000
+python3 -m uvicorn main:app --workers 17 --host 0.0.0.0 --port 8000
 ```
 
 ### 2. 数据库连接池
@@ -615,8 +616,10 @@ lsof -i :8000
 
 # 手动启动测试
 cd <repo-root>/frontend/backend
-source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8000
+# 可选：激活虚拟环境（.venv/ 与 venv/ 二选一）
+# source .venv/bin/activate
+# source venv/bin/activate
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 ---

@@ -289,6 +289,13 @@ python3 -m etl.input_manifest build --output etl-inputs.manifest.tsv --lines --s
 python3 -m etl.input_manifest verify etl-inputs.manifest.tsv
 ```
 
+Optional: let ETL import scripts run the same verification automatically before connecting to the DB:
+
+```bash
+# Example (regulations import)
+python3 etl/import_regulations.py --file /path/to/input1.tsv --input-manifest etl-inputs.manifest.tsv --user "$DB_USER"
+```
+
 ## API Endpoints
 
 | Endpoint | Method | Description |

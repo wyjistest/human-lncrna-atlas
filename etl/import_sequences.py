@@ -537,6 +537,11 @@ def main():
     parser.add_argument('--species', type=int, choices=[1, 2, 3, 4],
                         help='指定物种 ID (1=Human, 2=Chimp, 3=Macaque, 4=Marmoset)')
     parser.add_argument('--file', type=str, help='指定源文件路径（覆盖默认路径）')
+    parser.add_argument(
+        '--input-manifest',
+        type=str,
+        help='可选：输入文件 manifest TSV（导入前 fail-fast 校验 bytes/lines/sha256）',
+    )
     parser.add_argument('--batch-size', type=int, default=5000, help='批量插入大小 (默认: 5000)')
     parser.add_argument('--dry-run', action='store_true', help='预览模式，不实际导入数据')
     parser.add_argument(
@@ -546,6 +551,30 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # CLI 约束：--file 仅在指定 --species 时有意义（覆盖该物种的默认输入文件）。
+    if args.file and not args.species:
+        parser.error("--file requires --species")
+
+    # 获取源文件配置（尽量在导入前确定，以便做输入校验）
+    if args.file and args.species:
+        source_files: Dict[int, str] = {args.species: args.file}
+    else:
+        source_files = get_source_files()
+
+    # 可选：导入前先校验输入文件 manifest（不依赖数据库连接）
+    if args.input_manifest:
+        try:
+            from etl.preflight import verify_manifest_for_paths
+        except ImportError:  # pragma: no cover
+            from preflight import verify_manifest_for_paths  # type: ignore
+
+        required = [source_files[args.species]] if args.species else list(source_files.values())
+        errors = verify_manifest_for_paths(args.input_manifest, required)
+        if errors:
+            for e in errors:
+                print(e, file=sys.stderr)
+            sys.exit(1)
 
     # 构建数据库配置（命令行参数优先于环境变量）
     db_config = get_db_config_from_env()
@@ -570,10 +599,6 @@ def main():
         del db_config['password']
 
     # 获取源文件配置
-    source_files = get_source_files()
-    if args.file and args.species:
-        source_files[args.species] = args.file
-
     conn = None
     try:
         logger.info(f"连接数据库: {db_config['host']}:{db_config['port']}/{db_config['dbname']}")

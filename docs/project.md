@@ -150,16 +150,21 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 # 后端
 cd "$REPO_ROOT/frontend/backend"
-source venv/bin/activate
-uvicorn main:app --reload --port 8000
+# 可选：激活虚拟环境（.venv/ 与 venv/ 二选一，按你的实际路径）
+# source .venv/bin/activate
+# source venv/bin/activate
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 前端
 cd "$REPO_ROOT/frontend/web"
-npm run dev
+npm run dev -- --host 0.0.0.0
 ```
 
 ### 运行测试
 ```bash
+# CI 核心检查（推荐，和 GitHub Actions 对齐；不包含 E2E / security-audit）
+./scripts/run-tests.sh ci
+
 # 全部测试
 ./scripts/run-tests.sh all
 

@@ -46,6 +46,10 @@ logger = logging.getLogger(__name__)
 def parse_args():
     parser = argparse.ArgumentParser(description='Import UCSC RepeatMasker data')
     parser.add_argument('input_file', help='Path to rmsk.txt file')
+    parser.add_argument(
+        '--input-manifest',
+        help='Optional input manifest TSV (fail-fast verify bytes/lines/sha256 before import)',
+    )
     parser.add_argument('--limit', type=int, default=0, help='Limit number of rows (0=all)')
     parser.add_argument('--batch-size', type=int, default=10000, help='Batch size for inserts')
     parser.add_argument('--skip-lines', type=int, default=0, help='Skip first N lines (resume support)')
@@ -247,6 +251,18 @@ def main():
     if args.limit > 0:
         print(f"Limit: {args.limit:,} rows")
     print()
+
+    if args.input_manifest:
+        try:
+            from etl.preflight import verify_manifest_for_paths
+        except ImportError:  # pragma: no cover
+            from preflight import verify_manifest_for_paths  # type: ignore
+
+        errors = verify_manifest_for_paths(args.input_manifest, [args.input_file])
+        if errors:
+            for e in errors:
+                print(e, file=sys.stderr)
+            sys.exit(1)
 
     # Verify input file exists
     if not os.path.exists(args.input_file):

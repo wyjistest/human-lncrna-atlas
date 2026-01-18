@@ -688,6 +688,10 @@ Examples:
     )
 
     parser.add_argument('--file', required=True, help='Input file path')
+    parser.add_argument(
+        '--input-manifest',
+        help='Optional input manifest TSV (fail-fast verify bytes/lines/sha256 before import)',
+    )
     parser.add_argument('--species', required=True,
                        choices=['human', 'chimp', 'macaque', 'marmoset'],
                        help='Species code')
@@ -716,6 +720,18 @@ Examples:
     parser.add_argument('--password', help='Database password (optional; or DB_PASSWORD / .pgpass)')
 
     args = parser.parse_args()
+
+    if args.input_manifest:
+        try:
+            from etl.preflight import verify_manifest_for_paths
+        except ImportError:  # pragma: no cover
+            from preflight import verify_manifest_for_paths  # type: ignore
+
+        errors = verify_manifest_for_paths(args.input_manifest, [args.file])
+        if errors:
+            for e in errors:
+                print(e, file=sys.stderr)
+            sys.exit(1)
 
     # Verify file exists
     if not os.path.exists(args.file):

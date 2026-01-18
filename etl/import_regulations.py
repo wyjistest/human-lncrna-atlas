@@ -741,6 +741,10 @@ class RegulationsImporter:
 def main():
     parser = argparse.ArgumentParser(description='导入Regulations数据')
     parser.add_argument('--file', required=True, help='Regulations TSV文件路径')
+    parser.add_argument(
+        '--input-manifest',
+        help='可选：输入文件 manifest TSV（导入前 fail-fast 校验 bytes/lines/sha256）',
+    )
     parser.add_argument('--batch-name', help='批次名称')
     parser.add_argument('--species', help='物种代码（human/chimp/macaque/marmoset）')
     parser.add_argument('--host', default=os.environ.get('DB_HOST', 'localhost'), help='数据库主机 (默认: $DB_HOST)')
@@ -757,6 +761,18 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='试运行模式')
 
     args = parser.parse_args()
+
+    if args.input_manifest:
+        try:
+            from etl.preflight import verify_manifest_for_paths
+        except ImportError:  # pragma: no cover
+            from preflight import verify_manifest_for_paths  # type: ignore
+
+        errors = verify_manifest_for_paths(args.input_manifest, [args.file])
+        if errors:
+            for e in errors:
+                print(e, file=sys.stderr)
+            sys.exit(1)
 
     if not args.user:
         parser.error("Missing DB user: set $DB_USER or pass --user")

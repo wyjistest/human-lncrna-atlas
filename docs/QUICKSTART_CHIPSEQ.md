@@ -403,7 +403,7 @@ curl -s -D- -o /dev/null \
 - 或手动设置后端环境变量（示例）：
   - `export CORS_ORIGINS='["http://localhost:5173","http://127.0.0.1:5173","http://192.168.x.x:5173"]'`
   - 如遇到 `429 Too many requests`（常见于 Playwright 并发 E2E 或频繁交互），可在开发环境设置 `export RATE_LIMIT_BYPASS_PRIVATE=true`
-  - 然后重启后端 `uvicorn main:app --host 0.0.0.0 --port 8000`
+  - 然后重启后端 `python3 -m uvicorn main:app --host 0.0.0.0 --port 8000`
 
 ### 问题 3: API 返回 500 错误
 

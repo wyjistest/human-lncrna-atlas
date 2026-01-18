@@ -179,6 +179,33 @@ def verify_manifest_file(manifest_path: PathLike) -> list[str]:
     return errors
 
 
+def list_manifest_paths(manifest_path: PathLike) -> list[Path]:
+    """
+    读取 manifest 并返回解析后的文件路径列表。
+
+    规则：
+    - 相对路径按 manifest 所在目录解析
+    - 不验证文件存在性（这由 verify_manifest_file() 负责）
+    """
+
+    manifest = _to_path(manifest_path)
+    base_dir = manifest.parent
+    entries = _parse_manifest_tsv(manifest)
+
+    paths: list[Path] = []
+    for e in entries:
+        raw_path = (e.get("path") or "").strip()
+        if not raw_path:
+            continue
+
+        p = Path(raw_path)
+        if not p.is_absolute():
+            p = base_dir / p
+        paths.append(p)
+
+    return paths
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="生成/校验 ETL 输入文件 manifest（bytes/lines/sha256）"
@@ -216,4 +243,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-
