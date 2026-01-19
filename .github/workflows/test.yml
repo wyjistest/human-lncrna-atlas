@@ -443,7 +443,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build
           path: frontend/web/dist/
@@ -549,7 +549,7 @@ jobs:
             --reporter=list
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-smoke-report
@@ -557,7 +557,7 @@ jobs:
           retention-days: 7
 
       - name: Upload Playwright screenshots on failure
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-smoke-screenshots
@@ -617,7 +617,7 @@ jobs:
             --reporter=list
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: playwright-report
@@ -625,7 +625,7 @@ jobs:
           retention-days: 7
 
       - name: Upload test screenshots on failure
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-screenshots
