@@ -301,3 +301,73 @@ def test_admin_metrics_collects_database_query_metrics_and_slow_queries(monkeypa
     assert metrics.endpoints[0].db_avg_ms >= 0
     assert metrics.endpoints[0].db_query_avg is not None
     assert metrics.endpoints[0].db_query_avg >= 1
+
+
+@pytest.mark.unit
+def test_admin_metrics_slow_queries_are_grouped_by_route(monkeypatch):
+    app = FastAPI()
+    app.state.start_time = time.time() - 10
+    app.state.metrics_data = create_metrics_data()
+
+    @app.get("/api/v1/test1")
+    def t1():
+        record_db_query_duration_ms(250.0, "SELECT pg_sleep(0.25)")
+        return {"ok": True}
+
+    @app.get("/api/v1/test2")
+    def t2():
+        record_db_query_duration_ms(250.0, "SELECT pg_sleep(0.25)")
+        return {"ok": True}
+
+    app.add_middleware(AdminMetricsMiddleware)
+
+    with TestClient(app) as client:
+        for _ in range(5):
+            resp = client.get("/api/v1/test1")
+            assert resp.status_code == 200
+        for _ in range(7):
+            resp = client.get("/api/v1/test2")
+            assert resp.status_code == 200
+
+    monkeypatch.setattr(admin_module, "check_database_status", lambda: "ok")
+    monkeypatch.setattr(admin_module, "check_cache_status", lambda: "not_configured")
+    monkeypatch.setattr(
+        admin_module.cache,
+        "get_stats",
+        lambda: {
+            "backend": "memory",
+            "enabled": True,
+            "hits": 0,
+            "misses": 0,
+            "total_requests": 0,
+            "hit_rate_pct": 0.0,
+            "get_latency_ms": None,
+            "namespaces": {"tracked": 0, "limit": 10, "top": []},
+            "keys": {"tracked": 0, "limit": 10, "top": []},
+        },
+    )
+    monkeypatch.setattr(
+        admin_module,
+        "get_system_metrics",
+        lambda: SystemMetrics(
+            cpu_percent=0.0,
+            memory=SystemMemory(used_mb=0, total_mb=0, percent=0),
+            disk=SystemDisk(used_gb=0, total_gb=0, percent=0),
+            process=ProcessInfo(cpu_percent=0, memory_mb=0),
+        ),
+    )
+    monkeypatch.setattr(admin_module, "generate_alerts", lambda **kwargs: [])
+
+    request = _make_request(app)
+
+    get_metrics = admin_module.get_metrics
+    if hasattr(get_metrics, "__wrapped__"):
+        get_metrics = get_metrics.__wrapped__
+
+    metrics = asyncio.run(get_metrics(request))
+    assert metrics.database is not None
+    assert metrics.database.slow_queries
+
+    counts_by_route = {item.route: item.count for item in metrics.database.slow_queries if item.route}
+    assert counts_by_route.get("/api/v1/test1") == 5
+    assert counts_by_route.get("/api/v1/test2") == 7

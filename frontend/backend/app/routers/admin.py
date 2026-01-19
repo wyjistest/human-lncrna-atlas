@@ -757,7 +757,8 @@ def build_database_metrics(metrics_data: dict) -> Optional[DatabaseMetrics]:
 
     slow_queries: list[SlowQuerySummary] = []
     if isinstance(slow_samples, (list, tuple, deque)) and slow_samples:
-        grouped: dict[str, dict] = {}
+        # NOTE: 按 (fingerprint, route) 聚合，避免同一 SQL 被多端点触发时覆盖 route 信息。
+        grouped: dict[tuple[str, str], dict] = {}
         for item in slow_samples:
             if not isinstance(item, dict):
                 continue
@@ -774,9 +775,10 @@ def build_database_metrics(metrics_data: dict) -> Optional[DatabaseMetrics]:
             except Exception:
                 ts = 0.0
             route_raw = item.get("route", None)
-            route = str(route_raw) if route_raw else None
+            route = str(route_raw) if route_raw else ""
 
-            bucket = grouped.get(fingerprint)
+            key = (fingerprint, route)
+            bucket = grouped.get(key)
             if bucket is None:
                 bucket = {
                     "statement": statement,
@@ -786,19 +788,17 @@ def build_database_metrics(metrics_data: dict) -> Optional[DatabaseMetrics]:
                     "last_ts": 0.0,
                     "route": route,
                 }
-                grouped[fingerprint] = bucket
+                grouped[key] = bucket
 
             bucket["count"] += 1
             bucket["total_time_ms"] += duration_ms
             bucket["max_ms"] = max(float(bucket.get("max_ms", 0.0) or 0.0), duration_ms)
             if ts >= float(bucket.get("last_ts", 0.0) or 0.0):
                 bucket["last_ts"] = ts
-                if route:
-                    bucket["route"] = route
                 if statement and statement != "<unknown>":
                     bucket["statement"] = statement
 
-        for fingerprint, bucket in grouped.items():
+        for (fingerprint, route), bucket in grouped.items():
             count = int(bucket.get("count", 0) or 0)
             if count <= 0:
                 continue
@@ -817,7 +817,7 @@ def build_database_metrics(metrics_data: dict) -> Optional[DatabaseMetrics]:
                     avg_ms=round(avg_ms, 2),
                     max_ms=round(max_ms, 2),
                     last_seen=last_seen,
-                    route=bucket.get("route", None),
+                    route=route or None,
                 )
             )
 
