@@ -19,7 +19,7 @@ import shutil
 import threading
 from datetime import datetime
 from typing import Literal, Optional, Sequence
-from collections import defaultdict
+from collections import defaultdict, deque
 from urllib.parse import urlsplit
 
 try:
@@ -403,15 +403,20 @@ def build_endpoints_stats(metrics_data: dict, top_n: int = 20) -> list[EndpointS
         requests = data.get("requests", 0)
         errors = data.get("errors", 0)
         total_time = data.get("total_time", 0.0)
+        response_times = data.get("response_times", [])
 
         avg_ms = (total_time / requests) if requests > 0 else 0.0
         error_rate = (errors / requests) if requests > 0 else 0.0
+        percentiles = None
+        if isinstance(response_times, (list, tuple, deque)) and response_times:
+            percentiles = calculate_percentiles(list(response_times))
 
         stats_list.append(
             EndpointStats(
                 path=path,
                 requests=requests,
                 avg_ms=round(avg_ms, 2),
+                percentiles=percentiles,
                 errors=errors,
                 error_rate=round(error_rate, 4),
             )
@@ -722,6 +727,20 @@ async def get_metrics(request: Request) -> MetricsResponse:
     lock = metrics_data.get("_lock")
     if isinstance(lock, _LOCK_TYPE):
         with lock:
+            endpoints_snapshot: dict[str, dict] = {}
+            for k, v in (metrics_data.get("endpoints", {}) or {}).items():
+                if not isinstance(v, dict):
+                    continue
+                ep = dict(v)
+                ep_rt = ep.get("response_times")
+                if isinstance(ep_rt, deque):
+                    ep["response_times"] = list(ep_rt)
+                elif isinstance(ep_rt, list):
+                    ep["response_times"] = list(ep_rt)
+                else:
+                    ep.pop("response_times", None)
+                endpoints_snapshot[k] = ep
+
             metrics_data = {
                 "total_requests": int(metrics_data.get("total_requests", 0) or 0),
                 "total_errors": int(metrics_data.get("total_errors", 0) or 0),
@@ -729,9 +748,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
                 "response_time_buckets": dict(metrics_data.get("response_time_buckets", {}) or {}),
                 "time_series": list(metrics_data.get("time_series", []) or []),
                 "current_second": dict(metrics_data.get("current_second", {}) or {}),
-                "endpoints": {
-                    k: dict(v) for k, v in (metrics_data.get("endpoints", {}) or {}).items()
-                },
+                "endpoints": endpoints_snapshot,
                 "response_times": list(metrics_data.get("response_times", []) or []),
             }
 

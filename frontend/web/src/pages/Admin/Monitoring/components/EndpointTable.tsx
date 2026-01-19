@@ -48,6 +48,36 @@ export function EndpointTable({ data }: EndpointTableProps) {
         align: 'right'
       },
       {
+        title: 'P95 (ms)',
+        key: 'p95_ms',
+        sorter: (a, b) => (a.percentiles?.p95_ms ?? -1) - (b.percentiles?.p95_ms ?? -1),
+        render: (_: unknown, record: EndpointStats) => {
+          const value = record.percentiles?.p95_ms
+          if (value == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+          return (
+            <span style={{ color: value > 500 ? '#cf1322' : value > 200 ? '#faad14' : '#3f8600' }}>
+              {value.toFixed(1)}
+            </span>
+          )
+        },
+        align: 'right'
+      },
+      {
+        title: 'P99 (ms)',
+        key: 'p99_ms',
+        sorter: (a, b) => (a.percentiles?.p99_ms ?? -1) - (b.percentiles?.p99_ms ?? -1),
+        render: (_: unknown, record: EndpointStats) => {
+          const value = record.percentiles?.p99_ms
+          if (value == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+          return (
+            <span style={{ color: value > 1000 ? '#cf1322' : value > 500 ? '#faad14' : '#3f8600' }}>
+              {value.toFixed(1)}
+            </span>
+          )
+        },
+        align: 'right'
+      },
+      {
         title: 'Errors',
         dataIndex: 'errors',
         key: 'errors',

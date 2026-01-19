@@ -33,6 +33,7 @@ def create_metrics_data(
     response_times_maxlen: int = 2000,
     time_series_maxlen: int = 600,
     max_endpoints: int = 200,
+    endpoint_response_times_maxlen: int = 200,
 ) -> dict[str, Any]:
     """
     创建 Admin metrics 的内部存储结构（挂载到 app.state.metrics_data）。
@@ -58,6 +59,7 @@ def create_metrics_data(
         "current_second": {"timestamp": 0, "requests": 0, "errors": 0},
         "endpoints": {},  # path -> {requests, errors, total_time(ms)}
         "_max_endpoints": max(1, int(max_endpoints)),
+        "_endpoint_response_times_maxlen": max(1, int(endpoint_response_times_maxlen)),
     }
 
 
@@ -85,6 +87,7 @@ def ensure_metrics_data(app) -> dict[str, Any]:
     data.setdefault("current_second", {"timestamp": 0, "requests": 0, "errors": 0})
     data.setdefault("endpoints", {})
     data.setdefault("_max_endpoints", 200)
+    data.setdefault("_endpoint_response_times_maxlen", 200)
     return data
 
 
@@ -230,13 +233,22 @@ class AdminMetricsMiddleware:
                         metrics_data["endpoints"] = endpoints
 
                     max_endpoints = int(metrics_data.get("_max_endpoints", 200) or 200)
+                    endpoint_times_maxlen = max(
+                        1,
+                        int(metrics_data.get("_endpoint_response_times_maxlen", 200) or 200),
+                    )
                     endpoint_key = template
                     if endpoint_key not in endpoints and len(endpoints) >= max_endpoints:
                         endpoint_key = "other"
 
                     ep = endpoints.get(endpoint_key)
                     if not isinstance(ep, dict):
-                        ep = {"requests": 0, "errors": 0, "total_time": 0.0}
+                        ep = {
+                            "requests": 0,
+                            "errors": 0,
+                            "total_time": 0.0,
+                            "response_times": deque(maxlen=endpoint_times_maxlen),
+                        }
                         endpoints[endpoint_key] = ep
 
                     ep["requests"] = int(ep.get("requests", 0) or 0) + 1
@@ -244,6 +256,14 @@ class AdminMetricsMiddleware:
                         ep["errors"] = int(ep.get("errors", 0) or 0) + 1
                     # NOTE: endpoint total_time 口径为毫秒（与 EndpointStats.avg_ms 对齐）
                     ep["total_time"] = float(ep.get("total_time", 0.0) or 0.0) + float(duration_ms)
+                    # Endpoint 响应时间样本（用于百分位；固定窗口，避免高开销与高基数）
+                    ep_times = ep.get("response_times")
+                    if isinstance(ep_times, deque):
+                        ep_times.append(float(duration_ms))
+                    else:
+                        ep_times = deque(maxlen=endpoint_times_maxlen)
+                        ep_times.append(float(duration_ms))
+                        ep["response_times"] = ep_times
 
             except Exception as e:  # pragma: no cover
                 # 指标采集必须“绝不影响主请求链路”

@@ -145,6 +145,10 @@ class EndpointStats(BaseModel):
     path: str = Field(description="API路径")
     requests: int = Field(ge=0, description="请求数")
     avg_ms: float = Field(ge=0, description="平均响应时间(ms)")
+    percentiles: Optional["PercentileMetrics"] = Field(
+        default=None,
+        description="端点响应时间百分位(ms；数据不足时为null)",
+    )
     errors: int = Field(ge=0, description="错误数")
     error_rate: float = Field(ge=0, le=1, description="错误率")
 

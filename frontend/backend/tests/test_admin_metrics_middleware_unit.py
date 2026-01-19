@@ -164,6 +164,10 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.errors.total == 0
     assert metrics.response_time_distribution.counts and sum(metrics.response_time_distribution.counts) == 12
     assert metrics.endpoints and sum(e.requests for e in metrics.endpoints) == 12
+    endpoint_pct = metrics.endpoints[0].percentiles
+    assert endpoint_pct is not None
+    assert endpoint_pct.p50_ms >= 0
+    assert endpoint_pct.p50_ms <= endpoint_pct.p95_ms <= endpoint_pct.p99_ms
     assert metrics.percentiles is not None
     assert metrics.cache_stats is not None
     assert metrics.cache_stats.backend == "memory"

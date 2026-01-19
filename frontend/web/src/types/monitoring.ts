@@ -43,6 +43,8 @@ export interface EndpointStats {
   requests: number
   /** Average response time in milliseconds */
   avg_ms: number
+  /** Endpoint response time percentiles (ms); null/undefined when samples are insufficient */
+  percentiles?: PercentileMetrics | null
   /** Total error count */
   errors: number
   /** Error rate (0-1) */

@@ -60,7 +60,16 @@ vi.mock('@/hooks/useMonitoringMetrics', () => ({
       },
       response_time_distribution: { buckets: [], counts: [] },
       error_trend: { timestamps: [], error_rates: [] },
-      endpoints: [],
+      endpoints: [
+        {
+          path: '/api/v1/test',
+          requests: 1,
+          avg_ms: 10,
+          percentiles: { p50_ms: 8, p95_ms: 20, p99_ms: 30 },
+          errors: 0,
+          error_rate: 0,
+        },
+      ],
       system: {
         cpu_percent: 0,
         memory: { used_mb: 0, total_mb: 0, percent: 0 },
@@ -86,5 +95,7 @@ describe('Admin Monitoring page', () => {
     expect(screen.getByText('Cache Namespaces')).toBeInTheDocument()
     expect(screen.getByText('Cache Hot Keys')).toBeInTheDocument()
     expect(screen.getByText('Compute Count')).toBeInTheDocument()
+    expect(screen.getByText('P95 (ms)')).toBeInTheDocument()
+    expect(screen.getByText('P99 (ms)')).toBeInTheDocument()
   })
 })
