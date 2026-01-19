@@ -137,6 +137,13 @@ Notes:
 - Requires port `5173` to be free (uses `--strictPort` like CI).
 - If Playwright reports missing browsers, install once:
   - `cd frontend/web && npx playwright install chromium`
+- Current smoke specs (fully mocked):
+  - `e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts`
+  - `e2e/genes-smoke.spec.ts`
+  - `e2e/regulations-smoke.spec.ts`
+  - `e2e/admin-monitoring-smoke.spec.ts`
+  - `e2e/admin-cache-smoke.spec.ts`
+  - `e2e/admin-materialized-views-smoke.spec.ts`
 
 ### Run All Tests
 
@@ -190,6 +197,28 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT/frontend/web"
 
 npm run test:e2e -- e2e/admin-materialized-views-smoke.spec.ts
+```
+
+### Run Genes Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the Genes list API.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/genes-smoke.spec.ts
+```
+
+### Run Regulations Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the Regulations list API and BA range endpoint.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/regulations-smoke.spec.ts
 ```
 
 ### Run Specific Test
