@@ -343,6 +343,11 @@ page.on('response', (response) => console.log('Response:', response.status(), re
 
 ### GitHub Actions Example
 
+本仓库已在 `Tests` 工作流（`.github/workflows/test.yml`）内集成两层 E2E：
+
+- `e2e-smoke`：`ubuntu-latest`，基于 build artifact + `vite preview`，仅跑完全 mock 的 smoke 用例（无需后端/数据库）。
+- `e2e-tests`：`self-hosted` + 手动触发（`workflow_dispatch`），用于跑依赖后端/数据库的关键用例子集。
+
 ```yaml
 name: E2E Tests
 
