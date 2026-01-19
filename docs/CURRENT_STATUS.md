@@ -42,7 +42,7 @@
 
 1. **E2E Smoke 覆盖扩展（完全 mocked）**
    - 新增 Playwright smoke：`/admin/cache` 与 `/admin/materialized-views`（完全 mock 对应 Admin API）
-   - Admin/Monitoring smoke 改用 `data-testid` 选择器，降低 strict mode 冲突与 UI 结构变更导致的 flaky 风险
+   - Admin/Monitoring、Admin/Cache、Admin/Materialized Views mocked smoke 改用 `data-testid` 稳定选择器，并补齐最小契约断言（关键按钮/核心字段/表格行可见），降低 strict mode 冲突与 UI 结构变更导致的 flaky 风险
 
 2. **监控指标补齐**
    - `/api/v1/admin/metrics`：新增端点级响应时间百分位（p50/p95/p99）

@@ -29,10 +29,12 @@ describe('Admin Cache page', () => {
   it('renders cache management actions and breakdown', () => {
     renderWithProviders(<CacheManagement />)
 
-    expect(screen.getByText('Cache Management')).toBeInTheDocument()
-    expect(screen.getAllByText('Invalidate Namespace').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Clear Cache').length).toBeGreaterThan(0)
-    expect(screen.getByText('Cache Namespaces')).toBeInTheDocument()
-    expect(screen.getByText('Cache Hot Keys')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-cache-page')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-cache-refresh')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-cache-reset-stats')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-cache-invalidate-namespace')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-cache-clear-cache')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-cache-namespaces')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-cache-hot-keys')).toBeInTheDocument()
   })
 })

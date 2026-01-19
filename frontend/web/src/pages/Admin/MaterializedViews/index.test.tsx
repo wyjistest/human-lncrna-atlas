@@ -30,9 +30,11 @@ describe('Admin Materialized Views page', () => {
   it('renders status and refresh controls', () => {
     renderWithProviders(<MaterializedViews />)
 
-    expect(screen.getByText('Materialized Views')).toBeInTheDocument()
-    expect(screen.getByText('Refresh Views')).toBeInTheDocument()
-    expect(screen.getByText('MV Refresh Lock')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-materialized-views-page')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-materialized-views-refresh-lock')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-materialized-views-refresh-status')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-materialized-views-refresh-views')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-materialized-views-status')).toBeInTheDocument()
+    expect(screen.getByText('mv_lncrna_chipseq_overlaps')).toBeInTheDocument()
   })
 })
-

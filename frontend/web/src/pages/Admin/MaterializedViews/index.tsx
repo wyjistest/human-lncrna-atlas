@@ -138,15 +138,16 @@ export default function MaterializedViews() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div data-testid="admin-materialized-views-page" style={{ padding: 24 }}>
       <Space style={{ marginBottom: 24, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>Materialized Views</h1>
         <Space>
-          <div>
+          <div data-testid="admin-materialized-views-refresh-lock">
             <span style={{ marginRight: 8 }}>MV Refresh Lock</span>
             <Tag color={lockColor}>{lockLabel}</Tag>
           </div>
           <Button
+            data-testid="admin-materialized-views-refresh-status"
             icon={<ReloadOutlined spin={isFetching} />}
             onClick={() => refetch()}
             loading={isFetching}
@@ -160,59 +161,70 @@ export default function MaterializedViews() {
             okText="Refresh"
             cancelText="Cancel"
           >
-            <Button type="primary" loading={isRefreshing} disabled={isRefreshing || refreshDisabled}>
+            <Button
+              data-testid="admin-materialized-views-refresh-views"
+              type="primary"
+              loading={isRefreshing}
+              disabled={isRefreshing || refreshDisabled}
+            >
               Refresh Views
             </Button>
           </Popconfirm>
         </Space>
       </Space>
 
-      <Card title="Status">
-        <Table<MaterializedViewStatusItem>
-          columns={columns}
-          dataSource={data?.views ?? []}
-          rowKey="name"
-          size="small"
-          pagination={false}
-        />
-      </Card>
-
-      <Card title="Refresh Options" style={{ marginTop: 16 }}>
-        <Space wrap>
-          <span>Concurrently</span>
-          <Switch checked={concurrently} onChange={(checked) => setConcurrently(checked)} />
-          <span>Analyze</span>
-          <Switch checked={analyze} onChange={(checked) => setAnalyze(checked)} />
-          <span>Timeout (s)</span>
-          <InputNumber
-            min={0}
-            value={timeoutSeconds}
-            onChange={(v) => setTimeoutSeconds(typeof v === 'number' ? v : null)}
-            placeholder="default"
-          />
-          <Tag>{viewNames.length ? `${viewNames.length} views` : 'no views'}</Tag>
-        </Space>
-      </Card>
-
-      {lastResult && (
-        <Card
-          title="Last Refresh Result"
-          style={{ marginTop: 16 }}
-          extra={
-            <Space>
-              <Tag color={lastResult.status === 'success' ? 'success' : 'warning'}>{lastResult.status}</Tag>
-              <span>{lastResult.total_duration_seconds.toFixed(3)}s</span>
-            </Space>
-          }
-        >
-          <Table<MaterializedViewRefreshResultItem>
-            columns={refreshColumns}
-            dataSource={lastResult.views}
+      <div data-testid="admin-materialized-views-status">
+        <Card title="Status">
+          <Table<MaterializedViewStatusItem>
+            columns={columns}
+            dataSource={data?.views ?? []}
             rowKey="name"
             size="small"
             pagination={false}
           />
         </Card>
+      </div>
+
+      <div data-testid="admin-materialized-views-refresh-options">
+        <Card title="Refresh Options" style={{ marginTop: 16 }}>
+          <Space wrap>
+            <span>Concurrently</span>
+            <Switch checked={concurrently} onChange={(checked) => setConcurrently(checked)} />
+            <span>Analyze</span>
+            <Switch checked={analyze} onChange={(checked) => setAnalyze(checked)} />
+            <span>Timeout (s)</span>
+            <InputNumber
+              min={0}
+              value={timeoutSeconds}
+              onChange={(v) => setTimeoutSeconds(typeof v === 'number' ? v : null)}
+              placeholder="default"
+            />
+            <Tag>{viewNames.length ? `${viewNames.length} views` : 'no views'}</Tag>
+          </Space>
+        </Card>
+      </div>
+
+      {lastResult && (
+        <div data-testid="admin-materialized-views-last-refresh">
+          <Card
+            title="Last Refresh Result"
+            style={{ marginTop: 16 }}
+            extra={
+              <Space>
+                <Tag color={lastResult.status === 'success' ? 'success' : 'warning'}>{lastResult.status}</Tag>
+                <span>{lastResult.total_duration_seconds.toFixed(3)}s</span>
+              </Space>
+            }
+          >
+            <Table<MaterializedViewRefreshResultItem>
+              columns={refreshColumns}
+              dataSource={lastResult.views}
+              rowKey="name"
+              size="small"
+              pagination={false}
+            />
+          </Card>
+        </div>
       )}
     </div>
   )

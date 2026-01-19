@@ -102,11 +102,12 @@ export default function CacheManagement() {
   const redisConnected = data?.redis?.connected
 
   return (
-    <div style={{ padding: 24 }}>
+    <div data-testid="admin-cache-page" style={{ padding: 24 }}>
       <Space style={{ marginBottom: 24, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>Cache Management</h1>
         <Space>
           <Button
+            data-testid="admin-cache-refresh"
             icon={<ReloadOutlined spin={isFetching} />}
             onClick={() => refetch()}
             loading={isFetching}
@@ -120,7 +121,7 @@ export default function CacheManagement() {
             okText="Reset"
             cancelText="Cancel"
           >
-            <Button danger icon={<DeleteOutlined />} loading={isResetting}>
+            <Button data-testid="admin-cache-reset-stats" danger icon={<DeleteOutlined />} loading={isResetting}>
               Reset Cache Stats
             </Button>
           </Popconfirm>
@@ -129,87 +130,103 @@ export default function CacheManagement() {
 
       <Row gutter={[16, 16]}>
         <Col xs={12} sm={12} md={6}>
-          <Card>
-            <Statistic title="Backend" value={backendLabel} />
-          </Card>
+          <div data-testid="admin-cache-stat-backend">
+            <Card>
+              <Statistic title="Backend" value={backendLabel} />
+            </Card>
+          </div>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card>
-            <Statistic title="Hit Rate" value={hitRateLabel} />
-          </Card>
+          <div data-testid="admin-cache-stat-hit-rate">
+            <Card>
+              <Statistic title="Hit Rate" value={hitRateLabel} />
+            </Card>
+          </div>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card>
-            <Statistic title="Total Requests" value={data?.total_requests ?? 0} />
-          </Card>
+          <div data-testid="admin-cache-stat-total-requests">
+            <Card>
+              <Statistic title="Total Requests" value={data?.total_requests ?? 0} />
+            </Card>
+          </div>
         </Col>
         <Col xs={12} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title={redisConnected !== undefined ? 'Redis Connected' : 'Memory Cache Size'}
-              value={redisConnected !== undefined ? (redisConnected ? 'yes' : 'no') : (memorySize ?? 0)}
-            />
-          </Card>
+          <div data-testid="admin-cache-stat-storage">
+            <Card>
+              <Statistic
+                title={redisConnected !== undefined ? 'Redis Connected' : 'Memory Cache Size'}
+                value={redisConnected !== undefined ? (redisConnected ? 'yes' : 'no') : (memorySize ?? 0)}
+              />
+            </Card>
+          </div>
         </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
-          <Card title="Invalidate Namespace">
-            <Space>
-              <Select
-                style={{ minWidth: 220 }}
-                options={namespaceOptions}
-                value={selectedNamespace}
-                onChange={(value) => setSelectedNamespace(value)}
-              />
+          <div data-testid="admin-cache-invalidate-card">
+            <Card title="Invalidate Namespace">
+              <Space>
+                <Select
+                  style={{ minWidth: 220 }}
+                  options={namespaceOptions}
+                  value={selectedNamespace}
+                  onChange={(value) => setSelectedNamespace(value)}
+                />
+                <Popconfirm
+                  title="Invalidate namespace cache?"
+                  description={`Invalidate cached entries in namespace '${selectedNamespace}'.`}
+                  onConfirm={handleInvalidateNamespace}
+                  okText="Invalidate"
+                  cancelText="Cancel"
+                >
+                  <Button data-testid="admin-cache-invalidate-namespace" danger loading={isInvalidating}>
+                    Invalidate Namespace
+                  </Button>
+                </Popconfirm>
+              </Space>
+            </Card>
+          </div>
+        </Col>
+        <Col xs={24} lg={12}>
+          <div data-testid="admin-cache-clear-card">
+            <Card title="Clear Cache">
               <Popconfirm
-                title="Invalidate namespace cache?"
-                description={`Invalidate cached entries in namespace '${selectedNamespace}'.`}
-                onConfirm={handleInvalidateNamespace}
-                okText="Invalidate"
+                title="Clear all cache?"
+                description="This deletes all lncrna:* cache entries. This action is irreversible."
+                onConfirm={handleClearCache}
+                okText="Clear"
                 cancelText="Cancel"
               >
-                <Button danger loading={isInvalidating}>
-                  Invalidate Namespace
+                <Button data-testid="admin-cache-clear-cache" danger icon={<DeleteOutlined />} loading={isClearing}>
+                  Clear Cache
                 </Button>
               </Popconfirm>
-            </Space>
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Clear Cache">
-            <Popconfirm
-              title="Clear all cache?"
-              description="This deletes all lncrna:* cache entries. This action is irreversible."
-              onConfirm={handleClearCache}
-              okText="Clear"
-              cancelText="Cancel"
-            >
-              <Button danger icon={<DeleteOutlined />} loading={isClearing}>
-                Clear Cache
-              </Button>
-            </Popconfirm>
-          </Card>
+            </Card>
+          </div>
         </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
-          <Card
-            title="Cache Namespaces"
-            extra={data?.namespaces ? `tracked: ${data.namespaces.tracked}` : undefined}
-          >
-            <CacheNamespacesTable data={data?.namespaces?.top} />
-          </Card>
+          <div data-testid="admin-cache-namespaces">
+            <Card
+              title="Cache Namespaces"
+              extra={data?.namespaces ? `tracked: ${data.namespaces.tracked}` : undefined}
+            >
+              <CacheNamespacesTable data={data?.namespaces?.top} />
+            </Card>
+          </div>
         </Col>
         <Col xs={24} lg={12}>
-          <Card
-            title="Cache Hot Keys"
-            extra={data?.keys ? `tracked: ${data.keys.tracked}` : undefined}
-          >
-            <CacheKeysTable data={data?.keys?.top} />
-          </Card>
+          <div data-testid="admin-cache-hot-keys">
+            <Card
+              title="Cache Hot Keys"
+              extra={data?.keys ? `tracked: ${data.keys.tracked}` : undefined}
+            >
+              <CacheKeysTable data={data?.keys?.top} />
+            </Card>
+          </div>
         </Col>
       </Row>
     </div>

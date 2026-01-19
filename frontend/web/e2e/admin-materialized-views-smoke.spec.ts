@@ -40,10 +40,18 @@ test.describe('Admin Materialized Views - mocked smoke', () => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
     await page.waitForLoadState('domcontentloaded')
 
-    await expect(page.getByRole('heading', { name: 'Materialized Views' })).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('MV Refresh Lock')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('available')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('mv_lncrna_chipseq_overlaps')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-materialized-views-page')).toBeVisible({ timeout: 15000 })
+
+    const lock = page.getByTestId('admin-materialized-views-refresh-lock')
+    await expect(lock).toBeVisible({ timeout: 15000 })
+    await expect(lock).toContainText('available')
+
+    await expect(page.getByTestId('admin-materialized-views-refresh-status')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-materialized-views-refresh-views')).toBeVisible({ timeout: 15000 })
+
+    const status = page.getByTestId('admin-materialized-views-status')
+    await expect(status).toBeVisible({ timeout: 15000 })
+    await expect(status).toContainText('mv_lncrna_chipseq_overlaps')
+    await expect(status).toContainText('16 kB')
   })
 })
-

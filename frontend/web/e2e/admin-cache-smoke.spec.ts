@@ -71,11 +71,30 @@ test.describe('Admin Cache - mocked smoke', () => {
     await page.goto(`${BASE_URL}${PAGE_URL}`)
     await page.waitForLoadState('domcontentloaded')
 
-    await expect(page.getByRole('heading', { name: 'Cache Management' })).toBeVisible({ timeout: 15000 })
-    await expect(page.getByRole('button', { name: 'Invalidate Namespace' })).toBeVisible({ timeout: 15000 })
-    await expect(page.getByRole('button', { name: 'Clear Cache' })).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('Cache Namespaces')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('Cache Hot Keys')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('Compute Count')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-cache-page')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-cache-refresh')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-cache-reset-stats')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-cache-invalidate-namespace')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-cache-clear-cache')).toBeVisible({ timeout: 15000 })
+
+    const backendCard = page.getByTestId('admin-cache-stat-backend')
+    await expect(backendCard).toBeVisible({ timeout: 15000 })
+    await expect(backendCard).toContainText('memory')
+
+    const hitRateCard = page.getByTestId('admin-cache-stat-hit-rate')
+    await expect(hitRateCard).toBeVisible({ timeout: 15000 })
+    await expect(hitRateCard).toContainText('83.3%')
+
+    const totalRequestsCard = page.getByTestId('admin-cache-stat-total-requests')
+    await expect(totalRequestsCard).toBeVisible({ timeout: 15000 })
+    await expect(totalRequestsCard).toContainText('12')
+
+    const namespaces = page.getByTestId('admin-cache-namespaces')
+    await expect(namespaces).toBeVisible({ timeout: 15000 })
+    await expect(namespaces.getByText('stats')).toBeVisible({ timeout: 15000 })
+
+    const hotKeys = page.getByTestId('admin-cache-hot-keys')
+    await expect(hotKeys).toBeVisible({ timeout: 15000 })
+    await expect(hotKeys.getByText('lncrna:stats:overview')).toBeVisible({ timeout: 15000 })
   })
 })
