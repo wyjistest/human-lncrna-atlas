@@ -214,6 +214,18 @@ class PercentileMetrics(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CacheGetLatencyPercentiles(BaseModel):
+    """缓存 get() 命中/未命中耗时百分位（毫秒）"""
+
+    hits_samples: int = Field(ge=0, description="命中样本数")
+    misses_samples: int = Field(ge=0, description="未命中样本数")
+    max_samples: int = Field(ge=0, description="每类样本最大保留数量（ring buffer）")
+    hits: Optional[PercentileMetrics] = Field(default=None, description="命中耗时百分位(ms)")
+    misses: Optional[PercentileMetrics] = Field(default=None, description="未命中耗时百分位(ms)")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MetricsResponse(BaseModel):
     """
     监控指标响应
@@ -232,6 +244,10 @@ class MetricsResponse(BaseModel):
     cache_breakdown: Optional[CacheBreakdown] = Field(
         default=None,
         description="缓存命名空间/热点 key 分布（不包含 Redis host 等敏感信息）",
+    )
+    cache_get_latency: Optional[CacheGetLatencyPercentiles] = Field(
+        default=None,
+        description="缓存 get() 命中/未命中耗时百分位（ms；数据不足时为null）",
     )
 
     # Phase 2 - 新增指标

@@ -13,7 +13,8 @@ import {
   CacheKeysTable,
   SystemGauge,
   AlertsBanner,
-  PercentilesCard
+  PercentilesCard,
+  CacheGetLatencyCard
 } from './components'
 import type { HealthStatus } from '@/types/monitoring'
 
@@ -270,6 +271,22 @@ export default function Monitoring() {
         <Col span={24}>
           <Card title="Endpoint Statistics">
             <EndpointTable data={data?.endpoints} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Cache Get Latency Percentiles */}
+      <Row style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <Card
+            title="Cache Get Latency"
+            extra={
+              data?.cache_get_latency
+                ? `hits: ${data.cache_get_latency.hits_samples.toLocaleString()} / misses: ${data.cache_get_latency.misses_samples.toLocaleString()}`
+                : undefined
+            }
+          >
+            <CacheGetLatencyCard data={data?.cache_get_latency} />
           </Card>
         </Col>
       </Row>

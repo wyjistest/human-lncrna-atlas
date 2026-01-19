@@ -202,6 +202,19 @@ export interface CacheBreakdown {
   keys: CacheKeysBreakdown
 }
 
+export interface CacheGetLatencyPercentiles {
+  /** Hit samples collected (rolling window) */
+  hits_samples: number
+  /** Miss samples collected (rolling window) */
+  misses_samples: number
+  /** Max samples retained per category */
+  max_samples: number
+  /** Hit latency percentiles (ms); null/undefined when samples are insufficient */
+  hits?: PercentileMetrics | null
+  /** Miss latency percentiles (ms); null/undefined when samples are insufficient */
+  misses?: PercentileMetrics | null
+}
+
 export interface CacheStatsDetails extends CacheStatsSummary {
   /** Human-readable hit rate e.g., "70.0%" */
   hit_rate: string
@@ -259,6 +272,8 @@ export interface MonitoringMetrics {
   cache_stats?: CacheStatsSummary
   /** Cache breakdown (namespaces / hot keys) */
   cache_breakdown?: CacheBreakdown
+  /** Cache get() latency percentiles (hits/misses) */
+  cache_get_latency?: CacheGetLatencyPercentiles | null
 
   // Phase 2 fields
   /** Response time distribution histogram data */

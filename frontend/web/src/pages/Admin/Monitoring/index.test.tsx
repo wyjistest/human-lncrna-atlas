@@ -51,6 +51,13 @@ vi.mock('@/hooks/useMonitoringMetrics', () => ({
           ],
         },
       },
+      cache_get_latency: {
+        hits_samples: 12,
+        misses_samples: 11,
+        max_samples: 1000,
+        hits: { p50_ms: 0.5, p95_ms: 1.2, p99_ms: 2.0 },
+        misses: { p50_ms: 0.8, p95_ms: 2.5, p99_ms: 4.1 },
+      },
       response_time_distribution: { buckets: [], counts: [] },
       error_trend: { timestamps: [], error_rates: [] },
       endpoints: [],
@@ -75,6 +82,7 @@ describe('Admin Monitoring page', () => {
     renderWithProviders(<Monitoring />)
 
     expect(screen.getByText('Reset Cache Stats')).toBeInTheDocument()
+    expect(screen.getByText('Cache Get Latency')).toBeInTheDocument()
     expect(screen.getByText('Cache Namespaces')).toBeInTheDocument()
     expect(screen.getByText('Cache Hot Keys')).toBeInTheDocument()
     expect(screen.getByText('Compute Count')).toBeInTheDocument()

@@ -15,6 +15,7 @@ import re
 import time
 import threading
 import weakref
+from collections import deque
 from typing import Any, Optional, Callable, TypeVar, Tuple, TYPE_CHECKING
 from functools import wraps
 
@@ -393,6 +394,8 @@ class CacheService:
     _TOP_NAMESPACES_LIMIT = 10
     _MAX_TRACKED_KEYS = 500
     _TOP_KEYS_LIMIT = 10
+    _GET_LATENCY_SAMPLES_MAXLEN = 1000
+    _GET_LATENCY_PERCENTILES_MIN_SAMPLES = 10
 
     def __init__(self):
         self._redis = RedisCache()
@@ -411,6 +414,31 @@ class CacheService:
         # Use WeakValueDictionary to avoid unbounded growth when keys are high-cardinality.
         self._singleflight_guard = threading.Lock()
         self._singleflight_locks: weakref.WeakValueDictionary[str, threading.Lock] = weakref.WeakValueDictionary()
+        # Best-effort get() latency samples (ms). Do NOT compute percentiles in the hot path.
+        self._get_latency_hits_ms: deque[float] = deque(maxlen=self._GET_LATENCY_SAMPLES_MAXLEN)
+        self._get_latency_misses_ms: deque[float] = deque(maxlen=self._GET_LATENCY_SAMPLES_MAXLEN)
+
+    def _calculate_latency_percentiles_ms(self, samples_ms: list[float]) -> Optional[dict[str, float]]:
+        """
+        Calculate p50/p95/p99 percentiles (ms) from samples.
+
+        NOTE: This sorts samples and must NOT be called in hot paths (e.g. get()).
+        """
+        if len(samples_ms) < self._GET_LATENCY_PERCENTILES_MIN_SAMPLES:
+            return None
+
+        sorted_times = sorted(max(0.0, float(v)) for v in samples_ms)
+        n = len(sorted_times)
+
+        p50_idx = min(int(n * 0.50), n - 1)
+        p95_idx = min(int(n * 0.95), n - 1)
+        p99_idx = min(int(n * 0.99), n - 1)
+
+        return {
+            "p50_ms": round(sorted_times[p50_idx], 2),
+            "p95_ms": round(sorted_times[p95_idx], 2),
+            "p99_ms": round(sorted_times[p99_idx], 2),
+        }
 
     def _normalize_namespace_for_stats(self, namespace: str) -> str:
         ns = (namespace or "").strip().lower()
@@ -580,12 +608,15 @@ class CacheService:
         # 优先 Redis
         use_redis = self._redis.connected
         backend = "redis" if use_redis else "memory"
+        start = time.perf_counter()
         value = self._redis.get(key) if use_redis else self._memory.get(key)
+        get_latency_ms = max(0.0, (time.perf_counter() - start) * 1000.0)
         namespace = self._extract_namespace_from_key(key)
 
         if value is not None:
             with self._stats_lock:
                 self._hits += 1
+                self._get_latency_hits_ms.append(get_latency_ms)
                 self._record_namespace_request_locked(namespace, hit=True)
                 self._record_key_request_locked(key, hit=True)
             if _CACHE_HITS_TOTAL is not None:
@@ -593,6 +624,7 @@ class CacheService:
         else:
             with self._stats_lock:
                 self._misses += 1
+                self._get_latency_misses_ms.append(get_latency_ms)
                 self._record_namespace_request_locked(namespace, hit=False)
                 self._record_key_request_locked(key, hit=False)
             if _CACHE_MISSES_TOTAL is not None:
@@ -724,6 +756,8 @@ class CacheService:
             misses = self._misses
             namespace_stats = {k: dict(v) for k, v in self._namespace_stats.items()}
             key_stats = {k: dict(v) for k, v in self._key_stats.items()}
+            get_latency_hits = list(self._get_latency_hits_ms)
+            get_latency_misses = list(self._get_latency_misses_ms)
         total = hits + misses
         hit_rate = (hits / max(total, 1)) * 100
         stats = {
@@ -734,6 +768,15 @@ class CacheService:
             "total_requests": total,
             "hit_rate": f"{hit_rate:.1f}%",
             "hit_rate_pct": round(hit_rate, 2),
+        }
+
+        # Cache get() latency percentiles (ms) for hits/misses.
+        stats["get_latency_ms"] = {
+            "hits_samples": len(get_latency_hits),
+            "misses_samples": len(get_latency_misses),
+            "max_samples": self._GET_LATENCY_SAMPLES_MAXLEN,
+            "hits": self._calculate_latency_percentiles_ms(get_latency_hits),
+            "misses": self._calculate_latency_percentiles_ms(get_latency_misses),
         }
 
         # Namespace-level breakdown (top N by request count)
@@ -823,6 +866,8 @@ class CacheService:
             self._misses = 0
             self._namespace_stats.clear()
             self._key_stats.clear()
+            self._get_latency_hits_ms.clear()
+            self._get_latency_misses_ms.clear()
 
     # ============== 新增：缓存键生成辅助方法 ==============
 

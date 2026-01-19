@@ -101,6 +101,13 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
             "misses": 3,
             "total_requests": 10,
             "hit_rate_pct": 70.0,
+            "get_latency_ms": {
+                "hits_samples": 12,
+                "misses_samples": 11,
+                "max_samples": 1000,
+                "hits": {"p50_ms": 0.5, "p95_ms": 1.2, "p99_ms": 2.0},
+                "misses": {"p50_ms": 0.8, "p95_ms": 2.5, "p99_ms": 4.1},
+            },
             "namespaces": {
                 "tracked": 2,
                 "limit": 10,
@@ -164,6 +171,14 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.cache_breakdown is not None
     assert metrics.cache_breakdown.namespaces.top[0].namespace == "genes"
     assert metrics.cache_breakdown.keys.top[0].namespace == "genes"
+    assert metrics.cache_get_latency is not None
+    assert metrics.cache_get_latency.hits_samples == 12
+    assert metrics.cache_get_latency.misses_samples == 11
+    assert metrics.cache_get_latency.max_samples == 1000
+    assert metrics.cache_get_latency.hits is not None
+    assert metrics.cache_get_latency.hits.p50_ms == 0.5
+    assert metrics.cache_get_latency.misses is not None
+    assert metrics.cache_get_latency.misses.p95_ms == 2.5
 
 
 @pytest.mark.unit

@@ -44,6 +44,7 @@ from app.schemas.monitoring import (
     HealthMetrics,
     CacheStats,
     CacheBreakdown,
+    CacheGetLatencyPercentiles,
     CacheNamespacesBreakdown,
     CacheNamespaceBreakdownItem,
     CacheKeysBreakdown,
@@ -761,6 +762,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
     # 缓存统计摘要（命中率等）。注意：不返回 Redis host 等敏感/环境信息。
     cache_stats: Optional[CacheStats] = None
     cache_breakdown: Optional[CacheBreakdown] = None
+    cache_get_latency: Optional[CacheGetLatencyPercentiles] = None
     try:
         stats = cache.get_stats()
         if isinstance(stats, dict):
@@ -831,6 +833,38 @@ async def get_metrics(request: Request) -> MetricsResponse:
                             top=key_top,
                         ),
                     )
+
+            # Cache get() latency percentiles (best-effort; may be null if samples are insufficient).
+            get_latency = stats.get("get_latency_ms")
+            if isinstance(get_latency, dict):
+                hits_samples = max(0, int(get_latency.get("hits_samples", 0) or 0))
+                misses_samples = max(0, int(get_latency.get("misses_samples", 0) or 0))
+                max_samples = max(0, int(get_latency.get("max_samples", 0) or 0))
+
+                hits_pct_raw = get_latency.get("hits")
+                misses_pct_raw = get_latency.get("misses")
+                hits_pct = None
+                misses_pct = None
+                if isinstance(hits_pct_raw, dict):
+                    hits_pct = PercentileMetrics(
+                        p50_ms=max(0.0, float(hits_pct_raw.get("p50_ms", 0.0) or 0.0)),
+                        p95_ms=max(0.0, float(hits_pct_raw.get("p95_ms", 0.0) or 0.0)),
+                        p99_ms=max(0.0, float(hits_pct_raw.get("p99_ms", 0.0) or 0.0)),
+                    )
+                if isinstance(misses_pct_raw, dict):
+                    misses_pct = PercentileMetrics(
+                        p50_ms=max(0.0, float(misses_pct_raw.get("p50_ms", 0.0) or 0.0)),
+                        p95_ms=max(0.0, float(misses_pct_raw.get("p95_ms", 0.0) or 0.0)),
+                        p99_ms=max(0.0, float(misses_pct_raw.get("p99_ms", 0.0) or 0.0)),
+                    )
+
+                cache_get_latency = CacheGetLatencyPercentiles(
+                    hits_samples=hits_samples,
+                    misses_samples=misses_samples,
+                    max_samples=max_samples,
+                    hits=hits_pct,
+                    misses=misses_pct,
+                )
     except Exception as e:  # pragma: no cover
         logger.debug("Failed to build cache stats summary: %s", sanitize_for_log(e, max_length=2000))
 
@@ -875,6 +909,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
         ),
         cache_stats=cache_stats,
         cache_breakdown=cache_breakdown,
+        cache_get_latency=cache_get_latency,
         # Phase 2 - 新增指标
         response_time_distribution=response_time_distribution,
         error_trend=error_trend,
