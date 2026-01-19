@@ -90,6 +90,11 @@ describe('Admin Monitoring page', () => {
   it('renders cache breakdown section', () => {
     renderWithProviders(<Monitoring />)
 
+    expect(screen.getByTestId('admin-monitoring-page')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-response-percentiles')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-endpoint-statistics')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-cache-get-latency')).toBeInTheDocument()
+
     expect(screen.getByText('Reset Cache Stats')).toBeInTheDocument()
     expect(screen.getByText('Cache Get Latency')).toBeInTheDocument()
     expect(screen.getByText('Cache Namespaces')).toBeInTheDocument()

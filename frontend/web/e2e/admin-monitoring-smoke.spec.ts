@@ -64,7 +64,9 @@ test.describe('Admin Monitoring - mocked smoke', () => {
 
     await expect(page.getByRole('heading', { name: 'System Monitoring' })).toBeVisible({ timeout: 15000 })
 
-    const cacheLatencyCard = page.locator('.ant-card').filter({ has: page.getByText('Cache Get Latency') })
+    await expect(page.getByTestId('admin-monitoring-page')).toBeVisible({ timeout: 15000 })
+
+    const cacheLatencyCard = page.getByTestId('admin-monitoring-cache-get-latency')
     await expect(cacheLatencyCard).toBeVisible({ timeout: 15000 })
     await expect(cacheLatencyCard.getByText('hits: 12 / misses: 12')).toBeVisible({ timeout: 15000 })
     await expect(cacheLatencyCard.getByText('P50')).toHaveCount(2)

@@ -88,7 +88,7 @@ export default function Monitoring() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div data-testid="admin-monitoring-page" style={{ padding: 24 }}>
       <Space style={{ marginBottom: 24, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>System Monitoring</h1>
         <Space>
@@ -246,9 +246,11 @@ export default function Monitoring() {
           </Card>
         </Col>
         <Col xs={24} sm={24} md={8} lg={12}>
-          <Card title="Response Time Percentiles">
-            <PercentilesCard data={data?.percentiles} />
-          </Card>
+          <div data-testid="admin-monitoring-response-percentiles">
+            <Card title="Response Time Percentiles">
+              <PercentilesCard data={data?.percentiles} />
+            </Card>
+          </div>
         </Col>
       </Row>
 
@@ -269,25 +271,29 @@ export default function Monitoring() {
       {/* Phase 2: Endpoint Statistics Table */}
       <Row style={{ marginTop: 16 }}>
         <Col span={24}>
-          <Card title="Endpoint Statistics">
-            <EndpointTable data={data?.endpoints} />
-          </Card>
+          <div data-testid="admin-monitoring-endpoint-statistics">
+            <Card title="Endpoint Statistics">
+              <EndpointTable data={data?.endpoints} />
+            </Card>
+          </div>
         </Col>
       </Row>
 
       {/* Cache Get Latency Percentiles */}
       <Row style={{ marginTop: 16 }}>
         <Col span={24}>
-          <Card
-            title="Cache Get Latency"
-            extra={
-              data?.cache_get_latency
-                ? `hits: ${data.cache_get_latency.hits_samples.toLocaleString()} / misses: ${data.cache_get_latency.misses_samples.toLocaleString()}`
-                : undefined
-            }
-          >
-            <CacheGetLatencyCard data={data?.cache_get_latency} />
-          </Card>
+          <div data-testid="admin-monitoring-cache-get-latency">
+            <Card
+              title="Cache Get Latency"
+              extra={
+                data?.cache_get_latency
+                  ? `hits: ${data.cache_get_latency.hits_samples.toLocaleString()} / misses: ${data.cache_get_latency.misses_samples.toLocaleString()}`
+                  : undefined
+              }
+            >
+              <CacheGetLatencyCard data={data?.cache_get_latency} />
+            </Card>
+          </div>
         </Col>
       </Row>
 
