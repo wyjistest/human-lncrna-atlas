@@ -141,6 +141,8 @@ Notes:
   - `e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts`
   - `e2e/genes-smoke.spec.ts`
   - `e2e/regulations-smoke.spec.ts`
+  - `e2e/stats-smoke.spec.ts`
+  - `e2e/diseases-smoke.spec.ts`
   - `e2e/admin-monitoring-smoke.spec.ts`
   - `e2e/admin-cache-smoke.spec.ts`
   - `e2e/admin-materialized-views-smoke.spec.ts`
@@ -219,6 +221,28 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT/frontend/web"
 
 npm run test:e2e -- e2e/regulations-smoke.spec.ts
+```
+
+### Run Stats Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the Stats overview and detailed endpoints.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/stats-smoke.spec.ts
+```
+
+### Run Diseases Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the Diseases list API.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/diseases-smoke.spec.ts
 ```
 
 ### Run Specific Test

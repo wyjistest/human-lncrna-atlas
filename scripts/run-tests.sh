@@ -388,17 +388,19 @@ run_frontend_e2e_smoke_tests() {
         timeout=$((timeout - 2))
     done
 
-    local failed=0
-    if BASE_URL="$base_url" CI=true npx playwright test \
-        e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
-        e2e/genes-smoke.spec.ts \
-        e2e/regulations-smoke.spec.ts \
-        e2e/admin-monitoring-smoke.spec.ts \
-        e2e/admin-cache-smoke.spec.ts \
-        e2e/admin-materialized-views-smoke.spec.ts \
-        --reporter=list; then
-        echo -e "${GREEN}E2E smoke 通过!${NC}"
-    else
+	    local failed=0
+	    if BASE_URL="$base_url" CI=true npx playwright test \
+	        e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
+	        e2e/genes-smoke.spec.ts \
+	        e2e/regulations-smoke.spec.ts \
+	        e2e/stats-smoke.spec.ts \
+	        e2e/diseases-smoke.spec.ts \
+	        e2e/admin-monitoring-smoke.spec.ts \
+	        e2e/admin-cache-smoke.spec.ts \
+	        e2e/admin-materialized-views-smoke.spec.ts \
+	        --reporter=list; then
+	        echo -e "${GREEN}E2E smoke 通过!${NC}"
+	    else
         failed=1
         echo -e "${RED}E2E smoke 失败${NC}"
         echo -e "${YELLOW}若提示缺少浏览器，可运行：cd ${FRONTEND_DIR} && npx playwright install chromium${NC}"
