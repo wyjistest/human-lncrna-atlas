@@ -267,7 +267,7 @@ export default function Regulations() {
   if (error) return <ErrorState error={error} />
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24 }} data-testid="regulations-page">
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>{t('title')}</h1>
         <Dropdown menu={{ items: exportMenuItems }} disabled={exporting}>
@@ -302,28 +302,30 @@ export default function Regulations() {
         />
       )}
 
-      <Table
-        rowSelection={rowSelection}
-        columns={columns}
-        dataSource={data?.items}
-        rowKey="regulation_id"
-        pagination={{
-          current: page,
-          pageSize,
-          total: data?.total,
-          showSizeChanger: true,
-          showTotal: (total) => t('pagination.total', { count: total }),
-          onChange: (p, ps) => {
-            // 当 pageSize 改变时，重置到第一页避免竞态条件
-            if (ps !== pageSize) {
-              setPage(1)
-              setPageSize(ps)
-            } else {
-              setPage(p)
-            }
-          },
-        }}
-      />
+      <div data-testid="regulations-table">
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={data?.items}
+          rowKey="regulation_id"
+          pagination={{
+            current: page,
+            pageSize,
+            total: data?.total,
+            showSizeChanger: true,
+            showTotal: (total) => t('pagination.total', { count: total }),
+            onChange: (p, ps) => {
+              // 当 pageSize 改变时，重置到第一页避免竞态条件
+              if (ps !== pageSize) {
+                setPage(1)
+                setPageSize(ps)
+              } else {
+                setPage(p)
+              }
+            },
+          }}
+        />
+      </div>
 
       {/* 批量可视化弹窗 */}
       <BatchVisualizationModal
