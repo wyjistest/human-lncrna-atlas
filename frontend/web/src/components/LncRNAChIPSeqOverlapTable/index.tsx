@@ -278,11 +278,14 @@ export function LncRNAChIPSeqOverlapTable({
     }
   }, [])
 
-  useEffect(() => {
-    if (showFilters && highlightFilterKeys && filterPanelContainerRef.current) {
-      filterPanelContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }, [showFilters, highlightFilterKeys])
+	  useEffect(() => {
+	    if (showFilters && highlightFilterKeys && filterPanelContainerRef.current) {
+	      const el = filterPanelContainerRef.current
+	      if (typeof el.scrollIntoView === 'function') {
+	        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+	      }
+	    }
+	  }, [showFilters, highlightFilterKeys])
 
   // IGV control state (like GenomeBrowser page)
   const [igvSpeciesId, setIgvSpeciesId] = useState<number>(1) // Default to Human
@@ -1082,16 +1085,17 @@ export function LncRNAChIPSeqOverlapTable({
 		              <span>{parsedDataError?.message || dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
 		              {suggestedFilters.length > 0 && (
 		                <Space wrap size={[0, 8]}>
-		                  {suggestedFilters.map((key) => {
-		                    const clickable = HIGHLIGHTABLE_FILTER_KEYS.has(key)
-		                    return (
-		                      <Tag
-		                        key={key}
-		                        color="gold"
-		                        style={clickable ? { cursor: 'pointer' } : undefined}
-		                        onClick={clickable ? () => handleSuggestedFilterClick(key) : undefined}
-		                      >
-		                        {getSuggestedFilterLabel(key)}
+			                  {suggestedFilters.map((key) => {
+			                    const clickable = HIGHLIGHTABLE_FILTER_KEYS.has(key)
+			                    return (
+			                      <Tag
+			                        key={key}
+			                        data-testid={`overlap-suggest-filter-${key.replace(/_/g, '-')}`}
+			                        color="gold"
+			                        style={clickable ? { cursor: 'pointer' } : undefined}
+			                        onClick={clickable ? () => handleSuggestedFilterClick(key) : undefined}
+			                      >
+			                        {getSuggestedFilterLabel(key)}
 		                      </Tag>
 		                    )
 		                  })}

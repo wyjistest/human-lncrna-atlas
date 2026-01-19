@@ -134,6 +134,17 @@ cd "$REPO_ROOT/frontend/web"
 npm run test:e2e -- e2e/lncrna-chipseq-overlap.spec.ts
 ```
 
+### Run QUERY_TOO_BROAD Guidance Test (Mocked)
+
+This spec is designed to be independent of backend data by intercepting overlap API calls.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts
+```
+
 ### Run Specific Test
 
 ```bash
