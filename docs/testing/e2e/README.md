@@ -143,6 +143,8 @@ Notes:
   - `e2e/regulations-smoke.spec.ts`
   - `e2e/stats-smoke.spec.ts`
   - `e2e/diseases-smoke.spec.ts`
+  - `e2e/analysis-smoke.spec.ts`
+  - `e2e/conservation-smoke.spec.ts`
   - `e2e/admin-monitoring-smoke.spec.ts`
   - `e2e/admin-cache-smoke.spec.ts`
   - `e2e/admin-materialized-views-smoke.spec.ts`
@@ -243,6 +245,28 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT/frontend/web"
 
 npm run test:e2e -- e2e/diseases-smoke.spec.ts
+```
+
+### Run Analysis Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the analysis summary and high-affinity export endpoints.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/analysis-smoke.spec.ts
+```
+
+### Run Conservation Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the conservation overview/matrix/regulations endpoints.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/conservation-smoke.spec.ts
 ```
 
 ### Run Specific Test
