@@ -364,6 +364,111 @@ jobs:
         run: |
           python3 etl/smoke_verify_sample_import.py
 
+  api-snapshot-baseline:
+    name: API Snapshot Baseline (Postgres)
+    runs-on: ubuntu-latest
+    needs: [secret-scan]  # Fail fast if secrets detected
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lncrna_api_baseline_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lncrna_api_baseline_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            frontend/backend/requirements.txt
+            frontend/backend/constraints.txt
+
+      - name: Install backend dependencies
+        working-directory: frontend/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -c constraints.txt
+
+      - name: Init schema + sample data (v2.3)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: lncrna_api_baseline_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+          export PGPASSWORD="$DB_PASSWORD"
+
+          for f in \
+            "schema/v2.3/01_core.sql" \
+            "schema/v2.3/02_extension.sql" \
+            "schema/v2.3/03_sample_data.sql"; do
+            echo "[api-baseline] loading: ${f}"
+            psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
+          done
+
+      - name: Verify API snapshot baseline (sample dataset)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: lncrna_api_baseline_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          # Keep parity with baseline generation (cache enabled + Redis available).
+          ENABLE_CACHE: "true"
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+        run: |
+          set -euo pipefail
+
+          cd frontend/backend
+
+          python -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1 &
+          backend_pid=$!
+          trap 'kill $backend_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS "http://127.0.0.1:8000/health" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Backend did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          python ../../scripts/api_snapshot.py \
+            --base-url "http://127.0.0.1:8000" \
+            --check-baseline ../../docs/baselines/api-snapshot.sample.json
+
   build:
     name: Build
     runs-on: ubuntu-latest
