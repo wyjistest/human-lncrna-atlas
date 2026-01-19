@@ -52,7 +52,7 @@ export default function Stats() {
   if (overviewError) return <ErrorState error={overviewError} />
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24 }} data-testid="stats-page">
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>{t('title')}</h1>
         <Dropdown menu={{ items: exportMenuItems }} disabled={exporting || detailedLoading}>
@@ -63,7 +63,7 @@ export default function Stats() {
       </Space>
 
       {/* 报告内容区域 */}
-      <div ref={reportRef}>
+      <div ref={reportRef} data-testid="stats-report">
 
       {/* 统计卡片 */}
       <Row gutter={16} style={{ marginTop: 24, marginBottom: 32 }}>

@@ -77,7 +77,7 @@ export default function Diseases() {
   if (error) return <ErrorState error={error} />
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24 }} data-testid="diseases-page">
       <h1>{t('title')}</h1>
       <p style={{ color: '#666', marginBottom: 16 }}>
         {t('description')}
@@ -88,35 +88,37 @@ export default function Diseases() {
         style={{ width: 300, marginBottom: 16 }}
         allowClear
       />
-      <Table
-        columns={columns}
-        dataSource={data?.items}
-        rowKey={(record) => `${record.trait_id}-${record.ontology_id}`}
-        expandable={{
-          expandedRowKeys,
-          onExpand: (expanded, record) => {
-            const key = `${record.trait_id}-${record.ontology_id}`
-            setExpandedRowKeys(expanded ? [key] : [])
-          },
-          expandedRowRender: (record) => <DiseaseAssociations traitId={record.trait_id as number} ontologyId={record.ontology_id as number} />,
-        }}
-        pagination={{
-          current: page,
-          pageSize,
-          total: data?.total,
-          showSizeChanger: true,
-          showTotal: (total) => t('pagination.total', { count: total }),
-          onChange: (p, ps) => {
-            // 当 pageSize 改变时，重置到第一页避免竞态条件
-            if (ps !== pageSize) {
-              setPage(1)
-              setPageSize(ps)
-            } else {
-              setPage(p)
-            }
-          },
-        }}
-      />
+      <div data-testid="diseases-table">
+        <Table
+          columns={columns}
+          dataSource={data?.items}
+          rowKey={(record) => `${record.trait_id}-${record.ontology_id}`}
+          expandable={{
+            expandedRowKeys,
+            onExpand: (expanded, record) => {
+              const key = `${record.trait_id}-${record.ontology_id}`
+              setExpandedRowKeys(expanded ? [key] : [])
+            },
+            expandedRowRender: (record) => <DiseaseAssociations traitId={record.trait_id as number} ontologyId={record.ontology_id as number} />,
+          }}
+          pagination={{
+            current: page,
+            pageSize,
+            total: data?.total,
+            showSizeChanger: true,
+            showTotal: (total) => t('pagination.total', { count: total }),
+            onChange: (p, ps) => {
+              // 当 pageSize 改变时，重置到第一页避免竞态条件
+              if (ps !== pageSize) {
+                setPage(1)
+                setPageSize(ps)
+              } else {
+                setPage(p)
+              }
+            },
+          }}
+        />
+      </div>
     </div>
   )
 }
