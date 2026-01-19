@@ -442,6 +442,8 @@ jobs:
           DB_NAME: lncrna_api_baseline_ci
           DB_USER: postgres
           DB_PASSWORD: postgres
+          # Backend startup security gate (required by main.py lifespan).
+          ADMIN_API_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
           # Keep parity with baseline generation (cache enabled + Redis available).
           ENABLE_CACHE: "true"
           REDIS_HOST: 127.0.0.1
