@@ -149,6 +149,20 @@ class EndpointStats(BaseModel):
         default=None,
         description="端点响应时间百分位(ms；数据不足时为null)",
     )
+    db_avg_ms: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="端点 DB 平均耗时(ms；按请求聚合；无 DB 查询时为 0)",
+    )
+    db_query_avg: Optional[float] = Field(
+        default=None,
+        ge=0,
+        description="端点平均每请求 DB 查询数（best-effort）",
+    )
+    db_percentiles: Optional["PercentileMetrics"] = Field(
+        default=None,
+        description="端点请求级 DB 耗时百分位(ms；数据不足时为null)",
+    )
     errors: int = Field(ge=0, description="错误数")
     error_rate: float = Field(ge=0, le=1, description="错误率")
 
@@ -230,6 +244,43 @@ class CacheGetLatencyPercentiles(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SlowQuerySummary(BaseModel):
+    """慢查询榜单条目（按 SQL 指纹聚合）"""
+
+    fingerprint: str = Field(description="SQL 语句指纹（用于聚合）")
+    statement: str = Field(description="归一化后的 SQL（截断）")
+    count: int = Field(ge=1, description="出现次数（在 ring buffer 窗口内）")
+    total_time_ms: float = Field(ge=0, description="累计耗时(ms)")
+    avg_ms: float = Field(ge=0, description="平均耗时(ms)")
+    max_ms: float = Field(ge=0, description="最大耗时(ms)")
+    last_seen: str = Field(description="最后一次出现时间（ISO8601）")
+    route: Optional[str] = Field(default=None, description="触发该查询的端点（best-effort）")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DatabaseMetrics(BaseModel):
+    """数据库查询性能指标（用于快速定位 DB 瓶颈）"""
+
+    total_queries: int = Field(ge=0, description="累计 DB 查询数")
+    total_time_ms: float = Field(ge=0, description="累计 DB 查询耗时(ms)")
+    avg_ms: float = Field(ge=0, description="平均单次查询耗时(ms)")
+    percentiles: Optional[PercentileMetrics] = Field(
+        default=None,
+        description="单次查询耗时百分位(ms；数据不足时为null)",
+    )
+    request_total_ms: float = Field(ge=0, description="累计请求级 DB 耗时(ms；每请求 sum(query))")
+    request_avg_ms: float = Field(ge=0, description="平均每请求 DB 耗时(ms)")
+    request_percentiles: Optional[PercentileMetrics] = Field(
+        default=None,
+        description="每请求 DB 耗时百分位(ms；数据不足时为null)",
+    )
+    slow_query_threshold_ms: float = Field(ge=0, description="慢查询阈值(ms；0 表示不记录)")
+    slow_queries: list[SlowQuerySummary] = Field(default_factory=list, description="慢查询榜单（按指纹聚合）")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MetricsResponse(BaseModel):
     """
     监控指标响应
@@ -266,6 +317,10 @@ class MetricsResponse(BaseModel):
     alerts: list[Alert] = Field(default_factory=list, description="告警列表")
     percentiles: Optional[PercentileMetrics] = Field(
         default=None, description="响应时间百分位（数据不足时为null）"
+    )
+    database: Optional[DatabaseMetrics] = Field(
+        default=None,
+        description="数据库查询指标（用于定位慢查询与 DB 主导尾延迟）",
     )
 
     model_config = ConfigDict(from_attributes=True)

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 import app.routers.admin as admin_module
+from app.core.database import record_db_query_duration_ms
 from app.middleware.admin_metrics import AdminMetricsMiddleware, create_metrics_data
 from app.schemas.monitoring import ProcessInfo, SystemDisk, SystemMemory, SystemMetrics
 
@@ -227,3 +228,76 @@ def test_admin_metrics_reset_stats_clears_in_memory_counters():
         assert data["current_second"]["requests"] == 0
         assert data["current_second"]["errors"] == 0
         assert data["endpoints"] == {}
+
+
+@pytest.mark.unit
+def test_admin_metrics_collects_database_query_metrics_and_slow_queries(monkeypatch):
+    app = FastAPI()
+    app.state.start_time = time.time() - 10
+    app.state.metrics_data = create_metrics_data()
+
+    @app.get("/api/v1/test")
+    def ok():
+        # 模拟一次请求内的两条 DB 查询：一条快、一条慢
+        record_db_query_duration_ms(50.0, "SELECT 1")
+        record_db_query_duration_ms(250.0, "SELECT pg_sleep(0.25)")
+        return {"ok": True}
+
+    app.add_middleware(AdminMetricsMiddleware)
+
+    with TestClient(app) as client:
+        for _ in range(10):
+            resp = client.get("/api/v1/test")
+            assert resp.status_code == 200
+
+    monkeypatch.setattr(admin_module, "check_database_status", lambda: "ok")
+    monkeypatch.setattr(admin_module, "check_cache_status", lambda: "not_configured")
+    monkeypatch.setattr(
+        admin_module.cache,
+        "get_stats",
+        lambda: {
+            "backend": "memory",
+            "enabled": True,
+            "hits": 7,
+            "misses": 3,
+            "total_requests": 10,
+            "hit_rate_pct": 70.0,
+            "get_latency_ms": {
+                "hits_samples": 12,
+                "misses_samples": 11,
+                "max_samples": 1000,
+                "hits": {"p50_ms": 0.5, "p95_ms": 1.2, "p99_ms": 2.0},
+                "misses": {"p50_ms": 0.8, "p95_ms": 2.5, "p99_ms": 4.1},
+            },
+            "namespaces": {"tracked": 0, "limit": 10, "top": []},
+            "keys": {"tracked": 0, "limit": 10, "top": []},
+        },
+    )
+    monkeypatch.setattr(
+        admin_module,
+        "get_system_metrics",
+        lambda: SystemMetrics(
+            cpu_percent=0.0,
+            memory=SystemMemory(used_mb=0, total_mb=0, percent=0),
+            disk=SystemDisk(used_gb=0, total_gb=0, percent=0),
+            process=ProcessInfo(cpu_percent=0, memory_mb=0),
+        ),
+    )
+    monkeypatch.setattr(admin_module, "generate_alerts", lambda **kwargs: [])
+
+    request = _make_request(app)
+
+    get_metrics = admin_module.get_metrics
+    if hasattr(get_metrics, "__wrapped__"):
+        get_metrics = get_metrics.__wrapped__
+
+    metrics = asyncio.run(get_metrics(request))
+    assert metrics.database is not None
+    assert metrics.database.total_queries == 20
+    assert metrics.database.slow_queries
+    assert metrics.database.slow_queries[0].count >= 10
+    assert metrics.endpoints
+    assert metrics.endpoints[0].db_avg_ms is not None
+    assert metrics.endpoints[0].db_avg_ms >= 0
+    assert metrics.endpoints[0].db_query_avg is not None
+    assert metrics.endpoints[0].db_query_avg >= 1

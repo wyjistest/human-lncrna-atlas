@@ -30,7 +30,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Header
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 
-from app.core.database import engine
+from app.core.database import DB_SLOW_QUERY_THRESHOLD_MS, engine
 from app.core.cache import cache
 from app.core.config import settings, AlertThresholds
 from app.core.ip_utils import get_client_ip, is_private_ip
@@ -59,6 +59,8 @@ from app.schemas.monitoring import (
     ProcessInfo,
     Alert,
     PercentileMetrics,
+    DatabaseMetrics,
+    SlowQuerySummary,
 )
 
 logger = logging.getLogger(__name__)
@@ -404,12 +406,21 @@ def build_endpoints_stats(metrics_data: dict, top_n: int = 20) -> list[EndpointS
         errors = data.get("errors", 0)
         total_time = data.get("total_time", 0.0)
         response_times = data.get("response_times", [])
+        db_total_time_ms = float(data.get("db_total_time_ms", 0.0) or 0.0)
+        db_total_queries = int(data.get("db_total_queries", 0) or 0)
+        db_request_times = data.get("db_request_times", [])
 
         avg_ms = (total_time / requests) if requests > 0 else 0.0
+        db_avg_ms = (db_total_time_ms / requests) if requests > 0 else 0.0
+        db_query_avg = (db_total_queries / requests) if requests > 0 else 0.0
         error_rate = (errors / requests) if requests > 0 else 0.0
         percentiles = None
         if isinstance(response_times, (list, tuple, deque)) and response_times:
             percentiles = calculate_percentiles(list(response_times))
+
+        db_percentiles = None
+        if isinstance(db_request_times, (list, tuple, deque)) and db_request_times:
+            db_percentiles = calculate_percentiles(list(db_request_times))
 
         stats_list.append(
             EndpointStats(
@@ -417,6 +428,9 @@ def build_endpoints_stats(metrics_data: dict, top_n: int = 20) -> list[EndpointS
                 requests=requests,
                 avg_ms=round(avg_ms, 2),
                 percentiles=percentiles,
+                db_avg_ms=round(db_avg_ms, 2),
+                db_query_avg=round(db_query_avg, 2),
+                db_percentiles=db_percentiles,
                 errors=errors,
                 error_rate=round(error_rate, 4),
             )
@@ -690,6 +704,130 @@ def calculate_percentiles(response_times: Sequence[float]) -> Optional[Percentil
     )
 
 
+def build_database_metrics(metrics_data: dict) -> Optional[DatabaseMetrics]:
+    """
+    从 AdminMetricsMiddleware 的 in-memory 聚合数据构建 DB 指标（best-effort）。
+
+    说明：
+    - `total_*` 为累计值；percentiles/slow_queries 为窗口样本（ring buffer）统计
+    - 没有任何 DB 样本时返回 None，保持向后兼容
+    """
+
+    total_queries = int(metrics_data.get("db_total_queries", 0) or 0)
+    total_time_ms = float(metrics_data.get("db_total_time_ms", 0.0) or 0.0)
+
+    query_times = metrics_data.get("db_query_times", [])
+    request_times = metrics_data.get("db_request_times", [])
+    slow_samples = metrics_data.get("db_slow_queries", [])
+
+    if (
+        total_queries <= 0
+        and not query_times
+        and not request_times
+        and not slow_samples
+    ):
+        return None
+
+    percentiles = None
+    if isinstance(query_times, (list, tuple, deque)) and query_times:
+        percentiles = calculate_percentiles([float(x) for x in query_times])
+
+    request_times_list: list[float] = []
+    if isinstance(request_times, (list, tuple, deque)) and request_times:
+        for x in request_times:
+            try:
+                request_times_list.append(max(0.0, float(x)))
+            except Exception:
+                continue
+
+    request_total_ms = sum(request_times_list)
+    request_avg_ms = (request_total_ms / len(request_times_list)) if request_times_list else 0.0
+    request_percentiles = calculate_percentiles(request_times_list) if request_times_list else None
+
+    slow_queries: list[SlowQuerySummary] = []
+    if isinstance(slow_samples, (list, tuple, deque)) and slow_samples:
+        grouped: dict[str, dict] = {}
+        for item in slow_samples:
+            if not isinstance(item, dict):
+                continue
+            fingerprint = str(item.get("fingerprint", "") or "")
+            if not fingerprint:
+                continue
+            statement = str(item.get("statement", "") or "") or "<unknown>"
+            try:
+                duration_ms = max(0.0, float(item.get("duration_ms", 0.0) or 0.0))
+            except Exception:
+                continue
+            try:
+                ts = float(item.get("timestamp", 0.0) or 0.0)
+            except Exception:
+                ts = 0.0
+            route_raw = item.get("route", None)
+            route = str(route_raw) if route_raw else None
+
+            bucket = grouped.get(fingerprint)
+            if bucket is None:
+                bucket = {
+                    "statement": statement,
+                    "count": 0,
+                    "total_time_ms": 0.0,
+                    "max_ms": 0.0,
+                    "last_ts": 0.0,
+                    "route": route,
+                }
+                grouped[fingerprint] = bucket
+
+            bucket["count"] += 1
+            bucket["total_time_ms"] += duration_ms
+            bucket["max_ms"] = max(float(bucket.get("max_ms", 0.0) or 0.0), duration_ms)
+            if ts >= float(bucket.get("last_ts", 0.0) or 0.0):
+                bucket["last_ts"] = ts
+                if route:
+                    bucket["route"] = route
+                if statement and statement != "<unknown>":
+                    bucket["statement"] = statement
+
+        for fingerprint, bucket in grouped.items():
+            count = int(bucket.get("count", 0) or 0)
+            if count <= 0:
+                continue
+            total_ms = float(bucket.get("total_time_ms", 0.0) or 0.0)
+            max_ms = float(bucket.get("max_ms", 0.0) or 0.0)
+            avg_ms = total_ms / count if count > 0 else 0.0
+            last_ts = float(bucket.get("last_ts", 0.0) or 0.0)
+            last_seen = datetime.fromtimestamp(last_ts or 0).isoformat()
+
+            slow_queries.append(
+                SlowQuerySummary(
+                    fingerprint=fingerprint,
+                    statement=str(bucket.get("statement", "") or "<unknown>"),
+                    count=count,
+                    total_time_ms=round(total_ms, 2),
+                    avg_ms=round(avg_ms, 2),
+                    max_ms=round(max_ms, 2),
+                    last_seen=last_seen,
+                    route=bucket.get("route", None),
+                )
+            )
+
+        slow_queries.sort(key=lambda x: (x.total_time_ms, x.max_ms), reverse=True)
+        slow_queries = slow_queries[:20]
+
+    avg_ms = (total_time_ms / total_queries) if total_queries > 0 else 0.0
+
+    return DatabaseMetrics(
+        total_queries=total_queries,
+        total_time_ms=round(max(0.0, total_time_ms), 2),
+        avg_ms=round(max(0.0, avg_ms), 2),
+        percentiles=percentiles,
+        request_total_ms=round(max(0.0, request_total_ms), 2),
+        request_avg_ms=round(max(0.0, request_avg_ms), 2),
+        request_percentiles=request_percentiles,
+        slow_query_threshold_ms=round(max(0.0, float(DB_SLOW_QUERY_THRESHOLD_MS)), 2),
+        slow_queries=slow_queries,
+    )
+
+
 @router.get(
     "/metrics",
     response_model=MetricsResponse,
@@ -739,6 +877,14 @@ async def get_metrics(request: Request) -> MetricsResponse:
                     ep["response_times"] = list(ep_rt)
                 else:
                     ep.pop("response_times", None)
+
+                ep_db = ep.get("db_request_times")
+                if isinstance(ep_db, deque):
+                    ep["db_request_times"] = list(ep_db)
+                elif isinstance(ep_db, list):
+                    ep["db_request_times"] = list(ep_db)
+                else:
+                    ep.pop("db_request_times", None)
                 endpoints_snapshot[k] = ep
 
             metrics_data = {
@@ -750,6 +896,11 @@ async def get_metrics(request: Request) -> MetricsResponse:
                 "current_second": dict(metrics_data.get("current_second", {}) or {}),
                 "endpoints": endpoints_snapshot,
                 "response_times": list(metrics_data.get("response_times", []) or []),
+                "db_total_queries": int(metrics_data.get("db_total_queries", 0) or 0),
+                "db_total_time_ms": float(metrics_data.get("db_total_time_ms", 0.0) or 0.0),
+                "db_query_times": list(metrics_data.get("db_query_times", []) or []),
+                "db_request_times": list(metrics_data.get("db_request_times", []) or []),
+                "db_slow_queries": list(metrics_data.get("db_slow_queries", []) or []),
             }
 
     total_requests = metrics_data.get("total_requests", 0)
@@ -905,6 +1056,8 @@ async def get_metrics(request: Request) -> MetricsResponse:
     response_times = metrics_data.get("response_times", [])
     percentiles = calculate_percentiles(response_times)
 
+    database = build_database_metrics(metrics_data)
+
     return MetricsResponse(
         # Phase 1 - 基础指标
         request=RequestMetrics(
@@ -935,6 +1088,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
         system=system_metrics,
         alerts=alerts,
         percentiles=percentiles,
+        database=database,
     )
 
 
@@ -966,6 +1120,8 @@ async def reset_metrics_stats(request: Request) -> dict:
             metrics_data["total_requests"] = 0
             metrics_data["total_errors"] = 0
             metrics_data["total_time"] = 0.0
+            metrics_data["db_total_queries"] = 0
+            metrics_data["db_total_time_ms"] = 0.0
 
             # 清空样本与时间序列（保留 maxlen）
             response_times = metrics_data.get("response_times")
@@ -973,6 +1129,24 @@ async def reset_metrics_stats(request: Request) -> dict:
                 response_times.clear()
             else:
                 metrics_data["response_times"] = []
+
+            db_query_times = metrics_data.get("db_query_times")
+            if hasattr(db_query_times, "clear"):
+                db_query_times.clear()
+            else:
+                metrics_data["db_query_times"] = []
+
+            db_request_times = metrics_data.get("db_request_times")
+            if hasattr(db_request_times, "clear"):
+                db_request_times.clear()
+            else:
+                metrics_data["db_request_times"] = []
+
+            db_slow_queries = metrics_data.get("db_slow_queries")
+            if hasattr(db_slow_queries, "clear"):
+                db_slow_queries.clear()
+            else:
+                metrics_data["db_slow_queries"] = []
 
             time_series = metrics_data.get("time_series")
             if hasattr(time_series, "clear"):

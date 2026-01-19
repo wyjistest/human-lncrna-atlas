@@ -8,11 +8,18 @@ Performance and Security Features:
 - Automatic connection recycling
 - Multi-dialect support (PostgreSQL, SQLite)
 """
+from contextlib import contextmanager
+from contextvars import ContextVar, Token
+from dataclasses import dataclass, field
+import hashlib
+import logging
+import re
+import time
+from typing import Optional
+
 from sqlalchemy import create_engine, text, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool, StaticPool
-from contextlib import contextmanager
-import logging
 
 from .config import settings
 from .utils import sanitize_for_log
@@ -88,6 +95,134 @@ if _is_postgresql:
         cursor.execute("SET statement_timeout = %s", (QUERY_TIMEOUT_MS,))
         cursor.close()
         logger.debug(f"Set statement_timeout to {QUERY_TIMEOUT_MS}ms on new connection")
+
+
+_DB_QUERY_DURATIONS_PER_REQUEST_MAXLEN = 200
+DB_SLOW_QUERY_THRESHOLD_MS = 200.0
+_DB_STATEMENT_MAX_CHARS = 400
+_DB_SQL_WHITESPACE_RE = re.compile(r"\s+")
+
+
+@dataclass
+class DbSlowQuerySample:
+    fingerprint: str
+    statement: str
+    duration_ms: float
+    timestamp: float
+
+
+@dataclass
+class DbRequestMetrics:
+    db_total_time_ms: float = 0.0
+    db_query_count: int = 0
+    query_durations_ms: list[float] = field(default_factory=list)
+    slow_queries: list[DbSlowQuerySample] = field(default_factory=list)
+
+
+_DB_REQUEST_METRICS: ContextVar[Optional[DbRequestMetrics]] = ContextVar(
+    "db_request_metrics",
+    default=None,
+)
+
+
+def start_db_request_metrics() -> Token[Optional[DbRequestMetrics]]:
+    """
+    为单个请求启动 DB metrics 收集。
+
+    说明：
+    - 通过 ContextVar 将“当前请求”信息传递给 SQLAlchemy engine event listener。
+    - 若没有调用该函数（例如后台任务/脚本），DB 查询计时仍可工作，但不会计入 Admin metrics。
+    """
+
+    return _DB_REQUEST_METRICS.set(DbRequestMetrics())
+
+
+def finish_db_request_metrics(token: Token[Optional[DbRequestMetrics]]) -> Optional[DbRequestMetrics]:
+    """
+    结束 DB metrics 收集并恢复上层 ContextVar。
+    """
+
+    metrics = _DB_REQUEST_METRICS.get()
+    _DB_REQUEST_METRICS.reset(token)
+    return metrics
+
+
+def _normalize_sql_statement(statement: str) -> str:
+    raw = str(statement or "").strip()
+    if not raw:
+        return ""
+
+    normalized = _DB_SQL_WHITESPACE_RE.sub(" ", raw)
+    if len(normalized) > _DB_STATEMENT_MAX_CHARS:
+        return normalized[:_DB_STATEMENT_MAX_CHARS] + "…"
+    return normalized
+
+
+def _fingerprint_sql_statement(statement: str) -> str:
+    normalized = _normalize_sql_statement(statement)
+    if not normalized:
+        return "empty"
+    digest = hashlib.sha256(normalized.encode("utf-8", "replace")).hexdigest()
+    return digest[:12]
+
+
+def record_db_query_duration_ms(duration_ms: float, statement: str) -> None:
+    """
+    记录一次 DB 查询耗时（毫秒），写入当前请求的 DbRequestMetrics。
+
+    说明：
+    - 该函数既可被 SQLAlchemy event listener 调用，也可用于单元测试中模拟 DB 查询耗时。
+    - 该指标属于“可观测性”，不得影响主查询链路；内部异常会被吞掉。
+    """
+
+    try:
+        metrics = _DB_REQUEST_METRICS.get()
+        if metrics is None:
+            return
+
+        ms = max(0.0, float(duration_ms))
+        metrics.db_total_time_ms += ms
+        metrics.db_query_count += 1
+
+        if len(metrics.query_durations_ms) < _DB_QUERY_DURATIONS_PER_REQUEST_MAXLEN:
+            metrics.query_durations_ms.append(ms)
+
+        if DB_SLOW_QUERY_THRESHOLD_MS > 0 and ms >= DB_SLOW_QUERY_THRESHOLD_MS:
+            normalized = _normalize_sql_statement(statement)
+            fingerprint = _fingerprint_sql_statement(normalized)
+            metrics.slow_queries.append(
+                DbSlowQuerySample(
+                    fingerprint=fingerprint,
+                    statement=normalized,
+                    duration_ms=ms,
+                    timestamp=time.time(),
+                )
+            )
+    except Exception:  # pragma: no cover
+        return
+
+
+@event.listens_for(engine, "before_cursor_execute")
+def _db_metrics_before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    # NOTE: 必须极轻量；不允许抛异常影响查询执行
+    try:
+        context._db_metrics_start = time.perf_counter()
+    except Exception:  # pragma: no cover
+        return
+
+
+@event.listens_for(engine, "after_cursor_execute")
+def _db_metrics_after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    # NOTE: 必须极轻量；不允许抛异常影响查询执行
+    try:
+        start = getattr(context, "_db_metrics_start", None)
+        if start is None:
+            return
+        duration_ms = (time.perf_counter() - start) * 1000.0
+        record_db_query_duration_ms(duration_ms, str(statement))
+    except Exception:  # pragma: no cover
+        return
+
 
 # 创建Session工厂
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

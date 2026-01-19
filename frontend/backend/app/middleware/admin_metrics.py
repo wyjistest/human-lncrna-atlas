@@ -22,6 +22,7 @@ from typing import Any
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
+from app.core.database import finish_db_request_metrics, start_db_request_metrics
 from app.core.utils import sanitize_for_log
 
 logger = logging.getLogger("api")
@@ -34,6 +35,9 @@ def create_metrics_data(
     time_series_maxlen: int = 600,
     max_endpoints: int = 200,
     endpoint_response_times_maxlen: int = 200,
+    db_query_times_maxlen: int = 5000,
+    db_request_times_maxlen: int = 2000,
+    db_slow_queries_maxlen: int = 200,
 ) -> dict[str, Any]:
     """
     创建 Admin metrics 的内部存储结构（挂载到 app.state.metrics_data）。
@@ -41,6 +45,7 @@ def create_metrics_data(
     说明：
     - total_time：单位秒（与 admin.py 中 avg_ms 的计算逻辑对齐）
     - endpoints[*].total_time：单位毫秒（与 build_endpoints_stats 的 avg_ms 对齐）
+    - db_total_time_ms：单位毫秒（sum(query_duration_ms)）
     """
     return {
         "_lock": threading.Lock(),
@@ -60,6 +65,15 @@ def create_metrics_data(
         "endpoints": {},  # path -> {requests, errors, total_time(ms)}
         "_max_endpoints": max(1, int(max_endpoints)),
         "_endpoint_response_times_maxlen": max(1, int(endpoint_response_times_maxlen)),
+        # Database (best-effort, request-scoped via ContextVar + SQLAlchemy events)
+        "db_total_queries": 0,
+        "db_total_time_ms": 0.0,
+        "db_query_times": deque(maxlen=max(1, int(db_query_times_maxlen))),  # per-query milliseconds
+        "db_request_times": deque(maxlen=max(1, int(db_request_times_maxlen))),  # per-request db time(ms)
+        "db_slow_queries": deque(maxlen=max(1, int(db_slow_queries_maxlen))),  # recent slow query samples
+        "_db_query_times_maxlen": max(1, int(db_query_times_maxlen)),
+        "_db_request_times_maxlen": max(1, int(db_request_times_maxlen)),
+        "_db_slow_queries_maxlen": max(1, int(db_slow_queries_maxlen)),
     }
 
 
@@ -88,6 +102,14 @@ def ensure_metrics_data(app) -> dict[str, Any]:
     data.setdefault("endpoints", {})
     data.setdefault("_max_endpoints", 200)
     data.setdefault("_endpoint_response_times_maxlen", 200)
+    data.setdefault("db_total_queries", 0)
+    data.setdefault("db_total_time_ms", 0.0)
+    data.setdefault("db_query_times", deque(maxlen=5000))
+    data.setdefault("db_request_times", deque(maxlen=2000))
+    data.setdefault("db_slow_queries", deque(maxlen=200))
+    data.setdefault("_db_query_times_maxlen", 5000)
+    data.setdefault("_db_request_times_maxlen", 2000)
+    data.setdefault("_db_slow_queries_maxlen", 200)
     return data
 
 
@@ -145,6 +167,7 @@ class AdminMetricsMiddleware:
             await self.app(scope, receive, send)
             return
 
+        db_token = start_db_request_metrics()
         start = time.monotonic()
         status_code: int = 0
 
@@ -157,6 +180,12 @@ class AdminMetricsMiddleware:
         try:
             await self.app(scope, receive, send_wrapper)
         finally:
+            db_metrics = finish_db_request_metrics(db_token)
+            db_query_count = int(getattr(db_metrics, "db_query_count", 0) or 0)
+            db_total_time_ms = float(getattr(db_metrics, "db_total_time_ms", 0.0) or 0.0)
+            db_query_durations = list(getattr(db_metrics, "query_durations_ms", []) or [])
+            db_slow_queries = list(getattr(db_metrics, "slow_queries", []) or [])
+
             duration_sec = max(0.0, time.monotonic() - start)
             duration_ms = duration_sec * 1000.0
 
@@ -264,6 +293,62 @@ class AdminMetricsMiddleware:
                         ep_times = deque(maxlen=endpoint_times_maxlen)
                         ep_times.append(float(duration_ms))
                         ep["response_times"] = ep_times
+
+                    if db_query_count > 0:
+                        # Global DB stats
+                        metrics_data["db_total_queries"] = int(metrics_data.get("db_total_queries", 0) or 0) + db_query_count
+                        metrics_data["db_total_time_ms"] = float(metrics_data.get("db_total_time_ms", 0.0) or 0.0) + db_total_time_ms
+
+                        db_query_times = metrics_data.get("db_query_times")
+                        if not isinstance(db_query_times, deque):
+                            db_query_times = deque(
+                                maxlen=max(1, int(metrics_data.get("_db_query_times_maxlen", 5000) or 5000))
+                            )
+                            metrics_data["db_query_times"] = db_query_times
+                        for ms in db_query_durations:
+                            try:
+                                db_query_times.append(float(ms))
+                            except Exception:
+                                continue
+
+                        db_request_times = metrics_data.get("db_request_times")
+                        if not isinstance(db_request_times, deque):
+                            db_request_times = deque(
+                                maxlen=max(1, int(metrics_data.get("_db_request_times_maxlen", 2000) or 2000))
+                            )
+                            metrics_data["db_request_times"] = db_request_times
+                        db_request_times.append(float(db_total_time_ms))
+
+                        db_slow_queries_deque = metrics_data.get("db_slow_queries")
+                        if not isinstance(db_slow_queries_deque, deque):
+                            db_slow_queries_deque = deque(
+                                maxlen=max(1, int(metrics_data.get("_db_slow_queries_maxlen", 200) or 200))
+                            )
+                            metrics_data["db_slow_queries"] = db_slow_queries_deque
+                        for sq in db_slow_queries:
+                            try:
+                                db_slow_queries_deque.append(
+                                    {
+                                        "fingerprint": str(getattr(sq, "fingerprint", "") or ""),
+                                        "statement": str(getattr(sq, "statement", "") or ""),
+                                        "duration_ms": float(getattr(sq, "duration_ms", 0.0) or 0.0),
+                                        "timestamp": float(getattr(sq, "timestamp", 0.0) or 0.0),
+                                        "route": str(endpoint_key),
+                                    }
+                                )
+                            except Exception:
+                                continue
+
+                        # Endpoint-level DB stats
+                        ep["db_total_time_ms"] = float(ep.get("db_total_time_ms", 0.0) or 0.0) + db_total_time_ms
+                        ep["db_total_queries"] = int(ep.get("db_total_queries", 0) or 0) + db_query_count
+                        ep_db_times = ep.get("db_request_times")
+                        if isinstance(ep_db_times, deque):
+                            ep_db_times.append(float(db_total_time_ms))
+                        else:
+                            ep_db_times = deque(maxlen=endpoint_times_maxlen)
+                            ep_db_times.append(float(db_total_time_ms))
+                            ep["db_request_times"] = ep_db_times
 
             except Exception as e:  # pragma: no cover
                 # 指标采集必须“绝不影响主请求链路”
