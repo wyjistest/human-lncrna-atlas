@@ -129,7 +129,7 @@ def main() -> int:
             SELECT batch_id, batch_name
             FROM import_batches
             WHERE batch_type = %s
-            ORDER BY created_at DESC
+            ORDER BY import_date DESC, batch_id DESC
             """,
             ("regulations",),
         )
@@ -322,4 +322,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"ETL sample import verification failed: {exc}", file=sys.stderr)
         raise
-
