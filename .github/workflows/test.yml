@@ -375,6 +375,9 @@ jobs:
           POSTGRES_USER: lncrna
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: lncrna_api_baseline_ci
+          # CI-only: allow local TCP connections without password issues (isolated service container).
+          # This avoids flakiness from auth mismatches while keeping the job self-contained.
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
