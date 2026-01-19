@@ -310,7 +310,7 @@ export default function Conservation() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24 }} data-testid="conservation-page">
       {/* Breadcrumb */}
       <Breadcrumb
         style={{ marginBottom: 16 }}
@@ -409,13 +409,15 @@ export default function Conservation() {
       {/* Conservation Heatmap */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={24}>
-          <ConservationMatrix
-            data={matrixData || null}
-            loading={matrixLoading}
-            title={t('matrix.title', 'Conservation Matrix')}
-            height={450}
-            onCellClick={handleCellClick}
-          />
+          <div data-testid="conservation-matrix">
+            <ConservationMatrix
+              data={matrixData || null}
+              loading={matrixLoading}
+              title={t('matrix.title', 'Conservation Matrix')}
+              height={450}
+              onCellClick={handleCellClick}
+            />
+          </div>
         </Col>
       </Row>
 
@@ -515,33 +517,35 @@ export default function Conservation() {
           </Button>
         }
       >
-        <Table<ConservedRegulation>
-          columns={columns}
-          dataSource={regulationsData?.items || []}
-          rowKey={(record) => {
-            // 注意：同一个 core_id 可能对应多个 target gene，不能直接用 core_id 作为 key（会触发 React 重复 key 警告）
-            const targetKey = record.target_ensembl_id || record.target_gene_name || 'unknown-target'
-            return `${record.core_id}-${targetKey}-${record.conservation_label}`
-          }}
-          loading={regulationsLoading}
-          pagination={{
-            current: page,
-            pageSize,
-            total: regulationsData?.total || 0,
-            showSizeChanger: true,
-            showTotal: (total) => t('table.total', { count: total }),
-            onChange: (p, ps) => {
-              if (ps !== pageSize) {
-                setPage(1)
-                setPageSize(ps)
-              } else {
-                setPage(p)
+        <div data-testid="conservation-table">
+          <Table<ConservedRegulation>
+            columns={columns}
+            dataSource={regulationsData?.items || []}
+            rowKey={(record) => {
+              // 注意：同一个 core_id 可能对应多个 target gene，不能直接用 core_id 作为 key（会触发 React 重复 key 警告）
+              const targetKey = record.target_ensembl_id || record.target_gene_name || 'unknown-target'
+              return `${record.core_id}-${targetKey}-${record.conservation_label}`
+            }}
+            loading={regulationsLoading}
+            pagination={{
+              current: page,
+              pageSize,
+              total: regulationsData?.total || 0,
+              showSizeChanger: true,
+              showTotal: (total) => t('table.total', { count: total }),
+              onChange: (p, ps) => {
+                if (ps !== pageSize) {
+                  setPage(1)
+                  setPageSize(ps)
+                } else {
+                  setPage(p)
+                }
               }
-            }
-          }}
-          scroll={{ x: 900 }}
-          size="middle"
-        />
+            }}
+            scroll={{ x: 900 }}
+            size="middle"
+          />
+        </div>
       </Card>
 
       {/* Conservation Details Drawer */}

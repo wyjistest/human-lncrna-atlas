@@ -212,6 +212,17 @@ describe('Conservation Page', () => {
   })
 
   describe('Page Rendering', () => {
+    it('renders stable page anchors for mocked smoke tests', async () => {
+      render(<Conservation />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByTestId('conservation-page')).toBeInTheDocument()
+      })
+
+      expect(screen.getByTestId('conservation-matrix')).toBeInTheDocument()
+      expect(screen.getByTestId('conservation-table')).toBeInTheDocument()
+    })
+
     it('renders the page title and description', async () => {
       render(<Conservation />, { wrapper: createWrapper() })
 

@@ -88,19 +88,21 @@ export default function Analysis() {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24 }} data-testid="analysis-page">
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ margin: 0, marginBottom: 8 }}>{t('title')}</h1>
         <p style={{ color: '#666', margin: 0 }}>{t('description')}</p>
       </div>
 
-      <Tabs
-        activeKey={activeTab}
-        items={items}
-        onChange={setActiveTab}
-        destroyOnHidden
-        size="large"
-      />
+      <div data-testid="analysis-tabs">
+        <Tabs
+          activeKey={activeTab}
+          items={items}
+          onChange={setActiveTab}
+          destroyOnHidden
+          size="large"
+        />
+      </div>
     </div>
   )
 }

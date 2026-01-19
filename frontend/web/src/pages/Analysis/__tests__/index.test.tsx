@@ -199,6 +199,13 @@ describe('Analysis Page', () => {
   })
 
   describe('Page Rendering', () => {
+    it('renders stable page and tabs anchors', async () => {
+      render(<Analysis />, { wrapper: createWrapper() })
+
+      expect(screen.getByTestId('analysis-page')).toBeInTheDocument()
+      expect(screen.getByTestId('analysis-tabs')).toBeInTheDocument()
+    })
+
     it('renders the page title and description', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
