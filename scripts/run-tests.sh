@@ -1,6 +1,6 @@
 #!/bin/bash
 # Human LncRNA Atlas - 测试运行脚本
-# 运行所有测试（需要后端和前端服务已启动）
+# 统一测试入口（支持 CI 对齐检查 + 可选 E2E）
 
 set -euo pipefail
 
@@ -352,6 +352,62 @@ run_frontend_build() {
     fi
 }
 
+# 运行 E2E Smoke（完全 mocked，对齐 CI；不依赖后端/DB）
+run_frontend_e2e_smoke_tests() {
+    echo -e "${YELLOW}运行前端 E2E smoke（完全 mocked，对齐 CI）...${NC}"
+    ensure_frontend_deps || return 1
+    require_cmd curl || return 1
+
+    cd "$FRONTEND_DIR"
+
+    # 确保 dist 存在（CI smoke 依赖 Vite build artifact + preview）
+    if [ ! -d "dist" ] || [ ! -f "dist/index.html" ]; then
+        echo -e "${YELLOW}未找到 dist/，先执行 npm run build...${NC}"
+        npm run build || return 1
+    fi
+
+    local base_url="http://127.0.0.1:5173"
+
+    # 与 CI 一致：固定端口 + strictPort。若端口已被占用，直接 fail-fast。
+    if curl -fsS "${base_url}/" > /dev/null 2>&1; then
+        echo -e "${RED}端口 5173 已被占用（${base_url} 可访问），请先停止占用该端口的服务。${NC}"
+        return 1
+    fi
+
+    npm run preview -- --host 127.0.0.1 --port 5173 --strictPort &
+    local preview_pid=$!
+
+    local timeout=60
+    while ! curl -fsS "${base_url}/" > /dev/null 2>&1; do
+        if [ $timeout -le 0 ]; then
+            echo -e "${RED}前端 preview server 未在预期时间内就绪${NC}"
+            kill "$preview_pid" > /dev/null 2>&1 || true
+            return 1
+        fi
+        sleep 2
+        timeout=$((timeout - 2))
+    done
+
+    local failed=0
+    if BASE_URL="$base_url" CI=true npx playwright test \
+        e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
+        e2e/admin-monitoring-smoke.spec.ts \
+        e2e/admin-cache-smoke.spec.ts \
+        e2e/admin-materialized-views-smoke.spec.ts \
+        --reporter=list; then
+        echo -e "${GREEN}E2E smoke 通过!${NC}"
+    else
+        failed=1
+        echo -e "${RED}E2E smoke 失败${NC}"
+        echo -e "${YELLOW}若提示缺少浏览器，可运行：cd ${FRONTEND_DIR} && npx playwright install chromium${NC}"
+    fi
+
+    kill "$preview_pid" > /dev/null 2>&1 || true
+    wait "$preview_pid" > /dev/null 2>&1 || true
+
+    return $failed
+}
+
 # 运行 E2E 测试
 run_e2e_tests() {
     echo -e "${YELLOW}运行 E2E 测试...${NC}"
@@ -406,6 +462,9 @@ main() {
             check_services || exit 1
             run_e2e_tests || failed=1
             ;;
+        e2e-smoke)
+            run_frontend_e2e_smoke_tests || failed=1
+            ;;
         smoke)
             # 默认: 运行所有无外部依赖的单元测试
             run_backend_unit_tests || failed=1
@@ -446,7 +505,7 @@ main() {
             run_docs_checks || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|ci|backend|e2e|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|ci|backend|e2e|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
@@ -458,6 +517,7 @@ main() {
             echo "  backend-lint - 运行后端 Lint (ruff check)"
             echo "  frontend-lint  - 运行前端 Lint (ESLint)"
             echo "  frontend-build - 运行前端构建 (Vite build)"
+            echo "  e2e-smoke     - 运行 Playwright E2E smoke（完全 mocked，对齐 CI，无需后端/DB）"
             echo "  ci           - 对齐 GitHub Actions 的核心检查集合"
             echo "  backend      - 运行后端 API 合同测试（需要服务运行）"
             echo "  e2e          - 运行前端 E2E 测试（需要服务运行）"

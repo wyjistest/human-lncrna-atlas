@@ -170,6 +170,9 @@ These match the checks in `.github/workflows/test.yml`.
 # CI also runs two additional smoke jobs (see `.github/workflows/test.yml`):
 # - Playwright E2E smoke (fully mocked, no backend/DB): `e2e-smoke`
 # - ETL E2E smoke (PostgreSQL 15+ service, sample import): `etl-e2e-smoke`
+#
+# Reproduce CI Playwright smoke locally (no backend/DB):
+./scripts/run-tests.sh e2e-smoke
 
 # Docs-only (fast fail: check for drift in startup command examples)
 ./scripts/run-tests.sh docs-check

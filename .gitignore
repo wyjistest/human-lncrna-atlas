@@ -99,5 +99,9 @@ notebooks/results/
 .codex-session
 .claude-session
 
+# Git worktrees (local-only)
+.worktrees/
+worktrees/
+
 # Local development (not for GitHub)
 LOCAL_DEV.md

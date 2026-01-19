@@ -124,6 +124,20 @@ API should run at `http://localhost:8000`
 
 ## Running Tests
 
+### Run CI E2E Smoke (Mocked, No Backend/DB)
+
+This mirrors the `.github/workflows/test.yml` `e2e-smoke` job (Vite build artifact + `vite preview` + mocked Playwright specs).
+
+```bash
+# From repo root
+./scripts/run-tests.sh e2e-smoke
+```
+
+Notes:
+- Requires port `5173` to be free (uses `--strictPort` like CI).
+- If Playwright reports missing browsers, install once:
+  - `cd frontend/web && npx playwright install chromium`
+
 ### Run All Tests
 
 ```bash
