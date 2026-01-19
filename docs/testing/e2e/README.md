@@ -145,6 +145,17 @@ cd "$REPO_ROOT/frontend/web"
 npm run test:e2e -- e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts
 ```
 
+### Run Admin Monitoring Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the Admin metrics API.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/admin-monitoring-smoke.spec.ts
+```
+
 ### Run Specific Test
 
 ```bash
