@@ -539,7 +539,10 @@ jobs:
             timeout=$((timeout - 2))
           done
 
-          npx playwright test e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts --reporter=list
+          npx playwright test \
+            e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
+            e2e/admin-monitoring-smoke.spec.ts \
+            --reporter=list
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
