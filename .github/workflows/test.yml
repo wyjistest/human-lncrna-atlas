@@ -372,13 +372,13 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: postgres
+          POSTGRES_USER: lncrna
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: lncrna_api_baseline_ci
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d lncrna_api_baseline_ci"
+          --health-cmd "pg_isready -U lncrna -d lncrna_api_baseline_ci"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -415,7 +415,7 @@ jobs:
           DB_HOST: 127.0.0.1
           DB_PORT: 5432
           DB_NAME: lncrna_api_baseline_ci
-          DB_USER: postgres
+          DB_USER: lncrna
           DB_PASSWORD: postgres
         run: |
           set -euo pipefail
@@ -440,7 +440,7 @@ jobs:
           DB_HOST: 127.0.0.1
           DB_PORT: 5432
           DB_NAME: lncrna_api_baseline_ci
-          DB_USER: postgres
+          DB_USER: lncrna
           DB_PASSWORD: postgres
           # Keep parity with baseline generation (cache enabled + Redis available).
           ENABLE_CACHE: "true"
