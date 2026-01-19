@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-18
+> 最后更新: 2026-01-19
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,19 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-19 ⭐ CI Smoke + 监控回归增强
+
+1. **E2E Smoke 覆盖扩展（完全 mocked）**
+   - 新增 Playwright smoke：`/admin/cache` 与 `/admin/materialized-views`（完全 mock 对应 Admin API）
+   - Admin/Monitoring smoke 改用 `data-testid` 选择器，降低 strict mode 冲突与 UI 结构变更导致的 flaky 风险
+
+2. **监控指标补齐**
+   - `/api/v1/admin/metrics`：新增端点级响应时间百分位（p50/p95/p99）
+   - Admin/Monitoring：Endpoint table 展示 P95/P99（数据不足时显示 `-`）
+
+3. **ETL 回归基线加固**
+   - CI 校验 `etl/sample_inputs/etl-inputs.manifest.tsv`，防止样例输入漂移导致回归失真
 
 ### 2026-01-18 ⭐ 可观测与 CI 基础设施补齐
 

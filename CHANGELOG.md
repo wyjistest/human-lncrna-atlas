@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 新增 Admin 运维页面：`/admin/cache`（缓存管理）与 `/admin/materialized-views`（物化视图状态/刷新）
   - lncRNA-ChIP-seq overlap：表格行点击跳转 IGV 时新增 ROI 高亮（精确 overlap 区域）
   - 后端回归脚本改为 Prometheus 文本校验（避免把 `/metrics` 当 JSON）
+- **CI / Monitoring 回归增强** (2026-01-19)
+  - `GET /api/v1/admin/metrics`：新增端点级响应时间百分位（p50/p95/p99），并在 Admin/Monitoring 的 Endpoint table 展示 P95/P99
+  - CI：新增校验 `etl/sample_inputs/etl-inputs.manifest.tsv`，防止样例输入漂移导致 ETL 回归失真
+  - E2E：新增完全 mocked 的 Playwright smoke（Admin Monitoring / Cache / Materialized Views），并为 Monitoring smoke 引入 `data-testid` 稳定选择器
 
 ### Fixed
 - **Phase 9.3: 代码审查修复** (2025-12-15)

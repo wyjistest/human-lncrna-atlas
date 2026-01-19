@@ -156,6 +156,28 @@ cd "$REPO_ROOT/frontend/web"
 npm run test:e2e -- e2e/admin-monitoring-smoke.spec.ts
 ```
 
+### Run Admin Cache Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the Admin cache stats API.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/admin-cache-smoke.spec.ts
+```
+
+### Run Admin Materialized Views Smoke Test (Mocked)
+
+This spec is designed to be independent of backend/DB by intercepting the Admin materialized views status API.
+
+```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT/frontend/web"
+
+npm run test:e2e -- e2e/admin-materialized-views-smoke.spec.ts
+```
+
 ### Run Specific Test
 
 ```bash
