@@ -48,6 +48,14 @@ export function CacheNamespacesTable({ data }: CacheNamespacesTableProps) {
         align: 'right',
       },
       {
+        title: 'Compute Count',
+        dataIndex: 'compute_count',
+        key: 'compute_count',
+        sorter: (a, b) => a.compute_count - b.compute_count,
+        render: (value: number) => value.toLocaleString(),
+        align: 'right',
+      },
+      {
         title: 'Compute Avg (ms)',
         dataIndex: 'compute_avg_ms',
         key: 'compute_avg_ms',
@@ -81,4 +89,3 @@ export function CacheNamespacesTable({ data }: CacheNamespacesTableProps) {
     />
   )
 }
-
