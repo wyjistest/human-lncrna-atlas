@@ -469,7 +469,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build
-          path: .
+          path: frontend/web/dist
 
       - name: Normalize dist path for preview
         working-directory: frontend/web
