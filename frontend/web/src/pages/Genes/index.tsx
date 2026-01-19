@@ -298,7 +298,7 @@ export default function Genes() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24 }} data-testid="genes-page">
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>{t('title')}</h1>
         <Button icon={<DownloadOutlined />} onClick={handleExportCsv}>
@@ -454,28 +454,30 @@ export default function Genes() {
         ]}
       />
 
-      <Table
-        rowSelection={rowSelection}
-        columns={columns}
-        dataSource={tableData}
-        rowKey="gene_id"
-        loading={activeTab === 'batch' ? batchResolve.isPending : isLoading}
-        pagination={activeTab === 'browse' ? {
-          current: page,
-          pageSize,
-          total: data?.total,
-          showSizeChanger: true,
-          showTotal: (total) => t('pagination.total', { count: total }),
-          onChange: (p, ps) => {
-            if (ps !== pageSize) {
-              setPage(1)
-              setPageSize(ps)
-            } else {
-              setPage(p)
-            }
-          },
-        } : false}
-      />
+      <div data-testid="genes-table">
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={tableData}
+          rowKey="gene_id"
+          loading={activeTab === 'batch' ? batchResolve.isPending : isLoading}
+          pagination={activeTab === 'browse' ? {
+            current: page,
+            pageSize,
+            total: data?.total,
+            showSizeChanger: true,
+            showTotal: (total) => t('pagination.total', { count: total }),
+            onChange: (p, ps) => {
+              if (ps !== pageSize) {
+                setPage(1)
+                setPageSize(ps)
+              } else {
+                setPage(p)
+              }
+            },
+          } : false}
+        />
+      </div>
     </div>
   )
 }
