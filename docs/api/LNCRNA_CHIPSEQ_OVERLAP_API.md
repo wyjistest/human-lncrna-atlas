@@ -315,6 +315,7 @@ This can happen on:
 {
   "detail": {
     "error": "QUERY_TOO_BROAD",
+    "suggest_filters": ["mark_type", "cell_type", "min_binding_affinity"],
     "message": "Query for chr1 is too broad without materialized view 'mv_lncrna_chipseq_overlaps'. Please add additional filters (...)",
     "chromosome": "chr1",
     "using_materialized_view": false

@@ -69,6 +69,15 @@ def test_large_chr_query_without_mv_requires_narrowing_filter(monkeypatch, chrom
     assert isinstance(exc.value.detail, dict)
     assert exc.value.detail.get("error") == "QUERY_TOO_BROAD"
     assert exc.value.detail.get("chromosome") == chromosome
+    assert exc.value.detail.get("suggest_filters") == [
+        "mark_type",
+        "cell_type",
+        "lncrna_gene_id",
+        "target_gene_id",
+        "min_binding_affinity",
+        "min_peak_strength",
+        "min_overlap_length",
+    ]
 
 
 @pytest.mark.parametrize("chromosome", ["chr1", "chr2", "chr3"])
@@ -130,6 +139,13 @@ def test_large_chr_statistics_without_mv_requires_narrowing_filter(monkeypatch, 
     assert isinstance(exc.value.detail, dict)
     assert exc.value.detail.get("error") == "QUERY_TOO_BROAD"
     assert exc.value.detail.get("chromosome") == chromosome
+    assert exc.value.detail.get("suggest_filters") == [
+        "mark_type",
+        "cell_type",
+        "lncrna_gene_id",
+        "target_gene_id",
+        "min_binding_affinity",
+    ]
 
 
 @pytest.mark.parametrize("chromosome", ["chr1", "chr2", "chr3"])
@@ -157,6 +173,9 @@ def test_large_chr_heatmap_without_mv_requires_narrowing_filter(monkeypatch, chr
     assert isinstance(exc.value.detail, dict)
     assert exc.value.detail.get("error") == "QUERY_TOO_BROAD"
     assert exc.value.detail.get("chromosome") == chromosome
+    assert exc.value.detail.get("suggest_filters") == [
+        "min_binding_affinity",
+    ]
 
 
 @pytest.mark.parametrize("chromosome", ["chr1", "chr2", "chr3"])
@@ -188,6 +207,15 @@ def test_large_chr_export_without_mv_requires_narrowing_filter(monkeypatch, chro
     assert isinstance(exc.value.detail, dict)
     assert exc.value.detail.get("error") == "QUERY_TOO_BROAD"
     assert exc.value.detail.get("chromosome") == chromosome
+    assert exc.value.detail.get("suggest_filters") == [
+        "mark_type",
+        "cell_type",
+        "lncrna_gene_id",
+        "target_gene_id",
+        "min_binding_affinity",
+        "min_peak_strength",
+        "min_overlap_length",
+    ]
 
 
 def test_large_chr_export_with_mark_type_allowed_without_mv(monkeypatch):

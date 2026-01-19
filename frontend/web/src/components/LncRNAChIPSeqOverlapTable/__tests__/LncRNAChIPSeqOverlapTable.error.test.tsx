@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { AxiosError } from 'axios'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -22,6 +22,7 @@ describe('LncRNAChIPSeqOverlapTable', () => {
   it('renders structured backend error message for QUERY_TOO_BROAD', () => {
     const detail = {
       error: 'QUERY_TOO_BROAD',
+      suggest_filters: ['mark_type', 'cell_type', 'min_binding_affinity'],
       message:
         "Query for chr1 is too broad without materialized view 'mv_lncrna_chipseq_overlaps'. Please add additional filters.",
       chromosome: 'chr1',
@@ -63,6 +64,10 @@ describe('LncRNAChIPSeqOverlapTable', () => {
       </QueryClientProvider>
     )
 
-    expect(screen.getByText(/Query for chr1 is too broad/i)).toBeInTheDocument()
+    const alert = screen.getByRole('alert')
+    expect(within(alert).getByText(/Query for chr1 is too broad/i)).toBeInTheDocument()
+    expect(within(alert).getByText(/^Mark Type$/i)).toBeInTheDocument()
+    expect(within(alert).getByText(/^Cell Type$/i)).toBeInTheDocument()
+    expect(within(alert).getByText(/^Min Binding Affinity$/i)).toBeInTheDocument()
   })
 })

@@ -94,6 +94,16 @@ import type { MarkType } from '@/types/chipseq'
 
 const { Text } = Typography
 
+const HIGHLIGHTABLE_FILTER_KEYS = new Set([
+  'mark_type',
+  'cell_type',
+  'chromosome',
+  'min_binding_affinity',
+  'min_peak_strength',
+  'min_overlap_length',
+  'max_qvalue',
+])
+
 // Hooks
 import {
   useLncRNAChIPSeqOverlaps,
@@ -183,6 +193,26 @@ export function LncRNAChIPSeqOverlapTable({
   const [showVisualization, setShowVisualization] = useState(enableVisualization)
   const [showIGV, setShowIGV] = useState(enableIGV)
   const [activeTab, setActiveTab] = useState<string>('table')
+  const [highlightFilterKeys, setHighlightFilterKeys] = useState<string[] | null>(null)
+
+  const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const filterPanelContainerRef = useRef<HTMLDivElement>(null)
+
+  const showFiltersWithHighlight = useCallback((keys: string[]) => {
+    setShowFilters(true)
+    setHighlightFilterKeys(keys)
+
+    if (highlightTimerRef.current) {
+      clearTimeout(highlightTimerRef.current)
+      highlightTimerRef.current = null
+    }
+
+    highlightTimerRef.current = setTimeout(() => {
+      if (isMountedRef.current) {
+        setHighlightFilterKeys(null)
+      }
+    }, 4000)
+  }, [])
 
   // IGV browser handle reference
   const browserHandleRef = useRef<GenomeBrowserHandle | null>(null)
@@ -241,8 +271,18 @@ export function LncRNAChIPSeqOverlapTable({
         clearTimeout(exportToastTimerRef.current)
         exportToastTimerRef.current = null
       }
+      if (highlightTimerRef.current) {
+        clearTimeout(highlightTimerRef.current)
+        highlightTimerRef.current = null
+      }
     }
   }, [])
+
+  useEffect(() => {
+    if (showFilters && highlightFilterKeys && filterPanelContainerRef.current) {
+      filterPanelContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [showFilters, highlightFilterKeys])
 
   // IGV control state (like GenomeBrowser page)
   const [igvSpeciesId, setIgvSpeciesId] = useState<number>(1) // Default to Human
@@ -795,9 +835,54 @@ export function LncRNAChIPSeqOverlapTable({
   const {
     data: summaryData,
     isLoading: summaryLoading,
+    error: summaryError,
+    refetch: refetchSummary,
   } = useLncRNAChIPSeqOverlapSummary(filters, {
     enabled: showStats && enableStats,
   })
+
+  const parsedSummaryError = useMemo(() => (summaryError ? parseError(summaryError) : null), [summaryError])
+
+  const suggestedFilters = useMemo(() => {
+    if (parsedDataError?.errorCode !== 'QUERY_TOO_BROAD') return []
+    return parsedDataError.suggestFilters || []
+  }, [parsedDataError])
+
+  const highlightableSuggestedFilters = useMemo(
+    () => suggestedFilters.filter((key) => HIGHLIGHTABLE_FILTER_KEYS.has(key)),
+    [suggestedFilters]
+  )
+
+  const getSuggestedFilterLabel = useCallback((key: string) => {
+    switch (key) {
+      case 'mark_type':
+        return t('filters.markType', 'Mark Type')
+      case 'cell_type':
+        return t('filters.cellType', 'Cell Type')
+      case 'chromosome':
+        return t('filters.chromosome', 'Chromosome')
+      case 'min_binding_affinity':
+        return t('filters.minBindingAffinity', 'Min Binding Affinity')
+      case 'min_peak_strength':
+        return t('filters.minPeakStrength', 'Min Peak Strength')
+      case 'min_overlap_length':
+        return t('filters.minOverlapLength', 'Min Overlap Length')
+      case 'max_qvalue':
+        return t('filters.maxQValue', 'Max Q-value (FDR)')
+      default:
+        return key
+    }
+  }, [t])
+
+  const handleSuggestedFilterClick = useCallback((key: string) => {
+    if (!HIGHLIGHTABLE_FILTER_KEYS.has(key)) return
+    showFiltersWithHighlight([key])
+  }, [showFiltersWithHighlight])
+
+  const highlightAllSuggestedFilters = useCallback(() => {
+    if (highlightableSuggestedFilters.length === 0) return
+    showFiltersWithHighlight(highlightableSuggestedFilters)
+  }, [highlightableSuggestedFilters, showFiltersWithHighlight])
 
   // Handle filter changes
   const handleFiltersChange = useCallback(
@@ -930,17 +1015,20 @@ export function LncRNAChIPSeqOverlapTable({
             exportToastTimerRef.current = null
           }, 1000)
         }
-      } catch (error) {
-        console.error('Export failed:', error)
-        message.error({
-          content: t('export.error.failed', `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`),
-          key: 'export',
-          duration: 5
-        })
-      }
-    },
-    [filters, t]
-  )
+	      } catch (error) {
+	        const parsed = parseError(error)
+	        if (parsed.type !== 'canceled') {
+	          console.error('Export failed:', error)
+	          message.error({
+	            content: t('export.error.failed', `Export failed: ${parsed.message}`),
+	            key: 'export',
+	            duration: 5
+	          })
+	        }
+	      }
+	    },
+	    [filters, t]
+	  )
 
   // Export data handler with large data warning
   const handleExport = useCallback(
@@ -985,28 +1073,52 @@ export function LncRNAChIPSeqOverlapTable({
       <div style={enableIGV && showIGV ? { flex: '0 0 40%', overflow: 'auto', borderBottom: '2px solid #e8e8e8', padding: '16px' } : {}}>
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
       {/* Error Alert - Show at top but allow filter panel to remain visible */}
-	      {dataError && (
-	        <Alert
-	          type="error"
-	          title={t('error.title', 'Loading Failed')}
-	          description={
+		      {dataError && (
+		        <Alert
+		          type="error"
+		          title={t('error.title', 'Loading Failed')}
+		          description={
+		            <Space orientation="vertical" size="small">
+		              <span>{parsedDataError?.message || dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
+		              {suggestedFilters.length > 0 && (
+		                <Space wrap size={[0, 8]}>
+		                  {suggestedFilters.map((key) => {
+		                    const clickable = HIGHLIGHTABLE_FILTER_KEYS.has(key)
+		                    return (
+		                      <Tag
+		                        key={key}
+		                        color="gold"
+		                        style={clickable ? { cursor: 'pointer' } : undefined}
+		                        onClick={clickable ? () => handleSuggestedFilterClick(key) : undefined}
+		                      >
+		                        {getSuggestedFilterLabel(key)}
+		                      </Tag>
+		                    )
+		                  })}
+		                </Space>
+		              )}
+	              <span style={{ fontSize: 12, color: '#999' }}>
+	                {t('error.tryAdjustFilters', 'Try adjusting filters or retry the request')}
+	              </span>
+	            </Space>
+	          }
+	          action={
 	            <Space orientation="vertical" size="small">
-	              <span>{parsedDataError?.message || dataError.message || t('error.unknown', 'An unknown error occurred')}</span>
-              <span style={{ fontSize: 12, color: '#999' }}>
-                {t('error.tryAdjustFilters', 'Try adjusting filters or retry the request')}
-              </span>
-            </Space>
-          }
-          action={
-            <Button size="small" onClick={() => refetchData()} loading={dataLoading}>
-              {tCommon('action.retry', 'Retry')}
-            </Button>
-          }
-          showIcon
-          closable
-          style={{ marginBottom: 0 }}
-        />
-      )}
+	              <Button size="small" onClick={() => refetchData()} loading={dataLoading}>
+	                {tCommon('action.retry', 'Retry')}
+	              </Button>
+	              {suggestedFilters.length > 0 && (
+	                <Button size="small" onClick={highlightAllSuggestedFilters}>
+	                  {t('action.showFilters', 'Show Filters')}
+	                </Button>
+	              )}
+	            </Space>
+	          }
+	          showIcon
+	          closable
+	          style={{ marginBottom: 0 }}
+	        />
+	      )}
 
       {/* Header with controls */}
       <Card size="small">
@@ -1160,10 +1272,33 @@ export function LncRNAChIPSeqOverlapTable({
 
       {/* Statistics Cards (Phase 2) */}
       {showStats && enableStats && (
-        <OverlapStatsCards
-          summary={summaryData}
-          loading={summaryLoading}
-        />
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          {parsedSummaryError && (
+            <Alert
+              type="error"
+              title={t('error.title', 'Loading Failed')}
+              description={
+                <Space orientation="vertical" size="small">
+                  <span>{parsedSummaryError.message}</span>
+                  <span style={{ fontSize: 12, color: '#999' }}>
+                    {t('error.tryAdjustFilters', 'Try adjusting filters or retry the request')}
+                  </span>
+                </Space>
+              }
+              action={
+                <Button size="small" onClick={() => refetchSummary()} loading={summaryLoading}>
+                  {tCommon('action.retry', 'Retry')}
+                </Button>
+              }
+              showIcon
+              closable
+            />
+          )}
+          <OverlapStatsCards
+            summary={summaryData}
+            loading={summaryLoading}
+          />
+        </Space>
       )}
 
       {/* Visualization Charts (Phase 3.0 Phase 2) */}
@@ -1257,11 +1392,14 @@ export function LncRNAChIPSeqOverlapTable({
 
       {/* Filter Panel */}
       {showFilters && (
-        <OverlapFilterPanel
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          onReset={handleResetFilters}
-        />
+        <div ref={filterPanelContainerRef}>
+          <OverlapFilterPanel
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onReset={handleResetFilters}
+            highlightKeys={highlightFilterKeys || undefined}
+          />
+        </div>
       )}
 
       {/* Data Table */}

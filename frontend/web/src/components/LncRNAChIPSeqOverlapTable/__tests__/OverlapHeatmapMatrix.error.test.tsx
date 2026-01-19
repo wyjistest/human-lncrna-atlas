@@ -20,6 +20,7 @@ describe('OverlapHeatmapMatrix', () => {
   it('renders structured backend error message for QUERY_TOO_BROAD', () => {
     const detail = {
       error: 'QUERY_TOO_BROAD',
+      suggest_filters: ['min_binding_affinity'],
       message:
         "Query for chr1 is too broad without materialized view 'mv_lncrna_chipseq_overlaps'. Please add additional filters.",
       chromosome: 'chr1',
@@ -49,5 +50,6 @@ describe('OverlapHeatmapMatrix', () => {
     render(<OverlapHeatmapMatrix />)
 
     expect(screen.getByText(/Query for chr1 is too broad/i)).toBeInTheDocument()
+    expect(screen.getByText(/Min Binding Affinity/i)).toBeInTheDocument()
   })
 })

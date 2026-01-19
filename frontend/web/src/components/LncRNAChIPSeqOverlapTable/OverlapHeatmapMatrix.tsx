@@ -29,6 +29,7 @@ import {
   Space,
   Segmented,
   Empty,
+  Tag,
   Typography,
   Select,
   InputNumber,
@@ -419,9 +420,45 @@ export function OverlapHeatmapMatrix({
   // Handle error state
   if (error) {
     const parsed = parseError(error)
+    const suggestedFilters = parsed.errorCode === 'QUERY_TOO_BROAD' ? (parsed.suggestFilters || []) : []
+
+    const getSuggestedFilterLabel = (key: string) => {
+      switch (key) {
+        case 'mark_type':
+          return t('filters.markType', 'Mark Type')
+        case 'cell_type':
+          return t('filters.cellType', 'Cell Type')
+        case 'chromosome':
+          return t('filters.chromosome', 'Chromosome')
+        case 'min_binding_affinity':
+          return t('filters.minBindingAffinity', 'Min Binding Affinity')
+        case 'min_peak_strength':
+          return t('filters.minPeakStrength', 'Min Peak Strength')
+        case 'min_overlap_length':
+          return t('filters.minOverlapLength', 'Min Overlap Length')
+        case 'max_qvalue':
+          return t('filters.maxQValue', 'Max Q-value (FDR)')
+        default:
+          return key
+      }
+    }
+
     return (
       <Empty
-        description={parsed.message || t('charts.heatmap.error', 'Failed to load heatmap data')}
+        description={
+          <Space orientation="vertical" size="small">
+            <span>{parsed.message || t('charts.heatmap.error', 'Failed to load heatmap data')}</span>
+            {suggestedFilters.length > 0 && (
+              <Space wrap size={[0, 8]}>
+                {suggestedFilters.map((key) => (
+                  <Tag key={key} color="gold">
+                    {getSuggestedFilterLabel(key)}
+                  </Tag>
+                ))}
+              </Space>
+            )}
+          </Space>
+        }
       />
     )
   }

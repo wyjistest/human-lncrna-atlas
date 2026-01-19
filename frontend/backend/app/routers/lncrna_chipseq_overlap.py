@@ -131,6 +131,7 @@ def _raise_query_too_broad(chromosome: str, *, suggest_filters: list[str]) -> No
         status_code=400,
         detail={
             "error": "QUERY_TOO_BROAD",
+            "suggest_filters": suggest_filters,
             "message": (
                 f"Query for {chromosome} is too broad without materialized view '{MV_LNCRNA_CHIPSEQ_OVERLAPS}'. "
                 f"Please add additional filters ({suggested}), or create/refresh the materialized view."

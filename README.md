@@ -251,6 +251,9 @@ Frontend Admin pages (require Admin access):
 - `/admin/cache` - cache management (stats/reset/invalidate/clear)
 - `/admin/materialized-views` - MV status + refresh controls
 
+More details:
+- `docs/backend/OVERLAP_MATERIALIZED_VIEW.md` - overlap MV (`mv_lncrna_chipseq_overlaps`) create/refresh + `QUERY_TOO_BROAD` troubleshooting
+
 ### IGV Offline Genome Assets (Optional)
 
 If you want IGV.js to avoid external network dependencies (UCSC/GitHub) and run fully offline, place genome assets under `GENOMES_DIR` (served by backend as `/genomes`).

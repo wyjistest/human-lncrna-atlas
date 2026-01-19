@@ -22,6 +22,12 @@ export interface ParsedError {
   type: ErrorType
   /** 后端错误码（如果后端返回了 detail.error） */
   errorCode?: string
+  /** 后端建议的收敛过滤条件（如果后端返回了 detail.suggest_filters） */
+  suggestFilters?: string[]
+  /** 后端返回的染色体（如果后端返回了 detail.chromosome） */
+  chromosome?: string
+  /** 后端返回的物化视图使用状态（如果后端返回了 detail.using_materialized_view） */
+  usingMaterializedView?: boolean
   /** 错误 ID（如果后端返回了） */
   errorId?: string
   /** HTTP 状态码 */
@@ -63,26 +69,40 @@ export function parseError(error: unknown): ParsedError {
 
       // 处理 detail 为对象的情况（包括脱敏格式和 Admin 错误）
       if (typeof detail === 'object' && detail !== null && !Array.isArray(detail)) {
+        const detailObj = detail as Record<string, unknown>
         // 提取 error_id（如果存在）用于调试追踪
-        const errorId = 'error_id' in detail ? String(detail.error_id) : undefined
-        const errorCode = 'error' in detail && typeof detail.error === 'string' ? detail.error : undefined
+        const errorId = 'error_id' in detailObj ? String(detailObj.error_id) : undefined
+        const errorCode = typeof detailObj.error === 'string' ? detailObj.error : undefined
+        const suggestFilters = Array.isArray(detailObj.suggest_filters)
+          ? (detailObj.suggest_filters.filter((v): v is string => typeof v === 'string'))
+          : undefined
+        const chromosome = typeof detailObj.chromosome === 'string' ? detailObj.chromosome : undefined
+        const usingMaterializedView = typeof detailObj.using_materialized_view === 'boolean'
+          ? detailObj.using_materialized_view
+          : undefined
 
         // 优先使用 message 字段
-        if ('message' in detail && typeof detail.message === 'string') {
+        if (typeof detailObj.message === 'string') {
           return {
-            message: errorId ? `${detail.message} [${errorId}]` : detail.message,
+            message: errorId ? `${detailObj.message} [${errorId}]` : detailObj.message,
             type: errorType,
             errorCode,
+            suggestFilters,
+            chromosome,
+            usingMaterializedView,
             errorId,
             statusCode: status,
           }
         }
         // 其次使用 error 字段
-        if ('error' in detail && typeof detail.error === 'string') {
+        if (typeof detailObj.error === 'string') {
           return {
-            message: errorId ? `${detail.error} [${errorId}]` : detail.error,
+            message: errorId ? `${detailObj.error} [${errorId}]` : detailObj.error,
             type: errorType,
             errorCode,
+            suggestFilters,
+            chromosome,
+            usingMaterializedView,
             errorId,
             statusCode: status,
           }
@@ -93,6 +113,9 @@ export function parseError(error: unknown): ParsedError {
             message: JSON.stringify(detail),
             type: errorType,
             errorCode,
+            suggestFilters,
+            chromosome,
+            usingMaterializedView,
             errorId,
             statusCode: status,
           }

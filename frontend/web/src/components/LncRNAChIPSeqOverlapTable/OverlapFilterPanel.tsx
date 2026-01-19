@@ -13,7 +13,7 @@
  * - Q-value (FDR) threshold
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type CSSProperties } from 'react'
 import {
   Card,
   Space,
@@ -45,6 +45,8 @@ interface OverlapFilterPanelProps {
   onReset: () => void
   /** Collapsed state (for responsive design) */
   collapsed?: boolean
+  /** Highlight specific filter controls (for actionable error guidance) */
+  highlightKeys?: string[]
 }
 
 /**
@@ -67,9 +69,16 @@ export function OverlapFilterPanel({
   onFiltersChange,
   onReset,
   collapsed = false,
+  highlightKeys,
 }: OverlapFilterPanelProps) {
   const { t } = useTranslation('overlap')
   const { t: tCommon } = useTranslation('common')
+
+  const highlightSet = new Set(highlightKeys || [])
+  const highlightStyle: CSSProperties = {
+    boxShadow: '0 0 0 2px #faad14',
+    borderRadius: 6,
+  }
 
   // Local state for slider (smooth dragging experience)
   const [overlapLengthRange, setOverlapLengthRange] = useState<number>(
@@ -180,7 +189,10 @@ export function OverlapFilterPanel({
               <span style={{ fontWeight: 500 }}>
                 {t('filters.markType', 'Mark Type')}:
               </span>
-              <div data-testid="overlap-filter-mark-type" style={{ width: '100%' }}>
+              <div
+                data-testid="overlap-filter-mark-type"
+                style={{ width: '100%', ...(highlightSet.has('mark_type') ? highlightStyle : {}) }}
+              >
                 <MarkSelector
                   value={filters.mark_type?.split(',') as MarkType[]}
                   onChange={handleMarkTypeChange}
@@ -198,7 +210,10 @@ export function OverlapFilterPanel({
               <span style={{ fontWeight: 500 }}>
                 {t('filters.cellType', 'Cell Type')}:
               </span>
-              <div data-testid="overlap-filter-cell-type" style={{ width: '100%' }}>
+              <div
+                data-testid="overlap-filter-cell-type"
+                style={{ width: '100%', ...(highlightSet.has('cell_type') ? highlightStyle : {}) }}
+              >
                 <Select
                   mode="multiple"
                   virtual={false}
@@ -223,7 +238,10 @@ export function OverlapFilterPanel({
               <span style={{ fontWeight: 500 }}>
                 {t('filters.chromosome', 'Chromosome')}:
               </span>
-              <div data-testid="overlap-filter-chromosome" style={{ width: '100%' }}>
+              <div
+                data-testid="overlap-filter-chromosome"
+                style={{ width: '100%', ...(highlightSet.has('chromosome') ? highlightStyle : {}) }}
+              >
                 <Select
                   virtual={false}
                   style={{ width: '100%' }}
@@ -244,11 +262,11 @@ export function OverlapFilterPanel({
 
         {/* Second Row: Numeric Filters */}
         <Row gutter={[16, 16]} align="middle">
-          {/* Min Binding Affinity */}
-          <Col xs={24} sm={12} md={6}>
-            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
-              <span style={{ fontWeight: 500 }}>
-                {t('filters.minBindingAffinity', 'Min Binding Affinity')}:
+	          {/* Min Binding Affinity */}
+	          <Col xs={24} sm={12} md={6}>
+	            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
+	              <span style={{ fontWeight: 500 }}>
+	                {t('filters.minBindingAffinity', 'Min Binding Affinity')}:
                 <Tooltip
                   title={t(
                     'filters.bindingAffinityTooltip',
@@ -256,25 +274,30 @@ export function OverlapFilterPanel({
                   )}
                 >
                   <InfoCircleOutlined style={{ marginLeft: 4 }} />
-                </Tooltip>
-              </span>
-              <InputNumber
-                style={{ width: '100%' }}
-                value={filters.min_binding_affinity}
-                onChange={handleBAChange}
-                min={0}
-                max={100}
-                step={5}
-                placeholder="0"
-              />
-            </Space>
-          </Col>
+	                </Tooltip>
+	              </span>
+	              <div
+	                data-testid="overlap-filter-min-binding-affinity"
+	                style={{ width: '100%', ...(highlightSet.has('min_binding_affinity') ? highlightStyle : {}) }}
+	              >
+	                <InputNumber
+	                  style={{ width: '100%' }}
+	                  value={filters.min_binding_affinity}
+	                  onChange={handleBAChange}
+	                  min={0}
+	                  max={100}
+	                  step={5}
+	                  placeholder="0"
+	                />
+	              </div>
+	            </Space>
+	          </Col>
 
-          {/* Min Peak Strength */}
-          <Col xs={24} sm={12} md={6}>
-            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
-              <span style={{ fontWeight: 500 }}>
-                {t('filters.minPeakStrength', 'Min Peak Strength')}:
+	          {/* Min Peak Strength */}
+	          <Col xs={24} sm={12} md={6}>
+	            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
+	              <span style={{ fontWeight: 500 }}>
+	                {t('filters.minPeakStrength', 'Min Peak Strength')}:
                 <Tooltip
                   title={t(
                     'filters.peakStrengthTooltip',
@@ -282,50 +305,60 @@ export function OverlapFilterPanel({
                   )}
                 >
                   <InfoCircleOutlined style={{ marginLeft: 4 }} />
-                </Tooltip>
-              </span>
-              <InputNumber
-                style={{ width: '100%' }}
-                value={filters.min_peak_strength}
-                onChange={handlePeakStrengthChange}
-                min={0}
-                max={100}
-                step={1}
-                placeholder="0"
-              />
-            </Space>
-          </Col>
+	                </Tooltip>
+	              </span>
+	              <div
+	                data-testid="overlap-filter-min-peak-strength"
+	                style={{ width: '100%', ...(highlightSet.has('min_peak_strength') ? highlightStyle : {}) }}
+	              >
+	                <InputNumber
+	                  style={{ width: '100%' }}
+	                  value={filters.min_peak_strength}
+	                  onChange={handlePeakStrengthChange}
+	                  min={0}
+	                  max={100}
+	                  step={1}
+	                  placeholder="0"
+	                />
+	              </div>
+	            </Space>
+	          </Col>
 
-          {/* Max Q-value */}
-          <Col xs={24} sm={12} md={6}>
-            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
-              <span style={{ fontWeight: 500 }}>
-                {t('filters.maxQValue', 'Max Q-value (FDR)')}:
+	          {/* Max Q-value */}
+	          <Col xs={24} sm={12} md={6}>
+	            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
+	              <span style={{ fontWeight: 500 }}>
+	                {t('filters.maxQValue', 'Max Q-value (FDR)')}:
                 <Tooltip
                   title={t('filters.qvalueTooltip', 'Maximum False Discovery Rate for peaks')}
                 >
                   <InfoCircleOutlined style={{ marginLeft: 4 }} />
-                </Tooltip>
-              </span>
-              <InputNumber
-                style={{ width: '100%' }}
-                value={filters.max_qvalue}
-                onChange={handleQValueChange}
-                min={0}
-                max={1}
-                step={0.01}
-                placeholder="0.05"
-              />
-            </Space>
-          </Col>
+	                </Tooltip>
+	              </span>
+	              <div
+	                data-testid="overlap-filter-max-qvalue"
+	                style={{ width: '100%', ...(highlightSet.has('max_qvalue') ? highlightStyle : {}) }}
+	              >
+	                <InputNumber
+	                  style={{ width: '100%' }}
+	                  value={filters.max_qvalue}
+	                  onChange={handleQValueChange}
+	                  min={0}
+	                  max={1}
+	                  step={0.01}
+	                  placeholder="0.05"
+	                />
+	              </div>
+	            </Space>
+	          </Col>
         </Row>
 
         {/* Third Row: Overlap Length Slider */}
         <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} md={16}>
-            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
-              <span style={{ fontWeight: 500 }}>
-                {t('filters.minOverlapLength', 'Min Overlap Length')}: {overlapLengthRange} bp
+	          <Col xs={24} md={16}>
+	            <Space orientation="vertical" style={{ width: '100%' }} size={4}>
+	              <span style={{ fontWeight: 500 }}>
+	                {t('filters.minOverlapLength', 'Min Overlap Length')}: {overlapLengthRange} bp
                 <Tooltip
                   title={t(
                     'filters.overlapLengthTooltip',
@@ -333,36 +366,41 @@ export function OverlapFilterPanel({
                   )}
                 >
                   <InfoCircleOutlined style={{ marginLeft: 4 }} />
-                </Tooltip>
-              </span>
-              <Space style={{ width: '100%' }} align="center">
-                <Slider
-                  style={{ width: 300 }}
-                  min={0}
-                  max={10000}
-                  step={100}
-                  value={overlapLengthRange}
-                  onChange={setOverlapLengthRange}
-                  onChangeComplete={applyOverlapLengthFilter}
-                  tooltip={{ formatter: (val) => `${val} bp` }}
-                />
-                <InputNumber
-                  style={{ width: 100 }}
-                  value={overlapLengthRange}
-                  onChange={(v) => v !== null && setOverlapLengthRange(v)}
-                  onPressEnter={applyOverlapLengthFilter}
-                  min={0}
-                  max={10000}
-                  step={100}
-                  suffix="bp"
-                />
-                <Button size="small" type="primary" onClick={applyOverlapLengthFilter}>
-                  {tCommon('action.apply', 'Apply')}
-                </Button>
-              </Space>
-            </Space>
-          </Col>
-        </Row>
+	                </Tooltip>
+	              </span>
+	              <div
+	                data-testid="overlap-filter-min-overlap-length"
+	                style={{ width: '100%', ...(highlightSet.has('min_overlap_length') ? highlightStyle : {}) }}
+	              >
+	                <Space style={{ width: '100%' }} align="center">
+	                  <Slider
+	                    style={{ width: 300 }}
+	                    min={0}
+	                    max={10000}
+	                    step={100}
+	                    value={overlapLengthRange}
+	                    onChange={setOverlapLengthRange}
+	                    onChangeComplete={applyOverlapLengthFilter}
+	                    tooltip={{ formatter: (val) => `${val} bp` }}
+	                  />
+	                  <InputNumber
+	                    style={{ width: 100 }}
+	                    value={overlapLengthRange}
+	                    onChange={(v) => v !== null && setOverlapLengthRange(v)}
+	                    onPressEnter={applyOverlapLengthFilter}
+	                    min={0}
+	                    max={10000}
+	                    step={100}
+	                    suffix="bp"
+	                  />
+	                  <Button size="small" type="primary" onClick={applyOverlapLengthFilter}>
+	                    {tCommon('action.apply', 'Apply')}
+	                  </Button>
+	                </Space>
+	              </div>
+	            </Space>
+	          </Col>
+	        </Row>
       </Space>
     </Card>
   )
