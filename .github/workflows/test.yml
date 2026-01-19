@@ -245,33 +245,15 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: postgres
         run: |
-          python - <<'PY'
-          import os
-          import re
-          from pathlib import Path
+          set -euo pipefail
 
-          import psycopg2
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
 
-          schema_path = Path("schema/v2.3/01_core.sql")
-          sql = schema_path.read_text(encoding="utf-8")
-          sql = re.sub(r"--.*$", "", sql, flags=re.MULTILINE)
-          statements = [stmt.strip() for stmt in sql.split(";") if stmt.strip()]
-
-          conn = psycopg2.connect(
-              host=os.environ["DB_HOST"],
-              port=os.environ["DB_PORT"],
-              dbname=os.environ["DB_NAME"],
-              user=os.environ["DB_USER"],
-              password=os.environ["DB_PASSWORD"],
-          )
-          conn.autocommit = True
-          cur = conn.cursor()
-          for stmt in statements:
-              cur.execute(stmt)
-          cur.close()
-          conn.close()
-          print(f"Applied {len(statements)} statements from {schema_path}")
-          PY
+          export PGPASSWORD="$DB_PASSWORD"
+          psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f schema/v2.3/01_core.sql
 
       - name: Seed minimal genes for sample inputs
         env:
@@ -487,7 +469,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build
-          path: frontend/web
+          path: .
 
       - name: Install Playwright browsers
         working-directory: frontend/web
