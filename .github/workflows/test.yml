@@ -107,6 +107,10 @@ jobs:
         run: |
           python -m pytest -q etl/tests
 
+      - name: Verify ETL sample inputs manifest
+        run: |
+          python -m etl.input_manifest verify etl/sample_inputs/etl-inputs.manifest.tsv
+
       - name: Run scripts smoke tests (offline genome assets)
         run: |
           bash scripts/genomes/tests/test_download_igv_assets.sh
