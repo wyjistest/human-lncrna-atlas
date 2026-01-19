@@ -14,7 +14,9 @@ import {
   SystemGauge,
   AlertsBanner,
   PercentilesCard,
-  CacheGetLatencyCard
+  CacheGetLatencyCard,
+  TopEndpointsCard,
+  DatabaseMetricsCard
 } from './components'
 import type { HealthStatus } from '@/types/monitoring'
 
@@ -274,6 +276,42 @@ export default function Monitoring() {
           <div data-testid="admin-monitoring-endpoint-statistics">
             <Card title="Endpoint Statistics">
               <EndpointTable data={data?.endpoints} />
+            </Card>
+          </div>
+        </Col>
+      </Row>
+
+      {/* Phase 3: Top endpoints by tail latency */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={12}>
+          <div data-testid="admin-monitoring-top-endpoints-p95">
+            <Card title="Top Endpoints (P95)">
+              <TopEndpointsCard title="P95" endpoints={data?.endpoints} percentileKey="p95_ms" />
+            </Card>
+          </div>
+        </Col>
+        <Col xs={24} lg={12}>
+          <div data-testid="admin-monitoring-top-endpoints-p99">
+            <Card title="Top Endpoints (P99)">
+              <TopEndpointsCard title="P99" endpoints={data?.endpoints} percentileKey="p99_ms" />
+            </Card>
+          </div>
+        </Col>
+      </Row>
+
+      {/* Database Performance */}
+      <Row style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <div data-testid="admin-monitoring-database">
+            <Card
+              title="Database Performance"
+              extra={
+                data?.database
+                  ? `queries: ${data.database.total_queries.toLocaleString()} | slow ≥ ${data.database.slow_query_threshold_ms.toFixed(0)}ms`
+                  : undefined
+              }
+            >
+              <DatabaseMetricsCard data={data?.database} />
             </Card>
           </div>
         </Col>

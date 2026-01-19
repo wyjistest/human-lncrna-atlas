@@ -37,7 +37,34 @@ function buildMockMetricsResponse() {
     },
     response_time_distribution: { buckets: [], counts: [] },
     error_trend: { timestamps: [], error_rates: [] },
-    endpoints: [],
+    endpoints: [
+      {
+        path: '/api/v1/demo/fast',
+        requests: 12,
+        avg_ms: 80.2,
+        samples: 12,
+        percentiles: { p50_ms: 60, p95_ms: 120, p99_ms: 180 },
+        db_avg_ms: 10.5,
+        db_query_avg: 1.25,
+        db_samples: 12,
+        db_percentiles: { p50_ms: 8, p95_ms: 20, p99_ms: 35 },
+        errors: 0,
+        error_rate: 0,
+      },
+      {
+        path: '/api/v1/demo/slow',
+        requests: 8,
+        avg_ms: 450.0,
+        samples: 8,
+        percentiles: null,
+        db_avg_ms: 380.0,
+        db_query_avg: 3.0,
+        db_samples: 8,
+        db_percentiles: null,
+        errors: 1,
+        error_rate: 0.125,
+      },
+    ],
     system: {
       cpu_percent: 0,
       memory: { used_mb: 0, total_mb: 0, percent: 0 },
@@ -46,6 +73,30 @@ function buildMockMetricsResponse() {
     },
     alerts: [],
     percentiles: { p50_ms: 100, p95_ms: 300, p99_ms: 800 },
+    database: {
+      total_queries: 48,
+      total_time_ms: 2500,
+      query_samples: 12,
+      avg_ms: 52.08,
+      percentiles: { p50_ms: 20, p95_ms: 150, p99_ms: 300 },
+      request_samples: 12,
+      request_total_ms: 1200,
+      request_avg_ms: 100.0,
+      request_percentiles: { p50_ms: 60, p95_ms: 220, p99_ms: 380 },
+      slow_query_threshold_ms: 200,
+      slow_queries: [
+        {
+          fingerprint: 'deadbeefcafe',
+          statement: 'SELECT pg_sleep(0.25)',
+          count: 12,
+          total_time_ms: 3000,
+          avg_ms: 250,
+          max_ms: 300,
+          last_seen: '2026-01-19T00:00:00',
+          route: '/api/v1/demo/slow',
+        },
+      ],
+    },
   }
 }
 
@@ -72,5 +123,15 @@ test.describe('Admin Monitoring - mocked smoke', () => {
     await expect(cacheLatencyCard.getByText('P50')).toHaveCount(2)
     await expect(cacheLatencyCard.getByText('P95')).toHaveCount(2)
     await expect(cacheLatencyCard.getByText('P99')).toHaveCount(2)
+
+    const dbCard = page.getByTestId('admin-monitoring-database')
+    await expect(dbCard).toBeVisible({ timeout: 15000 })
+    await expect(dbCard.getByText('Database Performance')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByTestId('admin-monitoring-database-slow-queries')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('deadbeefcafe')).toBeVisible({ timeout: 15000 })
+
+    const topP95 = page.getByTestId('admin-monitoring-top-endpoints-p95')
+    await expect(topP95).toBeVisible({ timeout: 15000 })
+    await expect(topP95.getByText('/api/v1/demo/fast')).toBeVisible({ timeout: 15000 })
   })
 })

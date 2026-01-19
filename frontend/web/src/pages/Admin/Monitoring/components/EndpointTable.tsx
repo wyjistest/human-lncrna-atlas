@@ -48,12 +48,42 @@ export function EndpointTable({ data }: EndpointTableProps) {
         align: 'right'
       },
       {
+        title: 'DB Avg (ms)',
+        key: 'db_avg_ms',
+        sorter: (a, b) => (a.db_avg_ms ?? 0) - (b.db_avg_ms ?? 0),
+        render: (_: unknown, record: EndpointStats) => {
+          const value = record.db_avg_ms
+          if (value == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+          return (
+            <span style={{ color: value > 500 ? '#cf1322' : value > 200 ? '#faad14' : '#3f8600' }}>
+              {value.toFixed(1)}
+            </span>
+          )
+        },
+        align: 'right'
+      },
+      {
+        title: 'DB q/req',
+        key: 'db_query_avg',
+        sorter: (a, b) => (a.db_query_avg ?? 0) - (b.db_query_avg ?? 0),
+        render: (_: unknown, record: EndpointStats) => {
+          const value = record.db_query_avg
+          if (value == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+          return <span>{value.toFixed(2)}</span>
+        },
+        align: 'right'
+      },
+      {
         title: 'P95 (ms)',
         key: 'p95_ms',
         sorter: (a, b) => (a.percentiles?.p95_ms ?? -1) - (b.percentiles?.p95_ms ?? -1),
         render: (_: unknown, record: EndpointStats) => {
           const value = record.percentiles?.p95_ms
-          if (value == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+          if (value == null) {
+            const samples = record.samples
+            if (samples == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+            return <span style={{ color: '#8c8c8c' }}>n={samples}/10</span>
+          }
           return (
             <span style={{ color: value > 500 ? '#cf1322' : value > 200 ? '#faad14' : '#3f8600' }}>
               {value.toFixed(1)}
@@ -68,9 +98,32 @@ export function EndpointTable({ data }: EndpointTableProps) {
         sorter: (a, b) => (a.percentiles?.p99_ms ?? -1) - (b.percentiles?.p99_ms ?? -1),
         render: (_: unknown, record: EndpointStats) => {
           const value = record.percentiles?.p99_ms
-          if (value == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+          if (value == null) {
+            const samples = record.samples
+            if (samples == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+            return <span style={{ color: '#8c8c8c' }}>n={samples}/10</span>
+          }
           return (
             <span style={{ color: value > 1000 ? '#cf1322' : value > 500 ? '#faad14' : '#3f8600' }}>
+              {value.toFixed(1)}
+            </span>
+          )
+        },
+        align: 'right'
+      },
+      {
+        title: 'DB P95 (ms)',
+        key: 'db_p95_ms',
+        sorter: (a, b) => (a.db_percentiles?.p95_ms ?? -1) - (b.db_percentiles?.p95_ms ?? -1),
+        render: (_: unknown, record: EndpointStats) => {
+          const value = record.db_percentiles?.p95_ms
+          if (value == null) {
+            const samples = record.db_samples
+            if (samples == null) return <span style={{ color: '#8c8c8c' }}>-</span>
+            return <span style={{ color: '#8c8c8c' }}>n={samples}/10</span>
+          }
+          return (
+            <span style={{ color: value > 500 ? '#cf1322' : value > 200 ? '#faad14' : '#3f8600' }}>
               {value.toFixed(1)}
             </span>
           )
@@ -118,6 +171,7 @@ export function EndpointTable({ data }: EndpointTableProps) {
       dataSource={data}
       rowKey="path"
       size="small"
+      scroll={{ x: 'max-content' }}
       pagination={{
         pageSize: 10,
         showSizeChanger: true,

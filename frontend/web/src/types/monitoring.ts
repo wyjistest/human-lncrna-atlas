@@ -43,8 +43,18 @@ export interface EndpointStats {
   requests: number
   /** Average response time in milliseconds */
   avg_ms: number
+  /** Number of response time samples collected for percentiles (windowed); <10 means percentiles may be null */
+  samples: number
   /** Endpoint response time percentiles (ms); null/undefined when samples are insufficient */
   percentiles?: PercentileMetrics | null
+  /** Average DB time per request (ms); best-effort */
+  db_avg_ms?: number | null
+  /** Average DB queries per request; best-effort */
+  db_query_avg?: number | null
+  /** Number of per-request DB time samples collected for db_percentiles (windowed); <10 means db_percentiles may be null */
+  db_samples?: number
+  /** Per-request DB time percentiles (ms); null/undefined when samples are insufficient */
+  db_percentiles?: PercentileMetrics | null
   /** Total error count */
   errors: number
   /** Error rate (0-1) */
@@ -217,6 +227,39 @@ export interface CacheGetLatencyPercentiles {
   misses?: PercentileMetrics | null
 }
 
+/**
+ * Slow query summary item (aggregated by SQL fingerprint)
+ */
+export interface SlowQuerySummary {
+  fingerprint: string
+  statement: string
+  count: number
+  total_time_ms: number
+  avg_ms: number
+  max_ms: number
+  last_seen: string
+  route?: string | null
+}
+
+/**
+ * Database performance metrics (best-effort, in-memory windowed stats)
+ */
+export interface DatabaseMetrics {
+  total_queries: number
+  total_time_ms: number
+  query_samples: number
+  avg_ms: number
+  percentiles?: PercentileMetrics | null
+
+  request_samples: number
+  request_total_ms: number
+  request_avg_ms: number
+  request_percentiles?: PercentileMetrics | null
+
+  slow_query_threshold_ms: number
+  slow_queries: SlowQuerySummary[]
+}
+
 export interface CacheStatsDetails extends CacheStatsSummary {
   /** Human-readable hit rate e.g., "70.0%" */
   hit_rate: string
@@ -292,4 +335,6 @@ export interface MonitoringMetrics {
   alerts?: Alert[]
   /** Response time percentiles */
   percentiles?: PercentileMetrics | null
+  /** Database performance metrics */
+  database?: DatabaseMetrics | null
 }

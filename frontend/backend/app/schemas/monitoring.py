@@ -145,6 +145,10 @@ class EndpointStats(BaseModel):
     path: str = Field(description="API路径")
     requests: int = Field(ge=0, description="请求数")
     avg_ms: float = Field(ge=0, description="平均响应时间(ms)")
+    samples: int = Field(
+        ge=0,
+        description="端点响应时间样本数（用于 percentiles；<10 时 percentiles 为 null）",
+    )
     percentiles: Optional["PercentileMetrics"] = Field(
         default=None,
         description="端点响应时间百分位(ms；数据不足时为null)",
@@ -158,6 +162,10 @@ class EndpointStats(BaseModel):
         default=None,
         ge=0,
         description="端点平均每请求 DB 查询数（best-effort）",
+    )
+    db_samples: int = Field(
+        ge=0,
+        description="端点请求级 DB 耗时样本数（用于 db_percentiles；<10 时为 null）",
     )
     db_percentiles: Optional["PercentileMetrics"] = Field(
         default=None,
@@ -264,11 +272,13 @@ class DatabaseMetrics(BaseModel):
 
     total_queries: int = Field(ge=0, description="累计 DB 查询数")
     total_time_ms: float = Field(ge=0, description="累计 DB 查询耗时(ms)")
+    query_samples: int = Field(ge=0, description="参与 percentiles 计算的查询耗时样本数（窗口内）")
     avg_ms: float = Field(ge=0, description="平均单次查询耗时(ms)")
     percentiles: Optional[PercentileMetrics] = Field(
         default=None,
         description="单次查询耗时百分位(ms；数据不足时为null)",
     )
+    request_samples: int = Field(ge=0, description="参与 request_percentiles 计算的请求级 DB 耗时样本数（窗口内）")
     request_total_ms: float = Field(ge=0, description="累计请求级 DB 耗时(ms；每请求 sum(query))")
     request_avg_ms: float = Field(ge=0, description="平均每请求 DB 耗时(ms)")
     request_percentiles: Optional[PercentileMetrics] = Field(

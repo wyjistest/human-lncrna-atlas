@@ -414,10 +414,12 @@ def build_endpoints_stats(metrics_data: dict, top_n: int = 20) -> list[EndpointS
         db_avg_ms = (db_total_time_ms / requests) if requests > 0 else 0.0
         db_query_avg = (db_total_queries / requests) if requests > 0 else 0.0
         error_rate = (errors / requests) if requests > 0 else 0.0
+        samples = len(response_times) if isinstance(response_times, (list, tuple, deque)) else 0
         percentiles = None
         if isinstance(response_times, (list, tuple, deque)) and response_times:
             percentiles = calculate_percentiles(list(response_times))
 
+        db_samples = len(db_request_times) if isinstance(db_request_times, (list, tuple, deque)) else 0
         db_percentiles = None
         if isinstance(db_request_times, (list, tuple, deque)) and db_request_times:
             db_percentiles = calculate_percentiles(list(db_request_times))
@@ -427,9 +429,11 @@ def build_endpoints_stats(metrics_data: dict, top_n: int = 20) -> list[EndpointS
                 path=path,
                 requests=requests,
                 avg_ms=round(avg_ms, 2),
+                samples=samples,
                 percentiles=percentiles,
                 db_avg_ms=round(db_avg_ms, 2),
                 db_query_avg=round(db_query_avg, 2),
+                db_samples=db_samples,
                 db_percentiles=db_percentiles,
                 errors=errors,
                 error_rate=round(error_rate, 4),
@@ -729,8 +733,15 @@ def build_database_metrics(metrics_data: dict) -> Optional[DatabaseMetrics]:
         return None
 
     percentiles = None
+    query_times_list: list[float] = []
     if isinstance(query_times, (list, tuple, deque)) and query_times:
-        percentiles = calculate_percentiles([float(x) for x in query_times])
+        for x in query_times:
+            try:
+                query_times_list.append(max(0.0, float(x)))
+            except Exception:
+                continue
+        if query_times_list:
+            percentiles = calculate_percentiles(query_times_list)
 
     request_times_list: list[float] = []
     if isinstance(request_times, (list, tuple, deque)) and request_times:
@@ -818,8 +829,10 @@ def build_database_metrics(metrics_data: dict) -> Optional[DatabaseMetrics]:
     return DatabaseMetrics(
         total_queries=total_queries,
         total_time_ms=round(max(0.0, total_time_ms), 2),
+        query_samples=len(query_times_list),
         avg_ms=round(max(0.0, avg_ms), 2),
         percentiles=percentiles,
+        request_samples=len(request_times_list),
         request_total_ms=round(max(0.0, request_total_ms), 2),
         request_avg_ms=round(max(0.0, request_avg_ms), 2),
         request_percentiles=request_percentiles,

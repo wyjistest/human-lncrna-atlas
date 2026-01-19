@@ -78,6 +78,19 @@ vi.mock('@/hooks/useMonitoringMetrics', () => ({
       },
       alerts: [],
       percentiles: null,
+      database: {
+        total_queries: 0,
+        total_time_ms: 0,
+        query_samples: 0,
+        avg_ms: 0,
+        percentiles: null,
+        request_samples: 0,
+        request_total_ms: 0,
+        request_avg_ms: 0,
+        request_percentiles: null,
+        slow_query_threshold_ms: 200,
+        slow_queries: [],
+      },
     },
     isLoading: false,
     error: null,
@@ -93,6 +106,9 @@ describe('Admin Monitoring page', () => {
     expect(screen.getByTestId('admin-monitoring-page')).toBeInTheDocument()
     expect(screen.getByTestId('admin-monitoring-response-percentiles')).toBeInTheDocument()
     expect(screen.getByTestId('admin-monitoring-endpoint-statistics')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-top-endpoints-p95')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-top-endpoints-p99')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-database')).toBeInTheDocument()
     expect(screen.getByTestId('admin-monitoring-cache-get-latency')).toBeInTheDocument()
 
     expect(screen.getByText('Reset Cache Stats')).toBeInTheDocument()
@@ -100,7 +116,8 @@ describe('Admin Monitoring page', () => {
     expect(screen.getByText('Cache Namespaces')).toBeInTheDocument()
     expect(screen.getByText('Cache Hot Keys')).toBeInTheDocument()
     expect(screen.getByText('Compute Count')).toBeInTheDocument()
-    expect(screen.getByText('P95 (ms)')).toBeInTheDocument()
-    expect(screen.getByText('P99 (ms)')).toBeInTheDocument()
+    expect(screen.getAllByText('P95 (ms)').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('P99 (ms)').length).toBeGreaterThan(0)
+    expect(screen.getByText('Database Performance')).toBeInTheDocument()
   })
 })
