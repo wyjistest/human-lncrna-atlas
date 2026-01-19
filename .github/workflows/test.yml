@@ -442,8 +442,6 @@ jobs:
           DB_NAME: lncrna_api_baseline_ci
           DB_USER: postgres
           DB_PASSWORD: postgres
-          # Backend startup security gate (required by main.py lifespan).
-          ADMIN_API_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
           # Keep parity with baseline generation (cache enabled + Redis available).
           ENABLE_CACHE: "true"
           REDIS_HOST: 127.0.0.1
@@ -453,9 +451,13 @@ jobs:
 
           cd frontend/backend
 
+          # Backend startup security gate (required by main.py lifespan).
+          # Generate a random key at runtime (do NOT commit secrets; avoids gitleaks false positives).
+          export ADMIN_API_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+
           python -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1 &
           backend_pid=$!
-          trap 'kill $backend_pid' EXIT
+          trap 'kill "$backend_pid" >/dev/null 2>&1 || true' EXIT
 
           timeout=60
           while ! curl -fsS "http://127.0.0.1:8000/health" >/dev/null 2>&1; do
