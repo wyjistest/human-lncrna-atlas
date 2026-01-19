@@ -72,11 +72,10 @@ test.describe('Admin Cache - mocked smoke', () => {
     await page.waitForLoadState('domcontentloaded')
 
     await expect(page.getByRole('heading', { name: 'Cache Management' })).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('Invalidate Namespace')).toBeVisible({ timeout: 15000 })
-    await expect(page.getByText('Clear Cache')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('button', { name: 'Invalidate Namespace' })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('button', { name: 'Clear Cache' })).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('Cache Namespaces')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('Cache Hot Keys')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('Compute Count')).toBeVisible({ timeout: 15000 })
   })
 })
-
