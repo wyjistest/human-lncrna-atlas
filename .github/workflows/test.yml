@@ -351,9 +351,10 @@ jobs:
             --dbname "$DB_NAME" \
             --user "$DB_USER" \
             --password "$DB_PASSWORD" \
+            --store-sequences \
             --commit-every 0
 
-      - name: Verify regulations inserted
+      - name: Verify sample import (value-level)
         env:
           DB_HOST: 127.0.0.1
           DB_PORT: 5432
@@ -361,30 +362,7 @@ jobs:
           DB_USER: postgres
           DB_PASSWORD: postgres
         run: |
-          python - <<'PY'
-          import os
-
-          import psycopg2
-
-          conn = psycopg2.connect(
-              host=os.environ["DB_HOST"],
-              port=os.environ["DB_PORT"],
-              dbname=os.environ["DB_NAME"],
-              user=os.environ["DB_USER"],
-              password=os.environ["DB_PASSWORD"],
-          )
-          cur = conn.cursor()
-          cur.execute("SELECT COUNT(*) FROM regulations")
-          count = int(cur.fetchone()[0])
-          cur.execute("SELECT COUNT(*) FROM import_batches WHERE batch_type = %s", ("regulations",))
-          batches = int(cur.fetchone()[0])
-          cur.close()
-          conn.close()
-
-          assert count == 2, f"Expected 2 regulations inserted, got {count}"
-          assert batches >= 1, "Expected at least 1 import_batches record"
-          print("ETL smoke check passed")
-          PY
+          python3 etl/smoke_verify_sample_import.py
 
   build:
     name: Build

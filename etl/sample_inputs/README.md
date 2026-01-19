@@ -4,7 +4,9 @@
 
 - 演示 `etl.input_manifest` / `--input-manifest` 的使用方式
 - 提供一个可审查的 baseline（bytes/lines/sha256），便于后续重构时快速回归
+- 作为 CI 的 ETL E2E smoke 基线：导入后由 `etl/smoke_verify_sample_import.py` 做值级断言（regulations + sequences）
 
 注意：
 - 这里的数据是**合成样例**，不包含真实数据
 - 文件名刻意与默认 ETL 输入保持一致（例如 `human_batch_human.*`；此处使用 `.tsv` 以避免仓库忽略规则）
+- 为了保证仓库体积与 CI 速度：序列字段请保持很短（只需覆盖“字段映射正确”即可）
