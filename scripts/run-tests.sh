@@ -391,6 +391,8 @@ run_frontend_e2e_smoke_tests() {
     local failed=0
     if BASE_URL="$base_url" CI=true npx playwright test \
         e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
+        e2e/genes-smoke.spec.ts \
+        e2e/regulations-smoke.spec.ts \
         e2e/admin-monitoring-smoke.spec.ts \
         e2e/admin-cache-smoke.spec.ts \
         e2e/admin-materialized-views-smoke.spec.ts \
