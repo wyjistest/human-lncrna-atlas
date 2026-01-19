@@ -314,6 +314,20 @@ Optional: let ETL import scripts run the same verification automatically before 
 python3 etl/import_regulations.py --file /path/to/input1.tsv --input-manifest etl-inputs.manifest.tsv --user "$DB_USER"
 ```
 
+### API Snapshot Baseline (Optional)
+
+Verify a deterministic API snapshot baseline against the sample dataset (useful regression anchor for refactors):
+
+```bash
+# Docker Compose (isolated, loads schema/v2.3/03_sample_data.sql automatically)
+python3 scripts/verify_baselines.py --mode docker
+
+# If you already have a backend running
+python3 scripts/verify_baselines.py --mode running --base-url http://localhost:8000
+```
+
+CI also runs this baseline check (see `.github/workflows/test.yml`, job `api-snapshot-baseline`).
+
 ## API Endpoints
 
 | Endpoint | Method | Description |
