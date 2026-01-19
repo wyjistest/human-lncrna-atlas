@@ -165,6 +165,241 @@ jobs:
           # Uses pytest markers instead of --ignore flags
           pytest -m unit -v --tb=short
 
+  etl-e2e-smoke:
+    name: ETL E2E Smoke (Postgres)
+    runs-on: ubuntu-latest
+    needs: [secret-scan]  # Fail fast if secrets detected
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lncrna_etl_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lncrna_etl_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            frontend/backend/requirements.txt
+            frontend/backend/constraints.txt
+
+      - name: Install ETL dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary==2.9.9
+
+      - name: Wait for Postgres
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+          import time
+
+          import psycopg2
+
+          config = {
+              "host": os.environ["DB_HOST"],
+              "port": os.environ["DB_PORT"],
+              "dbname": os.environ["DB_NAME"],
+              "user": os.environ["DB_USER"],
+              "password": os.environ["DB_PASSWORD"],
+          }
+
+          for _ in range(60):
+              try:
+                  conn = psycopg2.connect(**config)
+                  conn.close()
+                  print("Postgres is ready")
+                  sys.exit(0)
+              except Exception:
+                  time.sleep(1)
+
+          print("Postgres did not become ready in time", file=sys.stderr)
+          sys.exit(1)
+          PY
+
+      - name: Init schema (v2.3 core)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          import psycopg2
+
+          schema_path = Path("schema/v2.3/01_core.sql")
+          sql = schema_path.read_text(encoding="utf-8")
+          sql = re.sub(r"--.*$", "", sql, flags=re.MULTILINE)
+          statements = [stmt.strip() for stmt in sql.split(";") if stmt.strip()]
+
+          conn = psycopg2.connect(
+              host=os.environ["DB_HOST"],
+              port=os.environ["DB_PORT"],
+              dbname=os.environ["DB_NAME"],
+              user=os.environ["DB_USER"],
+              password=os.environ["DB_PASSWORD"],
+          )
+          conn.autocommit = True
+          cur = conn.cursor()
+          for stmt in statements:
+              cur.execute(stmt)
+          cur.close()
+          conn.close()
+          print(f"Applied {len(statements)} statements from {schema_path}")
+          PY
+
+      - name: Seed minimal genes for sample inputs
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python - <<'PY'
+          import os
+
+          import psycopg2
+
+          conn = psycopg2.connect(
+              host=os.environ["DB_HOST"],
+              port=os.environ["DB_PORT"],
+              dbname=os.environ["DB_NAME"],
+              user=os.environ["DB_USER"],
+              password=os.environ["DB_PASSWORD"],
+          )
+          conn.autocommit = True
+          cur = conn.cursor()
+
+          cur.execute("SELECT species_id FROM species WHERE species_code = %s", ("human",))
+          row = cur.fetchone()
+          if not row:
+              raise RuntimeError("Missing species row for 'human' after schema init")
+          human_species_id = int(row[0])
+
+          cur.execute(
+              """
+              INSERT INTO genes (species_id, gene_ensembl_id, gene_name, chromosome, gene_start, gene_end, strand)
+              VALUES
+                (%s, %s, %s, %s, %s, %s, %s),
+                (%s, %s, %s, %s, %s, %s, %s),
+                (%s, %s, %s, %s, %s, %s, %s),
+                (%s, %s, %s, %s, %s, %s, %s)
+              """,
+              (
+                  human_species_id,
+                  "CATG00000000034",
+                  "CATG00000000034",
+                  "chr17",
+                  1000000,
+                  1000500,
+                  "+",
+                  human_species_id,
+                  "CATG00000000045",
+                  "CATG00000000045",
+                  "chr17",
+                  81137057,
+                  81137122,
+                  "+",
+                  human_species_id,
+                  "ENSG00000012048",
+                  "ENSG00000012048",
+                  "chr17",
+                  43044295,
+                  43044350,
+                  "+",
+                  human_species_id,
+                  "ENSG00000141510",
+                  "ENSG00000141510",
+                  "chr17",
+                  7661779,
+                  7661830,
+                  "+",
+              ),
+          )
+
+          cur.close()
+          conn.close()
+          print("Seeded minimal genes for ETL sample inputs")
+          PY
+
+      - name: Run ETL import_regulations (sample)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python3 etl/import_regulations.py \
+            --file etl/sample_inputs/human_batch_human.tsv \
+            --species human \
+            --batch-name ci-smoke \
+            --host "$DB_HOST" \
+            --port "$DB_PORT" \
+            --dbname "$DB_NAME" \
+            --user "$DB_USER" \
+            --password "$DB_PASSWORD" \
+            --commit-every 0
+
+      - name: Verify regulations inserted
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python - <<'PY'
+          import os
+
+          import psycopg2
+
+          conn = psycopg2.connect(
+              host=os.environ["DB_HOST"],
+              port=os.environ["DB_PORT"],
+              dbname=os.environ["DB_NAME"],
+              user=os.environ["DB_USER"],
+              password=os.environ["DB_PASSWORD"],
+          )
+          cur = conn.cursor()
+          cur.execute("SELECT COUNT(*) FROM regulations")
+          count = int(cur.fetchone()[0])
+          cur.execute("SELECT COUNT(*) FROM import_batches WHERE batch_type = %s", ("regulations",))
+          batches = int(cur.fetchone()[0])
+          cur.close()
+          conn.close()
+
+          assert count == 2, f"Expected 2 regulations inserted, got {count}"
+          assert batches >= 1, "Expected at least 1 import_batches record"
+          print("ETL smoke check passed")
+          PY
+
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -226,6 +461,81 @@ jobs:
         with:
           name: build
           path: frontend/web/dist/
+          retention-days: 7
+
+  # E2E smoke tests - runs on ubuntu-latest, fully mocked (no backend/db required)
+  e2e-smoke:
+    name: E2E Smoke (Playwright)
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: frontend/web
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: npx playwright install chromium --with-deps
+
+      - name: Run E2E smoke tests
+        working-directory: frontend/web
+        env:
+          BASE_URL: http://127.0.0.1:5173
+          CI: true
+        run: |
+          set -euo pipefail
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS "http://127.0.0.1:5173/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          npx playwright test e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts --reporter=list
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-smoke-report
+          path: frontend/web/playwright-report/
+          retention-days: 7
+
+      - name: Upload Playwright screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-smoke-screenshots
+          path: frontend/web/test-results/
           retention-days: 7
 
   # E2E tests - requires running backend server and database
