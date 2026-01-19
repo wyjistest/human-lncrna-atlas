@@ -47,7 +47,7 @@
 2. **监控指标补齐**
    - `/api/v1/admin/metrics`：新增端点级响应时间百分位（p50/p95/p99）
    - `/api/v1/admin/metrics`：新增 DB 查询耗时统计（per-query/per-request 百分位）与慢查询榜单（按 fingerprint+route 聚合）；端点维度补齐 DB 平均耗时与平均查询数
-   - Admin/Monitoring：Endpoint table 展示 P95/P99，数据不足时显示 `n=<samples>/10`；新增 Top Endpoints（P95/P99）与 “Database Performance”（DB percentiles + slow queries）
+   - Admin/Monitoring：Endpoint table 展示 P95/P99，数据不足时显示 `n=<samples>/10`；新增 Top Endpoints（P95/P99）、Top DB Endpoints（DB P95/P99）、“Database Performance”（DB percentiles + slow queries）与 “Download Metrics” 导出按钮
 
 3. **ETL 回归基线加固**
    - CI 校验 `etl/sample_inputs/etl-inputs.manifest.tsv`，防止样例输入漂移导致回归失真

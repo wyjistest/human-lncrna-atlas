@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { Card, Row, Col, Statistic, Button, Space, Tag, Popconfirm, message } from 'antd'
-import { ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, DeleteOutlined } from '@ant-design/icons'
+import {
+  ReloadOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  CloseCircleOutlined,
+  DeleteOutlined,
+  DownloadOutlined
+} from '@ant-design/icons'
 import { adminApi } from '@/api/admin'
 import { useMonitoringMetrics } from '@/hooks/useMonitoringMetrics'
 import { LoadingState } from '@/components/LoadingState'
@@ -89,6 +96,30 @@ export default function Monitoring() {
     }
   }
 
+  const handleDownloadMetrics = () => {
+    if (!data) return
+
+    if (!('URL' in window) || typeof window.URL?.createObjectURL !== 'function') {
+      message.error('Download is not supported in this environment')
+      return
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filename = `monitoring-metrics-${timestamp}.json`
+    const payload = { downloaded_at: new Date().toISOString(), ...data }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+    const url = window.URL.createObjectURL(blob)
+
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    window.URL.revokeObjectURL(url)
+  }
+
   return (
     <div data-testid="admin-monitoring-page" style={{ padding: 24 }}>
       <Space style={{ marginBottom: 24, width: '100%', justifyContent: 'space-between' }}>
@@ -122,6 +153,14 @@ export default function Monitoring() {
             loading={isFetching}
           >
             Refresh
+          </Button>
+          <Button
+            data-testid="admin-monitoring-download-metrics"
+            icon={<DownloadOutlined />}
+            onClick={handleDownloadMetrics}
+            disabled={!data}
+          >
+            Download Metrics
           </Button>
         </Space>
       </Space>
@@ -294,6 +333,34 @@ export default function Monitoring() {
           <div data-testid="admin-monitoring-top-endpoints-p99">
             <Card title="Top Endpoints (P99)">
               <TopEndpointsCard title="P99" endpoints={data?.endpoints} percentileKey="p99_ms" />
+            </Card>
+          </div>
+        </Col>
+      </Row>
+
+      {/* Top endpoints by DB tail latency */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={12}>
+          <div data-testid="admin-monitoring-top-db-endpoints-p95">
+            <Card title="Top Endpoints (DB P95)">
+              <TopEndpointsCard
+                title="DB P95"
+                endpoints={data?.endpoints}
+                percentileKey="p95_ms"
+                percentilesSource="db"
+              />
+            </Card>
+          </div>
+        </Col>
+        <Col xs={24} lg={12}>
+          <div data-testid="admin-monitoring-top-db-endpoints-p99">
+            <Card title="Top Endpoints (DB P99)">
+              <TopEndpointsCard
+                title="DB P99"
+                endpoints={data?.endpoints}
+                percentileKey="p99_ms"
+                percentilesSource="db"
+              />
             </Card>
           </div>
         </Col>

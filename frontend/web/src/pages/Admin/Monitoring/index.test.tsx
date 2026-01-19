@@ -108,10 +108,13 @@ describe('Admin Monitoring page', () => {
     expect(screen.getByTestId('admin-monitoring-endpoint-statistics')).toBeInTheDocument()
     expect(screen.getByTestId('admin-monitoring-top-endpoints-p95')).toBeInTheDocument()
     expect(screen.getByTestId('admin-monitoring-top-endpoints-p99')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-top-db-endpoints-p95')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-top-db-endpoints-p99')).toBeInTheDocument()
     expect(screen.getByTestId('admin-monitoring-database')).toBeInTheDocument()
     expect(screen.getByTestId('admin-monitoring-cache-get-latency')).toBeInTheDocument()
 
     expect(screen.getByText('Reset Cache Stats')).toBeInTheDocument()
+    expect(screen.getByTestId('admin-monitoring-download-metrics')).toBeInTheDocument()
     expect(screen.getByText('Cache Get Latency')).toBeInTheDocument()
     expect(screen.getByText('Cache Namespaces')).toBeInTheDocument()
     expect(screen.getByText('Cache Hot Keys')).toBeInTheDocument()

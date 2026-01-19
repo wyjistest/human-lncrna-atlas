@@ -7,20 +7,29 @@ import { Empty } from 'antd'
 import type { EndpointStats } from '@/types/monitoring'
 
 type PercentileKey = 'p95_ms' | 'p99_ms'
+type PercentilesSource = 'response' | 'db'
 
 interface TopEndpointsCardProps {
   title: string
   endpoints?: EndpointStats[] | null
   percentileKey: PercentileKey
+  percentilesSource?: PercentilesSource
   topN?: number
 }
 
-export function TopEndpointsCard({ title, endpoints, percentileKey, topN = 5 }: TopEndpointsCardProps) {
+export function TopEndpointsCard({
+  title,
+  endpoints,
+  percentileKey,
+  percentilesSource = 'response',
+  topN = 5,
+}: TopEndpointsCardProps) {
   const items =
     endpoints
       ?.map((ep) => ({
         path: ep.path,
-        value: ep.percentiles?.[percentileKey] ?? null,
+        value:
+          (percentilesSource === 'db' ? ep.db_percentiles : ep.percentiles)?.[percentileKey] ?? null,
       }))
       .filter((x) => x.value != null)
       .sort((a, b) => (b.value ?? -1) - (a.value ?? -1))

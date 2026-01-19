@@ -133,5 +133,15 @@ test.describe('Admin Monitoring - mocked smoke', () => {
     const topP95 = page.getByTestId('admin-monitoring-top-endpoints-p95')
     await expect(topP95).toBeVisible({ timeout: 15000 })
     await expect(topP95.getByText('/api/v1/demo/fast')).toBeVisible({ timeout: 15000 })
+
+    const topDbP95 = page.getByTestId('admin-monitoring-top-db-endpoints-p95')
+    await expect(topDbP95).toBeVisible({ timeout: 15000 })
+    await expect(topDbP95.getByText('/api/v1/demo/fast')).toBeVisible({ timeout: 15000 })
+
+    const topDbP99 = page.getByTestId('admin-monitoring-top-db-endpoints-p99')
+    await expect(topDbP99).toBeVisible({ timeout: 15000 })
+
+    const downloadBtn = page.getByTestId('admin-monitoring-download-metrics')
+    await expect(downloadBtn).toBeVisible({ timeout: 15000 })
   })
 })
