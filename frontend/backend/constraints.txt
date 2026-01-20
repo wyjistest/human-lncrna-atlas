@@ -54,7 +54,7 @@ pip-requirements-parser==32.0.1
 pip_audit==2.10.0
 platformdirs==4.5.1
 pluggy==1.6.0
-prometheus-fastapi-instrumentator==6.1.0
+prometheus-fastapi-instrumentator==7.1.0
 prometheus_client==0.23.1
 psutil==6.1.1
 psycopg2-binary==2.9.9
