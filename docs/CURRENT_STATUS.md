@@ -405,7 +405,7 @@ npm run dev
 
 ### 优先级 3: 性能优化
 - [x] ~~chr1 等大染色体查询优化~~ ✅ 已完成（物化视图 + NO-MV broad query guard，2026-01-20）
-- [ ] Redis 缓存策略优化
+- [x] ~~Redis 缓存策略优化~~ ✅ 已完成（缓存 key 规范化 + TTL 抖动（±10%），2026-01-20）
 - [x] 前端虚拟滚动（Genes/Regulations/Conservation/Diseases 展开表格等大列表）
 - [x] ~~Overlap 列表 cursor（keyset）分页~~ ✅ 已完成（避免 deep OFFSET，支持 peak_qvalue(NULL-safe)，2026-01-20）
 

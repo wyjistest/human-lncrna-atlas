@@ -589,12 +589,79 @@ class CacheService:
             return self._redis.get(key)
         return self._memory.get(key)
 
+    # Common comma-separated list query params that should be normalized when building cache keys.
+    # NOTE: Only normalize params that are known to represent "lists" (not free-text fields).
+    _COMMA_LIST_KEY_PARAMS = {
+        "marks",
+        "mark_types",
+        "cell_types",
+        "cell_lines",
+        "species_ids",
+        "chromosomes",
+    }
+
+    def _canonicalize_key_value(self, param_name: str, value: Any) -> Any:
+        """
+        Canonicalize key params to reduce cache fragmentation.
+
+        - Strip leading/trailing whitespace for all string values.
+        - For known comma-separated list params, normalize item spacing while preserving order.
+        - Treat blank strings (after strip) as None so they don't create distinct cache keys.
+        """
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped == "":
+                return None
+            if param_name in self._COMMA_LIST_KEY_PARAMS and "," in stripped:
+                items = [item.strip() for item in stripped.split(",") if item.strip()]
+                return ",".join(items) if items else None
+            return stripped
+
+        if isinstance(value, tuple):
+            return tuple(self._canonicalize_key_value(param_name, item) for item in value)
+        if isinstance(value, list):
+            return [self._canonicalize_key_value(param_name, item) for item in value]
+
+        if isinstance(value, dict):
+            return {k: self._canonicalize_key_value(param_name, v) for k, v in value.items()}
+
+        return value
+
+    def _apply_ttl_jitter(self, key: str, ttl: int) -> int:
+        """
+        Apply a small deterministic TTL jitter per key to reduce cache avalanche risk.
+
+        Jitter range: ± floor(ttl * settings.CACHE_TTL_JITTER_PCT)
+        """
+        try:
+            pct = float(getattr(settings, "CACHE_TTL_JITTER_PCT", 0.0) or 0.0)
+        except Exception:
+            pct = 0.0
+
+        ttl_int = int(ttl)
+        if ttl_int <= 1 or pct <= 0:
+            return max(1, ttl_int)
+
+        max_delta = int(ttl_int * pct)
+        if max_delta <= 0:
+            return ttl_int
+
+        h = int(hashlib.sha256(key.encode()).hexdigest()[:8], 16)
+        delta = (h % (2 * max_delta + 1)) - max_delta
+        return max(1, ttl_int + delta)
+
     def _make_key(self, namespace: str, **kwargs) -> str:
         """生成缓存键"""
         if kwargs:
-            # 过滤掉 None 值和 db 参数
-            filtered = {k: v for k, v in sorted(kwargs.items())
-                       if v is not None and k != 'db'}
+            # 过滤掉 None 值和 db 参数；并对常见输入做 canonicalize 以提升缓存命中率。
+            filtered: dict[str, Any] = {}
+            for k, v in sorted(kwargs.items()):
+                if v is None or k == "db":
+                    continue
+                v = self._canonicalize_key_value(k, v)
+                if v is None:
+                    continue
+                filtered[k] = v
             params_str = json.dumps(filtered, sort_keys=True, default=str)
             params_hash = hashlib.sha256(params_str.encode()).hexdigest()[:10]
             return f"{self.PREFIX}{namespace}:{params_hash}"
@@ -639,6 +706,7 @@ class CacheService:
 
         if ttl is None:
             ttl = settings.CACHE_TTL
+        ttl = self._apply_ttl_jitter(key, ttl)
 
         if not pre_serialized:
             value = self._serialize(value)

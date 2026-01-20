@@ -344,6 +344,13 @@ class Settings(BaseSettings):
     # 缓存配置
     CACHE_TTL: int = Field(default=3600, validation_alias="CACHE_TTL", ge=1)  # 缓存时间（秒）
     ENABLE_CACHE: bool = Field(default=True, validation_alias="ENABLE_CACHE")
+    CACHE_TTL_JITTER_PCT: float = Field(
+        default=0.1,
+        validation_alias="CACHE_TTL_JITTER_PCT",
+        ge=0.0,
+        le=0.5,
+        description="缓存 TTL 抖动比例（0 表示禁用，默认 0.1 = ±10%）",
+    )
 
     # 分页配置
     DEFAULT_PAGE_SIZE: int = 100
