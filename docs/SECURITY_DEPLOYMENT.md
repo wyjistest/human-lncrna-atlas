@@ -203,6 +203,8 @@ DB_NAME=lncrna_production
 # DB_POOL_PRE_PING=true
 
 ENABLE_CACHE=true
+# 缓存 TTL 抖动：默认 0.1（±10%），可设为 0 禁用
+# CACHE_TTL_JITTER_PCT=0.1
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_DB=0
