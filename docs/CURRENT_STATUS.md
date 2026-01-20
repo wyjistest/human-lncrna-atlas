@@ -38,6 +38,16 @@
 
 ## ✅ 最近完成的功能
 
+### 2026-01-20 ⭐ 后端导出性能优化（Overlap Export）
+
+1. **`/api/v1/lncrna-chipseq-overlap/export` 真流式输出（无 OFFSET 扫描）**
+   - 导出查询改为单次 `execute(stream_results=True)` + `fetchmany()` 分批拉取，避免大结果集下的深分页扫描与重复查询
+   - 增加结果集 `close()` 的资源释放保障，降低 StreamingResponse 中断/取消时的 server-side cursor 泄露风险
+
+2. **物化视图加速导出（MV Fast Path）**
+   - 当 `mv_lncrna_chipseq_overlaps` 可用时，导出直接读取 MV，避免 `regulations × chipseq_peaks_human` 的运行时 JOIN 压力
+   - 保持导出字段与格式不变（BED6 / CSV 19 列）
+
 ### 2026-01-19 ⭐ CI Smoke + 监控回归增强
 
 1. **E2E Smoke 覆盖扩展（完全 mocked）**
