@@ -1457,7 +1457,8 @@ def generate_overlap_export(
     min_binding_affinity: Optional[float] = None,
     min_peak_strength: Optional[float] = None,
     max_qvalue: Optional[float] = 0.05,
-    max_rows: int = MAX_EXPORT_ROWS
+    max_rows: int = MAX_EXPORT_ROWS,
+    use_materialized_view: bool | None = None,
 ) -> Generator[str, None, None]:
     """
     Generate streaming export of lncRNA-ChIP-seq overlaps in BED or CSV format.
@@ -1580,35 +1581,32 @@ def generate_overlap_export(
         .where(*where_conditions)
         .order_by(Regulation.best_peak_chr, overlap_start_expr)
         .limit(bindparam("limit"))
-        .offset(bindparam("offset"))
     )
 
     # Stream data in batches
     batch_size = EXPORT_BATCH_SIZE
-    offset = 0
     rows_exported = 0
 
+    # NOTE: placeholder param for upcoming MV export fast path.
+    _ = use_materialized_view
+
+    result = None
+    close_result = None
     try:
+        executable = data_stmt.execution_options(stream_results=True)
+        result = db.execute(executable, {**params, "limit": max_rows})
+        close_result = getattr(result, "close", None)
+
         while rows_exported < max_rows:
             batch_limit = min(batch_size, max_rows - rows_exported)
-            batch = db.execute(
-                data_stmt,
-                {
-                    **params,
-                    "limit": batch_limit,
-                    "offset": offset,
-                },
-            ).fetchall()
-
+            batch = result.fetchmany(batch_limit)
             if not batch:
                 break
 
-            # Format and yield each row
             for row in batch:
                 if rows_exported >= max_rows:
                     break
 
-                # Convert row to dictionary
                 row_dict = {
                     'overlap_id': row.overlap_id,
                     'regulation_id': row.regulation_id,
@@ -1632,19 +1630,12 @@ def generate_overlap_export(
                     'peak_qvalue': row.peak_qvalue
                 }
 
-                # Format based on output format
                 if format == 'bed':
                     yield format_bed_row(row_dict)
                 elif format == 'csv':
                     yield format_csv_row(row_dict)
 
                 rows_exported += 1
-
-            offset += len(batch)
-
-            # Stop if we got fewer rows than batch size (end of data)
-            if len(batch) < batch_limit:
-                break
 
     except Exception as e:
         logger.error(
@@ -1653,6 +1644,9 @@ def generate_overlap_export(
             exc_info=True,
         )
         raise
+    finally:
+        if callable(close_result):
+            close_result()
 
 
 # =============================================================================
