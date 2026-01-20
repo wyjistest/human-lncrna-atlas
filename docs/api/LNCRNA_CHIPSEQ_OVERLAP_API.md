@@ -43,7 +43,7 @@ Get paginated list of lncRNA-ChIP-seq overlaps with flexible filtering.
 
 - 该端点仍会返回 `total`（沿用现有 COUNT(*) 缓存策略），但不再返回 `page/total_pages`。
 - 排序稳定键为 `(sort_field, overlap_id)`。
-- 由于 `peak_qvalue` 可能为 `NULL`，该端点当前不支持 `sort_by=peak_qvalue`（会返回 `400 UNSUPPORTED_SORT_FOR_CURSOR`）。
+- `sort_by=peak_qvalue` 已支持：排序语义为“非 NULL 的 qvalue 先按 `asc/desc` 排序，然后 NULL 的记录最后；同 qvalue 或 NULL 段内使用 overlap_id 作为稳定 tie-breaker”。cursor 为 opaque token，客户端无需解析，原样回传即可。
 
 #### Query Parameters（新增）
 
@@ -77,6 +77,9 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/cursor?chromosome=chr2
 
 # Next page (use next_cursor from previous response)
 curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/cursor?chromosome=chr22&page_size=100&sort_by=binding_affinity&sort_order=desc&cursor=<opaque>"
+
+# Sort by peak_qvalue (NULL-safe ordering)
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/cursor?chromosome=chr22&page_size=100&sort_by=peak_qvalue&sort_order=asc"
 ```
 
 #### Response Schema

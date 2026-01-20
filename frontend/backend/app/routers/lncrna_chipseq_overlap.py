@@ -182,23 +182,46 @@ def _decode_overlap_cursor(token: str, *, sort_by: OverlapSortField, sort_order:
 
     overlap_id = payload.get("overlap_id")
     sort_value_raw = payload.get("sort_value")
+    is_null_raw = payload.get("is_null", False)
+    if not isinstance(is_null_raw, bool):
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor is_null invalid"})
     if not isinstance(overlap_id, str) or not overlap_id.strip():
         raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor overlap_id missing"})
-    if sort_value_raw is None:
-        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value missing"})
 
-    if sort_by == OverlapSortField.overlap_length:
+    sort_value = None
+
+    if sort_by == OverlapSortField.peak_qvalue:
+        if is_null_raw:
+            if sort_value_raw is not None:
+                raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value must be null"})
+            sort_value = None
+        else:
+            if sort_value_raw is None:
+                raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value missing"})
+            try:
+                sort_value = Decimal(str(sort_value_raw))
+            except (InvalidOperation, ValueError):
+                raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value invalid"})
+    elif sort_by == OverlapSortField.overlap_length:
+        if is_null_raw:
+            raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor is_null not allowed"})
+        if sort_value_raw is None:
+            raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value missing"})
         try:
             sort_value = int(sort_value_raw)
         except Exception:
             raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value invalid"})
     else:
+        if is_null_raw:
+            raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor is_null not allowed"})
+        if sort_value_raw is None:
+            raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value missing"})
         try:
             sort_value = Decimal(str(sort_value_raw))
         except (InvalidOperation, ValueError):
             raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value invalid"})
 
-    return {"overlap_id": overlap_id, "sort_value": sort_value}
+    return {"overlap_id": overlap_id, "sort_value": sort_value, "is_null": is_null_raw}
 
 
 def _get_cursor_sort_value(item: dict, sort_by: OverlapSortField):
@@ -544,8 +567,14 @@ def get_lncrna_chipseq_overlaps_cursor_from_mv(
         OverlapSortField.peak_qvalue: mv.c.qvalue,
     }
     sort_field = sort_field_map[sort_by]
-    primary_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
-    tie_order = mv.c.overlap_id.desc() if sort_order == OverlapSortOrder.desc else mv.c.overlap_id.asc()
+    if sort_by == OverlapSortField.peak_qvalue:
+        is_null_expr = sort_field.is_(None)
+        primary_order = is_null_expr.asc()
+        qvalue_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
+        tie_order = mv.c.overlap_id.desc() if sort_order == OverlapSortOrder.desc else mv.c.overlap_id.asc()
+    else:
+        primary_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
+        tie_order = mv.c.overlap_id.desc() if sort_order == OverlapSortOrder.desc else mv.c.overlap_id.asc()
 
     where_conditions, params = _build_overlap_where_and_params(
         lncrna_gene_id=filters.lncrna_gene_id,
@@ -597,30 +626,70 @@ def get_lncrna_chipseq_overlaps_cursor_from_mv(
         data_stmt = data_stmt.where(*where_conditions)
 
     if cursor is not None:
-        params.update(
-            {
-                "cursor_sort_value": cursor["sort_value"],
-                "cursor_overlap_id": cursor["overlap_id"],
-            }
-        )
-        if sort_order == OverlapSortOrder.desc:
-            data_stmt = data_stmt.where(
-                (sort_field < bindparam("cursor_sort_value"))
-                | (
-                    (sort_field == bindparam("cursor_sort_value"))
-                    & (mv.c.overlap_id < bindparam("cursor_overlap_id"))
-                )
-            )
-        else:
-            data_stmt = data_stmt.where(
-                (sort_field > bindparam("cursor_sort_value"))
-                | (
-                    (sort_field == bindparam("cursor_sort_value"))
-                    & (mv.c.overlap_id > bindparam("cursor_overlap_id"))
-                )
-            )
+        params["cursor_overlap_id"] = cursor["overlap_id"]
+        if sort_by == OverlapSortField.peak_qvalue:
+            cursor_is_null = bool(cursor.get("is_null"))
+            is_null_expr = sort_field.is_(None)
+            is_not_null_expr = sort_field.is_not(None)
 
-    data_stmt = data_stmt.order_by(primary_order, tie_order).limit(bindparam("limit"))
+            if cursor_is_null:
+                if sort_order == OverlapSortOrder.desc:
+                    data_stmt = data_stmt.where(is_null_expr & (mv.c.overlap_id < bindparam("cursor_overlap_id")))
+                else:
+                    data_stmt = data_stmt.where(is_null_expr & (mv.c.overlap_id > bindparam("cursor_overlap_id")))
+            else:
+                params["cursor_sort_value"] = cursor["sort_value"]
+                if sort_order == OverlapSortOrder.desc:
+                    data_stmt = data_stmt.where(
+                        is_null_expr
+                        | (
+                            is_not_null_expr
+                            & (
+                                (sort_field < bindparam("cursor_sort_value"))
+                                | (
+                                    (sort_field == bindparam("cursor_sort_value"))
+                                    & (mv.c.overlap_id < bindparam("cursor_overlap_id"))
+                                )
+                            )
+                        )
+                    )
+                else:
+                    data_stmt = data_stmt.where(
+                        is_null_expr
+                        | (
+                            is_not_null_expr
+                            & (
+                                (sort_field > bindparam("cursor_sort_value"))
+                                | (
+                                    (sort_field == bindparam("cursor_sort_value"))
+                                    & (mv.c.overlap_id > bindparam("cursor_overlap_id"))
+                                )
+                            )
+                        )
+                    )
+        else:
+            params["cursor_sort_value"] = cursor["sort_value"]
+            if sort_order == OverlapSortOrder.desc:
+                data_stmt = data_stmt.where(
+                    (sort_field < bindparam("cursor_sort_value"))
+                    | (
+                        (sort_field == bindparam("cursor_sort_value"))
+                        & (mv.c.overlap_id < bindparam("cursor_overlap_id"))
+                    )
+                )
+            else:
+                data_stmt = data_stmt.where(
+                    (sort_field > bindparam("cursor_sort_value"))
+                    | (
+                        (sort_field == bindparam("cursor_sort_value"))
+                        & (mv.c.overlap_id > bindparam("cursor_overlap_id"))
+                    )
+                )
+
+    if sort_by == OverlapSortField.peak_qvalue:
+        data_stmt = data_stmt.order_by(primary_order, qvalue_order, tie_order).limit(bindparam("limit"))
+    else:
+        data_stmt = data_stmt.order_by(primary_order, tie_order).limit(bindparam("limit"))
     params["limit"] = page_size + 1
 
     try:
@@ -924,10 +993,16 @@ def get_lncrna_chipseq_overlaps_cursor_query(
         OverlapSortField.peak_qvalue: p.c.qvalue,
     }
     sort_field = sort_field_map[sort_by]
-    primary_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
 
     overlap_id_expr = func.concat(literal("reg_"), Regulation.regulation_id, literal("_peak_"), p.c.peak_id)
-    tie_order = overlap_id_expr.desc() if sort_order == OverlapSortOrder.desc else overlap_id_expr.asc()
+    if sort_by == OverlapSortField.peak_qvalue:
+        is_null_expr = sort_field.is_(None)
+        primary_order = is_null_expr.asc()
+        qvalue_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
+        tie_order = overlap_id_expr.desc() if sort_order == OverlapSortOrder.desc else overlap_id_expr.asc()
+    else:
+        primary_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
+        tie_order = overlap_id_expr.desc() if sort_order == OverlapSortOrder.desc else overlap_id_expr.asc()
 
     filter_conditions, params = _build_overlap_where_and_params(
         lncrna_gene_id=filters.lncrna_gene_id,
@@ -1002,30 +1077,70 @@ def get_lncrna_chipseq_overlaps_cursor_query(
     )
 
     if cursor is not None:
-        params.update(
-            {
-                "cursor_sort_value": cursor["sort_value"],
-                "cursor_overlap_id": cursor["overlap_id"],
-            }
-        )
-        if sort_order == OverlapSortOrder.desc:
-            data_stmt = data_stmt.where(
-                (sort_field < bindparam("cursor_sort_value"))
-                | (
-                    (sort_field == bindparam("cursor_sort_value"))
-                    & (overlap_id_expr < bindparam("cursor_overlap_id"))
-                )
-            )
-        else:
-            data_stmt = data_stmt.where(
-                (sort_field > bindparam("cursor_sort_value"))
-                | (
-                    (sort_field == bindparam("cursor_sort_value"))
-                    & (overlap_id_expr > bindparam("cursor_overlap_id"))
-                )
-            )
+        params["cursor_overlap_id"] = cursor["overlap_id"]
+        if sort_by == OverlapSortField.peak_qvalue:
+            cursor_is_null = bool(cursor.get("is_null"))
+            is_null_expr = sort_field.is_(None)
+            is_not_null_expr = sort_field.is_not(None)
 
-    data_stmt = data_stmt.order_by(primary_order, tie_order).limit(bindparam("limit"))
+            if cursor_is_null:
+                if sort_order == OverlapSortOrder.desc:
+                    data_stmt = data_stmt.where(is_null_expr & (overlap_id_expr < bindparam("cursor_overlap_id")))
+                else:
+                    data_stmt = data_stmt.where(is_null_expr & (overlap_id_expr > bindparam("cursor_overlap_id")))
+            else:
+                params["cursor_sort_value"] = cursor["sort_value"]
+                if sort_order == OverlapSortOrder.desc:
+                    data_stmt = data_stmt.where(
+                        is_null_expr
+                        | (
+                            is_not_null_expr
+                            & (
+                                (sort_field < bindparam("cursor_sort_value"))
+                                | (
+                                    (sort_field == bindparam("cursor_sort_value"))
+                                    & (overlap_id_expr < bindparam("cursor_overlap_id"))
+                                )
+                            )
+                        )
+                    )
+                else:
+                    data_stmt = data_stmt.where(
+                        is_null_expr
+                        | (
+                            is_not_null_expr
+                            & (
+                                (sort_field > bindparam("cursor_sort_value"))
+                                | (
+                                    (sort_field == bindparam("cursor_sort_value"))
+                                    & (overlap_id_expr > bindparam("cursor_overlap_id"))
+                                )
+                            )
+                        )
+                    )
+        else:
+            params["cursor_sort_value"] = cursor["sort_value"]
+            if sort_order == OverlapSortOrder.desc:
+                data_stmt = data_stmt.where(
+                    (sort_field < bindparam("cursor_sort_value"))
+                    | (
+                        (sort_field == bindparam("cursor_sort_value"))
+                        & (overlap_id_expr < bindparam("cursor_overlap_id"))
+                    )
+                )
+            else:
+                data_stmt = data_stmt.where(
+                    (sort_field > bindparam("cursor_sort_value"))
+                    | (
+                        (sort_field == bindparam("cursor_sort_value"))
+                        & (overlap_id_expr > bindparam("cursor_overlap_id"))
+                    )
+                )
+
+    if sort_by == OverlapSortField.peak_qvalue:
+        data_stmt = data_stmt.order_by(primary_order, qvalue_order, tie_order).limit(bindparam("limit"))
+    else:
+        data_stmt = data_stmt.order_by(primary_order, tie_order).limit(bindparam("limit"))
     params["limit"] = page_size + 1
 
     try:
@@ -1316,15 +1431,6 @@ def get_lncrna_chipseq_overlaps_cursor(
     ),
     db: Session = Depends(get_db),
 ):
-    if sort_by == OverlapSortField.peak_qvalue:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "UNSUPPORTED_SORT_FOR_CURSOR",
-                "message": "Cursor pagination does not support sort_by=peak_qvalue (nullable field).",
-            },
-        )
-
     use_materialized_view = check_materialized_view_exists(db)
 
     default_filter_applied = False
@@ -1450,6 +1556,7 @@ def get_lncrna_chipseq_overlaps_cursor(
                 "v": 1,
                 "sort_by": sort_by.value,
                 "sort_order": sort_order.value,
+                "is_null": sort_value is None,
                 "sort_value": str(sort_value) if sort_value is not None else None,
                 "overlap_id": last.get("overlap_id"),
             }
