@@ -410,7 +410,7 @@ export default function Genes() {
             key: 'batch',
             label: t('tabs.batch'),
             children: (
-              <Space direction="vertical" style={{ width: '100%', marginBottom: 16 }}>
+              <Space orientation="vertical" style={{ width: '100%', marginBottom: 16 }}>
                 <Space wrap>
                   <Select
                     placeholder={t('filters.species')}
