@@ -201,6 +201,80 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?chromosome=
 curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?mark_type=H3K27me3"
 ```
 
+### 2.1 Cross-species Compare (GET `/api/v1/lncrna-chipseq-overlap/compare`)
+
+基于 `core_id` 的同源映射，将输入的 `lncrna_gene_id`（可选 `target_gene_id`）映射到多个物种，并返回每个物种各自的 overlap 汇总统计（与 `/statistics` 的统计结构一致）。
+
+对比物种集合（`species_id`）：
+
+- `1`: Human
+- `2`: Chimpanzee
+- `3`: Rhesus Macaque
+- `4`: Marmoset
+
+#### Notes
+
+- 若某物种缺少同源基因（或指定了 `target_gene_id` 但缺少 target 同源基因），该物种返回 empty stats（`total_overlaps=0`）。
+- `top_n` 用于限制每个物种的 breakdown（`by_mark_type/by_cell_type`）返回条数，避免 payload 过大。
+
+#### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `lncrna_gene_id` | integer | Yes | - | lncRNA基因ID（任意物种；用于 `core_id` 同源映射） |
+| `target_gene_id` | integer | No | - | 目标基因ID（可选；任意物种；用于 `core_id` 同源映射） |
+| `mark_type` | string | No | - | Mark type(s), comma-separated |
+| `cell_type` | string | No | - | Cell type(s), comma-separated |
+| `chromosome` | string | No | - | Chromosome filter (optional) |
+| `min_binding_affinity` | float | No | - | Minimum binding affinity |
+| `max_qvalue` | float | No | 0.05 | Maximum Q-value (FDR) for peaks (0-1) |
+| `top_n` | integer | No | 10 | Top-N breakdown items per species (1-50) |
+
+#### Response Schema
+
+> `species_stats` 为“按物种 ID 分组的 map”，在 JSON 中 key 会被序列化为字符串（例如 `"1"`, `"2"`）。
+
+```json
+{
+  "lncrna_core_id": 12345,
+  "target_core_id": 67890,
+  "species_names": {
+    "1": "Human",
+    "2": "Chimpanzee",
+    "3": "Rhesus Macaque",
+    "4": "Marmoset"
+  },
+  "species_stats": {
+    "1": {
+      "species_id": 1,
+      "species_name": "Human",
+      "lncrna_gene_id": 19101,
+      "target_gene_id": 27047,
+      "statistics": {
+        "total_overlaps": 0,
+        "unique_lncrnas": 0,
+        "unique_target_genes": 0,
+        "unique_marks": 0,
+        "unique_cell_types": 0,
+        "avg_overlap_length": 0.0,
+        "avg_binding_affinity": 0.0,
+        "avg_peak_strength": 0.0,
+        "by_mark_type": [],
+        "by_cell_type": [],
+        "default_filter_applied": false,
+        "effective_chromosome": "chr22"
+      }
+    }
+  }
+}
+```
+
+#### Example Requests
+
+```bash
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/compare?lncrna_gene_id=19101&target_gene_id=27047&chromosome=chr22&top_n=10"
+```
+
 ### 3. Get Heatmap (GET `/api/v1/lncrna-chipseq-overlap/heatmap`)
 
 Get heatmap matrix data for lncRNA-ChIP-seq overlap visualization (ECharts/D3 friendly).
@@ -354,6 +428,7 @@ the API returns `400` with a structured error payload:
 
 This can happen on:
 - `GET /api/v1/lncrna-chipseq-overlap`
+- `GET /api/v1/lncrna-chipseq-overlap/cursor`
 - `GET /api/v1/lncrna-chipseq-overlap/statistics`
 - `GET /api/v1/lncrna-chipseq-overlap/heatmap`
 - `GET /api/v1/lncrna-chipseq-overlap/export`

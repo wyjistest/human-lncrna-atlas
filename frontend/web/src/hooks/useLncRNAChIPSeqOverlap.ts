@@ -16,6 +16,7 @@ import type {
   OverlapCursorResponse,
   OverlapResponse,
   OverlapSummary,
+  OverlapCrossSpeciesComparisonResponse,
   OverlapHeatmapData,
   OverlapHeatmapXAxis,
   OverlapHeatmapYAxis,
@@ -109,6 +110,27 @@ export function useLncRNAChIPSeqOverlapSummary(
     gcTime: 60 * 60 * 1000,
     enabled: options?.enabled ?? false,  // Phase 2 feature - disabled by default
     ...options
+  })
+}
+
+export function useLncRNAChIPSeqOverlapCompareSpecies(
+  filters: OverlapFilters,
+  topN: number,
+  options?: { enabled?: boolean }
+) {
+  return useQuery<OverlapCrossSpeciesComparisonResponse, Error>({
+    queryKey: overlapQueryKeys.compareSpecies(filters, topN),
+    queryFn: async ({ signal }) => {
+      if (!filters.lncrna_gene_id) {
+        throw new Error('lncrna_gene_id is required')
+      }
+      const response = await lncRNAChIPSeqOverlapApi.getCompareSpecies(filters, topN, signal)
+      return response.data
+    },
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    enabled: (options?.enabled ?? false) && Boolean(filters.lncrna_gene_id),
+    retry: 1,
   })
 }
 

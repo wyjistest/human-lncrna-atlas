@@ -249,6 +249,33 @@ class OverlapStatistics(BaseModel):
 
 
 # ============================================================================
+# Cross-species Compare Schemas
+# ============================================================================
+
+class SpeciesOverlapStatistics(BaseModel):
+    """跨物种对比：单个物种的 overlap 统计"""
+
+    species_id: int
+    species_name: str
+    lncrna_gene_id: Optional[int] = None
+    target_gene_id: Optional[int] = None
+    statistics: OverlapStatistics
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class OverlapCrossSpeciesComparisonResponse(BaseModel):
+    """跨物种 overlap 对比响应（/lncrna-chipseq-overlap/compare）"""
+
+    lncrna_core_id: int
+    target_core_id: Optional[int] = None
+    species_names: dict[str, str]
+    species_stats: dict[int, SpeciesOverlapStatistics]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
 # Heatmap Schemas
 # ============================================================================
 

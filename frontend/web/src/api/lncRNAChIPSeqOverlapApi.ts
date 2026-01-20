@@ -20,6 +20,7 @@ import type {
   OverlapCursorResponse,
   OverlapResponse,
   OverlapSummary,
+  OverlapCrossSpeciesComparisonResponse,
   OverlapHeatmapData,
   OverlapHeatmapParams,
 } from '@/types/lncRNAChIPSeqOverlap'
@@ -74,6 +75,19 @@ function buildSummaryParams(filters?: Partial<OverlapFilters>) {
     chromosome: filters.chromosome,
     min_binding_affinity: filters.min_binding_affinity,
     max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+  })
+}
+
+function buildCompareSpeciesParams(filters: OverlapFilters, topN: number) {
+  return normalizeQueryKeyObject({
+    lncrna_gene_id: filters.lncrna_gene_id,
+    target_gene_id: filters.target_gene_id,
+    mark_type: normalizeCommaSeparatedList(filters.mark_type),
+    cell_type: normalizeCommaSeparatedList(filters.cell_type),
+    chromosome: filters.chromosome,
+    min_binding_affinity: filters.min_binding_affinity,
+    max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+    top_n: topN,
   })
 }
 
@@ -166,6 +180,15 @@ export const lncRNAChIPSeqOverlapApi = {
 	      params: buildSummaryParams(filters),
 	      signal
 	    }),
+
+  /**
+   * Compare overlaps across species (ortholog mapping by core_id)
+   */
+  getCompareSpecies: (filters: OverlapFilters, topN: number = 10, signal?: AbortSignal) =>
+    apiClient.get<OverlapCrossSpeciesComparisonResponse>('/api/v1/lncrna-chipseq-overlap/compare', {
+      params: buildCompareSpeciesParams(filters, topN),
+      signal,
+    }),
 
   /**
    * Export overlaps in specified format (BED or CSV)
@@ -291,6 +314,14 @@ export const overlapQueryKeys = {
     return normalized
       ? ([...overlapQueryKeys.all, 'summary', normalized] as const)
       : ([...overlapQueryKeys.all, 'summary'] as const)
+  },
+
+  /** Cross-species compare */
+  compareSpecies: (filters: OverlapFilters, topN: number) => {
+    const normalized = buildCompareSpeciesParams(filters, topN)
+    return normalized
+      ? ([...overlapQueryKeys.all, 'compareSpecies', normalized] as const)
+      : ([...overlapQueryKeys.all, 'compareSpecies'] as const)
   },
 
   /** Heatmap data (Phase 3.0 Phase 2) */

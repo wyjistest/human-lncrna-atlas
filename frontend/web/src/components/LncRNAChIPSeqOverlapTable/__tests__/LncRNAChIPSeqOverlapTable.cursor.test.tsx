@@ -16,6 +16,7 @@ vi.mock('@/hooks/useLncRNAChIPSeqOverlap', () => ({
   useLncRNAChIPSeqOverlaps: vi.fn(),
   useLncRNAChIPSeqOverlapsCursor: vi.fn(),
   useLncRNAChIPSeqOverlapSummary: vi.fn(),
+  useLncRNAChIPSeqOverlapCompareSpecies: vi.fn(),
 }))
 
 describe('LncRNAChIPSeqOverlapTable (cursor mode)', () => {
@@ -32,6 +33,12 @@ describe('LncRNAChIPSeqOverlapTable (cursor mode)', () => {
     vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapSummary).mockReturnValue({
       data: undefined,
       isLoading: false,
+    } as any)
+
+    vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapCompareSpecies).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
     } as any)
 
     vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapsCursor).mockReturnValue({
@@ -98,4 +105,3 @@ describe('LncRNAChIPSeqOverlapTable (cursor mode)', () => {
     expect(fetchNextPage).toHaveBeenCalled()
   })
 })
-

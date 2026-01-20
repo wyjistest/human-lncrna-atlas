@@ -59,11 +59,13 @@ from app.schemas.lncrna_chipseq_overlap import (
     OverlapSortField,
     OverlapSortOrder,
     OverlapStatistics,
+    OverlapCrossSpeciesComparisonResponse,
     MarkTypeStats,
     CellTypeStats,
     HeatmapCell,
     OverlapHeatmapResponse
 )
+from app.config.igv_genomes import SPECIES_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +251,8 @@ router = APIRouter(
     tags=["lncrna-chipseq-overlap"]
 )
 
+COMPARE_SPECIES_IDS = (1, 2, 3, 4)
+
 
 def _normalize_array_param(values: Optional[List[str]]) -> Optional[List[str]]:
     """Normalize list parameters: treat [] as None (no filter)."""
@@ -329,6 +333,254 @@ def _build_overlap_where_and_params(
         params["min_overlap_length"] = min_overlap_length
 
     return conditions, params
+
+
+def _empty_overlap_statistics(*, effective_chromosome: Optional[str] = None) -> dict:
+    return OverlapStatistics(
+        total_overlaps=0,
+        unique_lncrnas=0,
+        unique_target_genes=0,
+        unique_cell_types=0,
+        unique_marks=0,
+        avg_overlap_length=0.0,
+        avg_binding_affinity=0.0,
+        avg_peak_strength=0.0,
+        by_mark_type=[],
+        by_cell_type=[],
+        default_filter_applied=False,
+        effective_chromosome=effective_chromosome,
+    ).model_dump(mode="json")
+
+
+def _get_gene_or_404(db: Session, gene_id: int, label: str):
+    gene = db.query(Gene).filter(Gene.gene_id == gene_id).first()
+    if not gene:
+        raise HTTPException(status_code=404, detail=f"{label} not found")
+    if gene.core_id is None:
+        raise HTTPException(status_code=400, detail=f"{label} has no core_id (ortholog mapping unavailable)")
+    return gene
+
+
+def _get_ortholog_gene_map(db: Session, core_id: int) -> dict[int, int]:
+    rows = (
+        db.query(Gene.gene_id, Gene.species_id)
+        .filter(Gene.core_id == core_id)
+        .all()
+    )
+    # core_id 语义上每个物种应最多一个 gene_id；如有异常重复，后者覆盖前者（best-effort）。
+    return {int(species_id): int(gene_id) for gene_id, species_id in rows}
+
+
+def _compute_overlap_statistics_impl(
+    *,
+    db: Session,
+    species_id: int,
+    lncrna_gene_id: Optional[int],
+    target_gene_id: Optional[int],
+    mark_type: Optional[str],
+    cell_type: Optional[str],
+    chromosome: Optional[str],
+    min_binding_affinity: Optional[float],
+    max_qvalue: Optional[float],
+    top_n: Optional[int],
+) -> dict:
+    """
+    物种可参数化的 overlap statistics 计算。
+
+    返回 dict（JSON-safe），便于跨物种 compare 汇总与缓存。
+    """
+    if lncrna_gene_id is None:
+        return _empty_overlap_statistics(effective_chromosome=chromosome)
+
+    # MV 仅 human 支持；其它物种一律走 JOIN（partition pruning 由 species_id filter 触发）。
+    use_materialized_view = species_id == 1 and check_materialized_view_exists(db)
+
+    # Performance optimization: apply default chromosome only when query is too broad.
+    # Note: In compare mode we always provide lncrna_gene_id, so default is normally not used.
+    DEFAULT_CHROMOSOME = DEFAULT_QUERY_CHROMOSOME
+
+    has_selective_filter = any(
+        [
+            lncrna_gene_id,
+            target_gene_id,
+            chromosome,
+            mark_type,
+            cell_type,
+            min_binding_affinity and min_binding_affinity > 0,
+        ]
+    )
+
+    effective_chromosome = chromosome or (DEFAULT_CHROMOSOME if not has_selective_filter else None)
+    default_filter_applied = (effective_chromosome == DEFAULT_CHROMOSOME and not chromosome)
+
+    # Guard: even with a chromosome filter, chr1/chr2/chr3 can still be too broad without MV.
+    if not use_materialized_view and chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD:
+        has_narrowing_filter = any(
+            [
+                lncrna_gene_id,
+                target_gene_id,
+                mark_type,
+                cell_type,
+                min_binding_affinity and min_binding_affinity > 0,
+            ]
+        )
+        if not has_narrowing_filter:
+            _raise_query_too_broad(
+                chromosome,
+                suggest_filters=[
+                    "mark_type",
+                    "cell_type",
+                    "lncrna_gene_id",
+                    "target_gene_id",
+                    "min_binding_affinity",
+                ],
+            )
+
+    mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
+    cell_types_array = parse_comma_list(cell_type, param_name="cell_type")
+
+    # Use the partitioned parent table to support all species (partition pruning).
+    p = table(
+        "chipseq_peaks",
+        column("peak_id"),
+        column("species_id"),
+        column("chromosome"),
+        column("peak_start"),
+        column("peak_end"),
+        column("experiment_id"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+
+    overlap_start_base = func.greatest(Regulation.best_peak_start, p.c.peak_start)
+    overlap_end_base = func.least(Regulation.best_peak_end, p.c.peak_end)
+    overlap_length_base = overlap_end_base - overlap_start_base
+
+    filter_conditions, params = _build_overlap_where_and_params(
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        chromosome=effective_chromosome,
+        mark_types=mark_types_array,
+        cell_types=cell_types_array,
+        min_binding_affinity=min_binding_affinity,
+        min_peak_strength=None,
+        max_qvalue=max_qvalue,
+        min_overlap_length=None,
+        lncrna_gene_col=Regulation.lncrna_gene_id,
+        target_gene_col=Regulation.target_gene_id,
+        chromosome_col=Regulation.best_peak_chr,
+        mark_name_col=EpigeneticMarkType.mark_name,
+        cell_type_col=ChIPSeqExperiment.cell_type,
+        binding_affinity_col=Regulation.binding_affinity,
+        fold_enrichment_col=p.c.fold_enrichment,
+        qvalue_col=p.c.qvalue,
+        overlap_length_expr=overlap_length_base,
+    )
+
+    params["species_id"] = species_id
+
+    where_conditions = [
+        Regulation.species_id == bindparam("species_id"),
+        ChIPSeqExperiment.is_active.is_(True),
+        *filter_conditions,
+    ]
+    join_on_peak = (
+        (Regulation.species_id == p.c.species_id)
+        & (Regulation.best_peak_chr == p.c.chromosome)
+        & (Regulation.best_peak_start < p.c.peak_end)
+        & (Regulation.best_peak_end > p.c.peak_start)
+    )
+
+    stats_stmt = (
+        select(
+            func.count().label("total_overlaps"),
+            func.count(func.distinct(Regulation.lncrna_gene_id)).label("unique_lncrnas"),
+            func.count(func.distinct(Regulation.target_gene_id)).label("unique_target_genes"),
+            func.count(func.distinct(EpigeneticMarkType.mark_name)).label("unique_marks"),
+            func.count(func.distinct(ChIPSeqExperiment.cell_type)).label("unique_cell_types"),
+            func.avg(overlap_length_base).label("avg_overlap_length"),
+            func.avg(Regulation.binding_affinity).label("avg_binding_affinity"),
+            func.avg(p.c.fold_enrichment).label("avg_peak_strength"),
+        )
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+    )
+
+    by_mark_stmt = (
+        select(
+            EpigeneticMarkType.mark_name.label("mark_type"),
+            func.count().label("count"),
+            func.avg(Regulation.binding_affinity).label("avg_strength"),
+        )
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .group_by(EpigeneticMarkType.mark_name)
+        .order_by(func.count().desc())
+    )
+    if top_n is not None:
+        by_mark_stmt = by_mark_stmt.limit(bindparam("top_n"))
+        params["top_n"] = int(top_n)
+
+    by_cell_stmt = (
+        select(
+            ChIPSeqExperiment.cell_type,
+            func.count().label("count"),
+        )
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+        .group_by(ChIPSeqExperiment.cell_type)
+        .order_by(func.count().desc())
+    )
+    if top_n is not None:
+        by_cell_stmt = by_cell_stmt.limit(bindparam("top_n"))
+
+    try:
+        result = db.execute(stats_stmt, params).fetchone()
+        if not result or result.total_overlaps == 0:
+            empty = _empty_overlap_statistics(effective_chromosome=effective_chromosome)
+            empty["default_filter_applied"] = bool(default_filter_applied)
+            empty["effective_chromosome"] = effective_chromosome
+            return empty
+
+        mark_results = db.execute(by_mark_stmt, params).fetchall()
+        by_mark_type = [
+            MarkTypeStats(
+                mark_type=row.mark_type,
+                count=row.count,
+                avg_strength=float(row.avg_strength) if row.avg_strength else 0.0,
+            )
+            for row in mark_results
+        ]
+
+        cell_results = db.execute(by_cell_stmt, params).fetchall()
+        by_cell_type = [CellTypeStats(cell_type=row.cell_type, count=row.count) for row in cell_results]
+
+        return OverlapStatistics(
+            total_overlaps=result.total_overlaps,
+            unique_lncrnas=result.unique_lncrnas,
+            unique_target_genes=result.unique_target_genes,
+            unique_cell_types=result.unique_cell_types,
+            unique_marks=result.unique_marks,
+            avg_overlap_length=float(result.avg_overlap_length) if result.avg_overlap_length else 0.0,
+            avg_binding_affinity=float(result.avg_binding_affinity) if result.avg_binding_affinity else 0.0,
+            avg_peak_strength=float(result.avg_peak_strength) if result.avg_peak_strength else 0.0,
+            by_mark_type=by_mark_type,
+            by_cell_type=by_cell_type,
+            default_filter_applied=default_filter_applied,
+            effective_chromosome=effective_chromosome,
+        ).model_dump(mode="json")
+
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
 
 
 def get_lncrna_chipseq_overlaps_from_mv(
@@ -1813,6 +2065,89 @@ def get_overlap_statistics(
 
     except Exception as e:
         raise sanitize_db_error(e, logger)
+
+
+@router.get("/compare", response_model=OverlapCrossSpeciesComparisonResponse)
+@rate_limit("30/minute")
+def compare_species_overlaps(
+    request: Request,
+    lncrna_gene_id: int = Query(..., ge=1, description="lncRNA基因ID（任意物种）"),
+    target_gene_id: Optional[int] = Query(None, ge=1, description="目标基因ID（可选；任意物种）"),
+    mark_type: Optional[str] = Query(None, max_length=MAX_FIELD_LENGTH, description="Mark type(s), comma-separated"),
+    cell_type: Optional[str] = Query(None, max_length=MAX_FIELD_LENGTH, description="Cell type(s), comma-separated"),
+    chromosome: Optional[str] = Query(None, max_length=64, description="Chromosome filter (optional)"),
+    min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity"),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value (FDR) for peaks"),
+    top_n: int = Query(10, ge=1, le=50, description="Top-N breakdown items per species (mark_type/cell_type)"),
+    db: Session = Depends(get_db),
+):
+    """Cross-species overlap comparison (基于 core_id 的同源映射)."""
+    cache_key = cache.make_key(
+        "overlap:compare",
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        mark_type=mark_type,
+        cell_type=cell_type,
+        chromosome=chromosome,
+        min_binding_affinity=min_binding_affinity,
+        max_qvalue=max_qvalue,
+        top_n=top_n,
+    )
+    cached_value = cache.get(cache_key)
+    if cached_value is not None:
+        return cached_value
+
+    lncrna_gene = _get_gene_or_404(db, lncrna_gene_id, "LncRNA")
+    target_gene = _get_gene_or_404(db, target_gene_id, "Target gene") if target_gene_id else None
+
+    lncrna_core_id = int(lncrna_gene.core_id)
+    target_core_id = int(target_gene.core_id) if target_gene is not None else None
+
+    lncrna_map = _get_ortholog_gene_map(db, lncrna_core_id)
+    target_map = _get_ortholog_gene_map(db, target_core_id) if target_core_id is not None else None
+
+    species_names = {str(sid): SPECIES_NAMES.get(sid, f"Unknown ({sid})") for sid in COMPARE_SPECIES_IDS}
+    species_stats: dict[int, dict] = {}
+
+    for sid in COMPARE_SPECIES_IDS:
+        sid_lncrna_gene_id = lncrna_map.get(sid)
+        sid_target_gene_id = target_map.get(sid) if target_map is not None else None
+
+        if sid_lncrna_gene_id is None:
+            stats = _empty_overlap_statistics(effective_chromosome=chromosome)
+        elif target_gene_id is not None and sid_target_gene_id is None:
+            stats = _empty_overlap_statistics(effective_chromosome=chromosome)
+        else:
+            stats = _compute_overlap_statistics_impl(
+                db=db,
+                species_id=sid,
+                lncrna_gene_id=sid_lncrna_gene_id,
+                target_gene_id=sid_target_gene_id,
+                mark_type=mark_type,
+                cell_type=cell_type,
+                chromosome=chromosome,
+                min_binding_affinity=min_binding_affinity,
+                max_qvalue=max_qvalue,
+                top_n=top_n,
+            )
+
+        species_stats[sid] = {
+            "species_id": sid,
+            "species_name": SPECIES_NAMES.get(sid, f"Unknown ({sid})"),
+            "lncrna_gene_id": sid_lncrna_gene_id,
+            "target_gene_id": sid_target_gene_id,
+            "statistics": stats,
+        }
+
+    result = {
+        "lncrna_core_id": lncrna_core_id,
+        "target_core_id": target_core_id,
+        "species_names": species_names,
+        "species_stats": species_stats,
+    }
+
+    cache.set(cache_key, result, cache.TTL_LIST)
+    return result
 
 
 @router.get("/summary", response_model=OverlapStatistics, include_in_schema=False)

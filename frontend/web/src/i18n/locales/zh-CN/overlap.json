@@ -114,6 +114,23 @@
     "filteredByLncRNA": "按 lncRNA 筛选",
     "filteredByTarget": "按靶基因筛选"
   },
+  "compare": {
+    "button": "跨物种对比",
+    "tooltip": "基于同源映射（core_id）对比各物种的 overlap 统计",
+    "tooltipDisabled": "请先选择 lncRNA 基因 ID 以启用跨物种对比",
+    "title": "跨物种 Overlap 对比",
+    "topN": "Top N",
+    "topNHint": "用于限制每个物种的 breakdown 返回条数",
+    "error": "加载跨物种对比失败",
+    "columns": {
+      "species": "物种",
+      "overlaps": "重叠数",
+      "uniqueTargets": "靶基因数",
+      "uniqueMarks": "标记数",
+      "topMarks": "Top 标记",
+      "topCells": "Top 细胞系"
+    }
+  },
   "action": {
     "showFilters": "显示筛选",
     "hideFilters": "隐藏筛选",

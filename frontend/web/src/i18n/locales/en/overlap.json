@@ -114,6 +114,23 @@
     },
     "saveImage": "Save as Image"
   },
+  "compare": {
+    "button": "Compare Species",
+    "tooltip": "Compare overlap statistics across species (ortholog mapping)",
+    "tooltipDisabled": "Select an lncRNA gene ID to enable cross-species comparison",
+    "title": "Cross-species Overlap Comparison",
+    "topN": "Top N",
+    "topNHint": "Used for breakdown queries per species",
+    "error": "Failed to load cross-species comparison",
+    "columns": {
+      "species": "Species",
+      "overlaps": "Overlaps",
+      "uniqueTargets": "Unique Targets",
+      "uniqueMarks": "Unique Marks",
+      "topMarks": "Top Marks",
+      "topCells": "Top Cell Types"
+    }
+  },
   "action": {
     "showFilters": "Show Filters",
     "hideFilters": "Hide Filters",
