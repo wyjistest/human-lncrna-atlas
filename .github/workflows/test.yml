@@ -385,15 +385,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 3s
-          --health-retries 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -445,10 +436,8 @@ jobs:
           DB_NAME: lncrna_api_baseline_ci
           DB_USER: lncrna
           DB_PASSWORD: postgres
-          # Keep parity with baseline generation (cache enabled + Redis available).
-          ENABLE_CACHE: "true"
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6379
+          # Baseline is generated with cache disabled to keep results stable and avoid Redis dependency.
+          ENABLE_CACHE: "false"
         run: |
           set -euo pipefail
 
