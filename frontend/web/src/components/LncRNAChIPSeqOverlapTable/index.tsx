@@ -66,6 +66,7 @@ import {
   BgColorsOutlined,
   LoadingOutlined,
   LinkOutlined,
+  SwapOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -77,6 +78,7 @@ import { OverlapStatsCards } from './OverlapStatsCards'
 import { OverlapMarkDistChart } from './OverlapMarkDistChart'
 import { OverlapCellTypeChart } from './OverlapCellTypeChart'
 import { OverlapHeatmapMatrix } from './OverlapHeatmapMatrix'
+import { OverlapCrossSpeciesCompareModal } from './OverlapCrossSpeciesCompareModal'
 import { buildOverlapIgvNavigation } from './igvUtils'
 import { LoadingState } from '@/components/LoadingState'
 import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
@@ -109,6 +111,7 @@ import {
   useLncRNAChIPSeqOverlaps,
   useLncRNAChIPSeqOverlapsCursor,
   useLncRNAChIPSeqOverlapSummary,
+  useLncRNAChIPSeqOverlapCompareSpecies,
 } from '@/hooks/useLncRNAChIPSeqOverlap'
 
 // Types
@@ -192,6 +195,8 @@ export function LncRNAChIPSeqOverlapTable({
   const [showFilters, setShowFilters] = useState(true)
   const [showStats, setShowStats] = useState(enableStats)
   const [showVisualization, setShowVisualization] = useState(enableVisualization)
+  const [showCompareSpecies, setShowCompareSpecies] = useState(false)
+  const [compareTopN, setCompareTopN] = useState(10)
   const [showIGV, setShowIGV] = useState(enableIGV)
   const [paginationMode, setPaginationMode] = useState<'offset' | 'cursor'>('offset')
   const [activeTab, setActiveTab] = useState<string>('table')
@@ -871,6 +876,14 @@ export function LncRNAChIPSeqOverlapTable({
 
   const parsedSummaryError = useMemo(() => (summaryError ? parseError(summaryError) : null), [summaryError])
 
+  const {
+    data: compareSpeciesData,
+    isLoading: compareSpeciesLoading,
+    error: compareSpeciesError,
+  } = useLncRNAChIPSeqOverlapCompareSpecies(filters, compareTopN, {
+    enabled: showCompareSpecies,
+  })
+
   const suggestedFilters = useMemo(() => {
     if (parsedDataError?.errorCode !== 'QUERY_TOO_BROAD') return []
     return parsedDataError.suggestFilters || []
@@ -1225,6 +1238,23 @@ export function LncRNAChIPSeqOverlapTable({
               </Space>
             )}
 
+            <Tooltip
+              title={
+                filters.lncrna_gene_id
+                  ? t('compare.tooltip', 'Compare overlap statistics across species (ortholog mapping)')
+                  : t('compare.tooltipDisabled', 'Select an lncRNA gene ID to enable cross-species comparison')
+              }
+            >
+              <Button
+                data-testid="overlap-compare-species"
+                icon={<SwapOutlined />}
+                onClick={() => setShowCompareSpecies(true)}
+                disabled={!filters.lncrna_gene_id}
+              >
+                {t('compare.button', 'Compare Species')}
+              </Button>
+            </Tooltip>
+
             {enableVisualization && (
               <Space>
                 <PieChartOutlined />
@@ -1284,6 +1314,16 @@ export function LncRNAChIPSeqOverlapTable({
           )}
         </Space>
       </Card>
+
+      <OverlapCrossSpeciesCompareModal
+        open={showCompareSpecies}
+        onClose={() => setShowCompareSpecies(false)}
+        data={compareSpeciesData}
+        loading={compareSpeciesLoading}
+        error={compareSpeciesError}
+        topN={compareTopN}
+        onTopNChange={setCompareTopN}
+      />
 
       {/* Phase 2 Notice */}
 	      {enableStats && !showStats && (

@@ -17,6 +17,7 @@ vi.mock('@/hooks/useLncRNAChIPSeqOverlap', () => ({
   useLncRNAChIPSeqOverlaps: vi.fn(),
   useLncRNAChIPSeqOverlapsCursor: vi.fn(),
   useLncRNAChIPSeqOverlapSummary: vi.fn(),
+  useLncRNAChIPSeqOverlapCompareSpecies: vi.fn(),
 }))
 
 describe('LncRNAChIPSeqOverlapTable', () => {
@@ -62,6 +63,11 @@ describe('LncRNAChIPSeqOverlapTable', () => {
       data: undefined,
       isLoading: false,
     })
+    vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapCompareSpecies).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    } as any)
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -122,6 +128,11 @@ describe('LncRNAChIPSeqOverlapTable', () => {
       data: undefined,
       isLoading: false,
     })
+    vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapCompareSpecies).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: null,
+    } as any)
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },

@@ -165,6 +165,27 @@ export interface OverlapSummary {
     cell_type: string
     count: number
   }>
+
+  /** True if default chromosome filter (chr22) was applied for performance optimization */
+  default_filter_applied?: boolean
+  /** The chromosome filter actually used in the query */
+  effective_chromosome?: string | null
+}
+
+export interface OverlapCrossSpeciesComparisonResponse {
+  lncrna_core_id: number
+  target_core_id: number | null
+  species_names: Record<string, string>
+  species_stats: Record<
+    number,
+    {
+      species_id: number
+      species_name: string
+      lncrna_gene_id: number | null
+      target_gene_id: number | null
+      statistics: OverlapSummary
+    }
+  >
 }
 
 /**
