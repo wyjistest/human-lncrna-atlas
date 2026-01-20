@@ -15,6 +15,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/hooks/useLncRNAChIPSeqOverlap', () => ({
   useLncRNAChIPSeqOverlaps: vi.fn(),
+  useLncRNAChIPSeqOverlapsCursor: vi.fn(),
   useLncRNAChIPSeqOverlapSummary: vi.fn(),
 }))
 
@@ -49,6 +50,14 @@ describe('LncRNAChIPSeqOverlapTable', () => {
       error,
       refetch: vi.fn(),
     })
+    vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapsCursor).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isFetchingNextPage: false,
+      fetchNextPage: vi.fn(),
+      error: null,
+      refetch: vi.fn(),
+    } as any)
     vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapSummary).mockReturnValue({
       data: undefined,
       isLoading: false,
@@ -101,6 +110,14 @@ describe('LncRNAChIPSeqOverlapTable', () => {
       error,
       refetch: vi.fn(),
     })
+    vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapsCursor).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isFetchingNextPage: false,
+      fetchNextPage: vi.fn(),
+      error: null,
+      refetch: vi.fn(),
+    } as any)
     vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapSummary).mockReturnValue({
       data: undefined,
       isLoading: false,

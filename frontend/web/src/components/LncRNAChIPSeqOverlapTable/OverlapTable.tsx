@@ -35,6 +35,8 @@ interface OverlapTableProps {
   page: number
   /** Page size */
   pageSize: number
+  /** Whether to show built-in pagination controls */
+  paginationEnabled?: boolean
   /** Loading state */
   loading?: boolean
   /** Current filters (for sort indicators) */
@@ -115,6 +117,7 @@ export function OverlapTable({
   total,
   page,
   pageSize,
+  paginationEnabled = true,
   loading = false,
   filters,
   onFiltersChange,
@@ -324,11 +327,14 @@ export function OverlapTable({
       const newFilters: Partial<OverlapFilters> = {}
 
       // Handle pagination
-      if (pagination.current !== page) {
-        newFilters.page = pagination.current
+      const nextPage = typeof pagination.current === 'number' ? pagination.current : undefined
+      const nextPageSize = typeof pagination.pageSize === 'number' ? pagination.pageSize : undefined
+
+      if (nextPage !== undefined && nextPage !== page) {
+        newFilters.page = nextPage
       }
-      if (pagination.pageSize !== pageSize) {
-        newFilters.page_size = pagination.pageSize
+      if (nextPageSize !== undefined && nextPageSize !== pageSize) {
+        newFilters.page_size = nextPageSize
         newFilters.page = 1 // Reset to first page when changing page size
       }
 
@@ -361,16 +367,20 @@ export function OverlapTable({
       dataSource={items}
       rowKey="overlap_id"
       loading={loading}
-      pagination={{
-        current: page,
-        pageSize: pageSize,
-        total: total,
-        showSizeChanger: true,
-        showQuickJumper: true,
-        showTotal: (total) => t('table.total', { total, defaultValue: `Total ${total} overlaps` }),
-        pageSizeOptions: ['10', '20', '50', '100', '500', '1000'],
-        placement: ['bottomCenter'],
-      }}
+      pagination={
+        paginationEnabled
+          ? {
+              current: page,
+              pageSize: pageSize,
+              total: total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total) => t('table.total', { total, defaultValue: `Total ${total} overlaps` }),
+              pageSizeOptions: ['10', '20', '50', '100', '500', '1000'],
+              placement: ['bottomCenter'],
+            }
+          : false
+      }
       onChange={handleTableChange}
       onRow={(record) => ({
         onClick: () => onRowClick?.(record),

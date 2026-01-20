@@ -38,7 +38,14 @@
     "bindingAffinity": "结合亲和力",
     "peakStrength": "Peak 强度",
     "qvalue": "Q-value",
-    "actions": "操作"
+    "actions": "操作",
+    "paginationModeTooltip": "深分页建议使用 Cursor（顺序翻页/加载更多），避免 deep OFFSET 扫描",
+    "paginationMode": {
+      "cursor": "Cursor",
+      "page": "分页"
+    },
+    "loadMore": "加载更多",
+    "noMore": "没有更多了"
   },
   "stats": {
     "totalOverlaps": "总重叠数",

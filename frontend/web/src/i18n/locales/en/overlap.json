@@ -51,7 +51,14 @@
     "bindingAffinity": "Binding Affinity",
     "peakStrength": "Peak Strength",
     "qvalue": "Q-value",
-    "actions": "Actions"
+    "actions": "Actions",
+    "paginationModeTooltip": "Use cursor pagination for deep results (sequential browsing / load more)",
+    "paginationMode": {
+      "cursor": "Cursor",
+      "page": "Page"
+    },
+    "loadMore": "Load more",
+    "noMore": "No more"
   },
   "stats": {
     "totalOverlaps": "Total Overlaps",

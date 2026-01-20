@@ -107,6 +107,7 @@ const HIGHLIGHTABLE_FILTER_KEYS = new Set([
 // Hooks
 import {
   useLncRNAChIPSeqOverlaps,
+  useLncRNAChIPSeqOverlapsCursor,
   useLncRNAChIPSeqOverlapSummary,
 } from '@/hooks/useLncRNAChIPSeqOverlap'
 
@@ -192,6 +193,7 @@ export function LncRNAChIPSeqOverlapTable({
   const [showStats, setShowStats] = useState(enableStats)
   const [showVisualization, setShowVisualization] = useState(enableVisualization)
   const [showIGV, setShowIGV] = useState(enableIGV)
+  const [paginationMode, setPaginationMode] = useState<'offset' | 'cursor'>('offset')
   const [activeTab, setActiveTab] = useState<string>('table')
   const [highlightFilterKeys, setHighlightFilterKeys] = useState<string[] | null>(null)
 
@@ -826,12 +828,35 @@ export function LncRNAChIPSeqOverlapTable({
   // ==================== End IGV Control Logic ====================
 
   // Data fetching
-  const {
-    data: overlapData,
-    isLoading: dataLoading,
-    error: dataError,
-    refetch: refetchData,
-  } = useLncRNAChIPSeqOverlaps(filters)
+  const isCursorPagination = paginationMode === 'cursor'
+
+  const overlapsOffsetQuery = useLncRNAChIPSeqOverlaps(filters, { enabled: !isCursorPagination })
+  const overlapsCursorQuery = useLncRNAChIPSeqOverlapsCursor(filters, { enabled: isCursorPagination })
+
+  const overlapData = useMemo(() => {
+    if (!isCursorPagination) return overlapsOffsetQuery.data
+    if (!overlapsCursorQuery.data) return undefined
+
+    const pages = overlapsCursorQuery.data.pages || []
+    const first = pages[0]
+    return {
+      total: first?.total ?? 0,
+      page: 1,
+      page_size: first?.page_size ?? (filters.page_size ?? defaultPageSize),
+      items: pages.flatMap((p) => p.items || []),
+    }
+  }, [isCursorPagination, overlapsOffsetQuery.data, overlapsCursorQuery.data, filters.page_size, defaultPageSize])
+
+  const dataLoading = isCursorPagination ? overlapsCursorQuery.isLoading : overlapsOffsetQuery.isLoading
+  const dataError = isCursorPagination ? overlapsCursorQuery.error : overlapsOffsetQuery.error
+  const refetchData = isCursorPagination ? overlapsCursorQuery.refetch : overlapsOffsetQuery.refetch
+
+  const cursorHasMore = useMemo(() => {
+    if (!isCursorPagination) return false
+    const pages = overlapsCursorQuery.data?.pages
+    if (!pages || pages.length === 0) return false
+    return Boolean(pages[pages.length - 1]?.has_more)
+  }, [isCursorPagination, overlapsCursorQuery.data])
 
   const parsedDataError = useMemo(() => (dataError ? parseError(dataError) : null), [dataError])
 
@@ -1411,10 +1436,47 @@ export function LncRNAChIPSeqOverlapTable({
         title={
           <Space>
             {t('table.title', 'lncRNA-ChIP-seq Overlaps')}
-            {hasData && (
+            {hasData && overlapData && (
               <span style={{ fontWeight: 'normal', color: '#999' }}>
-                ({overlapData.total.toLocaleString()})
+                {isCursorPagination
+                  ? `(${overlapData.items.length.toLocaleString()} / ${overlapData.total.toLocaleString()})`
+                  : `(${overlapData.total.toLocaleString()})`}
               </span>
+            )}
+          </Space>
+        }
+        extra={
+          <Space size="small">
+            <Tooltip
+              title={t(
+                'table.paginationModeTooltip',
+                'Use cursor pagination for deep results (sequential browsing / load more)'
+              )}
+            >
+              <Switch
+                data-testid="overlap-pagination-mode"
+                size="small"
+                checked={isCursorPagination}
+                onChange={(checked) => {
+                  setPaginationMode(checked ? 'cursor' : 'offset')
+                  setFilters((prev) => ({ ...prev, page: 1 }))
+                }}
+                checkedChildren={t('table.paginationMode.cursor', 'Cursor')}
+                unCheckedChildren={t('table.paginationMode.page', 'Page')}
+              />
+            </Tooltip>
+
+            {isCursorPagination && (
+              <Select
+                size="small"
+                value={filters.page_size ?? defaultPageSize}
+                style={{ width: 120 }}
+                onChange={(value) => handleFiltersChange({ page_size: value, page: 1 })}
+                options={[10, 20, 50, 100, 500, 1000].map((value) => ({
+                  value,
+                  label: `${value}/page`,
+                }))}
+              />
             )}
           </Space>
         }
@@ -1437,17 +1499,33 @@ export function LncRNAChIPSeqOverlapTable({
         )}
 
         {/* Show table when we have data */}
-        {!showInitialLoading && hasData && (
-          <OverlapTable
-            items={overlapData.items}
-            total={overlapData.total}
-            page={overlapData.page}
-            pageSize={overlapData.page_size}
-            loading={dataLoading}
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            onRowClick={enableIGV && showIGV ? handleRowClick : undefined}
-          />
+        {!showInitialLoading && hasData && overlapData && (
+          <>
+            <OverlapTable
+              items={overlapData.items}
+              total={overlapData.total}
+              page={overlapData.page}
+              pageSize={overlapData.page_size}
+              loading={dataLoading}
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              onRowClick={enableIGV && showIGV ? handleRowClick : undefined}
+              paginationEnabled={!isCursorPagination}
+            />
+
+            {isCursorPagination && (
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+                <Button
+                  data-testid="overlap-load-more"
+                  onClick={() => overlapsCursorQuery.fetchNextPage()}
+                  loading={overlapsCursorQuery.isFetchingNextPage}
+                  disabled={!cursorHasMore || overlapsCursorQuery.isFetchingNextPage}
+                >
+                  {cursorHasMore ? t('table.loadMore', 'Load more') : t('table.noMore', 'No more')}
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         {/* Empty state - no data found with current filters */}
