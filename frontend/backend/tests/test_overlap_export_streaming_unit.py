@@ -34,9 +34,14 @@ class _DummyDB:
         self._rows = list(rows)
         self.execute_calls = 0
         self.last_result: _DummyResult | None = None
+        self.last_sql: str | None = None
 
     def execute(self, stmt, params=None):  # noqa: ANN001
         self.execute_calls += 1
+        try:
+            self.last_sql = str(stmt)
+        except Exception:
+            self.last_sql = None
 
         params = params or {}
         if isinstance(params, dict) and "offset" in params:
@@ -137,3 +142,30 @@ def test_generate_overlap_export_closes_result_when_max_rows_stops_early():
 
     assert db.execute_calls == 1
     assert db.last_result is not None and db.last_result.closed is True
+
+
+@pytest.mark.unit
+def test_generate_overlap_export_uses_mv_query_when_enabled():
+    from app.routers.lncrna_chipseq_overlap import generate_overlap_export
+
+    rows = [
+        _make_row(overlap_id="reg_1_peak_1", overlap_start=1000),
+        _make_row(overlap_id="reg_2_peak_2", overlap_start=2000),
+    ]
+    db = _DummyDB(rows)
+
+    kwargs = {
+        "db": db,  # type: ignore[arg-type]
+        "format": "csv",
+        "chromosome": "chr22",
+        "max_rows": 1,
+        "use_materialized_view": True,
+    }
+
+    gen = generate_overlap_export(**kwargs)  # type: ignore[call-arg]
+    next(gen)
+    for _ in gen:
+        pass
+
+    assert db.execute_calls == 1
+    assert db.last_sql is not None and "mv_lncrna_chipseq_overlaps" in db.last_sql
