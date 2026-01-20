@@ -28,10 +28,14 @@ from typing import Optional, List, Tuple, Literal, Generator
 import logging
 import csv
 from io import StringIO
+from pydantic import ValidationError
+import base64
+import json
+from decimal import Decimal, InvalidOperation
 
 from app.core.database import get_db
 from app.core.cache import cache, cached
-from app.core.exceptions import sanitize_db_error
+from app.core.exceptions import sanitize_db_error, normalize_http_error_detail
 from app.core.utils import sanitize_for_log
 from app.core.validators import MAX_FIELD_LENGTH, compute_pagination_offset, parse_comma_list
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
@@ -47,8 +51,10 @@ from app.models import Regulation, Gene, ChIPSeqExperiment, EpigeneticMarkType
 # ============================================================================
 from app.routers.chipseq_rate_limit import rate_limit
 from app.schemas.lncrna_chipseq_overlap import (
+    CHROMOSOME_PATTERN,
     OverlapFilters,
     OverlapResponse,
+    OverlapCursorResponse,
     OverlapResult,
     OverlapSortField,
     OverlapSortOrder,
@@ -140,6 +146,70 @@ def _raise_query_too_broad(chromosome: str, *, suggest_filters: list[str]) -> No
             "using_materialized_view": False,
         },
     )
+
+
+def _encode_overlap_cursor(payload: dict) -> str:
+    raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _decode_overlap_cursor(token: str, *, sort_by: OverlapSortField, sort_order: OverlapSortOrder) -> dict:
+    if not isinstance(token, str) or not token.strip():
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor is empty"})
+    if len(token) > 2048:
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor is too long"})
+
+    padded = token + "=" * (-len(token) % 4)
+    try:
+        raw = base64.urlsafe_b64decode(padded.encode("ascii"))
+        payload = json.loads(raw.decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor decode failed"})
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor payload invalid"})
+    if payload.get("v") != 1:
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor version invalid"})
+
+    if payload.get("sort_by") != sort_by.value or payload.get("sort_order") != sort_order.value:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "CURSOR_MISMATCH",
+                "message": "Cursor sort parameters do not match request",
+            },
+        )
+
+    overlap_id = payload.get("overlap_id")
+    sort_value_raw = payload.get("sort_value")
+    if not isinstance(overlap_id, str) or not overlap_id.strip():
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor overlap_id missing"})
+    if sort_value_raw is None:
+        raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value missing"})
+
+    if sort_by == OverlapSortField.overlap_length:
+        try:
+            sort_value = int(sort_value_raw)
+        except Exception:
+            raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value invalid"})
+    else:
+        try:
+            sort_value = Decimal(str(sort_value_raw))
+        except (InvalidOperation, ValueError):
+            raise HTTPException(status_code=400, detail={"error": "CURSOR_INVALID", "message": "Cursor sort_value invalid"})
+
+    return {"overlap_id": overlap_id, "sort_value": sort_value}
+
+
+def _get_cursor_sort_value(item: dict, sort_by: OverlapSortField):
+    field_map = {
+        OverlapSortField.binding_affinity: "binding_affinity",
+        OverlapSortField.overlap_length: "overlap_length",
+        OverlapSortField.peak_fold_enrichment: "peak_fold_enrichment",
+        OverlapSortField.peak_qvalue: "peak_qvalue",
+    }
+    return item.get(field_map[sort_by])
+
 
 # CSV export columns (in order)
 CSV_EXPORT_COLUMNS = [
@@ -421,6 +491,199 @@ def get_lncrna_chipseq_overlaps_from_mv(
         raise sanitize_db_error(e, logger)
 
 
+def get_lncrna_chipseq_overlaps_cursor_from_mv(
+    db: Session,
+    filters: OverlapFilters,
+    *,
+    cursor: Optional[dict],
+    page_size: int,
+    sort_by: OverlapSortField,
+    sort_order: OverlapSortOrder,
+) -> Tuple[List[dict], int]:
+    """
+    Cursor (keyset) pagination for MV-backed overlap list queries.
+
+    Notes:
+    - Uses (sort_field, overlap_id) as the stable ordering key.
+    - Fetches page_size + 1 rows to determine has_more without COUNT(*) on hot path.
+    """
+    # Parse comma-separated filters
+    mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
+    cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
+    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
+    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
+
+    mv = table(
+        MV_LNCRNA_CHIPSEQ_OVERLAPS,
+        column("overlap_id"),
+        column("regulation_id"),
+        column("lncrna_gene_id"),
+        column("lncrna_name"),
+        column("target_gene_id"),
+        column("target_gene_name"),
+        column("mark_name"),
+        column("mark_category"),
+        column("cell_type"),
+        column("chromosome"),
+        column("lncrna_binding_start"),
+        column("lncrna_binding_end"),
+        column("peak_start"),
+        column("peak_end"),
+        column("overlap_start"),
+        column("overlap_end"),
+        column("overlap_length"),
+        column("binding_affinity"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+
+    sort_field_map = {
+        OverlapSortField.binding_affinity: mv.c.binding_affinity,
+        OverlapSortField.overlap_length: mv.c.overlap_length,
+        OverlapSortField.peak_fold_enrichment: mv.c.fold_enrichment,
+        OverlapSortField.peak_qvalue: mv.c.qvalue,
+    }
+    sort_field = sort_field_map[sort_by]
+    primary_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
+    tie_order = mv.c.overlap_id.desc() if sort_order == OverlapSortOrder.desc else mv.c.overlap_id.asc()
+
+    where_conditions, params = _build_overlap_where_and_params(
+        lncrna_gene_id=filters.lncrna_gene_id,
+        target_gene_id=filters.target_gene_id,
+        chromosome=filters.chromosome,
+        mark_types=mark_types_array,
+        cell_types=cell_types_array,
+        min_binding_affinity=filters.min_binding_affinity,
+        min_peak_strength=filters.min_peak_strength,
+        max_qvalue=filters.max_qvalue,
+        min_overlap_length=filters.min_overlap_length,
+        lncrna_gene_col=mv.c.lncrna_gene_id,
+        target_gene_col=mv.c.target_gene_id,
+        chromosome_col=mv.c.chromosome,
+        mark_name_col=mv.c.mark_name,
+        cell_type_col=mv.c.cell_type,
+        binding_affinity_col=mv.c.binding_affinity,
+        fold_enrichment_col=mv.c.fold_enrichment,
+        qvalue_col=mv.c.qvalue,
+        overlap_length_expr=mv.c.overlap_length,
+    )
+
+    count_stmt = select(func.count().label("total")).select_from(mv)
+    data_stmt = select(
+        mv.c.overlap_id,
+        mv.c.regulation_id,
+        mv.c.lncrna_gene_id,
+        mv.c.lncrna_name,
+        mv.c.target_gene_id,
+        mv.c.target_gene_name,
+        mv.c.mark_name.label("mark_type"),
+        mv.c.mark_category,
+        mv.c.cell_type,
+        mv.c.chromosome,
+        mv.c.lncrna_binding_start,
+        mv.c.lncrna_binding_end,
+        mv.c.peak_start,
+        mv.c.peak_end,
+        mv.c.overlap_start,
+        mv.c.overlap_end,
+        mv.c.overlap_length,
+        mv.c.binding_affinity,
+        mv.c.fold_enrichment.label("peak_fold_enrichment"),
+        mv.c.qvalue.label("peak_qvalue"),
+    ).select_from(mv)
+
+    if where_conditions:
+        count_stmt = count_stmt.where(*where_conditions)
+        data_stmt = data_stmt.where(*where_conditions)
+
+    if cursor is not None:
+        params.update(
+            {
+                "cursor_sort_value": cursor["sort_value"],
+                "cursor_overlap_id": cursor["overlap_id"],
+            }
+        )
+        if sort_order == OverlapSortOrder.desc:
+            data_stmt = data_stmt.where(
+                (sort_field < bindparam("cursor_sort_value"))
+                | (
+                    (sort_field == bindparam("cursor_sort_value"))
+                    & (mv.c.overlap_id < bindparam("cursor_overlap_id"))
+                )
+            )
+        else:
+            data_stmt = data_stmt.where(
+                (sort_field > bindparam("cursor_sort_value"))
+                | (
+                    (sort_field == bindparam("cursor_sort_value"))
+                    & (mv.c.overlap_id > bindparam("cursor_overlap_id"))
+                )
+            )
+
+    data_stmt = data_stmt.order_by(primary_order, tie_order).limit(bindparam("limit"))
+    params["limit"] = page_size + 1
+
+    try:
+
+        def compute_total() -> int:
+            count_result = db.execute(count_stmt, params).fetchone()
+            return int(count_result[0] if count_result else 0)
+
+        total = int(
+            cache.get_or_compute(
+                "overlap:list_count",
+                compute_total,
+                ttl=cache.TTL_COUNT,
+                source="mv",
+                lncrna_gene_id=filters.lncrna_gene_id,
+                target_gene_id=filters.target_gene_id,
+                chromosome=filters.chromosome,
+                mark_types=cache_mark_types,
+                cell_types=cache_cell_types,
+                min_binding_affinity=filters.min_binding_affinity,
+                min_peak_strength=filters.min_peak_strength,
+                max_qvalue=filters.max_qvalue,
+                min_overlap_length=filters.min_overlap_length,
+            )
+            or 0
+        )
+
+        results = db.execute(data_stmt, params).fetchall()
+        items: List[dict] = []
+        for row in results:
+            items.append(
+                {
+                    "overlap_id": row.overlap_id,
+                    "regulation_id": row.regulation_id,
+                    "lncrna_gene_id": row.lncrna_gene_id,
+                    "lncrna_name": row.lncrna_name,
+                    "target_gene_id": row.target_gene_id,
+                    "target_gene_name": row.target_gene_name,
+                    "mark_type": row.mark_type,
+                    "mark_category": row.mark_category,
+                    "cell_type": row.cell_type,
+                    "chromosome": row.chromosome,
+                    "lncrna_binding_start": row.lncrna_binding_start,
+                    "lncrna_binding_end": row.lncrna_binding_end,
+                    "peak_start": row.peak_start,
+                    "peak_end": row.peak_end,
+                    "overlap_start": row.overlap_start,
+                    "overlap_end": row.overlap_end,
+                    "overlap_length": row.overlap_length,
+                    "binding_affinity": row.binding_affinity,
+                    "peak_fold_enrichment": row.peak_fold_enrichment,
+                    "peak_qvalue": row.peak_qvalue,
+                }
+            )
+
+        return items, total
+
+    except Exception as e:
+        if is_mv_missing_error(e):
+            raise
+        raise sanitize_db_error(e, logger)
+
+
 def get_lncrna_chipseq_overlaps_query(
     db: Session,
     filters: OverlapFilters
@@ -616,6 +879,214 @@ def get_lncrna_chipseq_overlaps_query(
         raise sanitize_db_error(e, logger)
 
 
+def get_lncrna_chipseq_overlaps_cursor_query(
+    db: Session,
+    filters: OverlapFilters,
+    *,
+    cursor: Optional[dict],
+    page_size: int,
+    sort_by: OverlapSortField,
+    sort_order: OverlapSortOrder,
+) -> Tuple[List[dict], int]:
+    """
+    Cursor (keyset) pagination for base-table join overlap list queries.
+
+    Notes:
+    - Uses (sort_field, overlap_id) as the stable ordering key.
+    - Fetches page_size + 1 rows to determine has_more.
+    """
+    mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
+    cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
+    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
+    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
+
+    p = table(
+        "chipseq_peaks_human",
+        column("peak_id"),
+        column("species_id"),
+        column("chromosome"),
+        column("peak_start"),
+        column("peak_end"),
+        column("experiment_id"),
+        column("fold_enrichment"),
+        column("qvalue"),
+    )
+    overlap_start_base = func.greatest(Regulation.best_peak_start, p.c.peak_start)
+    overlap_end_base = func.least(Regulation.best_peak_end, p.c.peak_end)
+    overlap_start_expr = overlap_start_base.label("overlap_start")
+    overlap_end_expr = overlap_end_base.label("overlap_end")
+    overlap_length_expr = (overlap_end_base - overlap_start_base).label("overlap_length")
+
+    sort_field_map = {
+        OverlapSortField.binding_affinity: Regulation.binding_affinity,
+        OverlapSortField.overlap_length: overlap_length_expr,
+        OverlapSortField.peak_fold_enrichment: p.c.fold_enrichment,
+        OverlapSortField.peak_qvalue: p.c.qvalue,
+    }
+    sort_field = sort_field_map[sort_by]
+    primary_order = sort_field.desc() if sort_order == OverlapSortOrder.desc else sort_field.asc()
+
+    overlap_id_expr = func.concat(literal("reg_"), Regulation.regulation_id, literal("_peak_"), p.c.peak_id)
+    tie_order = overlap_id_expr.desc() if sort_order == OverlapSortOrder.desc else overlap_id_expr.asc()
+
+    filter_conditions, params = _build_overlap_where_and_params(
+        lncrna_gene_id=filters.lncrna_gene_id,
+        target_gene_id=filters.target_gene_id,
+        chromosome=filters.chromosome,
+        mark_types=mark_types_array,
+        cell_types=cell_types_array,
+        min_binding_affinity=filters.min_binding_affinity,
+        min_peak_strength=filters.min_peak_strength,
+        max_qvalue=filters.max_qvalue,
+        min_overlap_length=filters.min_overlap_length,
+        lncrna_gene_col=Regulation.lncrna_gene_id,
+        target_gene_col=Regulation.target_gene_id,
+        chromosome_col=Regulation.best_peak_chr,
+        mark_name_col=EpigeneticMarkType.mark_name,
+        cell_type_col=ChIPSeqExperiment.cell_type,
+        binding_affinity_col=Regulation.binding_affinity,
+        fold_enrichment_col=p.c.fold_enrichment,
+        qvalue_col=p.c.qvalue,
+        overlap_length_expr=overlap_length_expr,
+    )
+
+    where_conditions = [Regulation.species_id == 1, ChIPSeqExperiment.is_active.is_(True), *filter_conditions]
+    join_on_peak = (
+        (Regulation.species_id == p.c.species_id)
+        & (Regulation.best_peak_chr == p.c.chromosome)
+        & (Regulation.best_peak_start < p.c.peak_end)
+        & (Regulation.best_peak_end > p.c.peak_start)
+    )
+
+    count_stmt = (
+        select(func.count().label("total"))
+        .select_from(Regulation)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+    )
+
+    lnc = aliased(Gene)
+    tgt = aliased(Gene)
+    data_stmt = (
+        select(
+            overlap_id_expr.label("overlap_id"),
+            Regulation.regulation_id,
+            Regulation.lncrna_gene_id,
+            lnc.gene_name.label("lncrna_name"),
+            Regulation.target_gene_id,
+            tgt.gene_name.label("target_gene_name"),
+            EpigeneticMarkType.mark_name.label("mark_type"),
+            EpigeneticMarkType.mark_category,
+            ChIPSeqExperiment.cell_type,
+            Regulation.best_peak_chr.label("chromosome"),
+            Regulation.best_peak_start.label("lncrna_binding_start"),
+            Regulation.best_peak_end.label("lncrna_binding_end"),
+            p.c.peak_start,
+            p.c.peak_end,
+            overlap_start_expr,
+            overlap_end_expr,
+            overlap_length_expr,
+            Regulation.binding_affinity,
+            p.c.fold_enrichment.label("peak_fold_enrichment"),
+            p.c.qvalue.label("peak_qvalue"),
+        )
+        .select_from(Regulation)
+        .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
+        .join(tgt, Regulation.target_gene_id == tgt.gene_id)
+        .join(p, join_on_peak)
+        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+        .where(*where_conditions)
+    )
+
+    if cursor is not None:
+        params.update(
+            {
+                "cursor_sort_value": cursor["sort_value"],
+                "cursor_overlap_id": cursor["overlap_id"],
+            }
+        )
+        if sort_order == OverlapSortOrder.desc:
+            data_stmt = data_stmt.where(
+                (sort_field < bindparam("cursor_sort_value"))
+                | (
+                    (sort_field == bindparam("cursor_sort_value"))
+                    & (overlap_id_expr < bindparam("cursor_overlap_id"))
+                )
+            )
+        else:
+            data_stmt = data_stmt.where(
+                (sort_field > bindparam("cursor_sort_value"))
+                | (
+                    (sort_field == bindparam("cursor_sort_value"))
+                    & (overlap_id_expr > bindparam("cursor_overlap_id"))
+                )
+            )
+
+    data_stmt = data_stmt.order_by(primary_order, tie_order).limit(bindparam("limit"))
+    params["limit"] = page_size + 1
+
+    try:
+
+        def compute_total() -> int:
+            count_result = db.execute(count_stmt, params).fetchone()
+            return int(count_result[0] if count_result else 0)
+
+        total = int(
+            cache.get_or_compute(
+                "overlap:list_count",
+                compute_total,
+                ttl=cache.TTL_COUNT,
+                source="join",
+                lncrna_gene_id=filters.lncrna_gene_id,
+                target_gene_id=filters.target_gene_id,
+                chromosome=filters.chromosome,
+                mark_types=cache_mark_types,
+                cell_types=cache_cell_types,
+                min_binding_affinity=filters.min_binding_affinity,
+                min_peak_strength=filters.min_peak_strength,
+                max_qvalue=filters.max_qvalue,
+                min_overlap_length=filters.min_overlap_length,
+            )
+            or 0
+        )
+
+        results = db.execute(data_stmt, params).fetchall()
+        items: List[dict] = []
+        for row in results:
+            items.append(
+                {
+                    "overlap_id": row.overlap_id,
+                    "regulation_id": row.regulation_id,
+                    "lncrna_gene_id": row.lncrna_gene_id,
+                    "lncrna_name": row.lncrna_name,
+                    "target_gene_id": row.target_gene_id,
+                    "target_gene_name": row.target_gene_name,
+                    "mark_type": row.mark_type,
+                    "mark_category": row.mark_category,
+                    "cell_type": row.cell_type,
+                    "chromosome": row.chromosome,
+                    "lncrna_binding_start": row.lncrna_binding_start,
+                    "lncrna_binding_end": row.lncrna_binding_end,
+                    "peak_start": row.peak_start,
+                    "peak_end": row.peak_end,
+                    "overlap_start": row.overlap_start,
+                    "overlap_end": row.overlap_end,
+                    "overlap_length": row.overlap_length,
+                    "binding_affinity": row.binding_affinity,
+                    "peak_fold_enrichment": row.peak_fold_enrichment,
+                    "peak_qvalue": row.peak_qvalue,
+                }
+            )
+
+        return items, total
+
+    except Exception as e:
+        raise sanitize_db_error(e, logger)
+
+
 @router.get("", response_model=OverlapResponse)
 @rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
 def get_lncrna_chipseq_overlaps(
@@ -753,21 +1224,24 @@ def get_lncrna_chipseq_overlaps(
                 )
 
     # Build filters object with effective chromosome
-    filters = OverlapFilters(
-        lncrna_gene_id=lncrna_gene_id,
-        target_gene_id=target_gene_id,
-        mark_type=mark_type,
-        cell_type=cell_type,
-        chromosome=effective_chromosome,
-        min_overlap_length=min_overlap_length,
-        min_binding_affinity=min_binding_affinity,
-        min_peak_strength=min_peak_strength,
-        max_qvalue=max_qvalue,
-        page=page,
-        page_size=page_size,
-        sort_by=sort_by,
-        sort_order=sort_order
-    )
+    try:
+        filters = OverlapFilters(
+            lncrna_gene_id=lncrna_gene_id,
+            target_gene_id=target_gene_id,
+            mark_type=mark_type,
+            cell_type=cell_type,
+            chromosome=effective_chromosome,
+            min_overlap_length=min_overlap_length,
+            min_binding_affinity=min_binding_affinity,
+            min_peak_strength=min_peak_strength,
+            max_qvalue=max_qvalue,
+            page=page,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=normalize_http_error_detail(e.errors(), status_code=422))
 
     # Execute query using appropriate method
     # Phase 9.24: Add error handling for MV queries - auto-fallback if MV dropped during TTL
@@ -801,6 +1275,195 @@ def get_lncrna_chipseq_overlaps(
         default_filter_applied=default_filter_applied,
         effective_chromosome=effective_chromosome,
         using_materialized_view=use_materialized_view
+    )
+
+
+@router.get("/cursor", response_model=OverlapCursorResponse)
+@rate_limit("60/minute")  # Rate limit: 60 requests per minute per IP
+def get_lncrna_chipseq_overlaps_cursor(
+    request: Request,  # Required for rate limiting
+    lncrna_gene_id: Optional[int] = Query(None, description="Filter by specific lncRNA gene ID"),
+    target_gene_id: Optional[int] = Query(None, description="Filter by specific target gene ID"),
+    mark_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by mark type(s), comma-separated (max 20 items)",
+    ),
+    cell_type: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Filter by cell type(s), comma-separated (max 20 items)",
+    ),
+    chromosome: Optional[str] = Query(
+        None,
+        max_length=10,
+        pattern=CHROMOSOME_PATTERN,
+        description="Filter by chromosome (e.g., 'chr1', 'chrX')",
+    ),
+    min_overlap_length: Optional[int] = Query(None, ge=1, description="Minimum overlap length in bp"),
+    min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity score"),
+    min_peak_strength: Optional[float] = Query(None, ge=0, description="Minimum peak fold enrichment"),
+    max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value (FDR) for peaks"),
+    cursor: Optional[str] = Query(None, max_length=2048, description="Opaque cursor token for keyset pagination"),
+    page_size: int = Query(100, ge=1, le=1000, description="Items per page"),
+    sort_by: OverlapSortField = Query(
+        OverlapSortField.binding_affinity,
+        description="Sort field (binding_affinity, overlap_length, peak_fold_enrichment, peak_qvalue)",
+    ),
+    sort_order: OverlapSortOrder = Query(
+        OverlapSortOrder.desc,
+        description="Sort order (asc or desc)",
+    ),
+    db: Session = Depends(get_db),
+):
+    if sort_by == OverlapSortField.peak_qvalue:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "UNSUPPORTED_SORT_FOR_CURSOR",
+                "message": "Cursor pagination does not support sort_by=peak_qvalue (nullable field).",
+            },
+        )
+
+    use_materialized_view = check_materialized_view_exists(db)
+
+    default_filter_applied = False
+    effective_chromosome = chromosome
+
+    if use_materialized_view:
+        logger.debug("Using materialized view for overlap cursor query")
+    else:
+        has_selective_filter = any(
+            [
+                lncrna_gene_id,
+                target_gene_id,
+                chromosome,
+                mark_type,
+                cell_type,
+                min_binding_affinity and min_binding_affinity > 0,
+            ]
+        )
+
+        if not has_selective_filter:
+            effective_chromosome = DEFAULT_QUERY_CHROMOSOME
+            default_filter_applied = True
+            logger.info(
+                "No selective filter provided and MV not available, applying default chromosome='%s' (cursor)",
+                DEFAULT_QUERY_CHROMOSOME,
+            )
+        else:
+            has_narrowing_filter = any(
+                [
+                    lncrna_gene_id,
+                    target_gene_id,
+                    mark_type,
+                    cell_type,
+                    min_overlap_length,
+                    min_peak_strength and min_peak_strength > 0,
+                    min_binding_affinity and min_binding_affinity > 0,
+                ]
+            )
+            if effective_chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD and not has_narrowing_filter:
+                _raise_query_too_broad(
+                    effective_chromosome,
+                    suggest_filters=[
+                        "mark_type",
+                        "cell_type",
+                        "lncrna_gene_id",
+                        "target_gene_id",
+                        "min_binding_affinity",
+                        "min_peak_strength",
+                        "min_overlap_length",
+                    ],
+                )
+
+    try:
+        filters = OverlapFilters(
+            lncrna_gene_id=lncrna_gene_id,
+            target_gene_id=target_gene_id,
+            mark_type=mark_type,
+            cell_type=cell_type,
+            chromosome=effective_chromosome,
+            min_overlap_length=min_overlap_length,
+            min_binding_affinity=min_binding_affinity,
+            min_peak_strength=min_peak_strength,
+            max_qvalue=max_qvalue,
+            page=1,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=normalize_http_error_detail(e.errors(), status_code=422))
+
+    cursor_payload = None
+    if cursor:
+        cursor_payload = _decode_overlap_cursor(cursor, sort_by=sort_by, sort_order=sort_order)
+
+    if use_materialized_view:
+        try:
+            items, total = get_lncrna_chipseq_overlaps_cursor_from_mv(
+                db,
+                filters,
+                cursor=cursor_payload,
+                page_size=page_size,
+                sort_by=sort_by,
+                sort_order=sort_order,
+            )
+        except Exception as e:
+            if is_mv_missing_error(e):
+                logger.warning(
+                    "MV cursor query failed (MV may have been dropped), falling back to join query: %s",
+                    sanitize_for_log(e, max_length=2000),
+                )
+                mv_cache.reset()
+                use_materialized_view = False
+                items, total = get_lncrna_chipseq_overlaps_cursor_query(
+                    db,
+                    filters,
+                    cursor=cursor_payload,
+                    page_size=page_size,
+                    sort_by=sort_by,
+                    sort_order=sort_order,
+                )
+            else:
+                raise
+    else:
+        items, total = get_lncrna_chipseq_overlaps_cursor_query(
+            db,
+            filters,
+            cursor=cursor_payload,
+            page_size=page_size,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+
+    has_more = len(items) > page_size
+    page_items = items[:page_size]
+
+    next_cursor = None
+    if has_more and page_items:
+        last = page_items[-1]
+        sort_value = _get_cursor_sort_value(last, sort_by)
+        next_cursor = _encode_overlap_cursor(
+            {
+                "v": 1,
+                "sort_by": sort_by.value,
+                "sort_order": sort_order.value,
+                "sort_value": str(sort_value) if sort_value is not None else None,
+                "overlap_id": last.get("overlap_id"),
+            }
+        )
+
+    return OverlapCursorResponse(
+        total=total,
+        page_size=page_size,
+        items=[OverlapResult(**item) for item in page_items],
+        next_cursor=next_cursor,
+        has_more=has_more,
+        default_filter_applied=default_filter_applied,
+        effective_chromosome=effective_chromosome,
+        using_materialized_view=use_materialized_view,
     )
 
 

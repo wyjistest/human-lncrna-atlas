@@ -32,8 +32,52 @@ Get paginated list of lncRNA-ChIP-seq overlaps with flexible filtering.
 | `max_qvalue` | float | No | 0.05 | Maximum Q-value (FDR) for peaks (0-1) |
 | `page` | integer | No | 1 | Page number (>= 1) |
 | `page_size` | integer | No | 100 | Items per page (1-1000) |
-| `sort_by` | string | No | "binding_affinity" | Sort field: "binding_affinity", "overlap_length", "peak_fold_enrichment" |
+| `sort_by` | string | No | "binding_affinity" | Sort field: "binding_affinity", "overlap_length", "peak_fold_enrichment", "peak_qvalue" |
 | `sort_order` | string | No | "desc" | Sort order: "asc" or "desc" |
+
+### 1.1 Cursor Pagination (GET `/api/v1/lncrna-chipseq-overlap/cursor`)
+
+当客户端需要“顺序翻页/无限滚动”时，推荐使用 cursor（keyset）分页，避免 deep `OFFSET` 扫描造成的性能劣化。
+
+#### 重要说明
+
+- 该端点仍会返回 `total`（沿用现有 COUNT(*) 缓存策略），但不再返回 `page/total_pages`。
+- 排序稳定键为 `(sort_field, overlap_id)`。
+- 由于 `peak_qvalue` 可能为 `NULL`，该端点当前不支持 `sort_by=peak_qvalue`（会返回 `400 UNSUPPORTED_SORT_FOR_CURSOR`）。
+
+#### Query Parameters（新增）
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `cursor` | string | No | - | Opaque cursor token from previous response |
+| `page_size` | integer | No | 100 | Items per page (1-1000) |
+
+其余过滤参数与 `/api/v1/lncrna-chipseq-overlap` 相同（`lncrna_gene_id/target_gene_id/mark_type/cell_type/chromosome/...`）。
+
+#### Response Schema
+
+```json
+{
+  "total": 219213,
+  "page_size": 100,
+  "items": [],
+  "next_cursor": "<opaque>",
+  "has_more": true,
+  "default_filter_applied": false,
+  "effective_chromosome": "chr22",
+  "using_materialized_view": true
+}
+```
+
+#### Example Requests
+
+```bash
+# First page
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/cursor?chromosome=chr22&page_size=100&sort_by=binding_affinity&sort_order=desc"
+
+# Next page (use next_cursor from previous response)
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/cursor?chromosome=chr22&page_size=100&sort_by=binding_affinity&sort_order=desc&cursor=<opaque>"
+```
 
 #### Response Schema
 

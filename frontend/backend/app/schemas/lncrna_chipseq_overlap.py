@@ -179,6 +179,33 @@ class OverlapResponse(BaseModel):
         return (total + page_size - 1) // page_size if page_size > 0 else 0
 
 
+class OverlapCursorResponse(BaseModel):
+    """Cursor 分页响应（keyset pagination）"""
+
+    total: int = Field(..., description="Total number of matching overlaps")
+    page_size: int = Field(..., description="Items per page")
+    items: List[OverlapResult] = Field(default=[], description="List of overlap results")
+    next_cursor: Optional[str] = Field(
+        default=None,
+        description="Opaque cursor token for fetching the next page (None if no more results)",
+    )
+    has_more: bool = Field(default=False, description="True if there are more results after this page")
+    default_filter_applied: bool = Field(
+        default=False,
+        description="True if default chromosome filter (chr22) was applied for performance optimization",
+    )
+    effective_chromosome: Optional[str] = Field(
+        default=None,
+        description="The chromosome filter actually used in the query (may differ from requested if default was applied)",
+    )
+    using_materialized_view: bool = Field(
+        default=False,
+        description="True if the optimized materialized view was used for this query (faster for large chromosomes)",
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class MarkTypeStats(BaseModel):
     """Statistics breakdown by mark type"""
     mark_type: str = Field(..., description="Epigenetic mark type name")
