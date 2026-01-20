@@ -52,7 +52,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in a local .env}
       DB_NAME: ${DB_NAME:-lncrna_production}
 
-      ENABLE_CACHE: "true"
+      # Cache can be disabled for deterministic baselines / local debugging.
+      ENABLE_CACHE: ${ENABLE_CACHE:-true}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_DB: 0

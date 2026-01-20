@@ -18,6 +18,7 @@
 说明：
 - `api-snapshot.sample.json` 使用 `--deterministic --no-json` 生成，避免时间戳、Git SHA、base_url 或完整 JSON body 导致的噪音 diff。
 - Snapshot 覆盖少量关键端点（健康检查 + 核心分页查询 + options），用于快速发现“返回结构/数据摘要”的意外变化。
+- 为了让基线稳定、且不依赖 Redis，生成脚本默认在 `ENV=development` + `ENABLE_CACHE=false` 下运行（可按需覆盖）。
 
 CI：
 - `Tests` 工作流会在 Postgres service 上加载 `schema/v2.3/03_sample_data.sql`，并在 **禁用缓存（`ENABLE_CACHE=false`）** 的情况下校验 `api-snapshot.sample.json`（见 `.github/workflows/test.yml` 的 `api-snapshot-baseline` job）。

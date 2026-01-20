@@ -35,6 +35,9 @@ ADMIN_API_KEY="${ADMIN_API_KEY:-}"
 TRUSTED_HOSTS="${TRUSTED_HOSTS:-[\"localhost\",\"127.0.0.1\"]}"
 CORS_ORIGINS="${CORS_ORIGINS:-[\"http://localhost:5173\"]}"
 
+APP_ENV="${APP_ENV:-development}"
+ENABLE_CACHE="${ENABLE_CACHE:-false}"
+
 BASE_URL="${BASE_URL:-http://localhost:8000}"
 OUT_FILE="${OUT_FILE:-docs/baselines/api-snapshot.sample.json}"
 
@@ -71,6 +74,8 @@ PROJECT_NAME="${COMPOSE_PROJECT_NAME:-hla-baseline-$(date +%Y%m%d-%H%M%S)}"
 
 compose() {
   COMPOSE_PROJECT_NAME="$PROJECT_NAME" \
+  ENV="$APP_ENV" \
+  ENABLE_CACHE="$ENABLE_CACHE" \
   DB_NAME="$DB_NAME" \
   DB_USER="$DB_USER" \
   DB_PASSWORD="$DB_PASSWORD" \
