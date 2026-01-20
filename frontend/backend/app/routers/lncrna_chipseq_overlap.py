@@ -1457,7 +1457,8 @@ def generate_overlap_export(
     min_binding_affinity: Optional[float] = None,
     min_peak_strength: Optional[float] = None,
     max_qvalue: Optional[float] = 0.05,
-    max_rows: int = MAX_EXPORT_ROWS
+    max_rows: int = MAX_EXPORT_ROWS,
+    use_materialized_view: bool | None = None,
 ) -> Generator[str, None, None]:
     """
     Generate streaming export of lncRNA-ChIP-seq overlaps in BED or CSV format.
@@ -1501,114 +1502,188 @@ def generate_overlap_export(
     mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
     cell_types_array = parse_comma_list(cell_type, param_name="cell_type")
 
-    p = table(
-        "chipseq_peaks_human",
-        column("peak_id"),
-        column("species_id"),
-        column("chromosome"),
-        column("peak_start"),
-        column("peak_end"),
-        column("experiment_id"),
-        column("fold_enrichment"),
-        column("qvalue"),
-    )
-    overlap_start_base = func.greatest(Regulation.best_peak_start, p.c.peak_start)
-    overlap_end_base = func.least(Regulation.best_peak_end, p.c.peak_end)
-    overlap_start_expr = overlap_start_base.label("overlap_start")
-    overlap_end_expr = overlap_end_base.label("overlap_end")
-    overlap_length_expr = (overlap_end_base - overlap_start_base).label("overlap_length")
+    if use_materialized_view is None:
+        use_materialized_view = check_materialized_view_exists(db)
 
-    filter_conditions, params = _build_overlap_where_and_params(
-        lncrna_gene_id=lncrna_gene_id,
-        target_gene_id=target_gene_id,
-        chromosome=effective_chromosome,
-        mark_types=mark_types_array,
-        cell_types=cell_types_array,
-        min_binding_affinity=min_binding_affinity,
-        min_peak_strength=min_peak_strength,
-        max_qvalue=max_qvalue,
-        min_overlap_length=min_overlap_length,
-        lncrna_gene_col=Regulation.lncrna_gene_id,
-        target_gene_col=Regulation.target_gene_id,
-        chromosome_col=Regulation.best_peak_chr,
-        mark_name_col=EpigeneticMarkType.mark_name,
-        cell_type_col=ChIPSeqExperiment.cell_type,
-        binding_affinity_col=Regulation.binding_affinity,
-        fold_enrichment_col=p.c.fold_enrichment,
-        qvalue_col=p.c.qvalue,
-        overlap_length_expr=overlap_length_expr,
-    )
-
-    where_conditions = [Regulation.species_id == 1, ChIPSeqExperiment.is_active.is_(True), *filter_conditions]
-    join_on_peak = (
-        (Regulation.species_id == p.c.species_id)
-        & (Regulation.best_peak_chr == p.c.chromosome)
-        & (Regulation.best_peak_start < p.c.peak_end)
-        & (Regulation.best_peak_end > p.c.peak_start)
-    )
-    lnc = aliased(Gene)
-    tgt = aliased(Gene)
-    data_stmt = (
-        select(
-            func.concat(literal("reg_"), Regulation.regulation_id, literal("_peak_"), p.c.peak_id).label("overlap_id"),
-            Regulation.regulation_id,
-            Regulation.lncrna_gene_id,
-            lnc.gene_name.label("lncrna_name"),
-            Regulation.target_gene_id,
-            tgt.gene_name.label("target_gene_name"),
-            EpigeneticMarkType.mark_name.label("mark_type"),
-            EpigeneticMarkType.mark_category,
-            ChIPSeqExperiment.cell_type,
-            Regulation.best_peak_chr.label("chromosome"),
-            Regulation.best_peak_start.label("lncrna_binding_start"),
-            Regulation.best_peak_end.label("lncrna_binding_end"),
-            p.c.peak_start,
-            p.c.peak_end,
-            overlap_start_expr,
-            overlap_end_expr,
-            overlap_length_expr,
-            Regulation.binding_affinity,
-            p.c.fold_enrichment.label("peak_fold_enrichment"),
-            p.c.qvalue.label("peak_qvalue"),
+    if use_materialized_view:
+        mv = table(
+            MV_LNCRNA_CHIPSEQ_OVERLAPS,
+            column("overlap_id"),
+            column("regulation_id"),
+            column("lncrna_gene_id"),
+            column("lncrna_name"),
+            column("target_gene_id"),
+            column("target_gene_name"),
+            column("mark_name"),
+            column("mark_category"),
+            column("cell_type"),
+            column("chromosome"),
+            column("lncrna_binding_start"),
+            column("lncrna_binding_end"),
+            column("peak_start"),
+            column("peak_end"),
+            column("overlap_start"),
+            column("overlap_end"),
+            column("overlap_length"),
+            column("binding_affinity"),
+            column("fold_enrichment"),
+            column("qvalue"),
         )
-        .select_from(Regulation)
-        .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
-        .join(tgt, Regulation.target_gene_id == tgt.gene_id)
-        .join(p, join_on_peak)
-        .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
-        .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
-        .where(*where_conditions)
-        .order_by(Regulation.best_peak_chr, overlap_start_expr)
-        .limit(bindparam("limit"))
-        .offset(bindparam("offset"))
-    )
+
+        filter_conditions, params = _build_overlap_where_and_params(
+            lncrna_gene_id=lncrna_gene_id,
+            target_gene_id=target_gene_id,
+            chromosome=effective_chromosome,
+            mark_types=mark_types_array,
+            cell_types=cell_types_array,
+            min_binding_affinity=min_binding_affinity,
+            min_peak_strength=min_peak_strength,
+            max_qvalue=max_qvalue,
+            min_overlap_length=min_overlap_length,
+            lncrna_gene_col=mv.c.lncrna_gene_id,
+            target_gene_col=mv.c.target_gene_id,
+            chromosome_col=mv.c.chromosome,
+            mark_name_col=mv.c.mark_name,
+            cell_type_col=mv.c.cell_type,
+            binding_affinity_col=mv.c.binding_affinity,
+            fold_enrichment_col=mv.c.fold_enrichment,
+            qvalue_col=mv.c.qvalue,
+            overlap_length_expr=mv.c.overlap_length,
+        )
+
+        data_stmt = (
+            select(
+                mv.c.overlap_id,
+                mv.c.regulation_id,
+                mv.c.lncrna_gene_id,
+                mv.c.lncrna_name,
+                mv.c.target_gene_id,
+                mv.c.target_gene_name,
+                mv.c.mark_name.label("mark_type"),
+                mv.c.mark_category,
+                mv.c.cell_type,
+                mv.c.chromosome,
+                mv.c.lncrna_binding_start,
+                mv.c.lncrna_binding_end,
+                mv.c.peak_start,
+                mv.c.peak_end,
+                mv.c.overlap_start,
+                mv.c.overlap_end,
+                mv.c.overlap_length,
+                mv.c.binding_affinity,
+                mv.c.fold_enrichment.label("peak_fold_enrichment"),
+                mv.c.qvalue.label("peak_qvalue"),
+            )
+            .select_from(mv)
+            .order_by(mv.c.chromosome, mv.c.overlap_start)
+            .limit(bindparam("limit"))
+        )
+        if filter_conditions:
+            data_stmt = data_stmt.where(*filter_conditions)
+
+    else:
+        p = table(
+            "chipseq_peaks_human",
+            column("peak_id"),
+            column("species_id"),
+            column("chromosome"),
+            column("peak_start"),
+            column("peak_end"),
+            column("experiment_id"),
+            column("fold_enrichment"),
+            column("qvalue"),
+        )
+        overlap_start_base = func.greatest(Regulation.best_peak_start, p.c.peak_start)
+        overlap_end_base = func.least(Regulation.best_peak_end, p.c.peak_end)
+        overlap_start_expr = overlap_start_base.label("overlap_start")
+        overlap_end_expr = overlap_end_base.label("overlap_end")
+        overlap_length_expr = (overlap_end_base - overlap_start_base).label("overlap_length")
+
+        filter_conditions, params = _build_overlap_where_and_params(
+            lncrna_gene_id=lncrna_gene_id,
+            target_gene_id=target_gene_id,
+            chromosome=effective_chromosome,
+            mark_types=mark_types_array,
+            cell_types=cell_types_array,
+            min_binding_affinity=min_binding_affinity,
+            min_peak_strength=min_peak_strength,
+            max_qvalue=max_qvalue,
+            min_overlap_length=min_overlap_length,
+            lncrna_gene_col=Regulation.lncrna_gene_id,
+            target_gene_col=Regulation.target_gene_id,
+            chromosome_col=Regulation.best_peak_chr,
+            mark_name_col=EpigeneticMarkType.mark_name,
+            cell_type_col=ChIPSeqExperiment.cell_type,
+            binding_affinity_col=Regulation.binding_affinity,
+            fold_enrichment_col=p.c.fold_enrichment,
+            qvalue_col=p.c.qvalue,
+            overlap_length_expr=overlap_length_expr,
+        )
+
+        where_conditions = [Regulation.species_id == 1, ChIPSeqExperiment.is_active.is_(True), *filter_conditions]
+        join_on_peak = (
+            (Regulation.species_id == p.c.species_id)
+            & (Regulation.best_peak_chr == p.c.chromosome)
+            & (Regulation.best_peak_start < p.c.peak_end)
+            & (Regulation.best_peak_end > p.c.peak_start)
+        )
+        lnc = aliased(Gene)
+        tgt = aliased(Gene)
+        data_stmt = (
+            select(
+                func.concat(literal("reg_"), Regulation.regulation_id, literal("_peak_"), p.c.peak_id).label("overlap_id"),
+                Regulation.regulation_id,
+                Regulation.lncrna_gene_id,
+                lnc.gene_name.label("lncrna_name"),
+                Regulation.target_gene_id,
+                tgt.gene_name.label("target_gene_name"),
+                EpigeneticMarkType.mark_name.label("mark_type"),
+                EpigeneticMarkType.mark_category,
+                ChIPSeqExperiment.cell_type,
+                Regulation.best_peak_chr.label("chromosome"),
+                Regulation.best_peak_start.label("lncrna_binding_start"),
+                Regulation.best_peak_end.label("lncrna_binding_end"),
+                p.c.peak_start,
+                p.c.peak_end,
+                overlap_start_expr,
+                overlap_end_expr,
+                overlap_length_expr,
+                Regulation.binding_affinity,
+                p.c.fold_enrichment.label("peak_fold_enrichment"),
+                p.c.qvalue.label("peak_qvalue"),
+            )
+            .select_from(Regulation)
+            .join(lnc, Regulation.lncrna_gene_id == lnc.gene_id)
+            .join(tgt, Regulation.target_gene_id == tgt.gene_id)
+            .join(p, join_on_peak)
+            .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
+            .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
+            .where(*where_conditions)
+            .order_by(Regulation.best_peak_chr, overlap_start_expr)
+            .limit(bindparam("limit"))
+        )
 
     # Stream data in batches
     batch_size = EXPORT_BATCH_SIZE
-    offset = 0
     rows_exported = 0
 
+    result = None
+    close_result = None
     try:
+        executable = data_stmt.execution_options(stream_results=True)
+        result = db.execute(executable, {**params, "limit": max_rows})
+        close_result = getattr(result, "close", None)
+
         while rows_exported < max_rows:
             batch_limit = min(batch_size, max_rows - rows_exported)
-            batch = db.execute(
-                data_stmt,
-                {
-                    **params,
-                    "limit": batch_limit,
-                    "offset": offset,
-                },
-            ).fetchall()
-
+            batch = result.fetchmany(batch_limit)
             if not batch:
                 break
 
-            # Format and yield each row
             for row in batch:
                 if rows_exported >= max_rows:
                     break
 
-                # Convert row to dictionary
                 row_dict = {
                     'overlap_id': row.overlap_id,
                     'regulation_id': row.regulation_id,
@@ -1632,19 +1707,12 @@ def generate_overlap_export(
                     'peak_qvalue': row.peak_qvalue
                 }
 
-                # Format based on output format
                 if format == 'bed':
                     yield format_bed_row(row_dict)
                 elif format == 'csv':
                     yield format_csv_row(row_dict)
 
                 rows_exported += 1
-
-            offset += len(batch)
-
-            # Stop if we got fewer rows than batch size (end of data)
-            if len(batch) < batch_limit:
-                break
 
     except Exception as e:
         logger.error(
@@ -1653,6 +1721,9 @@ def generate_overlap_export(
             exc_info=True,
         )
         raise
+    finally:
+        if callable(close_result):
+            close_result()
 
 
 # =============================================================================
@@ -1819,7 +1890,8 @@ def export_lncrna_chipseq_overlaps(
         min_binding_affinity=min_binding_affinity,
         min_peak_strength=min_peak_strength,
         max_qvalue=max_qvalue,
-        max_rows=max_rows
+        max_rows=max_rows,
+        use_materialized_view=use_materialized_view,
     )
 
     # Build filename
