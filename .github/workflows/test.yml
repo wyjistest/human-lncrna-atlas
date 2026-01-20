@@ -641,6 +641,7 @@ jobs:
         with:
           name: playwright-smoke-report
           path: frontend/web/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload Playwright screenshots on failure
@@ -709,6 +710,7 @@ jobs:
         with:
           name: playwright-report
           path: frontend/web/playwright-report/
+          if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload test screenshots on failure
