@@ -6,13 +6,14 @@
  * Provides data fetching, caching, and state management for overlap analysis.
  */
 
-import { useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { message } from 'antd'
 import lncRNAChIPSeqOverlapApi, { overlapQueryKeys } from '@/api/lncRNAChIPSeqOverlapApi'
 import { parseError } from '@/utils/errorParser'
 import type {
   OverlapFilters,
+  OverlapCursorResponse,
   OverlapResponse,
   OverlapSummary,
   OverlapHeatmapData,
@@ -53,6 +54,28 @@ export function useLncRNAChIPSeqOverlaps(
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options
+	})
+}
+
+/**
+ * Hook to fetch lncRNA-ChIP-seq overlaps with cursor(keyset) pagination
+ *
+ * 适用于“顺序翻页 / 无限滚动 / 深分页”场景，避免 deep OFFSET 扫描。
+ */
+export function useLncRNAChIPSeqOverlapsCursor(filters: OverlapFilters, options?: { enabled?: boolean }) {
+  return useInfiniteQuery<OverlapCursorResponse, Error>({
+    queryKey: overlapQueryKeys.overlapsCursor(filters),
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ signal, pageParam }) => {
+      const response = await lncRNAChIPSeqOverlapApi.getOverlapsCursor(filters, pageParam as string | undefined, signal)
+      return response.data
+    },
+    getNextPageParam: (lastPage) => (lastPage.has_more ? lastPage.next_cursor ?? undefined : undefined),
+    staleTime: 30 * 60 * 1000, // 30 minutes cache
+    gcTime: 60 * 60 * 1000, // 1 hour in cache
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    enabled: options?.enabled ?? true,
   })
 }
 

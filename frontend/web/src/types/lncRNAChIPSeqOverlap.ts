@@ -109,6 +109,28 @@ export interface OverlapResponse {
 }
 
 /**
+ * Cursor (keyset) pagination response for overlap queries
+ */
+export interface OverlapCursorResponse {
+  /** Total number of overlaps matching filters */
+  total: number
+  /** Items per page */
+  page_size: number
+  /** Array of overlap results for current page */
+  items: OverlapResult[]
+  /** Opaque cursor token for fetching the next page */
+  next_cursor: string | null
+  /** True if there are more results after this page */
+  has_more: boolean
+  /** True if default chromosome filter (chr22) was applied */
+  default_filter_applied: boolean
+  /** The chromosome filter actually used in the query */
+  effective_chromosome: string | null
+  /** True if the optimized materialized view was used */
+  using_materialized_view: boolean
+}
+
+/**
  * Summary statistics for overlap analysis (Phase 2)
  */
 export interface OverlapSummary {

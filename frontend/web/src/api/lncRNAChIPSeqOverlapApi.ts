@@ -17,6 +17,7 @@ import { openInNewTab } from '@/utils/safeWindow'
 import { normalizeCommaSeparatedList, normalizeQueryKeyObject } from '@/utils/queryKey'
 import type {
   OverlapFilters,
+  OverlapCursorResponse,
   OverlapResponse,
   OverlapSummary,
   OverlapHeatmapData,
@@ -40,6 +41,24 @@ function normalizeOverlapsFiltersForKey(filters: OverlapFilters) {
     sort_by: filters.sort_by ?? DEFAULT_SORT_BY,
     sort_order: filters.sort_order ?? DEFAULT_SORT_ORDER,
     max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+  })
+}
+
+function normalizeOverlapsCursorFiltersForKey(filters: OverlapFilters) {
+  // /lncrna-chipseq-overlap/cursor 是 cursor(keyset)端点：不接受 page，但 page_size 必须进入 key
+  return normalizeQueryKeyObject({
+    lncrna_gene_id: filters.lncrna_gene_id,
+    target_gene_id: filters.target_gene_id,
+    mark_type: normalizeCommaSeparatedList(filters.mark_type),
+    cell_type: normalizeCommaSeparatedList(filters.cell_type),
+    chromosome: filters.chromosome,
+    min_overlap_length: filters.min_overlap_length,
+    min_binding_affinity: filters.min_binding_affinity,
+    min_peak_strength: filters.min_peak_strength,
+    max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+    page_size: filters.page_size ?? DEFAULT_PAGE_SIZE,
+    sort_by: filters.sort_by ?? DEFAULT_SORT_BY,
+    sort_order: filters.sort_order ?? DEFAULT_SORT_ORDER,
   })
 }
 
@@ -79,8 +98,8 @@ export const lncRNAChIPSeqOverlapApi = {
    * })
    * ```
    */
-	  getOverlaps: (filters: OverlapFilters, signal?: AbortSignal) =>
-	    apiClient.get<OverlapResponse>('/api/v1/lncrna-chipseq-overlap', {
+		  getOverlaps: (filters: OverlapFilters, signal?: AbortSignal) =>
+		    apiClient.get<OverlapResponse>('/api/v1/lncrna-chipseq-overlap', {
 	      params: {
 	        lncrna_gene_id: filters.lncrna_gene_id,
 	        target_gene_id: filters.target_gene_id,
@@ -96,7 +115,34 @@ export const lncRNAChIPSeqOverlapApi = {
 	        sort_by: filters.sort_by ?? DEFAULT_SORT_BY,
 	        sort_order: filters.sort_order ?? DEFAULT_SORT_ORDER,
 	      },
-	      signal
+		      signal
+		    }),
+
+	  /**
+	   * Get lncRNA-ChIP-seq overlaps with cursor(keyset) pagination
+	   *
+	   * @param filters - Query filters (same as getOverlaps, but ignores page)
+	   * @param cursor - Opaque cursor token from previous response
+	   * @returns Cursor-paginated overlap results
+	   */
+	  getOverlapsCursor: (filters: OverlapFilters, cursor?: string | null, signal?: AbortSignal) =>
+	    apiClient.get<OverlapCursorResponse>('/api/v1/lncrna-chipseq-overlap/cursor', {
+	      params: {
+	        lncrna_gene_id: filters.lncrna_gene_id,
+	        target_gene_id: filters.target_gene_id,
+	        mark_type: normalizeCommaSeparatedList(filters.mark_type),
+	        cell_type: normalizeCommaSeparatedList(filters.cell_type),
+	        chromosome: filters.chromosome,
+	        min_overlap_length: filters.min_overlap_length,
+	        min_binding_affinity: filters.min_binding_affinity,
+	        min_peak_strength: filters.min_peak_strength,
+	        max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
+	        cursor: cursor ?? undefined,
+	        page_size: filters.page_size ?? DEFAULT_PAGE_SIZE,
+	        sort_by: filters.sort_by ?? DEFAULT_SORT_BY,
+	        sort_order: filters.sort_order ?? DEFAULT_SORT_ORDER,
+	      },
+	      signal,
 	    }),
 
   /**
@@ -229,6 +275,14 @@ export const overlapQueryKeys = {
     return normalized
       ? ([...overlapQueryKeys.all, 'overlaps', normalized] as const)
       : ([...overlapQueryKeys.all, 'overlaps'] as const)
+  },
+
+  /** Overlap data queries (cursor keyset pagination) */
+  overlapsCursor: (filters: OverlapFilters) => {
+    const normalized = normalizeOverlapsCursorFiltersForKey(filters)
+    return normalized
+      ? ([...overlapQueryKeys.all, 'overlapsCursor', normalized] as const)
+      : ([...overlapQueryKeys.all, 'overlapsCursor'] as const)
   },
 
   /** Summary statistics */
