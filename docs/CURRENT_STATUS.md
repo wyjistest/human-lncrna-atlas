@@ -404,9 +404,10 @@ npm run dev
 - [x] ~~ROI 高亮显示重叠区域（P2 扩展功能）~~ ✅ 已完成 (2026-01-18)
 
 ### 优先级 3: 性能优化
-- [ ] chr1 等大染色体查询优化
+- [x] ~~chr1 等大染色体查询优化~~ ✅ 已完成（物化视图 + NO-MV broad query guard，2026-01-20）
 - [ ] Redis 缓存策略优化
 - [x] 前端虚拟滚动（Genes/Regulations/Conservation/Diseases 展开表格等大列表）
+- [x] ~~Overlap 列表 cursor（keyset）分页~~ ✅ 已完成（避免 deep OFFSET，2026-01-20）
 
 ## 📞 联系方式
 
