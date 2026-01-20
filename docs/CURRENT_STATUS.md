@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-19
+> 最后更新: 2026-01-20
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -396,7 +396,7 @@ npm run dev
 ### 优先级 3: 性能优化
 - [ ] chr1 等大染色体查询优化
 - [ ] Redis 缓存策略优化
-- [ ] 前端虚拟滚动
+- [x] 前端虚拟滚动（Genes/Regulations/Conservation/Diseases 展开表格等大列表）
 
 ## 📞 联系方式
 

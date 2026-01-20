@@ -143,6 +143,8 @@ function DiseaseAssociations({ traitId, ontologyId }: { traitId: number; ontolog
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
 
+  const shouldVirtualizeTable = (data?.items?.length ?? 0) >= 100
+
   return (
     <Table
       columns={columns}
@@ -150,6 +152,8 @@ function DiseaseAssociations({ traitId, ontologyId }: { traitId: number; ontolog
       rowKey="association_id"
       size="small"
       pagination={false}
+      virtual={shouldVirtualizeTable}
+      scroll={{ x: 700, y: shouldVirtualizeTable ? 360 : undefined }}
     />
   )
 }

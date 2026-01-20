@@ -263,6 +263,15 @@ export default function Regulations() {
     },
   ], [t, handleViewInIGV, tGB])
 
+  const shouldVirtualizeTable = (data?.items?.length ?? 0) >= 100
+  const tableScroll = useMemo(
+    () => ({
+      x: 1100,
+      y: shouldVirtualizeTable ? 520 : undefined,
+    }),
+    [shouldVirtualizeTable]
+  )
+
   if (isLoading) return <LoadingState />
   if (error) return <ErrorState error={error} />
 
@@ -308,6 +317,8 @@ export default function Regulations() {
           columns={columns}
           dataSource={data?.items}
           rowKey="regulation_id"
+          virtual={shouldVirtualizeTable}
+          scroll={tableScroll}
           pagination={{
             current: page,
             pageSize,

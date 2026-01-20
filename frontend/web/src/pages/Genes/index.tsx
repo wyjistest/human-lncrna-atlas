@@ -191,6 +191,14 @@ export default function Genes() {
   }, [])
 
   const tableData = activeTab === 'batch' ? batchResults : data?.items
+  const shouldVirtualizeTable = (tableData?.length ?? 0) >= 100
+  const tableScroll = useMemo(
+    () => ({
+      x: 1500,
+      y: shouldVirtualizeTable ? 520 : undefined,
+    }),
+    [shouldVirtualizeTable]
+  )
   const exportRows = useMemo(
     () => (selectedRows.length > 0 ? selectedRows : (tableData || [])),
     [selectedRows, tableData]
@@ -461,6 +469,8 @@ export default function Genes() {
           dataSource={tableData}
           rowKey="gene_id"
           loading={activeTab === 'batch' ? batchResolve.isPending : isLoading}
+          virtual={shouldVirtualizeTable}
+          scroll={tableScroll}
           pagination={activeTab === 'browse' ? {
             current: page,
             pageSize,

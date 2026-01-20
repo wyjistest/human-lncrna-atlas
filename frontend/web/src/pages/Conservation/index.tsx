@@ -542,7 +542,8 @@ export default function Conservation() {
                 }
               }
             }}
-            scroll={{ x: 900 }}
+            virtual={(regulationsData?.items?.length ?? 0) >= 100}
+            scroll={{ x: 900, y: (regulationsData?.items?.length ?? 0) >= 100 ? 520 : undefined }}
             size="middle"
           />
         </div>
