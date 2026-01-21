@@ -204,7 +204,7 @@ export function ConservationDetailsDrawer({
       styles={{ wrapper: { width: 900 } }}
       open={open}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
     >
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>

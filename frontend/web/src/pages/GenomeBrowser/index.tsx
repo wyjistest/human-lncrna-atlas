@@ -897,7 +897,7 @@ export default function GenomeBrowserPage() {
 		                                    showIcon
 		                                    title={t('chipseq.loadMarksFailed')}
 		                                    description={
-		                                      <Space direction="vertical" size={2}>
+		                                      <Space orientation="vertical" size={2}>
 		                                        {parsedChIPSeqMarksError?.statusCode != null && (
 		                                          <Text type="secondary">HTTP {parsedChIPSeqMarksError.statusCode}</Text>
 		                                        )}

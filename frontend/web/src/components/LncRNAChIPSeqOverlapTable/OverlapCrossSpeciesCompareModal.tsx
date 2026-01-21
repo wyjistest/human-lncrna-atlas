@@ -106,9 +106,9 @@ export function OverlapCrossSpeciesCompareModal(props: OverlapCrossSpeciesCompar
       footer={null}
       width={980}
       title={t('compare.title', 'Cross-species Overlap Comparison')}
-      destroyOnClose
+      destroyOnHidden
     >
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Space wrap>
           <Text>{t('compare.topN', 'Top N')}:</Text>
           <Select
@@ -149,4 +149,3 @@ export function OverlapCrossSpeciesCompareModal(props: OverlapCrossSpeciesCompar
     </Modal>
   )
 }
-

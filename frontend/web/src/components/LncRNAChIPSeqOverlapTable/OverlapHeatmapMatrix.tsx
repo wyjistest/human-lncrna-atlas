@@ -477,7 +477,7 @@ export function OverlapHeatmapMatrix({
 
   return (
     <Space
-      direction="vertical"
+      orientation="vertical"
       size="middle"
       style={{ width: '100%' }}
       data-testid="overlap-heatmap-matrix"
