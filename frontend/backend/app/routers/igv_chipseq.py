@@ -163,7 +163,7 @@ def get_igv_chipseq_marks(
     if not marks:
         query = text(
             """
-            SELECT DISTINCT
+            SELECT
                 m.mark_name,
                 m.display_name,
                 m.mark_category,
