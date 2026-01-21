@@ -116,11 +116,14 @@ def get_gene_options(
     if normalized_q and effective_limit is None:
         effective_limit = 200
 
+    # SQLAlchemy 2.x: 必须先 order_by 再 limit/offset，否则会抛出运行时异常
+    query = query.order_by(Gene.gene_name)
+
     if effective_limit is not None:
         query = query.limit(effective_limit)
 
-    # 执行查询并排序
-    genes = query.order_by(Gene.gene_name).all()
+    # 执行查询
+    genes = query.all()
 
     # 构建响应（去除物种后缀）
     result = {

@@ -114,6 +114,8 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
             if ha_stats is None:
                 raise RuntimeError("mv_analysis_high_affinity_stats_ba100 returned no rows")
         except Exception:
+            # PostgreSQL: 一条语句失败会使事务进入 aborted 状态；回退查询前必须 rollback
+            db.rollback()
             ha_stats = db.execute(high_affinity_sql).fetchone()
     except Exception as e:
         raise sanitize_db_error(e, logger)
@@ -144,6 +146,8 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         try:
             top_lncrnas_rows = db.execute(top_lncrnas_mv_sql).fetchall()
         except Exception:
+            # PostgreSQL: MV 缺失会导致事务 aborted；回退查询前必须 rollback
+            db.rollback()
             top_lncrnas_rows = db.execute(top_lncrnas_sql).fetchall()
     except Exception as e:
         raise sanitize_db_error(e, logger)
@@ -236,6 +240,8 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
             # Fast path: pre-aggregated MV (Phase 9.21)
             epi_result = db.execute(epigenetic_summary_sql.execution_options(stream_results=True))
         except Exception:
+            # PostgreSQL: MV 缺失会导致事务 aborted；回退查询前必须 rollback
+            db.rollback()
             # Fallback: aggregate from the raw overlaps MV
             epi_result = db.execute(
                 epigenetic_sql.execution_options(stream_results=True),
@@ -266,6 +272,11 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
 
     except Exception as e:
         # MV 不存在或查询失败时，降级为空数据（不阻塞其他分析模块）
+        # PostgreSQL: 确保事务从 aborted 状态恢复，避免影响后续 disease 查询
+        try:
+            db.rollback()
+        except Exception:
+            pass
         safe_error = sanitize_for_log(e, max_length=2000)
         logger.warning(
             "[ANALYSIS] Epigenetic analysis failed (MV may not exist): %s. "
