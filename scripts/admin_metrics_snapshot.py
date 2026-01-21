@@ -238,6 +238,28 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
             )
         cache_ns_lines.append("")
 
+    # Cache keys block
+    keys_top = []
+    if isinstance(cache_breakdown, dict):
+        keys_top = (cache_breakdown.get("keys") or {}).get("top") or []
+    keys_list: list[dict[str, Any]] = []
+    if isinstance(keys_top, list):
+        keys_list = [x for x in keys_top if isinstance(x, dict)]
+
+    cache_keys_lines = ["### Cache keys（Top）", ""]
+    if not keys_list:
+        cache_keys_lines += ["_暂无 keys 统计。_", ""]
+    else:
+        for row in keys_list[:10]:
+            key = str(row.get("key", "") or "")
+            namespace = row.get("namespace")
+            ns_text = str(namespace) if namespace else "-"
+            cache_keys_lines.append(
+                f"- `{_truncate(key, max_len=120)}`：ns={ns_text}，req={row.get('requests', 0)}，"
+                f"hit_rate={fmt_pct(row.get('hit_rate_pct'))}，hits={row.get('hits', 0)}，misses={row.get('misses', 0)}"
+            )
+        cache_keys_lines.append("")
+
     md_lines = [
         "# Performance Snapshot (admin/metrics)",
         "",
@@ -266,6 +288,7 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
         "",
         *cache_latency_lines,
         *cache_ns_lines,
+        *cache_keys_lines,
         "## Endpoints（Tail Latency）",
         "",
         *endpoints_block("Top endpoints by Response P95", top_p95),

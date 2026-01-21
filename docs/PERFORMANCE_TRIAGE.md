@@ -15,6 +15,8 @@
 
 推荐使用脚本导出一份可直接贴到 issue 的 Markdown 摘要，同时保存完整 JSON 作为附件：
 
+- Markdown 摘要包含：Top endpoints（Response P95/P99 + DB P95）、DB 慢查询榜单、Cache（hit rate / get() percentiles / namespaces / keys）。
+
 ```bash
 python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000"
 ```

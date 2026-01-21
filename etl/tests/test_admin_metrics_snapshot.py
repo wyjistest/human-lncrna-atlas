@@ -33,7 +33,21 @@ def _mock_backend_server() -> Iterator[tuple[str, dict[str, int]]]:
                     "percentiles": {},
                     "endpoints": [],
                     "cache_stats": {"hit_rate": "0%", "hits": 0, "misses": 0},
-                    "cache_breakdown": {"namespaces": {"top": []}, "keys": {"top": []}},
+                    "cache_breakdown": {
+                        "namespaces": {"top": []},
+                        "keys": {
+                            "top": [
+                                {
+                                    "key": "genes:list:species_id=1:page=1",
+                                    "namespace": "genes:list",
+                                    "requests": 10,
+                                    "hits": 8,
+                                    "misses": 2,
+                                    "hit_rate_pct": 80.0,
+                                }
+                            ]
+                        },
+                    },
                     "cache_get_latency": {},
                     "database": {"slow_queries": []},
                 }
@@ -98,3 +112,6 @@ def test_admin_metrics_snapshot_warmup_rounds(tmp_path: Path) -> None:
         exported = json.loads(json_files[0].read_text(encoding="utf-8"))
         assert (exported.get("request") or {}).get("total", 0) >= 1
 
+        md = md_files[0].read_text(encoding="utf-8")
+        assert "Cache keys（Top）" in md
+        assert "genes:list:species_id=1:page=1" in md
