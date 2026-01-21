@@ -285,6 +285,20 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
             timeout_seconds=timeout_seconds,
         )
 
+    chipseq_experiment_first_id = None
+    chipseq_experiments_page = endpoints.get("chipseq_experiments_page_1_species_1_page_size_1")
+    if chipseq_experiments_page and chipseq_experiments_page.json:
+        chipseq_experiment_first_id = get_first_id(
+            chipseq_experiments_page.json.get("items"),
+            keys=("experiment_id", "id"),
+        )
+
+    if chipseq_experiment_first_id is not None:
+        endpoints["chipseq_experiment_detail_first"] = _http_get_json(
+            _join(base_url, f"/api/v1/features/chipseq/experiments/{chipseq_experiment_first_id}"),
+            timeout_seconds=timeout_seconds,
+        )
+
     if endpoints["diseases_options"].json:
         summaries["traits_len"] = safe_len(endpoints["diseases_options"].json.get("traits"))
 

@@ -13,6 +13,12 @@
       "sha256": "29bfd06b0a4d77df9334406c3cc0e88145c6cb7a3a14c5f2857c8a246d413693",
       "status_code": 200
     },
+    "chipseq_experiment_detail_first": {
+      "error": null,
+      "json": null,
+      "sha256": "6cb7a2b59f1d71ee6dbd24de44669a03bb647ba881ef703fbc1cd3c5081b8e33",
+      "status_code": 200
+    },
     "chipseq_experiments_page_1_species_1_page_size_1": {
       "error": null,
       "json": null,
@@ -52,7 +58,7 @@
     "genes_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "cbeef0857ec83429fb99f0abedee3d9f80330d20f0ae72c2ac62c1f33b2a302d",
+      "sha256": "ad247e2eb94b848e912ad8600886b715848afb401e209b8711df445cd0cf7689",
       "status_code": 200
     },
     "genes_options_species_1_limit_5": {
