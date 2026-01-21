@@ -23,6 +23,71 @@ def _mock_api_server() -> Iterator[str]:
         "/api/v1/stats/top-genes": [{"gene_id": 1, "regulation_count": 10}],
         "/api/v1/stats/top-diseases": [{"trait_id": 1, "gene_count": 10}],
         "/api/v1/analysis/summary": {"high_affinity": {"total_regulations": 1}},
+        "/api/v1/features/chipseq/marks": [
+            {
+                "mark_type_id": 1,
+                "mark_name": "H3K4me3",
+                "mark_category": "activating",
+                "display_name": "H3K4me3",
+                "display_color": "#ff0000",
+                "description": "mock mark",
+                "biological_function": "mock",
+                "associated_state": "active",
+                "typical_signal_range": {"min": 0, "max": 10},
+                "is_active": True,
+                "sort_order": 10,
+            }
+        ],
+        "/api/v1/features/chipseq/marks/relationships": [
+            {
+                "relationship_id": 1,
+                "mark_1": "H3K4me3",
+                "mark_2": "H3K27me3",
+                "relationship_type": "bivalent_pair",
+                "description": "mock relationship",
+                "biological_significance": "mock",
+            }
+        ],
+        "/api/v1/features/chipseq/marks/1": {
+            "species_id": 1,
+            "species_code": "human",
+            "marks": [
+                {
+                    "mark_type_id": 1,
+                    "mark_name": "H3K4me3",
+                    "mark_category": "activating",
+                    "display_name": "H3K4me3",
+                    "display_color": "#ff0000",
+                    "description": "mock mark",
+                    "biological_function": "mock",
+                    "associated_state": "active",
+                    "typical_signal_range": {"min": 0, "max": 10},
+                    "is_active": True,
+                    "sort_order": 10,
+                }
+            ],
+            "total_experiments": 1,
+            "total_peaks": 1,
+        },
+        "/api/v1/features/chipseq/stats": {
+            "total_experiments": 1,
+            "total_peaks": 1,
+            "marks_available": ["H3K4me3"],
+            "species_available": ["human"],
+            "stats_by_mark": [
+                {
+                    "species_code": "human",
+                    "mark_name": "H3K4me3",
+                    "mark_category": "activating",
+                    "display_color": "#ff0000",
+                    "experiment_count": 1,
+                    "total_peaks": 1,
+                    "avg_fold_enrichment": 1.0,
+                    "median_fold_enrichment": 1.0,
+                    "avg_peak_width": 200.0,
+                }
+            ],
+        },
         "/api/v1/lncrna-chipseq-overlap": {
             "total": 0,
             "page": 1,
@@ -134,6 +199,10 @@ def test_api_snapshot_check_baseline_matches(tmp_path: Path) -> None:
             "stats_top_genes_lncrna_limit_3",
             "stats_top_diseases_limit_3",
             "analysis_summary",
+            "chipseq_marks",
+            "chipseq_mark_relationships",
+            "chipseq_available_marks_species_1",
+            "chipseq_global_stats",
             "lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc",
             "lncrna_chipseq_overlap_cursor_chr22_page_size_1_sort_peak_qvalue_asc",
             "lncrna_chipseq_overlap_statistics_chr22",

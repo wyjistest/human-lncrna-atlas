@@ -136,6 +136,27 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    # ChIP-seq core endpoints (stable, low-cardinality lists)
+    endpoints["chipseq_marks"] = _http_get_json(
+        _join(base_url, "/api/v1/features/chipseq/marks"),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["chipseq_mark_relationships"] = _http_get_json(
+        _join(base_url, "/api/v1/features/chipseq/marks/relationships"),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["chipseq_available_marks_species_1"] = _http_get_json(
+        _join(base_url, "/api/v1/features/chipseq/marks/1"),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["chipseq_global_stats"] = _http_get_json(
+        _join(base_url, "/api/v1/features/chipseq/stats"),
+        timeout_seconds=timeout_seconds,
+    )
+
     # High-risk list endpoints (sorting/filtering/pagination): keep page_size small for speed.
     endpoints["lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc"] = _http_get_json(
         _join(

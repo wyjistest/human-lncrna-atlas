@@ -7,6 +7,30 @@
       "sha256": "87f27c155c783c445029b7390d37919ce5a02b2faf7718a77a6ceae9ea6c50e6",
       "status_code": 200
     },
+    "chipseq_available_marks_species_1": {
+      "error": null,
+      "json": null,
+      "sha256": "29bfd06b0a4d77df9334406c3cc0e88145c6cb7a3a14c5f2857c8a246d413693",
+      "status_code": 200
+    },
+    "chipseq_global_stats": {
+      "error": null,
+      "json": null,
+      "sha256": "5b5ca0828a2f0db4b6e021e8292ad80f498a72540cd263acceb180507768ec21",
+      "status_code": 200
+    },
+    "chipseq_mark_relationships": {
+      "error": null,
+      "json": null,
+      "sha256": "fd03f49980d1b204d297dc8ea2f0631882505e5b3608400805441a2c1c5bfaa4",
+      "status_code": 200
+    },
+    "chipseq_marks": {
+      "error": null,
+      "json": null,
+      "sha256": "6e5f22e5081ea3b466d596d7b44b6d4fbec4d001fefe3ae8accea80a9c56848d",
+      "status_code": 200
+    },
     "diseases_options": {
       "error": null,
       "json": null,
@@ -16,7 +40,7 @@
     "genes_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "33159bf94aa6ac8e03c3879cb05a7966ebfdfb56d996c37b021947cc5ade6ad9",
+      "sha256": "5bcd69ce5a8a547ac3a8d0bd53db3db737a712ea9fe53dfd32f6172fade345af",
       "status_code": 200
     },
     "genes_options_species_1_limit_5": {
