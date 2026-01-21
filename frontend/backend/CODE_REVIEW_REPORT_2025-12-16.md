@@ -168,11 +168,15 @@ from app.routers.chipseq_rate_limit import rate_limit
 
 ### 本周 (Critical)
 1. ✅ 已完成所有 P0 修复
-2. 运行数据库迁移脚本：
-   ```bash
-   psql -d lncrna_production -f frontend/backend/scripts/add_regulation_indexes.sql
-   psql -d lncrna_production -f frontend/backend/scripts/add_pg_trgm_indexes.sql
-   ```
+2. 运行数据库迁移脚本（可审计/可回滚）：
+	   ```bash
+	   # 推荐：统一入口（会写入 schema_migration_events，支持 down 回滚）
+	   bash frontend/backend/scripts/db_migrate.sh up-all
+
+	   # 或分别执行
+	   bash frontend/backend/scripts/db_migrate.sh up 0001_regulations_indexes
+	   bash frontend/backend/scripts/db_migrate.sh up 0002_pg_trgm_search_indexes
+	   ```
 3. 生产环境配置：
    ```env
    ADMIN_REQUIRE_API_KEY=true

@@ -17,6 +17,9 @@
 运行方式：
     python3 scripts/add_pg_trgm_indexes.py
 
+建议优先使用可审计/可回滚迁移（推荐）：
+    bash frontend/backend/scripts/db_migrate.sh up 0002_pg_trgm_search_indexes
+
 或在代码中调用：
     from scripts.add_pg_trgm_indexes import create_trgm_indexes
     create_trgm_indexes(db_session)

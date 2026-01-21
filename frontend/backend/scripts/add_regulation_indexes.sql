@@ -7,6 +7,10 @@
 -- 执行方式：
 --   psql -d lncrna_production -f add_regulation_indexes.sql
 --
+-- NOTE (推荐，带审计/可回滚)：
+--   bash frontend/backend/scripts/db_migrate.sh up 0001_regulations_indexes
+--   bash frontend/backend/scripts/db_migrate.sh down 0001_regulations_indexes
+--
 -- ⚠️ 生产环境风险提示：
 --   1. DROP INDEX 会获取表的排他锁（ACCESS EXCLUSIVE），阻塞所有读写操作
 --   2. 对于 80 万行的表，锁表时间可能达到数秒

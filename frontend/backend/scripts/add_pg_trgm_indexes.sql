@@ -12,6 +12,10 @@
 -- 执行方式：
 --   psql -d lncrna_production -f add_pg_trgm_indexes.sql
 --
+-- NOTE (推荐，带审计/可回滚)：
+--   bash frontend/backend/scripts/db_migrate.sh up 0002_pg_trgm_search_indexes
+--   bash frontend/backend/scripts/db_migrate.sh down 0002_pg_trgm_search_indexes
+--
 -- 或在 Python 中执行：
 --   from sqlalchemy import text
 --   db.execute(text(open('add_pg_trgm_indexes.sql').read()))

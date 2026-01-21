@@ -311,15 +311,19 @@ Overlap 页面 IGV 升级：
 | CR-FIX-006 | ILIKE 全表扫描 | `frontend/backend/scripts/add_pg_trgm_indexes.sql` | 4 个 GIN 索引 |
 
 ### 数据库迁移
-
-**已创建的索引 (需手动执行):**
-
+	
+**已提供可审计/可回滚迁移（推荐）：** 见 `docs/DB_MIGRATIONS.md`
+	
 ```bash
-# Regulation 表索引 (优化 JOIN 和排序)
-psql -d lncrna_production -f frontend/backend/scripts/add_regulation_indexes.sql
+# 一次性执行全部未应用迁移（会写入 schema_migration_events）
+bash frontend/backend/scripts/db_migrate.sh up-all
 
-# pg_trgm GIN 索引 (优化 ILIKE '%pattern%')
-psql -d lncrna_production -f frontend/backend/scripts/add_pg_trgm_indexes.sql
+# 或分别执行
+bash frontend/backend/scripts/db_migrate.sh up 0001_regulations_indexes
+bash frontend/backend/scripts/db_migrate.sh up 0002_pg_trgm_search_indexes
+
+# 回滚示例
+bash frontend/backend/scripts/db_migrate.sh down 0002_pg_trgm_search_indexes
 ```
 
 | 索引 | 表 | 用途 |
