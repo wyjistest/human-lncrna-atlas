@@ -295,6 +295,24 @@ run_docs_checks() {
     fi
 }
 
+run_db_migrations_verify() {
+    echo -e "${YELLOW}运行数据库迁移文件校验 (db_migrate.sh verify)...${NC}"
+    local script_path="$BACKEND_DIR/scripts/db_migrate.sh"
+
+    if [ ! -f "$script_path" ]; then
+        echo -e "${RED}未找到迁移脚本: ${script_path}${NC}"
+        return 1
+    fi
+
+    if bash "$script_path" verify; then
+        echo -e "${GREEN}数据库迁移文件校验通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}数据库迁移文件校验失败${NC}"
+        return 1
+    fi
+}
+
 # 运行前端单元测试
 run_frontend_unit_tests() {
     echo -e "${YELLOW}运行前端单元测试...${NC}"
@@ -489,6 +507,8 @@ main() {
             echo ""
             run_docs_checks || failed=1
             echo ""
+            run_db_migrations_verify || failed=1
+            echo ""
             run_backend_unit_tests || failed=1
             echo ""
             run_frontend_unit_tests || failed=1
@@ -509,6 +529,8 @@ main() {
             run_scripts_smoke_tests || failed=1
             echo ""
             run_docs_checks || failed=1
+            echo ""
+            run_db_migrations_verify || failed=1
             echo ""
             run_backend_unit_tests || failed=1
             echo ""
@@ -532,6 +554,8 @@ main() {
             run_scripts_smoke_tests || failed=1
             echo ""
             run_docs_checks || failed=1
+            echo ""
+            run_db_migrations_verify || failed=1
             echo ""
             run_backend_unit_tests || failed=1
             echo ""

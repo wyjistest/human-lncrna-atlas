@@ -18,26 +18,32 @@
 bash frontend/backend/scripts/db_migrate.sh list
 ```
 
-### 2.2 查看审计记录（最近 50 条）
+### 2.2 校验迁移文件完整性（推荐先跑）
+
+```bash
+bash frontend/backend/scripts/db_migrate.sh verify
+```
+
+### 2.3 查看审计记录（最近 50 条）
 
 ```bash
 bash frontend/backend/scripts/db_migrate.sh status
 ```
 
-### 2.3 执行单个迁移
+### 2.4 执行单个迁移
 
 ```bash
 # 示例：启用 pg_trgm + 创建 trigram GIN 索引
 bash frontend/backend/scripts/db_migrate.sh up 0002_pg_trgm_search_indexes
 ```
 
-### 2.4 回滚单个迁移
+### 2.5 回滚单个迁移
 
 ```bash
 bash frontend/backend/scripts/db_migrate.sh down 0002_pg_trgm_search_indexes
 ```
 
-### 2.5 一次性执行所有未应用迁移
+### 2.6 一次性执行所有未应用迁移
 
 ```bash
 bash frontend/backend/scripts/db_migrate.sh up-all
@@ -77,4 +83,3 @@ LOG_DIR="/tmp/db-migrations" bash frontend/backend/scripts/db_migrate.sh up 0001
 
 - `0001_regulations_indexes`：regulations 常用 JOIN/过滤/排序索引
 - `0002_pg_trgm_search_indexes`：pg_trgm + traits/chipseq_experiments/genes trigram GIN 索引
-

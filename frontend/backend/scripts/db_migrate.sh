@@ -47,6 +47,7 @@ usage() {
   cat <<'USAGE'
 Usage:
   db_migrate.sh list
+  db_migrate.sh verify
   db_migrate.sh status
   db_migrate.sh up <migration_name>
   db_migrate.sh down <migration_name>
@@ -193,6 +194,52 @@ list_migrations() {
     | sort
 }
 
+verify_migrations() {
+  if [ ! -d "$MIGRATIONS_DIR" ]; then
+    echo "missing migrations dir: $MIGRATIONS_DIR" >&2
+    return 2
+  fi
+
+  local failed=0
+
+  # 1) Check every up has matching down, and naming is sane.
+  mapfile -t migrations < <(list_migrations)
+  if [ "${#migrations[@]}" -eq 0 ]; then
+    echo "[db-migrate] no migrations found in: $MIGRATIONS_DIR" >&2
+    return 1
+  fi
+
+  for name in "${migrations[@]}"; do
+    if [[ ! "$name" =~ ^[0-9]{4}_[a-z0-9][a-z0-9_-]*$ ]]; then
+      echo "[db-migrate][verify] invalid migration name: $name (expected: 0001_slug)" >&2
+      failed=1
+      continue
+    fi
+
+    if [ ! -f "$MIGRATIONS_DIR/${name}.down.sql" ]; then
+      echo "[db-migrate][verify] missing down.sql for: $name" >&2
+      failed=1
+    fi
+  done
+
+  # 2) Check no orphan down.sql exists without matching up.sql.
+  while IFS= read -r down_file; do
+    down_base="$(basename "$down_file")"
+    name="${down_base%.down.sql}"
+    if [ ! -f "$MIGRATIONS_DIR/${name}.up.sql" ]; then
+      echo "[db-migrate][verify] orphan down.sql without up.sql: $down_base" >&2
+      failed=1
+    fi
+  done < <(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -name "*.down.sql" -print | sort)
+
+  if [ "$failed" -ne 0 ]; then
+    return 1
+  fi
+
+  echo "[db-migrate][verify] OK (${#migrations[@]} migrations)"
+  return 0
+}
+
 cmd="${1:-}"
 case "$cmd" in
   list)
@@ -202,6 +249,9 @@ case "$cmd" in
     fi
     echo "[db-migrate] migrations dir: $MIGRATIONS_DIR"
     list_migrations
+    ;;
+  verify)
+    verify_migrations
     ;;
   status)
     ensure_audit_table
