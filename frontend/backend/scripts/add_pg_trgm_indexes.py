@@ -9,6 +9,11 @@
 - 使用 PostgreSQL pg_trgm 扩展
 - 创建 GIN 索引支持模糊匹配
 
+覆盖范围（可按需扩展）：
+- traits.trait_name（疾病/性状名称搜索）
+- chipseq_experiments.cell_type（ChIP-seq experiments 过滤）
+- genes.gene_name / genes.gene_ensembl_id（基因 typeahead / regulations 过滤）
+
 运行方式：
     python3 scripts/add_pg_trgm_indexes.py
 
@@ -73,9 +78,30 @@ def create_trgm_indexes(db_session=None):
         db_session.commit()
         print("  ✓ idx_chipseq_experiments_cell_type_trgm 创建成功")
 
+        # 索引 3: genes.gene_name
+        print("  创建 idx_genes_gene_name_trgm...")
+        db_session.execute(text("DROP INDEX IF EXISTS idx_genes_gene_name_trgm"))
+        db_session.execute(text("""
+            CREATE INDEX idx_genes_gene_name_trgm
+            ON genes USING GIN (gene_name gin_trgm_ops)
+        """))
+        db_session.commit()
+        print("  ✓ idx_genes_gene_name_trgm 创建成功")
+
+        # 索引 4: genes.gene_ensembl_id
+        print("  创建 idx_genes_gene_ensembl_id_trgm...")
+        db_session.execute(text("DROP INDEX IF EXISTS idx_genes_gene_ensembl_id_trgm"))
+        db_session.execute(text("""
+            CREATE INDEX idx_genes_gene_ensembl_id_trgm
+            ON genes USING GIN (gene_ensembl_id gin_trgm_ops)
+        """))
+        db_session.commit()
+        print("  ✓ idx_genes_gene_ensembl_id_trgm 创建成功")
+
         print("\nStep 3: 更新表统计信息...")
         db_session.execute(text("ANALYZE traits"))
         db_session.execute(text("ANALYZE chipseq_experiments"))
+        db_session.execute(text("ANALYZE genes"))
         db_session.commit()
         print("  ✓ 表统计信息已更新")
 
@@ -86,18 +112,20 @@ def create_trgm_indexes(db_session=None):
             FROM pg_indexes
             WHERE indexname IN (
                 'idx_traits_trait_name_trgm',
-                'idx_chipseq_experiments_cell_type_trgm'
+                'idx_chipseq_experiments_cell_type_trgm',
+                'idx_genes_gene_name_trgm',
+                'idx_genes_gene_ensembl_id_trgm'
             )
         """))
         indexes = list(result)
 
-        if len(indexes) == 2:
+        if len(indexes) == 4:
             print(f"  ✓ 成功创建 {len(indexes)} 个 pg_trgm GIN 索引")
             for idx in indexes:
                 print(f"    - {idx.indexname} on {idx.tablename}")
             return True
         else:
-            print(f"  ⚠ 预期 2 个索引，实际找到 {len(indexes)} 个")
+            print(f"  ⚠ 预期 4 个索引，实际找到 {len(indexes)} 个")
             return False
 
     except Exception as e:
@@ -150,6 +178,33 @@ def verify_index_usage():
             print("✓ chipseq_experiments.cell_type 查询使用了索引")
         else:
             print("⚠ chipseq_experiments.cell_type 查询可能未使用索引（数据量小时正常）")
+        print(f"  执行计划: {plan.split(chr(10))[0]}")
+
+        print("-" * 60)
+
+        # 测试 genes.gene_name / genes.gene_ensembl_id
+        result = db.execute(text("""
+            EXPLAIN (FORMAT TEXT)
+            SELECT * FROM genes WHERE gene_name ILIKE '%TP53%' LIMIT 10
+        """))
+        plan = "\n".join(row[0] for row in result)
+        if "idx_genes_gene_name_trgm" in plan or "Bitmap Index Scan" in plan:
+            print("✓ genes.gene_name 查询使用了索引")
+        else:
+            print("⚠ genes.gene_name 查询可能未使用索引（数据量小时正常）")
+        print(f"  执行计划: {plan.split(chr(10))[0]}")
+
+        print("-" * 60)
+
+        result = db.execute(text("""
+            EXPLAIN (FORMAT TEXT)
+            SELECT * FROM genes WHERE gene_ensembl_id ILIKE '%ENSG%' LIMIT 10
+        """))
+        plan = "\n".join(row[0] for row in result)
+        if "idx_genes_gene_ensembl_id_trgm" in plan or "Bitmap Index Scan" in plan:
+            print("✓ genes.gene_ensembl_id 查询使用了索引")
+        else:
+            print("⚠ genes.gene_ensembl_id 查询可能未使用索引（数据量小时正常）")
         print(f"  执行计划: {plan.split(chr(10))[0]}")
 
     finally:

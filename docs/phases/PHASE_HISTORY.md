@@ -308,7 +308,7 @@ Overlap 页面 IGV 升级：
 | ID | 问题 | 文件 | 修复内容 |
 |----|------|------|----------|
 | CR-FIX-005 | 缺少 JOIN 索引 | `frontend/backend/scripts/add_regulation_indexes.sql` | 4 个新索引 |
-| CR-FIX-006 | ILIKE 全表扫描 | `frontend/backend/scripts/add_pg_trgm_indexes.sql` | 2 个 GIN 索引 |
+| CR-FIX-006 | ILIKE 全表扫描 | `frontend/backend/scripts/add_pg_trgm_indexes.sql` | 4 个 GIN 索引 |
 
 ### 数据库迁移
 
@@ -330,6 +330,8 @@ psql -d lncrna_production -f frontend/backend/scripts/add_pg_trgm_indexes.sql
 | `idx_regulations_species_chr` | regulations | 物种 + 染色体过滤 |
 | `idx_traits_trait_name_trgm` | traits | 模糊搜索优化 |
 | `idx_chipseq_experiments_cell_type_trgm` | chipseq_experiments | 模糊搜索优化 |
+| `idx_genes_gene_name_trgm` | genes | 模糊搜索优化 |
+| `idx_genes_gene_ensembl_id_trgm` | genes | 模糊搜索优化 |
 
 ### 技术细节
 

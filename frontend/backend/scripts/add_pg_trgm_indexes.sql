@@ -7,6 +7,7 @@
 -- 受影响的查询：
 -- 1. traits.trait_name - 疾病名称搜索（visualization.py, export.py）
 -- 2. chipseq_experiments.cell_type - 细胞类型搜索（chipseq_experiments.py）
+-- 3. genes.gene_name / genes.gene_ensembl_id - 基因模糊搜索（genes.py, regulations.py）
 --
 -- 执行方式：
 --   psql -d lncrna_production -f add_pg_trgm_indexes.sql
@@ -50,12 +51,27 @@ DROP INDEX IF EXISTS idx_chipseq_experiments_cell_type_trgm;
 CREATE INDEX idx_chipseq_experiments_cell_type_trgm
 ON chipseq_experiments USING GIN (cell_type gin_trgm_ops);
 
+-- 索引 3: genes.gene_name
+-- 用途：基因名称的模糊搜索（typeahead / filter）
+-- 查询示例：WHERE gene_name ILIKE '%TP53%'
+DROP INDEX IF EXISTS idx_genes_gene_name_trgm;
+CREATE INDEX idx_genes_gene_name_trgm
+ON genes USING GIN (gene_name gin_trgm_ops);
+
+-- 索引 4: genes.gene_ensembl_id
+-- 用途：Ensembl ID 的模糊搜索（typeahead / filter）
+-- 查询示例：WHERE gene_ensembl_id ILIKE '%ENSG000001%'
+DROP INDEX IF EXISTS idx_genes_gene_ensembl_id_trgm;
+CREATE INDEX idx_genes_gene_ensembl_id_trgm
+ON genes USING GIN (gene_ensembl_id gin_trgm_ops);
+
 -- ============================================================================
 -- Step 3: 更新表统计信息
 -- ============================================================================
 -- 确保查询规划器能正确使用新索引
 ANALYZE traits;
 ANALYZE chipseq_experiments;
+ANALYZE genes;
 
 -- ============================================================================
 -- Step 4: 验证索引创建成功
@@ -68,13 +84,15 @@ BEGIN
     FROM pg_indexes
     WHERE indexname IN (
         'idx_traits_trait_name_trgm',
-        'idx_chipseq_experiments_cell_type_trgm'
+        'idx_chipseq_experiments_cell_type_trgm',
+        'idx_genes_gene_name_trgm',
+        'idx_genes_gene_ensembl_id_trgm'
     );
 
-    IF idx_count = 2 THEN
-        RAISE NOTICE '✅ Successfully created 2 pg_trgm GIN indexes';
+    IF idx_count = 4 THEN
+        RAISE NOTICE '✅ Successfully created 4 pg_trgm GIN indexes';
     ELSE
-        RAISE WARNING '⚠️ Expected 2 indexes, found %', idx_count;
+        RAISE WARNING '⚠️ Expected 4 indexes, found %', idx_count;
     END IF;
 END
 $$;

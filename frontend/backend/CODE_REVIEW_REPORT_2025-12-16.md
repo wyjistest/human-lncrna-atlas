@@ -86,6 +86,8 @@ from app.routers.chipseq_rate_limit import rate_limit
 **修复**: 创建迁移脚本（需手动执行）
 - `idx_traits_trait_name_trgm`
 - `idx_chipseq_experiments_cell_type_trgm`
+- `idx_genes_gene_name_trgm`
+- `idx_genes_gene_ensembl_id_trgm`
 
 ---
 
