@@ -19,6 +19,14 @@
 python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000"
 ```
 
+如果导出里出现 `n=<samples>/10`（样本不足，percentiles 为 null），可以先用 warmup 选项制造少量流量再导出：
+
+```bash
+python3 scripts/admin_metrics_snapshot.py \
+  --base-url "http://localhost:8000" \
+  --warmup-rounds 10
+```
+
 如遇到 403（生产/严格模式或非内网访问），带上 Admin API Key：
 
 ```bash
@@ -58,4 +66,3 @@ python3 scripts/admin_metrics_snapshot.py \
 - `frontend/backend/app/routers/admin.py:844`（`GET /api/v1/admin/metrics`）
 - `frontend/backend/app/middleware/admin_metrics.py:142`（in-memory 指标采集）
 - `frontend/backend/app/core/cache.py:820`（cache hit/miss、namespaces/keys、compute_* 统计）
-

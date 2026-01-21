@@ -75,6 +75,22 @@ def _fetch_json(url: str, *, admin_api_key: Optional[str], timeout_seconds: floa
         raise RuntimeError(f"Invalid JSON from {url}: {e}") from e
 
 
+def _warmup_get(url: str, *, timeout_seconds: float) -> None:
+    """
+    Best-effort warmup request to generate a small amount of traffic.
+
+    Notes:
+    - Does NOT send Admin API Key (warmup targets should be public read-only endpoints).
+    - Ignores response body format (JSON/non-JSON) as long as request succeeds.
+    """
+    req = Request(url, headers={"Accept": "application/json"}, method="GET")
+    try:
+        with urlopen(req, timeout=timeout_seconds) as resp:
+            resp.read()
+    except Exception as e:
+        raise RuntimeError(f"Warmup request failed: {url}: {e}") from e
+
+
 def _top_endpoints(
     endpoints: list[dict[str, Any]],
     *,
@@ -305,6 +321,21 @@ def main() -> int:
         default="admin-metrics",
         help="Output file name prefix (default: admin-metrics)",
     )
+    parser.add_argument(
+        "--warmup-rounds",
+        type=int,
+        default=0,
+        help=(
+            "Best-effort warmup rounds before snapshot (default: 0=disabled). "
+            "Each round hits a small fixed set of read-only endpoints once, to help fill percentile samples."
+        ),
+    )
+    parser.add_argument(
+        "--warmup-timeout-seconds",
+        type=float,
+        default=None,
+        help="Warmup HTTP timeout seconds (default: same as --timeout-seconds)",
+    )
     args = parser.parse_args()
 
     base_url = str(args.base_url or "").rstrip("/")
@@ -318,6 +349,23 @@ def main() -> int:
 
     json_path = out_dir / f"{args.prefix}-{ts}.json"
     md_path = out_dir / f"{args.prefix}-{ts}.md"
+
+    warmup_rounds = max(0, int(args.warmup_rounds or 0))
+    if warmup_rounds > 0:
+        warmup_timeout = float(args.warmup_timeout_seconds) if args.warmup_timeout_seconds is not None else float(args.timeout_seconds)
+
+        warmup_paths = [
+            "/health",
+            "/api/v1/stats/overview",
+            "/api/v1/genes?page=1&page_size=1&species_id=1",
+            "/api/v1/regulations?page=1&page_size=1&species_id=1",
+        ]
+        for _ in range(warmup_rounds):
+            for path in warmup_paths:
+                try:
+                    _warmup_get(f"{base_url}{path}", timeout_seconds=warmup_timeout)
+                except Exception as e:
+                    print(f"[WARN] {e}", file=sys.stderr)
 
     try:
         metrics = _fetch_json(metrics_url, admin_api_key=args.admin_api_key, timeout_seconds=float(args.timeout_seconds))
@@ -346,12 +394,17 @@ def main() -> int:
         return 1
 
     print("Snapshot exported:")
-    print(f"- JSON: {json_path.relative_to(REPO_ROOT)}")
-    print(f"- MD:   {md_path.relative_to(REPO_ROOT)}")
+    def _format_path(p: Path) -> str:
+        try:
+            return str(p.relative_to(REPO_ROOT))
+        except Exception:
+            return str(p)
+
+    print(f"- JSON: {_format_path(json_path)}")
+    print(f"- MD:   {_format_path(md_path)}")
     print(f"- URL:  {metrics_url}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
