@@ -194,6 +194,14 @@ python3 -m py_compile main.py
 find app -name "*.py" -exec python3 -m py_compile {} \;
 ```
 
+Optional (recommended when GitHub Actions CI is manual-only): install a local pre-push hook that runs the CI gate automatically.
+
+```bash
+bash scripts/install_git_hooks.sh
+```
+
+Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run a lighter gate, use `LOCAL_CI_TARGET=smoke git push`.
+
 CI is currently **manual-only** (`workflow_dispatch`) to avoid noisy failures when GitHub-hosted runners are blocked by billing/spending limits.
 
 If you trigger a workflow run manually, you can check the latest run with:

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 本地 CI 门禁（可选）。
+#
+# 默认行为：在每次 push 前运行 `bash scripts/run-tests.sh ci`
+# 跳过方式：
+# - 临时跳过：`git push --no-verify`
+# - 环境变量：`SKIP_LOCAL_CI=1 git push`
+#
+# 可选：指定执行目标（默认为 ci）
+# - `LOCAL_CI_TARGET=smoke git push`
+
+if [ "${SKIP_LOCAL_CI:-}" = "1" ]; then
+  echo "[pre-push] SKIP_LOCAL_CI=1 set; skipping local CI."
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$repo_root" ]; then
+  exit 0
+fi
+
+cd "$repo_root"
+
+target="${LOCAL_CI_TARGET:-ci}"
+case "$target" in
+  smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|ci)
+    ;;
+  *)
+    echo "[pre-push] Unknown LOCAL_CI_TARGET=${target}; defaulting to ci."
+    target="ci"
+    ;;
+esac
+
+echo "[pre-push] Running local CI: bash scripts/run-tests.sh ${target}"
+bash "scripts/run-tests.sh" "$target"
+
