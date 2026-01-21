@@ -167,6 +167,7 @@ npm audit
 CI reference:
 - Workflow: `.github/workflows/security-audit.yml`
 - Policy: Python uses `pip-audit --strict`; Node uses `npm audit --audit-level=high`
+- Runner: default `ubuntu-latest`; can override via repo variable `CI_RUNS_ON=self-hosted` (see `docs/CI_SELF_HOSTED_RUNNER.md`)
 
 ---
 

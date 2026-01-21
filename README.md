@@ -206,6 +206,8 @@ If a workflow fails to start with an annotation like:
 
 then GitHub Actions is blocked by billing/spending limits. Fix it in GitHub **Settings → Billing & plans**, or run the same checks locally via `./scripts/run-tests.sh ci` (and optionally `./scripts/run-tests.sh e2e-smoke`).
 
+Self-hosted runner fallback (does not consume GitHub Actions minutes): see `docs/CI_SELF_HOSTED_RUNNER.md`.
+
 ## Database
 
 ### Species Data Distribution

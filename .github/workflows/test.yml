@@ -20,7 +20,7 @@ jobs:
   # Secret scanning - runs first to fail fast on credential leaks
   secret-scan:
     name: Secret Scanning
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -34,7 +34,7 @@ jobs:
 
   frontend-unit-tests:
     name: Frontend Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -57,7 +57,7 @@ jobs:
 
   backend-checks:
     name: Backend Checks
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -117,7 +117,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -141,7 +141,7 @@ jobs:
 
   backend-unit-tests:
     name: Backend Unit Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -171,7 +171,10 @@ jobs:
 
   etl-e2e-smoke:
     name: ETL E2E Smoke (Postgres)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    # self-hosted runner 默认不跑 services(Postgres) 作业，避免 Docker/权限差异导致 CI 直接失败。
+    # 如需在 self-hosted 上启用：设置 repo variable `CI_ENABLE_POSTGRES_JOBS=true`。
+    if: vars.CI_RUNS_ON != 'self-hosted' || vars.CI_ENABLE_POSTGRES_JOBS == 'true'
     needs: [secret-scan]  # Fail fast if secrets detected
     services:
       postgres:
@@ -366,7 +369,10 @@ jobs:
 
   api-snapshot-baseline:
     name: API Snapshot Baseline (Postgres)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    # self-hosted runner 默认不跑 services(Postgres) 作业，避免 Docker/权限差异导致 CI 直接失败。
+    # 如需在 self-hosted 上启用：设置 repo variable `CI_ENABLE_POSTGRES_JOBS=true`。
+    if: vars.CI_RUNS_ON != 'self-hosted' || vars.CI_ENABLE_POSTGRES_JOBS == 'true'
     needs: [secret-scan]  # Fail fast if secrets detected
     services:
       postgres:
@@ -467,7 +473,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan, frontend-unit-tests, backend-checks, backend-unit-tests, lint]
     steps:
       - name: Checkout code
@@ -528,10 +534,10 @@ jobs:
           path: frontend/web/dist/
           retention-days: 7
 
-  # E2E smoke tests - runs on ubuntu-latest, fully mocked (no backend/db required)
+  # E2E smoke tests - default ubuntu-latest (can switch via CI_RUNS_ON), fully mocked (no backend/db required)
   e2e-smoke:
     name: E2E Smoke (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [build]
     steps:
       - name: Checkout code
@@ -593,7 +599,16 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: frontend/web
-        run: npx playwright install chromium --with-deps
+        run: |
+          set -euo pipefail
+
+          # GitHub-hosted runner 可用 `--with-deps` 自动安装系统依赖；
+          # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
+          if [ "${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install chromium --with-deps
+          fi
 
       - name: Run E2E smoke tests
         working-directory: frontend/web

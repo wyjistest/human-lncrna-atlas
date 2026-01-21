@@ -469,7 +469,7 @@ page.on('response', (response) => console.log('Response:', response.status(), re
 
 本仓库已在 `Tests` 工作流（`.github/workflows/test.yml`）内集成两层 E2E：
 
-- `e2e-smoke`：`ubuntu-latest`，基于 build artifact + `vite preview`，仅跑完全 mock 的 smoke 用例（无需后端/数据库）。
+- `e2e-smoke`：默认 `ubuntu-latest`（可通过 repo variable `CI_RUNS_ON` 切换到 `self-hosted`），基于 build artifact + `vite preview`，仅跑完全 mock 的 smoke 用例（无需后端/数据库）。在 self-hosted 上需预装 Playwright 系统依赖（见 `docs/CI_SELF_HOSTED_RUNNER.md`）。
 - `e2e-tests`：`self-hosted` + 手动触发（`workflow_dispatch`），用于跑依赖后端/数据库的关键用例子集。
 
 ```yaml

@@ -30,7 +30,7 @@ jobs:
   # ============================================================================
   python-audit:
     name: Python Dependencies Audit
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: frontend/backend
@@ -84,7 +84,7 @@ jobs:
   # ============================================================================
   npm-audit:
     name: NPM Dependencies Audit
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: frontend/web
@@ -131,7 +131,7 @@ jobs:
   summary:
     name: Audit Summary
     needs: [python-audit, npm-audit]
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     if: always()
 
     steps:
