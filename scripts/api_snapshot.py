@@ -236,6 +236,21 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
     if endpoints["diseases_options"].json:
         summaries["traits_len"] = safe_len(endpoints["diseases_options"].json.get("traits"))
 
+    # Overlap endpoints: keep a small, stable summary in the baseline to indicate non-empty coverage.
+    overlap_page = endpoints.get("lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc")
+    if overlap_page and overlap_page.json:
+        summaries["overlap_total"] = overlap_page.json.get("total")
+        summaries["overlap_items_len"] = safe_len(overlap_page.json.get("items"))
+
+    overlap_cursor = endpoints.get("lncrna_chipseq_overlap_cursor_chr22_page_size_1_sort_peak_qvalue_asc")
+    if overlap_cursor and overlap_cursor.json:
+        summaries["overlap_cursor_total"] = overlap_cursor.json.get("total")
+        summaries["overlap_cursor_items_len"] = safe_len(overlap_cursor.json.get("items"))
+
+    overlap_stats = endpoints.get("lncrna_chipseq_overlap_statistics_chr22")
+    if overlap_stats and overlap_stats.json:
+        summaries["overlap_stats_total_overlaps"] = overlap_stats.json.get("total_overlaps")
+
     return {
         "generated_at": _iso_now(),
         "git_sha": _git_sha(),

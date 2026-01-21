@@ -16,7 +16,7 @@
     "genes_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "7b553fcd2ea029e7982dedd55db549243195d96ccf0a40c97b0af5e481bd83c4",
+      "sha256": "33159bf94aa6ac8e03c3879cb05a7966ebfdfb56d996c37b021947cc5ade6ad9",
       "status_code": 200
     },
     "genes_options_species_1_limit_5": {
@@ -40,25 +40,25 @@
     "lncrna_chipseq_overlap_cursor_chr22_page_size_1_sort_peak_qvalue_asc": {
       "error": null,
       "json": null,
-      "sha256": "4da471af72308914f313df41e0e14aaa01c2b178c8142988af63cf7296105c82",
+      "sha256": "67f8860ea40eb640b358008167b4e4567c03bcbf7b32af744674648095fe51c3",
       "status_code": 200
     },
     "lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc": {
       "error": null,
       "json": null,
-      "sha256": "6b3d9b1144204f1bb892bcd7a5545c7b778deb51347b9f40789db336164443bc",
+      "sha256": "7400ec38e1528205c0d060a85ed83a408de600bebb133e391833d16cec3bf127",
       "status_code": 200
     },
     "lncrna_chipseq_overlap_statistics_chr22": {
       "error": null,
       "json": null,
-      "sha256": "268d6e72daa46718f3ccfccbf264a26587ec091e25a585a79fa7e9c9daf7fdcc",
+      "sha256": "2b48f363b46ed65d9c46dbbda2772f8b414f17cdbfeac7582f5de80338da3d7b",
       "status_code": 200
     },
     "regulation_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "d92cd426055157c36305942e8ae7431717ffd4cc1066bf62aa099af86f021ec4",
+      "sha256": "b5a88dbefa058a7ee11ee6caeb2bfb878cebf41d7531117ca0a67e5b57263fe1",
       "status_code": 200
     },
     "regulations_page_1": {
@@ -91,6 +91,11 @@
   "summaries": {
     "genes_items_len": 1,
     "genes_total": 5,
+    "overlap_cursor_items_len": 1,
+    "overlap_cursor_total": 1,
+    "overlap_items_len": 1,
+    "overlap_stats_total_overlaps": 1,
+    "overlap_total": 1,
     "regulations_items_len": 1,
     "regulations_total": 6,
     "traits_len": 5

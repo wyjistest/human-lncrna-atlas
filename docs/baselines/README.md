@@ -9,6 +9,7 @@
 - 生成脚本：
   - Docker Compose：`scripts/baselines/generate_api_snapshot_baseline.sh`
   - 本地 PostgreSQL：`scripts/baselines/generate_api_snapshot_baseline_local.sh`
+  - 两个脚本都会在 v2.3 core/extension 之外额外加载 `frontend/backend/sql/chipseq_schema.sql`，以便样例库能产出 overlap 非空回归锚点。
 
 校验：
 - 统一入口：`python3 scripts/verify_baselines.py --mode local`
@@ -18,7 +19,7 @@
 说明：
 - `api-snapshot.sample.json` 使用 `--deterministic --no-json` 生成，避免时间戳、Git SHA、base_url 或完整 JSON body 导致的噪音 diff。
 - Snapshot 覆盖少量关键端点（健康检查 + 核心分页查询 + options + overlap 列表/统计），用于快速发现“返回结构/数据摘要”的意外变化。
-- 对于最小样例库（`schema/v2.3`）：若未安装 ChIP-seq peaks 相关表，overlap 端点会**优雅降级**为空结果（避免 500 打断基线校验）；这属于预期行为。
+- 对于仅安装 core/extension 的最小样例库：若未安装 ChIP-seq peaks 相关表，overlap 端点会**优雅降级**为空结果（避免 500 打断基线校验）；这属于预期行为。
 - 为了让基线稳定、且不依赖 Redis，生成脚本默认在 `ENV=development` + `ENABLE_CACHE=false` 下运行（可按需覆盖）。
 
 CI：

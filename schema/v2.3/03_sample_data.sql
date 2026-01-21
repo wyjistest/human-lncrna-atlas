@@ -167,14 +167,21 @@ BEGIN
     -- 插入调控关系（只包含regulations表实际存在的列）
     INSERT INTO regulations
         (species_id, lncrna_gene_id, target_gene_id, target_chromosome,
-         target_start, target_end, binding_affinity, batch_id)
+         target_start, target_end,
+         -- overlap join 依赖：best_peak_chr/start/end
+         best_peak_chr, best_peak_start, best_peak_end,
+         -- best-effort：让约束通过，并为后续展示提供可用字段
+         best_site_ba,
+         binding_affinity,
+         batch_id)
     VALUES
-    (1, lncrna_1_id, brca1_id, 'chr17', 43044295, 43044350, 75.5, batch_id_var),
-    (1, lncrna_1_id, tp53_id, 'chr17', 7661779, 7661830, 68.3, batch_id_var),
-    (1, lncrna_1_id, gata3_id, 'chr10', 8050500, 8050555, 82.1, batch_id_var),
-    (1, lncrna_2_id, brca1_id, 'chr17', 43050000, 43050060, 55.2, batch_id_var),
-    (1, lncrna_2_id, tp53_id, 'chr17', 7665000, 7665055, 63.7, batch_id_var),
-    (1, lncrna_2_id, gata3_id, 'chr10', 8055000, 8055050, 71.9, batch_id_var);
+    -- NOTE: 至少 1 条 best_peak_* 落在 chr22，以便 API snapshot baseline 能稳定覆盖 overlap 端点。
+    (1, lncrna_1_id, brca1_id, 'chr17', 43044295, 43044350, 'chr22', 100000, 100200, 75.5, 75.5, batch_id_var),
+    (1, lncrna_1_id, tp53_id, 'chr17', 7661779, 7661830, NULL, NULL, NULL, 68.3, 68.3, batch_id_var),
+    (1, lncrna_1_id, gata3_id, 'chr10', 8050500, 8050555, NULL, NULL, NULL, 82.1, 82.1, batch_id_var),
+    (1, lncrna_2_id, brca1_id, 'chr17', 43050000, 43050060, NULL, NULL, NULL, 55.2, 55.2, batch_id_var),
+    (1, lncrna_2_id, tp53_id, 'chr17', 7665000, 7665055, NULL, NULL, NULL, 63.7, 63.7, batch_id_var),
+    (1, lncrna_2_id, gata3_id, 'chr10', 8055000, 8055050, NULL, NULL, NULL, 71.9, 71.9, batch_id_var);
 
     RAISE NOTICE '成功插入 % 条regulations记录', 6;
 
@@ -200,6 +207,82 @@ BEGIN
             'TGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCA'   -- 示例DNA序列
         );
     END LOOP;
+END $$;
+
+-- ============================================================================
+-- ChIP-seq overlap 样例数据（可选）
+-- ============================================================================
+-- 说明：
+-- - overlap join 查询依赖 chipseq_schema.sql 中的表：epigenetic_mark_types / chipseq_experiments / chipseq_peaks_*。
+-- - 为保持向后兼容：如果未安装 ChIP-seq schema，则跳过插入。
+
+DO $$
+DECLARE
+    mark_id INT;
+    exp_id INT;
+BEGIN
+    IF to_regclass('public.chipseq_experiments') IS NULL OR to_regclass('public.chipseq_peaks') IS NULL THEN
+        RAISE NOTICE 'skip chipseq sample data: chipseq schema not installed';
+        RETURN;
+    END IF;
+
+    SELECT mark_type_id INTO mark_id
+    FROM epigenetic_mark_types
+    WHERE mark_name = 'H3K27ac'
+    LIMIT 1;
+
+    IF mark_id IS NULL THEN
+        RAISE NOTICE 'skip chipseq sample data: missing epigenetic_mark_types(H3K27ac)';
+        RETURN;
+    END IF;
+
+    INSERT INTO chipseq_experiments (
+        experiment_name,
+        species_id,
+        mark_type_id,
+        cell_type,
+        tissue_type,
+        source_database,
+        source_accession,
+        reference_genome,
+        is_active
+    )
+    VALUES (
+        'Sample H3K27ac (K562)',
+        1,
+        mark_id,
+        'K562',
+        'blood',
+        'sample',
+        'SAMPLE0001',
+        'GRCh38',
+        TRUE
+    )
+    RETURNING experiment_id INTO exp_id;
+
+    -- 该 peak 与上方 regulations 中 chr22:100000-100200 的 best_peak_* 重叠，确保 overlap 端点返回非空。
+    INSERT INTO chipseq_peaks (
+        experiment_id,
+        species_id,
+        chromosome,
+        peak_start,
+        peak_end,
+        fold_enrichment,
+        qvalue,
+        attributes
+    )
+    VALUES (
+        exp_id,
+        1,
+        'chr22',
+        100050,
+        100150,
+        10.0,
+        0.05,
+        '{"source":"sample"}'::jsonb
+    );
+
+    RAISE NOTICE 'inserted chipseq sample data: experiment_id=%, peaks=1', exp_id;
 END $$;
 
 -- ============================================================================

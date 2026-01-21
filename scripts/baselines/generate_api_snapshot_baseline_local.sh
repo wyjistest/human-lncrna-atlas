@@ -107,6 +107,7 @@ echo "[baseline-local] loading schema + sample data..."
 for f in \
   "schema/v2.3/01_core.sql" \
   "schema/v2.3/02_extension.sql" \
+  "frontend/backend/sql/chipseq_schema.sql" \
   "schema/v2.3/03_sample_data.sql"; do
   echo "  - $f"
   psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f" >/dev/null

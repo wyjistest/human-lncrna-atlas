@@ -113,6 +113,15 @@ def test_api_snapshot_check_baseline_matches(tmp_path: Path) -> None:
         )
         assert gen.returncode == 0, gen.stderr
         generated = json.loads(baseline.read_text(encoding="utf-8"))
+        summaries = generated.get("summaries") or {}
+
+        # 回归锚点：overlap 端点应输出可 diff 的统计摘要（即使为 0 也应存在 key）。
+        assert summaries.get("overlap_total") == 0
+        assert summaries.get("overlap_items_len") == 0
+        assert summaries.get("overlap_cursor_total") == 0
+        assert summaries.get("overlap_cursor_items_len") == 0
+        assert summaries.get("overlap_stats_total_overlaps") == 0
+
         expected_keys = {
             "health",
             "stats_overview",

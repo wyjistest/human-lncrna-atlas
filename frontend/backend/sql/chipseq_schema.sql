@@ -371,7 +371,8 @@ ON CONFLICT (mark_name) DO NOTHING;
 -- ============================================================================
 INSERT INTO mark_relationships (mark_type_id_1, mark_type_id_2, relationship_type, description, biological_significance)
 SELECT
-    m1.mark_type_id, m2.mark_type_id,
+    LEAST(m1.mark_type_id, m2.mark_type_id),
+    GREATEST(m1.mark_type_id, m2.mark_type_id),
     'bivalent_pair',
     'H3K4me3 and H3K27me3 co-occurrence defines bivalent domains',
     'Bivalent domains poise developmental genes for rapid activation or silencing'
@@ -381,7 +382,8 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO mark_relationships (mark_type_id_1, mark_type_id_2, relationship_type, description, biological_significance)
 SELECT
-    m1.mark_type_id, m2.mark_type_id,
+    LEAST(m1.mark_type_id, m2.mark_type_id),
+    GREATEST(m1.mark_type_id, m2.mark_type_id),
     'antagonistic',
     'H3K27ac and H3K27me3 are mutually exclusive at the same residue',
     'These marks cannot co-exist on the same lysine residue'
@@ -391,7 +393,8 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO mark_relationships (mark_type_id_1, mark_type_id_2, relationship_type, description, biological_significance)
 SELECT
-    m1.mark_type_id, m2.mark_type_id,
+    LEAST(m1.mark_type_id, m2.mark_type_id),
+    GREATEST(m1.mark_type_id, m2.mark_type_id),
     'synergistic',
     'H3K4me1 and H3K27ac together mark active enhancers',
     'Co-occurrence indicates fully active enhancer elements'

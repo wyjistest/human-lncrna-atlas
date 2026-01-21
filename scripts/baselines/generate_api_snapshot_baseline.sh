@@ -116,6 +116,7 @@ echo "[baseline] loading schema + sample data..."
 for f in \
   "schema/v2.3/01_core.sql" \
   "schema/v2.3/02_extension.sql" \
+  "frontend/backend/sql/chipseq_schema.sql" \
   "schema/v2.3/03_sample_data.sql"; do
   echo "  - $f"
   compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -f /dev/stdin < "$f"
