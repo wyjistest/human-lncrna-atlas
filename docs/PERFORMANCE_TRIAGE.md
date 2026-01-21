@@ -1,0 +1,61 @@
+# 性能定位快速指南（Admin Monitoring）
+
+目标：用 **1 次导出 + 1 次截图** 在 issue 中复现并定位性能问题：
+
+- 哪条端点慢（P95/P99 / DB P95）
+- 慢在 DB 还是业务/缓存（对比 Response vs DB 百分位 + cache hit rate/compute）
+- 具体慢查询是什么（fingerprint + route + SQL）
+
+本项目已有的观测入口：
+
+- `GET /api/v1/admin/metrics`：轻量 in-memory 指标（端点尾延迟、DB 百分位、慢查询榜单、cache 统计）
+- `Admin/Monitoring` 页面：可视化查看 Top Endpoints（P95/P99/DB P95）、Cache、Database Performance
+
+## 1) 一键导出（JSON + Markdown）
+
+推荐使用脚本导出一份可直接贴到 issue 的 Markdown 摘要，同时保存完整 JSON 作为附件：
+
+```bash
+python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000"
+```
+
+如遇到 403（生产/严格模式或非内网访问），带上 Admin API Key：
+
+```bash
+python3 scripts/admin_metrics_snapshot.py \
+  --base-url "http://localhost:8000" \
+  --admin-api-key "$ADMIN_API_KEY"
+```
+
+输出文件默认写入 `docs/reports/`：
+
+- `docs/reports/admin-metrics-<timestamp>.json`
+- `docs/reports/admin-metrics-<timestamp>.md`
+
+## 2) 截图（用于快速沟通）
+
+打开 `Admin/Monitoring` 页面，至少截 1 张包含以下内容的截图：
+
+- Top Endpoints（Response P95/P99 + DB P95）
+- Database Performance（Query / Per-request DB percentiles + Slow queries）
+- Cache（hit rate、get() 延迟、namespaces/keys）
+
+## 3) Issue 里怎么写（建议结构）
+
+建议把导出的 Markdown 直接贴到 issue，并附上 JSON 文件与截图：
+
+1. **Symptom**：具体哪个页面/哪个操作慢，预期耗时 vs 实际耗时
+2. **Evidence**
+   - `admin-metrics-*.md`（粘贴）
+   - `admin-metrics-*.json`（附件）
+   - Monitoring 页面截图（附件）
+3. **Quick triage**
+   - Response P95 高但 DB P95 低：优先看 cache namespaces 的 `compute_*` / 热点 keys（可能是回源/计算/IO）
+   - DB P95 高：优先看 slow queries（fingerprint+route）定位具体 SQL 与触发端点
+
+## 参考
+
+- `frontend/backend/app/routers/admin.py:844`（`GET /api/v1/admin/metrics`）
+- `frontend/backend/app/middleware/admin_metrics.py:142`（in-memory 指标采集）
+- `frontend/backend/app/core/cache.py:820`（cache hit/miss、namespaces/keys、compute_* 统计）
+
