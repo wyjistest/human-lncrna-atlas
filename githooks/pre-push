@@ -25,7 +25,7 @@ cd "$repo_root"
 
 target="${LOCAL_CI_TARGET:-ci}"
 case "$target" in
-  smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|ci)
+  smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|ci|ci-plus|ci-full)
     ;;
   *)
     echo "[pre-push] Unknown LOCAL_CI_TARGET=${target}; defaulting to ci."
@@ -35,4 +35,3 @@ esac
 
 echo "[pre-push] Running local CI: bash scripts/run-tests.sh ${target}"
 bash "scripts/run-tests.sh" "$target"
-

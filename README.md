@@ -200,7 +200,7 @@ Optional (recommended when GitHub Actions CI is manual-only): install a local pr
 bash scripts/install_git_hooks.sh
 ```
 
-Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run a lighter gate, use `LOCAL_CI_TARGET=smoke git push`.
+Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run a lighter gate, use `LOCAL_CI_TARGET=smoke git push`. To include Playwright smoke, use `LOCAL_CI_TARGET=ci-plus git push` (or `ci-full` for the strictest gate).
 
 CI is currently **manual-only** (`workflow_dispatch`) to avoid noisy failures when GitHub-hosted runners are blocked by billing/spending limits.
 

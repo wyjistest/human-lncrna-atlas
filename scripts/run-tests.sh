@@ -497,6 +497,56 @@ main() {
             echo ""
             run_frontend_build || failed=1
             ;;
+        ci-plus)
+            # 在 ci 基础上追加 Playwright e2e-smoke（完全 mock，不依赖后端/DB）
+            # 适合在 GitHub Actions 暂停自动触发时，本地更完整地覆盖回归锚点。
+            run_backend_lint || failed=1
+            echo ""
+            run_backend_checks || failed=1
+            echo ""
+            run_etl_checks || failed=1
+            echo ""
+            run_scripts_smoke_tests || failed=1
+            echo ""
+            run_docs_checks || failed=1
+            echo ""
+            run_backend_unit_tests || failed=1
+            echo ""
+            run_frontend_unit_tests || failed=1
+            echo ""
+            run_frontend_lint || failed=1
+            echo ""
+            run_frontend_build || failed=1
+            echo ""
+            run_frontend_e2e_smoke_tests || failed=1
+            ;;
+        ci-full)
+            # 最严格本地门禁：ci-plus + 依赖安全审计（pip-audit + npm audit）
+            # 说明：security-audit 可能因环境/网络/依赖漏洞而失败；建议按需使用。
+            run_backend_lint || failed=1
+            echo ""
+            run_backend_checks || failed=1
+            echo ""
+            run_etl_checks || failed=1
+            echo ""
+            run_scripts_smoke_tests || failed=1
+            echo ""
+            run_docs_checks || failed=1
+            echo ""
+            run_backend_unit_tests || failed=1
+            echo ""
+            run_frontend_unit_tests || failed=1
+            echo ""
+            run_frontend_lint || failed=1
+            echo ""
+            run_frontend_build || failed=1
+            echo ""
+            run_frontend_e2e_smoke_tests || failed=1
+            echo ""
+            run_backend_security_audit || failed=1
+            echo ""
+            run_frontend_security_audit || failed=1
+            ;;
         all)
             # 完整测试: 需要后端和前端服务运行
             check_services || exit 1
@@ -525,6 +575,8 @@ main() {
             echo "  frontend-build - 运行前端构建 (Vite build)"
             echo "  e2e-smoke     - 运行 Playwright E2E smoke（完全 mocked，对齐 CI，无需后端/DB）"
             echo "  ci           - 对齐 GitHub Actions 的核心检查集合"
+            echo "  ci-plus      - ci + e2e-smoke（更接近原 GH Tests，仍无需后端/DB）"
+            echo "  ci-full      - ci-plus + security-audit（最严格门禁）"
             echo "  backend      - 运行后端 API 合同测试（需要服务运行）"
             echo "  e2e          - 运行前端 E2E 测试（需要服务运行）"
             echo "  all          - 运行所有测试（需要服务运行）"

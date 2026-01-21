@@ -49,5 +49,5 @@ echo ""
 echo "Tips:"
 echo "- Skip once: git push --no-verify"
 echo "- Skip via env: SKIP_LOCAL_CI=1 git push"
-echo "- Change target: LOCAL_CI_TARGET=smoke git push"
-
+echo "- Change target (light): LOCAL_CI_TARGET=smoke git push"
+echo "- Change target (with e2e-smoke): LOCAL_CI_TARGET=ci-plus git push"
