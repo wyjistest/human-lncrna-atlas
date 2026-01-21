@@ -157,6 +157,37 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    endpoints["chipseq_experiments_page_1_species_1_page_size_1"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/features/chipseq/experiments?" + urlencode({"page": 1, "page_size": 1, "species_id": 1}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["chipseq_regions_species_1_chr22_100000_100200_page_size_1"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/features/chipseq/regions/1?"
+            + urlencode(
+                {
+                    "chromosome": "chr22",
+                    "start": 100000,
+                    "end": 100200,
+                    "page": 1,
+                    "page_size": 1,
+                    "include_total": True,
+                }
+            ),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["igv_chipseq_marks_species_1"] = _http_get_json(
+        _join(base_url, "/api/v1/igv/chipseq/marks/1"),
+        timeout_seconds=timeout_seconds,
+    )
+
     # High-risk list endpoints (sorting/filtering/pagination): keep page_size small for speed.
     endpoints["lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc"] = _http_get_json(
         _join(

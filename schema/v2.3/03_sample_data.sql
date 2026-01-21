@@ -236,29 +236,33 @@ BEGIN
         RETURN;
     END IF;
 
-    INSERT INTO chipseq_experiments (
-        experiment_name,
-        species_id,
-        mark_type_id,
-        cell_type,
-        tissue_type,
-        source_database,
-        source_accession,
-        reference_genome,
-        is_active
-    )
-    VALUES (
-        'Sample H3K27ac (K562)',
-        1,
-        mark_id,
-        'K562',
-        'blood',
-        'sample',
-        'SAMPLE0001',
-        'GRCh38',
-        TRUE
-    )
-    RETURNING experiment_id INTO exp_id;
+	    INSERT INTO chipseq_experiments (
+	        experiment_name,
+	        species_id,
+	        mark_type_id,
+	        cell_type,
+	        tissue_type,
+	        source_database,
+	        source_accession,
+	        reference_genome,
+	        is_active,
+	        created_at,
+	        updated_at
+	    )
+	    VALUES (
+	        'Sample H3K27ac (K562)',
+	        1,
+	        mark_id,
+	        'K562',
+	        'blood',
+	        'sample',
+	        'SAMPLE0001',
+	        'GRCh38',
+	        TRUE,
+	        '1970-01-01T00:00:00Z'::timestamptz,
+	        '1970-01-01T00:00:00Z'::timestamptz
+	    )
+	    RETURNING experiment_id INTO exp_id;
 
     -- 该 peak 与上方 regulations 中 chr22:100000-100200 的 best_peak_* 重叠，确保 overlap 端点返回非空。
     INSERT INTO chipseq_peaks (

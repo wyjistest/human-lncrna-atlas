@@ -13,6 +13,12 @@
       "sha256": "29bfd06b0a4d77df9334406c3cc0e88145c6cb7a3a14c5f2857c8a246d413693",
       "status_code": 200
     },
+    "chipseq_experiments_page_1_species_1_page_size_1": {
+      "error": null,
+      "json": null,
+      "sha256": "e109ec822a6112d1d8758521245f85439109a088a1bf63ae1401265adf8b24e3",
+      "status_code": 200
+    },
     "chipseq_global_stats": {
       "error": null,
       "json": null,
@@ -31,6 +37,12 @@
       "sha256": "6e5f22e5081ea3b466d596d7b44b6d4fbec4d001fefe3ae8accea80a9c56848d",
       "status_code": 200
     },
+    "chipseq_regions_species_1_chr22_100000_100200_page_size_1": {
+      "error": null,
+      "json": null,
+      "sha256": "d833d498d45b957a3ca0824a18de35a091b2494e04972a5d4816ce8873e45548",
+      "status_code": 200
+    },
     "diseases_options": {
       "error": null,
       "json": null,
@@ -40,7 +52,7 @@
     "genes_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "5bcd69ce5a8a547ac3a8d0bd53db3db737a712ea9fe53dfd32f6172fade345af",
+      "sha256": "cbeef0857ec83429fb99f0abedee3d9f80330d20f0ae72c2ac62c1f33b2a302d",
       "status_code": 200
     },
     "genes_options_species_1_limit_5": {
@@ -59,6 +71,12 @@
       "error": null,
       "json": null,
       "sha256": "7fc14a8e8120d64b87de59df12a0be3c7ed2d449c996f50b48ea0b7b62c593ef",
+      "status_code": 200
+    },
+    "igv_chipseq_marks_species_1": {
+      "error": null,
+      "json": null,
+      "sha256": "84e03dc2941294202cf45aea618d0e9f2a4a7ffcb92a2084c84d93a3d790a2c7",
       "status_code": 200
     },
     "lncrna_chipseq_overlap_cursor_chr22_page_size_1_sort_peak_qvalue_asc": {
