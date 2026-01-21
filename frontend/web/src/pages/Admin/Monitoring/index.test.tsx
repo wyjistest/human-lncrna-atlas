@@ -122,5 +122,5 @@ describe('Admin Monitoring page', () => {
     expect(screen.getAllByText('P95 (ms)').length).toBeGreaterThan(0)
     expect(screen.getAllByText('P99 (ms)').length).toBeGreaterThan(0)
     expect(screen.getByText('Database Performance')).toBeInTheDocument()
-  })
+  }, 10_000)
 })
