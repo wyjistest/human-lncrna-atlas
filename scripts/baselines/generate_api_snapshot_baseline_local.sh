@@ -133,7 +133,7 @@ backend_pid="$!"
 
 echo "[baseline-local] waiting for backend health..."
 timeout_seconds=60
-while ! curl -fsS "$BASE_URL/health" >/dev/null 2>&1; do
+while ! curl -fsS --noproxy "*" "$BASE_URL/health" >/dev/null 2>&1; do
   if [ "$timeout_seconds" -le 0 ]; then
     echo "backend not ready: $BASE_URL/health" >&2
     exit 1

@@ -101,7 +101,16 @@ echo "[baseline] target: $OUT_FILE"
 compose up -d postgres redis
 
 echo "[baseline] waiting for postgres..."
-compose exec -T postgres pg_isready -U "$DB_USER" -d "$DB_NAME"
+timeout_seconds=60
+while ! compose exec -T postgres pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; do
+  if [ "$timeout_seconds" -le 0 ]; then
+    echo "postgres not ready" >&2
+    compose logs --no-color postgres || true
+    exit 1
+  fi
+  sleep 2
+  timeout_seconds=$((timeout_seconds - 2))
+done
 
 echo "[baseline] loading schema + sample data..."
 for f in \
@@ -117,7 +126,7 @@ compose up -d --build backend
 
 echo "[baseline] waiting for backend health..."
 timeout_seconds=60
-while ! curl -fsS "$BASE_URL/health" >/dev/null 2>&1; do
+while ! curl -fsS --noproxy "*" "$BASE_URL/health" >/dev/null 2>&1; do
   if [ "$timeout_seconds" -le 0 ]; then
     echo "backend not ready: $BASE_URL/health" >&2
     exit 1

@@ -136,6 +136,51 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    # High-risk list endpoints (sorting/filtering/pagination): keep page_size small for speed.
+    endpoints["lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/lncrna-chipseq-overlap?"
+            + urlencode(
+                {
+                    "chromosome": "chr22",
+                    "page": 1,
+                    "page_size": 1,
+                    "sort_by": "peak_qvalue",
+                    "sort_order": "asc",
+                    # Include records with missing qvalue on small sample datasets.
+                    "max_qvalue": 1.0,
+                }
+            ),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["lncrna_chipseq_overlap_cursor_chr22_page_size_1_sort_peak_qvalue_asc"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/lncrna-chipseq-overlap/cursor?"
+            + urlencode(
+                {
+                    "chromosome": "chr22",
+                    "page_size": 1,
+                    "sort_by": "peak_qvalue",
+                    "sort_order": "asc",
+                    "max_qvalue": 1.0,
+                }
+            ),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["lncrna_chipseq_overlap_statistics_chr22"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/lncrna-chipseq-overlap/statistics?" + urlencode({"chromosome": "chr22", "max_qvalue": 1.0}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
     # Summaries: keep snapshot stable even if response schema grows.
     def safe_len(value: Any) -> Optional[int]:
         try:

@@ -23,6 +23,40 @@ def _mock_api_server() -> Iterator[str]:
         "/api/v1/stats/top-genes": [{"gene_id": 1, "regulation_count": 10}],
         "/api/v1/stats/top-diseases": [{"trait_id": 1, "gene_count": 10}],
         "/api/v1/analysis/summary": {"high_affinity": {"total_regulations": 1}},
+        "/api/v1/lncrna-chipseq-overlap": {
+            "total": 0,
+            "page": 1,
+            "page_size": 1,
+            "total_pages": 0,
+            "items": [],
+            "default_filter_applied": False,
+            "effective_chromosome": "chr22",
+            "using_materialized_view": False,
+        },
+        "/api/v1/lncrna-chipseq-overlap/cursor": {
+            "total": 0,
+            "page_size": 1,
+            "items": [],
+            "next_cursor": None,
+            "has_more": False,
+            "default_filter_applied": False,
+            "effective_chromosome": "chr22",
+            "using_materialized_view": False,
+        },
+        "/api/v1/lncrna-chipseq-overlap/statistics": {
+            "total_overlaps": 0,
+            "unique_lncrnas": 0,
+            "unique_target_genes": 0,
+            "unique_marks": 0,
+            "unique_cell_types": 0,
+            "avg_overlap_length": 0.0,
+            "avg_binding_affinity": 0.0,
+            "avg_peak_strength": 0.0,
+            "by_mark_type": [],
+            "by_cell_type": [],
+            "default_filter_applied": False,
+            "effective_chromosome": "chr22",
+        },
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -91,6 +125,9 @@ def test_api_snapshot_check_baseline_matches(tmp_path: Path) -> None:
             "stats_top_genes_lncrna_limit_3",
             "stats_top_diseases_limit_3",
             "analysis_summary",
+            "lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc",
+            "lncrna_chipseq_overlap_cursor_chr22_page_size_1_sort_peak_qvalue_asc",
+            "lncrna_chipseq_overlap_statistics_chr22",
         }
         assert expected_keys.issubset(set(generated["endpoints"].keys()))
 

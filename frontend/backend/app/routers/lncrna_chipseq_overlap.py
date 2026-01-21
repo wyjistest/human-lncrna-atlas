@@ -69,6 +69,29 @@ from app.config.igv_genomes import SPECIES_NAMES
 
 logger = logging.getLogger(__name__)
 
+def _is_chipseq_overlap_schema_missing_error(exc: Exception) -> bool:
+    """
+    Detect "schema/data not installed" errors for the overlap feature.
+
+    In the minimal sample DB (schema/v2.3), ChIP-seq peak tables like
+    `chipseq_peaks_human` may be absent. In that case, overlap endpoints should
+    degrade gracefully (return empty results) instead of 500.
+    """
+    orig = getattr(exc, "orig", None)
+    pgcode = getattr(orig, "pgcode", None)
+    message = str(orig or exc or "")
+    lowered = message.lower()
+
+    # PostgreSQL: undefined table
+    if pgcode == "42P01":
+        return "chipseq_" in lowered or "epigenetic_mark_types" in lowered or MV_LNCRNA_CHIPSEQ_OVERLAPS in lowered
+
+    # SQLite fallback (dev/demo)
+    if "no such table" in lowered and "chipseq" in lowered:
+        return True
+
+    return False
+
 
 # =============================================================================
 # Export Constants
@@ -580,6 +603,12 @@ def _compute_overlap_statistics_impl(
         ).model_dump(mode="json")
 
     except Exception as e:
+        if _is_chipseq_overlap_schema_missing_error(e):
+            logger.warning(
+                "ChIP-seq overlap tables are missing; returning empty overlap list (join query): %s",
+                sanitize_for_log(e, max_length=2000),
+            )
+            return [], 0
         raise sanitize_db_error(e, logger)
 
 
@@ -1197,6 +1226,12 @@ def get_lncrna_chipseq_overlaps_query(
         return items, total
 
     except Exception as e:
+        if _is_chipseq_overlap_schema_missing_error(e):
+            logger.warning(
+                "ChIP-seq overlap tables are missing; returning empty overlap list page (join query): %s",
+                sanitize_for_log(e, max_length=2000),
+            )
+            return [], 0
         raise sanitize_db_error(e, logger)
 
 
@@ -1451,6 +1486,12 @@ def get_lncrna_chipseq_overlaps_cursor_query(
         return items, total
 
     except Exception as e:
+        if _is_chipseq_overlap_schema_missing_error(e):
+            logger.warning(
+                "ChIP-seq overlap tables are missing; returning empty overlap cursor page (join query): %s",
+                sanitize_for_log(e, max_length=2000),
+            )
+            return [], 0
         raise sanitize_db_error(e, logger)
 
 
@@ -2064,6 +2105,25 @@ def get_overlap_statistics(
         )
 
     except Exception as e:
+        if _is_chipseq_overlap_schema_missing_error(e):
+            logger.warning(
+                "ChIP-seq overlap tables are missing; returning empty overlap statistics: %s",
+                sanitize_for_log(e, max_length=2000),
+            )
+            return OverlapStatistics(
+                total_overlaps=0,
+                unique_lncrnas=0,
+                unique_target_genes=0,
+                unique_cell_types=0,
+                unique_marks=0,
+                avg_overlap_length=0.0,
+                avg_binding_affinity=0.0,
+                avg_peak_strength=0.0,
+                by_mark_type=[],
+                by_cell_type=[],
+                default_filter_applied=default_filter_applied,
+                effective_chromosome=effective_chromosome,
+            )
         raise sanitize_db_error(e, logger)
 
 
