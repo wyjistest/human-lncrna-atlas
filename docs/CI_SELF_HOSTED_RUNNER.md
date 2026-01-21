@@ -66,7 +66,7 @@ npx playwright install-deps chromium
 
 ### 5) 如何验证是否生效
 
-1. 推送一次提交到 `main`（或在 GitHub UI 手动触发 workflow）
+1. 在 GitHub UI 手动触发 workflow（当前仓库 CI 默认为 `workflow_dispatch` 手动触发）
 2. 用 `gh` 查看运行状态：
 
 ```bash
@@ -84,4 +84,3 @@ gh run list --branch main --limit 5
 ```bash
 bash scripts/run-tests.sh ci
 ```
-

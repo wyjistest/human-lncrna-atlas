@@ -1,10 +1,8 @@
 name: Tests
 
 on:
-  push:
-    branches: [main, master, develop]
-  pull_request:
-    branches: [main, master, develop]
+  # CI 暂停自动触发：GitHub-hosted runner 受账单/额度限制时会导致大量噪音失败。
+  # 如需恢复 push/PR 自动 CI，请在此处重新加入 push/pull_request 触发器。
   workflow_dispatch:
 
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)

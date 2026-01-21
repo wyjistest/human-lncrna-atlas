@@ -194,7 +194,9 @@ python3 -m py_compile main.py
 find app -name "*.py" -exec python3 -m py_compile {} \;
 ```
 
-After pushing:
+CI is currently **manual-only** (`workflow_dispatch`) to avoid noisy failures when GitHub-hosted runners are blocked by billing/spending limits.
+
+If you trigger a workflow run manually, you can check the latest run with:
 
 ```bash
 gh run list --limit 1

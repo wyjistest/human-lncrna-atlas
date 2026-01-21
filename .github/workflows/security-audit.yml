@@ -3,7 +3,7 @@
 # Phase 9.20 - Codex Review Enhancement
 # ============================================================================
 # 运行依赖安全审计 (pip-audit + npm audit)
-# 触发条件: PR 到 main 分支、每周定时运行
+# 触发条件: 手动触发（workflow_dispatch）
 #
 # 安全说明: 此工作流不使用任何用户可控输入 (issue title, PR body 等)
 # 所有变量均为 GitHub Actions 内部状态
@@ -11,13 +11,8 @@
 name: Security Audit
 
 on:
-  pull_request:
-    branches: [main, master]
-  push:
-    branches: [main, master]
-  schedule:
-    # 每周一 UTC 02:00 (北京时间 10:00)
-    - cron: '0 2 * * 1'
+  # CI 暂停自动触发：GitHub-hosted runner 受账单/额度限制时会导致大量噪音失败。
+  # 如需恢复 push/PR/schedule 自动触发，请在此处重新加入触发器。
   workflow_dispatch:  # 允许手动触发
 
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
