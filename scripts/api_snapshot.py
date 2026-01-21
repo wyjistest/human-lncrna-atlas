@@ -102,6 +102,15 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    endpoints["genes_options_species_1_limit_5"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/genes/options?"
+            + urlencode({"species_id": 1, "gene_type": "lncRNA", "limit": 5}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
     endpoints["regulations_page_1"] = _http_get_json(
         _join(base_url, "/api/v1/regulations?" + urlencode({"page": 1, "page_size": 1, "species_id": 1})),
         timeout_seconds=timeout_seconds,
@@ -112,6 +121,21 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    endpoints["stats_top_genes_lncrna_limit_3"] = _http_get_json(
+        _join(base_url, "/api/v1/stats/top-genes?" + urlencode({"limit": 3, "gene_type": "lncRNA"})),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["stats_top_diseases_limit_3"] = _http_get_json(
+        _join(base_url, "/api/v1/stats/top-diseases?" + urlencode({"limit": 3})),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["analysis_summary"] = _http_get_json(
+        _join(base_url, "/api/v1/analysis/summary"),
+        timeout_seconds=timeout_seconds,
+    )
+
     # Summaries: keep snapshot stable even if response schema grows.
     def safe_len(value: Any) -> Optional[int]:
         try:
@@ -119,13 +143,51 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         except Exception:
             return None
 
+    def get_first_id(items: Any, *, keys: tuple[str, ...]) -> Optional[int]:
+        if not isinstance(items, list):
+            return None
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            for key in keys:
+                value = item.get(key)
+                if isinstance(value, int):
+                    return value
+                if isinstance(value, str) and value.isdigit():
+                    return int(value)
+        return None
+
+    genes_first_id = None
     summaries: dict[str, Any] = {}
     if endpoints["genes_page_1"].json:
         summaries["genes_total"] = endpoints["genes_page_1"].json.get("total")
         summaries["genes_items_len"] = safe_len(endpoints["genes_page_1"].json.get("items"))
+        genes_first_id = get_first_id(
+            endpoints["genes_page_1"].json.get("items"),
+            keys=("gene_id", "id"),
+        )
+
+    if genes_first_id is not None:
+        endpoints["genes_detail_first"] = _http_get_json(
+            _join(base_url, f"/api/v1/genes/{genes_first_id}"),
+            timeout_seconds=timeout_seconds,
+        )
+
+    regulations_first_id = None
     if endpoints["regulations_page_1"].json:
         summaries["regulations_total"] = endpoints["regulations_page_1"].json.get("total")
         summaries["regulations_items_len"] = safe_len(endpoints["regulations_page_1"].json.get("items"))
+        regulations_first_id = get_first_id(
+            endpoints["regulations_page_1"].json.get("items"),
+            keys=("regulation_id", "id"),
+        )
+
+    if regulations_first_id is not None:
+        endpoints["regulation_detail_first"] = _http_get_json(
+            _join(base_url, f"/api/v1/regulations/{regulations_first_id}"),
+            timeout_seconds=timeout_seconds,
+        )
+
     if endpoints["diseases_options"].json:
         summaries["traits_len"] = safe_len(endpoints["diseases_options"].json.get("traits"))
 

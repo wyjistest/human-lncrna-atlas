@@ -15,8 +15,14 @@ def _mock_api_server() -> Iterator[str]:
         "/health": {"status": "ok"},
         "/api/v1/stats/overview": {"ok": True, "version": 1},
         "/api/v1/genes": {"total": 5, "items": [{"id": 1, "symbol": "GENE1"}]},
+        "/api/v1/genes/options": {"genes": [{"gene_id": 1, "gene_name": "GENE1"}]},
+        "/api/v1/genes/1": {"gene_id": 1, "gene_name": "GENE1", "orthologs": []},
         "/api/v1/regulations": {"total": 6, "items": [{"id": 1, "lncrna": "LNC1"}]},
+        "/api/v1/regulations/1": {"regulation_id": 1, "lncrna_gene_id": 1, "target_gene_id": 2},
         "/api/v1/diseases/options": {"traits": ["T1", "T2", "T3", "T4", "T5"]},
+        "/api/v1/stats/top-genes": [{"gene_id": 1, "regulation_count": 10}],
+        "/api/v1/stats/top-diseases": [{"trait_id": 1, "gene_count": 10}],
+        "/api/v1/analysis/summary": {"high_affinity": {"total_regulations": 1}},
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -72,6 +78,21 @@ def test_api_snapshot_check_baseline_matches(tmp_path: Path) -> None:
             cwd=repo_root,
         )
         assert gen.returncode == 0, gen.stderr
+        generated = json.loads(baseline.read_text(encoding="utf-8"))
+        expected_keys = {
+            "health",
+            "stats_overview",
+            "genes_page_1",
+            "genes_options_species_1_limit_5",
+            "genes_detail_first",
+            "regulations_page_1",
+            "regulation_detail_first",
+            "diseases_options",
+            "stats_top_genes_lncrna_limit_3",
+            "stats_top_diseases_limit_3",
+            "analysis_summary",
+        }
+        assert expected_keys.issubset(set(generated["endpoints"].keys()))
 
         check = _run(
             [
@@ -159,4 +180,3 @@ def test_verify_baselines_api_snapshot_running_mode(tmp_path: Path) -> None:
             cwd=repo_root,
         )
         assert verify.returncode == 0, verify.stderr
-
