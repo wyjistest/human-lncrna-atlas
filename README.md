@@ -200,6 +200,12 @@ After pushing:
 gh run list --limit 1
 ```
 
+If a workflow fails to start with an annotation like:
+
+> The job was not started because recent account payments have failed or your spending limit needs to be increased
+
+then GitHub Actions is blocked by billing/spending limits. Fix it in GitHub **Settings → Billing & plans**, or run the same checks locally via `./scripts/run-tests.sh ci` (and optionally `./scripts/run-tests.sh e2e-smoke`).
+
 ## Database
 
 ### Species Data Distribution
