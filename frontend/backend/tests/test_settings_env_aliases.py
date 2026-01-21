@@ -21,3 +21,7 @@ def test_settings_env_aliases(monkeypatch):
     assert settings.DATABASE_PASSWORD.get_secret_value() == "test_password"
     assert settings.DATABASE_NAME == "test_db"
     assert settings.DB_POOL_PRE_PING is False
+
+    # IMPORTANT: settings.database_url 必须包含真实密码（用于 SQLAlchemy 连接），不能是 str(URL) 默认的 "***" 掩码。
+    assert "***" not in settings.database_url
+    assert "test_password" in settings.database_url

@@ -15,6 +15,7 @@ COPY requirements.txt constraints.txt ./
 RUN pip install -r requirements.txt -c constraints.txt
 
 COPY . .
+RUN chown -R app:app /app
 
 USER app
 

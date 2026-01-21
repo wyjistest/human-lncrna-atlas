@@ -544,7 +544,9 @@ class Settings(BaseSettings):
             port=self.DATABASE_PORT,
             database=self.DATABASE_NAME,
         )
-        return str(url_obj)
+        # NOTE: str(URL) 会默认隐藏密码为 "***"，会导致真实连接失败；
+        # 这里必须显式关闭 hide_password。
+        return url_obj.render_as_string(hide_password=False)
 
     @property
     def safe_database_url(self) -> str:

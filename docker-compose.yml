@@ -42,6 +42,9 @@ services:
     ports:
       - "8000:8000"
     networks:
+      # Attach to a non-internal network so host port publishing works.
+      # Keep Postgres/Redis on the internal-only network for defense-in-depth.
+      - public
       - backend
     environment:
       ENV: ${ENV:-production}
@@ -85,6 +88,7 @@ services:
 networks:
   backend:
     internal: true
+  public:
 
 volumes:
   postgres_data:
