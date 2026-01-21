@@ -24,6 +24,8 @@ bash frontend/backend/scripts/db_migrate.sh list
 bash frontend/backend/scripts/db_migrate.sh verify
 ```
 
+该命令仅校验迁移文件的命名与 up/down 成对关系，不连接数据库（无需 `psql`）。
+
 ### 2.3 查看审计记录（最近 50 条）
 
 ```bash

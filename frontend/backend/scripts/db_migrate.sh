@@ -63,8 +63,10 @@ Optional:
 USAGE
 }
 
-require_cmd "psql"
-require_cmd "python3"
+ensure_db_deps() {
+  require_cmd "psql"
+  require_cmd "python3"
+}
 
 psql_args=(-v "ON_ERROR_STOP=1")
 
@@ -254,12 +256,14 @@ case "$cmd" in
     verify_migrations
     ;;
   status)
+    ensure_db_deps
     ensure_audit_table
     echo "[db-migrate] latest migration events (top 50):"
     run_psql -P pager=off -c \
       "SELECT event_id, migration_name, direction, applied_at, applied_by, applied_from, git_sha, checksum FROM schema_migration_events ORDER BY applied_at DESC, event_id DESC LIMIT 50;"
     ;;
   up|down)
+    ensure_db_deps
     migration_name="${2:-}"
     if [ -z "$migration_name" ]; then
       usage >&2
@@ -299,6 +303,7 @@ case "$cmd" in
     echo "[db-migrate] recorded event: $migration_name ($cmd)"
     ;;
   up-all)
+    ensure_db_deps
     if [ ! -d "$MIGRATIONS_DIR" ]; then
       echo "missing migrations dir: $MIGRATIONS_DIR" >&2
       exit 1
