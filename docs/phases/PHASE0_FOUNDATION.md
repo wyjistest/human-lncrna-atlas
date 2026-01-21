@@ -376,7 +376,7 @@ export const handlers = [
   http.get('/api/v1/stats/detailed', () => {
     console.log('📊 [MSW] GET /api/v1/stats/detailed')
 
-    // ⚠️ TODO: Phase 1C 时导入 mockDetailedStats
+    // ✅ 已废弃：Stats API 已实现，不再需要 mockDetailedStats（见 src/mocks/handlers.ts）
     return HttpResponse.json<DetailedStatsResponse>({
       summary: {
         total_genes: 0,
@@ -398,8 +398,8 @@ export const handlers = [
     console.log('📊 [MSW] GET /api/v1/stats/ba-range')
 
     return HttpResponse.json({
-      min: 0,
-      max: 100  // ⚠️ 临时值，待后端实现后调整
+      min: 50,
+      max: 756  // 历史示例：当前后端会返回真实范围（约 50-756）
     })
   })
 ]

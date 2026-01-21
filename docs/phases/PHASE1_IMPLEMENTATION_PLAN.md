@@ -1522,28 +1522,30 @@ npm run type-check
 
 ### 8.3 Mock 配置（30min）
 
-- [ ] `src/mocks/data/stats.mock.ts`
-  - [ ] 完整的 `mockDetailedStats` 数据
-  - [ ] 符合 `DetailedStatsResponse` 类型
+> 更新（2026-01）：Stats/Regulations 等核心 API 已实现，MSW 仅保留空框架；`stats.mock.ts` 与 `handlers.ts` 目前均为占位（`export {}` / 空数组），以下清单属于历史计划，不再需要执行。
 
-- [ ] `src/mocks/handlers.ts`
-  - [ ] `GET /api/v1/stats/detailed` handler
-  - [ ] `GET /api/v1/regulations/export` handler
-  - [ ] 使用类型安全的 `HttpResponse<T>`
+- [x] `src/mocks/data/stats.mock.ts`（已废弃：Stats API 已实现，Mock 已移除）
+  - [x] （不再需要）`mockDetailedStats` 数据
+  - [x] （不再需要）用于 `DetailedStatsResponse` 的类型对齐
 
-- [ ] `src/mocks/browser.ts`
-  - [ ] `setupWorker` 配置
+- [x] `src/mocks/handlers.ts`（已废弃：当前 handlers 为空数组）
+  - [x] （不再需要）`GET /api/v1/stats/detailed` handler
+  - [x] （不再需要）`GET /api/v1/regulations/export` handler
+  - [x] （不再需要）`HttpResponse<T>` 类型约束
 
-- [ ] `src/mocks/server.ts`
-  - [ ] `setupServer` 配置
+- [x] `src/mocks/browser.ts`（保留：未来可能新 API 需要 Mock）
+  - [x] `setupWorker` 配置
 
-- [ ] `src/main.tsx`
-  - [ ] `enableMocking()` 函数
-  - [ ] 双重检查（环境变量 + 构建模式）
-  - [ ] `onUnhandledRequest: 'warn'`
+- [x] `src/mocks/server.ts`（保留：测试环境可按需启用）
+  - [x] `setupServer` 配置
 
-- [ ] `src/setupTests.ts`
-  - [ ] `beforeAll`、`afterEach`、`afterAll` 配置
+- [x] `src/main.tsx`（按需：仅在未来需要 MSW 时再启用）
+  - [x] `enableMocking()`（可选）
+  - [x] 双重检查（环境变量 + 构建模式）
+  - [x] `onUnhandledRequest: 'warn'`
+
+- [x] `src/setupTests.ts`（保留：单测层仍可用）
+  - [x] `beforeAll`、`afterEach`、`afterAll` 配置
 
 **验证**：
 ```bash

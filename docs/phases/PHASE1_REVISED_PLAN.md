@@ -735,13 +735,13 @@ export * from './api-extensions'
 
 **文件**: `src/config/constants.ts`
 ```typescript
-// BA 范围配置（临时方案，Phase 2 改为动态获取）
+// BA 范围配置（静态回退；优先从 /api/v1/stats/ba-range 动态获取）
 export const BA_CONFIG = {
-  MIN: 0,
-  MAX: 100,  // ⚠️ TODO: 查询实际数据范围
-  STEP: 0.1,
-  DEFAULT_MIN: 0,
-  DEFAULT_MAX: 100,
+  MIN: 50,
+  MAX: 756,  // 实际数据 max 约 755.99（四舍五入取整）
+  STEP: 1,
+  DEFAULT_MIN: undefined,
+  DEFAULT_MAX: undefined,
   HISTOGRAM_BUCKETS: 10  // 直方图区间数量
 }
 
@@ -776,7 +776,9 @@ npm run type-check  # 应该无错误
 
 #### 1. Mock 数据
 
-**文件**: `src/mocks/data/stats.mock.ts`（使用原方案中的 mockDetailedStats，但调整 BA 分布）
+> 更新（2026-01）：Stats API 已实现真实后端，MSW Mock 已移除；仓库中 `src/mocks/*` 目前仅保留空框架与占位文件（见 `frontend/web/src/mocks/handlers.ts`、`frontend/web/src/mocks/data/stats.mock.ts`）。以下内容为历史示例，供参考。
+
+**文件**: `src/mocks/data/stats.mock.ts`（历史示例：原方案 mockDetailedStats）
 
 ```typescript
 import type { DetailedStatsResponse } from '@/types'

@@ -4,17 +4,17 @@
 
 ### 前提条件
 - 后端服务已启动（端口 8000）
-- 前端开发服务器已启动（端口 5173 或 5174）
+- 前端开发服务器已启动（默认端口 5173；若被占用，Vite 可能自动使用 5174）
 
 ### 访问页面
 
 #### 方法 1: 通过导航菜单
-1. 访问首页: http://localhost:5174
+1. 访问首页: http://localhost:5173
 2. 在左侧导航菜单中找到 "lncRNA-ChIP-seq 重叠" （或 "lncRNA-ChIP-seq Overlap"）
 3. 点击菜单项进入页面
 
 #### 方法 2: 直接访问
-直接在浏览器中打开: http://localhost:5174/lncrna-chipseq-overlap
+直接在浏览器中打开: http://localhost:5173/lncrna-chipseq-overlap
 
 ### 功能测试清单
 
@@ -82,9 +82,9 @@
 
 ### 已知问题
 
-1. **后端 API 未实现**: 当前使用 Mock 数据，真实 API 端点 `/api/v1/chipseq/lncrna-chipseq-overlap` 返回 404
-2. **导出功能**: 前端按钮已实现，但导出逻辑需要后端支持
-3. **数据量**: Mock 数据有限，实际数据量可能更大
+1. **后端 API 已实现**：主查询端点为 `/api/v1/lncrna-chipseq-overlap`（更多端点见 `frontend/backend/app/routers/lncrna_chipseq_overlap.py`）
+2. **样例库可能无 overlap 数据**：若样例数据库缺少 ChIP-seq peaks/overlap 相关表，页面可能显示空结果（这是预期的“优雅降级”）
+3. **导出与大数据量**：导出已支持 CSV/BED；真实数据量较大时建议先收窄筛选条件并设置合理的 `max_rows`
 
 ### 截图建议
 
@@ -117,7 +117,7 @@ tail -f /tmp/backend.log
 
 # 检查服务状态
 curl http://localhost:8000/health
-curl http://localhost:5174
+curl http://localhost:5173
 ```
 
 ---

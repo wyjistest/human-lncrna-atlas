@@ -12,6 +12,16 @@ Successfully implemented the complete frontend UI for lncRNA-ChIP-seq overlap an
 
 ---
 
+## 2026-01 Status Update
+
+本文档最初用于记录 2025-12 的“前端交付”状态；截至 2026-01：
+
+- ✅ 后端 overlap API 已实现：`frontend/backend/app/routers/lncrna_chipseq_overlap.py`
+- ✅ 端点已包含 list + cursor + statistics + export + heatmap + compare（以 OpenAPI 为准）
+- ✅ 已补齐回归锚点与测试（后端 pytest + 前端 vitest + 完全 mocked 的 Playwright smoke）
+
+---
+
 ## Deliverables
 
 ### 1. TypeScript Type Definitions ✅
@@ -50,9 +60,9 @@ Successfully implemented the complete frontend UI for lncRNA-ChIP-seq overlap an
 - `overlapQueryKeys.overlaps(filters)`
 - `overlapQueryKeys.summary(filters)`
 
-**Backend Endpoints** (to be implemented):
+**Backend Endpoints** (已实现，见 `frontend/backend/app/routers/lncrna_chipseq_overlap.py`):
 - `GET /api/v1/lncrna-chipseq-overlap`
-- `GET /api/v1/lncrna-chipseq-overlap/summary`
+- `GET /api/v1/lncrna-chipseq-overlap/statistics`（推荐；`/summary` 为兼容别名）
 - `GET /api/v1/lncrna-chipseq-overlap/export`
 
 ---
@@ -316,32 +326,26 @@ import { LncRNAChIPSeqOverlapTable } from '@/components/LncRNAChIPSeqOverlapTabl
 
 ## Testing Checklist
 
-### Unit Tests (TODO)
-- [ ] OverlapFilters type validation
-- [ ] API client query generation
-- [ ] Hook data transformation
-- [ ] Component rendering (snapshots)
+### Unit Tests ✅
 
-### Integration Tests (TODO)
-- [ ] Filter changes trigger queries
-- [ ] Pagination works correctly
-- [ ] Sorting updates data
-- [ ] Export downloads file
+- 前端 Vitest：`frontend/web/src/components/LncRNAChIPSeqOverlapTable/__tests__/`
+- 后端 Pytest：`frontend/backend/tests/test_overlap_*.py`、`frontend/backend/tests/test_phase_3_1_regression.py`
 
-### E2E Tests (TODO)
-- [ ] Full user flow (filter -> browse -> export)
-- [ ] Error states render correctly
-- [ ] Loading states work
-- [ ] Empty states helpful
+### Integration / Regression Anchors ✅
+
+- API snapshot baseline：覆盖 overlap list/cursor/statistics/export 的 schema/排序/字段漂移回归锚点（见 `docs/baselines/` 与 `tests/`）
+
+### E2E Tests ✅
+
+- Playwright mocked smoke：`frontend/web/e2e/*overlap*`（本地可用 `bash scripts/run-tests.sh ci-plus` 复现）
 
 ---
 
 ## Known Limitations
 
-1. **Backend Not Implemented**: All API endpoints return 404 until backend is ready
-2. **Phase 2 Features Stubbed**: Export and summary require additional backend work
-3. **No Real Data**: Component will show "No overlaps found" until data is loaded
-4. **Translation Keys**: Some i18n keys may need to be added to translation files
+1. **样例库可能无 overlap 数据**：若样例数据库缺少 ChIP-seq peaks/overlap 相关表，页面可能显示空结果（这是预期的“优雅降级”）
+2. **导出与大数据量**：真实数据量较大时建议先收窄筛选条件并设置合理的 `max_rows`
+3. **历史文档提示**：本文档保留了当时“前端交付”的清单结构，个别段落可能与当前实现存在时代差异；以 `docs/CURRENT_STATUS.md` 为准
 
 ---
 
@@ -399,4 +403,3 @@ The frontend UI for lncRNA-ChIP-seq overlap analysis is **complete and ready for
 **Status**: ✅ **Phase 1 Frontend - Complete**
 
 **Next**: Backend agent to implement API endpoints and data pipeline.
-

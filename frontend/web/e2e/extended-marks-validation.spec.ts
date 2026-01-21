@@ -19,7 +19,7 @@ import { test, expect, type Page } from '@playwright/test'
 
 // Known gene ID for testing
 const TEST_GENE_ID = 17276
-const BASE_URL = 'http://localhost:5173'
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 // ============================================================================
 // Mark Constants - All 16 Extended Marks
