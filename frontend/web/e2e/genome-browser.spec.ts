@@ -22,7 +22,6 @@ import { test, expect, type Page } from '@playwright/test'
  * - species: Species ID (1-4)
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/genome-browser'
 
 // Helper to wait for IGV to initialize
@@ -39,7 +38,7 @@ async function waitForIGVInit(page: Page, timeout = 30000) {
 
 test.describe('Genome Browser - Page Loading', () => {
   test('Page loads successfully', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     // URL should be correct
@@ -51,7 +50,7 @@ test.describe('Genome Browser - Page Loading', () => {
   })
 
   test('Page title is displayed', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     const title = page.locator('h1, h2').first()
@@ -62,7 +61,7 @@ test.describe('Genome Browser - Page Loading', () => {
   })
 
   test('IGV container initializes', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     // Wait for IGV container
@@ -87,7 +86,7 @@ test.describe('Genome Browser - Page Loading', () => {
   })
 
   test('Loading state is shown while IGV initializes', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Check for loading indicator during initialization
     const loadingIndicator = page.locator('.ant-spin, [class*="loading"], .ant-skeleton').first()
@@ -106,7 +105,7 @@ test.describe('Genome Browser - Page Loading', () => {
 
 test.describe('Genome Browser - Species Selection', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })
@@ -192,7 +191,7 @@ test.describe('Genome Browser - Species Selection', () => {
 
 test.describe('Genome Browser - Gene Search', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })
@@ -272,7 +271,7 @@ test.describe('Genome Browser - Gene Search', () => {
 
 test.describe('Genome Browser - URL Parameters', () => {
   test('Gene parameter navigates to gene locus', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?gene=MALAT1`)
+    await page.goto(`${PAGE_URL}?gene=MALAT1`)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
@@ -287,7 +286,7 @@ test.describe('Genome Browser - URL Parameters', () => {
   })
 
   test('Locus parameter navigates to coordinates', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?locus=chr1:1000000-2000000`)
+    await page.goto(`${PAGE_URL}?locus=chr1:1000000-2000000`)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
@@ -300,7 +299,7 @@ test.describe('Genome Browser - URL Parameters', () => {
 
   test('Species parameter sets correct genome', async ({ page }) => {
     // Species ID 2 is typically Mouse
-    await page.goto(`${BASE_URL}${PAGE_URL}?species=2`)
+    await page.goto(`${PAGE_URL}?species=2`)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
@@ -312,7 +311,7 @@ test.describe('Genome Browser - URL Parameters', () => {
   })
 
 	  test('Combined parameters work together', async ({ page }) => {
-	    await page.goto(`${BASE_URL}${PAGE_URL}?species=1&gene=MALAT1`)
+	    await page.goto(`${PAGE_URL}?species=1&gene=MALAT1`)
 	    await page.waitForLoadState('domcontentloaded')
 	    await page.waitForTimeout(3000)
 
@@ -334,7 +333,7 @@ test.describe('Genome Browser - URL Parameters', () => {
 
 test.describe('Genome Browser - Tracks', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000) // IGV needs time to fully initialize
   })
@@ -412,7 +411,7 @@ test.describe('Genome Browser - Epigenomic Tracks', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     const trackControlsHeader = page.locator('.ant-collapse-header').filter({ hasText: /Track Controls|轨道控制/i }).first()
@@ -513,7 +512,7 @@ test.describe('Genome Browser - Epigenomic Tracks', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     const trackControlsHeader = page.locator('.ant-collapse-header').filter({ hasText: /Track Controls|轨道控制/i }).first()
@@ -592,7 +591,7 @@ test.describe('Genome Browser - Epigenomic Tracks', () => {
 
 test.describe('Genome Browser - Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000)
   })
@@ -647,7 +646,7 @@ test.describe('Genome Browser - Navigation', () => {
 
 test.describe('Genome Browser - Error Handling', () => {
   test('Handles invalid locus gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?locus=invalid_locus`)
+    await page.goto(`${PAGE_URL}?locus=invalid_locus`)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
 
@@ -671,7 +670,7 @@ test.describe('Genome Browser - Error Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(3000)
 
     // Should show error state
@@ -689,7 +688,7 @@ test.describe('Genome Browser - Error Handling', () => {
     await page.route('**/igv*.js', (route) => route.abort())
     await page.route('**/igv*.css', (route) => route.abort())
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(5000)
 
     // Should show error or fallback message
@@ -710,7 +709,7 @@ test.describe('Genome Browser - Error Handling', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000)
 
@@ -734,7 +733,7 @@ test.describe('Genome Browser - Performance', () => {
   test('Page loads within acceptable time', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     const loadTime = Date.now() - startTime
@@ -744,7 +743,7 @@ test.describe('Genome Browser - Performance', () => {
   })
 
   test('IGV initializes within acceptable time', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     const startTime = Date.now()
     const igvContainer = page.locator('[class*="igv"], [class*="genome"]').first()
@@ -757,7 +756,7 @@ test.describe('Genome Browser - Performance', () => {
   })
 
   test('Navigation response is acceptable', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(5000)
 
@@ -787,7 +786,7 @@ test.describe('Genome Browser - Performance', () => {
 test.describe('Genome Browser - Responsive', () => {
   test('Desktop view works correctly', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     const mainContent = page.locator('[class*="igv"], [class*="genome"], .ant-card').first()
@@ -796,7 +795,7 @@ test.describe('Genome Browser - Responsive', () => {
 
   test('Tablet view is usable', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     const mainContent = page.locator('[class*="igv"], [class*="genome"], .ant-card, h1, h2').first()
@@ -805,7 +804,7 @@ test.describe('Genome Browser - Responsive', () => {
 
   test('Mobile view shows appropriate message or adapts', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     // IGV may not work well on mobile - should show message or adapted view
@@ -826,7 +825,7 @@ test.describe('Genome Browser - Responsive', () => {
 
 test.describe('Genome Browser - Accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(3000)
   })

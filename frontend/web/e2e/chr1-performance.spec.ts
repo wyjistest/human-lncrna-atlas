@@ -25,7 +25,6 @@ import { test, expect, type Page } from '@playwright/test'
  * - API returns: using_materialized_view, default_filter_applied, effective_chromosome
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
 
@@ -189,7 +188,7 @@ test.describe('Chr1 Large Chromosome Query Performance (P0)', () => {
   test.setTimeout(120000) // 2-minute timeout for large queries
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000) // Allow initial render
   })
@@ -336,7 +335,7 @@ test.describe('Overlap Query Functionality (P1)', () => {
   test.setTimeout(90000)
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })
@@ -489,7 +488,7 @@ test.describe('Regression Tests (P2)', () => {
   test.setTimeout(60000)
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     await page.waitForTimeout(2000)
   })

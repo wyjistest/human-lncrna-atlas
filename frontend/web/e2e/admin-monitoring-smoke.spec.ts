@@ -8,7 +8,6 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/admin/monitoring'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 function buildMockMetricsResponse() {
   return {
@@ -110,7 +109,7 @@ test.describe('Admin Monitoring - mocked smoke', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     await expect(page.getByRole('heading', { name: 'System Monitoring' })).toBeVisible({ timeout: 15000 })

@@ -19,7 +19,6 @@ import { test, expect, type Page } from '@playwright/test'
 
 // Known gene ID for testing
 const TEST_GENE_ID = 17276
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 // ============================================================================
 // Mark Constants - All 16 Extended Marks
@@ -63,7 +62,7 @@ const CELL_TYPES = ['K562', 'GM12878', 'HepG2', 'H1-hESC']
  * Navigate to gene detail page and open ChIP-seq tab
  */
 async function navigateToChIPSeqTab(page: Page): Promise<boolean> {
-  await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+  await page.goto(`/genes/${TEST_GENE_ID}`)
   await page.waitForLoadState('networkidle')
 
   // Navigate to Genomic Features tab

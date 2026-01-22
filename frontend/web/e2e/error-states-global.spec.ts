@@ -19,7 +19,6 @@ import { test, expect, type Page } from '@playwright/test'
  * Error states render correctly, Loading states work, Empty states helpful"
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 // Pages to test
 const TEST_PAGES = [
@@ -47,7 +46,7 @@ test.describe('Error Boundary Testing', () => {
       })
     })
 
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     // Page should still be functional
@@ -63,12 +62,12 @@ test.describe('Error Boundary Testing', () => {
       jsErrors.push(error.message)
     })
 
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     // Try navigating to different pages
     for (const testPage of TEST_PAGES.slice(0, 2)) {
-      await page.goto(`${BASE_URL}${testPage.path}`)
+      await page.goto(testPage.path)
       await page.waitForLoadState('networkidle')
     }
 
@@ -97,7 +96,7 @@ test.describe('HTTP Error Status Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     // Should show error
@@ -119,7 +118,7 @@ test.describe('HTTP Error Status Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     // May redirect to login or show error
@@ -142,7 +141,7 @@ test.describe('HTTP Error Status Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     const errorText = page.getByText(/Forbidden|Permission|禁止|权限/i)
@@ -160,7 +159,7 @@ test.describe('HTTP Error Status Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     const errorText = page.getByText(/Not Found|404|未找到/i)
@@ -181,7 +180,7 @@ test.describe('HTTP Error Status Handling', () => {
 	      })
 	    })
 	
-	    await page.goto(`${BASE_URL}/regulations`)
+	    await page.goto('/regulations')
 	    await page.waitForTimeout(3000)
 	
 	    const errorIndicator = page.locator(
@@ -207,7 +206,7 @@ test.describe('HTTP Error Status Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     const errorText = page.getByText(/Gateway|502|网关/i)
@@ -229,7 +228,7 @@ test.describe('HTTP Error Status Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/regulations`)
+    await page.goto('/regulations')
     await page.waitForTimeout(3000)
 
     const errorText = page.getByText(/Unavailable|503|服务不可用/i)
@@ -254,7 +253,7 @@ test.describe('Network Error Handling', () => {
     // Set shorter timeout for test
     page.setDefaultTimeout(10000)
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(5000)
 
     // Should show loading or timeout error
@@ -272,7 +271,7 @@ test.describe('Network Error Handling', () => {
       route.abort('failed')
     })
 
-    await page.goto(`${BASE_URL}/regulations`)
+    await page.goto('/regulations')
     await page.waitForTimeout(3000)
 
     const errorText = page.getByText(/Network|Connection|Failed|网络|连接/i)
@@ -290,7 +289,7 @@ test.describe('Network Error Handling', () => {
       route.abort('connectionreset')
     })
 
-    await page.goto(`${BASE_URL}/lncrna-chipseq-overlap`)
+    await page.goto('/lncrna-chipseq-overlap')
     await page.waitForTimeout(3000)
 
     // Page should handle gracefully
@@ -306,7 +305,7 @@ test.describe('Network Error Handling', () => {
       route.continue()
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
 
     // Should show loading state during slow response
     const spinner = page.locator('.ant-spin')
@@ -333,7 +332,7 @@ test.describe('Loading States', () => {
         route.continue()
       })
 
-      await page.goto(`${BASE_URL}${testPage.path}`)
+      await page.goto(testPage.path)
 
       // Check for loading indicator
       const spinner = page.locator('.ant-spin')
@@ -360,7 +359,7 @@ test.describe('Loading States', () => {
       route.continue()
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
 
     // Wait for loading to start
     await page.waitForTimeout(500)
@@ -380,7 +379,7 @@ test.describe('Loading States', () => {
   })
 
   test('Loading on filter change', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -426,7 +425,7 @@ test.describe('Empty States', () => {
         })
       })
 
-      await page.goto(`${BASE_URL}${testPage.path}`)
+      await page.goto(testPage.path)
       await page.waitForTimeout(2000)
 
       // Check for empty state
@@ -454,7 +453,7 @@ test.describe('Empty States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(2000)
 
     const emptyDescription = page.locator('.ant-empty-description')
@@ -474,7 +473,7 @@ test.describe('Empty States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/regulations`)
+    await page.goto('/regulations')
     await page.waitForTimeout(2000)
 
     // Check for action button or hint
@@ -503,7 +502,7 @@ test.describe('Retry Mechanisms', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     const retryButton = page.getByRole('button', { name: /Retry|Try Again|Reload|重试/i })
@@ -528,7 +527,7 @@ test.describe('Retry Mechanisms', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(2000)
 
     const retryButton = page.getByRole('button', { name: /Retry|Try Again|重试/i })
@@ -554,7 +553,7 @@ test.describe('Retry Mechanisms', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}/regulations`)
+    await page.goto('/regulations')
     await page.waitForTimeout(10000) // Give time for retries
 
     console.log(`Auto-retry request count: ${requestCount}`)
@@ -576,11 +575,11 @@ test.describe('Error Recovery', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(2000)
 
     // Navigate to another page
-    await page.goto(`${BASE_URL}/regulations`)
+    await page.goto('/regulations')
     await page.waitForTimeout(2000)
 
     // Should be able to use the app
@@ -606,7 +605,7 @@ test.describe('Error Recovery', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(2000)
 
     // Check error state
@@ -634,7 +633,7 @@ test.describe('Error Recovery', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(2000)
 
     // Sidebar should still work
@@ -669,7 +668,7 @@ test.describe('Console Error Monitoring', () => {
         }
       })
 
-      await page.goto(`${BASE_URL}${testPage.path}`)
+      await page.goto(testPage.path)
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(3000)
 
@@ -705,7 +704,7 @@ test.describe('Error Message Quality', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     // Check for user-friendly message (not raw error)
@@ -730,7 +729,7 @@ test.describe('Error Message Quality', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForTimeout(3000)
 
     // Check for localized error (Chinese characters if in Chinese mode)

@@ -15,7 +15,6 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/lncrna-chipseq-overlap'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 // ============================================================================
 // P0 测试：布局渲染
@@ -23,7 +22,7 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 test.describe('Overlap IGV Integration - Layout', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
   })
 
@@ -101,7 +100,7 @@ test.describe('Overlap IGV Integration - Layout', () => {
 
 test.describe('Overlap IGV Integration - Navigation', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(3000)
   })
@@ -207,7 +206,7 @@ test.describe('Overlap IGV Integration - Performance', () => {
   test('IGV should load within 15 seconds', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // 等待 IGV 容器出现
@@ -227,7 +226,7 @@ test.describe('Overlap IGV Integration - Performance', () => {
   })
 
   test('IGV navigation should respond within 3 seconds', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(3000)
 
@@ -266,7 +265,7 @@ test.describe('Overlap IGV Integration - Performance', () => {
   test('Page should load overlap table within 10 seconds', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // 等待表格出现
     const table = page.locator('.ant-table').first()
@@ -286,7 +285,7 @@ test.describe('Overlap IGV Integration - Performance', () => {
 test.describe('Overlap IGV Integration - Error Handling', () => {
   test('should handle empty table gracefully', async ({ page }) => {
     // 使用会返回空结果的筛选条件
-    await page.goto(`${BASE_URL}${PAGE_URL}?chromosome=chrNonExistent`)
+    await page.goto(`${PAGE_URL}?chromosome=chrNonExistent`)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -310,7 +309,7 @@ test.describe('Overlap IGV Integration - Error Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(2000)
 
     // 应该显示错误提示
@@ -324,7 +323,7 @@ test.describe('Overlap IGV Integration - Error Handling', () => {
   })
 
   test('should handle invalid row click gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -358,7 +357,7 @@ test.describe('Overlap IGV Integration - Error Handling', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(3000)
 
     // 页面应该仍然可用（表格显示）
@@ -383,7 +382,7 @@ test.describe('Overlap IGV Integration - Error Handling', () => {
 
 test.describe('Overlap IGV Integration - User Interaction', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
   })
@@ -458,7 +457,7 @@ test.describe('Overlap IGV Integration - User Interaction', () => {
 
 test.describe('Overlap IGV Integration - Accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
   })
 

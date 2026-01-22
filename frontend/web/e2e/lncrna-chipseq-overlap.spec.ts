@@ -16,7 +16,6 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/lncrna-chipseq-overlap'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 function getEnvInt(name: string, fallback: number): number {
   const raw = process.env[name]
@@ -28,7 +27,7 @@ function getEnvInt(name: string, fallback: number): number {
 test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
 	test.beforeEach(async ({ page }) => {
 	  // Navigate to lncRNA-ChIP-seq Overlap page
-	  await page.goto(`${BASE_URL}${PAGE_URL}`)
+	  await page.goto(PAGE_URL)
 	  await page.waitForLoadState('domcontentloaded')
 
 	  // 页面可能包含持续请求（例如 IGV 资源加载），避免 networkidle 卡死
@@ -80,7 +79,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
 
 	  test('should be accessible from navigation menu', async ({ page }) => {
 	    // Go to home page
-	    await page.goto(BASE_URL)
+	    await page.goto('/')
 	    await page.waitForLoadState('domcontentloaded')
 
     // Look for navigation link (may be in sidebar or top menu)
@@ -516,7 +515,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
     const budgetMs = getEnvInt('E2E_OVERLAP_PAGE_LOAD_BUDGET_MS', 8000)
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`, { waitUntil: 'domcontentloaded' })
+    await page.goto(PAGE_URL, { waitUntil: 'domcontentloaded' })
     await page.locator('h1, h2').first().waitFor({ timeout: 10000 })
 
     const loadTime = Date.now() - startTime
@@ -531,7 +530,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
     const budgetMs = getEnvInt('E2E_OVERLAP_INITIAL_RENDER_BUDGET_MS', 6000)
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`, { waitUntil: 'domcontentloaded' })
+    await page.goto(PAGE_URL, { waitUntil: 'domcontentloaded' })
 
     // Wait for first meaningful content
     await page.locator('h1, h2, .ant-card, .ant-table').first().waitFor({ timeout: 10000 })
@@ -558,7 +557,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
       })
     })
 
-	    await page.goto(`${BASE_URL}${PAGE_URL}`)
+	    await page.goto(PAGE_URL)
 	    // React Query 会重试，给足时间等待错误/空态出现
 	    await page.waitForTimeout(1000)
 
@@ -591,7 +590,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(2000)
 
     // Verify empty state is displayed
@@ -610,7 +609,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
       route.abort('timedout')
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(3000)
 
     // Should show loading state, error, or handle gracefully
@@ -644,7 +643,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -661,7 +660,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -743,7 +742,7 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
 test.describe('lncRNA-ChIP-seq Overlap - Deep Links', () => {
   test('should support URL parameters for filters', async ({ page }) => {
     // Navigate with query parameters
-    await page.goto(`${BASE_URL}${PAGE_URL}?mark_type=H3K27me3&chromosome=chr1`)
+    await page.goto(`${PAGE_URL}?mark_type=H3K27me3&chromosome=chr1`)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -757,7 +756,7 @@ test.describe('lncRNA-ChIP-seq Overlap - Deep Links', () => {
   })
 
   test('should preserve filters in URL on filter change', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -777,7 +776,7 @@ test.describe('lncRNA-ChIP-seq Overlap - Mobile View', () => {
   test.use({ viewport: { width: 375, height: 667 } }) // iPhone SE size
 
   test('should be responsive on mobile', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -795,7 +794,7 @@ test.describe('lncRNA-ChIP-seq Overlap - Mobile View', () => {
   })
 
   test('should have accessible navigation on mobile', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Verify page title visible

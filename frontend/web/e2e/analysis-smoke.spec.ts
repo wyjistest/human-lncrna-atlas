@@ -8,7 +8,6 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/analysis'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 function buildMockAnalysisSummary() {
   return {
@@ -84,7 +83,7 @@ test.describe('Analysis - mocked smoke', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     await expect(page.getByTestId('analysis-page')).toBeVisible({ timeout: 15000 })
@@ -93,4 +92,3 @@ test.describe('Analysis - mocked smoke', () => {
     await expect(page.getByText('MALAT1')).toBeVisible({ timeout: 15000 })
   })
 })
-

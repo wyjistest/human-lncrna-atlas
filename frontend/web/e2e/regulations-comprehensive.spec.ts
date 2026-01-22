@@ -16,7 +16,6 @@ import { test, expect, type Page } from '@playwright/test'
  * with binding affinity (BA) scores and other metrics.
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/regulations'
 const API_ENDPOINT = '/api/v1/regulations'
 
@@ -34,7 +33,7 @@ async function waitForRegulationsAPI(page: Page, timeout = 30000) {
 
 test.describe('Regulations Page - Initial Load', () => {
   test('Page loads successfully', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // URL should be correct
@@ -46,7 +45,7 @@ test.describe('Regulations Page - Initial Load', () => {
   })
 
   test('Page title is displayed', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const title = page.locator('h1, h2').first()
@@ -57,7 +56,7 @@ test.describe('Regulations Page - Initial Load', () => {
   })
 
   test('Data table is rendered', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Verify table has rows
@@ -66,7 +65,7 @@ test.describe('Regulations Page - Initial Load', () => {
   })
 
   test('Pagination is displayed', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     const pagination = page.locator('.ant-pagination')
@@ -84,7 +83,7 @@ test.describe('Regulations Page - Initial Load', () => {
       route.continue()
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Check for loading indicator
     const spinner = page.locator('.ant-spin')
@@ -105,7 +104,7 @@ test.describe('Regulations Page - Initial Load', () => {
 
 test.describe('Regulations Page - Filters', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
   })
 
@@ -264,7 +263,7 @@ test.describe('Regulations Page - Filters', () => {
 
 test.describe('Regulations Page - Table Interactions', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
   })
 
@@ -365,7 +364,7 @@ test.describe('Regulations Page - Table Interactions', () => {
 
 test.describe('Regulations Page - Export', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
   })
 
@@ -426,7 +425,7 @@ test.describe('Regulations Page - Export', () => {
 
 test.describe('Regulations Page - URL Parameters', () => {
   test('Species ID parameter applies filter', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?species_ids=1`)
+    await page.goto(`${PAGE_URL}?species_ids=1`)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Verify data is loaded (Human species)
@@ -435,7 +434,7 @@ test.describe('Regulations Page - URL Parameters', () => {
   })
 
   test('Page parameter sets current page', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?page=2`)
+    await page.goto(`${PAGE_URL}?page=2`)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Page 2 should be active in pagination
@@ -447,7 +446,7 @@ test.describe('Regulations Page - URL Parameters', () => {
   })
 
   test('BA range parameters apply filter', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?ba_min=50&ba_max=100`)
+    await page.goto(`${PAGE_URL}?ba_min=50&ba_max=100`)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Data should be loaded
@@ -456,7 +455,7 @@ test.describe('Regulations Page - URL Parameters', () => {
   })
 
   test('Multiple parameters work together', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}?species_ids=1&ba_min=50&page=1`)
+    await page.goto(`${PAGE_URL}?species_ids=1&ba_min=50&page=1`)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Verify URL preserved
@@ -479,7 +478,7 @@ test.describe('Regulations Page - Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     // ErrorState renders Ant Design Result for error pages; wait for it to appear.
     const errorResult = page.locator('.ant-result-500, .ant-result-error').first()
     await expect(errorResult).toBeVisible({ timeout: 15000 })
@@ -498,7 +497,7 @@ test.describe('Regulations Page - Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(2000)
 
     const emptyState = page.locator('.ant-empty')
@@ -511,7 +510,7 @@ test.describe('Regulations Page - Error States', () => {
       route.abort('failed')
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(3000)
 
     // Page should not crash
@@ -528,7 +527,7 @@ test.describe('Regulations Page - Error States', () => {
 test.describe('Regulations Page - Responsive Design', () => {
   test('Desktop view displays correctly', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Sidebar should be visible on desktop
@@ -539,7 +538,7 @@ test.describe('Regulations Page - Responsive Design', () => {
 
   test('Tablet view is usable', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Main content should be visible
@@ -550,7 +549,7 @@ test.describe('Regulations Page - Responsive Design', () => {
 
   test('Mobile view is usable', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Content should be visible and scrollable
@@ -572,7 +571,7 @@ test.describe('Regulations Page - Performance', () => {
   test('Page loads within acceptable time', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const loadTime = Date.now() - startTime
@@ -584,7 +583,7 @@ test.describe('Regulations Page - Performance', () => {
   test('Initial render is fast', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.locator('h1, h2, .ant-table, .ant-card').first().waitFor({ timeout: 10000 })
 
     const renderTime = Date.now() - startTime
@@ -594,7 +593,7 @@ test.describe('Regulations Page - Performance', () => {
   })
 
   test('Filter response is fast', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // 打开“高级筛选 / Advanced Filters”（默认折叠；避免误点 Header 的语言切换 Select）
@@ -649,7 +648,7 @@ test.describe('Regulations Page - Performance', () => {
 
 test.describe('Regulations Page - Accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
   })
 

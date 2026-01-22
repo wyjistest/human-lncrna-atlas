@@ -1,6 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 const DOWNLOAD_TIMEOUT = 30000
 
@@ -49,7 +48,7 @@ async function clickExportFormat(page: Page, format: 'CSV' | 'BED'): Promise<voi
 test.describe('lncRNA-ChIP-seq Overlap Export', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     // 页面可能包含持续请求（例如 IGV 资源加载），避免 networkidle 卡死

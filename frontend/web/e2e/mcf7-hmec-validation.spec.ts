@@ -21,7 +21,6 @@ import { test, expect } from '@playwright/test'
  * - P2: Regression testing
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 
@@ -243,7 +242,7 @@ test.describe('P0 - MCF-7 and HMEC Core Functionality', () => {
     })
 
     // Navigate to lncRNA-ChIP-seq Overlap page
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
   })
 
@@ -411,7 +410,7 @@ test.describe('P0 - MCF-7 and HMEC Core Functionality', () => {
 test.describe('P1 - MCF-7 and HMEC Data Accuracy', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
   })
 
@@ -559,7 +558,7 @@ test.describe('P1 - MCF-7 and HMEC Data Accuracy', () => {
 test.describe('P2 - Regression Tests for Existing Cell Lines', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
   })
 
@@ -832,7 +831,7 @@ test.describe('API Integration - MCF-7 and HMEC', () => {
 test.describe('Error Handling - MCF-7 and HMEC', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
   })
 

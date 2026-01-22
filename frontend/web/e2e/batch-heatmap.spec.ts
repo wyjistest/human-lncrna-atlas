@@ -14,10 +14,9 @@ import { test, expect, type Page } from '@playwright/test'
  */
 
 const TEST_GENE_IDS = [17276, 17277, 17278, 17279, 17280]
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 async function gotoBatchHeatmapOrSkip(page: Page) {
-  await page.goto(`${BASE_URL}/genes/batch`)
+  await page.goto('/genes/batch')
   await page.waitForLoadState('domcontentloaded')
 
   // 如果该页面未集成（例如返回 404），则跳过该套件

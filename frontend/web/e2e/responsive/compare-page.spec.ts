@@ -14,7 +14,6 @@ import { test, expect } from '@playwright/test'
  * Note: Page language may be Chinese or English depending on browser settings
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const TEST_GENE_ID = 17276
 
 // Viewport configurations
@@ -27,7 +26,7 @@ const VIEWPORTS = {
 test.describe('Responsive Design - Mobile Viewport', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
   })
 
@@ -152,7 +151,7 @@ test.describe('Responsive Design - Mobile Viewport', () => {
 test.describe('Responsive Design - Tablet Viewport', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.tablet)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
   })
 
@@ -227,7 +226,7 @@ test.describe('Responsive Design - Tablet Viewport', () => {
 test.describe('Responsive Design - Desktop Viewport', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
   })
 
@@ -313,7 +312,7 @@ test.describe('Responsive Design - Desktop Viewport', () => {
 test.describe('Responsive Charts', () => {
   test('should resize charts on viewport change', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -376,7 +375,7 @@ test.describe('Responsive Charts', () => {
 test.describe('Responsive Filters', () => {
   test('should collapse filters on mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -402,7 +401,7 @@ test.describe('Responsive Filters', () => {
 
   test('should show expanded filters on desktop', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -428,7 +427,7 @@ test.describe('Responsive Filters', () => {
 test.describe('Responsive Tables', () => {
   test('should show horizontal scroll indicator on mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -454,7 +453,7 @@ test.describe('Responsive Tables', () => {
 
   test('should be able to scroll table horizontally', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -489,7 +488,7 @@ test.describe('Responsive Tables', () => {
 test.describe('Responsive Tabs', () => {
   test('should have scrollable tabs on mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Tabs should be scrollable if there are many
@@ -502,7 +501,7 @@ test.describe('Responsive Tabs', () => {
 
   test('should show all tabs on desktop', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     const tabs = page.locator('.ant-tabs-tab')
@@ -516,7 +515,7 @@ test.describe('Responsive Tabs', () => {
 test.describe('Print Layout', () => {
   test('should have print-friendly styles', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop)
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -555,7 +554,7 @@ test.describe('High DPI Display', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Page should render correctly

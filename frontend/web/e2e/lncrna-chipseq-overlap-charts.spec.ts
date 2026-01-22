@@ -16,7 +16,6 @@ import { test, expect, type Page } from '@playwright/test'
  */
 
 const PAGE_URL = '/lncrna-chipseq-overlap'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 // ============================================================================
 // Helper Functions
@@ -129,7 +128,7 @@ async function enableStatsIfNeeded(page: Page): Promise<boolean> {
 
 test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     // Wait for initial content to stabilize
     await page.waitForTimeout(1000)
@@ -272,7 +271,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
         }
       })
 
-      await page.goto(`${BASE_URL}${PAGE_URL}`)
+      await page.goto(PAGE_URL)
       await page.waitForTimeout(2000)
 
       // Should show empty state or "no data" message
@@ -299,7 +298,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
       })
 
       // Navigate and immediately check for loading
-      await page.goto(`${BASE_URL}${PAGE_URL}`)
+      await page.goto(PAGE_URL)
 
       // Check for loading spinner
       const loadingSpinner = page.locator('.ant-spin')
@@ -345,7 +344,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
         })
       })
 
-      await page.goto(`${BASE_URL}${PAGE_URL}`)
+      await page.goto(PAGE_URL)
       await page.waitForTimeout(2000)
 
       // Should show error state or fallback gracefully
@@ -477,7 +476,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
     test('charts should render within 2 seconds', async ({ page }) => {
       const startTime = Date.now()
 
-      await page.goto(`${BASE_URL}${PAGE_URL}`)
+      await page.goto(PAGE_URL)
 
       // Wait for any chart canvas to appear
       const chartCanvases = page.locator('canvas')
@@ -632,7 +631,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
       })
 
       const startTime = Date.now()
-      await page.goto(`${BASE_URL}${PAGE_URL}`)
+      await page.goto(PAGE_URL)
       await page.waitForLoadState('domcontentloaded')
 
       // Enable stats if needed
@@ -657,7 +656,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
       // Set mobile viewport
       await page.setViewportSize({ width: 375, height: 667 })
 
-      await page.goto(`${BASE_URL}${PAGE_URL}`)
+      await page.goto(PAGE_URL)
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(1500)
 
@@ -705,7 +704,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
       // Set tablet viewport (iPad)
       await page.setViewportSize({ width: 768, height: 1024 })
 
-      await page.goto(`${BASE_URL}${PAGE_URL}`)
+      await page.goto(PAGE_URL)
       await page.waitForLoadState('networkidle')
       await page.waitForTimeout(1500)
 
@@ -736,7 +735,7 @@ test.describe('lncRNA-ChIP-seq Overlap Visualization Charts', () => {
 
 test.describe('Chart-Filter Integration', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
   })
@@ -814,7 +813,7 @@ test.describe('Chart-Filter Integration', () => {
 
 test.describe('Heatmap Matrix Specific Tests', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(1000)
     await enableStatsIfNeeded(page)
@@ -928,7 +927,7 @@ test.describe('API Edge Cases', () => {
     })
 
     const startTime = Date.now()
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Wait for page to load
     await page.waitForLoadState('networkidle')
@@ -960,7 +959,7 @@ test.describe('API Edge Cases', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(2000)
 
     // Enable stats
@@ -985,7 +984,7 @@ test.describe('API Edge Cases', () => {
   })
 
   test('should handle network disconnect gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Enable stats

@@ -18,7 +18,6 @@ import { test, expect, type Page, type Locator } from '@playwright/test'
  * Route: /visualization/sankey-flow
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/visualization/sankey-flow'
 
 function getEnvInt(name: string, fallback: number): number {
@@ -148,7 +147,7 @@ async function switchLanguage(page: Page, language: 'en' | 'zh'): Promise<void> 
 test.describe('Sankey Flow - P0 Critical', () => {
 
   test('should load page correctly', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Wait for page to load
     await page.waitForLoadState('networkidle')
@@ -162,7 +161,7 @@ test.describe('Sankey Flow - P0 Critical', () => {
   })
 
   test('should render Sankey chart canvas', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Wait for chart container and canvas
@@ -182,7 +181,7 @@ test.describe('Sankey Flow - P0 Critical', () => {
   })
 
   test('should support i18n switching', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Get initial page text
@@ -206,7 +205,7 @@ test.describe('Sankey Flow - P0 Critical', () => {
   })
 
   test('should display page title', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Look for page title
@@ -242,7 +241,7 @@ test.describe('Sankey Flow - P0 Critical', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Wait for empty state to render (query completes + UI updates)
     const emptyState = page.locator('.ant-empty').first()
@@ -265,7 +264,7 @@ test.describe('Sankey Flow - P0 Critical', () => {
       route.continue()
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Check for loading spinner
     const spinner = page.locator('.ant-spin, [class*="loading"]')
@@ -291,7 +290,7 @@ test.describe('Sankey Flow - P0 Critical', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(2000)
 
     // Should show error message
@@ -312,7 +311,7 @@ test.describe('Sankey Flow - P0 Critical', () => {
 test.describe('Sankey Flow - P1 Features', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
   })
@@ -490,7 +489,7 @@ test.describe('Sankey Flow - P2 Performance', () => {
   test('should render chart within render budget', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     // Wait for chart canvas to be visible
@@ -574,7 +573,7 @@ test.describe('Sankey Flow - P2 Performance', () => {
     })
 
     const startTime = Date.now()
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     expect(mocked).toBeTruthy()
@@ -593,7 +592,7 @@ test.describe('Sankey Flow - P2 Performance', () => {
   test('should be responsive on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Chart should be visible on mobile
@@ -614,7 +613,7 @@ test.describe('Sankey Flow - P2 Performance', () => {
   test('should be responsive on tablet viewport', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const pageContainer = page.locator('[data-testid="sankey-flow-page"]').first()
@@ -631,7 +630,7 @@ test.describe('Sankey Flow - P2 Performance', () => {
 test.describe('Sankey Flow - Accessibility', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     // Playwright docs: networkidle is discouraged for testing (SPA / long connections).
     // Prefer explicit UI assertions for readiness.
     await page.waitForLoadState('domcontentloaded')

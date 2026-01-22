@@ -11,7 +11,6 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/lncrna-chipseq-overlap'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 function buildQueryTooBroadResponse() {
   return {
@@ -50,7 +49,7 @@ test.describe('lncRNA-ChIP-seq Overlap - QUERY_TOO_BROAD Guidance', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     const suggestedMarkType = page.locator('[data-testid="overlap-suggest-filter-mark-type"]')

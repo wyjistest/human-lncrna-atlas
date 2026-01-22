@@ -9,7 +9,6 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/admin/materialized-views'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 function buildMockMaterializedViewsStatusResponse() {
   return {
@@ -37,7 +36,7 @@ test.describe('Admin Materialized Views - mocked smoke', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     await expect(page.getByTestId('admin-materialized-views-page')).toBeVisible({ timeout: 15000 })

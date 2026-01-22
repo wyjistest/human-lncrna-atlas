@@ -8,7 +8,6 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/admin/cache'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 function buildMockCacheStatsResponse() {
   return {
@@ -68,7 +67,7 @@ test.describe('Admin Cache - mocked smoke', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     await expect(page.getByTestId('admin-cache-page')).toBeVisible({ timeout: 15000 })

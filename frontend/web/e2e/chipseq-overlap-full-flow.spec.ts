@@ -16,7 +16,6 @@ import { test, expect, type Page } from '@playwright/test'
  * "Phase 3.0 Overlap E2E Tests: Full user flow (filter -> browse -> export)"
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/lncrna-chipseq-overlap'
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
 
@@ -52,7 +51,7 @@ async function selectDropdownOption(page: Page, selectLocator: string, optionTex
 
 test.describe('ChIP-seq Overlap - Full User Flow', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
   })
@@ -249,7 +248,7 @@ test.describe('ChIP-seq Overlap - Loading States', () => {
       route.continue()
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Check for loading spinner
     const spinner = page.locator('.ant-spin')
@@ -269,7 +268,7 @@ test.describe('ChIP-seq Overlap - Loading States', () => {
 
   test('Shows skeleton loading during initial load', async ({ page }) => {
     // Check for skeleton screens
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // Skeleton may appear briefly
     const skeleton = page.locator('.ant-skeleton')
@@ -284,7 +283,7 @@ test.describe('ChIP-seq Overlap - Loading States', () => {
   })
 
   test('Filter change shows loading indicator', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -323,7 +322,7 @@ test.describe('ChIP-seq Overlap - Empty States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -353,7 +352,7 @@ test.describe('ChIP-seq Overlap - Empty States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -388,7 +387,7 @@ test.describe('ChIP-seq Overlap - Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
 
     // 等待错误状态出现（React Query 有重试）
     const errorIndicator = page.locator('.ant-notification-notice-error, .ant-message-error, .ant-alert-error')
@@ -424,7 +423,7 @@ test.describe('ChIP-seq Overlap - Error States', () => {
       }
     })
 
-	    await page.goto(`${BASE_URL}${PAGE_URL}`)
+	    await page.goto(PAGE_URL)
 	    await page.waitForTimeout(3000)
 	
 	    // Look for retry button
@@ -446,7 +445,7 @@ test.describe('ChIP-seq Overlap - Error States', () => {
       route.abort('timedout')
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(5000)
 
     // Should show timeout or network error
@@ -480,7 +479,7 @@ test.describe('ChIP-seq Overlap - Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForTimeout(3000)
 
     // Verify page is still functional
@@ -511,7 +510,7 @@ test.describe('ChIP-seq Overlap - Error States', () => {
 
 test.describe('ChIP-seq Overlap - Export', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
   })
@@ -606,7 +605,7 @@ test.describe('ChIP-seq Overlap - Export', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -627,7 +626,7 @@ test.describe('ChIP-seq Overlap - Export', () => {
 
 test.describe('ChIP-seq Overlap - Accessibility', () => {
   test('Page has proper heading structure', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`, { waitUntil: 'domcontentloaded' })
+    await page.goto(PAGE_URL, { waitUntil: 'domcontentloaded' })
 
     // SPA + lazy routes: wait for meaningful UI instead of relying on networkidle.
     await page.locator('h1, h2').first().waitFor({ state: 'visible', timeout: 15000 })
@@ -644,7 +643,7 @@ test.describe('ChIP-seq Overlap - Accessibility', () => {
   })
 
   test('Form controls have labels', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -661,7 +660,7 @@ test.describe('ChIP-seq Overlap - Accessibility', () => {
   })
 
   test('Interactive elements are keyboard accessible', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -677,7 +676,7 @@ test.describe('ChIP-seq Overlap - Accessibility', () => {
   })
 
   test('Color contrast is sufficient', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Basic check: text should be visible

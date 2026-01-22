@@ -18,12 +18,11 @@ import { test, expect } from '@playwright/test'
  * Note: Page language may be Chinese or English depending on browser settings
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const TEST_GENE_ID = 17276
 
 test.describe('ChIP-seq Compare Page - Basic Rendering', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
     // Wait for page content to be visible
     await page.waitForTimeout(2000)
@@ -101,7 +100,7 @@ test.describe('ChIP-seq Compare Page - Basic Rendering', () => {
 
 test.describe('ChIP-seq Mark Selector', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -182,7 +181,7 @@ test.describe('ChIP-seq Mark Selector', () => {
 
 test.describe('ChIP-seq Compare Mode', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -302,7 +301,7 @@ test.describe('ChIP-seq Compare Mode', () => {
 
 test.describe('ChIP-seq Compare Charts', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -418,7 +417,7 @@ test.describe('ChIP-seq Compare Charts', () => {
 
 test.describe('ChIP-seq Heatmap Matrix', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -518,7 +517,7 @@ test.describe('ChIP-seq Heatmap Matrix', () => {
 
 test.describe('ChIP-seq Filter Panel', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -609,7 +608,7 @@ test.describe('ChIP-seq Filter Panel', () => {
 
 test.describe('ChIP-seq Peaks Table', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -691,7 +690,7 @@ test.describe('ChIP-seq Peaks Table', () => {
 
 test.describe('ChIP-seq Export Functionality', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -745,7 +744,7 @@ test.describe('ChIP-seq Export Functionality', () => {
 
 test.describe('ChIP-seq Bivalent Domain Badge', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -808,7 +807,7 @@ test.describe('ChIP-seq Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab
@@ -850,7 +849,7 @@ test.describe('ChIP-seq Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}/genes/${TEST_GENE_ID}`)
+    await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('networkidle')
 
     // Navigate to ChIP-seq tab

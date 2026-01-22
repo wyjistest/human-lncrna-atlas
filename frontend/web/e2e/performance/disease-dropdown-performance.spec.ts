@@ -16,7 +16,6 @@ import { PerformanceMetrics } from './helpers/performanceMetrics'
  * 5. Memory usage during interaction
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
 const PAGE_URL = '/network'
 
@@ -59,7 +58,7 @@ const report: PerformanceReport = {
   test_date: new Date().toISOString().slice(0, 10),
   test_phase: process.env.PERF_TEST_PHASE || 'current',
   environment: {
-    frontend_url: BASE_URL,
+    frontend_url: process.env.BASE_URL || 'http://localhost:5173',
     backend_url: API_BASE,
     browser: 'unknown',
     playwright_version: process.env.PLAYWRIGHT_VERSION,
@@ -154,7 +153,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
     const { response, time: apiTime, data, headers } = await metrics.measureAPIResponse(
       '/api/v1/diseases/options',
       async () => {
-        await page.goto(`${BASE_URL}${PAGE_URL}`)
+        await page.goto(PAGE_URL)
         await page.waitForLoadState('domcontentloaded')
       }
     )
@@ -194,7 +193,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
   test('P0: Dropdown should render large options list within performance budget', async ({ page }) => {
     const metrics = new PerformanceMetrics(page)
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     console.log('\n🚀 Starting Dropdown Render Performance Test...')
@@ -249,7 +248,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
   test('P1: Large options list should maintain smooth scroll performance', async ({ page }) => {
     const metrics = new PerformanceMetrics(page)
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     // Open disease dropdown
@@ -309,7 +308,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
 
     // Step 1: Page load
     const pageLoadStart = Date.now()
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
     const pageLoadTime = Date.now() - pageLoadStart
 
@@ -529,7 +528,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
   test('P2: Memory usage should not increase significantly during repeated interactions', async ({ page }) => {
     const metrics = new PerformanceMetrics(page)
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     console.log('\n🚀 Starting Memory Leak Detection Test...')

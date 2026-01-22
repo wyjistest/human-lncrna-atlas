@@ -15,11 +15,10 @@ import { test, expect } from '@playwright/test'
  * Note: Page language may be Chinese or English depending on browser settings
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 test.describe('Main Navigation Menu', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
   })
 
@@ -102,7 +101,7 @@ test.describe('Main Navigation Menu', () => {
 test.describe('ChIP-seq Feature Navigation', () => {
 	  test('should navigate from Genes list to Gene detail', async ({ page }) => {
 	    // Go to genes list
-	    await page.goto(`${BASE_URL}/genes`)
+	    await page.goto('/genes')
 	    await page.waitForLoadState('networkidle')
 	
 	    // 在 Gene List 表格中点击“View →”按钮进入详情（避免误点外链 View →）
@@ -125,7 +124,7 @@ test.describe('ChIP-seq Feature Navigation', () => {
 
   test('should navigate to ChIP-seq tab from Gene detail', async ({ page }) => {
     // Go directly to a gene detail page
-    await page.goto(`${BASE_URL}/genes/17276`)
+    await page.goto('/genes/17276')
     await page.waitForLoadState('networkidle')
 
     // Look for Genomic Features tab
@@ -153,7 +152,7 @@ test.describe('ChIP-seq Feature Navigation', () => {
   })
 
   test('should access lncRNA-ChIP-seq Overlap page directly', async ({ page }) => {
-    await page.goto(`${BASE_URL}/lncrna-chipseq-overlap`)
+    await page.goto('/lncrna-chipseq-overlap')
     await page.waitForLoadState('networkidle')
 
     // Should load the page
@@ -170,7 +169,7 @@ test.describe('ChIP-seq Feature Navigation', () => {
 
 test.describe('Breadcrumb Navigation', () => {
   test('should display breadcrumbs on Gene detail page', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/17276`)
+    await page.goto('/genes/17276')
     await page.waitForLoadState('networkidle')
 
     const breadcrumb = page.locator('.ant-breadcrumb')
@@ -187,7 +186,7 @@ test.describe('Breadcrumb Navigation', () => {
   })
 
   test('should navigate back via breadcrumb', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/17276`)
+    await page.goto('/genes/17276')
     await page.waitForLoadState('networkidle')
 
     const breadcrumb = page.locator('.ant-breadcrumb')
@@ -209,7 +208,7 @@ test.describe('Breadcrumb Navigation', () => {
 
 test.describe('Deep Linking', () => {
   test('should load Gene detail page directly by URL', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/17276`)
+    await page.goto('/genes/17276')
     await page.waitForLoadState('networkidle')
 
     // Page should load correctly
@@ -224,7 +223,7 @@ test.describe('Deep Linking', () => {
   })
 
   test('should handle non-existent gene gracefully', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes/99999999`)
+    await page.goto('/genes/99999999')
     await page.waitForLoadState('networkidle')
 
     // Should show error or not found message (wait for it, don't just "count" once)
@@ -249,7 +248,7 @@ test.describe('Deep Linking', () => {
   })
 
   test('should load lncRNA-ChIP-seq Overlap page directly', async ({ page }) => {
-    await page.goto(`${BASE_URL}/lncrna-chipseq-overlap`)
+    await page.goto('/lncrna-chipseq-overlap')
     await page.waitForLoadState('networkidle')
 
     // Page should load correctly
@@ -266,7 +265,7 @@ test.describe('Deep Linking', () => {
 
 test.describe('Menu Item Highlighting', () => {
   test('should highlight current menu item on Genes page', async ({ page }) => {
-    await page.goto(`${BASE_URL}/genes`)
+    await page.goto('/genes')
     await page.waitForLoadState('networkidle')
 
     // Look for highlighted menu item
@@ -281,7 +280,7 @@ test.describe('Menu Item Highlighting', () => {
   })
 
   test('should highlight current menu item on Regulations page', async ({ page }) => {
-    await page.goto(`${BASE_URL}/regulations`)
+    await page.goto('/regulations')
     await page.waitForLoadState('networkidle')
 
     const activeMenuItem = page.locator('.ant-menu-item-selected')
@@ -297,7 +296,7 @@ test.describe('Menu Item Highlighting', () => {
 
 test.describe('Sub-Menu Navigation', () => {
   test('should expand and collapse sub-menus', async ({ page }) => {
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     // Look for expandable sub-menu
@@ -320,7 +319,7 @@ test.describe('Sub-Menu Navigation', () => {
   })
 
   test('should navigate through sub-menu items', async ({ page }) => {
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     // Look for menu items under sub-menu (e.g., Data Analysis sub-menu)
@@ -346,7 +345,7 @@ test.describe('Sub-Menu Navigation', () => {
 test.describe('Mobile Navigation', () => {
   test('should show hamburger menu on mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     // Look for hamburger menu button
@@ -360,7 +359,7 @@ test.describe('Mobile Navigation', () => {
 
   test('should open mobile menu when hamburger clicked', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     const hamburgerButton = page.locator('.ant-layout-sider-trigger')
@@ -379,7 +378,7 @@ test.describe('Mobile Navigation', () => {
 
 test.describe('Language Switching', () => {
   test('should display language switcher', async ({ page }) => {
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     // Look for language switcher
@@ -392,7 +391,7 @@ test.describe('Language Switching', () => {
   })
 
   test('should switch language when clicked', async ({ page }) => {
-    await page.goto(BASE_URL)
+    await page.goto('/')
     await page.waitForLoadState('networkidle')
 
     const languageSwitcher = page.locator('[data-testid="language-switcher"]')

@@ -14,7 +14,6 @@
 import { test, expect, Page } from '@playwright/test';
 
 // 配置
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000';
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || './test-results/screenshots';
 
@@ -133,7 +132,7 @@ test.describe('1. 首页 (/) 测试', () => {
       issues: []
     };
 
-    await page.goto(BASE_URL);
+    await page.goto('/');
     await waitForNetworkIdle(page);
 
     // 检查页面标题或主要元素
@@ -177,7 +176,7 @@ test.describe('1. 首页 (/) 测试', () => {
       issues: []
     };
 
-    await page.goto(BASE_URL);
+    await page.goto('/');
     await waitForNetworkIdle(page);
 
     // 检查主要功能入口（首页可能使用 menuitem / card 的 onClick 导航，而不是 <a href>）
@@ -211,7 +210,7 @@ test.describe('1. 首页 (/) 测试', () => {
       await page.waitForLoadState('networkidle');
 
       // 回到首页继续验证下一个入口
-      await page.goto(BASE_URL);
+      await page.goto('/');
       await waitForNetworkIdle(page);
     }
 
@@ -232,7 +231,7 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/genes`);
+    await page.goto('/genes');
     await waitForNetworkIdle(page, 15000);
 
     // 等待表格加载
@@ -271,7 +270,7 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/genes`);
+    await page.goto('/genes');
     await waitForNetworkIdle(page, 15000);
 
     // 检查分页组件
@@ -302,7 +301,7 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/genes`);
+    await page.goto('/genes');
     await waitForNetworkIdle(page, 15000);
 
     // 查找物种筛选器
@@ -337,7 +336,7 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/genes`);
+    await page.goto('/genes');
     await waitForNetworkIdle(page, 15000);
 
     // 查找可点击的基因链接
@@ -382,7 +381,7 @@ test.describe('3. 调控关系页 (/regulations) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/regulations`);
+    await page.goto('/regulations');
     await waitForNetworkIdle(page, 15000);
 
     // 检查筛选控件
@@ -413,7 +412,7 @@ test.describe('3. 调控关系页 (/regulations) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/regulations`);
+    await page.goto('/regulations');
     await waitForNetworkIdle(page, 15000);
 
     // 检查分页
@@ -436,7 +435,7 @@ test.describe('3. 调控关系页 (/regulations) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/regulations`);
+    await page.goto('/regulations');
     await waitForNetworkIdle(page, 15000);
 
     // 查找导出按钮
@@ -465,7 +464,7 @@ test.describe('4. 保守性分析页 (/conservation) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/conservation`);
+    await page.goto('/conservation');
     await waitForNetworkIdle(page, 20000);
 
     // 检查页面加载
@@ -495,7 +494,7 @@ test.describe('4. 保守性分析页 (/conservation) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/conservation`);
+    await page.goto('/conservation');
     await waitForNetworkIdle(page, 15000);
 
     // 检查统计卡片
@@ -523,7 +522,7 @@ test.describe('4. 保守性分析页 (/conservation) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/conservation`);
+    await page.goto('/conservation');
     await waitForNetworkIdle(page, 15000);
 
     // 检查 Tab 组件
@@ -554,7 +553,7 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
       issues: []
     };
   
-    await page.goto(`${BASE_URL}/network`);
+    await page.goto('/network');
     await waitForNetworkIdle(page, 20000);
 
     // 触发一次查询后再检查渲染（否则页面默认不加载网络图）
@@ -594,7 +593,7 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
       issues: []
     };
   
-    await page.goto(`${BASE_URL}/network`);
+    await page.goto('/network');
     await waitForNetworkIdle(page, 15000);
 
     // 使用更稳定的 data-testid 定位
@@ -613,7 +612,7 @@ test.describe('5. 网络可视化页 (/network) 测试', () => {
       issues: []
     };
   
-    await page.goto(`${BASE_URL}/network`);
+    await page.goto('/network');
     await waitForNetworkIdle(page, 20000);
     const queryTriggered = await triggerNetworkQuery(page, result);
     if (queryTriggered) {
@@ -656,7 +655,7 @@ test.describe('6. Sankey 流图页 (/visualization/sankey-flow) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/visualization/sankey-flow`);
+    await page.goto('/visualization/sankey-flow');
     await waitForNetworkIdle(page, 20000);
     await page.waitForTimeout(3000);
 
@@ -688,7 +687,7 @@ test.describe('6. Sankey 流图页 (/visualization/sankey-flow) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/visualization/sankey-flow`);
+    await page.goto('/visualization/sankey-flow');
     await waitForNetworkIdle(page, 15000);
 
     // 检查筛选控件
@@ -721,7 +720,7 @@ test.describe('6. Sankey 流图页 (/visualization/sankey-flow) 测试', () => {
       issues: []
     };
 
-    await page.goto(`${BASE_URL}/visualization/sankey-flow`);
+    await page.goto('/visualization/sankey-flow');
     await waitForNetworkIdle(page, 15000);
 
     // 检查统计卡片

@@ -19,7 +19,6 @@ import { test, expect, type Page } from '@playwright/test'
  * Route: /network
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const PAGE_URL = '/network'
 
 // Helper to wait for network API
@@ -87,7 +86,7 @@ async function submitGeneSearch(page: Page, gene: string) {
 
 test.describe('Network Visualization - Page Loading', () => {
   test('Page loads successfully', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     expect(page.url()).toContain(PAGE_URL)
@@ -97,7 +96,7 @@ test.describe('Network Visualization - Page Loading', () => {
   })
 
   test('Page title is displayed', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const title = page.locator('h1, h2').first()
@@ -108,7 +107,7 @@ test.describe('Network Visualization - Page Loading', () => {
   })
 
   test('Search/input form is visible', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Look for gene search input or network controls
@@ -117,7 +116,7 @@ test.describe('Network Visualization - Page Loading', () => {
   })
 
   test('Controls panel is rendered', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -135,7 +134,7 @@ test.describe('Network Visualization - Page Loading', () => {
 
 test.describe('Network Visualization - Search and Load', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
   })
@@ -201,7 +200,7 @@ test.describe('Network Visualization - Search and Load', () => {
 
 test.describe('Network Visualization - Graph Interactions', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Trigger a search to load network data
@@ -295,7 +294,7 @@ test.describe('Network Visualization - Graph Interactions', () => {
 
 test.describe('Network Visualization - Filters', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
   })
@@ -387,7 +386,7 @@ test.describe('Network Visualization - Filters', () => {
 
 test.describe('Network Visualization - Export', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Load network
@@ -480,7 +479,7 @@ test.describe('Network Visualization - Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const ok = await fillGeneSearch(page, 'TEST')
@@ -508,7 +507,7 @@ test.describe('Network Visualization - Error States', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     const ok = await fillGeneSearch(page, 'TEST')
     if (!ok) test.skip()
 
@@ -532,7 +531,7 @@ test.describe('Network Visualization - Error States', () => {
       }
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(3000)
 
@@ -555,7 +554,7 @@ test.describe('Network Visualization - Performance', () => {
   test('Page loads within acceptable time', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const loadTime = Date.now() - startTime
@@ -565,7 +564,7 @@ test.describe('Network Visualization - Performance', () => {
   })
 
   test('Network renders within acceptable time', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('domcontentloaded')
 
     // 当前 /network 页面为 Disease + Ontology 组合查询（非 gene search）
@@ -632,7 +631,7 @@ test.describe('Network Visualization - Performance', () => {
   })
 
   test('Interactions are responsive', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Load network
@@ -663,7 +662,7 @@ test.describe('Network Visualization - Performance', () => {
 test.describe('Network Visualization - Responsive', () => {
   test('Desktop view works correctly', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const mainContent = page.locator('[class*="network"], .ant-card, h1, h2').first()
@@ -672,7 +671,7 @@ test.describe('Network Visualization - Responsive', () => {
 
   test('Tablet view is usable', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     const mainContent = page.locator('[class*="network"], .ant-card, h1, h2').first()
@@ -681,7 +680,7 @@ test.describe('Network Visualization - Responsive', () => {
 
   test('Mobile view adapts appropriately', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 })
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Content should be visible
@@ -702,7 +701,7 @@ test.describe('Network Visualization - Responsive', () => {
 
 test.describe('Network Visualization - Accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
   })
 

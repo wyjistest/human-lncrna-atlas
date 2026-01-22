@@ -21,13 +21,12 @@ import { test, expect, type Page } from '@playwright/test'
  * 5. Verify no JavaScript errors occur
  */
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000'
 
 test.describe('A549 Cell Line Integration', () => {
 
   async function gotoOverlap(page: Page) {
-    await page.goto(`${BASE_URL}/lncrna-chipseq-overlap`)
+    await page.goto('/lncrna-chipseq-overlap')
     await page.waitForLoadState('domcontentloaded')
 
     // 页面可能包含持续请求（例如 IGV 资源加载），避免 networkidle 卡死

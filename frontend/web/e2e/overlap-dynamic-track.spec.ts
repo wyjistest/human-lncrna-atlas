@@ -17,7 +17,6 @@ import { test, expect, Page } from '@playwright/test'
  */
 
 const PAGE_URL = '/lncrna-chipseq-overlap'
-const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 
 // ============================================================================
 // Helper Functions
@@ -136,7 +135,7 @@ function getAutoSyncSwitch(page: Page) {
 
 test.describe('P0: Core Functionality', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     // Wait for page content to load
     await waitForPageLoad(page)
@@ -316,7 +315,7 @@ test.describe('P0: Core Functionality', () => {
 
 test.describe('P1: Performance', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await waitForPageLoad(page)
   })
@@ -367,7 +366,7 @@ test.describe('P1: Performance', () => {
   test('page should load within 10 seconds', async ({ page }) => {
     const startTime = Date.now()
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Wait for table to appear
@@ -429,7 +428,7 @@ test.describe('P2: Edge Cases', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Open IGV
@@ -473,7 +472,7 @@ test.describe('P2: Edge Cases', () => {
   })
 
   test('load button should be disabled or hidden when IGV is not visible', async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(2000)
 
@@ -507,7 +506,7 @@ test.describe('P2: Edge Cases', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Open IGV
@@ -548,7 +547,7 @@ test.describe('P2: Edge Cases', () => {
       })
     })
 
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
 
     // Open IGV
@@ -586,7 +585,7 @@ test.describe('P2: Edge Cases', () => {
 
 test.describe('P2: User Interaction', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await waitForPageLoad(page)
   })
@@ -743,7 +742,7 @@ test.describe('P2: User Interaction', () => {
 
 test.describe('P2: Accessibility', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await waitForPageLoad(page)
   })
@@ -816,7 +815,7 @@ test.describe('P2: Accessibility', () => {
 
 test.describe('P2: Integration with Table', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
+    await page.goto(PAGE_URL)
     await page.waitForLoadState('networkidle')
     await waitForPageLoad(page)
   })
