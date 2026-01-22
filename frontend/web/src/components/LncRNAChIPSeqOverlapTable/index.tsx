@@ -1396,7 +1396,7 @@ export function LncRNAChIPSeqOverlapTable({
                   <Row gutter={[16, 16]}>
                     {/* Mark Type Distribution Bar Chart */}
                     <Col xs={24} lg={12}>
-                      <Card size="small" bordered={false}>
+                      <Card size="small" variant="borderless">
                         <OverlapMarkDistChart
                           data={summaryData.by_mark_type}
                           loading={summaryLoading}
@@ -1405,7 +1405,7 @@ export function LncRNAChIPSeqOverlapTable({
                     </Col>
                     {/* Cell Type Distribution Pie Chart */}
                     <Col xs={24} lg={12}>
-                      <Card size="small" bordered={false}>
+                      <Card size="small" variant="borderless">
                         <OverlapCellTypeChart
                           data={summaryData.by_cell_type}
                           loading={summaryLoading}

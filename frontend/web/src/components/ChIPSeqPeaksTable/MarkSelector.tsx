@@ -308,7 +308,7 @@ export function CompactMarkSelector({
       disabled={disabled}
       size="small"
       style={{ width: 100 }}
-      dropdownMatchSelectWidth={false}
+      popupMatchSelectWidth={false}
     />
   )
 }
