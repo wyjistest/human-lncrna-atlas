@@ -34,6 +34,8 @@ GitHub UI 路径：
 2. 新增变量：
    - `CI_RUNS_ON=self-hosted`
 
+你也可以在手动触发 workflow 时，通过 `workflow_dispatch` 输入覆盖 runner（无需改仓库变量）：在触发页面填写 `runs_on=self-hosted`。
+
 此后：
 - `.github/workflows/test.yml` 与 `.github/workflows/security-audit.yml` 会默认在 self-hosted runner 上运行。
 - 默认仍保持 `CI_RUNS_ON` 未配置时使用 `ubuntu-latest`（不破坏现有行为）。
@@ -49,6 +51,8 @@ GitHub UI 路径：
 如果你的 self-hosted runner 机器已安装并可用 Docker（Actions Runner 用户有权限运行容器），可在仓库变量里额外设置：
 
 - `CI_ENABLE_POSTGRES_JOBS=true`
+
+或在手动触发 `Tests` workflow 时填写 `enable_postgres_jobs=true`（仅对 `workflow_dispatch` 生效）。
 
 ### 4) Playwright（e2e-smoke）在 self-hosted 的注意事项
 

@@ -4,6 +4,15 @@ on:
   # CI 暂停自动触发：GitHub-hosted runner 受账单/额度限制时会导致大量噪音失败。
   # 如需恢复 push/PR 自动 CI，请在此处重新加入 push/pull_request 触发器。
   workflow_dispatch:
+    inputs:
+      runs_on:
+        description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
+        required: false
+        default: ""
+      enable_postgres_jobs:
+        description: "Enable Postgres service jobs when running on self-hosted (default false)."
+        required: false
+        default: "false"
 
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
 permissions:
@@ -18,7 +27,7 @@ jobs:
   # Secret scanning - runs first to fail fast on credential leaks
   secret-scan:
     name: Secret Scanning
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -32,7 +41,7 @@ jobs:
 
   frontend-unit-tests:
     name: Frontend Unit Tests
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -55,7 +64,7 @@ jobs:
 
   backend-checks:
     name: Backend Checks
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -115,7 +124,7 @@ jobs:
 
   lint:
     name: Lint
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -139,7 +148,7 @@ jobs:
 
   backend-unit-tests:
     name: Backend Unit Tests
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Checkout code
@@ -169,10 +178,10 @@ jobs:
 
   etl-e2e-smoke:
     name: ETL E2E Smoke (Postgres)
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     # self-hosted runner 默认不跑 services(Postgres) 作业，避免 Docker/权限差异导致 CI 直接失败。
     # 如需在 self-hosted 上启用：设置 repo variable `CI_ENABLE_POSTGRES_JOBS=true`。
-    if: vars.CI_RUNS_ON != 'self-hosted' || vars.CI_ENABLE_POSTGRES_JOBS == 'true'
+    if: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' || ((github.event_name == 'workflow_dispatch' && github.event.inputs.enable_postgres_jobs) || vars.CI_ENABLE_POSTGRES_JOBS) == 'true' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     services:
       postgres:
@@ -367,10 +376,10 @@ jobs:
 
   api-snapshot-baseline:
     name: API Snapshot Baseline (Postgres)
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     # self-hosted runner 默认不跑 services(Postgres) 作业，避免 Docker/权限差异导致 CI 直接失败。
     # 如需在 self-hosted 上启用：设置 repo variable `CI_ENABLE_POSTGRES_JOBS=true`。
-    if: vars.CI_RUNS_ON != 'self-hosted' || vars.CI_ENABLE_POSTGRES_JOBS == 'true'
+    if: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' || ((github.event_name == 'workflow_dispatch' && github.event.inputs.enable_postgres_jobs) || vars.CI_ENABLE_POSTGRES_JOBS) == 'true' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     services:
       postgres:
@@ -472,7 +481,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [secret-scan, frontend-unit-tests, backend-checks, backend-unit-tests, lint]
     steps:
       - name: Checkout code
@@ -536,7 +545,7 @@ jobs:
   # E2E smoke tests - default ubuntu-latest (can switch via CI_RUNS_ON), fully mocked (no backend/db required)
   e2e-smoke:
     name: E2E Smoke (Playwright)
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     needs: [build]
     steps:
       - name: Checkout code
@@ -603,7 +612,7 @@ jobs:
 
           # GitHub-hosted runner 可用 `--with-deps` 自动安装系统依赖；
           # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
-          if [ "${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
+          if [ "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
             npx playwright install chromium
           else
             npx playwright install chromium --with-deps

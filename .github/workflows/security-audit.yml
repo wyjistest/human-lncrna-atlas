@@ -14,6 +14,11 @@ on:
   # CI 暂停自动触发：GitHub-hosted runner 受账单/额度限制时会导致大量噪音失败。
   # 如需恢复 push/PR/schedule 自动触发，请在此处重新加入触发器。
   workflow_dispatch:  # 允许手动触发
+    inputs:
+      runs_on:
+        description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
+        required: false
+        default: ""
 
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
 permissions:
@@ -25,7 +30,7 @@ jobs:
   # ============================================================================
   python-audit:
     name: Python Dependencies Audit
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: frontend/backend
@@ -79,7 +84,7 @@ jobs:
   # ============================================================================
   npm-audit:
     name: NPM Dependencies Audit
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: frontend/web
@@ -126,7 +131,7 @@ jobs:
   summary:
     name: Audit Summary
     needs: [python-audit, npm-audit]
-    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     if: always()
 
     steps:
