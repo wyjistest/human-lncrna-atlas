@@ -40,6 +40,8 @@ GitHub UI 路径：
 - `.github/workflows/test.yml` 与 `.github/workflows/security-audit.yml` 会默认在 self-hosted runner 上运行。
 - 默认仍保持 `CI_RUNS_ON` 未配置时使用 `ubuntu-latest`（不破坏现有行为）。
 
+补充：self-hosted runner 有持久磁盘缓存，因此 `Tests` workflow 在 self-hosted 上会禁用 `setup-node`/`setup-python` 的远端 cache（避免 artifact cache 下载/上传拖慢），依赖缓存由本机 `~/.npm` 与 pip cache 直接复用。
+
 ### 3) 可选：在 self-hosted 上启用 Postgres service 作业
 
 `Tests` workflow 里有两个 job 使用了 `services: postgres`：
@@ -67,6 +69,10 @@ GitHub UI 路径：
 cd frontend/web
 npx playwright install-deps chromium
 ```
+
+### 4.1) 可选：E2E Tests (Playwright)
+
+`E2E Tests (Playwright)` 是 self-hosted 的“集成向”E2E（会检查 backend 是否可用，默认访问 `http://localhost:8000/health`）。该 job 默认关闭；如需运行，在手动触发 `Tests` workflow 时填写 `enable_e2e_tests=true`。
 
 ### 5) 如何验证是否生效
 

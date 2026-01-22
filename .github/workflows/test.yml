@@ -13,6 +13,10 @@ on:
         description: "Enable Postgres service jobs when running on self-hosted (default false)."
         required: false
         default: "false"
+      enable_e2e_tests:
+        description: "Enable self-hosted E2E Tests job (requires backend services running)."
+        required: false
+        default: "false"
 
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
 permissions:
@@ -745,7 +749,7 @@ jobs:
   e2e-tests:
     name: E2E Tests (Playwright)
     runs-on: self-hosted
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_e2e_tests == 'true' }}
     needs: [build]
     steps:
       - name: Checkout code
@@ -760,9 +764,52 @@ jobs:
         working-directory: frontend/web
         run: npm ci
 
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: frontend/web/dist
+
+      - name: Normalize dist path for preview
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # Prefer dist in-place (ideal).
+          if [ -d "dist" ] && [ -f "dist/index.html" ]; then
+            exit 0
+          fi
+
+          # Common extraction patterns for actions/download-artifact.
+          if [ -d "../dist" ] && [ -f "../dist/index.html" ]; then
+            mv ../dist dist
+            exit 0
+          fi
+
+          if [ -d "../build" ] && [ -f "../build/index.html" ]; then
+            mkdir -p dist
+            cp -R ../build/* dist/
+            exit 0
+          fi
+
+          if [ -d "build" ] && [ -f "build/index.html" ]; then
+            mkdir -p dist
+            cp -R build/* dist/
+            exit 0
+          fi
+
+          echo "::error::Unable to locate Vite build output after downloading artifact"
+          echo "::group::Workspace root"
+          ls -la ..
+          echo "::endgroup::"
+          echo "::group::Frontend directory"
+          ls -la .
+          echo "::endgroup::"
+          exit 1
+
       - name: Install Playwright browsers
         working-directory: frontend/web
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install chromium
 
       - name: Wait for backend service
         run: |
@@ -782,9 +829,30 @@ jobs:
       - name: Run E2E tests
         working-directory: frontend/web
         env:
-          BASE_URL: http://localhost:5173
+          BASE_URL: http://127.0.0.1:5173
           CI: true
         run: |
+          set -euo pipefail
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS "http://127.0.0.1:5173/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
           # Run a subset of critical E2E tests
           npx playwright test \
             e2e/genes-flow.spec.ts \
