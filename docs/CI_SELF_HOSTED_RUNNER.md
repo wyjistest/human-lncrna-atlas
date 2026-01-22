@@ -85,6 +85,18 @@ gh run list --branch main --limit 5
 
 若看到 `Tests` / `Security Audit` 能正常启动并执行 job，说明 self-hosted 止损方案已生效。
 
+### 6) 常见排障：Actions 下载失败（SSL / Proxy）
+
+如果 self-hosted runner 偶发出现类似报错：
+
+- `Failed to download action ... The SSL connection could not be established`
+
+且你的机器环境变量里配置了 `http_proxy` / `https_proxy`（或 `HTTP_PROXY` / `HTTPS_PROXY`），可能导致 GitHub Actions Runner 的下载逻辑在某些代理实现下不稳定。
+
+建议处理方式（择一即可）：
+1. 让 runner 进程不要继承代理环境变量（例如在启动 runner 的脚本里 `unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY`）。
+2. 或为代理正确配置系统 CA / MITM 证书（取决于你的代理实现与安全策略）。
+
 ---
 
 ## 本地止损（无需 Actions）
