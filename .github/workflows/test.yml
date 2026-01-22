@@ -38,6 +38,9 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gitleaks-action 在 self-hosted 上上传 SARIF 时会用 HOME 作为 rootDirectory。
+          # 将其指向 workspace，避免出现 “rootDirectory is not a parent directory of results.sarif”。
+          HOME: ${{ github.workspace }}
 
   frontend-unit-tests:
     name: Frontend Unit Tests
