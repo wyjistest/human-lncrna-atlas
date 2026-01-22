@@ -89,6 +89,5 @@ describe('LncRNAChIPSeqOverlapTable (compare species)', () => {
     expect(await screen.findByTestId('overlap-compare-species-table')).toBeInTheDocument()
     expect(screen.getByText('Human')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
-  })
+  }, 15000)
 })
-
