@@ -180,7 +180,7 @@ jobs:
         run: |
           # Run only unit tests (no external dependencies required)
           # Uses pytest markers instead of --ignore flags
-          pytest -m unit -v --tb=short
+          python -m pytest -m unit -v --tb=short
 
   etl-e2e-smoke:
     name: ETL E2E Smoke (Postgres)
