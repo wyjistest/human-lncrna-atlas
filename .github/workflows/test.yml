@@ -34,13 +34,16 @@ jobs:
         with:
           fetch-depth: 0  # Full history for scanning all commits
 
+      - name: Cleanup gitleaks temp
+        run: |
+          rm -f /tmp/gitleaks.tmp
+
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # gitleaks-action 在 self-hosted 上上传 SARIF 时会用 HOME 作为 rootDirectory。
-          # 将其指向 workspace，避免出现 “rootDirectory is not a parent directory of results.sarif”。
-          HOME: ${{ github.workspace }}
+          # self-hosted runner 上 artifact 上传偶发路径兼容性问题；这里直接关闭上传。
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   frontend-unit-tests:
     name: Frontend Unit Tests
