@@ -24,11 +24,139 @@ function getEnvInt(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function buildMockOverlapItems(total: number) {
+  return Array.from({ length: total }, (_, index) => {
+    const id = index + 1
+    const markType = id % 2 === 0 ? 'H3K4me3' : 'H3K27me3'
+    const cellType = id % 3 === 0 ? 'GM12878' : 'K562'
+    const chromosome = id % 4 === 0 ? 'chr22' : 'chr1'
+
+    const overlapLength = 50 + (id % 17) * 10 + id
+    const overlapStart = 1_000_000 + id * 1_000
+    const overlapEnd = overlapStart + overlapLength
+
+    return {
+      overlap_id: `mock_overlap_${id}`,
+      lncrna_gene_id: 10_000 + id,
+      lncrna_name: `LNC_${String(id).padStart(2, '0')}`,
+      target_gene_id: 20_000 + id,
+      target_gene_name: `TG_${String(id).padStart(2, '0')}`,
+      mark_type: markType,
+      mark_category: markType === 'H3K27me3' ? 'repressive' : 'activating',
+      cell_type: cellType,
+      chromosome,
+      lncrna_binding_start: overlapStart - 200,
+      lncrna_binding_end: overlapStart - 50,
+      peak_start: overlapStart - 100,
+      peak_end: overlapEnd + 100,
+      overlap_start: overlapStart,
+      overlap_end: overlapEnd,
+      overlap_length: overlapLength,
+      binding_affinity: 100 - id, // Default sort: desc => ids 1..20 appear on page 1
+      peak_fold_enrichment: 2 + (id % 10) * 0.5,
+      peak_qvalue: 0.001 + (id % 10) * 0.002,
+    }
+  })
+}
+
+function parseCsvParam(value: string | null): string[] {
+  if (!value) return []
+  return value.split(',').map((x) => x.trim()).filter(Boolean)
+}
+
+function parsePositiveInt(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+async function mockOverlapApi(page: any) {
+  const items = buildMockOverlapItems(30)
+
+  await page.route('**/api/v1/lncrna-chipseq-overlap*', async (route: any) => {
+    const requestUrl = new URL(route.request().url())
+
+    // Only mock the main page endpoint; let summary/export/etc fall through.
+    if (!requestUrl.pathname.endsWith('/api/v1/lncrna-chipseq-overlap')) {
+      await route.fallback()
+      return
+    }
+
+    const markTypes = new Set(parseCsvParam(requestUrl.searchParams.get('mark_type')))
+    const cellTypes = new Set(parseCsvParam(requestUrl.searchParams.get('cell_type')))
+    const chromosome = requestUrl.searchParams.get('chromosome')
+
+    const pageNumber = parsePositiveInt(requestUrl.searchParams.get('page'), 1)
+    const pageSize = parsePositiveInt(requestUrl.searchParams.get('page_size'), 20)
+
+    const sortBy = requestUrl.searchParams.get('sort_by') || 'binding_affinity'
+    const sortOrder = requestUrl.searchParams.get('sort_order') || 'desc'
+
+    const filtered = items.filter((row) => {
+      if (markTypes.size > 0 && !markTypes.has(row.mark_type)) return false
+      if (cellTypes.size > 0 && !cellTypes.has(row.cell_type)) return false
+      if (chromosome && row.chromosome !== chromosome) return false
+      return true
+    })
+
+    const getSortValue = (row: any) => {
+      switch (sortBy) {
+        case 'binding_affinity':
+          return row.binding_affinity
+        case 'peak_fold_enrichment':
+          return row.peak_fold_enrichment
+        case 'peak_qvalue':
+          return row.peak_qvalue ?? Number.POSITIVE_INFINITY
+        case 'overlap_length':
+          return row.overlap_length
+        default:
+          return row.binding_affinity
+      }
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+      const aVal = getSortValue(a)
+      const bVal = getSortValue(b)
+      if (aVal === bVal) return String(a.overlap_id).localeCompare(String(b.overlap_id))
+      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
+    })
+
+    const startIndex = (pageNumber - 1) * pageSize
+    const paged = sorted.slice(startIndex, startIndex + pageSize)
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total: sorted.length,
+        page: pageNumber,
+        page_size: pageSize,
+        items: paged,
+      }),
+    })
+  })
+}
+
+async function waitForTableHasRows(page: any) {
+  const tbody = page.locator('.ant-table-tbody')
+  await tbody.waitFor({ state: 'visible', timeout: 20000 })
+  const rows = page.locator('.ant-table-tbody .ant-table-row, .ant-table-tbody [data-row-key]')
+  await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThan(0)
+}
+
+async function getFirstTwoRowNumbers(page: any, extractor: (row: any) => Promise<number>) {
+  const rows = page.locator('.ant-table-tbody .ant-table-row, .ant-table-tbody [data-row-key]')
+  await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThan(1)
+  const first = rows.nth(0)
+  const second = rows.nth(1)
+  const [a, b] = await Promise.all([extractor(first), extractor(second)])
+  return { a, b }
+}
+
 test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
-	test.beforeEach(async ({ page }) => {
-	  // Navigate to lncRNA-ChIP-seq Overlap page
-	  await page.goto(PAGE_URL)
-	  await page.waitForLoadState('domcontentloaded')
+		test.beforeEach(async ({ page }) => {
+		  // Navigate to lncRNA-ChIP-seq Overlap page
+		  await page.goto(PAGE_URL)
+		  await page.waitForLoadState('domcontentloaded')
 
 	  // 页面可能包含持续请求（例如 IGV 资源加载），避免 networkidle 卡死
 	  await page.locator('h1, h2').first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {})
@@ -296,216 +424,288 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
     await expect(mainContent).toBeVisible()
   })
 
-  // ============================================================================
-  // P1 Tests: Filter Functionality (skipped until backend ready)
-  // ============================================================================
+	  // ============================================================================
+	  // P1 Tests: Filter Functionality (mocked; backend data independent)
+	  // ============================================================================
 
-  test.skip('should filter by mark type', async ({ page }) => {
-    await page.waitForTimeout(2000)
+	  test('should filter by mark type', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
 
-    // Find Mark type selector
-    const markSelector = page.locator('.ant-select').first()
-    await markSelector.click()
+	    const tbody = page.locator('.ant-table-tbody')
+	    const hasK4 = await tbody.getByText(/^K4me3$/).count()
+	    expect(hasK4).toBeGreaterThan(0)
 
-    // Wait for dropdown
-    await page.waitForTimeout(500)
+	    const markControl = page.getByTestId('overlap-filter-mark-type')
+	    const markSelect = markControl.locator('.ant-select').first()
+	    await markSelect.click()
 
-    // Select H3K27me3 or another mark
-    const markOption = page.locator('.ant-select-dropdown .ant-select-item')
-      .filter({ hasText: /H3K27me3|H3K4me3|H3K27ac/i })
-      .first()
+	    const dropdown = page.locator('.ant-select-dropdown:visible')
+	    await dropdown.waitFor({ state: 'visible', timeout: 15000 })
 
-    if (await markOption.count() > 0) {
-      await markOption.click()
+	    await Promise.all([
+	      page.waitForResponse((resp) => {
+	        if (resp.status() !== 200) return false
+	        const url = new URL(resp.url())
+	        return (
+	          url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') &&
+	          (url.searchParams.get('mark_type') || '').includes('H3K27me3')
+	        )
+	      }),
+	      dropdown.getByRole('option', { name: /^H3K27me3/i }).first().click(),
+	    ])
 
-      // Wait for API response
-      await page.waitForResponse(
-        (resp) => resp.url().includes('/lncrna-chipseq-overlap') && resp.status() === 200,
-        { timeout: 30000 }
-      )
+	    await page.keyboard.press('Escape').catch(() => null)
 
-      // Verify table updated
-      await page.waitForTimeout(1000)
-      const table = page.locator('.ant-table')
-      await expect(table).toBeVisible()
-    }
-  })
+	    await waitForTableHasRows(page)
+	    expect(await tbody.getByText(/^K27me3$/).count()).toBeGreaterThan(0)
+	    expect(await tbody.getByText(/^K4me3$/).count()).toBe(0)
+	  })
 
-  test.skip('should filter by cell line', async ({ page }) => {
-    await page.waitForTimeout(2000)
+	  test('should filter by cell type', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
 
-    // Find cell line selector
-    const cellLineSelector = page.locator('.ant-select')
-      .filter({ hasText: /Cell.*Line|细胞系/i })
-      .first()
+	    const tbody = page.locator('.ant-table-tbody')
+	    const hasGM = await tbody.getByText('GM12878').count()
+	    expect(hasGM).toBeGreaterThan(0)
 
-    if (await cellLineSelector.count() > 0) {
-      await cellLineSelector.click()
-      await page.waitForTimeout(500)
+	    const cellTypeControl = page.getByTestId('overlap-filter-cell-type')
+	    const cellTypeSelect = cellTypeControl.locator('.ant-select').first()
+	    await page.keyboard.press('Escape').catch(() => null)
+	    await cellTypeSelect.click()
 
-      // Select K562 or another cell line
-      const cellLineOption = page.locator('.ant-select-dropdown .ant-select-item')
-        .filter({ hasText: /K562|GM12878|HepG2|H1-hESC/i })
-        .first()
+	    const dropdown = page.locator('.ant-select-dropdown:visible')
+	    await dropdown.waitFor({ state: 'visible', timeout: 15000 })
 
-      if (await cellLineOption.count() > 0) {
-        await cellLineOption.click()
+	    await Promise.all([
+	      page.waitForResponse((resp) => {
+	        if (resp.status() !== 200) return false
+	        const url = new URL(resp.url())
+	        return (
+	          url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') &&
+	          (url.searchParams.get('cell_type') || '').includes('K562')
+	        )
+	      }),
+	      dropdown.getByRole('option', { name: /^K562$/i }).first().click(),
+	    ])
 
-        // Wait for API response
-        await page.waitForResponse(
-          (resp) => resp.url().includes('cell_line=') && resp.status() === 200,
-          { timeout: 30000 }
-        )
-      }
-    }
-  })
+	    await page.keyboard.press('Escape').catch(() => null)
 
-  test.skip('should filter by chromosome', async ({ page }) => {
-    await page.waitForTimeout(2000)
+	    await waitForTableHasRows(page)
+	    expect(await tbody.getByText('K562').count()).toBeGreaterThan(0)
+	    expect(await tbody.getByText('GM12878').count()).toBe(0)
+	  })
 
-    // Find chromosome selector
-    const chrSelector = page.locator('.ant-select')
-      .filter({ hasText: /Chromosome|染色体/i })
-      .first()
+	  test('should filter by chromosome', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
 
-    if (await chrSelector.count() > 0) {
-      await chrSelector.click()
-      await page.waitForTimeout(500)
+	    const tbody = page.locator('.ant-table-tbody')
+	    const hasChr22 = await tbody.getByText(/^chr22:/).count()
+	    expect(hasChr22).toBeGreaterThan(0)
 
-      // Select chr1
-      const chrOption = page.locator('.ant-select-dropdown .ant-select-item')
-        .filter({ hasText: /^chr1$/i })
-        .first()
+	    const chrControl = page.getByTestId('overlap-filter-chromosome')
+	    const chrSelect = chrControl.locator('.ant-select').first()
+	    await page.keyboard.press('Escape').catch(() => null)
+	    await chrSelect.click()
 
-      if (await chrOption.count() > 0) {
-        await chrOption.click()
+	    const dropdown = page.locator('.ant-select-dropdown:visible')
+	    await dropdown.waitFor({ state: 'visible', timeout: 15000 })
 
-        // Wait for API response
-        await page.waitForResponse(
-          (resp) => resp.url().includes('chromosome=chr1') && resp.status() === 200,
-          { timeout: 30000 }
-        )
+	    await Promise.all([
+	      page.waitForResponse((resp) => {
+	        if (resp.status() !== 200) return false
+	        const url = new URL(resp.url())
+	        return url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') && url.searchParams.get('chromosome') === 'chr1'
+	      }),
+	      dropdown.getByRole('option', { name: /^chr1$/i }).first().click(),
+	    ])
 
-        // Verify table updated
-        await page.waitForTimeout(1000)
-      }
-    }
-  })
+	    await page.keyboard.press('Escape').catch(() => null)
 
-  test.skip('should reset filters', async ({ page }) => {
-    await page.waitForTimeout(2000)
+	    await waitForTableHasRows(page)
+	    expect(await tbody.getByText(/^chr1:/).count()).toBeGreaterThan(0)
+	    expect(await tbody.getByText(/^chr22:/).count()).toBe(0)
+	  })
 
-    // Look for reset button
-    const resetButton = page.getByRole('button', { name: /Reset|重置|Clear|清空/i })
+	  test('should reset filters', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
 
-    if (await resetButton.count() > 0) {
-      await resetButton.click()
+	    // Apply a mark filter first
+	    const markControl = page.getByTestId('overlap-filter-mark-type')
+	    await markControl.locator('.ant-select').first().click()
+	    const dropdown = page.locator('.ant-select-dropdown:visible')
+	    await dropdown.waitFor({ state: 'visible', timeout: 15000 })
 
-      // Wait for API response
-      await page.waitForResponse(
-        (resp) => resp.url().includes('/lncrna-chipseq-overlap') && resp.status() === 200,
-        { timeout: 30000 }
-      )
+	    await Promise.all([
+	      page.waitForResponse((resp) => {
+	        if (resp.status() !== 200) return false
+	        const url = new URL(resp.url())
+	        return url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') && (url.searchParams.get('mark_type') || '').includes('H3K27me3')
+	      }),
+	      dropdown.getByRole('option', { name: /^H3K27me3/i }).first().click(),
+	    ])
 
-      // Verify filters cleared
-      await page.waitForTimeout(1000)
-    }
-  })
+	    await page.keyboard.press('Escape').catch(() => null)
 
-  // ============================================================================
-  // P1 Tests: Table Interactions (skipped until backend ready)
-  // ============================================================================
+	    const tbody = page.locator('.ant-table-tbody')
+	    await waitForTableHasRows(page)
+	    expect(await tbody.getByText(/^K4me3$/).count()).toBe(0)
 
-  test.skip('should paginate through results', async ({ page }) => {
-    await page.waitForTimeout(3000)
+	    const resetButton = page.getByRole('button', { name: /Reset|重置|Clear|清空/i })
+	    await resetButton.click()
 
-    // Verify table has data
-    const table = page.locator('.ant-table')
-    await expect(table).toBeVisible()
+	    await waitForTableHasRows(page)
+	    await expect
+	      .poll(async () => tbody.getByText(/^K4me3$/).count(), { timeout: 15000 })
+	      .toBeGreaterThan(0)
+	  })
 
-    // Find pagination
-    const pagination = page.locator('.ant-pagination')
+	  // ============================================================================
+	  // P1 Tests: Table Interactions (mocked; backend data independent)
+	  // ============================================================================
 
-    if (await pagination.isVisible().catch(() => false)) {
-      // Click page 2
-      const page2Button = pagination.locator('.ant-pagination-item-2')
+	  test('should paginate through results', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
 
-      if (await page2Button.count() > 0) {
-        await page2Button.click()
+	    const tbody = page.locator('.ant-table-tbody')
+	    expect(await tbody.getByText('LNC_01').count()).toBeGreaterThan(0)
 
-        // Wait for API response
-        await page.waitForResponse(
-          (resp) => resp.url().includes('page=2') && resp.status() === 200,
-          { timeout: 30000 }
-        )
+	    const pagination = page.locator('.ant-pagination')
+	    await expect(pagination).toBeVisible({ timeout: 15000 })
 
-        // Verify page 2 is active
-        await expect(page2Button).toHaveClass(/ant-pagination-item-active/)
-      }
-    }
-  })
+	    const page2Button = pagination.locator('.ant-pagination-item-2')
+	    await expect(page2Button).toBeVisible()
 
-  test.skip('should sort by overlap length', async ({ page }) => {
-    await page.waitForTimeout(3000)
+	    await Promise.all([
+	      page.waitForResponse((resp) => {
+	        if (resp.status() !== 200) return false
+	        const url = new URL(resp.url())
+	        return url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') && url.searchParams.get('page') === '2'
+	      }),
+	      page2Button.click(),
+	    ])
 
-    // Find overlap length column header
-    const overlapLengthHeader = page.getByRole('columnheader', { name: /Overlap.*Length|重叠.*长度/i })
+	    await expect(page2Button).toHaveClass(/ant-pagination-item-active/)
+	    await waitForTableHasRows(page)
+	    expect(await tbody.getByText('LNC_21').count()).toBeGreaterThan(0)
+	    expect(await tbody.getByText('LNC_01').count()).toBe(0)
+	  })
 
-    if (await overlapLengthHeader.count() > 0) {
-      // Click to sort
-      await overlapLengthHeader.click()
+	  test('should sort by overlap length', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
 
-      // Wait for API response
-      await page.waitForResponse(
-        (resp) => resp.url().includes('sort') && resp.status() === 200,
-        { timeout: 30000 }
-      )
+	    const overlapLengthHeader = page.getByRole('columnheader', { name: /Overlap.*Length|重叠.*长度/i }).first()
 
-      // Verify sort indicator appears
-      await page.waitForTimeout(1000)
-      const sortIcon = overlapLengthHeader.locator('.ant-table-column-sorter-up, .ant-table-column-sorter-down')
-      const hasSortIcon = await sortIcon.count() > 0
+	    const responsePromise = page.waitForResponse((resp) => {
+	      if (resp.status() !== 200) return false
+	      const url = new URL(resp.url())
+	      return url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') && url.searchParams.get('sort_by') === 'overlap_length'
+	    })
 
-      if (hasSortIcon) {
-        await expect(sortIcon.first()).toBeVisible()
-      }
-    }
-  })
+	    await overlapLengthHeader.click()
+	    const response = await responsePromise
+	    const responseUrl = new URL(response.url())
+	    const order = responseUrl.searchParams.get('sort_order') || 'asc'
 
-  test.skip('should sort by chromosome', async ({ page }) => {
-    await page.waitForTimeout(3000)
+	    const readOverlapLengthFromLocation = async (row: any) => {
+	      const text = await row.getByText(/\bbp\b/i).first().innerText()
+	      const digits = text.replace(/[^0-9]/g, '')
+	      return Number.parseInt(digits, 10)
+	    }
 
-    // Find chromosome column header
-    const chrHeader = page.getByRole('columnheader', { name: /Chromosome|染色体/i })
+	    const { a, b } = await getFirstTwoRowNumbers(page, readOverlapLengthFromLocation)
+	    if (order === 'desc') {
+	      expect(a).toBeGreaterThanOrEqual(b)
+	    } else {
+	      expect(a).toBeLessThanOrEqual(b)
+	    }
+	  })
 
-    if (await chrHeader.count() > 0) {
-      await chrHeader.click()
+	  test('should sort by binding affinity', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
 
-      // Wait for sort to complete
-      await page.waitForTimeout(1000)
+	    const bindingAffinityHeader = page.getByRole('columnheader', { name: /Binding Affinity|结合.*亲和力|亲和力/i }).first()
 
-      // Verify table still visible
-      const table = page.locator('.ant-table')
-      await expect(table).toBeVisible()
-    }
-  })
+	    const responsePromise = page.waitForResponse((resp) => {
+	      if (resp.status() !== 200) return false
+	      const url = new URL(resp.url())
+	      return url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') && url.searchParams.get('sort_by') === 'binding_affinity'
+	    })
 
-  test.skip('should display row details on expand', async ({ page }) => {
-    await page.waitForTimeout(3000)
+	    await bindingAffinityHeader.click()
+	    const response = await responsePromise
+	    const responseUrl = new URL(response.url())
+	    const order = responseUrl.searchParams.get('sort_order') || 'asc'
 
-    // Look for expand button in first row
-    const expandButton = page.locator('.ant-table-tbody tr').first()
-      .locator('.ant-table-row-expand-icon')
+	    const readBindingAffinity = async (row: any) => {
+	      const cell = row.locator('strong').first()
+	      const text = await cell.innerText()
+	      const parsed = Number.parseFloat(text)
+	      return Number.isFinite(parsed) ? parsed : 0
+	    }
 
-    if (await expandButton.count() > 0) {
-      await expandButton.click()
-      await page.waitForTimeout(1000)
+	    const { a, b } = await getFirstTwoRowNumbers(page, readBindingAffinity)
+	    if (order === 'desc') {
+	      expect(a).toBeGreaterThanOrEqual(b)
+	    } else {
+	      expect(a).toBeLessThanOrEqual(b)
+	    }
+	  })
 
-      // Verify expanded content appears
-      const expandedRow = page.locator('.ant-table-expanded-row')
-      await expect(expandedRow).toBeVisible()
-    }
-  })
+	  test('should change page size', async ({ page }) => {
+	    await mockOverlapApi(page)
+	    await page.goto(PAGE_URL)
+	    await page.waitForLoadState('domcontentloaded')
+	    await waitForTableHasRows(page)
+
+	    const pagination = page.locator('.ant-pagination')
+	    await expect(pagination).toBeVisible({ timeout: 15000 })
+
+	    const sizeChanger = pagination.locator('.ant-pagination-options-size-changer').first()
+	    await expect(sizeChanger).toBeVisible()
+
+	    await sizeChanger.click()
+	    const dropdown = page.locator('.ant-select-dropdown:visible')
+	    await dropdown.waitFor({ state: 'visible', timeout: 15000 })
+
+	    await Promise.all([
+	      page.waitForResponse((resp) => {
+	        if (resp.status() !== 200) return false
+	        const url = new URL(resp.url())
+	        return (
+	          url.pathname.endsWith('/api/v1/lncrna-chipseq-overlap') &&
+	          url.searchParams.get('page') === '1' &&
+	          url.searchParams.get('page_size') === '10'
+	        )
+	      }),
+	      dropdown.getByRole('option', { name: /^10\s*\/\s*page$/i }).first().click(),
+	    ])
+
+	    // Table should render <= page_size rows for current viewport.
+	    const rowCount = await page.locator('.ant-table-tbody .ant-table-row, .ant-table-tbody [data-row-key]').count()
+	    expect(rowCount).toBeGreaterThan(0)
+	    expect(rowCount).toBeLessThanOrEqual(10)
+	  })
 
   // ============================================================================
   // Performance Tests
@@ -580,15 +780,15 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
 	    await page.unrouteAll({ behavior: 'ignoreErrors' })
 	  })
 
-  test('should handle empty results gracefully', async ({ page }) => {
-    // Intercept API and return empty data
-    await page.route('**/api/v1/lncrna-chipseq-overlap*', (route) => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ data: [], total: 0 })
-      })
-    })
+	  test('should handle empty results gracefully', async ({ page }) => {
+	    // Intercept API and return empty data
+	    await page.route('**/api/v1/lncrna-chipseq-overlap*', (route) => {
+	      route.fulfill({
+	        status: 200,
+	        contentType: 'application/json',
+	        body: JSON.stringify({ items: [], total: 0, page: 1, page_size: 20 })
+	      })
+	    })
 
     await page.goto(PAGE_URL)
     await page.waitForTimeout(2000)
@@ -675,25 +875,22 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
   // Accessibility Tests
   // ============================================================================
 
-  test('should have accessible table structure', async ({ page }) => {
-    await page.waitForTimeout(3000)
+	  test('should have accessible table structure', async ({ page }) => {
+	    await page.waitForTimeout(3000)
 
-    const table = page.locator('.ant-table')
+	    const table = page.locator('.ant-table').first()
 
-    if (await table.isVisible().catch(() => false)) {
-      // Verify table has proper structure
-      const thead = table.locator('thead')
-      const tbody = table.locator('tbody')
+	    if (await table.isVisible().catch(() => false)) {
+	      // AntD Table may render body using virtualized divs (no <tbody>).
+	      // Validate accessible structure via roles instead of strict DOM tags.
+	      const headers = table.getByRole('columnheader')
+	      await expect(headers.first()).toBeVisible()
 
-      await expect(thead).toBeVisible()
-      await expect(tbody).toBeVisible()
-
-      // Verify headers have text
-      const headers = thead.locator('th')
-      const headerCount = await headers.count()
-      expect(headerCount).toBeGreaterThan(0)
-    }
-  })
+	      const rows = table.getByRole('row')
+	      const rowCount = await rows.count()
+	      expect(rowCount).toBeGreaterThan(0)
+	    }
+	  })
 
   test('should support keyboard navigation', async ({ page }) => {
     await page.waitForTimeout(2000)
