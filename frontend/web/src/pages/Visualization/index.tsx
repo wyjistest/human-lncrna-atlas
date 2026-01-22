@@ -85,7 +85,7 @@ export default function VisualizationHub() {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24 }} data-testid="visualization-page">
       {/* Breadcrumb */}
       <Breadcrumb
         style={{ marginBottom: 16 }}
@@ -126,6 +126,7 @@ export default function VisualizationHub() {
         {visualizations.map((viz) => (
           <Col xs={24} sm={12} lg={8} key={viz.path}>
             <Card
+              data-testid="visualization-card"
               hoverable
               onClick={() => navigate(viz.path)}
               style={{
