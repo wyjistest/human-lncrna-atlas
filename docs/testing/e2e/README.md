@@ -150,6 +150,7 @@ Notes:
   - `e2e/diseases-smoke.spec.ts`
   - `e2e/analysis-smoke.spec.ts`
   - `e2e/conservation-smoke.spec.ts`
+  - `e2e/visualization-hub-smoke.spec.ts`
   - `e2e/admin-monitoring-smoke.spec.ts`
   - `e2e/admin-cache-smoke.spec.ts`
   - `e2e/admin-materialized-views-smoke.spec.ts`
