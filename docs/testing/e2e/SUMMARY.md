@@ -124,7 +124,8 @@ npm run test:e2e:report
 ✅ **Ready to deploy** - all P0 tests pass
 
 ### For Backend Team
-⏳ **Optimize API** - enable P1 tests for filtering/sorting/pagination
+✅ **No blocker for E2E** - P1 interactions are enabled via mocked overlap API
+📝 Optional: provide a seeded dataset to add real-backend integration coverage
 
 ### For QA Team
 📝 **Manual testing recommended**:
@@ -138,6 +139,6 @@ npm run test:e2e:report
 
 **The lncRNA-ChIP-seq Overlap Analysis page is production-ready** with comprehensive E2E test coverage. All critical functionality (routing, rendering, i18n, error handling, performance, accessibility) is verified and working correctly.
 
-**Recommendation**: Proceed with staging deployment. Enable P1 tests once backend API is optimized.
+**Recommendation**: Proceed with staging deployment. Add optional real-backend integration coverage when a seeded dataset is available.
 
 **Overall Status**: ✅ **PASS**

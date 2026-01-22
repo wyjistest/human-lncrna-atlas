@@ -26,19 +26,24 @@ Comprehensive end-to-end tests for the lncRNA-ChIP-seq Overlap Analysis page usi
 - ✅ Chinese content displays
 - ✅ English content displays
 
-### P1 Tests (Optional - Backend Required)
+### P1 Tests (Enabled - Mocked Overlap API)
+
+These tests validate the filter + table interaction wiring by intercepting
+`GET /api/v1/lncrna-chipseq-overlap` and returning deterministic data. This keeps
+the suite stable and independent of backend/DB datasets while still exercising
+real UI interactions and query parameter composition.
 
 #### 4. Filter Functionality
-- ⏸️ Filter by mark type (H3K27me3, H3K4me3, etc.)
-- ⏸️ Filter by cell line (K562, GM12878, HepG2, H1-hESC)
-- ⏸️ Filter by chromosome (chr1-chr22, chrX, chrY)
-- ⏸️ Reset filters
+- ✅ Filter by mark type (H3K27me3, H3K4me3, etc.)
+- ✅ Filter by cell type (K562, GM12878, ...)
+- ✅ Filter by chromosome (chr1-chr22, chrX, chrY)
+- ✅ Reset filters
 
 #### 5. Table Interactions
-- ⏸️ Pagination through results
-- ⏸️ Sort by overlap length
-- ⏸️ Sort by chromosome
-- ⏸️ Expand row details
+- ✅ Pagination through results
+- ✅ Sort by overlap length
+- ✅ Sort by binding affinity
+- ✅ Change page size
 
 ### Additional Test Suites
 
@@ -398,11 +403,8 @@ Running 25 tests using 1 worker
    curl http://localhost:8000/api/v1/lncrna-chipseq-overlap
    ```
 
-2. Skip P1 tests that require backend:
-   ```bash
-   npm run test:e2e -- e2e/lncrna-chipseq-overlap.spec.ts --grep-invert "skip"
-   ```
-
+2. Note: P1 interactions in `e2e/lncrna-chipseq-overlap.spec.ts` intercept the overlap API.
+   If you still see API errors, they likely come from other endpoints (e.g. IGV) or missing services.
 3. Mock API responses in tests (already configured for error handling tests)
 
 ### Issue: Language Detection Fails
@@ -519,7 +521,7 @@ jobs:
 2. Use descriptive test names: `should [action] when [condition]`
 3. Group related tests in `test.describe()` blocks
 4. Use `test.beforeEach()` for common setup
-5. Mark backend-dependent tests with `test.skip()`
+5. Prefer mocking backend/DB dependencies via `page.route()`; only use `test.skip()` when a feature is not implemented yet
 
 ### Updating Tests After Frontend Changes
 
@@ -572,10 +574,10 @@ After running tests, provide a summary using this template:
 - ✅ Component Rendering (6/6)
 - ✅ Internationalization (3/3)
 
-### P1 Test Results (Skipped - Backend Not Ready)
+### P1 Test Results
 
-- ⏸️ Filter Functionality (0/4 - skipped)
-- ⏸️ Table Interactions (0/4 - skipped)
+- ✅ Filter Functionality (4/4)
+- ✅ Table Interactions (4/4)
 
 ### Additional Tests
 
@@ -592,9 +594,9 @@ None - all P0 tests passed.
 
 ### Next Steps
 
-1. Enable P1 tests once backend API is ready
+1. Add optional real-backend integration coverage for overlaps (seeded dataset)
 2. Add tests for data export functionality
-3. Add tests for advanced filtering options
+3. Add tests for advanced numeric filtering options
 ```
 
 ## Contact
