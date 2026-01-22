@@ -7,6 +7,9 @@
 
 ---
 
+> 更新（2026-01）：本文档为 2025-11 的 Phase 1 修订计划稿保留。当前项目已进入 Phase 3.x，Stats/Regulations 等核心 API 已实现，MSW Mock 已移除或仅保留空框架。\
+> 文中出现的 “Mock/后端待实现/未实现” 等描述仅代表当时阶段，请以 `docs/CURRENT_STATUS.md` 与代码实现为准。
+
 ## 📊 技术栈对齐报告
 
 ### 实际技术栈（经验证）
@@ -217,7 +220,7 @@ export type Regulation = components['schemas']['RegulationListItem']
 export type NetworkNode = components['schemas']['NetworkNode']
 export type NetworkEdge = components['schemas']['NetworkEdge']
 
-// ============ 新增类型（后端未实现） ============
+// ============ 新增类型（历史：早期后端未实现阶段） ============
 
 /**
  * 详细统计信息（用于 Stats 页面图表）

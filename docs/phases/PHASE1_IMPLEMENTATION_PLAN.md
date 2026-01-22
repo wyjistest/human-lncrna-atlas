@@ -7,6 +7,9 @@
 
 ---
 
+> 更新（2026-01）：本文档为 2025-11 的 Phase 1 计划稿保留。当前项目已进入 Phase 3.x，Stats/Regulations 等核心 API 已实现，MSW Mock 已移除或仅保留空框架。\
+> 文中出现的 “Mock/后端待实现/未实现” 等描述仅代表当时阶段，请以 `docs/CURRENT_STATUS.md` 与代码实现为准。
+
 ## 📋 目录
 
 - [一、项目背景](#一项目背景)
@@ -426,7 +429,7 @@ export type Gene = components['schemas']['GeneListItem']
 export type Regulation = components['schemas']['RegulationListItem']
 export type Trait = components['schemas']['TraitListItem']
 
-// ✅ 扩展新接口的类型（后端未实现时）
+// ✅ 扩展新接口的类型（历史：早期后端未实现阶段）
 export interface DetailedStatsResponse {
   summary: {
     total_genes: number

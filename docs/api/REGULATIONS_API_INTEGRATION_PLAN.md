@@ -16,7 +16,10 @@
 - `/api/v1/regulations/lncrna-options` - lncRNA 选项列表（用于筛选器）
 - `/api/v1/regulations/target-options` - 靶基因选项列表（用于筛选器）
 
-**注意**: 当前后端尚未实现这两个端点，本文档为前端准备阶段。
+**2026-01 状态更新**
+
+- ✅ 后端已实现上述两个端点（含缓存）：`frontend/backend/app/routers/regulations.py`
+- ⚠️ 前端当前仍使用 `lncrna_gene_name` / `target_gene_name` 的模糊搜索输入框；本方案中“改为下拉选择器 + 使用 gene_id 参数”的步骤属于可选增强（未默认启用）
 
 ### 1.2 优化收益预估
 
@@ -963,19 +966,19 @@ test.describe('Regulations Filters', () => {
 
 ### 阶段 2: 前端集成（Frontend Agent）
 
-1. ✅ 更新 `src/api/regulations.ts`（添加类型和方法）
-2. ✅ 修改 `FilterState` 类型（`lncrna_gene_name` → `lncrna_gene_id`）
-3. ✅ 修改 `AdvancedFilters.tsx`（替换输入框为选择器）
-4. ✅ 修改 `index.tsx`（调整 API 参数）
-5. ✅ 添加国际化翻译
-6. ✅ 更新单元测试
+1. ✅ 更新 `src/api/regulations.ts`（已添加类型与 options API 方法）
+2. ⏸️（可选增强）修改 `FilterState` 类型（`lncrna_gene_name` → `lncrna_gene_id`）
+3. ⏸️（可选增强）修改 `AdvancedFilters.tsx`（替换输入框为选择器）
+4. ⏸️（可选增强）修改 `index.tsx`（调整 API 参数，使用 gene_id）
+5. ⏸️（可选增强）补齐选择器相关国际化
+6. ⏸️（可选增强）补齐/更新单元测试
 
 ### 阶段 3: 测试验证（Playwright Agent）
 
-1. ✅ 编写集成测试（Playwright）
-2. ✅ 性能测试（加载时间、缓存命中率）
-3. ✅ UI 测试（下拉框交互、搜索功能）
-4. ✅ 回归测试（确保原有功能正常）
+1. ⏸️（可选增强）为 options selector 路径补齐 Playwright 覆盖
+2. ⏸️（可选增强）性能测试（加载时间、缓存命中率）
+3. ⏸️（可选增强）UI 测试（下拉框交互、搜索功能）
+4. ⏸️（可选增强）回归测试（确保原有功能正常）
 
 ---
 
@@ -985,7 +988,7 @@ test.describe('Regulations Filters', () => {
 |------|------|---------|
 | **数据量过大** | 选择器加载慢 | 1. 启用虚拟滚动<br>2. 按物种过滤<br>3. 前端限制显示数量 |
 | **缓存失效** | 数据不一致 | 1. 后端更新时清除缓存<br>2. 前端定期刷新<br>3. 提供手动刷新按钮 |
-| **后端未实现** | 前端报错 | 1. 添加错误边界<br>2. 优雅降级（保留输入框）<br>3. 清晰的错误提示 |
+| **后端接口不可用/不可达** | 前端报错 | 1. 添加错误边界<br>2. 优雅降级（保留输入框）<br>3. 清晰的错误提示 |
 | **用户习惯** | 不适应新 UI | 1. 保留搜索功能<br>2. 添加使用提示<br>3. 渐进式迁移 |
 
 ---

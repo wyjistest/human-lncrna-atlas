@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-01 状态更新
+
+- ✅ 后端已实现 `lncrna-options` / `target-options`（含缓存）：`frontend/backend/app/routers/regulations.py`
+- ⚠️ 前端当前仍使用 `lncrna_gene_name` / `target_gene_name` 的模糊搜索输入框；“改为下拉选择器 + 使用 gene_id 参数”属于可选增强（未默认启用）
+
 ## 1. 任务完成情况
 
 ### 1.1 已完成项
@@ -20,18 +25,18 @@
 ### 1.2 待后续执行
 
 **后端开发**（Backend Agent）:
-- [ ] 实现 `/api/v1/regulations/lncrna-options` 端点
-- [ ] 实现 `/api/v1/regulations/target-options` 端点
-- [ ] 添加 Redis 缓存（30 分钟）
+- [x] 实现 `/api/v1/regulations/lncrna-options` 端点
+- [x] 实现 `/api/v1/regulations/target-options` 端点
+- [x] 添加缓存（默认 30 分钟）
 
 **前端集成**（Frontend Agent）:
-- [ ] 修改 `AdvancedFilters.tsx`（替换输入框为选择器）
-- [ ] 修改 `index.tsx`（调整 API 参数）
-- [ ] 添加国际化翻译
+- [ ] （可选增强）修改 `AdvancedFilters.tsx`（替换输入框为选择器）
+- [ ] （可选增强）修改 `index.tsx`（使用 gene_id 参数而非 gene_name）
+- [ ] （可选增强）补齐选择器相关国际化与单测
 
 **测试验证**（Playwright Agent）:
-- [ ] Playwright 集成测试
-- [ ] 性能基准测试
+- [ ] （可选增强）为选择器路径补齐 Playwright 覆盖
+- [ ] （可选增强）性能基准（options API latency / payload / cache hit）
 
 ---
 
@@ -285,7 +290,7 @@ const { data: targetOptions, isLoading } = useQuery({
 |------|---------|
 | **数据量过大** | 1. 虚拟滚动<br>2. 按物种过滤<br>3. 前端限制显示数量 |
 | **缓存失效** | 1. 后端更新时清除缓存<br>2. 前端定期刷新 |
-| **后端未实现** | 1. 错误边界<br>2. 优雅降级（保留输入框） |
+| **后端接口不可用/不可达** | 1. 错误边界<br>2. 优雅降级（保留输入框） |
 
 ---
 
@@ -327,4 +332,4 @@ const { data: targetOptions, isLoading } = useQuery({
 
 **准备完成日期**: 2025-12-10
 **准备人**: Frontend Agent (Claude Sonnet 4.5)
-**状态**: 等待后端 API 实现 🚀
+**状态**: 后端已实现；前端选择器方案作为可选增强保留
