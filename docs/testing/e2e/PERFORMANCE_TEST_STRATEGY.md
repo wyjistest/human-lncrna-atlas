@@ -153,7 +153,7 @@ test('Scenario 1: Disease dropdown loading performance', async ({ page }) => {
     resp => resp.url().includes('/api/v1/diseases') && resp.status() === 200
   )
 
-  await page.goto('http://localhost:5173/network')
+  await page.goto('/network')
 
   const response = await responsePromise
   const apiResponseTime = Date.now() - apiStartTime
@@ -209,7 +209,7 @@ test('Scenario 1: Disease dropdown loading performance', async ({ page }) => {
 **测试步骤**:
 ```typescript
 test('Scenario 2: Large options list scroll performance', async ({ page }) => {
-  await page.goto('http://localhost:5173/network')
+  await page.goto('/network')
 
   // 打开疾病下拉框
   const diseaseSelect = page.locator('.ant-select').filter({ hasText: /Disease/ }).first()
@@ -265,7 +265,7 @@ test('Scenario 2: Large options list scroll performance', async ({ page }) => {
 **测试步骤**:
 ```typescript
 test('Scenario 3: Disease selection → Network graph rendering', async ({ page }) => {
-  await page.goto('http://localhost:5173/network')
+  await page.goto('/network')
   await page.waitForLoadState('networkidle')
 
   // 1. 选择物种
@@ -426,7 +426,7 @@ test('Scenario 5: Concurrent users stress test', async ({ browser }) => {
 
       try {
         // 模拟用户行为: 加载页面 → 选择疾病 → 查询网络
-        await page.goto('http://localhost:5173/network')
+        await page.goto('/network')
         await page.waitForLoadState('networkidle')
 
         // 选择物种
@@ -704,7 +704,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
     const { response, time: apiTime, data } = await metrics.measureAPIResponse(
       '/api/v1/diseases',
       async () => {
-        await page.goto('http://localhost:5173/network')
+        await page.goto('/network')
         await page.waitForLoadState('networkidle')
       }
     )
