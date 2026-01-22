@@ -282,7 +282,7 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
         "",
         "## Cache",
         "",
-        _md_kv("hit rate", cache_stats.get("hit_rate", "-")),
+        _md_kv("hit rate", fmt_pct(cache_stats.get("hit_rate_pct"))),
         _md_kv("hits", cache_stats.get("hits", 0)),
         _md_kv("misses", cache_stats.get("misses", 0)),
         "",
