@@ -775,7 +775,7 @@ npm run type-check  # 应该无错误
 
 ---
 
-### Phase 1C: MSW 配置（30min）
+### Phase 1C: MSW 配置（历史，30min）
 
 #### 1. Mock 数据
 
@@ -849,18 +849,12 @@ export const mockDetailedStats: DetailedStatsResponse = {
 
 #### 2. Handlers
 
+> 更新（2026-01-23）：当前 `frontend/web/src/mocks/handlers.ts` 为空数组，MSW 默认不启用。以下为历史示例。
+
 **文件**: `src/mocks/handlers.ts`
 ```typescript
-import { http, HttpResponse } from 'msw'
-import type { DetailedStatsResponse } from '@/types'
-import { mockDetailedStats } from './data/stats.mock'
-
 export const handlers = [
-  // Stats API
-  http.get('/api/v1/stats/detailed', () => {
-    console.log('📊 [MSW] GET /api/v1/stats/detailed')
-    return HttpResponse.json<DetailedStatsResponse>(mockDetailedStats)
-  })
+  // 所有 API 已实现，无需 Mock（历史示例）
 ]
 ```
 
@@ -884,7 +878,7 @@ export const server = setupServer(...handlers)
 
 **文件**: `src/main.tsx`（使用上面"MSW 配置安全性"一节的代码）
 
-**验证**:
+**验证（历史）**:
 ```bash
 npm run dev
 # 打开浏览器控制台，应该看到：

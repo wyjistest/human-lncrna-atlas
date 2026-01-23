@@ -3,7 +3,7 @@
 **项目**: Human LncRNA Atlas - 前置基础
 **优先级**: 🔴 P0（阻塞 Phase 1 的基础设施）
 **预计时间**: 1.5 小时
-**状态**: 📋 待实施
+**状态**: 🗄️ 历史归档（Phase 0 已完成）
 
 ---
 
@@ -55,7 +55,7 @@ export type PaginatedResponse<T> = {
 
 /**
  * 详细统计信息（用于 Stats 页面图表）
- * 状态：🔴 Mock（后端待实现）
+ * 状态：✅ 已实现（历史说明）
  * API: GET /api/v1/stats/detailed
  */
 export interface DetailedStatsResponse {
@@ -104,7 +104,7 @@ export interface DetailedStatsResponse {
 
 /**
  * BA 范围配置
- * 状态：🔴 Mock（后端待实现）
+ * 状态：✅ 已实现（历史说明）
  * API: GET /api/v1/stats/ba-range
  */
 export interface BARange {
@@ -324,6 +324,8 @@ export default echarts
 
 ### Task 2: MSW 安全启动（30min）
 
+> 更新（2026-01-23）：真实 API 已上线，MSW Mock 已移除（仅保留空 handlers）。以下步骤为历史记录，仅供参考。
+
 #### 2.1 环境变量配置
 
 **文件**: `.env`（Git 提交，生产默认值）
@@ -369,13 +371,13 @@ import type { DetailedStatsResponse } from '@/types'
 /**
  * MSW API Handlers
  *
- * ⚠️ 状态说明：
- * - 🟢 已实现：后端 API 已上线，MSW 仅用于测试
- * - 🔴 Mock：后端 API 未实现，前端使用 Mock 数据
+ * ⚠️ 状态说明（历史）：
+ * - ✅ 当前：真实 API 已上线，Mock 已移除（仅保留空 handlers）
+ * - 🧭 以下内容为历史示例
  */
 
 export const handlers = [
-  // ============ Stats API（🔴 Mock） ============
+  // ============ Stats API（历史示例） ============
   http.get('/api/v1/stats/detailed', () => {
     console.log('📊 [MSW] GET /api/v1/stats/detailed')
 
@@ -396,7 +398,7 @@ export const handlers = [
     })
   }),
 
-  // ============ BA Range API（🔴 Mock） ============
+  // ============ BA Range API（历史示例） ============
   http.get('/api/v1/stats/ba-range', () => {
     console.log('📊 [MSW] GET /api/v1/stats/ba-range')
 
@@ -518,7 +520,7 @@ enableMocking().then(() => {
 })
 ```
 
-#### 2.4 安装 MSW
+#### 2.4 安装 MSW（历史记录）
 
 ```bash
 cd <repo-root>/frontend/web
@@ -530,18 +532,20 @@ npm install msw --save-dev
 npx msw init public/ --save
 ```
 
-**验证清单**:
-- [ ] `.env` 配置 `VITE_USE_MOCK=false`
-- [ ] `.env.development` 配置 `VITE_USE_MOCK=true`
-- [ ] `public/mockServiceWorker.js` 已生成
-- [ ] `src/mocks/handlers.ts` 创建（空框架）
-- [ ] `src/main.tsx` 更新为安全启动逻辑
-- [ ] 运行 `npm run dev`，控制台显示 "✅ MSW started successfully"
-- [ ] Network 面板显示请求带 "[MSW]" 标记
+**验证清单（历史）**:
+- [x] `.env` 配置 `VITE_USE_MOCK=false`
+- [x] `.env.development` 配置 `VITE_USE_MOCK=true`
+- [x] `public/mockServiceWorker.js` 已生成
+- [x] `src/mocks/handlers.ts` 创建（空框架）
+- [x] `src/main.tsx` 更新为安全启动逻辑
+- [x] 运行 `npm run dev`，控制台显示 "✅ MSW started successfully"
+- [x] Network 面板显示请求带 "[MSW]" 标记
 
 ---
 
 ### Task 3: BA 范围统一配置（15min）
+
+> 更新（2026-01-23）：BA 范围由后端接口返回真实值，前端已使用动态范围；以下配置为历史示例。
 
 #### 3.1 配置文件
 
@@ -551,10 +555,10 @@ npx msw init public/ --save
 /**
  * 全局配置常量
  *
- * ⚠️ BA 范围配置说明：
- * - 临时方案：硬编码 0-100（Phase 0）
- * - 最终方案：从 API 动态获取（Phase 2）
- * - 查询实际范围：SELECT MIN(binding_affinity), MAX(binding_affinity) FROM regulations;
+ * ⚠️ BA 范围配置说明（历史）：
+ * - 当前：后端 /api/v1/stats/ba-range 返回真实范围
+ * - 常量仅作为 fallback/示例
+ * - 历史查询：SELECT MIN(binding_affinity), MAX(binding_affinity) FROM regulations;
  */
 
 // ============ BA（Binding Affinity）配置 ============
@@ -643,8 +647,8 @@ export const FEATURE_FLAGS = {
   /** Stats 详细统计 API（默认使用 Mock） */
   USE_MOCK_STATS: import.meta.env.VITE_USE_MOCK === 'true',
 
-  /** BA 范围动态获取（默认使用配置） */
-  USE_DYNAMIC_BA_RANGE: false,  // Phase 2 时改为 true
+  /** BA 范围动态获取（当前已启用，历史示例） */
+  USE_DYNAMIC_BA_RANGE: true,
 
   /** 后端导出功能（Phase 2） */
   USE_BACKEND_EXPORT: false
@@ -986,21 +990,21 @@ export default function Regulations() {
 - [ ] `src/utils/echarts.ts` 按需导入，控制台显示版本号
 - [ ] 运行 `npm run lint` 无错误
 
-#### Task 2: MSW 安全启动
-- [ ] `.env` 配置 `VITE_USE_MOCK=false`
-- [ ] `.env.development` 配置 `VITE_USE_MOCK=true`
-- [ ] `public/mockServiceWorker.js` 已生成
-- [ ] `src/mocks/handlers.ts` 空框架创建
-- [ ] `src/main.tsx` 安全启动逻辑
-- [ ] 运行 `npm run dev`，控制台显示 "✅ MSW started successfully"
-- [ ] Network 面板显示 "[MSW]" 标记
-- [ ] onUnhandledRequest 设置为 'warn'
+#### Task 2: MSW 安全启动（历史）
+- [x] `.env` 配置 `VITE_USE_MOCK=false`
+- [x] `.env.development` 配置 `VITE_USE_MOCK=true`
+- [x] `public/mockServiceWorker.js` 已生成
+- [x] `src/mocks/handlers.ts` 空框架创建
+- [x] `src/main.tsx` 安全启动逻辑
+- [x] 运行 `npm run dev`，控制台显示 "✅ MSW started successfully"
+- [x] Network 面板显示 "[MSW]" 标记
+- [x] onUnhandledRequest 设置为 'warn'
 
-#### Task 3: BA 范围统一配置
-- [ ] `src/config/constants.ts` 创建
-- [ ] `BA_CONFIG` 配置正确
-- [ ] `generateBABuckets()` 函数测试通过
-- [ ] `FEATURE_FLAGS` 配置正确
+#### Task 3: BA 范围统一配置（历史）
+- [x] `src/config/constants.ts` 创建
+- [x] `BA_CONFIG` 配置正确
+- [x] `generateBABuckets()` 函数测试通过
+- [x] `FEATURE_FLAGS` 配置正确
 
 #### Task 4: 导出限制与提示
 - [ ] `src/utils/export.ts` 创建
@@ -1012,6 +1016,8 @@ export default function Regulations() {
 ---
 
 ## 🚀 依赖安装
+
+> 更新（2026-01-23）：MSW 已移除，以下命令仅为历史安装记录。
 
 ```bash
 cd <repo-root>/frontend/web
@@ -1049,7 +1055,7 @@ npm list msw xlsx rollup-plugin-visualizer
 | Phase 1 任务 | 依赖 Phase 0 | 说明 |
 |-------------|-------------|------|
 | Stats 图表 | Task 1（echarts.ts） | 按需导入配置 |
-| Stats Mock 数据 | Task 2（MSW）+ Task 3（BA 配置） | Mock 框架 + BA 区间生成 |
+| Stats Mock 数据（已废弃） | Task 2（MSW）+ Task 3（BA 配置） | 历史 Mock 框架 + BA 区间生成 |
 | Regulations 筛选 | Task 3（constants.ts） | BA_CONFIG, SPECIES_OPTIONS |
 | Regulations 导出 | Task 4（export.ts） | 完整导出逻辑 |
 
