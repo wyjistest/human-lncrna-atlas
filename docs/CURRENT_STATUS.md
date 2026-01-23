@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-20
+> 最后更新: 2026-01-23
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,17 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-23 ⭐ 安全审计与 CI 核验（self-hosted）
+
+1. **安全审计计划与执行结果对齐**
+   - `Security Audit` High/Critical = 0（`pip-audit --strict` 通过；`npm audit --audit-level=high` 通过，仅有 `lodash` moderate 提示）
+
+2. **GitHub Actions 手动触发核验**
+   - `Tests` 与 `Security Audit` 在 self-hosted runner 上以 `workflow_dispatch` 成功通过（含 E2E smoke）
+
+3. **PR / 分支状态**
+   - 当前无 open PR，远程无已合并可清理分支
 
 ### 2026-01-20 ⭐ 后端导出性能优化（Overlap Export）
 
