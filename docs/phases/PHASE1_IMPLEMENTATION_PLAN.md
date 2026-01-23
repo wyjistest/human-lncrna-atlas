@@ -531,6 +531,8 @@ export const handlers = [
 
 ## 五、Mock 配置方案
 
+> 更新（2026-01-23）：当前 Stats/Regulations 等核心 API 已实现，MSW 默认不启用；`frontend/web/src/mocks/handlers.ts` 为空数组。以下内容为历史示例，保留用于回溯。
+
 ### 5.1 MSW 安装与初始化
 
 ```bash
@@ -559,6 +561,7 @@ src/mocks/
 
 ```typescript
 // ==================== src/mocks/data/stats.mock.ts ====================
+// 历史示例：当前已不启用 Mock
 import type { DetailedStatsResponse } from '@/types'
 
 export const mockDetailedStats: DetailedStatsResponse = {
