@@ -693,6 +693,8 @@ export const mockDetailedStats: DetailedStatsResponse = {
 
 ### Task 4: 导出限制与 UI 提示（30min）
 
+> 更新（2026-01-23）：导出能力已实现，以下内容为历史记录，供回溯使用。
+
 #### 4.1 导出工具函数（完整实现）
 
 **文件**: `src/utils/export.ts`
@@ -1006,12 +1008,12 @@ export default function Regulations() {
 - [x] `generateBABuckets()` 函数测试通过
 - [x] `FEATURE_FLAGS` 配置正确
 
-#### Task 4: 导出限制与提示
-- [ ] `src/utils/export.ts` 创建
-- [ ] `escapeCSV()` 防注入测试通过
-- [ ] `fetchAllRegulations()` 分页逻辑正确
-- [ ] `exportToXLSX()` 动态导入
-- [ ] 导出上限校验逻辑完整
+#### Task 4: 导出限制与提示（历史）
+- [x] `src/utils/export.ts` 创建（历史记录）
+- [x] `escapeCSV()` 防注入测试通过（历史记录）
+- [x] `fetchAllRegulations()` 分页逻辑正确（历史记录）
+- [x] `exportToXLSX()` 动态导入（历史记录）
+- [x] 导出上限校验逻辑完整（历史记录）
 
 ---
 
@@ -1043,7 +1045,7 @@ npm list msw xlsx rollup-plugin-visualizer
 | Task 1: 统一类型出口 | 30min | 创建文件 + ESLint 配置 |
 | Task 2: MSW 安全启动 | 30min | 环境变量 + 启动逻辑 |
 | Task 3: BA 范围配置 | 15min | 配置文件 + 工具函数 |
-| Task 4: 导出限制 | 30min | 完整实现 + 测试 |
+| Task 4: 导出限制（历史） | 30min | 完整实现 + 测试 |
 | **总计** | **1.75h** | - |
 
 ---
