@@ -172,7 +172,7 @@ export default function SankeyChart({ speciesId, minBa, traitName }: Props) {
   }, [data]);
 
   if (isLoading) return <Spin size="large" />;
-  if (error) return <Alert type="error" message="加载失败" description={error.message} />;
+  if (error) return <Alert type="error" title="加载失败" description={error.message} />;
   if (!data) return null;
 
   return (
