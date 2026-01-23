@@ -27,6 +27,9 @@ permissions:
 env:
   # 解析后的 runs-on（用于 step 条件判断）
   CI_RUNS_ON: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+  # self-hosted runner 上偶发 gnutls/HTTP2 握手噪音：使用临时 gitconfig 强制 HTTP/1.1。
+  # 说明：GIT_CONFIG_GLOBAL 指向 runner temp，避免污染 runner 的 ~/.gitconfig（可审计/可回滚、无持久副作用）。
+  GIT_CONFIG_GLOBAL: ${{ runner.temp }}/gitconfig
 
 jobs:
   # ============================================================================
@@ -40,6 +43,12 @@ jobs:
         working-directory: frontend/backend
 
     steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          git config --global http.version HTTP/1.1
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
@@ -101,6 +110,12 @@ jobs:
         working-directory: frontend/web
 
     steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          git config --global http.version HTTP/1.1
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
