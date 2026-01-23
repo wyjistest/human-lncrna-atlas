@@ -313,12 +313,14 @@ console.log('✅ ECharts initialized:', {
 export default echarts
 ```
 
-**验证清单**:
-- [ ] `src/types/api-extensions.ts` 创建成功
-- [ ] `src/types/index.ts` 统一导出
-- [ ] `eslint.config.js` 添加 no-restricted-imports 规则
-- [ ] `src/utils/echarts.ts` 按需导入配置
-- [ ] 运行 `npm run lint` 无错误
+> 更新（2026-01-23）：以下为历史验收清单，保留用于回溯，不作为当前待办。
+
+**验证清单（历史）**:
+- [x] `src/types/api-extensions.ts` 创建成功（历史记录）
+- [x] `src/types/index.ts` 统一导出（历史记录）
+- [x] `eslint.config.js` 添加 no-restricted-imports 规则（历史记录）
+- [x] `src/utils/echarts.ts` 按需导入配置（历史记录）
+- [x] 运行 `npm run lint` 无错误（历史记录）
 
 ---
 
@@ -985,12 +987,12 @@ export default function Regulations() {
 
 ### 验收清单
 
-#### Task 1: 统一类型出口
-- [ ] `src/types/api-extensions.ts` 创建，包含所有扩展类型
-- [ ] `src/types/index.ts` 统一导出
-- [ ] `eslint.config.js` 配置 no-restricted-imports 规则
-- [ ] `src/utils/echarts.ts` 按需导入，控制台显示版本号
-- [ ] 运行 `npm run lint` 无错误
+#### Task 1: 统一类型出口（历史）
+- [x] `src/types/api-extensions.ts` 创建，包含所有扩展类型（历史记录）
+- [x] `src/types/index.ts` 统一导出（历史记录）
+- [x] `eslint.config.js` 配置 no-restricted-imports 规则（历史记录）
+- [x] `src/utils/echarts.ts` 按需导入，控制台显示版本号（历史记录）
+- [x] 运行 `npm run lint` 无错误（历史记录）
 
 #### Task 2: MSW 安全启动（历史）
 - [x] `.env` 配置 `VITE_USE_MOCK=false`
