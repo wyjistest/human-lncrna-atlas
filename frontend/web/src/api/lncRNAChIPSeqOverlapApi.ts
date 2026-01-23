@@ -78,7 +78,15 @@ function buildSummaryParams(filters?: Partial<OverlapFilters>) {
   })
 }
 
-function buildCompareSpeciesParams(filters: OverlapFilters, topN: number) {
+function normalizeSpeciesIdsForCompare(speciesIds?: number[]) {
+  if (!speciesIds || speciesIds.length === 0) return undefined
+  return Array.from(new Set(speciesIds))
+    .filter((sid) => Number.isFinite(sid))
+    .sort((a, b) => a - b)
+    .join(',')
+}
+
+function buildCompareSpeciesParams(filters: OverlapFilters, topN: number, speciesIds?: number[]) {
   return normalizeQueryKeyObject({
     lncrna_gene_id: filters.lncrna_gene_id,
     target_gene_id: filters.target_gene_id,
@@ -88,6 +96,7 @@ function buildCompareSpeciesParams(filters: OverlapFilters, topN: number) {
     min_binding_affinity: filters.min_binding_affinity,
     max_qvalue: filters.max_qvalue ?? DEFAULT_MAX_QVALUE,
     top_n: topN,
+    species_ids: normalizeSpeciesIdsForCompare(speciesIds),
   })
 }
 
@@ -184,9 +193,9 @@ export const lncRNAChIPSeqOverlapApi = {
   /**
    * Compare overlaps across species (ortholog mapping by core_id)
    */
-  getCompareSpecies: (filters: OverlapFilters, topN: number = 10, signal?: AbortSignal) =>
+  getCompareSpecies: (filters: OverlapFilters, topN: number = 10, speciesIds?: number[], signal?: AbortSignal) =>
     apiClient.get<OverlapCrossSpeciesComparisonResponse>('/api/v1/lncrna-chipseq-overlap/compare', {
-      params: buildCompareSpeciesParams(filters, topN),
+      params: buildCompareSpeciesParams(filters, topN, speciesIds),
       signal,
     }),
 
@@ -317,8 +326,8 @@ export const overlapQueryKeys = {
   },
 
   /** Cross-species compare */
-  compareSpecies: (filters: OverlapFilters, topN: number) => {
-    const normalized = buildCompareSpeciesParams(filters, topN)
+  compareSpecies: (filters: OverlapFilters, topN: number, speciesIds?: number[]) => {
+    const normalized = buildCompareSpeciesParams(filters, topN, speciesIds)
     return normalized
       ? ([...overlapQueryKeys.all, 'compareSpecies', normalized] as const)
       : ([...overlapQueryKeys.all, 'compareSpecies'] as const)

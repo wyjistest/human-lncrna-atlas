@@ -197,6 +197,7 @@ export function LncRNAChIPSeqOverlapTable({
   const [showVisualization, setShowVisualization] = useState(enableVisualization)
   const [showCompareSpecies, setShowCompareSpecies] = useState(false)
   const [compareTopN, setCompareTopN] = useState(10)
+  const [compareSpeciesIds, setCompareSpeciesIds] = useState<number[]>([1, 2, 3, 4])
   const [showIGV, setShowIGV] = useState(enableIGV)
   const [paginationMode, setPaginationMode] = useState<'offset' | 'cursor'>('offset')
   const [activeTab, setActiveTab] = useState<string>('table')
@@ -880,7 +881,7 @@ export function LncRNAChIPSeqOverlapTable({
     data: compareSpeciesData,
     isLoading: compareSpeciesLoading,
     error: compareSpeciesError,
-  } = useLncRNAChIPSeqOverlapCompareSpecies(filters, compareTopN, {
+  } = useLncRNAChIPSeqOverlapCompareSpecies(filters, compareTopN, compareSpeciesIds, {
     enabled: showCompareSpecies,
   })
 
@@ -1323,6 +1324,8 @@ export function LncRNAChIPSeqOverlapTable({
         error={compareSpeciesError}
         topN={compareTopN}
         onTopNChange={setCompareTopN}
+        speciesIds={compareSpeciesIds}
+        onSpeciesIdsChange={setCompareSpeciesIds}
       />
 
       {/* Phase 2 Notice */}

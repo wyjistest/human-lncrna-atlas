@@ -39,5 +39,17 @@ describe('overlapQueryKeys', () => {
 
     expect(keyA).toEqual(keyB)
   })
-})
 
+  it('includes normalized species_ids in compareSpecies keys', () => {
+    const keyA = overlapQueryKeys.compareSpecies({ lncrna_gene_id: 1, mark_type: 'H3K27me3' } as any, 10, [
+      3,
+      1,
+      2,
+      2,
+    ])
+    const keyB = overlapQueryKeys.compareSpecies({ lncrna_gene_id: 1, mark_type: 'H3K27me3' } as any, 10, [1, 2, 3])
+
+    expect(keyA).toEqual(keyB)
+    expect((keyA as any).at(-1)).toMatchObject({ species_ids: '1,2,3' })
+  })
+})

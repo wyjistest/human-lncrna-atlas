@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -21,6 +21,8 @@ vi.mock('@/hooks/useLncRNAChIPSeqOverlap', () => ({
 
 describe('LncRNAChIPSeqOverlapTable (compare species)', () => {
   it('opens modal and renders cross-species stats table', async () => {
+    const compareSpeciesHook = vi.mocked(overlapHooks.useLncRNAChIPSeqOverlapCompareSpecies)
+
     vi.mocked(overlapHooks.useLncRNAChIPSeqOverlaps).mockReturnValue({
       data: { total: 0, page: 1, page_size: 20, items: [] },
       isLoading: false,
@@ -86,8 +88,11 @@ describe('LncRNAChIPSeqOverlapTable (compare species)', () => {
 
     fireEvent.click(screen.getByTestId('overlap-compare-species'))
 
-    expect(await screen.findByTestId('overlap-compare-species-table')).toBeInTheDocument()
-    expect(screen.getByText('Human')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    const table = await screen.findByTestId('overlap-compare-species-table')
+    expect(within(table).getByText('Human')).toBeInTheDocument()
+    expect(within(table).getByText('2')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chimpanzee' }))
+    expect(compareSpeciesHook.mock.calls.at(-1)?.[2]).toEqual([1, 3, 4])
   }, 15000)
 })

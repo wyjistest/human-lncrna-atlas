@@ -1,4 +1,4 @@
-import { Alert, Modal, Select, Space, Spin, Table, Typography } from 'antd'
+import { Alert, Checkbox, Modal, Select, Space, Spin, Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -23,6 +23,8 @@ interface OverlapCrossSpeciesCompareModalProps {
   error?: Error | null
   topN: number
   onTopNChange: (next: number) => void
+  speciesIds: number[]
+  onSpeciesIdsChange: (next: number[]) => void
 }
 
 function formatTopMarks(row: SpeciesRow, limit: number) {
@@ -39,6 +41,16 @@ function formatTopCells(row: SpeciesRow, limit: number) {
 
 export function OverlapCrossSpeciesCompareModal(props: OverlapCrossSpeciesCompareModalProps) {
   const { t } = useTranslation('overlap')
+
+  const speciesOptions = useMemo(
+    () => [
+      { label: props.data?.species_names?.['1'] ?? 'Human', value: 1 },
+      { label: props.data?.species_names?.['2'] ?? 'Chimpanzee', value: 2 },
+      { label: props.data?.species_names?.['3'] ?? 'Rhesus Macaque', value: 3 },
+      { label: props.data?.species_names?.['4'] ?? 'Marmoset', value: 4 },
+    ],
+    [props.data?.species_names]
+  )
 
   const rows = useMemo(() => {
     const stats = props.data?.species_stats
@@ -118,6 +130,19 @@ export function OverlapCrossSpeciesCompareModal(props: OverlapCrossSpeciesCompar
             options={[5, 10, 20, 50].map((value) => ({ value, label: String(value) }))}
           />
           <Text type="secondary">{t('compare.topNHint', 'Used for breakdown queries per species')}</Text>
+        </Space>
+
+        <Space wrap>
+          <Text>{t('compare.columns.species', 'Species')}:</Text>
+          <Checkbox.Group
+            options={speciesOptions}
+            value={props.speciesIds}
+            onChange={(values) => {
+              const next = values as number[]
+              if (next.length === 0) return
+              props.onSpeciesIdsChange(next)
+            }}
+          />
         </Space>
 
         {props.error && (

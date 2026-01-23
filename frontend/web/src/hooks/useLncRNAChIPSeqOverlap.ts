@@ -116,15 +116,16 @@ export function useLncRNAChIPSeqOverlapSummary(
 export function useLncRNAChIPSeqOverlapCompareSpecies(
   filters: OverlapFilters,
   topN: number,
+  speciesIds: number[],
   options?: { enabled?: boolean }
 ) {
   return useQuery<OverlapCrossSpeciesComparisonResponse, Error>({
-    queryKey: overlapQueryKeys.compareSpecies(filters, topN),
+    queryKey: overlapQueryKeys.compareSpecies(filters, topN, speciesIds),
     queryFn: async ({ signal }) => {
       if (!filters.lncrna_gene_id) {
         throw new Error('lncrna_gene_id is required')
       }
-      const response = await lncRNAChIPSeqOverlapApi.getCompareSpecies(filters, topN, signal)
+      const response = await lncRNAChIPSeqOverlapApi.getCompareSpecies(filters, topN, speciesIds, signal)
       return response.data
     },
     staleTime: 30 * 60 * 1000,
