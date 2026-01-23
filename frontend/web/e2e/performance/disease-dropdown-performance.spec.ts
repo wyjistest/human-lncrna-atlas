@@ -58,7 +58,7 @@ const report: PerformanceReport = {
   test_date: new Date().toISOString().slice(0, 10),
   test_phase: process.env.PERF_TEST_PHASE || 'current',
   environment: {
-    frontend_url: process.env.BASE_URL || 'http://localhost:5173',
+    frontend_url: process.env.BASE_URL || 'unknown',
     backend_url: API_BASE,
     browser: 'unknown',
     playwright_version: process.env.PLAYWRIGHT_VERSION,
@@ -114,10 +114,33 @@ test.describe('Disease Dropdown Performance Tests', () => {
 
   test.setTimeout(60000) // 1 minute timeout for performance tests
 
+  test.beforeEach(async ({ page }, testInfo) => {
+    const contextBaseUrl = ((page.context() as any)?._options?.baseURL ?? undefined) as string | undefined
+    const projectBaseUrl = ((testInfo.project.use as any)?.baseURL ?? undefined) as string | undefined
+    const resolvedBaseUrl = contextBaseUrl || projectBaseUrl || process.env.BASE_URL
+    report.environment.frontend_url = resolvedBaseUrl || 'unknown'
+  })
+
+  test.describe('Performance Report Metadata', () => {
+    test.use({ baseURL: 'http://example.invalid' })
+
+    test('META: records project baseURL as frontend_url', async () => {
+      expect(report.environment.frontend_url).toBe('http://example.invalid')
+    })
+
+    test('META: does not count metadata checks as performance tests', async () => {
+      expect(report.test_results.total_tests).toBe(0)
+    })
+  })
+
   test.afterEach(async ({ page }, testInfo) => {
     // Update environment once (project name is the most reliable browser hint here).
     if (report.environment.browser === 'unknown') {
       report.environment.browser = testInfo.project.name || report.environment.browser
+    }
+
+    if (testInfo.title.startsWith('META:')) {
+      return
     }
 
     report.test_results.total_tests += 1
