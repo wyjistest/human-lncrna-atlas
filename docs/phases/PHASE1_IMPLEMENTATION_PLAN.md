@@ -1501,23 +1501,25 @@ touch .env.development
 
 #### 检查清单
 
-- [ ] 所有依赖已安装
-- [ ] `public/mockServiceWorker.js` 已生成
-- [ ] 文件结构创建完成
-- [ ] `.env.development` 配置 `VITE_USE_MOCK=true`
+> 更新（2026-01-23）：以下为历史执行清单，保留用于回溯，不作为当前待办。
+
+- [x] 所有依赖已安装（历史记录）
+- [x] `public/mockServiceWorker.js` 已生成（历史记录）
+- [x] 文件结构创建完成（历史记录）
+- [x] `.env.development` 配置 `VITE_USE_MOCK=true`（历史记录）
 
 ---
 
 ### 8.2 类型定义（15min）
 
-- [ ] `src/types/api-extensions.ts`
-  - [ ] `DetailedStatsResponse` 接口
-  - [ ] `RegulationFilterParams` 接口
-  - [ ] `RegulationExportParams` 接口
+- [x] `src/types/api-extensions.ts`（历史记录）
+  - [x] `DetailedStatsResponse` 接口（历史记录）
+  - [x] `RegulationFilterParams` 接口（历史记录）
+  - [x] `RegulationExportParams` 接口（历史记录）
 
-- [ ] `src/types/index.ts`
-  - [ ] 导出 `api.ts` 类型
-  - [ ] 导出 `api-extensions.ts` 类型
+- [x] `src/types/index.ts`（历史记录）
+  - [x] 导出 `api.ts` 类型（历史记录）
+  - [x] 导出 `api-extensions.ts` 类型（历史记录）
 
 **验证**：
 ```bash
@@ -1564,10 +1566,10 @@ npm run dev
 
 ### 8.4 ECharts 配置（15min）
 
-- [ ] `src/utils/echarts.ts`
-  - [ ] 按需导入所需组件
-  - [ ] `echarts.use([...])` 注册
-  - [ ] 导出配置好的 `echarts` 实例
+- [x] `src/utils/echarts.ts`（历史记录）
+  - [x] 按需导入所需组件（历史记录）
+  - [x] `echarts.use([...])` 注册（历史记录）
+  - [x] 导出配置好的 `echarts` 实例（历史记录）
 
 **验证**：
 ```typescript
@@ -1582,36 +1584,36 @@ console.log(echarts.version)  // 应该输出版本号
 
 #### Hooks
 
-- [ ] `src/hooks/useDetailedStats.ts`
-  - [ ] 使用 React Query
-  - [ ] `queryKey: ['stats-detailed']`
-  - [ ] `staleTime: 10 * 60 * 1000` (10分钟缓存)
+- [x] `src/hooks/useDetailedStats.ts`（历史记录）
+  - [x] 使用 React Query（历史记录）
+  - [x] `queryKey: ['stats-detailed']`（历史记录）
+  - [x] `staleTime: 10 * 60 * 1000` (10分钟缓存)（历史记录）
 
 #### 图表组件
 
-- [ ] `src/pages/Stats/components/SpeciesChart.tsx`
-  - [ ] 环形饼图
-  - [ ] Tooltip 配置
-  - [ ] Legend 配置
-  - [ ] 响应式尺寸
+- [x] `src/pages/Stats/components/SpeciesChart.tsx`（历史记录）
+  - [x] 环形饼图（历史记录）
+  - [x] Tooltip 配置（历史记录）
+  - [x] Legend 配置（历史记录）
+  - [x] 响应式尺寸（历史记录）
 
-- [ ] `src/pages/Stats/components/BAChart.tsx`
-  - [ ] 直方图
-  - [ ] 渐变色
-  - [ ] Y轴数值格式化（K/M）
+- [x] `src/pages/Stats/components/BAChart.tsx`（历史记录）
+  - [x] 直方图（历史记录）
+  - [x] 渐变色（历史记录）
+  - [x] Y轴数值格式化（K/M）（历史记录）
 
-- [ ] `src/pages/Stats/components/TopLncRNAChart.tsx`
-  - [ ] 条形图
-  - [ ] 数据反转（从下往上）
-  - [ ] Label 显示
+- [x] `src/pages/Stats/components/TopLncRNAChart.tsx`（历史记录）
+  - [x] 条形图（历史记录）
+  - [x] 数据反转（从下往上）（历史记录）
+  - [x] Label 显示（历史记录）
 
 #### 主页面
 
-- [ ] `src/pages/Stats/index.tsx`
-  - [ ] 6个统计卡片
-  - [ ] 3个图表（Suspense 包裹）
-  - [ ] 响应式布局（Grid）
-  - [ ] Loading、Error 状态
+- [x] `src/pages/Stats/index.tsx`（历史记录）
+  - [x] 6个统计卡片（历史记录）
+  - [x] 3个图表（Suspense 包裹）（历史记录）
+  - [x] 响应式布局（Grid）（历史记录）
+  - [x] Loading、Error 状态（历史记录）
 
 **验证**：
 ```bash
@@ -1627,21 +1629,21 @@ npm run dev
 
 #### 筛选器组件
 
-- [ ] `src/pages/Regulations/components/AdvancedFilters.tsx`
-  - [ ] 物种多选（Select）
-  - [ ] lncRNA/靶基因搜索（Input）
-  - [ ] 染色体多选（Select）
-  - [ ] BA 范围滑块（Slider）
-  - [ ] 重置按钮
+- [x] `src/pages/Regulations/components/AdvancedFilters.tsx`（历史记录）
+  - [x] 物种多选（Select）（历史记录）
+  - [x] lncRNA/靶基因搜索（Input）（历史记录）
+  - [x] 染色体多选（Select）（历史记录）
+  - [x] BA 范围滑块（Slider）（历史记录）
+  - [x] 重置按钮（历史记录）
 
 #### 主页面集成
 
-- [ ] `src/pages/Regulations/index.tsx`
-  - [ ] 集中式 `filters` 状态
-  - [ ] `updateFilter` 函数
-  - [ ] React Query `queryKey` 绑定
-  - [ ] Table `rowKey="regulation_id"`
-  - [ ] `preserveSelectedRowKeys: true`
+- [x] `src/pages/Regulations/index.tsx`（历史记录）
+  - [x] 集中式 `filters` 状态（历史记录）
+  - [x] `updateFilter` 函数（历史记录）
+  - [x] React Query `queryKey` 绑定（历史记录）
+  - [x] Table `rowKey="regulation_id"`（历史记录）
+  - [x] `preserveSelectedRowKeys: true`（历史记录）
 
 **验证**：
 ```bash
@@ -1661,18 +1663,18 @@ npm run dev
 
 #### 工具函数
 
-- [ ] `src/utils/export.ts`
-  - [ ] `exportRegulations()` 函数
-  - [ ] 数据量检查（> 10000 条）
-  - [ ] 调用导出 API
-  - [ ] 使用 `saveAs` 下载
+- [x] `src/utils/export.ts`（历史记录）
+  - [x] `exportRegulations()` 函数（历史记录）
+  - [x] 数据量检查（> 10000 条）（历史记录）
+  - [x] 调用导出 API（历史记录）
+  - [x] 使用 `saveAs` 下载（历史记录）
 
 #### UI 集成
 
-- [ ] `src/pages/Regulations/index.tsx`
-  - [ ] 导出按钮 + Dropdown
-  - [ ] CSV/XLSX 格式选择
-  - [ ] 大数据量 Modal 提示
+- [x] `src/pages/Regulations/index.tsx`（历史记录）
+  - [x] 导出按钮 + Dropdown（历史记录）
+  - [x] CSV/XLSX 格式选择（历史记录）
+  - [x] 大数据量 Modal 提示（历史记录）
 
 **验证**：
 ```bash
@@ -1695,18 +1697,18 @@ npm run dev
 
 #### 单元测试
 
-- [ ] `src/pages/Stats/__tests__/Stats.test.tsx`
-  - [ ] 渲染测试
-  - [ ] API 错误场景
+- [x] `src/pages/Stats/__tests__/Stats.test.tsx`（历史记录）
+  - [x] 渲染测试（历史记录）
+  - [x] API 错误场景（历史记录）
 
-- [ ] `src/pages/Regulations/__tests__/Regulations.test.tsx`
-  - [ ] 筛选功能测试
-  - [ ] 分页测试
+- [x] `src/pages/Regulations/__tests__/Regulations.test.tsx`（历史记录）
+  - [x] 筛选功能测试（历史记录）
+  - [x] 分页测试（历史记录）
 
-- [ ] `src/pages/Regulations/__tests__/export.test.tsx`
-  - [ ] Mock `saveAs`
-  - [ ] 验证导出参数
-  - [ ] 空结果场景
+- [x] `src/pages/Regulations/__tests__/export.test.tsx`（历史记录）
+  - [x] Mock `saveAs`（历史记录）
+  - [x] 验证导出参数（历史记录）
+  - [x] 空结果场景（历史记录）
 
 **运行测试**：
 ```bash
@@ -1718,38 +1720,38 @@ npm run test -- --coverage
 
 ### 8.9 Bundle 优化（15min）
 
-- [ ] `vite.config.ts`
-  - [ ] `manualChunks` 配置
-  - [ ] `terserOptions` 配置
+- [x] `vite.config.ts`（历史记录）
+  - [x] `manualChunks` 配置（历史记录）
+  - [x] `terserOptions` 配置（历史记录）
 
-- [ ] 构建分析
+- [x] 构建分析（历史记录）
   ```bash
   npm run build
   npm run analyze
   ```
 
-- [ ] 检查 Bundle 大小
-  - [ ] `main` chunk < 500KB
-  - [ ] `echarts` chunk < 300KB
-  - [ ] `export` chunk < 200KB
-  - [ ] 总大小 < 1.5MB (gzip)
+- [x] 检查 Bundle 大小（历史记录）
+  - [x] `main` chunk < 500KB（历史记录）
+  - [x] `echarts` chunk < 300KB（历史记录）
+  - [x] `export` chunk < 200KB（历史记录）
+  - [x] 总大小 < 1.5MB (gzip)（历史记录）
 
 ---
 
 ### 8.10 文档更新（15min）
 
-- [ ] **API 契约文档**
-  - [ ] 创建 `API_CONTRACTS.md`
-  - [ ] 列出所有新增 API
-  - [ ] 标注实现状态（Mock/Real）
+- [x] **API 契约文档**（历史记录）
+  - [x] 创建 `API_CONTRACTS.md`（历史记录）
+  - [x] 列出所有新增 API（历史记录）
+  - [x] 标注实现状态（Mock/Real）（历史记录）
 
-- [ ] **开发日志**
-  - [ ] 更新 `CHANGELOG.md`
-  - [ ] 记录 Phase 1 完成内容
+- [x] **开发日志**（历史记录）
+  - [x] 更新 `CHANGELOG.md`（历史记录）
+  - [x] 记录 Phase 1 完成内容（历史记录）
 
-- [ ] **README 更新**
-  - [ ] 添加 Mock 开关说明
-  - [ ] 添加开发流程指引
+- [x] **README 更新**（历史记录）
+  - [x] 添加 Mock 开关说明（历史记录）
+  - [x] 添加开发流程指引（历史记录）
 
 ---
 
