@@ -662,20 +662,22 @@ export default defineConfig({
 
 ### Phase 1A: 前置准备（30min）
 
-#### 1. 依赖安装
+> 更新（2026-01-23）：以下前置准备为历史计划，当前实现已完成且 MSW 默认不启用。
+
+#### 1. 依赖安装（历史）
 ```bash
 cd <repo-root>/frontend/web
 
-# ✅ 仅安装缺失的依赖
+# ✅ 仅安装缺失的依赖（历史记录）
 npm install msw --save-dev
 npm install xlsx
 npm install -D rollup-plugin-visualizer
 
-# 初始化 MSW
+# 初始化 MSW（历史记录）
 npx msw init public/ --save
 ```
 
-#### 2. 环境变量配置
+#### 2. 环境变量配置（历史）
 ```bash
 # 更新 .env
 echo "VITE_USE_MOCK=false" >> .env
@@ -684,13 +686,13 @@ echo "VITE_USE_MOCK=false" >> .env
 echo "VITE_USE_MOCK=true" >> .env.development
 ```
 
-#### 3. 创建文件结构
+#### 3. 创建文件结构（历史）
 ```bash
 # 类型定义
 touch src/types/api-extensions.ts
 touch src/types/index.ts
 
-# Mock 配置
+# Mock 配置（历史）
 mkdir -p src/mocks/data
 touch src/mocks/browser.ts
 touch src/mocks/server.ts
@@ -717,10 +719,10 @@ mkdir -p src/pages/Regulations/components
 touch src/pages/Regulations/components/AdvancedFilters.tsx
 ```
 
-**验证清单**:
-- [ ] `public/mockServiceWorker.js` 已生成
-- [ ] `.env.development` 包含 `VITE_USE_MOCK=true`
-- [ ] 文件结构创建完成
+**验证清单（历史）**:
+- [x] `public/mockServiceWorker.js` 已生成（历史记录）
+- [x] `.env.development` 包含 `VITE_USE_MOCK=true`（历史记录）
+- [x] 文件结构创建完成（历史记录）
 
 ---
 
