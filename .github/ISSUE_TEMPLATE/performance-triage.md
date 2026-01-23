@@ -26,6 +26,7 @@ labels: ["perf"]
 `python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000" --admin-api-key "$ADMIN_API_KEY"`
 
 说明：脚本也支持读取环境变量默认值（`API_BASE_URL` / `ADMIN_API_KEY`），已设置时可省略参数。
+若样本不足导致百分位为 null，可先使用 `--warmup-rounds 10` 预热后再导出。
 
 粘贴 `admin-metrics-*.md` 内容：
 
@@ -49,3 +50,4 @@ labels: ["perf"]
 
 - Response P95 高但 DB P95 低：优先看 cache namespaces 的 `compute_*` / 热点 keys（可能是回源/计算/IO）
 - DB P95 高：优先看 slow queries（fingerprint+route）定位具体 SQL 与触发端点
+- 若慢点集中在 `GET /api/v1/lncrna-chipseq-overlap/compare`：可先用 `species_ids=1,3`（或前端弹窗勾选物种子集）缩小计算量，验证是否为“多物种计算”导致尾延迟
