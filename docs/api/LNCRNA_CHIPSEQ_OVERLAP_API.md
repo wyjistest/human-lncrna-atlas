@@ -216,6 +216,7 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?mark_type=H
 
 - 若某物种缺少同源基因（或指定了 `target_gene_id` 但缺少 target 同源基因），该物种返回 empty stats（`total_overlaps=0`）。
 - `top_n` 用于限制每个物种的 breakdown（`by_mark_type/by_cell_type`）返回条数，避免 payload 过大。
+- 可选参数 `species_ids` 可限制参与对比的物种集合（用于减少查询量/提升响应速度）；未指定时默认对比 `1,2,3,4`。
 
 #### Query Parameters
 
@@ -229,10 +230,11 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?mark_type=H
 | `min_binding_affinity` | float | No | - | Minimum binding affinity |
 | `max_qvalue` | float | No | 0.05 | Maximum Q-value (FDR) for peaks (0-1) |
 | `top_n` | integer | No | 10 | Top-N breakdown items per species (1-50) |
+| `species_ids` | string | No | `1,2,3,4` | Species IDs to compare, comma-separated (subset of 1-4) |
 
 #### Response Schema
 
-> `species_stats` 为“按物种 ID 分组的 map”，在 JSON 中 key 会被序列化为字符串（例如 `"1"`, `"2"`）。
+> `species_stats` 为“按物种 ID 分组的 map”，在 JSON 中 key 会被序列化为字符串（例如 `"1"`, `"2"`）。当使用 `species_ids` 时，该 map 仅包含被选择的物种。
 
 ```json
 {
@@ -273,6 +275,7 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?mark_type=H
 
 ```bash
 curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/compare?lncrna_gene_id=19101&target_gene_id=27047&chromosome=chr22&top_n=10"
+curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/compare?lncrna_gene_id=19101&species_ids=1,3&top_n=10"
 ```
 
 ### 3. Get Heatmap (GET `/api/v1/lncrna-chipseq-overlap/heatmap`)
