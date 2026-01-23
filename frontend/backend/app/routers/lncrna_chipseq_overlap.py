@@ -37,7 +37,7 @@ from app.core.database import get_db
 from app.core.cache import cache, cached
 from app.core.exceptions import sanitize_db_error, normalize_http_error_detail
 from app.core.utils import sanitize_for_log
-from app.core.validators import MAX_FIELD_LENGTH, compute_pagination_offset, parse_comma_list
+from app.core.validators import MAX_FIELD_LENGTH, compute_pagination_offset, parse_comma_list, parse_int_list
 from app.core.mv_cache import mv_cache, is_mv_missing_error  # Phase 9.24: Thread-safe MV cache
 from app.utils.bed import sanitize_bed_field
 from app.utils.http_headers import content_disposition_attachment
@@ -2139,9 +2139,24 @@ def compare_species_overlaps(
     min_binding_affinity: Optional[float] = Query(None, ge=0, description="Minimum binding affinity"),
     max_qvalue: Optional[float] = Query(0.05, ge=0, le=1, description="Maximum Q-value (FDR) for peaks"),
     top_n: int = Query(10, ge=1, le=50, description="Top-N breakdown items per species (mark_type/cell_type)"),
+    species_ids: Optional[str] = Query(
+        None,
+        max_length=MAX_FIELD_LENGTH,
+        description="Species IDs to compare, comma-separated (default: 1,2,3,4)",
+    ),
     db: Session = Depends(get_db),
 ):
     """Cross-species overlap comparison (基于 core_id 的同源映射)."""
+    parsed_species_ids = parse_int_list(
+        species_ids,
+        max_items=len(COMPARE_SPECIES_IDS),
+        min_value=min(COMPARE_SPECIES_IDS),
+        max_value=max(COMPARE_SPECIES_IDS),
+        param_name="species_ids",
+    )
+    compare_species_ids = sorted(set(parsed_species_ids or COMPARE_SPECIES_IDS))
+    normalized_species_ids = ",".join(str(x) for x in compare_species_ids)
+
     cache_key = cache.make_key(
         "overlap:compare",
         lncrna_gene_id=lncrna_gene_id,
@@ -2152,6 +2167,7 @@ def compare_species_overlaps(
         min_binding_affinity=min_binding_affinity,
         max_qvalue=max_qvalue,
         top_n=top_n,
+        species_ids=normalized_species_ids,
     )
     cached_value = cache.get(cache_key)
     if cached_value is not None:
@@ -2166,10 +2182,10 @@ def compare_species_overlaps(
     lncrna_map = _get_ortholog_gene_map(db, lncrna_core_id)
     target_map = _get_ortholog_gene_map(db, target_core_id) if target_core_id is not None else None
 
-    species_names = {str(sid): SPECIES_NAMES.get(sid, f"Unknown ({sid})") for sid in COMPARE_SPECIES_IDS}
+    species_names = {str(sid): SPECIES_NAMES.get(sid, f"Unknown ({sid})") for sid in compare_species_ids}
     species_stats: dict[int, dict] = {}
 
-    for sid in COMPARE_SPECIES_IDS:
+    for sid in compare_species_ids:
         sid_lncrna_gene_id = lncrna_map.get(sid)
         sid_target_gene_id = target_map.get(sid) if target_map is not None else None
 

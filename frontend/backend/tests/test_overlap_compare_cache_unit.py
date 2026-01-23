@@ -49,6 +49,7 @@ def test_overlap_compare_cache_hit(monkeypatch):
         min_binding_affinity=None,
         max_qvalue=0.05,
         top_n=10,
+        species_ids=None,
         db=_DummyDB(),
     )
 
@@ -64,4 +65,5 @@ def test_overlap_compare_cache_hit(monkeypatch):
         "min_binding_affinity": None,
         "max_qvalue": 0.05,
         "top_n": 10,
+        "species_ids": "1,2,3,4",
     }
