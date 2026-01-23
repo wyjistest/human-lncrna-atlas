@@ -1,7 +1,10 @@
 # Backend API 开发状态报告
 
 **日期**: 2025-11-24
-**状态**: 🟡 部分完成（需要修复ORM模型）
+**归档更新**: 2026-01-23
+**状态**: 🗄️ 历史归档（仅保留当时记录）
+
+> 更新（2026-01-23）：本文档为历史记录。当前后端实现与可用 API 请以 `docs/CURRENT_STATUS.md` 为准。
 
 ---
 
@@ -51,7 +54,7 @@ backend/
 
 ---
 
-## ⚠️ 发现的问题
+## ⚠️ 历史问题（已修复或不再适用）
 
 ### 核心问题：ORM模型与实际数据库结构不匹配
 
@@ -100,7 +103,7 @@ sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn)
 
 ---
 
-## 🔧 需要修复的内容
+## 🔧 历史修复方案（仅供参考）
 
 ### 优先级1（必须修复）
 
@@ -155,14 +158,14 @@ sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn)
 
 ---
 
-## 📊 当前可用的API
+## 📊 当时记录的可用 API
 
-### ✅ 已验证可用
+### ✅ 当时已验证可用
 
 - `GET /` - 根路径 ✅
 - `GET /health` - 健康检查 ✅
 
-### ⚠️ 需要修复后可用
+### ⚠️ 当时需修复后可用
 
 - `GET /api/v1/genes` - 基因列表
 - `GET /api/v1/genes/{gene_id}` - 基因详情
@@ -173,7 +176,7 @@ sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn)
 
 ---
 
-## 🚀 启动服务
+## 🚀 当时的启动与验证方式
 
 ### 当前启动方式
 
@@ -205,7 +208,7 @@ curl http://localhost:8000/health
 
 ---
 
-## 📝 快速修复指南
+## 📝 当时的快速修复指南
 
 ### 步骤1: 停止当前服务
 
@@ -266,7 +269,7 @@ curl "http://localhost:8000/api/v1/genes?page=1&page_size=2"
 
 ---
 
-## 📈 后续开发建议
+## 📈 当时的后续建议
 
 1. **短期**（修复当前问题）
    - 修复ORM模型字段映射
@@ -296,21 +299,21 @@ curl "http://localhost:8000/api/v1/genes?page=1&page_size=2"
 
 ---
 
-## 💡 总结
+## 💡 当时总结
 
-### 已完成 ✅
+### 已完成 ✅（当时）
 - 完整的FastAPI项目结构
 - 25+个API endpoint定义
 - 数据库连接和基础ORM
 - Swagger文档自动生成
 - 健康检查和基础中间件
 
-### 待修复 ⚠️
+### 待修复 ⚠️（当时）
 - ORM模型字段名与数据库不匹配
 - 部分API查询需要调整
 - 需要添加集成测试
 
-### 预计修复时间
+### 预计修复时间（当时）
 - 修复ORM模型: 30分钟
 - 更新所有路由: 1小时
 - 测试验证: 30分钟
