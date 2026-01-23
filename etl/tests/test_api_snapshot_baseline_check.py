@@ -19,10 +19,13 @@ def _mock_api_server() -> Iterator[str]:
         "/api/v1/genes/1": {"gene_id": 1, "gene_name": "GENE1", "orthologs": []},
         "/api/v1/regulations": {"total": 6, "items": [{"id": 1, "lncrna": "LNC1"}]},
         "/api/v1/regulations/1": {"regulation_id": 1, "lncrna_gene_id": 1, "target_gene_id": 2},
+        "/api/v1/regulations/lncrna-options": {"lncrnas": []},
+        "/api/v1/regulations/target-options": {"targets": []},
         "/api/v1/diseases/options": {"traits": ["T1", "T2", "T3", "T4", "T5"]},
         "/api/v1/stats/top-genes": [{"gene_id": 1, "regulation_count": 10}],
         "/api/v1/stats/top-diseases": [{"trait_id": 1, "gene_count": 10}],
         "/api/v1/analysis/summary": {"high_affinity": {"total_regulations": 1}},
+        "/api/v1/network/available-combinations": {"combinations": []},
         "/api/v1/features/chipseq/marks": [
             {
                 "mark_type_id": 1,
