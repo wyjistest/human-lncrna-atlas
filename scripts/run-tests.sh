@@ -9,6 +9,15 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BACKEND_DIR="$PROJECT_ROOT/frontend/backend"
 FRONTEND_DIR="$PROJECT_ROOT/frontend/web"
 
+# 可选：覆盖服务地址（默认本地开发端口）
+API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
+BASE_URL="${BASE_URL:-http://localhost:5173}"
+
+# 兼容本地代理环境：默认绕过 localhost/127.0.0.1，避免 curl 走 http_proxy 导致卡住。
+DEFAULT_NO_PROXY="127.0.0.1,localhost,::1"
+export NO_PROXY="${NO_PROXY:-$DEFAULT_NO_PROXY}"
+export no_proxy="${no_proxy:-$DEFAULT_NO_PROXY}"
+
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -156,21 +165,26 @@ check_services() {
     echo -e "${YELLOW}检查服务状态...${NC}"
     require_cmd curl || return 1
 
+    local backend_health_url="${API_BASE_URL%/}/health"
+    local frontend_url="${BASE_URL%/}"
+
     # 检查后端 (-f: fail on HTTP errors, -sS: silent but show errors)
-    if curl -fsS http://localhost:8000/health > /dev/null 2>&1; then
-        echo -e "  后端 (8000): ${GREEN}运行中${NC}"
+    if curl -fsS --connect-timeout 2 --max-time 5 "$backend_health_url" > /dev/null 2>&1; then
+        echo -e "  后端 (${API_BASE_URL}): ${GREEN}运行中${NC}"
     else
-        echo -e "  后端 (8000): ${RED}未运行或返回错误${NC}"
+        echo -e "  后端 (${API_BASE_URL}): ${RED}未运行或返回错误${NC}"
         echo -e "  ${YELLOW}请先启动后端: cd frontend/backend && python3 -m uvicorn main:app --port 8000${NC}"
+        echo -e "  ${YELLOW}如使用非 8000 端口，请同步设置 API_BASE_URL${NC}"
         return 1
     fi
 
     # 检查前端 (-f: fail on HTTP errors like 502, -sS: silent but show errors)
-    if curl -fsS http://localhost:5173 > /dev/null 2>&1; then
-        echo -e "  前端 (5173): ${GREEN}运行中${NC}"
+    if curl -fsS --connect-timeout 2 --max-time 5 "$frontend_url" > /dev/null 2>&1; then
+        echo -e "  前端 (${BASE_URL}): ${GREEN}运行中${NC}"
     else
-        echo -e "  前端 (5173): ${RED}未运行或返回错误${NC}"
+        echo -e "  前端 (${BASE_URL}): ${RED}未运行或返回错误${NC}"
         echo -e "  ${YELLOW}请先启动前端: cd frontend/web && npm run dev${NC}"
+        echo -e "  ${YELLOW}如使用非 5173 端口，请同步设置 BASE_URL${NC}"
         return 1
     fi
 
@@ -471,6 +485,9 @@ main() {
             check_services || exit 1
             run_backend_tests || failed=1
             ;;
+        status)
+            check_services || failed=1
+            ;;
         backend-unit)
             run_backend_unit_tests || failed=1
             ;;
@@ -586,7 +603,7 @@ main() {
             run_docs_checks || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|ci|backend|e2e|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|ci|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
@@ -604,6 +621,7 @@ main() {
             echo "  ci-full      - ci-plus + security-audit（最严格门禁）"
             echo "  backend      - 运行后端 API 合同测试（需要服务运行）"
             echo "  e2e          - 运行前端 E2E 测试（需要服务运行）"
+            echo "  status       - 检查前后端服务是否可访问（支持 BASE_URL/API_BASE_URL 覆盖）"
             echo "  all          - 运行所有测试（需要服务运行）"
             exit 1
             ;;

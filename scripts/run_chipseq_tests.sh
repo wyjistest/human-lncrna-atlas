@@ -46,6 +46,15 @@ if [ -z "${FRONTEND_DIR:-}" ]; then
     fi
 fi
 
+# 可选：覆盖服务地址（默认本地开发端口）
+API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
+BASE_URL="${BASE_URL:-http://localhost:5173}"
+
+# 兼容本地代理环境：默认绕过 localhost/127.0.0.1，避免 curl 走 http_proxy 导致卡住。
+DEFAULT_NO_PROXY="127.0.0.1,localhost,::1"
+export NO_PROXY="${NO_PROXY:-$DEFAULT_NO_PROXY}"
+export no_proxy="${no_proxy:-$DEFAULT_NO_PROXY}"
+
 # Functions
 print_header() {
     echo -e "\n${BLUE}============================================================${NC}"
@@ -77,8 +86,8 @@ show_help() {
     echo "  --help     Show this help message"
     echo ""
     echo "Prerequisites:"
-    echo "  - Backend server running on http://localhost:8000"
-    echo "  - Frontend dev server running on http://localhost:5173 (for E2E)"
+    echo "  - Backend server running on ${API_BASE_URL}"
+    echo "  - Frontend dev server running on ${BASE_URL} (for E2E)"
     echo "  - Backend venv (.venv/venv) with pytest installed"
     echo "  - Node.js with Playwright installed"
 }
@@ -105,11 +114,12 @@ resolve_backend_python() {
 check_backend_server() {
     print_header "Checking Backend Server"
 
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/v1/stats/overview | grep -q "200"; then
-        print_success "Backend server is running at http://localhost:8000"
+    local api_overview_url="${API_BASE_URL%/}/api/v1/stats/overview"
+    if curl -fsS --connect-timeout 2 --max-time 5 "$api_overview_url" > /dev/null 2>&1; then
+        print_success "Backend server is running at ${API_BASE_URL}"
         return 0
     else
-        print_warning "Backend server may not be running at http://localhost:8000"
+        print_warning "Backend server may not be running at ${API_BASE_URL}"
         print_warning "API tests may fail if server is not available"
         return 1
     fi
@@ -118,11 +128,12 @@ check_backend_server() {
 check_frontend_server() {
     print_header "Checking Frontend Server"
 
-    if curl -s -o /dev/null -w "%{http_code}" http://localhost:5173 | grep -q "200"; then
-        print_success "Frontend server is running at http://localhost:5173"
+    local frontend_url="${BASE_URL%/}"
+    if curl -fsS --connect-timeout 2 --max-time 5 "$frontend_url" > /dev/null 2>&1; then
+        print_success "Frontend server is running at ${BASE_URL}"
         return 0
     else
-        print_warning "Frontend server may not be running at http://localhost:5173"
+        print_warning "Frontend server may not be running at ${BASE_URL}"
         print_warning "E2E tests may fail if server is not available"
         return 1
     fi
