@@ -2,6 +2,8 @@
 
 > **创建日期**: 2025-12-06
 > **用途**: 逐步实施 ChIP-seq Epigenetic Marks 功能的操作指南
+> **状态说明**: 本文档为 Phase 2.3 历史实施清单归档，不代表当前待办。
+> **现状参考**: `docs/CURRENT_STATUS.md`，架构细节见 `docs/PHASE_2.3_CHIPSEQ_ARCHITECTURE.md`。
 
 ---
 
@@ -17,17 +19,17 @@
 
 ### 环境检查
 
-- [ ] PostgreSQL 15+ 已安装并运行
-- [ ] Python 3.11+ 环境可用
-- [ ] Node.js 20+ 已安装
-- [ ] 磁盘空间充足（至少 50GB 可用）
-- [ ] 可以访问 ENCODE 数据库
+- [x] PostgreSQL 15+ 已安装并运行（历史记录）
+- [x] Python 3.11+ 环境可用（历史记录）
+- [x] Node.js 20+ 已安装（历史记录）
+- [x] 磁盘空间充足（至少 50GB 可用）（历史记录）
+- [x] 可以访问 ENCODE 数据库（历史记录）
 
 ### 数据准备
 
-- [ ] 确定目标 ENCODE 实验（建议选择 2-3 个高质量实验）
-- [ ] 下载 H3K27me3 narrowPeak/broadPeak 文件
-- [ ] 准备实验元数据 JSON 文件（参考模板）
+- [x] 确定目标 ENCODE 实验（建议选择 2-3 个高质量实验）（历史记录）
+- [x] 下载 H3K27me3 narrowPeak/broadPeak 文件（历史记录）
+- [x] 准备实验元数据 JSON 文件（参考模板）（历史记录）
 
 **推荐的 ENCODE 实验**:
 ```
@@ -38,9 +40,9 @@ ENCSR000AOF - HepG2 H3K27me3
 
 ### 代码库准备
 
-- [ ] 确保在 `human-lncrna-atlas-github` 目录
-- [ ] Git 工作区干净（无未提交更改）
-- [ ] 创建新分支：`git checkout -b feature/phase-2.3-chipseq`
+- [x] 确保在 `human-lncrna-atlas-github` 目录（历史记录）
+- [x] Git 工作区干净（无未提交更改）（历史记录）
+- [x] 创建新分支：`git checkout -b feature/phase-2.3-chipseq`（历史记录）
 
 ---
 
@@ -66,13 +68,13 @@ psql -U amax -d lncrna_production
 ```
 
 **验证检查清单**:
-- [ ] `epigenetic_mark_types` 表已创建，包含 15 行预定义 marks
-- [ ] `chipseq_experiments` 表已创建
-- [ ] `chipseq_peaks` 表已创建（包含 4 个分区）
-- [ ] `gene_peak_associations` 表已创建
-- [ ] `mark_relationships` 表已创建
-- [ ] `mv_chipseq_mark_stats` 物化视图已创建
-- [ ] `mv_gene_mark_summary` 物化视图已创建
+- [x] `epigenetic_mark_types` 表已创建，包含 15 行预定义 marks（历史记录）
+- [x] `chipseq_experiments` 表已创建（历史记录）
+- [x] `chipseq_peaks` 表已创建（包含 4 个分区）（历史记录）
+- [x] `gene_peak_associations` 表已创建（历史记录）
+- [x] `mark_relationships` 表已创建（历史记录）
+- [x] `mv_chipseq_mark_stats` 物化视图已创建（历史记录）
+- [x] `mv_gene_mark_summary` 物化视图已创建（历史记录）
 
 **验证命令**:
 ```sql
@@ -101,9 +103,9 @@ ORDER BY tablename, indexname;
 ```
 
 **验证检查清单**:
-- [ ] `chipseq_experiments` 有 4 个索引
-- [ ] `chipseq_peaks_human` 有 6 个索引
-- [ ] 其他 3 个物种分区也有相应索引
+- [x] `chipseq_experiments` 有 4 个索引（历史记录）
+- [x] `chipseq_peaks_human` 有 6 个索引（历史记录）
+- [x] 其他 3 个物种分区也有相应索引（历史记录）
 
 ---
 
@@ -119,12 +121,12 @@ grep -n "class ChIPSeqPeak" frontend/backend/app/models/models.py
 ```
 
 **验证检查清单**:
-- [ ] `EpigeneticMarkType` 模型已添加
-- [ ] `MarkRelationship` 模型已添加
-- [ ] `ChIPSeqExperiment` 模型已添加
-- [ ] `ChIPSeqPeak` 模型已添加
-- [ ] `GenePeakAssociation` 模型已添加
-- [ ] `models/__init__.py` 已导出新模型
+- [x] `EpigeneticMarkType` 模型已添加（历史记录）
+- [x] `MarkRelationship` 模型已添加（历史记录）
+- [x] `ChIPSeqExperiment` 模型已添加（历史记录）
+- [x] `ChIPSeqPeak` 模型已添加（历史记录）
+- [x] `GenePeakAssociation` 模型已添加（历史记录）
+- [x] `models/__init__.py` 已导出新模型（历史记录）
 
 ### 任务 2.2: 测试 ORM 模型
 
@@ -142,9 +144,9 @@ python3
 ```
 
 **验证检查清单**:
-- [ ] 能成功导入所有模型
-- [ ] 能查询到 15 个 marks
-- [ ] 能看到正确的 mark_category (repressive, activating, enhancer)
+- [x] 能成功导入所有模型（历史记录）
+- [x] 能查询到 15 个 marks（历史记录）
+- [x] 能看到正确的 mark_category (repressive, activating, enhancer)（历史记录）
 
 ### 任务 2.3: 确认 Pydantic Schemas
 
@@ -157,11 +159,11 @@ head -50 frontend/backend/app/schemas/chipseq.py
 ```
 
 **验证检查清单**:
-- [ ] `MarkTypeResponse` schema 已定义
-- [ ] `ChIPSeqPeak` schema 已定义
-- [ ] `ChIPSeqResponse` schema 已定义
-- [ ] `ChIPSeqSummary` schema 已定义
-- [ ] `ChIPSeqCompareResponse` schema 已定义
+- [x] `MarkTypeResponse` schema 已定义（历史记录）
+- [x] `ChIPSeqPeak` schema 已定义（历史记录）
+- [x] `ChIPSeqResponse` schema 已定义（历史记录）
+- [x] `ChIPSeqSummary` schema 已定义（历史记录）
+- [x] `ChIPSeqCompareResponse` schema 已定义（历史记录）
 
 ---
 
@@ -178,8 +180,8 @@ grep -n "@router" frontend/backend/app/routers/chipseq.py
 ```
 
 **验证检查清单**:
-- [ ] `chipseq.py` router 文件存在
-- [ ] 至少包含 8 个端点定义
+- [x] `chipseq.py` router 文件存在（历史记录）
+- [x] 至少包含 8 个端点定义（历史记录）
 
 ### 任务 3.2: 注册 Router 到 main.py
 
@@ -194,8 +196,8 @@ app.include_router(chipseq.router, prefix="/api/v1")
 ```
 
 **验证检查清单**:
-- [ ] `chipseq` router 已导入
-- [ ] Router 已通过 `app.include_router` 注册
+- [x] `chipseq` router 已导入（历史记录）
+- [x] Router 已通过 `app.include_router` 注册（历史记录）
 
 ### 任务 3.3: 启动后端测试
 
@@ -212,11 +214,11 @@ curl http://localhost:8000/api/v1/features/chipseq/marks?species_id=1
 ```
 
 **验证检查清单**:
-- [ ] 服务器成功启动，无报错
-- [ ] `/features/chipseq/marks` 端点可访问
-- [ ] 返回 JSON 格式数据（即使是空数组）
-- [ ] Swagger UI 可访问：http://localhost:8000/docs
-- [ ] 在 Swagger UI 中看到 `chipseq` 标签和 8 个端点
+- [x] 服务器成功启动，无报错（历史记录）
+- [x] `/features/chipseq/marks` 端点可访问（历史记录）
+- [x] 返回 JSON 格式数据（即使是空数组）（历史记录）
+- [x] Swagger UI 可访问：http://localhost:8000/docs（历史记录）
+- [x] 在 Swagger UI 中看到 `chipseq` 标签和 8 个端点（历史记录）
 
 ### 任务 3.4: 测试所有端点
 
@@ -232,9 +234,9 @@ curl "http://localhost:8000/api/v1/features/chipseq/stats"
 ```
 
 **验证检查清单**:
-- [ ] 所有端点返回 200 状态码
-- [ ] 返回 JSON 格式正确
-- [ ] 错误处理正常（如 404, 422）
+- [x] 所有端点返回 200 状态码（历史记录）
+- [x] 返回 JSON 格式正确（历史记录）
+- [x] 错误处理正常（如 404, 422）（历史记录）
 
 ---
 
@@ -253,9 +255,9 @@ python3 scripts/import_chipseq.py --help
 ```
 
 **验证检查清单**:
-- [ ] `import_chipseq.py` 脚本存在
-- [ ] 脚本有可执行权限
-- [ ] `--help` 显示正确的参数说明
+- [x] `import_chipseq.py` 脚本存在（历史记录）
+- [x] 脚本有可执行权限（历史记录）
+- [x] `--help` 显示正确的参数说明（历史记录）
 
 ### 任务 4.2: 准备实验元数据
 
@@ -287,9 +289,9 @@ EOF
 ```
 
 **验证检查清单**:
-- [ ] 元数据 JSON 文件已创建
-- [ ] JSON 格式正确（可用 `jq` 验证）
-- [ ] 所有必需字段都已填写
+- [x] 元数据 JSON 文件已创建（历史记录）
+- [x] JSON 格式正确（可用 `jq` 验证）（历史记录）
+- [x] 所有必需字段都已填写（历史记录）
 
 ### 任务 4.3: 下载 ENCODE 数据
 
@@ -307,9 +309,9 @@ gunzip h3k27me3/brain_peaks.narrowPeak.gz
 ```
 
 **验证检查清单**:
-- [ ] Peaks 文件已下载
-- [ ] 文件格式正确（BED/narrowPeak/broadPeak）
-- [ ] 文件大小合理（通常 5-50 MB）
+- [x] Peaks 文件已下载（历史记录）
+- [x] 文件格式正确（BED/narrowPeak/broadPeak）（历史记录）
+- [x] 文件大小合理（通常 5-50 MB）（历史记录）
 
 ### 任务 4.4: 执行数据导入
 
@@ -330,9 +332,9 @@ python3 scripts/import_chipseq.py \
 ```
 
 **验证检查清单**:
-- [ ] 导入脚本成功执行，无报错
-- [ ] 显示导入进度和统计信息
-- [ ] 导入完成后显示总导入记录数
+- [x] 导入脚本成功执行，无报错（历史记录）
+- [x] 显示导入进度和统计信息（历史记录）
+- [x] 导入完成后显示总导入记录数（历史记录）
 
 ### 任务 4.5: 验证导入数据
 
@@ -356,10 +358,10 @@ SELECT COUNT(*) FROM gene_peak_associations WHERE experiment_id = 1;
 ```
 
 **验证检查清单**:
-- [ ] `chipseq_experiments` 表有 1 条记录
-- [ ] `chipseq_peaks_human` 表有正确数量的 peaks
-- [ ] 信号值在合理范围内（signal_value > 0, fold_enrichment > 1）
-- [ ] `gene_peak_associations` 表有关联记录（如果使用了 `--compute-associations`）
+- [x] `chipseq_experiments` 表有 1 条记录（历史记录）
+- [x] `chipseq_peaks_human` 表有正确数量的 peaks（历史记录）
+- [x] 信号值在合理范围内（signal_value > 0, fold_enrichment > 1）（历史记录）
+- [x] `gene_peak_associations` 表有关联记录（如果使用了 `--compute-associations`）（历史记录）
 
 ### 任务 4.6: 刷新物化视图
 
@@ -373,8 +375,8 @@ SELECT * FROM mv_chipseq_mark_stats WHERE mark_name = 'H3K27me3';
 ```
 
 **验证检查清单**:
-- [ ] 物化视图刷新成功
-- [ ] 统计数据正确显示（peak_count, avg_signal 等）
+- [x] 物化视图刷新成功（历史记录）
+- [x] 统计数据正确显示（peak_count, avg_signal 等）（历史记录）
 
 ---
 
@@ -402,11 +404,11 @@ ls -lh src/components/ChIPSeqPeaksTable/
 ```
 
 **验证检查清单**:
-- [ ] `types/chipseq.ts` 存在
-- [ ] `config/markConfigs.ts` 存在，包含 16 种 marks
-- [ ] `api/chipseq.ts` 存在
-- [ ] `hooks/useChIPSeq.ts` 存在
-- [ ] `components/ChIPSeqPeaksTable/` 目录存在，包含 6 个组件
+- [x] `types/chipseq.ts` 存在（历史记录）
+- [x] `config/markConfigs.ts` 存在，包含 16 种 marks（历史记录）
+- [x] `api/chipseq.ts` 存在（历史记录）
+- [x] `hooks/useChIPSeq.ts` 存在（历史记录）
+- [x] `components/ChIPSeqPeaksTable/` 目录存在，包含 6 个组件（历史记录）
 
 ### 任务 5.2: 安装依赖（如果需要）
 
@@ -419,10 +421,10 @@ npm install
 ```
 
 **验证检查清单**:
-- [ ] `@tanstack/react-query` 已安装
-- [ ] `echarts` 和 `echarts-for-react` 已安装
-- [ ] `antd` 已安装
-- [ ] TypeScript 编译无错误
+- [x] `@tanstack/react-query` 已安装（历史记录）
+- [x] `echarts` 和 `echarts-for-react` 已安装（历史记录）
+- [x] `antd` 已安装（历史记录）
+- [x] TypeScript 编译无错误（历史记录）
 
 ### 任务 5.3: 集成到 GeneDetail 页面
 
@@ -458,9 +460,9 @@ import { ChIPSeqPeaksTable } from '@/components/ChIPSeqPeaksTable'
 ```
 
 **验证检查清单**:
-- [ ] `ChIPSeqPeaksTable` 组件已导入
-- [ ] 新 Tab 已添加到 Genomic Features 下
-- [ ] TypeScript 编译无错误
+- [x] `ChIPSeqPeaksTable` 组件已导入（历史记录）
+- [x] 新 Tab 已添加到 Genomic Features 下（历史记录）
+- [x] TypeScript 编译无错误（历史记录）
 
 ### 任务 5.4: 添加国际化翻译
 
@@ -480,9 +482,9 @@ import { ChIPSeqPeaksTable } from '@/components/ChIPSeqPeaksTable'
 ```
 
 **验证检查清单**:
-- [ ] 英文翻译已添加
-- [ ] 中文翻译已添加
-- [ ] 所有 16 种 marks 的翻译都已包含
+- [x] 英文翻译已添加（历史记录）
+- [x] 中文翻译已添加（历史记录）
+- [x] 所有 16 种 marks 的翻译都已包含（历史记录）
 
 ### 任务 5.5: 启动前端测试
 
@@ -496,47 +498,47 @@ npm run dev -- --host 0.0.0.0
 ```
 
 **验证检查清单**:
-- [ ] 前端成功启动，无编译错误
-- [ ] 能够访问 GeneDetail 页面
-- [ ] 能够看到 "ChIP-seq Peaks" Tab
-- [ ] 点击 Tab 后组件正常渲染
+- [x] 前端成功启动，无编译错误（历史记录）
+- [x] 能够访问 GeneDetail 页面（历史记录）
+- [x] 能够看到 "ChIP-seq Peaks" Tab（历史记录）
+- [x] 点击 Tab 后组件正常渲染（历史记录）
 
 ### 任务 5.6: 功能测试
 
 在浏览器中测试：
 
 1. **Mark 选择器测试**:
-   - [ ] 下拉框能打开
-   - [ ] 能看到 H3K27me3 (Repressive) 选项
-   - [ ] 选项按类别分组（Repressive / Activating / Enhancer）
-   - [ ] 能够搜索 marks
+   - [x] 下拉框能打开（历史记录）
+   - [x] 能看到 H3K27me3 (Repressive) 选项（历史记录）
+   - [x] 选项按类别分组（Repressive / Activating / Enhancer）（历史记录）
+   - [x] 能够搜索 marks（历史记录）
 
 2. **数据加载测试**:
-   - [ ] 选择 H3K27me3 后能加载数据
-   - [ ] 显示 Loading 状态
-   - [ ] 数据加载完成后显示统计卡片
-   - [ ] 显示数据表格
+   - [x] 选择 H3K27me3 后能加载数据（历史记录）
+   - [x] 显示 Loading 状态（历史记录）
+   - [x] 数据加载完成后显示统计卡片（历史记录）
+   - [x] 显示数据表格（历史记录）
 
 3. **统计卡片测试**:
-   - [ ] Total Peaks 显示正确数量
-   - [ ] Avg Signal 显示合理值
-   - [ ] Avg Fold Enrichment 显示合理值
-   - [ ] Position Distribution 显示正确
+   - [x] Total Peaks 显示正确数量（历史记录）
+   - [x] Avg Signal 显示合理值（历史记录）
+   - [x] Avg Fold Enrichment 显示合理值（历史记录）
+   - [x] Position Distribution 显示正确（历史记录）
 
 4. **过滤器测试**:
-   - [ ] Q-Value 下拉框可用
-   - [ ] Fold Enrichment 滑块可用
-   - [ ] 应用过滤器后数据更新
+   - [x] Q-Value 下拉框可用（历史记录）
+   - [x] Fold Enrichment 滑块可用（历史记录）
+   - [x] 应用过滤器后数据更新（历史记录）
 
 5. **表格测试**:
-   - [ ] 表格显示 peaks 数据
-   - [ ] 列头可点击排序
-   - [ ] 分页控件可用
-   - [ ] 信号值有颜色编码
+   - [x] 表格显示 peaks 数据（历史记录）
+   - [x] 列头可点击排序（历史记录）
+   - [x] 分页控件可用（历史记录）
+   - [x] 信号值有颜色编码（历史记录）
 
 6. **导出测试**:
-   - [ ] 点击 "Export BED" 按钮
-   - [ ] 能够下载 BED 文件
+   - [x] 点击 "Export BED" 按钮（历史记录）
+   - [x] 能够下载 BED 文件（历史记录）
 
 ---
 
@@ -552,8 +554,8 @@ npm run test:e2e
 ```
 
 **验证检查清单**:
-- [ ] 所有现有测试通过
-- [ ] （可选）添加 ChIP-seq 相关的 E2E 测试
+- [x] 所有现有测试通过（历史记录）
+- [x] （可选）添加 ChIP-seq 相关的 E2E 测试（历史记录）
 
 ### 任务 6.2: 性能测试
 
@@ -565,9 +567,9 @@ time curl "http://localhost:8000/api/v1/features/chipseq/genes/12345?mark_type=H
 ```
 
 **验证检查清单**:
-- [ ] API 响应时间 < 100ms
-- [ ] 前端首次加载 < 3s
-- [ ] 表格分页流畅，无卡顿
+- [x] API 响应时间 < 100ms（历史记录）
+- [x] 前端首次加载 < 3s（历史记录）
+- [x] 表格分页流畅，无卡顿（历史记录）
 
 ### 任务 6.3: 文档更新
 
@@ -583,8 +585,8 @@ time curl "http://localhost:8000/api/v1/features/chipseq/genes/12345?mark_type=H
 ```
 
 **验证检查清单**:
-- [ ] 项目文档已更新
-- [ ] Changelog 已添加 Phase 2.3 条目
+- [x] 项目文档已更新（历史记录）
+- [x] Changelog 已添加 Phase 2.3 条目（历史记录）
 
 ---
 
@@ -601,9 +603,9 @@ git diff
 ```
 
 **验证检查清单**:
-- [ ] 所有新文件已添加到 Git
-- [ ] 无调试代码残留
-- [ ] 无敏感信息（如密码、token）
+- [x] 所有新文件已添加到 Git（历史记录）
+- [x] 无调试代码残留（历史记录）
+- [x] 无敏感信息（如密码、token）（历史记录）
 
 ### 任务 7.2: 提交代码
 
@@ -641,8 +643,8 @@ git push origin feature/phase-2.3-chipseq
 ```
 
 **验证检查清单**:
-- [ ] Commit message 清晰描述了改动
-- [ ] 代码已推送到远程仓库
+- [x] Commit message 清晰描述了改动（历史记录）
+- [x] 代码已推送到远程仓库（历史记录）
 
 ### 任务 7.3: 创建 Pull Request
 
@@ -653,9 +655,9 @@ git push origin feature/phase-2.3-chipseq
 - Reviewers: （如果有）
 
 **验证检查清单**:
-- [ ] PR 已创建
-- [ ] CI/CD 测试通过
-- [ ] 文档链接正确
+- [x] PR 已创建（历史记录）
+- [x] CI/CD 测试通过（历史记录）
+- [x] 文档链接正确（历史记录）
 
 ---
 
