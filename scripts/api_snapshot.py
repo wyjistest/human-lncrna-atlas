@@ -254,6 +254,36 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
                     return int(value)
         return None
 
+    def get_first_gene_id_with_core_id_from_options(options: Any) -> Optional[int]:
+        """
+        从 /api/v1/genes/options 的小列表中挑一个可用于 ortholog compare 的 gene_id。
+
+        compare 端点要求基因存在且 core_id 非空；为减少对样例数据内容的假设，这里做 best-effort：
+        - 仅扫描 options 返回的前若干条（limit=5）
+        - 逐个用 /api/v1/genes/{id} 检查 core_id
+        """
+        if not isinstance(options, dict):
+            return None
+        genes = options.get("genes")
+        if not isinstance(genes, list):
+            return None
+        for row in genes[:5]:
+            if not isinstance(row, dict):
+                continue
+            gene_id = row.get("gene_id")
+            if not isinstance(gene_id, int) or gene_id < 1:
+                continue
+            detail = _http_get_json(
+                _join(base_url, f"/api/v1/genes/{gene_id}"),
+                timeout_seconds=timeout_seconds,
+            )
+            if detail.status_code != 200 or not isinstance(detail.json, dict):
+                continue
+            if detail.json.get("core_id") is None:
+                continue
+            return gene_id
+        return None
+
     genes_first_id = None
     summaries: dict[str, Any] = {}
     if endpoints["genes_page_1"].json:
@@ -316,6 +346,39 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
     overlap_stats = endpoints.get("lncrna_chipseq_overlap_statistics_chr22")
     if overlap_stats and overlap_stats.json:
         summaries["overlap_stats_total_overlaps"] = overlap_stats.json.get("total_overlaps")
+
+    # Overlap compare endpoints: ensure cross-species stats remain backward-compatible and stable.
+    # Use a small lncRNA options list to pick a gene_id with core_id (ortholog mapping available).
+    compare_lncrna_gene_id = get_first_gene_id_with_core_id_from_options(
+        endpoints.get("genes_options_species_1_limit_5").json if endpoints.get("genes_options_species_1_limit_5") else None
+    )
+    if compare_lncrna_gene_id is not None:
+        summaries["overlap_compare_lncrna_gene_id"] = compare_lncrna_gene_id
+
+        endpoints["lncrna_chipseq_overlap_compare_from_lncrna_options_top_n_3"] = _http_get_json(
+            _join(
+                base_url,
+                "/api/v1/lncrna-chipseq-overlap/compare?"
+                + urlencode({"lncrna_gene_id": compare_lncrna_gene_id, "top_n": 3, "max_qvalue": 1.0}),
+            ),
+            timeout_seconds=timeout_seconds,
+        )
+
+        endpoints["lncrna_chipseq_overlap_compare_from_lncrna_options_species_ids_1_3_top_n_3"] = _http_get_json(
+            _join(
+                base_url,
+                "/api/v1/lncrna-chipseq-overlap/compare?"
+                + urlencode(
+                    {
+                        "lncrna_gene_id": compare_lncrna_gene_id,
+                        "top_n": 3,
+                        "max_qvalue": 1.0,
+                        "species_ids": "1,3",
+                    }
+                ),
+            ),
+            timeout_seconds=timeout_seconds,
+        )
 
     return {
         "generated_at": _iso_now(),
