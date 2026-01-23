@@ -75,3 +75,13 @@ python3 etl/import_regulations.py --file /path/to/human_batch_human.txt \
   --input-manifest etl-inputs.manifest.tsv \
   --user "$DB_USER"
 ```
+
+如果暂时不维护 manifest，也可以在导入时用“阈值校验”快速兜底（避免明显截断/损坏）：
+
+```bash
+python3 etl/import_regulations.py --file /path/to/human_batch_human.txt \
+  --min-bytes 1000000 \
+  --min-lines 1 \
+  --sha256 <expected_sha256_hex> \
+  --user "$DB_USER"
+```

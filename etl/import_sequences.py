@@ -542,6 +542,15 @@ def main():
         type=str,
         help='可选：输入文件 manifest TSV（导入前 fail-fast 校验 bytes/lines/sha256）',
     )
+    parser.add_argument('--min-bytes', type=int, default=0, help='可选：输入文件最小字节数（0 表示不校验）')
+    parser.add_argument('--min-lines', type=int, default=0, help='可选：输入文件最小行数（0 表示不校验）')
+    parser.add_argument('--max-lines', type=int, default=0, help='可选：输入文件最大行数（0 表示不校验）')
+    parser.add_argument(
+        '--sha256',
+        action='append',
+        default=[],
+        help='可选：输入文件期望 SHA256（可重复；1 个值表示所有文件共用；N 个值表示与文件一一对应）',
+    )
     parser.add_argument('--batch-size', type=int, default=5000, help='批量插入大小 (默认: 5000)')
     parser.add_argument('--dry-run', action='store_true', help='预览模式，不实际导入数据')
     parser.add_argument(
@@ -571,6 +580,25 @@ def main():
 
         required = [source_files[args.species]] if args.species else list(source_files.values())
         errors = verify_manifest_for_paths(args.input_manifest, required)
+        if errors:
+            for e in errors:
+                print(e, file=sys.stderr)
+            sys.exit(1)
+
+    if args.min_bytes or args.min_lines or args.max_lines or args.sha256:
+        try:
+            from etl.preflight import verify_file_checks_for_paths
+        except ImportError:  # pragma: no cover
+            from preflight import verify_file_checks_for_paths  # type: ignore
+
+        required = [source_files[args.species]] if args.species else list(source_files.values())
+        errors = verify_file_checks_for_paths(
+            required,
+            min_bytes=int(args.min_bytes),
+            min_lines=int(args.min_lines),
+            max_lines=int(args.max_lines),
+            expected_sha256=list(args.sha256 or []),
+        )
         if errors:
             for e in errors:
                 print(e, file=sys.stderr)

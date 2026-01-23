@@ -55,3 +55,24 @@ def test_verify_manifest_for_paths_surfaces_sha_mismatch(tmp_path: Path) -> None
     assert errors
     assert any("sha256" in e.lower() for e in errors)
 
+
+def test_verify_file_checks_for_paths_min_bytes(tmp_path: Path) -> None:
+    from etl.preflight import verify_file_checks_for_paths
+
+    data = tmp_path / "data.tsv"
+    data.write_text("a\tb\n1\t2\n", encoding="utf-8")
+
+    errors = verify_file_checks_for_paths([data], min_bytes=1000)
+    assert errors
+    assert any("min_bytes" in e.lower() for e in errors)
+
+
+def test_verify_file_checks_for_paths_sha256_mismatch(tmp_path: Path) -> None:
+    from etl.preflight import verify_file_checks_for_paths
+
+    data = tmp_path / "data.tsv"
+    data.write_text("a\tb\n1\t2\n", encoding="utf-8")
+
+    errors = verify_file_checks_for_paths([data], expected_sha256=["deadbeef"])
+    assert errors
+    assert any("sha256 mismatch" in e.lower() for e in errors)
