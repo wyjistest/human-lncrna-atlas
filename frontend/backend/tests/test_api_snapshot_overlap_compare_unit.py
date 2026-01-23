@@ -67,6 +67,10 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
             return ok({"total": 1, "items": [{"regulation_id": 1}]})
         if path.startswith("/api/v1/regulations/"):
             return ok({"regulation_id": 1})
+        if path == "/api/v1/regulations/lncrna-options":
+            return ok({"lncrnas": []})
+        if path == "/api/v1/regulations/target-options":
+            return ok({"targets": []})
         if path == "/api/v1/diseases/options":
             return ok({"traits": []})
         if path.startswith("/api/v1/stats/top-genes"):
@@ -75,6 +79,8 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
             return ok({"items": []})
         if path == "/api/v1/analysis/summary":
             return ok({"status": "ok"})
+        if path == "/api/v1/network/available-combinations":
+            return ok({"combinations": []})
 
         if path == "/api/v1/features/chipseq/marks":
             return ok({"items": []})
@@ -142,3 +148,12 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
         endpoints["lncrna_chipseq_overlap_compare_from_lncrna_options_species_ids_1_3_top_n_3"]["status_code"]
         == 200
     )
+
+    assert "regulations_lncrna_options_species_1" in endpoints
+    assert endpoints["regulations_lncrna_options_species_1"]["status_code"] == 200
+
+    assert "regulations_target_options_species_1" in endpoints
+    assert endpoints["regulations_target_options_species_1"]["status_code"] == 200
+
+    assert "network_available_combinations_species_1" in endpoints
+    assert endpoints["network_available_combinations_species_1"]["status_code"] == 200

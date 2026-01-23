@@ -116,6 +116,16 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    endpoints["regulations_lncrna_options_species_1"] = _http_get_json(
+        _join(base_url, "/api/v1/regulations/lncrna-options?" + urlencode({"species_id": 1})),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["regulations_target_options_species_1"] = _http_get_json(
+        _join(base_url, "/api/v1/regulations/target-options?" + urlencode({"species_id": 1})),
+        timeout_seconds=timeout_seconds,
+    )
+
     endpoints["diseases_options"] = _http_get_json(
         _join(base_url, "/api/v1/diseases/options"),
         timeout_seconds=timeout_seconds,
@@ -133,6 +143,11 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
 
     endpoints["analysis_summary"] = _http_get_json(
         _join(base_url, "/api/v1/analysis/summary"),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["network_available_combinations_species_1"] = _http_get_json(
+        _join(base_url, "/api/v1/network/available-combinations?" + urlencode({"species_id": 1})),
         timeout_seconds=timeout_seconds,
     )
 

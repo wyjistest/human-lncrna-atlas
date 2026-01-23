@@ -58,7 +58,7 @@
     "genes_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "367043b9a21c281f0b5344aedf5ac65c48bef508d7dd3dd9d607ad51a8ef6bd0",
+      "sha256": "db5db0684fbd7758625db5ea2cd1d11c10d34d78c20c88a3c8b5da29cbbc3bc4",
       "status_code": 200
     },
     "genes_options_species_1_limit_5": {
@@ -115,16 +115,34 @@
       "sha256": "2b48f363b46ed65d9c46dbbda2772f8b414f17cdbfeac7582f5de80338da3d7b",
       "status_code": 200
     },
+    "network_available_combinations_species_1": {
+      "error": null,
+      "json": null,
+      "sha256": "c22b64b880450fe0309b09c1755712eec24248bc56e558749be4915fffb552b0",
+      "status_code": 200
+    },
     "regulation_detail_first": {
       "error": null,
       "json": null,
       "sha256": "b5a88dbefa058a7ee11ee6caeb2bfb878cebf41d7531117ca0a67e5b57263fe1",
       "status_code": 200
     },
+    "regulations_lncrna_options_species_1": {
+      "error": null,
+      "json": null,
+      "sha256": "b88a9875737dfb894d0bc1fa15884eb68a3d60501e72a0b7ff2b4010c9e79055",
+      "status_code": 200
+    },
     "regulations_page_1": {
       "error": null,
       "json": null,
       "sha256": "3e2817fbfbdad0e5939ccd1345272a144bfa57d52145e5b061f2b6c6ad345858",
+      "status_code": 200
+    },
+    "regulations_target_options_species_1": {
+      "error": null,
+      "json": null,
+      "sha256": "b167a6082af08435ff11365e74d09fe2190b407abe66aa927b40bc0ea25c979c",
       "status_code": 200
     },
     "stats_overview": {
