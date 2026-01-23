@@ -25,6 +25,8 @@ labels: ["perf"]
 
 `python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000" --admin-api-key "$ADMIN_API_KEY"`
 
+说明：脚本也支持读取环境变量默认值（`API_BASE_URL` / `ADMIN_API_KEY`），已设置时可省略参数。
+
 粘贴 `admin-metrics-*.md` 内容：
 
 ```markdown
@@ -47,4 +49,3 @@ labels: ["perf"]
 
 - Response P95 高但 DB P95 低：优先看 cache namespaces 的 `compute_*` / 热点 keys（可能是回源/计算/IO）
 - DB P95 高：优先看 slow queries（fingerprint+route）定位具体 SQL 与触发端点
-

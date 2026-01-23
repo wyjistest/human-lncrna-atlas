@@ -21,6 +21,11 @@
 python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000"
 ```
 
+也支持使用环境变量默认值（可省略参数）：
+
+- `API_BASE_URL`：默认 backend base url
+- `ADMIN_API_KEY`：默认 Admin API Key（会作为 `X-Admin-API-Key` 发送）
+
 如果导出里出现 `n=<samples>/10`（样本不足，percentiles 为 null），可以先用 warmup 选项制造少量流量再导出：
 
 ```bash

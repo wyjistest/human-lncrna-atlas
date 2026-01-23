@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -317,16 +318,28 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
 
 
 def main() -> int:
+    env_base_url = os.environ.get("API_BASE_URL") or ""
+    default_base_url = env_base_url.strip() or "http://localhost:8000"
+
+    env_admin_api_key = os.environ.get("ADMIN_API_KEY")
+    default_admin_api_key = env_admin_api_key.strip() if isinstance(env_admin_api_key, str) and env_admin_api_key.strip() else None
+
+    # 兼容本地代理环境：默认绕过 localhost/127.0.0.1，避免请求走 http_proxy 导致连接失败/卡住。
+    if not os.environ.get("NO_PROXY") and not os.environ.get("no_proxy"):
+        default_no_proxy = "127.0.0.1,localhost,::1"
+        os.environ["NO_PROXY"] = default_no_proxy
+        os.environ["no_proxy"] = default_no_proxy
+
     parser = argparse.ArgumentParser(description="Export /api/v1/admin/metrics snapshot (JSON + Markdown).")
     parser.add_argument(
         "--base-url",
-        default="http://localhost:8000",
-        help="Backend base url (default: http://localhost:8000)",
+        default=default_base_url,
+        help="Backend base url (default: $API_BASE_URL or http://localhost:8000)",
     )
     parser.add_argument(
         "--admin-api-key",
-        default=None,
-        help="Admin API Key (sent as X-Admin-API-Key; optional for local networks when strict mode disabled)",
+        default=default_admin_api_key,
+        help="Admin API Key (sent as X-Admin-API-Key; default: $ADMIN_API_KEY)",
     )
     parser.add_argument(
         "--timeout-seconds",
