@@ -25,6 +25,7 @@ GitHub UI 路径：
 建议：
 - 选择一台长期在线的 Linux 机器（CI 稳定性更好）。
 - runner 账号尽量使用最小权限用户，不建议用 root 常驻。
+- 如果你在 root/sudo 下运行 `./config.sh` 看到 `Must not run with sudo`：请切换到普通用户执行（推荐）。确实要用 root 时可临时设置 `RUNNER_ALLOW_RUNASROOT=1`，但不建议（runner 将拥有 root 权限，风险更高）。
 
 ### 2) 配置仓库变量：让 workflow 跑在 self-hosted
 
