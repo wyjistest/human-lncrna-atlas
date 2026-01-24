@@ -9,6 +9,9 @@ NOTE: This is a manual validation script, NOT an automated pytest test.
 Usage:
     python3 scripts/manual_batch_heatmap_check.py
 
+Environment:
+    API_BASE_URL: Backend base URL (default: http://localhost:8000)
+
 Tests:
     1. Basic batch query with 3 genes
     2. Single gene (edge case)
@@ -19,11 +22,13 @@ Tests:
 
 import httpx
 import json
+import os
 import time
 import statistics
 
-# API Base URL
-BASE_URL = "http://localhost:8000/api/v1/features/chipseq"
+# API Base URL (allow override via env var for non-local deployments)
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
+BASE_URL = f"{API_BASE_URL}/api/v1/features/chipseq"
 
 # Test genes (using IDs from database)
 TEST_GENES = [17276, 17277, 17278, 17279, 17280, 17281, 17282, 17283, 17284, 17285]

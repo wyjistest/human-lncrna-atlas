@@ -10,14 +10,20 @@ Tests the three main API endpoints for the Human LncRNA Atlas project.
 
 Usage:
     python3 scripts/manual_chipseq_api_check.py
+
+Environment:
+    API_BASE_URL: Backend base URL (default: http://localhost:8000)
 """
 
+import os
 import time
 import requests
 from typing import Dict, List, Tuple
 from dataclasses import dataclass
 
-BASE_URL = "http://localhost:8000/api/v1/features/chipseq"
+# API Base URL (allow override via env var for non-local deployments)
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000").rstrip("/")
+BASE_URL = f"{API_BASE_URL}/api/v1/features/chipseq"
 
 # Test data - genes known to have ChIP-seq data
 TEST_GENE_IDS = [27908, 32322, 18521]  # GSE1, RAD51B, AC025171.1
