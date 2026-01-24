@@ -292,6 +292,8 @@ curl "http://localhost:8000/api/v1/features/chipseq/genes/17276/compare-cell-lin
 
 ## 🎯 未来改进方向
 
+> 说明：以下为未来方向整理，不代表当前待办或时间承诺。
+
 - [ ] 添加热图导出功能（PNG/SVG）
 - [ ] 支持批量基因对比（热图矩阵：基因×细胞系）
 - [ ] 添加细胞系层次聚类分析
