@@ -4,6 +4,8 @@
 **项目**: Human LncRNA Atlas - 前端增强
 **状态**: ✅ Phase 0 + Phase 1 完成
 
+> 更新（2026-01-24）：本文档为会话总结快照，用于回溯 Phase 0/1 的实现与结论；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ---
 
 ## 一、本次会话完成内容

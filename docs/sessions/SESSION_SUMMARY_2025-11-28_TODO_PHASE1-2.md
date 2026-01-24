@@ -5,6 +5,8 @@
 
 > 更新（2026-01-23）：本文档为历史会话总结，最终状态与验收结果以 `docs/frontend/TODO_IMPLEMENTATION_PLAN.md` 为准。
 
+> 更新（2026-01-24）：为避免与后续阶段混淆，整体现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ---
 
 ## 已完成任务 ✅

@@ -11,6 +11,8 @@
 - v2.2: 添加pgcrypto扩展 + core_id_seq自动连接 + JSON契约改用core_id作为key
 - v2.3: **文档与schema同步修正** - INT8RANGE标记为Phase 2优化，删除不存在的GiST索引，trait索引改用core_id
 
+> 更新（2026-01-24）：本文档为数据库架构设计文档快照，用于回溯 schema 设计与约束；现状以 `docs/CURRENT_STATUS.md` 与仓库实际 schema/迁移为准。
+
 ---
 
 ## 1. 项目背景

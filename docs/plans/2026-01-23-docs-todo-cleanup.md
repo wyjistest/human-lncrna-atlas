@@ -1,5 +1,7 @@
 # Docs TODO Cleanup Implementation Plan
 
+> 更新（2026-01-24）：本文档为文档清理实施计划的过程记录快照，不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 继续清理历史文档中的 TODO/Mock 误导描述，并补充清晰的“历史记录”标注。
@@ -86,4 +88,3 @@ Expected: `Docs command drift check passed (...)`
 git add docs/sessions/SESSION_SUMMARY_2025-11-28_TODO_PHASE1-2.md
 git commit -m "docs(sessions): add legacy note for phase1-2 todo summary"
 ```
-
