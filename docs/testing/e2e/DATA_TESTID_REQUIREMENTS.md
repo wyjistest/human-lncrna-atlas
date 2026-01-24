@@ -1,5 +1,7 @@
 # Phase 2.5 ChIP-seq Compare E2E Test - Required data-testid Attributes
 
+> 更新（2026-01-24）：本文档为 E2E 可测试性改造建议清单（data-testid 规范），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 This document lists the recommended `data-testid` attributes that should be added to frontend components to improve test reliability and maintainability.
 
 ## Overview

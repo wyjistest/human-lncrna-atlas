@@ -6,6 +6,8 @@
 状态: 准备就绪 ✅
 复用模式: Phase 5.1 Diseases API + Phase 5.2 Genes API
 
+> 更新（2026-01-24）：本文档为前端集成方案快照（含 2026-01 状态补充），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ---
 
 ## 1. 执行摘要

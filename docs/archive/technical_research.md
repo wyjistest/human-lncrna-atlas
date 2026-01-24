@@ -1,5 +1,7 @@
 # lncRNA Atlas 数据库技术调研报告
 
+> 更新（2026-01-24）：本文档为技术调研报告快照，用于回溯决策依据；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ## 执行摘要
 
 **推荐方案：PostgreSQL + FastAPI + React**

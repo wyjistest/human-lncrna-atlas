@@ -1,5 +1,7 @@
 # Network Disease Filter Performance Test Strategy
 
+> 更新（2026-01-24）：本文档为性能测试策略/基准设计快照，不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ## 执行摘要
 
 本文档定义了针对 **Network 页面疾病筛选功能 API 优化和缓存层**的性能测试策略。目标是验证优化后的性能提升，并建立可重复的性能基准测试框架。
