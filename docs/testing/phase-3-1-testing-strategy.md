@@ -1,5 +1,7 @@
 # Phase 3.1: HepG2 × H3K9me3 Import - Comprehensive Testing Strategy
 
+> 更新（2026-01-24）：本文档为测试策略/执行方案快照，可能与当前进展不一致；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ## Executive Summary
 
 **Objective**: Import HepG2 × H3K9me3 ChIP-seq data and validate the "zero frontend code changes" hypothesis.

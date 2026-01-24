@@ -4,6 +4,8 @@
 **Status**: Ready for Backend Implementation
 **Based on**: Phase 5.1 Diseases API Success Pattern (5.5s → 0.2s optimization)
 
+> 更新（2026-01-24）：本文档为 Phase 5.2 集成计划快照（Ready for Backend Implementation），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ---
 
 ## 1. Executive Summary

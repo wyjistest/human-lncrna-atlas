@@ -4,6 +4,8 @@
 **Status**: ✅ Complete - Ready for Backend Implementation
 **Phase**: 5.2 (Genes Options API Optimization)
 
+> 更新（2026-01-24）：本文档为交付总结/集成方案快照（面向“后端实现”），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ---
 
 ## Deliverables Overview

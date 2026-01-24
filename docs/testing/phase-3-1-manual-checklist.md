@@ -1,5 +1,7 @@
 # Phase 3.1: Manual Testing Checklist
 
+> 更新（2026-01-24）：本文档为手工测试执行清单模板（可复制后逐项勾选），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 **Purpose**: Quick reference for manual validation of HepG2 × H3K9me3 import
 
 **Time Required**: 30-45 minutes
