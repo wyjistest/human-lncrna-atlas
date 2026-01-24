@@ -51,6 +51,9 @@
 3. **文档示例不再写死后端地址**
    - `frontend/backend/app/routers/export.py` 的示例使用 `API_BASE_URL` 拼接请求 URL（便于 LAN/远端环境复用）
 
+4. **前端 lint baseline 数据提示消除**
+   - `frontend/web` 显式添加 `baseline-browser-mapping` devDependency（升级到最新），不再输出 `[baseline-browser-mapping] The data in this module is over two months old` 提示
+
 ### 2026-01-23 ⭐ 安全审计与 CI 核验（self-hosted）
 
 1. **安全审计计划与执行结果对齐**
