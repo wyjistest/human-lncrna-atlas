@@ -693,9 +693,14 @@ def export_disease_network(
 
     **导入 Cytoscape**:
     ```python
-    import json
+    import os
     import requests
-    data = requests.get("http://localhost:8000/api/v1/export/disease-network?trait_name=diabetes").json()
+
+    api_base_url = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
+    data = requests.get(
+        f"{api_base_url}/api/v1/export/disease-network",
+        params={"trait_name": "diabetes"},
+    ).json()
     # 使用 py4cytoscape 导入
     ```
 

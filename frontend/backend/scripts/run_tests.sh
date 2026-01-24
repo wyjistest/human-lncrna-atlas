@@ -33,6 +33,11 @@ echo "🧪 Human LncRNA Atlas - 回归测试"
 echo "=================================="
 echo ""
 
+# 兼容本地代理环境：默认绕过 localhost/127.0.0.1，避免 curl 走 http_proxy 导致卡住。
+DEFAULT_NO_PROXY="127.0.0.1,localhost,::1"
+export NO_PROXY="${NO_PROXY:-$DEFAULT_NO_PROXY}"
+export no_proxy="${no_proxy:-$DEFAULT_NO_PROXY}"
+
 # 可选：为受保护端点（例如 /metrics）提供 Admin API Key
 # - 生产环境通常启用 ADMIN_REQUIRE_API_KEY=true，此时需要提供 X-Admin-API-Key 才能访问 /metrics
 # - 本脚本默认从环境变量 ADMIN_API_KEY 读取（与后端配置一致）
@@ -41,11 +46,28 @@ if [ -n "${ADMIN_API_KEY:-}" ]; then
     ADMIN_HEADER_ARGS=(-H "X-Admin-API-Key: ${ADMIN_API_KEY}")
 fi
 
+# 可选：覆盖后端服务地址（默认本地开发端口）
+# - 推荐使用 API_BASE_URL（可为 http://host:port 或 http://host:port/api/v1）
+# - 兼容：HLA_BACKEND_URL / BACKEND_URL（同义，优先级低于 API_BASE_URL）
+normalize_backend_origin_url() {
+    local raw="${1:-}"
+    raw="${raw%/}"
+    if [[ "$raw" == */api/v1 ]]; then
+        raw="${raw%/api/v1}"
+    fi
+    echo "$raw"
+}
+
+BACKEND_ORIGIN_URL_RAW="${API_BASE_URL:-${HLA_BACKEND_URL:-${BACKEND_URL:-http://localhost:8000}}}"
+BACKEND_ORIGIN_URL="$(normalize_backend_origin_url "$BACKEND_ORIGIN_URL_RAW")"
+API_V1_BASE_URL="${BACKEND_ORIGIN_URL%/}/api/v1"
+
 # 检查服务是否运行
 echo "📡 检查服务状态..."
-if ! curl -fsS http://localhost:8000/health > /dev/null; then
+if ! curl -fsS --connect-timeout 2 --max-time 5 "${BACKEND_ORIGIN_URL}/health" > /dev/null; then
     echo "❌ 服务未运行！请先启动服务："
     echo "   uvicorn main:app --host 0.0.0.0 --port 8000"
+    echo "   (或设置 API_BASE_URL/HLA_BACKEND_URL/BACKEND_URL 指向实际后端地址)"
     exit 1
 fi
 echo "✅ 服务正常运行"
@@ -72,7 +94,7 @@ echo ""
 echo "🎯 验证关键端点..."
 
 # 健康检查
-HEALTH=$(curl -fsS http://localhost:8000/health | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['status'])")
+HEALTH=$(curl -fsS --connect-timeout 2 --max-time 10 "${BACKEND_ORIGIN_URL}/health" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['status'])")
 if [ "$HEALTH" = "healthy" ]; then
     echo "✅ /health - OK"
 else
@@ -81,7 +103,7 @@ else
 fi
 
 # 监控指标
-METRICS_LINES=$(curl -fsS "${ADMIN_HEADER_ARGS[@]}" http://localhost:8000/metrics | wc -l | tr -d '[:space:]')
+METRICS_LINES=$(curl -fsS --connect-timeout 2 --max-time 10 "${ADMIN_HEADER_ARGS[@]}" "${BACKEND_ORIGIN_URL}/metrics" | wc -l | tr -d '[:space:]')
 if [ "${METRICS_LINES:-0}" -gt 0 ]; then
     echo "✅ /metrics - OK (${METRICS_LINES} lines, Prometheus text format)"
 else
@@ -90,7 +112,7 @@ else
 fi
 
 # 基因列表
-GENES=$(curl -fsS "http://localhost:8000/api/v1/genes?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
+GENES=$(curl -fsS --connect-timeout 2 --max-time 10 "${API_V1_BASE_URL}/genes?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
 if [ "$GENES" = "17248" ]; then
     echo "✅ /api/v1/genes - OK (total: ${GENES})"
 else
@@ -99,7 +121,7 @@ else
 fi
 
 # 调控关系
-REGS=$(curl -fsS "http://localhost:8000/api/v1/regulations?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
+REGS=$(curl -fsS --connect-timeout 2 --max-time 10 "${API_V1_BASE_URL}/regulations?page=1&page_size=1" | "$PYTHON_BIN" -c "import sys, json; print(json.load(sys.stdin)['total'])")
 if [ "$REGS" = "804630" ]; then
     echo "✅ /api/v1/regulations - OK (total: ${REGS})"
 else

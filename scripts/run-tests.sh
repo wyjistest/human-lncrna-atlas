@@ -398,7 +398,23 @@ run_frontend_e2e_smoke_tests() {
         npm run build || return 1
     fi
 
-    local base_url="http://127.0.0.1:5173"
+    local default_port=5173
+    local port="$default_port"
+
+    # e2e-smoke 通过本地 preview server + Playwright 进行验证。
+    # 为了保持与 CI 一致，默认使用 5173；但允许通过 BASE_URL 提供自定义端口（仅限 localhost/127.0.0.1）。
+    if [ -n "${BASE_URL:-}" ]; then
+        if [[ "${BASE_URL}" =~ ^http://(localhost|127\.0\.0\.1)(:([0-9]+))?(/.*)?$ ]]; then
+            if [ -n "${BASH_REMATCH[3]:-}" ]; then
+                port="${BASH_REMATCH[3]}"
+            fi
+        else
+            echo -e "${YELLOW}e2e-smoke 仅支持本地 preview server。忽略 BASE_URL=${BASE_URL}${NC}"
+            echo -e "${YELLOW}如需自定义端口，请设为 http://127.0.0.1:<port> 或 http://localhost:<port>${NC}"
+        fi
+    fi
+
+    local base_url="http://127.0.0.1:${port}"
 
     # 与 CI 一致：固定端口 + strictPort。若端口已被占用，直接 fail-fast。
     if curl -fsS "${base_url}/" > /dev/null 2>&1; then
@@ -406,7 +422,7 @@ run_frontend_e2e_smoke_tests() {
         return 1
     fi
 
-    npm run preview -- --host 127.0.0.1 --port 5173 --strictPort &
+    npm run preview -- --host 127.0.0.1 --port "${port}" --strictPort &
     local preview_pid=$!
 
     local timeout=60
