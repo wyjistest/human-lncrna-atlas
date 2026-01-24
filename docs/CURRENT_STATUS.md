@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-23
+> 最后更新: 2026-01-24
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,19 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-24 ⭐ BaseURL 可配置性补齐
+
+1. **后端回归脚本支持自定义后端地址**
+   - `frontend/backend/scripts/run_tests.sh` / `frontend/backend/scripts/run_chipseq_tests.sh` 支持 `API_BASE_URL`（兼容 `HLA_BACKEND_URL/BACKEND_URL`），默认仍为 `http://localhost:8000`
+   - 默认注入 `NO_PROXY`，避免本机代理环境导致 health check 卡住
+
+2. **本地 CI 的 E2E smoke 支持自定义端口**
+   - `scripts/run-tests.sh e2e-smoke` 支持从 `BASE_URL=http://127.0.0.1:<port>` / `http://localhost:<port>` 解析端口（仍默认 5173，保持 CI strictPort 行为）
+   - 端口占用提示文案按实际端口展示
+
+3. **文档示例不再写死后端地址**
+   - `frontend/backend/app/routers/export.py` 的示例使用 `API_BASE_URL` 拼接请求 URL（便于 LAN/远端环境复用）
 
 ### 2026-01-23 ⭐ 安全审计与 CI 核验（self-hosted）
 
