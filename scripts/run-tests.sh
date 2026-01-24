@@ -416,9 +416,9 @@ run_frontend_e2e_smoke_tests() {
 
     local base_url="http://127.0.0.1:${port}"
 
-    # 与 CI 一致：固定端口 + strictPort。若端口已被占用，直接 fail-fast。
+    # 与 CI 一致：使用 strictPort。若端口已被占用，直接 fail-fast。
     if curl -fsS "${base_url}/" > /dev/null 2>&1; then
-        echo -e "${RED}端口 5173 已被占用（${base_url} 可访问），请先停止占用该端口的服务。${NC}"
+        echo -e "${RED}端口 ${port} 已被占用（${base_url} 可访问），请先停止占用该端口的服务。${NC}"
         return 1
     fi
 
