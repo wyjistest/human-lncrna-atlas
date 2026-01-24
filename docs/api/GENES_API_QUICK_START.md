@@ -1,5 +1,7 @@
 # Genes API Quick Integration Guide
 
+> 更新（2026-01-24）：本文档为快速集成指引快照（面向“后端实现后”的替换步骤），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 **Ready to use after backend implementation** ✅
 
 ---

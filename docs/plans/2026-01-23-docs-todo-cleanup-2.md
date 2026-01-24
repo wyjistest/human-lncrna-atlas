@@ -1,5 +1,7 @@
 # Docs TODO Cleanup 2 Implementation Plan
 
+> 更新（2026-01-24）：本文档为文档清理实施计划的过程记录快照，不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 继续清理历史计划文档中的未勾选清单/Mock 步骤，统一标注为历史记录，减少误读为“当前待办”的风险。
@@ -92,4 +94,3 @@ Expected: `Docs command drift check passed (...)`
 git add docs/phases/PHASE1_IMPLEMENTATION_PLAN.md
 git commit -m "docs(phases): archive phase1 implementation checklists"
 ```
-

@@ -1,5 +1,7 @@
 # Quick Fix Guide: Performance Test Configuration
 
+> 更新（2026-01-24）：本文档为测试排障/快速修复指引快照；现状以 `docs/CURRENT_STATUS.md` 与仓库实际测试代码为准。
+
 **Issue**: Tests monitoring wrong API endpoint
 **Impact**: All tests fail even though optimizations are deployed
 **Fix Time**: ~5 minutes
@@ -199,4 +201,3 @@ test('P0: Disease options API should load within performance budget', async ({ p
 **Fix Created**: 2025-12-10
 **Estimated Fix Time**: 5 minutes
 **Confidence Level**: 🟢 HIGH - Simple configuration change
-

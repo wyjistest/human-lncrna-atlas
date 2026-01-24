@@ -1,5 +1,7 @@
 # lncRNA-ChIP-seq Overlap API Documentation
 
+> 更新（2026-01-24）：本文档为 API 文档快照；如与当前实现不一致，以 `docs/CURRENT_STATUS.md` 与实际接口行为为准。
+
 ## Overview
 
 This API provides endpoints for querying overlaps between lncRNA binding sites and ChIP-seq peaks, enabling analysis of lncRNA-mediated epigenetic regulation mechanisms.

@@ -1,5 +1,7 @@
 # A549 Validation Test Suite - Execution Guide
 
+> 更新（2026-01-24）：本文档为 A549 验证测试执行指南快照；如与当前数据导入/接口状态不一致，以 `docs/CURRENT_STATUS.md` 为准。
+
 ## Overview
 
 This document describes how to run validation tests for A549 cell line integration.
