@@ -525,6 +525,8 @@ CREATE INDEX idx_mv_overlaps_cell ON mv_lncrna_chipseq_overlaps (cell_type);
 
 ## 🚀 后续行动计划
 
+> 更新（2026-01-24）：本节为 2025-12-07 当时的推进计划快照，可能已与当前进度不一致；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ### 本周行动（Week 1）
 
 **Day 1**（已完成）:

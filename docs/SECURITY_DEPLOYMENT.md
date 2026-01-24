@@ -166,6 +166,8 @@ CORS_ORIGINS=["https://your-domain.com"]
 
 ### 检查清单
 
+> 说明：本清单用于部署前自检（勾选表示已满足），不是开发待办；如与当前实现不一致，以 `docs/CURRENT_STATUS.md` 为准。
+
 - [ ] `VITE_ADMIN_API_KEY` 在公网部署时未设置
 - [ ] 使用反向代理注入 Admin Key 或实现会话认证
 - [ ] `GENOMES_DIR` 指向专用目录，无敏感文件

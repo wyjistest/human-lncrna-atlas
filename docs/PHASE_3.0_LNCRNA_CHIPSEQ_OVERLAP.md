@@ -6,6 +6,8 @@
 > **负责人**: Development Team
 > **优先级**: High (P0)
 
+> 更新（2026-01-24）：本文档为 2025-12-07 计划快照（Planning → In Progress），不代表当前待办清单；现状以 `docs/CURRENT_STATUS.md` 为准。
+
 ---
 
 ## 📋 目录
