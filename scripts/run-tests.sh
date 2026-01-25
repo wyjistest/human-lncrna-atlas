@@ -105,10 +105,90 @@ ensure_backend_python() {
     return 0
 }
 
+backend_venv_dir_from_python() {
+    local python_bin="$1"
+
+    # 仅对后端目录内的 venv 做“依赖漂移自动修复”，避免误改全局 Python/Conda 环境。
+    if [[ "$python_bin" != /* ]]; then
+        return 1
+    fi
+
+    local bin_dir
+    bin_dir="$(dirname "$python_bin")"
+    local venv_dir
+    venv_dir="$(dirname "$bin_dir")"
+
+    if [[ "$venv_dir" == "$BACKEND_DIR/.venv" || "$venv_dir" == "$BACKEND_DIR/venv" ]]; then
+        echo "$venv_dir"
+        return 0
+    fi
+
+    return 1
+}
+
+compute_backend_deps_hash() {
+    local python_bin="$1"
+
+    # 用 Python 计算 sha256，避免依赖 sha256sum/shasum 的平台差异。
+    (
+        cd "$BACKEND_DIR"
+        "$python_bin" - <<'PY'
+import hashlib
+from pathlib import Path
+
+h = hashlib.sha256()
+for name in ("requirements.txt", "requirements-dev.txt", "constraints.txt"):
+    p = Path(name)
+    if not p.exists():
+        continue
+    h.update(p.read_bytes())
+    h.update(b"\n")
+
+print(h.hexdigest())
+PY
+    )
+}
+
+ensure_backend_deps() {
+    local python_bin="$1"
+    local venv_dir
+    local stamp_file
+    local current_hash
+    local previous_hash
+
+    ensure_backend_python "$python_bin" || return 1
+
+    if ! venv_dir="$(backend_venv_dir_from_python "$python_bin")"; then
+        # 非后端 venv：不自动 pip install（避免意外污染全局环境）
+        return 0
+    fi
+
+    stamp_file="${venv_dir}/.hla_requirements.sha256"
+    current_hash="$(compute_backend_deps_hash "$python_bin")"
+    previous_hash=""
+    if [ -f "$stamp_file" ]; then
+        previous_hash="$(cat "$stamp_file" 2>/dev/null || true)"
+    fi
+
+    if [ "$current_hash" = "$previous_hash" ]; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}检测到后端依赖可能已漂移（requirements/constraints 更新），执行 pip install...${NC}"
+    cd "$BACKEND_DIR"
+
+    # 仅在漂移时同步依赖，避免每次 pre-push 都重装导致本地过慢。
+    "$python_bin" -m pip install -r requirements-dev.txt -c constraints.txt
+    printf "%s\n" "$current_hash" > "$stamp_file"
+    return 0
+}
+
 ensure_backend_pytest() {
     local python_bin="$1"
 
     ensure_backend_python "$python_bin" || return 1
+
+    ensure_backend_deps "$python_bin" || return 1
 
     if ! "$python_bin" -c "import pytest" > /dev/null 2>&1; then
         echo -e "${RED}后端 pytest 不可用（请在后端虚拟环境中安装依赖）${NC}"
@@ -140,6 +220,8 @@ ensure_backend_pip_audit() {
 
     ensure_backend_python "$python_bin" || return 1
 
+    ensure_backend_deps "$python_bin" || return 1
+
     if ! "$python_bin" -c "import pip_audit" > /dev/null 2>&1; then
         echo -e "${RED}后端 pip-audit 不可用（请在后端虚拟环境中安装依赖）${NC}"
         echo -e "${YELLOW}建议：cd ${BACKEND_DIR} && pip install pip-audit${NC}"
@@ -154,6 +236,8 @@ run_backend_lint() {
     echo -e "${YELLOW}运行后端 Lint (ruff check)...${NC}"
     local python_bin
     python_bin="$(resolve_backend_python)"
+
+    ensure_backend_deps "$python_bin" || return 1
 
     local ruff_bin="ruff"
     if [[ "$python_bin" == /* ]]; then
