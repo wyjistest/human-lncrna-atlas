@@ -22,7 +22,7 @@ pydantic-settings==2.1.0
 requests>=2.31.0,<3.0.0
 
 # 数据处理和导出
-pandas>=2.0.0,<3.0.0
+pandas>=2.0.0,<4.0.0
 openpyxl>=3.1.0,<4.0.0
 
 # 监控
