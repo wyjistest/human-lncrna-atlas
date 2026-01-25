@@ -56,7 +56,7 @@
     "@types/file-saver": "^2.0.7",
     "@types/html2canvas": "^1.0.0",
     "@types/lodash": "^4.17.23",
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.10",
     "@types/react": "^19.2.9",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.53.1",
