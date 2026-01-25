@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-24
+> 最后更新: 2026-01-25
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,15 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-25 ⭐ 依赖维护（Dependabot PR 清理）
+
+1. **合并 patch/minor 更新**
+   - 前端：prettier/vitest/jsdom/react-router-dom/msw 等依赖更新已合并
+   - 后端：uvicorn/pydantic/numpy/scipy 等依赖更新已合并
+
+2. **暂缓大版本升级**
+   - `pandas 3.x`、`websockets 16.x` 先不合并：后续以“单独验证 + 兼容性检查”方式推进，避免一次性引入不确定风险
 
 ### 2026-01-24 ⭐ BaseURL 可配置性补齐
 
