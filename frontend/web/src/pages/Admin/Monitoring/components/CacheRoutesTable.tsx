@@ -41,11 +41,47 @@ export function CacheRoutesTable({ data }: CacheRoutesTableProps) {
         ),
       },
       {
+        title: 'Requests',
+        dataIndex: 'requests',
+        key: 'requests',
+        sorter: (a, b) => a.requests - b.requests,
+        defaultSortOrder: 'descend',
+        render: (value: number) => value.toLocaleString(),
+        align: 'right',
+      },
+      {
+        title: 'Hit Rate',
+        dataIndex: 'hit_rate_pct',
+        key: 'hit_rate_pct',
+        sorter: (a, b) => a.hit_rate_pct - b.hit_rate_pct,
+        render: (value: number) => (
+          <span style={{ color: value >= 90 ? '#3f8600' : value >= 70 ? '#faad14' : '#cf1322' }}>
+            {value.toFixed(1)}%
+          </span>
+        ),
+        align: 'right',
+      },
+      {
+        title: 'Hits',
+        dataIndex: 'hits',
+        key: 'hits',
+        sorter: (a, b) => a.hits - b.hits,
+        render: (value: number) => value.toLocaleString(),
+        align: 'right',
+      },
+      {
+        title: 'Misses',
+        dataIndex: 'misses',
+        key: 'misses',
+        sorter: (a, b) => a.misses - b.misses,
+        render: (value: number) => value.toLocaleString(),
+        align: 'right',
+      },
+      {
         title: 'Compute Count',
         dataIndex: 'compute_count',
         key: 'compute_count',
         sorter: (a, b) => a.compute_count - b.compute_count,
-        defaultSortOrder: 'descend',
         render: (value: number) => value.toLocaleString(),
         align: 'right',
       },

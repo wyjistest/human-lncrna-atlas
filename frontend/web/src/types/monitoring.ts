@@ -198,6 +198,14 @@ export interface CacheKeyBreakdownItem {
 export interface CacheRouteBreakdownItem {
   /** Route template (best-effort) */
   route: string
+  /** Total requests for this route */
+  requests: number
+  /** Cache hits */
+  hits: number
+  /** Cache misses */
+  misses: number
+  /** Cache hit rate percentage (0-100) */
+  hit_rate_pct: number
   /** Number of backend compute operations */
   compute_count: number
   /** Average backend compute time in ms */

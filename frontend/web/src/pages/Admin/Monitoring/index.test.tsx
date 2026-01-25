@@ -59,6 +59,10 @@ vi.mock('@/hooks/useMonitoringMetrics', () => ({
           top: [
             {
               route: '/api/v1/test',
+              requests: 2,
+              hits: 1,
+              misses: 1,
+              hit_rate_pct: 50.0,
               compute_count: 1,
               compute_avg_ms: 12.3,
               compute_max_ms: 20.0,
@@ -135,6 +139,7 @@ describe('Admin Monitoring page', () => {
     expect(screen.getByText('Cache Hot Keys')).toBeInTheDocument()
     expect(screen.getByText('Cache Routes (Compute Top)')).toBeInTheDocument()
     expect(screen.getAllByText('Compute Count').length).toBeGreaterThan(0)
+    expect(screen.getByText('50.0%')).toBeInTheDocument()
     expect(screen.getAllByText('P95 (ms)').length).toBeGreaterThan(0)
     expect(screen.getAllByText('P99 (ms)').length).toBeGreaterThan(0)
     expect(screen.getByText('Database Performance')).toBeInTheDocument()
