@@ -92,6 +92,27 @@ class CacheKeyBreakdownItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CacheRouteBreakdownItem(BaseModel):
+    """缓存回源 compute 的 route 归因（Top N）"""
+
+    route: str = Field(description="触发回源计算的路由模板（best-effort）")
+    compute_count: int = Field(ge=0, description="回源计算次数")
+    compute_avg_ms: float = Field(ge=0, description="回源平均耗时(ms)")
+    compute_max_ms: float = Field(ge=0, description="回源最大耗时(ms)")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CacheRoutesBreakdown(BaseModel):
+    """缓存回源 compute 的 route 分布"""
+
+    tracked: int = Field(ge=0, description="已跟踪 route 数量")
+    limit: int = Field(ge=0, description="Top N 限制")
+    top: list[CacheRouteBreakdownItem] = Field(default_factory=list, description="Top route 列表")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CacheNamespacesBreakdown(BaseModel):
     """缓存命名空间分布"""
 
@@ -117,6 +138,10 @@ class CacheBreakdown(BaseModel):
 
     namespaces: CacheNamespacesBreakdown = Field(description="命名空间维度统计")
     keys: CacheKeysBreakdown = Field(description="热点 key 维度统计")
+    routes: Optional[CacheRoutesBreakdown] = Field(
+        default=None,
+        description="按 route 归因的回源 compute（Top N；仅统计 cache-miss compute）",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

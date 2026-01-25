@@ -23,6 +23,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.config import settings
 from app.core.database import finish_db_request_metrics, start_db_request_metrics
+from app.core.request_context import finish_request_scope, start_request_scope
 from app.core.utils import sanitize_for_log
 
 logger = logging.getLogger("api")
@@ -167,6 +168,7 @@ class AdminMetricsMiddleware:
             await self.app(scope, receive, send)
             return
 
+        scope_token = start_request_scope(scope)
         db_token = start_db_request_metrics()
         start = time.monotonic()
         status_code: int = 0
@@ -180,6 +182,10 @@ class AdminMetricsMiddleware:
         try:
             await self.app(scope, receive, send_wrapper)
         finally:
+            try:
+                finish_request_scope(scope_token)
+            except Exception:  # pragma: no cover
+                pass
             db_metrics = finish_db_request_metrics(db_token)
             db_query_count = int(getattr(db_metrics, "db_query_count", 0) or 0)
             db_total_time_ms = float(getattr(db_metrics, "db_total_time_ms", 0.0) or 0.0)

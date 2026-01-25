@@ -263,6 +263,27 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
             )
         cache_keys_lines.append("")
 
+    # Cache routes compute block
+    routes_top = []
+    if isinstance(cache_breakdown, dict):
+        routes_top = (cache_breakdown.get("routes") or {}).get("top") or []
+    routes_list: list[dict[str, Any]] = []
+    if isinstance(routes_top, list):
+        routes_list = [x for x in routes_top if isinstance(x, dict)]
+
+    cache_routes_lines = ["### Cache routes（Compute Top）", ""]
+    if not routes_list:
+        cache_routes_lines += ["_暂无 routes compute 统计。_", ""]
+    else:
+        for row in routes_list[:10]:
+            route = str(row.get("route", "") or "")
+            compute_count = _to_int(row.get("compute_count")) or 0
+            cache_routes_lines.append(
+                f"- `{route}`：compute_n={compute_count}，compute_avg={fmt_ms(row.get('compute_avg_ms'))}，"
+                f"compute_max={fmt_ms(row.get('compute_max_ms'))}"
+            )
+        cache_routes_lines.append("")
+
     md_lines = [
         "# Performance Snapshot (admin/metrics)",
         "",
@@ -292,6 +313,7 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
         *cache_latency_lines,
         *cache_ns_lines,
         *cache_keys_lines,
+        *cache_routes_lines,
         "## Endpoints（Tail Latency）",
         "",
         *endpoints_block("Top endpoints by Response P95", top_p95),
@@ -310,7 +332,7 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
         *slow_lines,
         "## Notes",
         "",
-        "- 如果 Response P95 很高但 DB P95 很低：优先看 cache namespaces 的 compute_* 与热点 keys（可能是回源/计算/IO）。",
+        "- 如果 Response P95 很高但 DB P95 很低：优先看 cache routes/namespaces 的 compute_* 与热点 keys（可能是回源/计算/IO）。",
         "- 如果 DB P95 很高：优先看慢查询榜单（fingerprint+route）定位具体 SQL 与触发端点。",
         "- `n=<samples>/10` 代表样本不足，建议先制造少量流量再导出。",
         "",

@@ -49,6 +49,8 @@ from app.schemas.monitoring import (
     CacheNamespaceBreakdownItem,
     CacheKeysBreakdown,
     CacheKeyBreakdownItem,
+    CacheRoutesBreakdown,
+    CacheRouteBreakdownItem,
     ResponseTimeDistribution,
     ErrorTrend,
     EndpointStats,
@@ -958,9 +960,10 @@ async def get_metrics(request: Request) -> MetricsResponse:
                 hit_rate_pct=hit_rate_pct,
             )
 
-            # 仅返回统计分解信息（namespaces/keys），不返回 Redis host 等敏感信息。
+            # 仅返回统计分解信息（namespaces/keys/routes），不返回 Redis host 等敏感信息。
             namespaces = stats.get("namespaces")
             keys = stats.get("keys")
+            routes = stats.get("routes")
             if isinstance(namespaces, dict) and isinstance(keys, dict):
                 ns_top_raw = namespaces.get("top")
                 keys_top_raw = keys.get("top")
@@ -1005,6 +1008,28 @@ async def get_metrics(request: Request) -> MetricsResponse:
                             )
                         )
 
+                    routes_breakdown = None
+                    if isinstance(routes, dict):
+                        routes_top_raw = routes.get("top")
+                        if isinstance(routes_top_raw, list):
+                            route_top: list[CacheRouteBreakdownItem] = []
+                            for item in routes_top_raw:
+                                if not isinstance(item, dict):
+                                    continue
+                                route_top.append(
+                                    CacheRouteBreakdownItem(
+                                        route=str(item.get("route") or ""),
+                                        compute_count=int(item.get("compute_count", 0) or 0),
+                                        compute_avg_ms=max(0.0, float(item.get("compute_avg_ms", 0.0) or 0.0)),
+                                        compute_max_ms=max(0.0, float(item.get("compute_max_ms", 0.0) or 0.0)),
+                                    )
+                                )
+                            routes_breakdown = CacheRoutesBreakdown(
+                                tracked=int(routes.get("tracked", 0) or 0),
+                                limit=int(routes.get("limit", 0) or 0),
+                                top=route_top,
+                            )
+
                     cache_breakdown = CacheBreakdown(
                         namespaces=CacheNamespacesBreakdown(
                             tracked=int(namespaces.get("tracked", 0) or 0),
@@ -1016,6 +1041,7 @@ async def get_metrics(request: Request) -> MetricsResponse:
                             limit=int(keys.get("limit", 0) or 0),
                             top=key_top,
                         ),
+                        routes=routes_breakdown,
                     )
 
             # Cache get() latency percentiles (best-effort; may be null if samples are insufficient).

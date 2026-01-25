@@ -142,6 +142,18 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
                     }
                 ],
             },
+            "routes": {
+                "tracked": 1,
+                "limit": 10,
+                "top": [
+                    {
+                        "route": "/api/v1/test",
+                        "compute_count": 2,
+                        "compute_avg_ms": 5.0,
+                        "compute_max_ms": 12.0,
+                    }
+                ],
+            },
         },
     )
     monkeypatch.setattr(
@@ -182,6 +194,11 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.cache_breakdown.keys.top[0].compute_count == 2
     assert metrics.cache_breakdown.keys.top[0].compute_avg_ms == 10.0
     assert metrics.cache_breakdown.keys.top[0].compute_max_ms == 20.0
+    assert metrics.cache_breakdown.routes is not None
+    assert metrics.cache_breakdown.routes.top[0].route == "/api/v1/test"
+    assert metrics.cache_breakdown.routes.top[0].compute_count == 2
+    assert metrics.cache_breakdown.routes.top[0].compute_avg_ms == 5.0
+    assert metrics.cache_breakdown.routes.top[0].compute_max_ms == 12.0
     assert metrics.cache_get_latency is not None
     assert metrics.cache_get_latency.hits_samples == 12
     assert metrics.cache_get_latency.misses_samples == 11

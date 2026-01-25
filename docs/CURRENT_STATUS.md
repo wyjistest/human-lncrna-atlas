@@ -108,7 +108,7 @@
    - 文档命令漂移检查已接入 CI（`scripts/check_docs_commands.py`）
 
 2. **Admin Monitoring 可观测性闭环**
-   - `GET /api/v1/admin/metrics`：轻量 in-memory 请求级指标（包含 `cache_stats` 摘要 + `cache_breakdown`（namespaces/keys top；keys 含 compute_count/avg/max））
+   - `GET /api/v1/admin/metrics`：轻量 in-memory 请求级指标（包含 `cache_stats` 摘要 + `cache_breakdown`（routes/namespaces/keys top；含 compute_count/avg/max））
    - `POST /api/v1/admin/metrics/reset-stats`：一键清零 in-memory 指标（不影响 Prometheus `/metrics`）
    - `GET /api/v1/admin/cache/stats` + `POST /api/v1/admin/cache/reset-stats`：缓存命中率/回源耗时统计与重置
    - Admin/Monitoring 页面：新增 Cache Namespaces / Hot Keys 表格与 “Reset Cache Stats” 按钮

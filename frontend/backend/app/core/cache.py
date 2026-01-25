@@ -39,6 +39,7 @@ if TYPE_CHECKING:  # pragma: no cover
     import redis as redis_types  # noqa: F401
 
 from app.core.config import settings
+from app.core.request_context import get_route_template
 from app.core.utils import sanitize_for_log
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ T = TypeVar('T')
 # Namespace strings are used as stats keys; keep them bounded and predictable.
 _NAMESPACE_STATS_PATTERN = re.compile(r"^[a-z0-9:_-]{1,64}$")
 _KEY_STATS_PATTERN = re.compile(r"^[a-z0-9:_-]{1,200}$")
+_ROUTE_STATS_PATTERN = re.compile(r"^[a-z0-9/{}:._-]{1,200}$")
 
 # ============== Prometheus Metrics (optional) ==============
 
@@ -394,6 +396,8 @@ class CacheService:
     _TOP_NAMESPACES_LIMIT = 10
     _MAX_TRACKED_KEYS = 500
     _TOP_KEYS_LIMIT = 10
+    _MAX_TRACKED_ROUTES = 200
+    _TOP_ROUTES_LIMIT = 10
     _GET_LATENCY_SAMPLES_MAXLEN = 1000
     _GET_LATENCY_PERCENTILES_MIN_SAMPLES = 10
 
@@ -410,6 +414,9 @@ class CacheService:
         # Key-level stats (best-effort). Keys are full cache keys (including hash suffix).
         # Example: "lncrna:genes:options", "lncrna:stats:overview:abc123def4"
         self._key_stats: dict[str, dict[str, float]] = {}
+        # Route-level compute stats (best-effort). Keys are route templates (e.g. "/api/v1/genes/{gene_id}").
+        # Only records cache-miss compute events (not hits).
+        self._route_stats: dict[str, dict[str, float]] = {}
         # Prevent cache stampede (per-process) on hot keys.
         # Use WeakValueDictionary to avoid unbounded growth when keys are high-cardinality.
         self._singleflight_guard = threading.Lock()
@@ -459,6 +466,16 @@ class CacheService:
         if not _KEY_STATS_PATTERN.match(k):
             return "unknown"
         return k
+
+    def _normalize_route_for_stats(self, route: str) -> str:
+        r = (route or "").strip().lower()
+        if not r:
+            return "other"
+        if len(r) > 200:
+            r = r[:200]
+        if not _ROUTE_STATS_PATTERN.match(r):
+            return "other"
+        return r
 
     def _extract_namespace_from_key(self, key: str) -> Optional[str]:
         """
@@ -586,6 +603,28 @@ class CacheService:
                     "compute_seconds_max": 0.0,
                 }
                 self._namespace_stats[ns] = stats
+
+        sec = max(0.0, float(seconds))
+        stats["compute_count"] += 1.0
+        stats["compute_seconds_total"] += sec
+        stats["compute_seconds_max"] = max(stats.get("compute_seconds_max", 0.0), sec)
+
+    def _record_route_compute_locked(self, route: Optional[str], seconds: float) -> None:
+        if not route:
+            return
+        rt = self._normalize_route_for_stats(route)
+        stats = self._route_stats.get(rt)
+        if stats is None:
+            if len(self._route_stats) >= self._MAX_TRACKED_ROUTES and rt != "other":
+                rt = "other"
+                stats = self._route_stats.get(rt)
+            if stats is None:
+                stats = {
+                    "compute_count": 0.0,
+                    "compute_seconds_total": 0.0,
+                    "compute_seconds_max": 0.0,
+                }
+                self._route_stats[rt] = stats
 
         sec = max(0.0, float(seconds))
         stats["compute_count"] += 1.0
@@ -830,9 +869,11 @@ class CacheService:
             start = time.perf_counter()
             result = compute_func()
             compute_seconds = time.perf_counter() - start
+            route_template = get_route_template()
             with self._stats_lock:
                 self._record_namespace_compute_locked(namespace, compute_seconds)
                 self._record_key_compute_locked(key, compute_seconds)
+                self._record_route_compute_locked(route_template, compute_seconds)
             cache_data = self._serialize(result)
             if cache_data is not None:
                 self.set(key, cache_data, ttl, pre_serialized=True)
@@ -860,6 +901,7 @@ class CacheService:
             misses = self._misses
             namespace_stats = {k: dict(v) for k, v in self._namespace_stats.items()}
             key_stats = {k: dict(v) for k, v in self._key_stats.items()}
+            route_stats = {k: dict(v) for k, v in self._route_stats.items()}
             get_latency_hits = list(self._get_latency_hits_ms)
             get_latency_misses = list(self._get_latency_misses_ms)
         total = hits + misses
@@ -961,6 +1003,35 @@ class CacheService:
             "limit": self._TOP_KEYS_LIMIT,
         }
 
+        # Route-level compute breakdown (top N by compute_seconds_total)
+        top_route_items = sorted(
+            route_stats.items(),
+            key=lambda kv: kv[1].get("compute_seconds_total", 0.0),
+            reverse=True,
+        )[: self._TOP_ROUTES_LIMIT]
+        top_routes = []
+        for rt, s in top_route_items:
+            compute_count = int(s.get("compute_count", 0.0))
+            compute_seconds_total = float(s.get("compute_seconds_total", 0.0))
+            compute_seconds_max = float(s.get("compute_seconds_max", 0.0))
+            avg_compute_ms = (
+                (compute_seconds_total / max(compute_count, 1)) * 1000.0 if compute_count > 0 else 0.0
+            )
+            top_routes.append(
+                {
+                    "route": rt,
+                    "compute_count": compute_count,
+                    "compute_avg_ms": round(avg_compute_ms, 2),
+                    "compute_max_ms": round(compute_seconds_max * 1000.0, 2),
+                }
+            )
+
+        stats["routes"] = {
+            "tracked": len(route_stats),
+            "top": top_routes,
+            "limit": self._TOP_ROUTES_LIMIT,
+        }
+
         # 添加后端特定统计
         if self._redis.connected:
             stats["redis"] = {
@@ -979,6 +1050,7 @@ class CacheService:
             self._misses = 0
             self._namespace_stats.clear()
             self._key_stats.clear()
+            self._route_stats.clear()
             self._get_latency_hits_ms.clear()
             self._get_latency_misses_ms.clear()
 

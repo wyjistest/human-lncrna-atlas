@@ -3,7 +3,7 @@
 目标：用 **1 次导出 + 1 次截图** 在 issue 中复现并定位性能问题：
 
 - 哪条端点慢（P95/P99 / DB P95）
-- 慢在 DB 还是业务/缓存（对比 Response vs DB 百分位 + cache hit rate / namespaces+keys compute）
+- 慢在 DB 还是业务/缓存（对比 Response vs DB 百分位 + cache hit rate / routes+namespaces+keys compute）
 - 具体慢查询是什么（fingerprint + route + SQL）
 
 本项目已有的观测入口：
@@ -65,12 +65,12 @@ python3 scripts/admin_metrics_snapshot.py \
    - `admin-metrics-*.json`（附件）
    - Monitoring 页面截图（附件）
 3. **Quick triage**
-   - Response P95 高但 DB P95 低：优先看 cache namespaces/keys 的 `compute_*`（回源次数 + avg/max，常见于回源计算/IO）
+   - Response P95 高但 DB P95 低：优先看 cache routes/namespaces/keys 的 `compute_*`（回源次数 + avg/max，常见于回源计算/IO）
    - DB P95 高：优先看 slow queries（fingerprint+route）定位具体 SQL 与触发端点
    - 若慢点集中在 `GET /api/v1/lncrna-chipseq-overlap/compare`：可先用 `species_ids=1,3`（或前端弹窗勾选物种子集）缩小计算量，验证是否为“多物种计算”导致尾延迟
 
 ## 参考
 
-- `frontend/backend/app/routers/admin.py:844`（`GET /api/v1/admin/metrics`）
-- `frontend/backend/app/middleware/admin_metrics.py:142`（in-memory 指标采集）
-- `frontend/backend/app/core/cache.py:856`（cache hit/miss、namespaces/keys、compute_* 统计）
+- `frontend/backend/app/routers/admin.py:864`（`GET /api/v1/admin/metrics`）
+- `frontend/backend/app/middleware/admin_metrics.py:140`（in-memory 指标采集）
+- `frontend/backend/app/core/cache.py:897`（cache hit/miss、routes/namespaces/keys、compute_* 统计）
