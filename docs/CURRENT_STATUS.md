@@ -66,7 +66,7 @@
 ### 2026-01-23 ⭐ 安全审计与 CI 核验（self-hosted）
 
 1. **安全审计计划与执行结果对齐**
-   - `Security Audit` High/Critical = 0（`pip-audit --strict` 通过；`npm audit --audit-level=high` 通过，仅有 `lodash` moderate 提示）
+   - `Security Audit` High/Critical = 0（`pip-audit --strict` 通过；`npm audit --audit-level=high` 通过；本地 `npm audit --audit-level=moderate` 目前为 0）
 
 2. **GitHub Actions 手动触发核验**
    - `Tests` 与 `Security Audit` 在 self-hosted runner 上以 `workflow_dispatch` 成功通过（含 E2E smoke）
