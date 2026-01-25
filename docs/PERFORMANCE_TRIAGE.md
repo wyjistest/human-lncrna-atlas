@@ -15,7 +15,7 @@
 
 推荐使用脚本导出一份可直接贴到 issue 的 Markdown 摘要，同时保存完整 JSON 作为附件：
 
-- Markdown 摘要包含：Top endpoints（Response P95/P99 + DB P95）、DB 慢查询榜单、Cache（hit rate / get() percentiles / namespaces / keys）。
+- Markdown 摘要包含：Top endpoints（Response P95/P99 + DB P95）、DB 慢查询榜单、Cache（hit rate / get() percentiles / namespaces / keys / routes）。
 
 ```bash
 python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000"
@@ -66,6 +66,7 @@ python3 scripts/admin_metrics_snapshot.py \
    - Monitoring 页面截图（附件）
 3. **Quick triage**
    - Response P95 高但 DB P95 低：优先看 cache routes/namespaces/keys 的 `compute_*`（回源次数 + avg/max，常见于回源计算/IO）
+   - 命中率异常：优先看 cache routes 的 `hit_rate_pct` / `misses`（快速定位“哪个端点在频繁 miss”）
    - DB P95 高：优先看 slow queries（fingerprint+route）定位具体 SQL 与触发端点
    - 若慢点集中在 `GET /api/v1/lncrna-chipseq-overlap/compare`：可先用 `species_ids=1,3`（或前端弹窗勾选物种子集）缩小计算量，验证是否为“多物种计算”导致尾延迟
 
