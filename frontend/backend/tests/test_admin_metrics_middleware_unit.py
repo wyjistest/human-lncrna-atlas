@@ -136,6 +136,9 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
                         "hits": 6,
                         "misses": 2,
                         "hit_rate_pct": 75.0,
+                        "compute_count": 2,
+                        "compute_avg_ms": 10.0,
+                        "compute_max_ms": 20.0,
                     }
                 ],
             },
@@ -176,6 +179,9 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.cache_breakdown is not None
     assert metrics.cache_breakdown.namespaces.top[0].namespace == "genes"
     assert metrics.cache_breakdown.keys.top[0].namespace == "genes"
+    assert metrics.cache_breakdown.keys.top[0].compute_count == 2
+    assert metrics.cache_breakdown.keys.top[0].compute_avg_ms == 10.0
+    assert metrics.cache_breakdown.keys.top[0].compute_max_ms == 20.0
     assert metrics.cache_get_latency is not None
     assert metrics.cache_get_latency.hits_samples == 12
     assert metrics.cache_get_latency.misses_samples == 11

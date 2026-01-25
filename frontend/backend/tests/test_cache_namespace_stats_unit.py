@@ -69,3 +69,10 @@ def test_cache_stats_includes_namespace_breakdown(monkeypatch):
     assert top_keys[key]["requests"] >= 2
     assert top_keys[key]["hits"] >= 1
     assert top_keys[key]["misses"] >= 1
+
+    # Key-level compute stats should be available for cache-miss computations.
+    stats_overview_key = cache.make_key("stats:overview", species_id=1)
+    assert stats_overview_key in top_keys
+    assert top_keys[stats_overview_key]["compute_count"] >= 1
+    assert top_keys[stats_overview_key]["compute_avg_ms"] >= 0
+    assert top_keys[stats_overview_key]["compute_max_ms"] >= 0

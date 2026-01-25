@@ -497,7 +497,14 @@ class CacheService:
                 k = "other"
                 stats = self._key_stats.get(k)
             if stats is None:
-                stats = {"requests": 0.0, "hits": 0.0, "misses": 0.0}
+                stats = {
+                    "requests": 0.0,
+                    "hits": 0.0,
+                    "misses": 0.0,
+                    "compute_count": 0.0,
+                    "compute_seconds_total": 0.0,
+                    "compute_seconds_max": 0.0,
+                }
                 self._key_stats[k] = stats
 
         stats["requests"] += 1.0
@@ -505,6 +512,34 @@ class CacheService:
             stats["hits"] += 1.0
         else:
             stats["misses"] += 1.0
+
+    def _record_key_compute_locked(self, key: str, seconds: float) -> None:
+        if not key or not isinstance(key, str):
+            return
+        if not key.startswith(self.PREFIX):
+            return
+        k = self._normalize_key_for_stats(key)
+
+        stats = self._key_stats.get(k)
+        if stats is None:
+            if len(self._key_stats) >= self._MAX_TRACKED_KEYS and k != "other":
+                k = "other"
+                stats = self._key_stats.get(k)
+            if stats is None:
+                stats = {
+                    "requests": 0.0,
+                    "hits": 0.0,
+                    "misses": 0.0,
+                    "compute_count": 0.0,
+                    "compute_seconds_total": 0.0,
+                    "compute_seconds_max": 0.0,
+                }
+                self._key_stats[k] = stats
+
+        sec = max(0.0, float(seconds))
+        stats["compute_count"] += 1.0
+        stats["compute_seconds_total"] += sec
+        stats["compute_seconds_max"] = max(stats.get("compute_seconds_max", 0.0), sec)
 
     def _record_namespace_request_locked(self, namespace: Optional[str], *, hit: bool) -> None:
         if not namespace:
@@ -797,6 +832,7 @@ class CacheService:
             compute_seconds = time.perf_counter() - start
             with self._stats_lock:
                 self._record_namespace_compute_locked(namespace, compute_seconds)
+                self._record_key_compute_locked(key, compute_seconds)
             cache_data = self._serialize(result)
             if cache_data is not None:
                 self.set(key, cache_data, ttl, pre_serialized=True)
@@ -896,6 +932,12 @@ class CacheService:
             requests = int(s.get("requests", 0.0))
             hits = int(s.get("hits", 0.0))
             misses = int(s.get("misses", 0.0))
+            compute_count = int(s.get("compute_count", 0.0))
+            compute_seconds_total = float(s.get("compute_seconds_total", 0.0))
+            compute_seconds_max = float(s.get("compute_seconds_max", 0.0))
+            avg_compute_ms = (
+                (compute_seconds_total / max(compute_count, 1)) * 1000.0 if compute_count > 0 else 0.0
+            )
             total = hits + misses
             hit_rate = (hits / max(total, 1)) * 100.0
             ns = self._extract_namespace_from_key(k)
@@ -907,6 +949,9 @@ class CacheService:
                     "hits": hits,
                     "misses": misses,
                     "hit_rate_pct": round(hit_rate, 2),
+                    "compute_count": compute_count,
+                    "compute_avg_ms": round(avg_compute_ms, 2),
+                    "compute_max_ms": round(compute_seconds_max * 1000.0, 2),
                 }
             )
 

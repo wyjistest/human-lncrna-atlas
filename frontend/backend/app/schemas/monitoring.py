@@ -85,6 +85,9 @@ class CacheKeyBreakdownItem(BaseModel):
     hits: int = Field(ge=0, description="命中数")
     misses: int = Field(ge=0, description="未命中数")
     hit_rate_pct: float = Field(ge=0, le=100, description="命中率(%)")
+    compute_count: int = Field(ge=0, description="回源计算次数")
+    compute_avg_ms: float = Field(ge=0, description="回源平均耗时(ms)")
+    compute_max_ms: float = Field(ge=0, description="回源最大耗时(ms)")
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -255,9 +255,11 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
             key = str(row.get("key", "") or "")
             namespace = row.get("namespace")
             ns_text = str(namespace) if namespace else "-"
+            compute_count = _to_int(row.get("compute_count")) or 0
             cache_keys_lines.append(
                 f"- `{_truncate(key, max_len=120)}`：ns={ns_text}，req={row.get('requests', 0)}，"
-                f"hit_rate={fmt_pct(row.get('hit_rate_pct'))}，hits={row.get('hits', 0)}，misses={row.get('misses', 0)}"
+                f"hit_rate={fmt_pct(row.get('hit_rate_pct'))}，hits={row.get('hits', 0)}，misses={row.get('misses', 0)}，"
+                f"compute_n={compute_count}，compute_avg={fmt_ms(row.get('compute_avg_ms'))}，compute_max={fmt_ms(row.get('compute_max_ms'))}"
             )
         cache_keys_lines.append("")
 
