@@ -44,8 +44,8 @@
    - 前端：prettier/vitest/jsdom/react-router-dom/msw 等依赖更新已合并
    - 后端：uvicorn/pydantic/numpy/scipy 等依赖更新已合并
 
-2. **暂缓大版本升级**
-   - `pandas 3.x`、`websockets 16.x` 先不合并：后续以“单独验证 + 兼容性检查”方式推进，避免一次性引入不确定风险
+2. **完成大版本升级（独立验证 + 可回滚）**
+   - 已以独立 worktree/PR 方式完成 `websockets==16.0` 与 `pandas==3.0.0` 升级：本地 `bash scripts/run-tests.sh ci` 与 self-hosted `Tests`/`Security Audit` 均通过
 
 ### 2026-01-24 ⭐ BaseURL 可配置性补齐
 
