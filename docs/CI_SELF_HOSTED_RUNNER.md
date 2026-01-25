@@ -43,6 +43,15 @@ GitHub UI 路径：
 
 补充：self-hosted runner 有持久磁盘缓存，因此 `Tests` workflow 在 self-hosted 上会禁用 `setup-node`/`setup-python` 的远端 cache（避免 artifact cache 下载/上传拖慢），依赖缓存由本机 `~/.npm` 与 pip cache 直接复用。
 
+### 2.1) 资源建议（1 核 1G VPS 是否够）
+
+结论：**1C1G 通常不够跑完整 `Tests` workflow**（尤其是 `npm ci`、前端 `build`、Playwright 安装/运行），很容易出现 OOM 或长时间排队。
+
+更稳的建议：
+- **最低建议**：2C / 4G（能比较稳定跑完一次 `Tests`）。
+- **更推荐**：4C / 8G（依赖安装 + Playwright 更稳）。
+- 如果只能用 1C1G：建议把 runner 用作“紧急止损”，仅跑 `Security Audit` 或最轻量的 job；并开启 swap（仍可能很慢）。
+
 ### 3) 可选：在 self-hosted 上启用 Postgres service 作业
 
 `Tests` workflow 里有两个 job 使用了 `services: postgres`：

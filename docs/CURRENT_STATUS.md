@@ -63,7 +63,8 @@
    - `Tests` 与 `Security Audit` 在 self-hosted runner 上以 `workflow_dispatch` 成功通过（含 E2E smoke）
 
 3. **PR / 分支状态**
-   - 当前无 open PR，远程无已合并可清理分支
+   - PR 状态以 GitHub `Pull requests` 列表为准（Dependabot 会持续创建更新 PR，不在本文做“长期不变”的断言）
+   - 分支清理策略：已合并 PR 的分支可删除；高风险/大版本依赖更新建议先单独验证再合并
 
 ### 2026-01-20 ⭐ 后端导出性能优化（Overlap Export）
 
