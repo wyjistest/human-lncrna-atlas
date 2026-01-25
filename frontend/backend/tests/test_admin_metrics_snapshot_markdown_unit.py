@@ -57,6 +57,10 @@ def test_admin_metrics_snapshot_includes_cache_routes_compute_block():
                 "top": [
                     {
                         "route": "/api/v1/test",
+                        "requests": 10,
+                        "hits": 7,
+                        "misses": 3,
+                        "hit_rate_pct": 70.0,
                         "compute_count": 2,
                         "compute_avg_ms": 12.34,
                         "compute_max_ms": 56.78,
@@ -75,4 +79,6 @@ def test_admin_metrics_snapshot_includes_cache_routes_compute_block():
     )
 
     assert "### Cache routes（Compute Top）" in md
-    assert "- `/api/v1/test`：compute_n=2" in md
+    assert "- `/api/v1/test`：req=10" in md
+    assert "hit_rate=70.00%" in md
+    assert "compute_n=2" in md

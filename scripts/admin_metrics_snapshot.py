@@ -279,8 +279,9 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
             route = str(row.get("route", "") or "")
             compute_count = _to_int(row.get("compute_count")) or 0
             cache_routes_lines.append(
-                f"- `{route}`：compute_n={compute_count}，compute_avg={fmt_ms(row.get('compute_avg_ms'))}，"
-                f"compute_max={fmt_ms(row.get('compute_max_ms'))}"
+                f"- `{route}`：req={row.get('requests', 0)}，hit_rate={fmt_pct(row.get('hit_rate_pct'))}，"
+                f"hits={row.get('hits', 0)}，misses={row.get('misses', 0)}，"
+                f"compute_n={compute_count}，compute_avg={fmt_ms(row.get('compute_avg_ms'))}，compute_max={fmt_ms(row.get('compute_max_ms'))}"
             )
         cache_routes_lines.append("")
 
