@@ -166,6 +166,9 @@ These match the checks in `.github/workflows/test.yml`.
 # One-shot (mirrors CI core checks, excluding secret scan / security-audit)
 ./scripts/run-tests.sh ci
 # Note: does NOT require PostgreSQL/Redis (unit tests + import/syntax checks only).
+# Note: if you use a backend venv at `frontend/backend/.venv` or `frontend/backend/venv`,
+#       the script will auto-run `pip install -r requirements-dev.txt -c constraints.txt`
+#       when those files drift (e.g. after `git pull` dependency updates).
 #
 # CI also runs two additional smoke jobs (see `.github/workflows/test.yml`):
 # - Playwright E2E smoke (fully mocked, no backend/DB): `e2e-smoke`
