@@ -69,6 +69,30 @@ export function CacheKeysTable({ data }: CacheKeysTableProps) {
         align: 'right',
       },
       {
+        title: 'Compute Count',
+        dataIndex: 'compute_count',
+        key: 'compute_count',
+        sorter: (a, b) => a.compute_count - b.compute_count,
+        render: (value: number) => value.toLocaleString(),
+        align: 'right',
+      },
+      {
+        title: 'Compute Avg (ms)',
+        dataIndex: 'compute_avg_ms',
+        key: 'compute_avg_ms',
+        sorter: (a, b) => a.compute_avg_ms - b.compute_avg_ms,
+        render: (value: number) => value.toFixed(1),
+        align: 'right',
+      },
+      {
+        title: 'Compute Max (ms)',
+        dataIndex: 'compute_max_ms',
+        key: 'compute_max_ms',
+        sorter: (a, b) => a.compute_max_ms - b.compute_max_ms,
+        render: (value: number) => value.toFixed(1),
+        align: 'right',
+      },
+      {
         title: 'Hits',
         dataIndex: 'hits',
         key: 'hits',
@@ -102,4 +126,3 @@ export function CacheKeysTable({ data }: CacheKeysTableProps) {
     />
   )
 }
-

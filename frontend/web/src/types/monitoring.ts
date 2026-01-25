@@ -187,6 +187,23 @@ export interface CacheKeyBreakdownItem {
   misses: number
   /** Cache hit rate percentage (0-100) */
   hit_rate_pct: number
+  /** Number of backend compute operations */
+  compute_count: number
+  /** Average backend compute time in ms */
+  compute_avg_ms: number
+  /** Max backend compute time in ms */
+  compute_max_ms: number
+}
+
+export interface CacheRouteBreakdownItem {
+  /** Route template (best-effort) */
+  route: string
+  /** Number of backend compute operations */
+  compute_count: number
+  /** Average backend compute time in ms */
+  compute_avg_ms: number
+  /** Max backend compute time in ms */
+  compute_max_ms: number
 }
 
 export interface CacheNamespacesBreakdown {
@@ -207,11 +224,22 @@ export interface CacheKeysBreakdown {
   top: CacheKeyBreakdownItem[]
 }
 
+export interface CacheRoutesBreakdown {
+  /** Number of tracked routes */
+  tracked: number
+  /** Top N limit */
+  limit: number
+  /** Top routes */
+  top: CacheRouteBreakdownItem[]
+}
+
 export interface CacheBreakdown {
   /** Breakdown by cache namespace */
   namespaces: CacheNamespacesBreakdown
   /** Breakdown by cache key */
   keys: CacheKeysBreakdown
+  /** Breakdown by route (cache-miss compute attribution; best-effort) */
+  routes?: CacheRoutesBreakdown
 }
 
 export interface CacheGetLatencyPercentiles {

@@ -47,6 +47,21 @@ vi.mock('@/hooks/useMonitoringMetrics', () => ({
               hits: 1,
               misses: 0,
               hit_rate_pct: 100,
+              compute_count: 0,
+              compute_avg_ms: 0,
+              compute_max_ms: 0,
+            },
+          ],
+        },
+        routes: {
+          tracked: 1,
+          limit: 10,
+          top: [
+            {
+              route: '/api/v1/test',
+              compute_count: 1,
+              compute_avg_ms: 12.3,
+              compute_max_ms: 20.0,
             },
           ],
         },
@@ -118,7 +133,8 @@ describe('Admin Monitoring page', () => {
     expect(screen.getByText('Cache Get Latency')).toBeInTheDocument()
     expect(screen.getByText('Cache Namespaces')).toBeInTheDocument()
     expect(screen.getByText('Cache Hot Keys')).toBeInTheDocument()
-    expect(screen.getByText('Compute Count')).toBeInTheDocument()
+    expect(screen.getByText('Cache Routes (Compute Top)')).toBeInTheDocument()
+    expect(screen.getAllByText('Compute Count').length).toBeGreaterThan(0)
     expect(screen.getAllByText('P95 (ms)').length).toBeGreaterThan(0)
     expect(screen.getAllByText('P99 (ms)').length).toBeGreaterThan(0)
     expect(screen.getByText('Database Performance')).toBeInTheDocument()

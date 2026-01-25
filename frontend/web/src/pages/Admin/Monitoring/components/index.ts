@@ -9,6 +9,7 @@ export { ErrorTrendChart } from './ErrorTrendChart'
 export { EndpointTable } from './EndpointTable'
 export { CacheNamespacesTable } from './CacheNamespacesTable'
 export { CacheKeysTable } from './CacheKeysTable'
+export { CacheRoutesTable } from './CacheRoutesTable'
 export { TopEndpointsCard } from './TopEndpointsCard'
 
 // Phase 3 components

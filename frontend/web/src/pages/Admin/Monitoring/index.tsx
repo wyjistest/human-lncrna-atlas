@@ -18,6 +18,7 @@ import {
   EndpointTable,
   CacheNamespacesTable,
   CacheKeysTable,
+  CacheRoutesTable,
   SystemGauge,
   AlertsBanner,
   PercentilesCard,
@@ -426,6 +427,22 @@ export default function Monitoring() {
             }
           >
             <CacheKeysTable data={data?.cache_breakdown?.keys?.top} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Cache Breakdown: Routes (Compute Top) */}
+      <Row style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <Card
+            title="Cache Routes (Compute Top)"
+            extra={
+              data?.cache_breakdown?.routes
+                ? `tracked: ${data.cache_breakdown.routes.tracked}`
+                : undefined
+            }
+          >
+            <CacheRoutesTable data={data?.cache_breakdown?.routes?.top} />
           </Card>
         </Col>
       </Row>
