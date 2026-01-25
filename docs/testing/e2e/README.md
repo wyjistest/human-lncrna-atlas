@@ -114,7 +114,7 @@ cd "$REPO_ROOT/frontend/web"
 npm run dev
 ```
 
-Server should run at `http://localhost:5173`
+默认 Vite dev server 会在 `http://localhost:5173` 启动；如端口/host 不同，请设置 `BASE_URL`（例如 `BASE_URL=http://127.0.0.1:5173`），以保证 Playwright `baseURL` 与实际地址一致。
 
 ### 4. Start Backend Server (Optional - for P1 tests)
 
@@ -125,7 +125,7 @@ source venv/bin/activate
 python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-API should run at `http://localhost:8000`
+默认 API 会在 `http://localhost:8000` 启动；如端口/host 不同，请设置 `API_BASE_URL`（例如 `API_BASE_URL=http://127.0.0.1:8000`）。
 
 ## Running Tests
 
@@ -380,7 +380,7 @@ Running 25 tests using 1 worker
 
 2. Check if frontend server is running:
    ```bash
-   curl http://localhost:5173
+   curl "${BASE_URL:-http://localhost:5173}"
    ```
 
 3. Check for JavaScript errors in browser console (use `--headed` mode)
@@ -390,8 +390,9 @@ Running 25 tests using 1 worker
 **Symptom**: `locator('.ant-table').first() not found`
 
 **Solutions**:
-1. Wait for route integration from frontend agent
+1. 确认路由已注册（例如 `frontend/web/src/App.tsx`）且页面组件可正常渲染
 2. Check if page route exists: `http://localhost:5173/lncrna-chipseq-overlap`
+   - 如需覆盖 base URL：`${BASE_URL:-http://localhost:5173}/lncrna-chipseq-overlap`
 3. Verify component is mounted in route config
 
 ### Issue: API Errors
@@ -401,7 +402,7 @@ Running 25 tests using 1 worker
 **Solutions**:
 1. Check if backend server is running:
    ```bash
-   curl http://localhost:8000/api/v1/lncrna-chipseq-overlap
+   curl "${API_BASE_URL:-http://localhost:8000}/api/v1/lncrna-chipseq-overlap"
    ```
 
 2. Note: P1 interactions in `e2e/lncrna-chipseq-overlap.spec.ts` intercept the overlap API.

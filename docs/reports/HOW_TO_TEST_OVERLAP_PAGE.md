@@ -8,15 +8,17 @@
 - 后端服务已启动（端口 8000）
 - 前端开发服务器已启动（默认端口 5173；若被占用，Vite 可能自动使用 5174）
 
+> 约定：本文用 `<BASE_URL>` 表示前端地址（默认 `http://localhost:5173`），用 `<API_BASE_URL>` 表示后端地址（默认 `http://localhost:8000`）。如你的端口不同，请替换为实际地址。
+
 ### 访问页面
 
 #### 方法 1: 通过导航菜单
-1. 访问首页: http://localhost:5173
+1. 访问首页: `<BASE_URL>`
 2. 在左侧导航菜单中找到 "lncRNA-ChIP-seq 重叠" （或 "lncRNA-ChIP-seq Overlap"）
 3. 点击菜单项进入页面
 
 #### 方法 2: 直接访问
-直接在浏览器中打开: http://localhost:5173/lncrna-chipseq-overlap
+直接在浏览器中打开: `<BASE_URL>/lncrna-chipseq-overlap`
 
 ### 功能测试清单
 
@@ -117,9 +119,9 @@ tail -f /tmp/frontend.log
 # 查看后端日志
 tail -f /tmp/backend.log
 
-# 检查服务状态
-curl http://localhost:8000/health
-curl http://localhost:5173
+# 检查服务状态（如端口不同可通过环境变量覆盖）
+curl "${API_BASE_URL:-http://localhost:8000}/health"
+curl "${BASE_URL:-http://localhost:5173}"
 ```
 
 ---

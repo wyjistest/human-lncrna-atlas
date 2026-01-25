@@ -1,13 +1,15 @@
 # Phase 2 Performance Testing - Analysis Report
 
 **Date**: 2025-12-10
-**Status**: ⚠️ **Test Configuration Issue Identified**
+**Status**: ✅ **Test Configuration Issue Fixed**
+
+> 更新（2026-01-25）：`frontend/web/e2e/performance/disease-dropdown-performance.spec.ts` 已对齐到优化后的 `/api/v1/diseases/options`，并使用 Playwright `baseURL`（由 `BASE_URL` 控制）而非硬编码 URL。本报告为当时排障记录，下文相关片段已同步为当前实现，避免误导。
 
 ---
 
 ## Executive Summary
 
-Phase 2 testing has revealed a **critical test configuration issue**: The performance tests are monitoring the **wrong API endpoint**. While the optimizations have been successfully deployed (backend `/api/v1/diseases/options` endpoint exists and frontend code uses `diseasesApi.getOptions()`), the test file is hardcoded to monitor the old `/api/v1/diseases` endpoint.
+Phase 2 testing 曾经暴露一个 **关键测试配置问题**：性能测试监控了 **错误的 API 端点**。该问题已修复：测试现在监控优化后的 `/api/v1/diseases/options`，与前端代码一致。
 
 ---
 
@@ -15,7 +17,7 @@ Phase 2 testing has revealed a **critical test configuration issue**: The perfor
 
 ### Test Run Details
 - **Execution Time**: 2025-12-10 12:36:13 - 12:36:29 (15 seconds)
-- **Environment**: Frontend (localhost:5173) + Backend (localhost:8000)
+- **Environment**: Frontend (`BASE_URL`, default `http://localhost:5173`) + Backend (`API_BASE_URL`, default `http://localhost:8000`)
 - **Test Suite**: `<repo-root>/frontend/web/e2e/performance/disease-dropdown-performance.spec.ts`
 - **Results**: 1 Pass / 5 Failures
 
@@ -34,24 +36,24 @@ Phase 2 testing has revealed a **critical test configuration issue**: The perfor
 
 ## Root Cause Analysis
 
-### Issue 1: Test Monitoring Wrong Endpoint ⚠️
+### Issue 1: Test Monitoring Wrong Endpoint ✅（已修复）
 
-**Location**: `disease-dropdown-performance.spec.ts:46`
+**Location**: `frontend/web/e2e/performance/disease-dropdown-performance.spec.ts`
 
 ```typescript
 const { response, time: apiTime, data, headers } = await metrics.measureAPIResponse(
-  '/api/v1/diseases',  // ❌ WRONG: Test monitors OLD endpoint
+  '/api/v1/diseases/options',  // ✅ FIXED: Monitor optimized endpoint
   async () => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
+    await page.goto(PAGE_URL) // baseURL 由 Playwright 配置（BASE_URL）提供
+    await page.waitForLoadState('domcontentloaded')
   }
 )
 ```
 
-**Problem**: The test is configured to monitor `/api/v1/diseases` (old slow endpoint), but the actual frontend code calls `/api/v1/diseases/options` (new optimized endpoint).
+**Problem**: Test 曾经监控 `/api/v1/diseases`（旧端点），但实际前端代码调用 `/api/v1/diseases/options`（优化端点）。
 
 **Evidence**:
-1. Frontend code at line 1033 of `Network/index.tsx`:
+1. Frontend code: `<repo-root>/frontend/web/src/pages/Network/index.tsx`
    ```typescript
    queryFn: diseasesApi.getOptions,  // ✅ Calls /api/v1/diseases/options
    ```
@@ -130,7 +132,7 @@ export const diseasesApi = {
 }
 ```
 
-**Network Page Usage**: `<repo-root>/frontend/web/src/pages/Network/index.tsx:1033`
+**Network Page Usage**: `<repo-root>/frontend/web/src/pages/Network/index.tsx`
 
 ```typescript
 const { data: diseaseOptions } = useQuery({
@@ -166,7 +168,7 @@ const { data: diseaseOptions } = useQuery({
 | Returned Items | 273 diseases (deduplicated) |
 | Total Items | 273 diseases |
 
-### Actual Test Results (Phase 2 - INVALID)
+### Actual Test Results (2025-12-10，历史：端点不匹配导致无效)
 
 | Metric | Value | Note |
 |--------|-------|------|
@@ -199,74 +201,16 @@ const { data: diseaseOptions } = useQuery({
 
 ---
 
-## Recommendations
+## Resolution（已完成）
 
-### Immediate Actions (Priority P0)
+### 1. 修复测试端点与 baseURL（P0）
 
-#### 1. Fix Test Configuration
+**File**: `frontend/web/e2e/performance/disease-dropdown-performance.spec.ts`
 
-**File**: `e2e/performance/disease-dropdown-performance.spec.ts`
-
-**Change Required** (Line 46):
-```typescript
-// BEFORE (wrong)
-const { response, time: apiTime, data, headers } = await metrics.measureAPIResponse(
-  '/api/v1/diseases',  // ❌ OLD endpoint
-  async () => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
-  }
-)
-
-// AFTER (correct)
-const { response, time: apiTime, data, headers } = await metrics.measureAPIResponse(
-  '/api/v1/diseases/options',  // ✅ NEW endpoint
-  async () => {
-    await page.goto(`${BASE_URL}${PAGE_URL}`)
-    await page.waitForLoadState('networkidle')
-  }
-)
-```
-
-**Additional Changes**:
-- Update data extraction logic (lines 54-56) to match new response structure:
-  ```typescript
-  // OLD response structure
-  const totalItems = data.total || 0
-  const returnedItems = data.items?.length || 0
-
-  // NEW response structure
-  const totalItems = data.traits?.length || 0
-  const returnedItems = data.traits?.length || 0
-  ```
-
-#### 2. Clear Browser Cache
-
-**Options**:
-a. Hard reload in test:
-   ```typescript
-   await page.goto(`${BASE_URL}${PAGE_URL}`, {
-     waitUntil: 'networkidle',
-     // Force bypass cache
-     headers: { 'Cache-Control': 'no-cache' }
-   })
-   ```
-
-b. Clear Playwright browser cache before test:
-   ```typescript
-   await page.context().clearCookies()
-   await page.context().clearPermissions()
-   // Add cache clear
-   await page.evaluate(() => window.sessionStorage.clear())
-   await page.evaluate(() => window.localStorage.clear())
-   ```
-
-c. Restart frontend server (force fresh build):
-   ```bash
-   cd <repo-root>/frontend/web
-   npm run build
-   # Restart dev server
-   ```
+已完成：
+- `measureAPIResponse` 监控端点调整为 `/api/v1/diseases/options`
+- `page.goto(PAGE_URL)` 使用 Playwright `baseURL`（由 `BASE_URL` 提供），避免硬编码 `localhost:5173`
+- 数据提取逻辑已对齐新响应结构（`data.traits`）
 
 ---
 
@@ -276,16 +220,16 @@ After fixing the test:
 
 1. **Verify endpoint change**:
    ```bash
-   grep -n "'/api/v1/diseases'" e2e/performance/disease-dropdown-performance.spec.ts
-   # Should return: (no matches) or only in comments
+   rg -n \"'/api/v1/diseases'\" frontend/web/e2e/performance/disease-dropdown-performance.spec.ts
+   # Expected: no matches (or only in comments)
 
-   grep -n "'/api/v1/diseases/options'" e2e/performance/disease-dropdown-performance.spec.ts
-   # Should return: Line 46 (or similar)
+   rg -n \"'/api/v1/diseases/options'\" frontend/web/e2e/performance/disease-dropdown-performance.spec.ts
+   # Expected: at least one match
    ```
 
 2. **Run single test to verify**:
    ```bash
-   npx playwright test e2e/performance/disease-dropdown-performance.spec.ts \
+   cd frontend/web && npx playwright test e2e/performance/disease-dropdown-performance.spec.ts \
      -g "P0: Disease options API" \
      --headed
    ```
@@ -311,21 +255,19 @@ After fixing the test:
 
 ## Conclusion
 
-**Current Status**: The optimizations **have been successfully deployed** (backend endpoint works, frontend code correct), but the **test configuration is incorrect**.
+**Current Status**: ✅ 优化已部署，且性能测试已对齐优化端点与 baseURL 配置。
 
-**Root Issue**: Test file is hardcoded to monitor the old API endpoint (`/api/v1/diseases`), causing all downstream tests to fail.
+**Root Issue（historical）**: Test 曾硬编码监控旧端点（`/api/v1/diseases`），导致后续用例被误判失败。
 
 **Next Steps**:
-1. Update test file to monitor `/api/v1/diseases/options` endpoint
-2. Update data extraction logic to match new response structure
-3. Clear browser cache (hard reload or restart dev server)
-4. Re-run tests to validate ~99% performance improvement
+1. 如需稳定对比回归，更新 `performance-baseline-metrics.json` 后使用 `npm run test:performance:compare`
+2. 若在 CI/self-hosted 环境运行，优先检查 `BASE_URL` / `API_BASE_URL` 与 Playwright `baseURL` 是否一致
 
-**Confidence Level**: 🟢 **HIGH** - The optimizations are in place and working. Only test configuration needs fixing.
+**Confidence Level**: 🟢 **HIGH** - 优化与测试均已对齐。
 
 ---
 
 **Report Generated**: 2025-12-10
 **Test Agent**: Playwright Performance Testing Expert
-**Status**: ⚠️ Test configuration issue identified, optimizations verified separately
+**Status**: ✅ Test configuration issue fixed
 
