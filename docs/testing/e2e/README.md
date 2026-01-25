@@ -478,7 +478,18 @@ page.on('response', (response) => console.log('Response:', response.status(), re
 ```yaml
 name: E2E Tests
 
-on: [push, pull_request]
+# 说明：本仓库目前默认关闭 push/PR 自动触发（额度/账单原因），主要使用 workflow_dispatch 手动触发。
+# 该示例展示如何通过环境变量统一 Playwright baseURL（避免硬编码 localhost:5173）。
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Playwright BASE_URL（默认 http://localhost:5173）"
+        required: false
+        default: "http://localhost:5173"
+
+env:
+  BASE_URL: ${{ github.event.inputs.base_url }}
 
 jobs:
   test:
@@ -499,7 +510,7 @@ jobs:
         run: |
           cd frontend/web
           npm run dev &
-          npx wait-on http://localhost:5173
+          npx wait-on "$BASE_URL"
 
       - name: Run E2E tests
         run: |

@@ -710,15 +710,12 @@ console.log(response.data) // 应该返回数据
 **负责人**: Backend Developer
 **预计时间**: 1 天
 
-**子任务**:
-- [ ] 创建 `tests/test_lncrna_chipseq_overlap_unit.py`
-- [ ] 测试区间重叠逻辑（20 tests）
-- [ ] 测试 API 参数验证（15 tests）
-- [ ] 测试边界条件（10 tests）
+**子任务（现状对齐）**:
+- 后端 overlap 相关测试集中在 `frontend/backend/tests/`（示例：`test_overlap_*_unit.py`, `test_lncrna_chipseq_overlap_*_unit.py`）
+- 覆盖：参数验证、边界条件、MV fallback、导出 streaming、chr1 guard 等
 
-**验收标准**:
-- ✅ 单元测试覆盖率 ≥ 95%
-- ✅ 所有测试通过
+**验收标准（现状）**:
+- 以 `scripts/run-tests.sh ci` 与 GitHub Actions `Tests` 工作流为准（Backend Checks / Backend Unit Tests）
 
 ---
 
@@ -727,15 +724,13 @@ console.log(response.data) // 应该返回数据
 **负责人**: Backend Developer
 **预计时间**: 1 天
 
-**子任务**:
-- [ ] 创建 `tests/test_lncrna_chipseq_overlap_integration.py`
-- [ ] 测试数据库查询正确性（15 tests）
-- [ ] 测试性能基准（10 tests）
-- [ ] 测试大数据量（5 tests）
+**子任务（现状对齐）**:
+- 使用 `pytest.mark.integration` 标注的用例位于 `frontend/backend/tests/`（示例：`test_overlap_export.py`, `test_igv_overlap_track.py` 等）
+- 数据库/性能基准类用例通常需要额外依赖与数据准备，建议在 self-hosted 或本地按需运行：
+  - `cd frontend/backend && python -m pytest -m integration -v`
 
-**验收标准**:
-- ✅ 集成测试覆盖率 ≥ 85%
-- ✅ 性能测试通过（查询 < 2s）
+**验收标准（现状）**:
+- 以按需运行的 integration 结果 + `Tests` 工作流通过为准（避免把历史计划当作当前门禁）
 
 ---
 
@@ -744,16 +739,12 @@ console.log(response.data) // 应该返回数据
 **负责人**: QA / Frontend Developer
 **预计时间**: 1.5 天
 
-**子任务**:
-- [ ] 创建 `frontend/web/e2e/lncrna-chipseq-overlap.spec.ts`
-- [ ] 测试用户筛选流程（10 tests）
-- [ ] 测试分页和排序（8 tests）
-- [ ] 测试导出功能（4 tests）
-- [ ] 跨浏览器测试（Chrome, Firefox, Safari）
+**子任务（现状对齐）**:
+- E2E 用例位于 `frontend/web/e2e/`（示例：`lncrna-chipseq-overlap*.spec.ts`、导出/IGV/图表等子用例）
+- Playwright baseURL 统一由 `frontend/web/playwright.config.ts` 的 `BASE_URL` 控制（默认仍为 `http://localhost:5173`）
 
-**验收标准**:
-- ✅ E2E 测试覆盖关键路径 100%
-- ✅ 所有浏览器测试通过
+**验收标准（现状）**:
+- 以 `cd frontend/web && npm run test:e2e` 或 `Tests` 工作流中的 `E2E Smoke (Playwright)` 通过为准
 
 ---
 
