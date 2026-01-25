@@ -172,6 +172,10 @@ jobs:
         run: |
           bash scripts/genomes/tests/test_download_igv_assets.sh
 
+      - name: Run scripts unit tests (run-tests.sh)
+        run: |
+          bash scripts/tests/test_run_tests_frontend_deps.sh
+
   lint:
     name: Lint
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}

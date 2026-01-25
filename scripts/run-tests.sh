@@ -45,10 +45,26 @@ ensure_frontend_deps() {
         return 1
     fi
 
-    # 仅在 node_modules 缺失时自动安装，避免每次都重装依赖导致本地过慢。
+    # 仅在 node_modules 缺失或检测到锁文件漂移时自动安装，避免每次都重装依赖导致本地过慢。
     if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
         echo -e "${YELLOW}前端依赖未安装，执行 npm ci...${NC}"
         (cd "$FRONTEND_DIR" && npm ci)
+        return 0
+    fi
+
+    # npm 会在 node_modules 下生成 `.package-lock.json`，代表“上次安装时的锁文件快照”。
+    # 若 package-lock.json 比该快照更新，说明依赖已漂移（例如 git pull 更新了 lockfile 但未重装依赖）。
+    local installed_lock="$FRONTEND_DIR/node_modules/.package-lock.json"
+    if [ ! -f "$installed_lock" ]; then
+        echo -e "${YELLOW}未找到 ${installed_lock}，执行 npm ci...${NC}"
+        (cd "$FRONTEND_DIR" && npm ci)
+        return 0
+    fi
+
+    if [ "$FRONTEND_DIR/package-lock.json" -nt "$installed_lock" ]; then
+        echo -e "${YELLOW}检测到前端依赖可能已漂移（package-lock.json 更新），执行 npm ci...${NC}"
+        (cd "$FRONTEND_DIR" && npm ci)
+        return 0
     fi
 
     return 0
