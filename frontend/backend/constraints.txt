@@ -59,7 +59,7 @@ prometheus_client==0.24.1
 psutil==6.1.1
 psycopg2-binary==2.9.9
 py-serializable==2.1.0
-pydantic==2.5.0
+pydantic==2.12.5
 pydantic-settings==2.1.0
 pydantic_core==2.14.1
 Pygments==2.19.2
