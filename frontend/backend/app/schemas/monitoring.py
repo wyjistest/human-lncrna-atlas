@@ -96,6 +96,10 @@ class CacheRouteBreakdownItem(BaseModel):
     """缓存回源 compute 的 route 归因（Top N）"""
 
     route: str = Field(description="触发回源计算的路由模板（best-effort）")
+    requests: int = Field(ge=0, description="该 route 的 cache 请求数（best-effort）")
+    hits: int = Field(ge=0, description="命中数（best-effort）")
+    misses: int = Field(ge=0, description="未命中数（best-effort）")
+    hit_rate_pct: float = Field(ge=0, le=100, description="命中率(%)（best-effort）")
     compute_count: int = Field(ge=0, description="回源计算次数")
     compute_avg_ms: float = Field(ge=0, description="回源平均耗时(ms)")
     compute_max_ms: float = Field(ge=0, description="回源最大耗时(ms)")

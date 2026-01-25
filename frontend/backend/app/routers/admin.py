@@ -1016,9 +1016,15 @@ async def get_metrics(request: Request) -> MetricsResponse:
                             for item in routes_top_raw:
                                 if not isinstance(item, dict):
                                     continue
+                                route_hit_rate_pct = float(item.get("hit_rate_pct", 0.0) or 0.0)
+                                route_hit_rate_pct = max(0.0, min(100.0, route_hit_rate_pct))
                                 route_top.append(
                                     CacheRouteBreakdownItem(
                                         route=str(item.get("route") or ""),
+                                        requests=int(item.get("requests", 0) or 0),
+                                        hits=int(item.get("hits", 0) or 0),
+                                        misses=int(item.get("misses", 0) or 0),
+                                        hit_rate_pct=route_hit_rate_pct,
                                         compute_count=int(item.get("compute_count", 0) or 0),
                                         compute_avg_ms=max(0.0, float(item.get("compute_avg_ms", 0.0) or 0.0)),
                                         compute_max_ms=max(0.0, float(item.get("compute_max_ms", 0.0) or 0.0)),

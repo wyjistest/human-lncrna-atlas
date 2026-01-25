@@ -148,6 +148,10 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
                 "top": [
                     {
                         "route": "/api/v1/test",
+                        "requests": 2,
+                        "hits": 1,
+                        "misses": 1,
+                        "hit_rate_pct": 50.0,
                         "compute_count": 2,
                         "compute_avg_ms": 5.0,
                         "compute_max_ms": 12.0,
@@ -199,6 +203,11 @@ def test_admin_metrics_get_metrics_computes_percentiles(monkeypatch):
     assert metrics.cache_breakdown.routes.top[0].compute_count == 2
     assert metrics.cache_breakdown.routes.top[0].compute_avg_ms == 5.0
     assert metrics.cache_breakdown.routes.top[0].compute_max_ms == 12.0
+    routes_dump = metrics.model_dump(mode="json")["cache_breakdown"]["routes"]["top"][0]
+    assert routes_dump.get("requests") == 2
+    assert routes_dump.get("hits") == 1
+    assert routes_dump.get("misses") == 1
+    assert routes_dump.get("hit_rate_pct") == 50.0
     assert metrics.cache_get_latency is not None
     assert metrics.cache_get_latency.hits_samples == 12
     assert metrics.cache_get_latency.misses_samples == 11
