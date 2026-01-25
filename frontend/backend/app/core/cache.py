@@ -620,6 +620,9 @@ class CacheService:
                 stats = self._route_stats.get(rt)
             if stats is None:
                 stats = {
+                    "requests": 0.0,
+                    "hits": 0.0,
+                    "misses": 0.0,
                     "compute_count": 0.0,
                     "compute_seconds_total": 0.0,
                     "compute_seconds_max": 0.0,
@@ -630,6 +633,32 @@ class CacheService:
         stats["compute_count"] += 1.0
         stats["compute_seconds_total"] += sec
         stats["compute_seconds_max"] = max(stats.get("compute_seconds_max", 0.0), sec)
+
+    def _record_route_request_locked(self, route: Optional[str], *, hit: bool) -> None:
+        if not route:
+            return
+        rt = self._normalize_route_for_stats(route)
+        stats = self._route_stats.get(rt)
+        if stats is None:
+            if len(self._route_stats) >= self._MAX_TRACKED_ROUTES and rt != "other":
+                rt = "other"
+                stats = self._route_stats.get(rt)
+            if stats is None:
+                stats = {
+                    "requests": 0.0,
+                    "hits": 0.0,
+                    "misses": 0.0,
+                    "compute_count": 0.0,
+                    "compute_seconds_total": 0.0,
+                    "compute_seconds_max": 0.0,
+                }
+                self._route_stats[rt] = stats
+
+        stats["requests"] = float(stats.get("requests", 0.0) or 0.0) + 1.0
+        if hit:
+            stats["hits"] = float(stats.get("hits", 0.0) or 0.0) + 1.0
+        else:
+            stats["misses"] = float(stats.get("misses", 0.0) or 0.0) + 1.0
 
     def _get_singleflight_lock(self, key: str) -> threading.Lock:
         """
@@ -753,6 +782,7 @@ class CacheService:
         value = self._redis.get(key) if use_redis else self._memory.get(key)
         get_latency_ms = max(0.0, (time.perf_counter() - start) * 1000.0)
         namespace = self._extract_namespace_from_key(key)
+        route_template = get_route_template()
 
         if value is not None:
             with self._stats_lock:
@@ -760,6 +790,7 @@ class CacheService:
                 self._get_latency_hits_ms.append(get_latency_ms)
                 self._record_namespace_request_locked(namespace, hit=True)
                 self._record_key_request_locked(key, hit=True)
+                self._record_route_request_locked(route_template, hit=True)
             if _CACHE_HITS_TOTAL is not None:
                 _CACHE_HITS_TOTAL.labels(backend=backend).inc()
         else:
@@ -768,6 +799,7 @@ class CacheService:
                 self._get_latency_misses_ms.append(get_latency_ms)
                 self._record_namespace_request_locked(namespace, hit=False)
                 self._record_key_request_locked(key, hit=False)
+                self._record_route_request_locked(route_template, hit=False)
             if _CACHE_MISSES_TOTAL is not None:
                 _CACHE_MISSES_TOTAL.labels(backend=backend).inc()
 
@@ -1011,6 +1043,10 @@ class CacheService:
         )[: self._TOP_ROUTES_LIMIT]
         top_routes = []
         for rt, s in top_route_items:
+            requests = int(s.get("requests", 0.0) or 0.0)
+            hits = int(s.get("hits", 0.0) or 0.0)
+            misses = int(s.get("misses", 0.0) or 0.0)
+            hit_rate_pct = (hits / max(requests, 1)) * 100.0 if requests > 0 else 0.0
             compute_count = int(s.get("compute_count", 0.0))
             compute_seconds_total = float(s.get("compute_seconds_total", 0.0))
             compute_seconds_max = float(s.get("compute_seconds_max", 0.0))
@@ -1020,6 +1056,10 @@ class CacheService:
             top_routes.append(
                 {
                     "route": rt,
+                    "requests": requests,
+                    "hits": hits,
+                    "misses": misses,
+                    "hit_rate_pct": round(hit_rate_pct, 2),
                     "compute_count": compute_count,
                     "compute_avg_ms": round(avg_compute_ms, 2),
                     "compute_max_ms": round(compute_seconds_max * 1000.0, 2),
