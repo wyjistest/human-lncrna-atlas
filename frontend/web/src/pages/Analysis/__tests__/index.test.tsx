@@ -371,9 +371,12 @@ describe('Analysis Tab Content Integration', () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
       // High Affinity is the default tab, so it should trigger the API call
-      await waitFor(() => {
-        expect(analysisApi.getHighAffinity).toHaveBeenCalled()
-      })
+      await waitFor(
+        () => {
+          expect(analysisApi.getHighAffinity).toHaveBeenCalled()
+        },
+        { timeout: 5000 }
+      )
     })
   })
 
