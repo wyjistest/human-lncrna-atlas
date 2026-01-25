@@ -72,6 +72,8 @@ VITE_USE_MOCK=true
 
 ### 3.2 BA 配置（临时方案）
 
+> 更新（2026-01-25）：当前 BA 范围已实现动态获取（`GET /api/v1/stats/ba-range` + `useBARange()`），`BA_CONFIG` 仅作为静态回退值（当前为 50–756，见 `frontend/web/src/config/constants.ts`）。下方 `0–100` 为 2025-11-27 当时的临时值（历史记录）。
+
 ```typescript
 // src/config/constants.ts
 export const BA_CONFIG = {
@@ -116,6 +118,8 @@ export const EXPORT_LIMITS = {
 | `target_gene_name` (string) | ❌ | ❌ 已移除 |
 
 ### 4.2 Stats 详细统计 API
+
+> 更新（2026-01-25）：`GET /api/v1/stats/detailed` 与 `GET /api/v1/stats/ba-range` 后端已实现（见 `frontend/backend/app/routers/stats.py`），前端也已切换为真实 API（`frontend/web/src/hooks/useDetailedStats.ts`）。
 
 | API | 后端支持 | 前端实现 |
 |-----|---------|---------|
@@ -190,6 +194,8 @@ dist/
 ---
 
 ## 七、待办事项（下次会话）
+
+> 更新（2026-01-25）：本节为当时的后续计划；其中“BA 范围动态化 / Stats API Mock”已在后续阶段完成（以 `docs/CURRENT_STATUS.md` 为准）。
 
 ### 7.1 高优先级
 
