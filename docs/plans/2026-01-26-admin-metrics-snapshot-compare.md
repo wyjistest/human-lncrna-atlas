@@ -1,6 +1,8 @@
 # Admin Metrics Snapshot Compare Implementation Plan
 
 > **For Codex:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+>
+> 当前状态参考：`docs/CURRENT_STATUS.md`
 
 **Goal:** 为 `scripts/admin_metrics_snapshot.py` 增加离线对比模式：输入两份快照 JSON，输出一份 issue 友好的 Markdown diff。
 
@@ -57,4 +59,3 @@ Expected: PASS
 
 - 文档新增对比两份导出 JSON 的命令示例与输出路径说明。
 - issue 模板新增可选 diff 粘贴区，方便回归/优化对比。
-
