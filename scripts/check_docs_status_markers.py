@@ -16,8 +16,9 @@ import sys
 from pathlib import Path
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_MARKER = "docs/CURRENT_STATUS.md"
-EXEMPT_FILES: set[Path] = {Path(REQUIRED_MARKER)}
+EXEMPT_FILES: set[Path] = {REPO_ROOT / REQUIRED_MARKER}
 
 INDICATORS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bTODO\b", re.IGNORECASE), "TODO"),
@@ -31,13 +32,13 @@ INDICATORS: tuple[tuple[re.Pattern[str], str], ...] = (
 
 def _git_ls_files(paths: list[str]) -> list[Path]:
     cmd = ["git", "ls-files", "--"] + paths
-    result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    result = subprocess.run(cmd, check=False, capture_output=True, text=True, cwd=str(REPO_ROOT))
     if result.returncode != 0:
         message = "Failed to list tracked files via git."
         if result.stderr:
             message = f"{message}\n{result.stderr.strip()}"
         raise RuntimeError(message)
-    return [Path(line) for line in result.stdout.splitlines() if line.endswith(".md")]
+    return [REPO_ROOT / line for line in result.stdout.splitlines() if line.endswith(".md")]
 
 
 def _needs_marker(text: str) -> bool:
@@ -87,11 +88,15 @@ def main() -> int:
             continue
         if REQUIRED_MARKER not in text:
             indicator = _find_first_indicator(text)
+            try:
+                rel = path.relative_to(REPO_ROOT)
+            except ValueError:
+                rel = path
             if indicator is None:
-                offenders.append(f"{path}:0: missing marker: `{REQUIRED_MARKER}`")
+                offenders.append(f"{rel}:0: missing marker: `{REQUIRED_MARKER}`")
                 continue
             line_no, label = indicator
-            offenders.append(f"{path}:{line_no}: missing marker: `{REQUIRED_MARKER}` (indicator: {label})")
+            offenders.append(f"{rel}:{line_no}: missing marker: `{REQUIRED_MARKER}` (indicator: {label})")
 
     if offenders:
         print("Docs status marker check FAILED.")
