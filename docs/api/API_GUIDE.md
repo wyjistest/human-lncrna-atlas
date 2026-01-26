@@ -340,7 +340,7 @@ gene_type in ['lncRNA', 'protein_coding']
 ```javascript
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = `${window.location.protocol}//${window.location.hostname || 'localhost'}:8000/api/v1`;
 
 // 获取基因列表
 export const getGenes = async (params) => {

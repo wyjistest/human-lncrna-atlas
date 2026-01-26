@@ -54,7 +54,7 @@ export interface SankeyResponse {
 import axios from 'axios';
 import type { SankeyResponse } from './types/visualization';
 
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = `${window.location.protocol}//${window.location.hostname || 'localhost'}:8000/api/v1`;
 
 export interface SankeyParams {
   species_id?: number;    // 1=人类, 2=黑猩猩, 3=猕猴, 4=狨猴
