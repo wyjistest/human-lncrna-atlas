@@ -58,6 +58,18 @@
    - `scripts/api_snapshot.py` 增加 `network/available-combinations` 的首条组合采样，并覆盖 `network/disease` / `network/gene/{id}/detail`
    - 新增 `visualization/sankey-data` 与 `visualization/chord-data` 基线摘要，用于捕获图结构/可视化数据漂移
 
+### 2026-01-26 ⭐ 性能快照对比（Admin Metrics Diff）
+
+1. **admin metrics 快照对比（离线）**
+   - `scripts/admin_metrics_snapshot.py` 支持 `--compare OLD_JSON NEW_JSON`，输出 `admin-metrics-diff-*.md`（便于回归/优化对比）
+   - 性能定位文档与 issue 模板已补齐对比用法（`docs/PERFORMANCE_TRIAGE.md` / `.github/ISSUE_TEMPLATE/performance-triage.md`）
+
+### 2026-01-26 ⭐ CI 触发策略（main push）
+
+1. **GitHub Actions 自动触发**
+   - `Tests` 对 `main` 分支 `push` 自动触发；`Security Audit` 在依赖清单变化时自动触发；PR CI 默认不启用（避免 self-hosted 执行不受信任代码）
+   - `Tests`/`Security Audit` 增加 `concurrency` 以取消同分支的过期运行，减少排队与“看似卡住”
+
 ### 2026-01-25 ⭐ 依赖维护（Dependabot PR 清理）
 
 1. **合并 patch/minor 更新**
