@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-25
+> 最后更新: 2026-01-26
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,15 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-26 ⭐ 文档一致性护栏（现状指引）
+
+1. **docs 状态标注检查扩展**
+   - `scripts/check_docs_status_markers.py` 默认扫描整个 `docs/`（git tracked），若文档包含 TODO/checkbox/mock/stub/未实现 等信号则必须引用 `docs/CURRENT_STATUS.md`
+   - 失败输出包含 `file:line` 与触发指示（更易定位与可回滚修复）
+
+2. **历史文档补齐现状指引**
+   - 为部分历史报告/计划/踩坑记录补充“现状以 `docs/CURRENT_STATUS.md` 为准”的提示，减少误读风险
 
 ### 2026-01-25 ⭐ 依赖维护（Dependabot PR 清理）
 

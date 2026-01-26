@@ -19,13 +19,13 @@ from pathlib import Path
 REQUIRED_MARKER = "docs/CURRENT_STATUS.md"
 EXEMPT_FILES: set[Path] = {Path(REQUIRED_MARKER)}
 
-INDICATOR_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\bTODO\b", re.IGNORECASE),
-    re.compile(r"\[ \]"),
-    re.compile(r"\bmock\b", re.IGNORECASE),
-    re.compile(r"\bstub\b", re.IGNORECASE),
-    re.compile("未实现"),
-    re.compile("待实现"),
+INDICATORS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bTODO\b", re.IGNORECASE), "TODO"),
+    (re.compile(r"\[ \]"), "checkbox"),
+    (re.compile(r"\bmock\b", re.IGNORECASE), "mock"),
+    (re.compile(r"\bstub\b", re.IGNORECASE), "stub"),
+    (re.compile("未实现"), "未实现"),
+    (re.compile("待实现"), "待实现"),
 )
 
 
@@ -41,7 +41,15 @@ def _git_ls_files(paths: list[str]) -> list[Path]:
 
 
 def _needs_marker(text: str) -> bool:
-    return any(pattern.search(text) for pattern in INDICATOR_PATTERNS)
+    return _find_first_indicator(text) is not None
+
+
+def _find_first_indicator(text: str) -> tuple[int, str] | None:
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        for pattern, label in INDICATORS:
+            if pattern.search(line):
+                return line_no, label
+    return None
 
 
 def main() -> int:
@@ -78,7 +86,12 @@ def main() -> int:
         if not _needs_marker(text):
             continue
         if REQUIRED_MARKER not in text:
-            offenders.append(str(path))
+            indicator = _find_first_indicator(text)
+            if indicator is None:
+                offenders.append(f"{path}:0: missing marker: `{REQUIRED_MARKER}`")
+                continue
+            line_no, label = indicator
+            offenders.append(f"{path}:{line_no}: missing marker: `{REQUIRED_MARKER}` (indicator: {label})")
 
     if offenders:
         print("Docs status marker check FAILED.")
