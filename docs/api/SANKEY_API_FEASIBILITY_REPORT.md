@@ -3,6 +3,7 @@
 **评估日期**: 2025-12-12
 **评估者**: Backend API Developer (Claude Code)
 **目标功能**: lncRNA → 靶基因 → 疾病 三层流向数据 API
+> 更新（2026-01-26）：本报告为阶段性评估记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 ---
 

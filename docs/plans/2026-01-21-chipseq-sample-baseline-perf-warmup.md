@@ -1,6 +1,7 @@
 # ChIP-seq Sample Baseline + Performance Snapshot Warmup Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> 提示（2026-01-26）：本文件为计划/设计记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 **Goal:** 让 `schema/v2.3` 的最小样例库在安装 ChIP-seq schema 后可以产出 **非空** 的 overlap 结果，并强化性能定位的一键导出体验（样本不足时可选 warmup）。
 
@@ -108,4 +109,3 @@
 - Commit 1（B）：sample schema + baseline + workflow/script 更新
 - Commit 2（C）：admin_metrics_snapshot warmup + docs + tests
 - Push: `git push origin main`
-

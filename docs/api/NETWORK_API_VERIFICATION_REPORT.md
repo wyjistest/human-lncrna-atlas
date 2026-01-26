@@ -3,6 +3,7 @@
 **Date**: 2025-12-12
 **API Version**: v1
 **Backend Developer**: Backend API Developer Agent
+> Update (2026-01-26): This report is a historical verification snapshot; current status lives in `docs/CURRENT_STATUS.md`.
 
 ---
 

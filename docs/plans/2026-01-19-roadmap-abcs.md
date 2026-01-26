@@ -1,5 +1,6 @@
 # Roadmap A/B/C Implementation Plan
 > **For Codex:** 执行时逐条完成；每个 task 保持小步提交（commit 粒度清晰、可回滚）。
+> 提示（2026-01-26）：本文件为计划/设计记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 **Goal:** 在不破坏现有 API/数据格式的前提下，补齐“可回归数据基线 + 更强可观测性 + 更多完全 mocked 的 E2E smoke”，让迭代更稳、更可重复。
 
@@ -81,4 +82,3 @@
 **CI:**
 - `gh run list --branch main --workflow Tests --limit 3`
 - `gh run watch <run_id> --exit-status`
-

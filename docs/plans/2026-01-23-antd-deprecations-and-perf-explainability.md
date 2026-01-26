@@ -1,6 +1,7 @@
 # AntD Deprecations + Performance Explainability Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> 提示（2026-01-26）：本文件为计划/设计记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 **Goal:** 按 `docs/ROADMAP_2026-01-21.md` 同步推进两件事：持续清理 Ant Design v6 deprecations（以控制台 warning 为准），以及增强性能可解释的“1 次导出 + 1 次截图”工作流可用性与稳定性。
 
@@ -135,4 +136,3 @@ Expected: PASS
 Run: `python -m pytest -q etl/tests`
 
 Expected: PASS
-

@@ -1,6 +1,7 @@
 # Cache Route Hit/Miss Attribution Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> 提示（2026-01-26）：本文件为计划/设计记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 **Goal:** 在 `/api/v1/admin/metrics` 与 Admin/Monitoring UI 中，补齐 “按 route 归因的 cache hit/miss/requests/hit_rate_pct”，并与现有的 route compute attribution 合并展示，便于快速定位“哪个端点在频繁 miss / 命中率低 / 回源计算多且慢”。
 
@@ -94,4 +95,3 @@ Run:
 2. Push：`git push -u origin roadmap/cache-route`
 3. 触发 self-hosted Actions：`gh workflow run Tests --ref roadmap/cache-route -f runs_on=self-hosted` + `gh workflow run Security Audit --ref roadmap/cache-route -f runs_on=self-hosted`
 4. 绿了后合并到 `main`（fast-forward 或 PR merge），再触发 `main` 复核。
-

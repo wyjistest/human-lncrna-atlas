@@ -1,6 +1,7 @@
 # Mocked E2E + ETL Regression Anchors Implementation Plan
 
 > **For Claude:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task.
+> 提示（2026-01-26）：本文件为计划/设计记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 **Goal:** 扩展完全 mocked 的 Playwright e2e-smoke 覆盖（优先 Genes/Regulations 核心数据页），并把 ETL sample import 的回归锚点升级为“值级别校验”，让 CI 与本地复刻更稳、更可定位。
 

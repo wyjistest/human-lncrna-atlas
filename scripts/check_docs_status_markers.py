@@ -17,6 +17,7 @@ from pathlib import Path
 
 
 REQUIRED_MARKER = "docs/CURRENT_STATUS.md"
+EXEMPT_FILES: set[Path] = {Path(REQUIRED_MARKER)}
 
 INDICATOR_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bTODO\b", re.IGNORECASE),
@@ -48,7 +49,7 @@ def main() -> int:
     parser.add_argument(
         "--paths",
         nargs="*",
-        default=["docs/phases", "docs/sessions", "docs/testing"],
+        default=["docs"],
         help="Directories to scan (git-tracked markdown files only).",
     )
     args = parser.parse_args()
@@ -66,6 +67,8 @@ def main() -> int:
     scanned = 0
 
     for path in files:
+        if path in EXEMPT_FILES:
+            continue
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
