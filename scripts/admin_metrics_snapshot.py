@@ -9,10 +9,12 @@ Admin metrics 快照导出器（JSON + Issue 友好 Markdown）。
 用法示例：
   python3 scripts/admin_metrics_snapshot.py --base-url http://localhost:8000
   python3 scripts/admin_metrics_snapshot.py --base-url http://localhost:8000 --admin-api-key "$ADMIN_API_KEY"
+  python3 scripts/admin_metrics_snapshot.py --compare docs/reports/admin-metrics-old.json docs/reports/admin-metrics-new.json
 
 输出：
 - docs/reports/admin-metrics-<timestamp>.json
 - docs/reports/admin-metrics-<timestamp>.md
+- docs/reports/admin-metrics-diff-<timestamp>.md
 """
 
 from __future__ import annotations
@@ -342,6 +344,301 @@ def build_markdown(metrics: dict[str, Any], *, base_url: str, fetched_at: str) -
     return "\n".join(md_lines)
 
 
+def _resolve_input_path(raw: str) -> Path:
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (REPO_ROOT / path).resolve()
+    return path
+
+
+def _load_json_file(path: Path) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as e:
+        raise RuntimeError(f"JSON file not found: {path}") from e
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON in {path}: {e}") from e
+    except Exception as e:
+        raise RuntimeError(f"Failed to read {path}: {e}") from e
+
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Expected JSON object in {path}, got {type(data).__name__}")
+    return data
+
+
+def build_diff_markdown(
+    old_metrics: dict[str, Any],
+    new_metrics: dict[str, Any],
+    *,
+    old_label: str,
+    new_label: str,
+    generated_at: str,
+) -> str:
+    def fmt_ms(value: Any) -> str:
+        v = _to_float(value)
+        if v is None:
+            return "-"
+        return f"{v:.2f}ms"
+
+    def fmt_pct(value: Any) -> str:
+        v = _to_float(value)
+        if v is None:
+            return "-"
+        return f"{v:.2f}%"
+
+    def fmt_change(old: Any, new: Any, *, unit: str) -> str:
+        old_v = _to_float(old)
+        new_v = _to_float(new)
+        if old_v is None and new_v is None:
+            return "- → -"
+        if unit == "ms":
+            old_s = fmt_ms(old_v)
+            new_s = fmt_ms(new_v)
+        else:
+            old_s = fmt_pct(old_v)
+            new_s = fmt_pct(new_v)
+
+        if old_v is None or new_v is None:
+            return f"{old_s} → {new_s}"
+
+        delta = new_v - old_v
+        sign = "+" if delta > 0 else ""
+        if unit == "ms":
+            delta_s = f"{sign}{delta:.2f}ms"
+        else:
+            delta_s = f"{sign}{delta:.2f}%"
+        return f"{old_s} → {new_s} ({delta_s})"
+
+    def fmt_int_change(old: Any, new: Any) -> str:
+        old_i = _to_int(old)
+        new_i = _to_int(new)
+        if old_i is None and new_i is None:
+            return "- → -"
+        if old_i is None or new_i is None:
+            return f"{old_i if old_i is not None else '-'} → {new_i if new_i is not None else '-'}"
+        delta = new_i - old_i
+        sign = "+" if delta > 0 else ""
+        return f"{old_i} → {new_i} ({sign}{delta})"
+
+    old_request = old_metrics.get("request") or {}
+    new_request = new_metrics.get("request") or {}
+    old_errors = old_metrics.get("errors") or {}
+    new_errors = new_metrics.get("errors") or {}
+    old_response_time = old_metrics.get("response_time") or {}
+    new_response_time = new_metrics.get("response_time") or {}
+    old_percentiles = old_metrics.get("percentiles") or {}
+    new_percentiles = new_metrics.get("percentiles") or {}
+    old_cache_stats = old_metrics.get("cache_stats") or {}
+    new_cache_stats = new_metrics.get("cache_stats") or {}
+
+    def endpoints_by_path(metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        eps = metrics.get("endpoints") or []
+        if not isinstance(eps, list):
+            return {}
+        out: dict[str, dict[str, Any]] = {}
+        for ep in eps:
+            if not isinstance(ep, dict):
+                continue
+            path = str(ep.get("path", "") or "")
+            if not path:
+                continue
+            out[path] = ep
+        return out
+
+    old_eps = endpoints_by_path(old_metrics)
+    new_eps = endpoints_by_path(new_metrics)
+
+    def endpoint_percentile(ep: Optional[dict[str, Any]], *, source_key: str, percentile_key: str) -> Optional[float]:
+        if not ep:
+            return None
+        percentiles = ep.get(source_key) or {}
+        if not isinstance(percentiles, dict):
+            return None
+        return _to_float(percentiles.get(percentile_key))
+
+    def endpoint_requests(ep: Optional[dict[str, Any]]) -> Optional[int]:
+        if not ep:
+            return None
+        return _to_int(ep.get("requests"))
+
+    def endpoint_changes(*, source_key: str, percentile_key: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for path in sorted(set(old_eps.keys()) | set(new_eps.keys())):
+            old_ep = old_eps.get(path)
+            new_ep = new_eps.get(path)
+            old_v = endpoint_percentile(old_ep, source_key=source_key, percentile_key=percentile_key)
+            new_v = endpoint_percentile(new_ep, source_key=source_key, percentile_key=percentile_key)
+            if old_v is None and new_v is None:
+                continue
+            delta = (new_v - old_v) if (old_v is not None and new_v is not None) else None
+            rows.append(
+                {
+                    "path": path,
+                    "old_ms": old_v,
+                    "new_ms": new_v,
+                    "delta_ms": delta,
+                    "old_req": endpoint_requests(old_ep),
+                    "new_req": endpoint_requests(new_ep),
+                }
+            )
+        return rows
+
+    def format_endpoint_row(row: dict[str, Any]) -> str:
+        old_ms = row.get("old_ms")
+        new_ms = row.get("new_ms")
+        change = fmt_change(old_ms, new_ms, unit="ms")
+        old_req = row.get("old_req")
+        new_req = row.get("new_req")
+        req_text = ""
+        if old_req is not None or new_req is not None:
+            req_text = f"（req {fmt_int_change(old_req, new_req)}）"
+        return f"- `{row['path']}`：{change}{req_text}"
+
+    def split_top(rows: list[dict[str, Any]], *, top_n: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+        regressions = [r for r in rows if isinstance(r.get("delta_ms"), float) and (r.get("delta_ms") or 0.0) > 0]
+        improvements = [r for r in rows if isinstance(r.get("delta_ms"), float) and (r.get("delta_ms") or 0.0) < 0]
+        unknown = [r for r in rows if r.get("delta_ms") is None]
+
+        regressions.sort(key=lambda r: float(r.get("delta_ms") or 0.0), reverse=True)
+        improvements.sort(key=lambda r: float(r.get("delta_ms") or 0.0))
+        return (regressions[:top_n], improvements[:top_n], unknown[:top_n])
+
+    # Slow queries diff
+    def slow_queries_by_key(metrics: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
+        db = metrics.get("database") or {}
+        if not isinstance(db, dict):
+            return {}
+        rows = db.get("slow_queries") or []
+        if not isinstance(rows, list):
+            return {}
+        out: dict[tuple[str, str], dict[str, Any]] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            fp = str(row.get("fingerprint", "") or "")
+            route = str(row.get("route", "") or "")
+            if not fp and not route:
+                continue
+            out[(fp, route)] = row
+        return out
+
+    old_sq = slow_queries_by_key(old_metrics)
+    new_sq = slow_queries_by_key(new_metrics)
+    slow_rows: list[dict[str, Any]] = []
+    for key in sorted(set(old_sq.keys()) | set(new_sq.keys())):
+        old_row = old_sq.get(key) or {}
+        new_row = new_sq.get(key) or {}
+        old_total = _to_float(old_row.get("total_time_ms"))
+        new_total = _to_float(new_row.get("total_time_ms"))
+        if old_total is None and new_total is None:
+            continue
+        slow_rows.append(
+            {
+                "fingerprint": key[0],
+                "route": key[1],
+                "old": old_row,
+                "new": new_row,
+                "delta_total": (new_total - old_total) if (old_total is not None and new_total is not None) else None,
+            }
+        )
+
+    slow_rows.sort(key=lambda r: float(r.get("delta_total") or 0.0), reverse=True)
+
+    md_lines = [
+        "# Performance Snapshot Diff (admin/metrics)",
+        "",
+        _md_kv("generated_at", generated_at),
+        _md_kv("old", old_label),
+        _md_kv("new", new_label),
+        "",
+        "## Request/Errors（变化）",
+        "",
+        _md_kv("total requests", fmt_int_change((old_request or {}).get("total"), (new_request or {}).get("total"))),
+        _md_kv("last minute", fmt_int_change((old_request or {}).get("last_minute"), (new_request or {}).get("last_minute"))),
+        _md_kv("total errors (5xx)", fmt_int_change((old_errors or {}).get("total"), (new_errors or {}).get("total"))),
+        _md_kv("error rate", fmt_change((old_errors or {}).get("rate"), (new_errors or {}).get("rate"), unit="%")),
+        _md_kv("avg response", fmt_change((old_response_time or {}).get("avg_ms"), (new_response_time or {}).get("avg_ms"), unit="ms")),
+        "",
+        "## Response Percentiles（全局变化）",
+        "",
+        _md_kv("p50", fmt_change((old_percentiles or {}).get("p50_ms"), (new_percentiles or {}).get("p50_ms"), unit="ms")),
+        _md_kv("p95", fmt_change((old_percentiles or {}).get("p95_ms"), (new_percentiles or {}).get("p95_ms"), unit="ms")),
+        _md_kv("p99", fmt_change((old_percentiles or {}).get("p99_ms"), (new_percentiles or {}).get("p99_ms"), unit="ms")),
+        "",
+        "## Cache（变化）",
+        "",
+        _md_kv("hit rate", fmt_change((old_cache_stats or {}).get("hit_rate_pct"), (new_cache_stats or {}).get("hit_rate_pct"), unit="%")),
+        _md_kv("hits", fmt_int_change((old_cache_stats or {}).get("hits"), (new_cache_stats or {}).get("hits"))),
+        _md_kv("misses", fmt_int_change((old_cache_stats or {}).get("misses"), (new_cache_stats or {}).get("misses"))),
+        "",
+        "## Endpoints（Tail Latency 变化）",
+        "",
+    ]
+
+    resp_p95 = endpoint_changes(source_key="percentiles", percentile_key="p95_ms")
+    db_p95 = endpoint_changes(source_key="db_percentiles", percentile_key="p95_ms")
+
+    def endpoints_section(title: str, rows: list[dict[str, Any]]) -> list[str]:
+        if not rows:
+            return [f"### {title}", "", "_暂无足够样本或字段缺失。_", ""]
+
+        regressions, improvements, unknown = split_top(rows, top_n=5)
+        lines = [f"### {title}", ""]
+        if regressions:
+            lines.append("**Regressions（变慢 Top）**")
+            lines += [format_endpoint_row(r) for r in regressions]
+            lines.append("")
+        if improvements:
+            lines.append("**Improvements（变快 Top）**")
+            lines += [format_endpoint_row(r) for r in improvements]
+            lines.append("")
+        if unknown:
+            lines.append("**Other changes（新增/缺失）**")
+            lines += [format_endpoint_row(r) for r in unknown]
+            lines.append("")
+        return lines
+
+    md_lines += endpoints_section("Top endpoint changes by Response P95", resp_p95)
+    md_lines += endpoints_section("Top endpoint changes by DB P95", db_p95)
+
+    md_lines += [
+        "## Database（变化）",
+        "",
+        "### DB 慢查询变化（按 total_time_ms 增量排序，Top 10）",
+        "",
+    ]
+
+    if not slow_rows:
+        md_lines += ["_暂无慢查询样本（或字段缺失）。_", ""]
+    else:
+        for row in slow_rows[:10]:
+            fp = row.get("fingerprint") or ""
+            route = row.get("route") or ""
+            old_row = row.get("old") or {}
+            new_row = row.get("new") or {}
+            statement = str(new_row.get("statement") or old_row.get("statement") or "")
+            md_lines.append(
+                f"- `{fp}` / `{route}`："
+                f"total={fmt_change(old_row.get('total_time_ms'), new_row.get('total_time_ms'), unit='ms')}，"
+                f"count={fmt_int_change(old_row.get('count'), new_row.get('count'))}，"
+                f"avg={fmt_change(old_row.get('avg_ms'), new_row.get('avg_ms'), unit='ms')}，"
+                f"max={fmt_change(old_row.get('max_ms'), new_row.get('max_ms'), unit='ms')}"
+            )
+            if statement:
+                md_lines.append(f"  - SQL: `{_truncate(statement, max_len=240)}`")
+        md_lines.append("")
+
+    md_lines += [
+        "## Notes",
+        "",
+        "- 该 diff 只对比两个 JSON 的关键字段；若某些字段缺失，会显示为 `-` 或落入“Other changes”。",
+        "- 快照受流量/缓存热度影响：建议在导出前使用 `--warmup-rounds` 预热，并尽量保证两次快照的对比环境一致。",
+        "",
+    ]
+
+    return "\n".join(md_lines)
+
+
 def main() -> int:
     env_base_url = os.environ.get("API_BASE_URL") or ""
     default_base_url = env_base_url.strip() or "http://localhost:8000"
@@ -397,6 +694,13 @@ def main() -> int:
         default=None,
         help="Warmup HTTP timeout seconds (default: same as --timeout-seconds)",
     )
+    parser.add_argument(
+        "--compare",
+        nargs=2,
+        metavar=("OLD_JSON", "NEW_JSON"),
+        default=None,
+        help="Compare two exported snapshot JSON files and emit a Markdown diff (no network).",
+    )
     args = parser.parse_args()
 
     base_url = str(args.base_url or "").rstrip("/")
@@ -407,6 +711,46 @@ def main() -> int:
     if not out_dir.is_absolute():
         out_dir = (REPO_ROOT / out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.compare:
+        old_path = _resolve_input_path(str(args.compare[0]))
+        new_path = _resolve_input_path(str(args.compare[1]))
+
+        try:
+            old_metrics = _load_json_file(old_path)
+            new_metrics = _load_json_file(new_path)
+        except Exception as e:
+            print(f"[ERROR] {e}", file=sys.stderr)
+            return 1
+
+        prefix = str(args.prefix or "").strip() or "admin-metrics-diff"
+        if prefix == "admin-metrics":
+            prefix = "admin-metrics-diff"
+
+        md_path = out_dir / f"{prefix}-{ts}.md"
+        md = build_diff_markdown(
+            old_metrics,
+            new_metrics,
+            old_label=str(old_path),
+            new_label=str(new_path),
+            generated_at=ts,
+        )
+        try:
+            md_path.write_text(md, encoding="utf-8")
+        except Exception as e:
+            print(f"[ERROR] Failed to write Markdown diff: {e}", file=sys.stderr)
+            return 1
+
+        print("Diff exported:")
+
+        def _format_path(p: Path) -> str:
+            try:
+                return str(p.relative_to(REPO_ROOT))
+            except Exception:
+                return str(p)
+
+        print(f"- MD:   {_format_path(md_path)}")
+        return 0
 
     json_path = out_dir / f"{args.prefix}-{ts}.json"
     md_path = out_dir / f"{args.prefix}-{ts}.md"
