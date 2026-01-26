@@ -11,8 +11,16 @@
 name: Security Audit
 
 on:
-  # CI 暂停自动触发：GitHub-hosted runner 受账单/额度限制时会导致大量噪音失败。
-  # 如需恢复 push/PR/schedule 自动触发，请在此处重新加入触发器。
+  # 默认在 main 分支依赖清单变化时自动触发（优先使用 self-hosted，避免 GitHub-hosted runner 受账单/额度限制阻塞）。
+  # 注意：PR CI（pull_request）在 self-hosted 上存在“运行不受信任代码”的风险，默认不启用。
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/security-audit.yml"
+      - "frontend/backend/requirements*.txt"
+      - "frontend/backend/constraints.txt"
+      - "frontend/web/package.json"
+      - "frontend/web/package-lock.json"
   workflow_dispatch:  # 允许手动触发
     inputs:
       runs_on:

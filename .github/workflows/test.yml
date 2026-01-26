@@ -1,8 +1,10 @@
 name: Tests
 
 on:
-  # CI 暂停自动触发：GitHub-hosted runner 受账单/额度限制时会导致大量噪音失败。
-  # 如需恢复 push/PR 自动 CI，请在此处重新加入 push/pull_request 触发器。
+  # CI 默认对 main 分支 push 自动触发（优先使用 self-hosted，避免 GitHub-hosted runner 受账单/额度限制阻塞）。
+  # PR CI（pull_request）在 self-hosted 上存在“运行不受信任代码”的风险，默认不启用；如需启用请评估后再开启。
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       runs_on:
