@@ -20,6 +20,10 @@ on:
         required: false
         default: "false"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
 permissions:
   contents: read

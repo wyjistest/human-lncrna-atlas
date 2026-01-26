@@ -3,7 +3,7 @@
 # Phase 9.20 - Codex Review Enhancement
 # ============================================================================
 # 运行依赖安全审计 (pip-audit + npm audit)
-# 触发条件: 手动触发（workflow_dispatch）
+# 触发条件: main 分支依赖清单变化 push + 手动触发（workflow_dispatch）
 #
 # 安全说明: 此工作流不使用任何用户可控输入 (issue title, PR body 等)
 # 所有变量均为 GitHub Actions 内部状态
@@ -27,6 +27,10 @@ on:
         description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
         required: false
         default: ""
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
 
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
 permissions:
