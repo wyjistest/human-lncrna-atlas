@@ -1,5 +1,7 @@
 # lncRNA-ChIP-seq Overlap Export - E2E Test Deliverables
 
+> 更新（2026-01-25）：本文档为早期“导出 E2E 测试交付物”快照，其中“后端未实现/被阻塞”的描述仅代表当时状态；当前实现与测试入口以 `docs/CURRENT_STATUS.md`、`docs/testing/README.md` 与 `frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts` 为准。
+
 ## Summary
 
 I've successfully created comprehensive E2E tests for the lncRNA-ChIP-seq overlap export feature. The test suite is complete and production-ready, but **the export feature itself has not been implemented yet on the backend**.

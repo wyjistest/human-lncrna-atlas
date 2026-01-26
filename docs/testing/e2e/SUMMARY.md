@@ -4,6 +4,8 @@
 **Date**: 2025-12-07
 **Execution Time**: 15.4 seconds
 
+> 更新（2026-01-25）：本文档为历史测试报告快照（包含当时的 skip/阻塞项）；当前 E2E 策略与通过情况以 `docs/testing/README.md`、`docs/CURRENT_STATUS.md`、`scripts/run-tests.sh` 以及 GitHub Actions 运行记录为准。
+
 ---
 
 ## Quick Stats

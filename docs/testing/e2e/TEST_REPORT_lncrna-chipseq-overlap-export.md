@@ -4,6 +4,8 @@
 **Test File**: `<repo-root>/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts`
 **Status**: ⚠️ **BLOCKED - Feature Not Implemented**
 
+> 更新（2026-01-25）：本文档为 2025-12-07 报告快照；当前导出能力与 E2E 用例已在后续阶段演进，现状以 `docs/CURRENT_STATUS.md`、`docs/testing/README.md` 与 `frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts` 为准。
+
 ---
 
 ## Executive Summary

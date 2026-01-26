@@ -4,6 +4,8 @@
 
 Comprehensive end-to-end tests for the lncRNA-ChIP-seq Overlap Analysis page using Playwright.
 
+> 更新（2026-01-25）：本文档为早期 E2E 套件说明快照；请以 `docs/testing/README.md`（测试入口）与 `docs/CURRENT_STATUS.md`（当前进度）为准。
+
 ## Test Coverage
 
 ### P0 Tests (Must Pass)
