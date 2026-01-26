@@ -719,7 +719,9 @@ def build_diff_markdown(
     ]
 
     resp_p95 = endpoint_changes(source_key="percentiles", percentile_key="p95_ms")
+    resp_p99 = endpoint_changes(source_key="percentiles", percentile_key="p99_ms")
     db_p95 = endpoint_changes(source_key="db_percentiles", percentile_key="p95_ms")
+    db_p99 = endpoint_changes(source_key="db_percentiles", percentile_key="p99_ms")
 
     def endpoints_section(title: str, rows: list[dict[str, Any]]) -> list[str]:
         if not rows:
@@ -742,7 +744,9 @@ def build_diff_markdown(
         return lines
 
     md_lines += endpoints_section("Top endpoint changes by Response P95", resp_p95)
+    md_lines += endpoints_section("Top endpoint changes by Response P99", resp_p99)
     md_lines += endpoints_section("Top endpoint changes by DB P95", db_p95)
+    md_lines += endpoints_section("Top endpoint changes by DB P99", db_p99)
 
     md_lines += [
         "## Database（变化）",

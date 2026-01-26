@@ -217,4 +217,8 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
     assert "4.00ms" in md and "6.00ms" in md
     assert "Cache keys（变化）" in md
     assert "`genes:list:species_id=1:page=1`" in md
+    assert "Top endpoint changes by Response P99" in md
+    assert "150.00ms" in md and "140.00ms" in md
+    assert "Top endpoint changes by DB P99" in md
+    assert "40.00ms" in md and "15.00ms" in md
     assert "`fp-genes`" in md
