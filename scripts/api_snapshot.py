@@ -172,6 +172,24 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    endpoints["visualization_sankey_species_1_limit_50"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/visualization/sankey-data?"
+            + urlencode({"species_id": 1, "min_ba": 100.0, "limit": 50}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["visualization_chord_species_1_limit_50"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/visualization/chord-data?"
+            + urlencode({"species_id": 1, "min_ba": 50, "limit": 50}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
     # ChIP-seq core endpoints (stable, low-cardinality lists)
     endpoints["chipseq_marks"] = _http_get_json(
         _join(base_url, "/api/v1/features/chipseq/marks"),
@@ -385,6 +403,10 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
             gene_detail,
             normalize=_normalize_gene_detail_payload,
         )
+        endpoints["network_gene_detail_first"] = _http_get_json(
+            _join(base_url, f"/api/v1/network/gene/{genes_first_id}/detail"),
+            timeout_seconds=timeout_seconds,
+        )
 
     regulations_first_id = None
     if endpoints["regulations_page_1"].json:
@@ -432,6 +454,35 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
     overlap_stats = endpoints.get("lncrna_chipseq_overlap_statistics_chr22")
     if overlap_stats and overlap_stats.json:
         summaries["overlap_stats_total_overlaps"] = overlap_stats.json.get("total_overlaps")
+
+    # Network endpoints: use available combinations to pick one disease network if possible.
+    combinations = None
+    if endpoints["network_available_combinations_species_1"].json:
+        combinations = endpoints["network_available_combinations_species_1"].json.get("combinations")
+    if isinstance(combinations, list) and combinations:
+        first = combinations[0]
+        if isinstance(first, dict):
+            trait_id = first.get("trait_id")
+            ontology_id = first.get("ontology_id")
+            species_id = first.get("species_id") or 1
+            if isinstance(trait_id, int) and isinstance(ontology_id, int):
+                endpoints["network_disease_first_combination"] = _http_get_json(
+                    _join(
+                        base_url,
+                        "/api/v1/network/disease?"
+                        + urlencode(
+                            {
+                                "trait_id": trait_id,
+                                "ontology_id": ontology_id,
+                                "species_id": species_id,
+                                "min_ba": 50,
+                                "max_nodes": 200,
+                                "max_edges": 500,
+                            }
+                        ),
+                    ),
+                    timeout_seconds=timeout_seconds,
+                )
 
     # Overlap compare endpoints: ensure cross-species stats remain backward-compatible and stable.
     # Use a small lncRNA options list to pick a gene_id with core_id (ortholog mapping available).

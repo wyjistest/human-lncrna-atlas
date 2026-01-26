@@ -54,6 +54,10 @@
    - 补充 `export/high-affinity` / `export/conservation` / `export/disease-network` 以捕获导出结构漂移
    - `docs/baselines/api-snapshot.sample.json` 已更新，便于发现导出/分页响应结构漂移
 
+2. **network/可视化端点纳入回归锚点**
+   - `scripts/api_snapshot.py` 增加 `network/available-combinations` 的首条组合采样，并覆盖 `network/disease` / `network/gene/{id}/detail`
+   - 新增 `visualization/sankey-data` 与 `visualization/chord-data` 基线摘要，用于捕获图结构/可视化数据漂移
+
 ### 2026-01-25 ⭐ 依赖维护（Dependabot PR 清理）
 
 1. **合并 patch/minor 更新**

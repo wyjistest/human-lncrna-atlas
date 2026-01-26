@@ -80,7 +80,26 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
         if path == "/api/v1/analysis/summary":
             return ok({"status": "ok"})
         if path == "/api/v1/network/available-combinations":
-            return ok({"combinations": []})
+            return ok(
+                {
+                    "combinations": [
+                        {
+                            "trait_id": 1,
+                            "ontology_id": 2,
+                            "ontology_name": "mock",
+                            "species_id": 1,
+                        }
+                    ]
+                }
+            )
+        if path == "/api/v1/network/disease":
+            return ok({"nodes": [], "edges": []})
+        if path.startswith("/api/v1/network/gene/") and path.endswith("/detail"):
+            return ok({"gene_id": 1, "nodes": [], "edges": []})
+        if path == "/api/v1/visualization/sankey-data":
+            return ok({"nodes": [], "links": []})
+        if path == "/api/v1/visualization/chord-data":
+            return ok({"nodes": [], "links": []})
 
         if path == "/api/v1/features/chipseq/marks":
             return ok({"items": []})

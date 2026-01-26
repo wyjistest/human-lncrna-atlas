@@ -31,7 +31,37 @@ def _mock_api_server() -> Iterator[str]:
         "/api/v1/stats/top-genes": [{"gene_id": 1, "regulation_count": 10}],
         "/api/v1/stats/top-diseases": [{"trait_id": 1, "gene_count": 10}],
         "/api/v1/analysis/summary": {"high_affinity": {"total_regulations": 1}},
-        "/api/v1/network/available-combinations": {"combinations": []},
+        "/api/v1/network/available-combinations": {
+            "combinations": [
+                {
+                    "trait_id": 1,
+                    "ontology_id": 2,
+                    "ontology_name": "mock",
+                    "species_id": 1,
+                }
+            ]
+        },
+        "/api/v1/network/disease": {"nodes": [], "edges": [], "stats": {}},
+        "/api/v1/network/gene/1/detail": {
+            "gene_id": 1,
+            "gene_name": "GENE1",
+            "gene_ensembl_id": None,
+            "gene_type": "lncRNA",
+            "species_id": 1,
+            "species_name": "Human",
+            "chromosome": "chr22",
+            "gene_start": 100,
+            "gene_end": 200,
+            "start": 100,
+            "end": 200,
+            "strand": "+",
+            "core_id": 1,
+            "conservation_label": "mock",
+            "conservation_count": 1,
+            "connections": {"as_source": 0, "as_target": 0, "total": 0, "total_ba": 0.0},
+        },
+        "/api/v1/visualization/sankey-data": {"nodes": [], "links": []},
+        "/api/v1/visualization/chord-data": {"nodes": [], "matrix": []},
         "/api/v1/features/chipseq/marks": [
             {
                 "mark_type_id": 1,
@@ -378,6 +408,10 @@ def test_api_snapshot_check_baseline_matches(tmp_path: Path) -> None:
             "export_high_affinity_limit_1_species_1",
             "export_conservation_limit_1_min_species_2",
             "export_disease_network_limit_1",
+            "network_disease_first_combination",
+            "network_gene_detail_first",
+            "visualization_sankey_species_1_limit_50",
+            "visualization_chord_species_1_limit_50",
         }
         assert expected_keys.issubset(set(generated["endpoints"].keys()))
 
