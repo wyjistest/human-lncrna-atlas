@@ -430,6 +430,145 @@ def build_diff_markdown(
     new_percentiles = new_metrics.get("percentiles") or {}
     old_cache_stats = old_metrics.get("cache_stats") or {}
     new_cache_stats = new_metrics.get("cache_stats") or {}
+    old_cache_get_latency = old_metrics.get("cache_get_latency") or {}
+    new_cache_get_latency = new_metrics.get("cache_get_latency") or {}
+    old_cache_breakdown = old_metrics.get("cache_breakdown") or {}
+    new_cache_breakdown = new_metrics.get("cache_breakdown") or {}
+
+    if not isinstance(old_cache_get_latency, dict):
+        old_cache_get_latency = {}
+    if not isinstance(new_cache_get_latency, dict):
+        new_cache_get_latency = {}
+    if not isinstance(old_cache_breakdown, dict):
+        old_cache_breakdown = {}
+    if not isinstance(new_cache_breakdown, dict):
+        new_cache_breakdown = {}
+
+    def cache_latency_section() -> list[str]:
+        old_hits = old_cache_get_latency.get("hits") or {}
+        new_hits = new_cache_get_latency.get("hits") or {}
+        old_misses = old_cache_get_latency.get("misses") or {}
+        new_misses = new_cache_get_latency.get("misses") or {}
+
+        if not isinstance(old_hits, dict):
+            old_hits = {}
+        if not isinstance(new_hits, dict):
+            new_hits = {}
+        if not isinstance(old_misses, dict):
+            old_misses = {}
+        if not isinstance(new_misses, dict):
+            new_misses = {}
+
+        has_any = bool(old_hits or old_misses or new_hits or new_misses)
+        lines = ["### Cache get() 延迟（变化）", ""]
+        if not has_any:
+            return lines + ["_暂无足够样本（或字段缺失）。_", ""]
+
+        return lines + [
+            _md_kv("hits samples", fmt_int_change(old_cache_get_latency.get("hits_samples"), new_cache_get_latency.get("hits_samples"))),
+            _md_kv(
+                "misses samples",
+                fmt_int_change(old_cache_get_latency.get("misses_samples"), new_cache_get_latency.get("misses_samples")),
+            ),
+            _md_kv("hits p95", fmt_change(old_hits.get("p95_ms"), new_hits.get("p95_ms"), unit="ms")),
+            _md_kv("hits p99", fmt_change(old_hits.get("p99_ms"), new_hits.get("p99_ms"), unit="ms")),
+            _md_kv("misses p95", fmt_change(old_misses.get("p95_ms"), new_misses.get("p95_ms"), unit="ms")),
+            _md_kv("misses p99", fmt_change(old_misses.get("p99_ms"), new_misses.get("p99_ms"), unit="ms")),
+            "",
+        ]
+
+    def _extract_breakdown_top(breakdown: dict[str, Any], kind: str) -> list[dict[str, Any]]:
+        top = (breakdown.get(kind) or {}).get("top") or []
+        if not isinstance(top, list):
+            return []
+        return [x for x in top if isinstance(x, dict)]
+
+    def _index_rows(rows: list[dict[str, Any]], key_field: str) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            raw_key = row.get(key_field)
+            key = str(raw_key) if raw_key is not None else ""
+            key = key.strip()
+            if not key:
+                continue
+            out[key] = row
+        return out
+
+    def cache_routes_section() -> list[str]:
+        old_rows = _extract_breakdown_top(old_cache_breakdown, "routes")
+        new_rows = _extract_breakdown_top(new_cache_breakdown, "routes")
+        old_map = _index_rows(old_rows, "route")
+        new_map = _index_rows(new_rows, "route")
+
+        keys = sorted(set(old_map.keys()) | set(new_map.keys()))
+        lines = ["### Cache routes（Compute 变化）", ""]
+        if not keys:
+            return lines + ["_暂无 routes compute 统计（或字段缺失）。_", ""]
+
+        for route in keys[:10]:
+            old_row = old_map.get(route) or {}
+            new_row = new_map.get(route) or {}
+            lines.append(
+                f"- `{route}`："
+                f"compute_avg={fmt_change(old_row.get('compute_avg_ms'), new_row.get('compute_avg_ms'), unit='ms')}，"
+                f"compute_max={fmt_change(old_row.get('compute_max_ms'), new_row.get('compute_max_ms'), unit='ms')}，"
+                f"compute_n={fmt_int_change(old_row.get('compute_count'), new_row.get('compute_count'))}，"
+                f"hit_rate={fmt_change(old_row.get('hit_rate_pct'), new_row.get('hit_rate_pct'), unit='%')}，"
+                f"req={fmt_int_change(old_row.get('requests'), new_row.get('requests'))}"
+            )
+        lines.append("")
+        return lines
+
+    def cache_keys_section() -> list[str]:
+        old_rows = _extract_breakdown_top(old_cache_breakdown, "keys")
+        new_rows = _extract_breakdown_top(new_cache_breakdown, "keys")
+        old_map = _index_rows(old_rows, "key")
+        new_map = _index_rows(new_rows, "key")
+
+        keys = sorted(set(old_map.keys()) | set(new_map.keys()))
+        lines = ["### Cache keys（变化）", ""]
+        if not keys:
+            return lines + ["_暂无 keys 统计（或字段缺失）。_", ""]
+
+        for cache_key in keys[:10]:
+            old_row = old_map.get(cache_key) or {}
+            new_row = new_map.get(cache_key) or {}
+            namespace = new_row.get("namespace") if new_row.get("namespace") else old_row.get("namespace")
+            ns_text = str(namespace) if namespace else "-"
+            lines.append(
+                f"- `{_truncate(cache_key, max_len=160)}`：ns={ns_text}，"
+                f"compute_avg={fmt_change(old_row.get('compute_avg_ms'), new_row.get('compute_avg_ms'), unit='ms')}，"
+                f"compute_max={fmt_change(old_row.get('compute_max_ms'), new_row.get('compute_max_ms'), unit='ms')}，"
+                f"compute_n={fmt_int_change(old_row.get('compute_count'), new_row.get('compute_count'))}，"
+                f"hit_rate={fmt_change(old_row.get('hit_rate_pct'), new_row.get('hit_rate_pct'), unit='%')}，"
+                f"req={fmt_int_change(old_row.get('requests'), new_row.get('requests'))}"
+            )
+        lines.append("")
+        return lines
+
+    def cache_namespaces_section() -> list[str]:
+        old_rows = _extract_breakdown_top(old_cache_breakdown, "namespaces")
+        new_rows = _extract_breakdown_top(new_cache_breakdown, "namespaces")
+        old_map = _index_rows(old_rows, "namespace")
+        new_map = _index_rows(new_rows, "namespace")
+
+        keys = sorted(set(old_map.keys()) | set(new_map.keys()))
+        lines = ["### Cache namespaces（变化）", ""]
+        if not keys:
+            return lines + ["_暂无 namespaces 统计（或字段缺失）。_", ""]
+
+        for namespace in keys[:10]:
+            old_row = old_map.get(namespace) or {}
+            new_row = new_map.get(namespace) or {}
+            lines.append(
+                f"- `{namespace}`："
+                f"compute_avg={fmt_change(old_row.get('compute_avg_ms'), new_row.get('compute_avg_ms'), unit='ms')}，"
+                f"compute_max={fmt_change(old_row.get('compute_max_ms'), new_row.get('compute_max_ms'), unit='ms')}，"
+                f"hit_rate={fmt_change(old_row.get('hit_rate_pct'), new_row.get('hit_rate_pct'), unit='%')}，"
+                f"req={fmt_int_change(old_row.get('requests'), new_row.get('requests'))}"
+            )
+        lines.append("")
+        return lines
 
     def endpoints_by_path(metrics: dict[str, Any]) -> dict[str, dict[str, Any]]:
         eps = metrics.get("endpoints") or []
@@ -571,6 +710,10 @@ def build_diff_markdown(
         _md_kv("hits", fmt_int_change((old_cache_stats or {}).get("hits"), (new_cache_stats or {}).get("hits"))),
         _md_kv("misses", fmt_int_change((old_cache_stats or {}).get("misses"), (new_cache_stats or {}).get("misses"))),
         "",
+        *cache_latency_section(),
+        *cache_routes_section(),
+        *cache_keys_section(),
+        *cache_namespaces_section(),
         "## Endpoints（Tail Latency 变化）",
         "",
     ]

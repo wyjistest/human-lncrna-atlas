@@ -27,8 +27,56 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                 "db_percentiles": {"p95_ms": 10.0, "p99_ms": 15.0},
             },
         ],
-        "cache_breakdown": {"namespaces": {"top": []}, "keys": {"top": []}, "routes": {"top": []}},
-        "cache_get_latency": {},
+        "cache_breakdown": {
+            "namespaces": {
+                "top": [
+                    {
+                        "namespace": "genes:list",
+                        "requests": 10,
+                        "hits": 8,
+                        "misses": 2,
+                        "hit_rate_pct": 80.0,
+                        "compute_avg_ms": 3.0,
+                        "compute_max_ms": 8.0,
+                    }
+                ]
+            },
+            "keys": {
+                "top": [
+                    {
+                        "key": "genes:list:species_id=1:page=1",
+                        "namespace": "genes:list",
+                        "requests": 10,
+                        "hits": 8,
+                        "misses": 2,
+                        "hit_rate_pct": 80.0,
+                        "compute_count": 2,
+                        "compute_avg_ms": 4.0,
+                        "compute_max_ms": 9.0,
+                    }
+                ]
+            },
+            "routes": {
+                "top": [
+                    {
+                        "route": "/api/v1/genes",
+                        "requests": 10,
+                        "hits": 8,
+                        "misses": 2,
+                        "hit_rate_pct": 80.0,
+                        "compute_count": 2,
+                        "compute_avg_ms": 4.0,
+                        "compute_max_ms": 9.0,
+                    }
+                ]
+            },
+        },
+        "cache_get_latency": {
+            "hits_samples": 10,
+            "misses_samples": 5,
+            "hits": {"p95_ms": 1.0, "p99_ms": 2.0},
+            "misses": {"p95_ms": 5.0, "p99_ms": 10.0},
+        },
         "database": {
             "slow_queries": [
                 {
@@ -63,8 +111,56 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                 "db_percentiles": {"p95_ms": 12.0, "p99_ms": 18.0},
             },
         ],
-        "cache_breakdown": {"namespaces": {"top": []}, "keys": {"top": []}, "routes": {"top": []}},
-        "cache_get_latency": {},
+        "cache_breakdown": {
+            "namespaces": {
+                "top": [
+                    {
+                        "namespace": "genes:list",
+                        "requests": 12,
+                        "hits": 10,
+                        "misses": 2,
+                        "hit_rate_pct": 83.33,
+                        "compute_avg_ms": 4.5,
+                        "compute_max_ms": 9.0,
+                    }
+                ]
+            },
+            "keys": {
+                "top": [
+                    {
+                        "key": "genes:list:species_id=1:page=1",
+                        "namespace": "genes:list",
+                        "requests": 12,
+                        "hits": 10,
+                        "misses": 2,
+                        "hit_rate_pct": 83.33,
+                        "compute_count": 4,
+                        "compute_avg_ms": 6.0,
+                        "compute_max_ms": 12.0,
+                    }
+                ]
+            },
+            "routes": {
+                "top": [
+                    {
+                        "route": "/api/v1/genes",
+                        "requests": 12,
+                        "hits": 10,
+                        "misses": 2,
+                        "hit_rate_pct": 83.33,
+                        "compute_count": 4,
+                        "compute_avg_ms": 6.0,
+                        "compute_max_ms": 12.0,
+                    }
+                ]
+            },
+        },
+        "cache_get_latency": {
+            "hits_samples": 12,
+            "misses_samples": 6,
+            "hits": {"p95_ms": 1.5, "p99_ms": 2.5},
+            "misses": {"p95_ms": 6.0, "p99_ms": 12.0},
+        },
         "database": {
             "slow_queries": [
                 {
@@ -114,4 +210,11 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
     assert "50.00ms" in md and "120.00ms" in md
     assert "hit rate" in md
     assert "80.00%" in md and "90.00%" in md
+    assert "Cache get() 延迟（变化）" in md
+    assert "1.00ms" in md and "1.50ms" in md
+    assert "Cache routes（Compute 变化）" in md
+    assert "`/api/v1/genes`" in md
+    assert "4.00ms" in md and "6.00ms" in md
+    assert "Cache keys（变化）" in md
+    assert "`genes:list:species_id=1:page=1`" in md
     assert "`fp-genes`" in md

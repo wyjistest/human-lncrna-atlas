@@ -63,6 +63,7 @@ python3 scripts/admin_metrics_snapshot.py --compare \
 
 提示：
 
+- diff 目前包含：全局 request/errors、全局 percentiles、cache（hit/miss、get() 延迟、routes/keys/namespaces compute）、端点 Tail Latency、慢查询变化
 - 两次快照尽量保持同一环境/同一流量模型；必要时都加 `--warmup-rounds` 预热
 - 若字段缺失/样本不足，diff 会显示为 `-` 或落入 “Other changes”
 
