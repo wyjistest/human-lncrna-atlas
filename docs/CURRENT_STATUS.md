@@ -62,6 +62,7 @@
 
 1. **admin metrics 快照对比（离线）**
    - `scripts/admin_metrics_snapshot.py` 支持 `--compare OLD_JSON NEW_JSON`，输出 `admin-metrics-diff-*.md`（便于回归/优化对比）
+   - diff 现已覆盖 cache get() 延迟（hits/misses p95/p99）与 cache breakdown（routes/keys/namespaces 的 compute_* / hit_rate / req）变化，便于定位回归根因
    - 性能定位文档与 issue 模板已补齐对比用法（`docs/PERFORMANCE_TRIAGE.md` / `.github/ISSUE_TEMPLATE/performance-triage.md`）
 
 ### 2026-01-26 ⭐ CI 触发策略（main push）
