@@ -47,7 +47,26 @@ python3 scripts/admin_metrics_snapshot.py \
 - `docs/reports/admin-metrics-<timestamp>.json`
 - `docs/reports/admin-metrics-<timestamp>.md`
 
-## 2) 截图（用于快速沟通）
+## 2) 对比两次导出（可选，但强烈推荐）
+
+当你在做优化/回归验证时，建议导出两份 JSON（优化前/优化后），然后生成一份差异报告（可直接贴到 issue/comment）：
+
+```bash
+python3 scripts/admin_metrics_snapshot.py --compare \
+  "docs/reports/admin-metrics-OLD.json" \
+  "docs/reports/admin-metrics-NEW.json"
+```
+
+输出：
+
+- `docs/reports/admin-metrics-diff-<timestamp>.md`
+
+提示：
+
+- 两次快照尽量保持同一环境/同一流量模型；必要时都加 `--warmup-rounds` 预热
+- 若字段缺失/样本不足，diff 会显示为 `-` 或落入 “Other changes”
+
+## 3) 截图（用于快速沟通）
 
 打开 `Admin/Monitoring` 页面，至少截 1 张包含以下内容的截图：
 
@@ -55,7 +74,7 @@ python3 scripts/admin_metrics_snapshot.py \
 - Database Performance（Query / Per-request DB percentiles + Slow queries）
 - Cache（hit rate、get() 延迟、namespaces/keys）
 
-## 3) Issue 里怎么写（建议结构）
+## 4) Issue 里怎么写（建议结构）
 
 建议把导出的 Markdown 直接贴到 issue，并附上 JSON 文件与截图：
 

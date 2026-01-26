@@ -38,6 +38,18 @@ labels: ["perf"]
 
 - `admin-metrics-*.json`
 
+### 1.5) Snapshot diff（可选，但推荐用于回归/优化对比）
+
+如果你有两份导出（优化前/优化后），可以生成一份差异报告（Markdown，适合直接贴到评论）：
+
+`python3 scripts/admin_metrics_snapshot.py --compare "path/to/old.json" "path/to/new.json"`
+
+粘贴 `admin-metrics-diff-*.md` 内容（可选）：
+
+```markdown
+<paste here>
+```
+
 ### 2) Monitoring 页面截图（必填）
 
 上传至少 1 张截图，包含：
