@@ -90,6 +90,8 @@
 
 2. **GitHub Actions 手动触发核验**
    - `Tests` 与 `Security Audit` 在 self-hosted runner 上以 `workflow_dispatch` 成功通过（含 E2E smoke）
+   - 已设置 repo variable `CI_RUNS_ON=self-hosted`：后续手动触发无需填写 `runs_on`，默认走 self-hosted（可绕过 GitHub-hosted billing/额度阻塞）
+   - `Tests` 在 self-hosted 下默认跳过 Postgres service jobs；如需全量校验可在 `workflow_dispatch` 设 `enable_postgres_jobs=true`
 
 3. **PR / 分支状态**
    - PR 状态以 GitHub `Pull requests` 列表为准（Dependabot 会持续创建更新 PR，不在本文做“长期不变”的断言）
