@@ -1,3 +1,4 @@
+import hashlib
 import json
 import subprocess
 import sys
@@ -16,7 +17,12 @@ def _mock_api_server() -> Iterator[str]:
         "/api/v1/stats/overview": {"ok": True, "version": 1},
         "/api/v1/genes": {"total": 5, "items": [{"id": 1, "symbol": "GENE1"}]},
         "/api/v1/genes/options": {"genes": [{"gene_id": 1, "gene_name": "GENE1"}]},
-        "/api/v1/genes/1": {"gene_id": 1, "gene_name": "GENE1", "orthologs": []},
+        "/api/v1/genes/1": {
+            "gene_id": 1,
+            "gene_name": "GENE1",
+            "orthologs": [],
+            "created_at": "2026-01-26T12:22:21Z",
+        },
         "/api/v1/regulations": {"total": 6, "items": [{"id": 1, "lncrna": "LNC1"}]},
         "/api/v1/regulations/1": {"regulation_id": 1, "lncrna_gene_id": 1, "target_gene_id": 2},
         "/api/v1/regulations/lncrna-options": {"lncrnas": []},
@@ -216,6 +222,35 @@ def _mock_api_server() -> Iterator[str]:
             "default_filter_applied": False,
             "effective_chromosome": "chr22",
         },
+        "/api/v1/export/regulations": {
+            "total": 1,
+            "items": [
+                {
+                    "regulation_id": 1,
+                    "lncrna_gene_name": "LNC1",
+                    "target_gene_name": "GENE1",
+                    "species_name": "Human",
+                    "target_chromosome": "chr22",
+                    "target_start": 100,
+                    "target_end": 200,
+                    "binding_affinity": 50.0,
+                    "num_peaks": 1,
+                }
+            ],
+        },
+        "/api/v1/conservation/regulations": {
+            "total": 1,
+            "page": 1,
+            "page_size": 10,
+            "items": [
+                {
+                    "lncrna_symbol": "LNC1",
+                    "target_symbol": "GENE1",
+                    "species_count": 2,
+                    "avg_binding_affinity": 50.0,
+                }
+            ],
+        },
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -304,8 +339,26 @@ def test_api_snapshot_check_baseline_matches(tmp_path: Path) -> None:
             "lncrna_chipseq_overlap_page_chr22_page_size_1_sort_peak_qvalue_asc",
             "lncrna_chipseq_overlap_cursor_chr22_page_size_1_sort_peak_qvalue_asc",
             "lncrna_chipseq_overlap_statistics_chr22",
+            "export_regulations_limit_1_species_1",
+            "conservation_regulations_page_1_page_size_10",
         }
         assert expected_keys.issubset(set(generated["endpoints"].keys()))
+
+        expected_gene_detail = {
+            "gene_id": 1,
+            "gene_name": "GENE1",
+            "orthologs": [],
+            "created_at": "1970-01-01T00:00:00Z",
+        }
+        expected_gene_detail_sha = hashlib.sha256(
+            json.dumps(
+                expected_gene_detail,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+        ).hexdigest()
+        assert generated["endpoints"]["genes_detail_first"]["sha256"] == expected_gene_detail_sha
 
         check = _run(
             [

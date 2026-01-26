@@ -16,13 +16,13 @@
     "chipseq_experiment_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "979aeae4a373423ebe92b9c317d3d535128fb849e6134831c64191861b487aa7",
+      "sha256": "6cb7a2b59f1d71ee6dbd24de44669a03bb647ba881ef703fbc1cd3c5081b8e33",
       "status_code": 200
     },
     "chipseq_experiments_page_1_species_1_page_size_1": {
       "error": null,
       "json": null,
-      "sha256": "e3ae83690ffdceedf000d6c6c74e132a9a9f9178722cdf8d23d677fc62d0c2f2",
+      "sha256": "e109ec822a6112d1d8758521245f85439109a088a1bf63ae1401265adf8b24e3",
       "status_code": 200
     },
     "chipseq_global_stats": {
@@ -49,16 +49,28 @@
       "sha256": "d833d498d45b957a3ca0824a18de35a091b2494e04972a5d4816ce8873e45548",
       "status_code": 200
     },
+    "conservation_regulations_page_1_page_size_10": {
+      "error": null,
+      "json": null,
+      "sha256": "60f6928abe7f90e46476a173647518dd12fce617cfbebe40855e60b5a98e3b51",
+      "status_code": 200
+    },
     "diseases_options": {
       "error": null,
       "json": null,
       "sha256": "4d3652729761d8117a04b3cc748904addae885da75f21c960c4087486a42cb91",
       "status_code": 200
     },
+    "export_regulations_limit_1_species_1": {
+      "error": null,
+      "json": null,
+      "sha256": "fac52b71664607dd3d8b32aa56fdf9d49b7699418e28bd2f3f9dcde74c58b4be",
+      "status_code": 200
+    },
     "genes_detail_first": {
       "error": null,
       "json": null,
-      "sha256": "db5db0684fbd7758625db5ea2cd1d11c10d34d78c20c88a3c8b5da29cbbc3bc4",
+      "sha256": "fb8de50323e6aa3e110757ae8a2e88f527418641ed8163498a52e152ee87ad6e",
       "status_code": 200
     },
     "genes_options_species_1_limit_5": {

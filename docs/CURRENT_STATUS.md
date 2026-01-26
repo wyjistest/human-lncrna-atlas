@@ -47,6 +47,12 @@
 2. **历史文档补齐现状指引**
    - 为部分历史报告/计划/踩坑记录补充“现状以 `docs/CURRENT_STATUS.md` 为准”的提示，减少误读风险
 
+### 2026-01-26 ⭐ 回归锚点扩展（API Snapshot）
+
+1. **导出与分页端点纳入回归锚点**
+   - `scripts/api_snapshot.py` 增加 `export/regulations`（JSON, limit=1, species_ids=1）与 `conservation/regulations`（分页列表）采样
+   - `docs/baselines/api-snapshot.sample.json` 已更新，便于发现导出/分页响应结构漂移
+
 ### 2026-01-25 ⭐ 依赖维护（Dependabot PR 清理）
 
 1. **合并 patch/minor 更新**

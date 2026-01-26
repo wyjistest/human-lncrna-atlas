@@ -28,7 +28,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -79,6 +79,27 @@ def _http_get_json(url: str, *, timeout_seconds: float) -> EndpointResult:
         return EndpointResult(status_code=status, json=parsed, sha256=digest, error=None)
     except Exception as e:
         return EndpointResult(status_code=0, json=None, sha256=None, error=str(e))
+
+
+def _normalize_endpoint_result(
+    result: EndpointResult,
+    *,
+    normalize: Callable[[Any], Any],
+) -> EndpointResult:
+    if result.json is None or result.error is not None:
+        return result
+    normalized = normalize(result.json)
+    digest = _sha256_hex(_stable_json_bytes(normalized))
+    return EndpointResult(status_code=result.status_code, json=normalized, sha256=digest, error=result.error)
+
+
+def _normalize_gene_detail_payload(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    normalized = dict(payload)
+    if normalized.get("created_at"):
+        normalized["created_at"] = "1970-01-01T00:00:00Z"
+    return normalized
 
 
 def _join(base_url: str, path: str) -> str:
@@ -248,6 +269,25 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    # Export + paginated endpoints (export is JSON-only for snapshot stability).
+    endpoints["export_regulations_limit_1_species_1"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/export/regulations?"
+            + urlencode({"species_ids": "1", "limit": 1, "format": "json"}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["conservation_regulations_page_1_page_size_10"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/conservation/regulations?"
+            + urlencode({"min_species": 2, "page": 1, "page_size": 10}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
     # Summaries: keep snapshot stable even if response schema grows.
     def safe_len(value: Any) -> Optional[int]:
         try:
@@ -310,9 +350,13 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         )
 
     if genes_first_id is not None:
-        endpoints["genes_detail_first"] = _http_get_json(
+        gene_detail = _http_get_json(
             _join(base_url, f"/api/v1/genes/{genes_first_id}"),
             timeout_seconds=timeout_seconds,
+        )
+        endpoints["genes_detail_first"] = _normalize_endpoint_result(
+            gene_detail,
+            normalize=_normalize_gene_detail_payload,
         )
 
     regulations_first_id = None
