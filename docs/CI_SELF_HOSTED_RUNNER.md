@@ -86,7 +86,9 @@ npx playwright install-deps chromium
 
 ### 5) 如何验证是否生效
 
-1. 在 GitHub UI 手动触发 workflow（当前仓库 CI 默认为 `workflow_dispatch` 手动触发）
+1. 触发方式（二选一）：
+   - 推送到 `main` 分支：会自动触发 `Tests`；`Security Audit` 会在依赖清单变化时自动触发
+   - 或在 GitHub UI 手动触发 workflow（`workflow_dispatch`）
 2. 用 `gh` 查看运行状态：
 
 ```bash

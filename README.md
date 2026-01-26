@@ -197,7 +197,7 @@ python3 -m py_compile main.py
 find app -name "*.py" -exec python3 -m py_compile {} \;
 ```
 
-Optional (recommended when GitHub Actions CI is manual-only): install a local pre-push hook that runs the CI gate automatically.
+Optional (recommended before push): install a local pre-push hook that runs the CI gate automatically.
 
 ```bash
 bash scripts/install_git_hooks.sh
@@ -205,7 +205,9 @@ bash scripts/install_git_hooks.sh
 
 Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run a lighter gate, use `LOCAL_CI_TARGET=smoke git push`. To include Playwright smoke, use `LOCAL_CI_TARGET=ci-plus git push` (or `ci-full` for the strictest gate).
 
-CI is currently **manual-only** (`workflow_dispatch`) to avoid noisy failures when GitHub-hosted runners are blocked by billing/spending limits.
+GitHub Actions CI 默认对 `main` 分支 `push` 自动触发（`Tests`），`Security Audit` 会在依赖清单变化时自动触发；也支持 `workflow_dispatch` 手动触发。
+
+出于安全考虑，PR CI（`pull_request`）默认不启用（避免在 self-hosted runner 上执行不受信任代码）。
 
 If you trigger a workflow run manually, you can check the latest run with:
 
