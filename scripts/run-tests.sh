@@ -402,9 +402,17 @@ run_docs_checks() {
     cd "$PROJECT_ROOT"
     if python3 scripts/check_docs_commands.py; then
         echo -e "${GREEN}文档命令漂移检查通过!${NC}"
-        return 0
     else
         echo -e "${RED}文档命令漂移检查失败${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}运行文档状态标注检查...${NC}"
+    if python3 scripts/check_docs_status_markers.py; then
+        echo -e "${GREEN}文档状态标注检查通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}文档状态标注检查失败${NC}"
         return 1
     fi
 }

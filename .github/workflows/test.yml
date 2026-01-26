@@ -159,6 +159,7 @@ jobs:
       - name: Docs drift check (startup commands)
         run: |
           python3 scripts/check_docs_commands.py
+          python3 scripts/check_docs_status_markers.py
 
       - name: Run ETL input checks (unit tests)
         run: |
