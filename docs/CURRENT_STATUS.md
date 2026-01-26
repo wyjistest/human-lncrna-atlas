@@ -51,6 +51,7 @@
 
 1. **导出与分页端点纳入回归锚点**
    - `scripts/api_snapshot.py` 增加 `export/regulations`（JSON, limit=1, species_ids=1）与 `conservation/regulations`（分页列表）采样
+   - 补充 `export/high-affinity` / `export/conservation` / `export/disease-network` 以捕获导出结构漂移
    - `docs/baselines/api-snapshot.sample.json` 已更新，便于发现导出/分页响应结构漂移
 
 ### 2026-01-25 ⭐ 依赖维护（Dependabot PR 清理）

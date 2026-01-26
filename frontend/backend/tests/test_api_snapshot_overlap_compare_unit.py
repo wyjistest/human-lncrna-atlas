@@ -112,6 +112,15 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
         if path == "/api/v1/conservation/regulations":
             return ok({"total": 0, "items": []})
 
+        if path == "/api/v1/export/high-affinity":
+            return ok({"total": 0, "items": []})
+
+        if path == "/api/v1/export/conservation":
+            return ok({"total": 0, "items": []})
+
+        if path == "/api/v1/export/disease-network":
+            return ok({"nodes": [], "edges": []})
+
         if path == "/api/v1/lncrna-chipseq-overlap/compare":
             lncrna_gene_id = int((qs.get("lncrna_gene_id") or ["0"])[0])
             # 101 should not be selected because it lacks core_id above.

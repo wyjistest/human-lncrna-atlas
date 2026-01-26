@@ -288,6 +288,33 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
+    endpoints["export_high_affinity_limit_1_species_1"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/export/high-affinity?"
+            + urlencode({"min_ba": 100.0, "species_id": 1, "limit": 1, "format": "json"}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["export_conservation_limit_1_min_species_2"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/export/conservation?"
+            + urlencode({"min_species_count": 2, "limit": 1, "format": "json"}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
+    endpoints["export_disease_network_limit_1"] = _http_get_json(
+        _join(
+            base_url,
+            "/api/v1/export/disease-network?"
+            + urlencode({"limit": 1, "format": "json"}),
+        ),
+        timeout_seconds=timeout_seconds,
+    )
+
     # Summaries: keep snapshot stable even if response schema grows.
     def safe_len(value: Any) -> Optional[int]:
         try:

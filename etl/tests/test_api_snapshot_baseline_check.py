@@ -251,6 +251,40 @@ def _mock_api_server() -> Iterator[str]:
                 }
             ],
         },
+        "/api/v1/export/high-affinity": {
+            "total": 1,
+            "items": [
+                {
+                    "lncrna_gene_id": 1,
+                    "lncrna_name": "LNC1",
+                    "target_gene_id": 2,
+                    "target_name": "GENE1",
+                    "binding_affinity": 120.0,
+                    "species_id": 1,
+                    "species_name": "Human",
+                    "chr": "chr22",
+                    "start_in_genome": 100,
+                    "end_in_genome": 200,
+                }
+            ],
+        },
+        "/api/v1/export/conservation": {
+            "total": 1,
+            "items": [
+                {
+                    "core_id": 1,
+                    "lncrna_names": ["LNC1"],
+                    "species_count": 2,
+                    "total_regulations": 1,
+                    "avg_binding_affinity": 120.0,
+                    "conserved_targets": ["GENE1"],
+                }
+            ],
+        },
+        "/api/v1/export/disease-network": {
+            "nodes": [],
+            "edges": [],
+        },
     }
 
     class Handler(BaseHTTPRequestHandler):
@@ -341,6 +375,9 @@ def test_api_snapshot_check_baseline_matches(tmp_path: Path) -> None:
             "lncrna_chipseq_overlap_statistics_chr22",
             "export_regulations_limit_1_species_1",
             "conservation_regulations_page_1_page_size_10",
+            "export_high_affinity_limit_1_species_1",
+            "export_conservation_limit_1_min_species_2",
+            "export_disease_network_limit_1",
         }
         assert expected_keys.issubset(set(generated["endpoints"].keys()))
 

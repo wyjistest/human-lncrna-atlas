@@ -61,6 +61,24 @@
       "sha256": "4d3652729761d8117a04b3cc748904addae885da75f21c960c4087486a42cb91",
       "status_code": 200
     },
+    "export_conservation_limit_1_min_species_2": {
+      "error": null,
+      "json": null,
+      "sha256": "c2f6fddba05506e9fda6a803365fbba50a12ebcb6595db909354f849f7a8b1e2",
+      "status_code": 200
+    },
+    "export_disease_network_limit_1": {
+      "error": null,
+      "json": null,
+      "sha256": "a482e5f4c78f7e6177f9a9e433d23fe26387a00d2536b260759258fdf3ab997e",
+      "status_code": 200
+    },
+    "export_high_affinity_limit_1_species_1": {
+      "error": null,
+      "json": null,
+      "sha256": "41d0dc6e0a2f0bdba0c680b3236a5b3c367b4d090f573aa94e1400cc6a937c98",
+      "status_code": 200
+    },
     "export_regulations_limit_1_species_1": {
       "error": null,
       "json": null,
