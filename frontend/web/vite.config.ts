@@ -30,6 +30,9 @@ export default defineConfig(({ mode }) => {
     pure: ['console.log', 'console.debug', 'console.info'],  // 移除 log/debug/info，保留 warn/error
   } : {},
   build: {
+    // PERF: Avoid pulling huge vendor chunks into the initial HTML via Vite's modulepreload helper.
+    // We rely on route-level lazy loading for heavy pages (IGV/ECharts/PDF/etc).
+    modulePreload: false,
     minify: 'esbuild',  // Use esbuild (faster)
     rollupOptions: {
       output: {
