@@ -982,6 +982,7 @@ jobs:
       - name: Wait for backend service
         run: |
           # Wait for backend to be ready (assumes services are running on self-hosted runner)
+          export NO_PROXY="127.0.0.1,localhost,::1"
           backend_health_url="${API_BASE_URL%/}/health"
           timeout=60
           while ! curl -fsS --connect-timeout 2 --max-time 5 "${backend_health_url}" >/dev/null 2>&1; do
@@ -1009,11 +1010,37 @@ jobs:
             exit 1
           fi
 
-          # self-hosted runner 可能同时被用作开发机，固定端口可能被占用。
-          # 这里优先尝试 5173，若占用则回退到下一个可用端口。
-          PREVIEW_PORT="$(
-            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
-          )"
+          export NO_PROXY="127.0.0.1,localhost,::1"
+
+          # self-hosted runner 可能同时被用作开发机：端口可能被占用；
+          # 同时后端可能通过环境变量 CORS_ORIGINS 限制允许的 Origin。
+          # 这里选择一个同时满足：
+          # 1) preview 端口可用（可绑定）
+          # 2) 后端对该 Origin 返回 Access-Control-Allow-Origin（避免浏览器侧被 CORS 拦截）
+          backend_health_url="${API_BASE_URL%/}/health"
+          PREVIEW_PORT=""
+          for port in $(seq 5173 5192); do
+            # 1) 端口可用性检查（能绑定才算可用）
+            if ! node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const port=Number(process.argv[1]); const server=net.createServer(); server.unref(); server.on("error",()=>process.exit(1)); server.listen(port, host, ()=>server.close(()=>process.exit(0)));' "$port" >/dev/null 2>&1; then
+              continue
+            fi
+
+            # 2) 后端 CORS 允许性检查
+            origin="http://${PREVIEW_HOST}:${port}"
+            if curl -fsS --connect-timeout 2 --max-time 5 -D - -o /dev/null -H "Origin: ${origin}" "${backend_health_url}" \
+              | tr -d '\r' \
+              | grep -qi "^access-control-allow-origin:[[:space:]]*${origin}$"; then
+              PREVIEW_PORT="$port"
+              break
+            fi
+          done
+
+          if [ -z "${PREVIEW_PORT:-}" ]; then
+            echo "::error::No preview port available that is also allowed by backend CORS."
+            echo "::error::Free port 5173 (recommended), or extend backend CORS_ORIGINS to include the chosen preview origin."
+            echo "::error::Example: CORS_ORIGINS='[\"http://127.0.0.1:5173\",\"http://127.0.0.1:5174\",\"http://localhost:5173\",\"http://localhost:5174\"]'"
+            exit 1
+          fi
           export PREVIEW_PORT
 
           export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
