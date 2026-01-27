@@ -401,8 +401,20 @@ run_scripts_smoke_tests() {
         return 1
     fi
 
+    if ! python3 -m py_compile scripts/research/top_lncrna_target_genes_for_enrichment.py; then
+        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
+        return 1
+    fi
+
     if [ -f scripts/research/generate_top_lncrna_sample_baseline_local.sh ]; then
         if ! bash -n scripts/research/generate_top_lncrna_sample_baseline_local.sh; then
+            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
+            return 1
+        fi
+    fi
+
+    if [ -f scripts/research/generate_top_lncrna_target_genes_sample_baseline_local.sh ]; then
+        if ! bash -n scripts/research/generate_top_lncrna_target_genes_sample_baseline_local.sh; then
             echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
             return 1
         fi

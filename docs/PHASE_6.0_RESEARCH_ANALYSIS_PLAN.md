@@ -140,6 +140,25 @@ top_100_lncrnas.to_excel('top_100_high_affinity_lncrnas.xlsx', index=False)
 3. KEGG pathway enrichment
 4. 疾病关联富集（基于现有 trait_gene_associations）
 
+**可复现产出（导出靶基因列表）**：
+```bash
+# 真实数据库（需后端 Python 依赖可用，环境变量同 backend：DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD）
+python3 scripts/research/top_lncrna_target_genes_for_enrichment.py \
+  --species-id 1 \
+  --min-ba 100 \
+  --top-n 50 \
+  --target-protein-coding-only \
+  --out-dir docs/reports
+
+# 本地 sample DB 烟测（不依赖真实大库）
+bash scripts/research/generate_top_lncrna_target_genes_sample_baseline_local.sh
+```
+
+**输出文件**（默认 `--out-dir docs/reports`）：
+- `top-lncrna-target-genes-ba<MIN_BA>-top<TOP_N>-species<SPECIES_ID>.tsv`（带统计字段，可追溯）
+- `top-lncrna-target-genes-ba<MIN_BA>-top<TOP_N>-species<SPECIES_ID>.txt`（富集输入：一行一个 gene）
+- `top-lncrna-target-genes-ba<MIN_BA>-top<TOP_N>-species<SPECIES_ID>.md`（参数与 Top lncRNA 列表摘要）
+
 **工具**:
 ```python
 from gprofiler import GProfiler
