@@ -33,11 +33,15 @@ test.describe('基因浏览流程', () => {
     await expect(page).toHaveURL(/\/genes/)
 
     // 等待表格加载
-    await expect(page.locator('.ant-table')).toBeVisible({ timeout: 15000 })
+    const genesTable = page.getByTestId('genes-table')
+    await expect(genesTable).toBeVisible({ timeout: 15000 })
 
     // 验证表格有数据
-    const rows = page.locator('.ant-table-tbody tr')
-    await expect(rows.first()).toBeVisible()
+    // antd Virtual Table 的 body 使用 div 虚拟列表，并且会注入隐藏的 measure-row（<tr>）。
+    // 这里统一用 `.ant-table-row[data-row-key]` 兼容虚拟/非虚拟渲染。
+    const dataRows = genesTable.locator('.ant-table-row[data-row-key]')
+    await expect.poll(async () => dataRows.count(), { timeout: 20000 }).toBeGreaterThan(0)
+    await expect(dataRows.first()).toBeVisible()
   })
 
   test('基因列表搜索功能', async ({ page }) => {
@@ -102,12 +106,16 @@ test.describe('基因浏览流程', () => {
 
     await page.getByRole('button', { name: /Query|查询/i }).click()
 
-    await page.waitForResponse((response) =>
-      response.url().includes('/api/v1/genes/batch') && response.status() === 200
+    await page.waitForResponse(
+      (response) => response.url().includes('/api/v1/genes/batch') && response.status() === 200,
+      { timeout: 20000 },
     )
 
     // 表格应刷新并显示结果
-    await expect(page.locator('.ant-table-tbody tr').first()).toBeVisible()
+    const genesTable = page.getByTestId('genes-table')
+    const dataRows = genesTable.locator('.ant-table-row[data-row-key]')
+    await expect.poll(async () => dataRows.count(), { timeout: 20000 }).toBeGreaterThan(0)
+    await expect(dataRows.first()).toBeVisible()
   })
 
   test('查看基因详情', async ({ page }) => {
