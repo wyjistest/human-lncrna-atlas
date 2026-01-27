@@ -868,12 +868,19 @@ def export_high_affinity(min_ba: float = 100):
 - 2-3 个新发现或假说
 - 完整的分析报告
 
-**下一步**: 创建 `notebooks/` 目录，安装分析工具，开始第一个分析（高亲和力调控）
+**已落地（最小可复现）**：
+- `scripts/research/` 下已提供方向 1/2/3/4 的导出脚本入口（Top lncRNA、保守性分层/矩阵/相关性、靶基因富集输入、表观遗传汇总、疾病网络汇总）。
+- `notebooks/` 已存在 Phase 6.0-B 的 Notebook 模板（01–04），可作为“深化分析 + 发表图表”的载体。
+
+**下一步（建议）**：
+1. 在真实数据库上运行上述脚本，生成 `docs/reports/` 的可追溯产物（TSV/CSV/MD/TXT/可选 PNG）。
+2. 富集分析：将导出的 `*.txt` 靶基因列表输入 g:Profiler / DAVID（或按需引入 `gprofiler-official`）。
+3. 将关键结论与图表沉淀到 `notebooks/`（或补充 `docs/reports/` 的结果解读文档），形成可复用的“方法 + 结果”闭环。
 
 ---
 
 **规划创建**: 2025-12-10
 **规划版本**: Phase 6.0
-**状态**: 📋 规划就绪，等待执行
+**状态**: 🚧 已完成最小可复现脚本产出；后续为深化分析与图表/解读整理（现状以 `docs/CURRENT_STATUS.md` 为准）
 
-**AI 协助**: Claude Sonnet 4.5 (1M context)
+**AI 协助**: GPT-5.2 (Codex) + 人工复核
