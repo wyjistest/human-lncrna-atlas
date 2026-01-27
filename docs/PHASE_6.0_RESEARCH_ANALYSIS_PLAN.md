@@ -344,6 +344,29 @@ bash scripts/research/generate_conservation_distance_correlation_sample_baseline
 
 **研究问题**: 保守的 lncRNA 调控哪些功能？
 
+✅ **可复现产出（导出靶基因列表，用于富集输入）**：基于 BA 阈值与指定保守等级（`species_count`），按 lncRNA `core_id` 聚合选出 lncRNA 集合，并汇总其靶基因列表（TSV/TXT/MD）。默认支持在同一次运行中额外导出 `species_count==1`（物种特异）用于对比。
+
+```bash
+# 真实数据库（需后端 Python 依赖可用，环境变量同 backend：DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD）
+# 说明：--species-count 0 表示“使用最大保守等级”（= len(species_ids)）
+python3 scripts/research/conserved_lncrna_target_genes_for_enrichment.py \
+  --species-ids all \
+  --min-ba 100 \
+  --species-count 0 \
+  --include-specific \
+  --target-protein-coding-only \
+  --out-dir docs/reports
+
+# 本地 sample DB 烟测（不依赖真实大库；样例数据 lncRNA 仅在 human，因此全保守（species_count==4）会为空；脚本默认同时导出 species_count==1）
+bash scripts/research/generate_conserved_lncrna_target_genes_sample_baseline_local.sh
+```
+
+输出文件（默认 `--out-dir docs/reports`）：
+- `conserved-lncrna-target-genes-ba<MIN_BA>-sc<SPECIES_COUNT>-species-<group>.tsv`（带统计字段，可追溯）
+- `conserved-lncrna-target-genes-ba<MIN_BA>-sc<SPECIES_COUNT>-species-<group>.txt`（富集输入：一行一个 gene）
+- `conserved-lncrna-target-genes-ba<MIN_BA>-sc<SPECIES_COUNT>-species-<group>.md`（参数与 lncRNA 预览摘要）
+- `conserved-lncrna-target-genes-ba<MIN_BA>-species-<group>.md`（可选：当同时导出多个 `species_count` 时生成索引）
+
 **分析步骤**:
 ```python
 # 1. 提取 4 物种保守 lncRNA 的靶基因

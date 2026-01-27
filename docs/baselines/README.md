@@ -35,6 +35,7 @@ CI：
   - `scripts/research/generate_conserved_lncrna_sample_baseline_local.sh`（跨物种保守性分层统计 + Top 列表）
   - `scripts/research/generate_conservation_matrix_sample_baseline_local.sh`（保守性矩阵：共享数量 + 行归一化共享率）
   - `scripts/research/generate_conservation_distance_correlation_sample_baseline_local.sh`（进化距离 vs 保守性相关性：pairwise 指标 + Pearson/Spearman）
+  - `scripts/research/generate_conserved_lncrna_target_genes_sample_baseline_local.sh`（保守等级分层靶基因列表：TSV/TXT/MD，用于富集输入）
 - 默认输出目录：`docs/baselines/research/`
 - 说明：
   - v2.3 sample 数据集的 BA 大约在 55–82，默认 `MIN_BA=50`；若你用 `MIN_BA=100`，大概率会得到空榜单（这是样例数据集的限制，不代表生产数据）。
