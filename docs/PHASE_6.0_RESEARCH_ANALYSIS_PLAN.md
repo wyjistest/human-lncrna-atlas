@@ -96,6 +96,12 @@ python3 scripts/research/top_lncrna_by_binding_affinity.py --species-id 1 --min-
 
 # 多物种（一次性生成多个物种榜单 + 汇总索引）
 python3 scripts/research/top_lncrna_by_binding_affinity.py --species-ids all --min-ba 100 --limit 50
+
+# 可选：覆盖 Markdown 的 Generated(UTC)，便于稳定对比/提交（默认会写入当前时间）
+python3 scripts/research/top_lncrna_by_binding_affinity.py --species-id 1 --min-ba 100 --limit 50 --generated-at 2026-01-27T00-00-00Z
+
+# 可选：本地 sample DB 烟测（v2.3 sample_data 的 BA 约 55–82，MIN_BA 默认 50）
+bash scripts/research/generate_top_lncrna_sample_baseline_local.sh
 ```
 
 输出：

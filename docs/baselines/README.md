@@ -24,3 +24,13 @@
 
 CI：
 - `Tests` 工作流会在 Postgres service 上加载 `schema/v2.3/03_sample_data.sql`，并在 **禁用缓存（`ENABLE_CACHE=false`）** 的情况下校验 `api-snapshot.sample.json`（见 `.github/workflows/test.yml` 的 `api-snapshot-baseline` job）。
+
+## Research（可选：本地烟测）
+
+本仓库还提供一个“本地 sample DB 烟测”脚本，用于快速验证 Research 导出脚本能跑通（不依赖真实大库）。
+
+- 脚本：`scripts/research/generate_top_lncrna_sample_baseline_local.sh`
+- 默认输出目录：`docs/baselines/research/`
+- 说明：
+  - v2.3 sample 数据集的 BA 大约在 55–82，默认 `MIN_BA=50`；若你用 `MIN_BA=100`，大概率会得到空榜单（这是样例数据集的限制，不代表生产数据）。
+  - 若需要稳定对比/可提交的 Markdown，可固定 `GENERATED_AT`（脚本默认 `GENERATED_AT=sample`）或使用 `--generated-at` 参数。
