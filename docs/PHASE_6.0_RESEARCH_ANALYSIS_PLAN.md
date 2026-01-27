@@ -308,6 +308,33 @@ plt.savefig('conservation_heatmap.png', dpi=300)
 3. 相关性分析（Pearson/Spearman）
 4. 线性回归建模
 
+✅ **可复现产出（进化距离 vs 保守性相关性）**：基于 BA 阈值，按 lncRNA `core_id` 聚合，输出“物种对 pairwise 指标”（CSV + Markdown），并计算 `distance_mya` 与 `jaccard/avg_row_share` 的 Pearson/Spearman 相关系数；本机安装 `matplotlib` 时额外输出散点图 PNG（缺失依赖则跳过，不报错）。
+
+```bash
+# 真实数据库（需后端 Python 依赖可用，环境变量同 backend：DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD）
+python3 scripts/research/conservation_distance_correlation_by_binding_affinity.py \
+  --species-ids all \
+  --min-ba 100 \
+  --out-dir docs/reports
+
+# 可选：用 JSON 覆盖/补齐进化距离（Mya），用于不同物种集合或更精细的系统发育距离
+# JSON 格式示例：{"human-chimp": 6, "human-macaque": 25, "human-marmoset": 40, "chimp-macaque": 25, ...}
+python3 scripts/research/conservation_distance_correlation_by_binding_affinity.py \
+  --species-ids all \
+  --min-ba 100 \
+  --distances-json docs/reports/distance_mya_overrides.json \
+  --out-dir docs/reports
+
+# 本地 sample DB 烟测（不依赖真实大库；样例数据 lncRNA 仅在 human，相关性可能为 N/A）
+bash scripts/research/generate_conservation_distance_correlation_sample_baseline_local.sh
+```
+
+输出文件（默认 `--out-dir docs/reports`）：
+- `conservation-distance-ba<MIN_BA>-species-<group>.csv`（pairwise 指标）
+- `conservation-distance-ba<MIN_BA>-species-<group>.md`（指标表 + 相关系数汇总）
+- `conservation-distance-ba<MIN_BA>-species-<group>-jaccard.png`（可选：Jaccard vs distance 散点图）
+- `conservation-distance-ba<MIN_BA>-species-<group>-avg-row-share.png`（可选：avg row-share vs distance 散点图）
+
 **预期发现**:
 - 进化距离越近，共享 lncRNA 越多
 - 人-黑猩猩共享最多（进化距离最近）
