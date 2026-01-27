@@ -396,76 +396,40 @@ run_scripts_smoke_tests() {
     echo -e "${YELLOW}运行脚本冒烟测试（Research 导出脚本语法检查）...${NC}"
     require_cmd python3 || return 1
 
-    if ! python3 -m py_compile scripts/research/top_lncrna_by_binding_affinity.py; then
-        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
-        return 1
+    # 说明：此处只做语法检查（py_compile / bash -n），不执行 DB 查询或生成产物。
+    local had_any=false
+
+    local old_nullglob
+    old_nullglob="$(shopt -p nullglob || true)"
+    shopt -s nullglob
+
+    local py_files=(scripts/research/*.py)
+    if [ ${#py_files[@]} -gt 0 ]; then
+        had_any=true
+        for f in "${py_files[@]}"; do
+            if ! python3 -m py_compile "$f"; then
+                echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）：${f}${NC}"
+                $old_nullglob || true
+                return 1
+            fi
+        done
     fi
 
-    if ! python3 -m py_compile scripts/research/top_lncrna_target_genes_for_enrichment.py; then
-        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
-        return 1
+    local sh_files=(scripts/research/generate_*_sample_baseline_local.sh)
+    if [ ${#sh_files[@]} -gt 0 ]; then
+        had_any=true
+        for f in "${sh_files[@]}"; do
+            if ! bash -n "$f"; then
+                echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）：${f}${NC}"
+                $old_nullglob || true
+                return 1
+            fi
+        done
     fi
 
-    if ! python3 -m py_compile scripts/research/conserved_lncrna_by_binding_affinity.py; then
-        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
-        return 1
-    fi
-
-    if ! python3 -m py_compile scripts/research/conservation_matrix_by_binding_affinity.py; then
-        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
-        return 1
-    fi
-
-    if ! python3 -m py_compile scripts/research/conservation_distance_correlation_by_binding_affinity.py; then
-        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
-        return 1
-    fi
-
-    if ! python3 -m py_compile scripts/research/conserved_lncrna_target_genes_for_enrichment.py; then
-        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
-        return 1
-    fi
-
-    if [ -f scripts/research/generate_top_lncrna_sample_baseline_local.sh ]; then
-        if ! bash -n scripts/research/generate_top_lncrna_sample_baseline_local.sh; then
-            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
-            return 1
-        fi
-    fi
-
-    if [ -f scripts/research/generate_top_lncrna_target_genes_sample_baseline_local.sh ]; then
-        if ! bash -n scripts/research/generate_top_lncrna_target_genes_sample_baseline_local.sh; then
-            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
-            return 1
-        fi
-    fi
-
-    if [ -f scripts/research/generate_conserved_lncrna_sample_baseline_local.sh ]; then
-        if ! bash -n scripts/research/generate_conserved_lncrna_sample_baseline_local.sh; then
-            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
-            return 1
-        fi
-    fi
-
-    if [ -f scripts/research/generate_conservation_matrix_sample_baseline_local.sh ]; then
-        if ! bash -n scripts/research/generate_conservation_matrix_sample_baseline_local.sh; then
-            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
-            return 1
-        fi
-    fi
-
-    if [ -f scripts/research/generate_conservation_distance_correlation_sample_baseline_local.sh ]; then
-        if ! bash -n scripts/research/generate_conservation_distance_correlation_sample_baseline_local.sh; then
-            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
-            return 1
-        fi
-    fi
-
-    if [ -f scripts/research/generate_conserved_lncrna_target_genes_sample_baseline_local.sh ]; then
-        if ! bash -n scripts/research/generate_conserved_lncrna_target_genes_sample_baseline_local.sh; then
-            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
-            return 1
-        fi
+    $old_nullglob || true
+    if [ "$had_any" != "true" ]; then
+        echo -e "${YELLOW}未找到 scripts/research/*.py 或 generate_*_sample_baseline_local.sh，跳过 Research 语法检查${NC}"
     fi
 
     echo -e "${GREEN}脚本冒烟测试通过!${NC}"
