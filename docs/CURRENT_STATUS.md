@@ -42,7 +42,7 @@
 
 1. **前端 build 防回归：禁止首屏预加载重依赖**
    - 新增 `frontend/web/scripts/check-entry-preloads.mjs`，在 `npm run build` 后检查 `dist/index.html` 的 `modulepreload` 列表
-   - 修复 `pdf-vendor` 被首屏误拉起的问题：通过禁用 `vite` 的 `build.modulePreload`，避免 preload helper 落入大 vendor chunk
+   - 修复 `pdf-vendor` 被首屏误拉起的问题：保留 `vite` 的 `build.modulePreload`，但通过 `resolveDependencies` 限制首屏只允许预加载核心 vendor，避免重依赖被误拉起
 
 2. **Phase 6.0 最小可复现产出：BA>=100 Top lncRNA 榜单**
    - 新增脚本 `scripts/research/top_lncrna_by_binding_affinity.py`，输出 `docs/reports/top-lncrna-ba100-species1.(csv|md)`
