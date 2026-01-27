@@ -27,7 +27,7 @@
  * - GET /api/v1/lncrna-chipseq-overlap/export (Phase 2)
  */
 
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect, lazy, Suspense } from 'react'
 import {
   Space,
   Card,
@@ -81,8 +81,7 @@ import { OverlapHeatmapMatrix } from './OverlapHeatmapMatrix'
 import { OverlapCrossSpeciesCompareModal } from './OverlapCrossSpeciesCompareModal'
 import { buildOverlapIgvNavigation } from './igvUtils'
 import { LoadingState } from '@/components/LoadingState'
-import GenomeBrowser, { type GenomeBrowserHandle } from '@/components/GenomeBrowser'
-import GenomeBrowserToolbar from '@/components/GenomeBrowser/GenomeBrowserToolbar'
+import type { GenomeBrowserHandle } from '@/components/GenomeBrowser'
 import { RepeatMaskerLegend } from '@/components/RepeatMaskerLegend'
 
 // API and configs
@@ -105,6 +104,10 @@ const HIGHLIGHTABLE_FILTER_KEYS = new Set([
   'min_overlap_length',
   'max_qvalue',
 ])
+
+// PERF: IGV 相关组件较重，只有在用户展开 IGV 时才加载（避免首屏/表格交互被拖慢）。
+const GenomeBrowser = lazy(() => import('@/components/GenomeBrowser'))
+const GenomeBrowserToolbar = lazy(() => import('@/components/GenomeBrowser/GenomeBrowserToolbar'))
 
 // Hooks
 import {
@@ -138,6 +141,8 @@ interface LncRNAChIPSeqOverlapTableProps {
   enableVisualization?: boolean
   /** Enable IGV genome browser integration (Phase 3.4 feature) */
   enableIGV?: boolean
+  /** enableIGV=true 时，IGV 默认是否展开显示（默认 true，保持向后兼容） */
+  defaultShowIGV?: boolean
 }
 
 /**
@@ -178,6 +183,7 @@ export function LncRNAChIPSeqOverlapTable({
   enableExport = false,
   enableVisualization = false,
   enableIGV = false,
+  defaultShowIGV,
 }: LncRNAChIPSeqOverlapTableProps) {
   const { t } = useTranslation('overlap')
   const { t: tCommon } = useTranslation('common')
@@ -198,7 +204,7 @@ export function LncRNAChIPSeqOverlapTable({
   const [showCompareSpecies, setShowCompareSpecies] = useState(false)
   const [compareTopN, setCompareTopN] = useState(10)
   const [compareSpeciesIds, setCompareSpeciesIds] = useState<number[]>([1, 2, 3, 4])
-  const [showIGV, setShowIGV] = useState(enableIGV)
+  const [showIGV, setShowIGV] = useState(enableIGV && (defaultShowIGV ?? true))
   const [paginationMode, setPaginationMode] = useState<'offset' | 'cursor'>('offset')
   const [activeTab, setActiveTab] = useState<string>('table')
   const [highlightFilterKeys, setHighlightFilterKeys] = useState<string[] | null>(null)
@@ -1634,7 +1640,14 @@ export function LncRNAChIPSeqOverlapTable({
 
       {/* Bottom Section: IGV Genome Browser (when enabled and shown) */}
       {enableIGV && showIGV && (
-        <div style={{ flex: '1 1 60%', padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <Suspense
+          fallback={
+            <div style={{ flex: '1 1 60%', padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Spin size="large" />
+            </div>
+          }
+        >
+          <div style={{ flex: '1 1 60%', padding: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           <Card
             title={
               <Space>
@@ -1879,6 +1892,7 @@ export function LncRNAChIPSeqOverlapTable({
             </div>
           </Card>
         </div>
+        </Suspense>
       )}
     </div>
   )

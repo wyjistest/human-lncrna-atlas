@@ -65,6 +65,7 @@ export default function LncRNAChIPSeqOverlapPage() {
         <LncRNAChIPSeqOverlapTable
           enableExport={true}
           enableIGV={true}
+          defaultShowIGV={false}
         />
       </Card>
     </div>
