@@ -494,6 +494,28 @@ def build_diff_markdown(
             out[key] = row
         return out
 
+    def _score_float_change(old_row: dict[str, Any], new_row: dict[str, Any], field: str) -> float:
+        old_v = _to_float(old_row.get(field))
+        new_v = _to_float(new_row.get(field))
+        if old_v is None and new_v is None:
+            return 0.0
+        if old_v is None:
+            return abs(float(new_v)) if new_v is not None else 0.0
+        if new_v is None:
+            return abs(float(old_v))
+        return abs(float(new_v) - float(old_v))
+
+    def _score_int_change(old_row: dict[str, Any], new_row: dict[str, Any], field: str) -> int:
+        old_i = _to_int(old_row.get(field))
+        new_i = _to_int(new_row.get(field))
+        if old_i is None and new_i is None:
+            return 0
+        if old_i is None:
+            return abs(int(new_i)) if new_i is not None else 0
+        if new_i is None:
+            return abs(int(old_i))
+        return abs(int(new_i) - int(old_i))
+
     def cache_routes_section() -> list[str]:
         old_rows = _extract_breakdown_top(old_cache_breakdown, "routes")
         new_rows = _extract_breakdown_top(new_cache_breakdown, "routes")
@@ -504,6 +526,17 @@ def build_diff_markdown(
         lines = ["### Cache routes（Compute 变化）", ""]
         if not keys:
             return lines + ["_暂无 routes compute 统计（或字段缺失）。_", ""]
+
+        keys.sort(
+            key=lambda route: (
+                -_score_int_change(old_map.get(route) or {}, new_map.get(route) or {}, "compute_count"),
+                -_score_float_change(old_map.get(route) or {}, new_map.get(route) or {}, "compute_avg_ms"),
+                -_score_float_change(old_map.get(route) or {}, new_map.get(route) or {}, "compute_max_ms"),
+                -_score_float_change(old_map.get(route) or {}, new_map.get(route) or {}, "hit_rate_pct"),
+                -_score_int_change(old_map.get(route) or {}, new_map.get(route) or {}, "requests"),
+                route,
+            )
+        )
 
         for route in keys[:10]:
             old_row = old_map.get(route) or {}
@@ -529,6 +562,17 @@ def build_diff_markdown(
         lines = ["### Cache keys（变化）", ""]
         if not keys:
             return lines + ["_暂无 keys 统计（或字段缺失）。_", ""]
+
+        keys.sort(
+            key=lambda cache_key: (
+                -_score_int_change(old_map.get(cache_key) or {}, new_map.get(cache_key) or {}, "compute_count"),
+                -_score_float_change(old_map.get(cache_key) or {}, new_map.get(cache_key) or {}, "compute_avg_ms"),
+                -_score_float_change(old_map.get(cache_key) or {}, new_map.get(cache_key) or {}, "compute_max_ms"),
+                -_score_float_change(old_map.get(cache_key) or {}, new_map.get(cache_key) or {}, "hit_rate_pct"),
+                -_score_int_change(old_map.get(cache_key) or {}, new_map.get(cache_key) or {}, "requests"),
+                cache_key,
+            )
+        )
 
         for cache_key in keys[:10]:
             old_row = old_map.get(cache_key) or {}
@@ -556,6 +600,16 @@ def build_diff_markdown(
         lines = ["### Cache namespaces（变化）", ""]
         if not keys:
             return lines + ["_暂无 namespaces 统计（或字段缺失）。_", ""]
+
+        keys.sort(
+            key=lambda namespace: (
+                -_score_float_change(old_map.get(namespace) or {}, new_map.get(namespace) or {}, "compute_avg_ms"),
+                -_score_float_change(old_map.get(namespace) or {}, new_map.get(namespace) or {}, "compute_max_ms"),
+                -_score_float_change(old_map.get(namespace) or {}, new_map.get(namespace) or {}, "hit_rate_pct"),
+                -_score_int_change(old_map.get(namespace) or {}, new_map.get(namespace) or {}, "requests"),
+                namespace,
+            )
+        )
 
         for namespace in keys[:10]:
             old_row = old_map.get(namespace) or {}

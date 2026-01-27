@@ -31,6 +31,15 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
             "namespaces": {
                 "top": [
                     {
+                        "namespace": "aaa",
+                        "requests": 3,
+                        "hits": 2,
+                        "misses": 1,
+                        "hit_rate_pct": 66.67,
+                        "compute_avg_ms": 0.5,
+                        "compute_max_ms": 1.0,
+                    },
+                    {
                         "namespace": "genes:list",
                         "requests": 10,
                         "hits": 8,
@@ -38,11 +47,22 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                         "hit_rate_pct": 80.0,
                         "compute_avg_ms": 3.0,
                         "compute_max_ms": 8.0,
-                    }
+                    },
                 ]
             },
             "keys": {
                 "top": [
+                    {
+                        "key": "aaa-key",
+                        "namespace": "aaa",
+                        "requests": 3,
+                        "hits": 2,
+                        "misses": 1,
+                        "hit_rate_pct": 66.67,
+                        "compute_count": 1,
+                        "compute_avg_ms": 1.0,
+                        "compute_max_ms": 2.0,
+                    },
                     {
                         "key": "genes:list:species_id=1:page=1",
                         "namespace": "genes:list",
@@ -53,11 +73,21 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                         "compute_count": 2,
                         "compute_avg_ms": 4.0,
                         "compute_max_ms": 9.0,
-                    }
+                    },
                 ]
             },
             "routes": {
                 "top": [
+                    {
+                        "route": "/api/v1/aaa",
+                        "requests": 3,
+                        "hits": 2,
+                        "misses": 1,
+                        "hit_rate_pct": 66.67,
+                        "compute_count": 1,
+                        "compute_avg_ms": 1.0,
+                        "compute_max_ms": 2.0,
+                    },
                     {
                         "route": "/api/v1/genes",
                         "requests": 10,
@@ -67,7 +97,7 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                         "compute_count": 2,
                         "compute_avg_ms": 4.0,
                         "compute_max_ms": 9.0,
-                    }
+                    },
                 ]
             },
         },
@@ -115,6 +145,15 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
             "namespaces": {
                 "top": [
                     {
+                        "namespace": "aaa",
+                        "requests": 4,
+                        "hits": 3,
+                        "misses": 1,
+                        "hit_rate_pct": 75.0,
+                        "compute_avg_ms": 0.6,
+                        "compute_max_ms": 1.2,
+                    },
+                    {
                         "namespace": "genes:list",
                         "requests": 12,
                         "hits": 10,
@@ -122,11 +161,22 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                         "hit_rate_pct": 83.33,
                         "compute_avg_ms": 4.5,
                         "compute_max_ms": 9.0,
-                    }
+                    },
                 ]
             },
             "keys": {
                 "top": [
+                    {
+                        "key": "aaa-key",
+                        "namespace": "aaa",
+                        "requests": 4,
+                        "hits": 3,
+                        "misses": 1,
+                        "hit_rate_pct": 75.0,
+                        "compute_count": 2,
+                        "compute_avg_ms": 1.1,
+                        "compute_max_ms": 2.2,
+                    },
                     {
                         "key": "genes:list:species_id=1:page=1",
                         "namespace": "genes:list",
@@ -137,11 +187,21 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                         "compute_count": 4,
                         "compute_avg_ms": 6.0,
                         "compute_max_ms": 12.0,
-                    }
+                    },
                 ]
             },
             "routes": {
                 "top": [
+                    {
+                        "route": "/api/v1/aaa",
+                        "requests": 4,
+                        "hits": 3,
+                        "misses": 1,
+                        "hit_rate_pct": 75.0,
+                        "compute_count": 2,
+                        "compute_avg_ms": 1.1,
+                        "compute_max_ms": 2.2,
+                    },
                     {
                         "route": "/api/v1/genes",
                         "requests": 12,
@@ -151,7 +211,7 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
                         "compute_count": 4,
                         "compute_avg_ms": 6.0,
                         "compute_max_ms": 12.0,
-                    }
+                    },
                 ]
             },
         },
@@ -215,8 +275,12 @@ def test_admin_metrics_snapshot_compare_generates_markdown_diff(tmp_path: Path) 
     assert "Cache routes（Compute 变化）" in md
     assert "`/api/v1/genes`" in md
     assert "4.00ms" in md and "6.00ms" in md
+    assert md.index("- `/api/v1/genes`") < md.index("- `/api/v1/aaa`")
     assert "Cache keys（变化）" in md
     assert "`genes:list:species_id=1:page=1`" in md
+    assert md.index("- `genes:list:species_id=1:page=1`") < md.index("- `aaa-key`")
+    assert "Cache namespaces（变化）" in md
+    assert md.index("- `genes:list`") < md.index("- `aaa`")
     assert "Top endpoint changes by Response P99" in md
     assert "150.00ms" in md and "140.00ms" in md
     assert "Top endpoint changes by DB P99" in md
