@@ -830,7 +830,8 @@ jobs:
       - name: Run E2E smoke tests
         working-directory: frontend/web
         env:
-          BASE_URL: http://127.0.0.1:5173
+          PREVIEW_HOST: 127.0.0.1
+          PREVIEW_PORT: "5173"
           CI: true
         run: |
           set -euo pipefail
@@ -840,12 +841,14 @@ jobs:
             exit 1
           fi
 
-          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort &
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
           preview_pid=$!
           trap 'kill $preview_pid' EXIT
 
           timeout=60
-          while ! curl -fsS "http://127.0.0.1:5173/" >/dev/null 2>&1; do
+          while ! curl -fsS "${BASE_URL}/" >/dev/null 2>&1; do
             if [ $timeout -le 0 ]; then
               echo "::error::Frontend preview server did not become ready in time"
               exit 1
@@ -979,7 +982,8 @@ jobs:
       - name: Run E2E tests
         working-directory: frontend/web
         env:
-          BASE_URL: http://127.0.0.1:5173
+          PREVIEW_HOST: 127.0.0.1
+          PREVIEW_PORT: "5173"
           CI: true
         run: |
           set -euo pipefail
@@ -989,12 +993,14 @@ jobs:
             exit 1
           fi
 
-          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort &
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
           preview_pid=$!
           trap 'kill $preview_pid' EXIT
 
           timeout=60
-          while ! curl -fsS "http://127.0.0.1:5173/" >/dev/null 2>&1; do
+          while ! curl -fsS "${BASE_URL}/" >/dev/null 2>&1; do
             if [ $timeout -le 0 ]; then
               echo "::error::Frontend preview server did not become ready in time"
               exit 1

@@ -142,6 +142,7 @@ This mirrors the `.github/workflows/test.yml` `e2e-smoke` job (Vite build artifa
 
 Notes:
 - Requires port `5173` to be free (uses `--strictPort` like CI).
+- In CI, `BASE_URL` is derived from the preview server host/port (see `.github/workflows/test.yml`) to avoid hard-coding `localhost:5173`.
 - If Playwright reports missing browsers, install once:
   - `cd frontend/web && npx playwright install chromium`
 - Current smoke specs (fully mocked):
