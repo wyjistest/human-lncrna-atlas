@@ -844,6 +844,10 @@ jobs:
         run: |
           set -euo pipefail
 
+          # 兼容 runner 的代理环境：避免 curl 对本地地址走代理导致探活误判。
+          export NO_PROXY="127.0.0.1,localhost,::1"
+          export no_proxy="${NO_PROXY}"
+
           if [ ! -d "dist" ]; then
             echo "::error::Missing frontend build output at frontend/web/dist"
             exit 1
