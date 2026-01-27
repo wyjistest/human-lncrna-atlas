@@ -224,6 +224,23 @@ HAVING COUNT(DISTINCT species_id) = 4
 ORDER BY total_regulations DESC;
 ```
 
+**可复现产出（保守性分层统计 + Top 列表）**：
+```bash
+# 真实数据库（需后端 Python 依赖可用，环境变量同 backend：DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD）
+python3 scripts/research/conserved_lncrna_by_binding_affinity.py \
+  --species-ids all \
+  --min-ba 100 \
+  --limit 50 \
+  --out-dir docs/reports
+
+# 本地 sample DB 烟测（不依赖真实大库）
+bash scripts/research/generate_conserved_lncrna_sample_baseline_local.sh
+```
+
+**输出文件**（默认 `--out-dir docs/reports`）：
+- `conserved-lncrna-ba<MIN_BA>-top<LIMIT>-species-<group>.csv`（Top 列表，可追溯）
+- `conserved-lncrna-ba<MIN_BA>-top<LIMIT>-species-<group>.md`（分层统计 + Top 列表摘要）
+
 **分层统计**:
 | 保守等级 | lncRNA 数量 | 调控关系 | 占比 |
 |---------|-----------|----------|------|

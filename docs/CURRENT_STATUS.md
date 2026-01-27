@@ -44,8 +44,14 @@
    - 新增 `frontend/web/scripts/check-entry-preloads.mjs`，在 `npm run build` 后检查 `dist/index.html` 的 `modulepreload` 列表
    - 修复 `pdf-vendor` 被首屏误拉起的问题：保留 `vite` 的 `build.modulePreload`，但通过 `resolveDependencies` 限制首屏只允许预加载核心 vendor，避免重依赖被误拉起
 
-2. **Phase 6.0 最小可复现产出：BA>=100 Top lncRNA 榜单**
-   - 新增脚本 `scripts/research/top_lncrna_by_binding_affinity.py`，输出 `docs/reports/top-lncrna-ba100-species1.(csv|md)`
+2. **前端体验：Overlap 页 IGV 默认收起 + 延迟加载**
+   - Overlap 页面默认不展开 IGV，避免进入页面即加载重依赖（仍可通过开关手动展开）
+   - IGV 相关组件改为 `lazy()` + `Suspense`：只有在展开 IGV 时才加载 GenomeBrowser/Toolbar
+
+3. **Phase 6.0 可复现产出（Research scripts）**
+   - BA>=100 Top lncRNA 榜单：`scripts/research/top_lncrna_by_binding_affinity.py`（输出 `docs/reports/top-lncrna-ba100-species1.(csv|md)`）
+   - Top lncRNA 靶基因导出（富集输入）：`scripts/research/top_lncrna_target_genes_for_enrichment.py`（输出 TSV/TXT/MD）
+   - 跨物种保守性分层统计 + Top 列表：`scripts/research/conserved_lncrna_by_binding_affinity.py`（按 core_id 聚合，输出 CSV/MD）
    - Phase 6.0 规划文档已补齐“一条命令复现”的入口（`docs/PHASE_6.0_RESEARCH_ANALYSIS_PLAN.md`）
 
 ### 2026-01-26 ⭐ 文档一致性护栏（现状指引）
