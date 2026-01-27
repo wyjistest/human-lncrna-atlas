@@ -840,7 +840,6 @@ jobs:
         working-directory: frontend/web
         env:
           PREVIEW_HOST: 127.0.0.1
-          PREVIEW_PORT: "5173"
           CI: true
         run: |
           set -euo pipefail
@@ -849,6 +848,13 @@ jobs:
             echo "::error::Missing frontend build output at frontend/web/dist"
             exit 1
           fi
+
+          # self-hosted runner 可能同时被用作开发机，固定端口可能被占用。
+          # 这里优先尝试 5173，若占用则回退到下一个可用端口。
+          PREVIEW_PORT="$(
+            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
+          )"
+          export PREVIEW_PORT
 
           export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
 
@@ -994,7 +1000,6 @@ jobs:
         env:
           API_BASE_URL: ${{ env.API_BASE_URL }}
           PREVIEW_HOST: 127.0.0.1
-          PREVIEW_PORT: "5173"
           CI: true
         run: |
           set -euo pipefail
@@ -1003,6 +1008,13 @@ jobs:
             echo "::error::Missing frontend build output at frontend/web/dist"
             exit 1
           fi
+
+          # self-hosted runner 可能同时被用作开发机，固定端口可能被占用。
+          # 这里优先尝试 5173，若占用则回退到下一个可用端口。
+          PREVIEW_PORT="$(
+            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
+          )"
+          export PREVIEW_PORT
 
           export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
 
