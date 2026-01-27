@@ -88,6 +88,17 @@ plt.savefig('ba_distribution_high_affinity.png', dpi=300)
 
 #### 1.2 Top lncRNA 排行榜
 
+✅ **最小可复现产出（已落地）**：可直接生成 BA>=阈值 的 Top lncRNA 榜单（CSV + Markdown）。
+
+```bash
+# 默认输出到 docs/reports/
+python3 scripts/research/top_lncrna_by_binding_affinity.py --species-id 1 --min-ba 100 --limit 50
+```
+
+输出：
+- `docs/reports/top-lncrna-ba100-species1.csv`
+- `docs/reports/top-lncrna-ba100-species1.md`
+
 **生成榜单**:
 ```python
 top_100_lncrnas = pd.DataFrame({
