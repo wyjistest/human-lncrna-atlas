@@ -28,7 +28,7 @@ export default function ChIPSeqComparePage() {
   const { t } = useTranslation('globalCompare')
 
   return (
-    <div style={{ padding: '0 0 24px 0' }}>
+    <div data-testid="chipseq-compare-page" style={{ padding: '0 0 24px 0' }}>
       {/* Breadcrumb */}
       <Breadcrumb
         style={{ marginBottom: 16 }}
