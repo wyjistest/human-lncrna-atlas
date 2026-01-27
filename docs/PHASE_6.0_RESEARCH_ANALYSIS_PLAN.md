@@ -93,11 +93,15 @@ plt.savefig('ba_distribution_high_affinity.png', dpi=300)
 ```bash
 # 默认输出到 docs/reports/
 python3 scripts/research/top_lncrna_by_binding_affinity.py --species-id 1 --min-ba 100 --limit 50
+
+# 多物种（一次性生成多个物种榜单 + 汇总索引）
+python3 scripts/research/top_lncrna_by_binding_affinity.py --species-ids all --min-ba 100 --limit 50
 ```
 
 输出：
 - `docs/reports/top-lncrna-ba100-species1.csv`
 - `docs/reports/top-lncrna-ba100-species1.md`
+（多物种模式会额外生成索引，例如：`docs/reports/top-lncrna-ba100-species-all.md`）
 
 **生成榜单**:
 ```python

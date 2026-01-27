@@ -12,6 +12,8 @@
 
 示例：
   python3 scripts/research/top_lncrna_by_binding_affinity.py --species-id 1 --min-ba 100 --limit 50
+  python3 scripts/research/top_lncrna_by_binding_affinity.py --species-ids 1,3 --min-ba 100 --limit 50
+  python3 scripts/research/top_lncrna_by_binding_affinity.py --species-ids all --min-ba 100 --limit 50
 """
 
 from __future__ import annotations
@@ -28,10 +30,6 @@ from typing import Any, Optional
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "frontend" / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
-
-from sqlalchemy import text  # noqa: E402
-
-from app.core.database import SessionLocal  # noqa: E402
 
 
 def _iso_ts() -> str:
@@ -73,6 +71,8 @@ class RowOut:
 
 
 def _query_species_label(db, species_id: int) -> str:
+    from sqlalchemy import text
+
     row = (
         db.execute(
             text(
@@ -95,7 +95,34 @@ def _query_species_label(db, species_id: int) -> str:
     return f"species_id={species_id}"
 
 
+def _query_all_species_ids(db) -> list[int]:
+    from sqlalchemy import text
+
+    rows = (
+        db.execute(
+            text(
+                """
+                SELECT species_id
+                FROM species
+                ORDER BY species_id
+                """
+            )
+        )
+        .mappings()
+        .all()
+    )
+    out: list[int] = []
+    for r in rows:
+        sid = _to_int(r.get("species_id"))
+        if sid is None:
+            continue
+        out.append(sid)
+    return out
+
+
 def _query_top_lncrna(db, *, species_id: int, min_ba: float, limit: int) -> list[RowOut]:
+    from sqlalchemy import text
+
     rows = (
         db.execute(
             text(
@@ -238,9 +265,65 @@ def _write_markdown(
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _parse_species_ids(raw: str) -> list[int]:
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    if not parts:
+        raise ValueError("Empty --species-ids.")
+
+    out: list[int] = []
+    for p in parts:
+        try:
+            sid = int(p)
+        except Exception as e:
+            raise ValueError(f"Invalid species id: {p!r}") from e
+        if sid <= 0:
+            raise ValueError(f"Invalid species id: {p!r}")
+        if sid not in out:
+            out.append(sid)
+    return out
+
+
+def _write_multi_index_markdown(
+    path: Path,
+    *,
+    species_ids: list[int],
+    min_ba: float,
+    limit: int,
+    outputs: list[tuple[int, str, Path, Path]],
+) -> None:
+    """
+    outputs: [(species_id, species_label, csv_path, md_path), ...]
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    lines: list[str] = []
+    lines.append("# Top lncRNA by Binding Affinity (Multi-species Index)")
+    lines.append("")
+    lines.append(f"- Species IDs: {', '.join(str(s) for s in species_ids)}")
+    lines.append(f"- BA threshold: >= {min_ba}")
+    lines.append(f"- Limit (per species): {limit}")
+    lines.append(f"- Generated (UTC): {_iso_ts()}")
+    lines.append("")
+
+    for sid, label, csv_path, md_path in outputs:
+        lines.append(f"## {label}")
+        lines.append("")
+        lines.append(f"- Markdown: `{md_path}`")
+        lines.append(f"- CSV: `{csv_path}`")
+        lines.append("")
+
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Export Top lncRNA by binding_affinity (CSV + Markdown).")
     parser.add_argument("--species-id", type=int, default=1, help="Species ID (default: 1).")
+    parser.add_argument(
+        "--species-ids",
+        type=str,
+        default="",
+        help="Comma-separated species IDs (e.g. 1,3) or 'all'. Overrides --species-id when set.",
+    )
     parser.add_argument("--min-ba", type=float, default=100.0, help="Minimum binding affinity (default: 100).")
     parser.add_argument("--limit", type=int, default=50, help="Max rows to export (default: 50).")
     parser.add_argument(
@@ -251,34 +334,71 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    try:
+        from app.core.database import SessionLocal
+    except ModuleNotFoundError as e:
+        print(
+            "Missing Python dependencies for DB access.\n"
+            "- Please run this script with the backend venv Python (e.g. `frontend/backend/.venv/bin/python ...`)\n"
+            "- Or install backend requirements so `sqlalchemy` and `app.*` are importable.",
+            file=sys.stderr,
+        )
+        raise SystemExit(2) from e
+
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    csv_path = out_dir / f"top-lncrna-ba{int(args.min_ba)}-species{args.species_id}.csv"
-    md_path = out_dir / f"top-lncrna-ba{int(args.min_ba)}-species{args.species_id}.md"
+    outputs: list[tuple[int, str, Path, Path]] = []
+    species_ids: list[int] = []
+    index_md: Optional[Path] = None
 
     db = SessionLocal()
     try:
-        species_label = _query_species_label(db, args.species_id)
-        rows = _query_top_lncrna(db, species_id=args.species_id, min_ba=args.min_ba, limit=args.limit)
+        raw_species_ids = (args.species_ids or "").strip()
+        if raw_species_ids:
+            if raw_species_ids.lower() in {"all", "*"}:
+                species_ids = _query_all_species_ids(db)
+                if not species_ids:
+                    raise RuntimeError("No species found in DB (species table empty).")
+            else:
+                species_ids = _parse_species_ids(raw_species_ids)
+        else:
+            species_ids = [int(args.species_id)]
+
+        for sid in species_ids:
+            csv_path = out_dir / f"top-lncrna-ba{int(args.min_ba)}-species{sid}.csv"
+            md_path = out_dir / f"top-lncrna-ba{int(args.min_ba)}-species{sid}.md"
+
+            species_label = _query_species_label(db, sid)
+            rows = _query_top_lncrna(db, species_id=sid, min_ba=args.min_ba, limit=args.limit)
+
+            _write_csv(csv_path, rows)
+            _write_markdown(
+                md_path,
+                species_label=species_label,
+                min_ba=args.min_ba,
+                limit=args.limit,
+                csv_path=csv_path,
+                rows=rows,
+            )
+            outputs.append((sid, species_label, csv_path, md_path))
+
+        if len(species_ids) > 1:
+            group = "all" if raw_species_ids.lower() in {"all", "*"} else "-".join(str(s) for s in species_ids)
+            index_md = out_dir / f"top-lncrna-ba{int(args.min_ba)}-species-{group}.md"
+            _write_multi_index_markdown(
+                index_md, species_ids=species_ids, min_ba=args.min_ba, limit=args.limit, outputs=outputs
+            )
     finally:
         db.close()
 
-    _write_csv(csv_path, rows)
-    _write_markdown(
-        md_path,
-        species_label=species_label,
-        min_ba=args.min_ba,
-        limit=args.limit,
-        csv_path=csv_path,
-        rows=rows,
-    )
-
-    print(f"Wrote: {csv_path}")
-    print(f"Wrote: {md_path}")
+    for _sid, _label, csv_path, md_path in outputs:
+        print(f"Wrote: {csv_path}")
+        print(f"Wrote: {md_path}")
+    if index_md is not None:
+        print(f"Wrote: {index_md}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
