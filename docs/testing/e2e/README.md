@@ -129,6 +129,12 @@ python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 默认 API 会在 `http://localhost:8000` 启动；如端口/host 不同，请设置 `API_BASE_URL`（例如 `API_BASE_URL=http://127.0.0.1:8000`）。
 
+⚠️ CORS 注意事项（当前最常见的“页面 Failed to load / Network error”原因）：
+
+- 当你的前端运行在 `http://localhost:5173` / `http://127.0.0.1:5173` 之外的端口（例如 5174、5175…），浏览器会自动携带 `Origin: http://<host>:<port>` 请求后端。
+- 如果后端 `CORS_ORIGINS` 未包含该 origin（尤其是你通过环境变量 `CORS_ORIGINS` 覆盖了默认配置时），浏览器会直接拦截响应，前端会表现为“Network error”，Playwright 也会失败。
+- 建议：`CORS_ORIGINS` 至少包含 `5173` 与 `5174`；或在本机/CI 上按需扩展到 `5173..5192`。
+
 ## Running Tests
 
 ### Run CI E2E Smoke (Mocked, No Backend/DB)

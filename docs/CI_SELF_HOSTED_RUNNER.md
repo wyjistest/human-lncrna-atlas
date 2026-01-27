@@ -84,6 +84,12 @@ npx playwright install-deps chromium
 
 `E2E Tests (Playwright)` 是 self-hosted 的“集成向”E2E（会检查 backend 是否可用）。该 job 默认关闭；如需运行，在手动触发 `Tests` workflow 时填写 `enable_e2e_tests=true`，并可选通过 `api_base_url` 覆盖后端地址（默认 `http://127.0.0.1:8000`，健康检查为 `${API_BASE_URL}/health`）。
 
+⚠️ CORS 注意事项（非常常见的失败原因）：
+
+- 该 job 会在 self-hosted runner 上启动 `vite preview` 作为前端入口，端口可能是 `5173..5192` 中的任意一个（取决于端口是否被占用）。
+- 如果你的后端启动时设置了环境变量 `CORS_ORIGINS`（会覆盖后端默认值），必须包含实际的前端 origin（例如 `http://127.0.0.1:5173` / `http://127.0.0.1:5174` 等），否则浏览器会被 CORS 拦截，页面会显示 `Network error`，Playwright 也会失败。
+- 推荐：不要把 `CORS_ORIGINS` 限死在单一端口；至少包含 `5173` 与 `5174`，或按需扩展到 `5173..5192`。
+
 ### 5) 如何验证是否生效
 
 1. 触发方式（二选一）：
