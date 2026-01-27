@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-26
+> 最后更新: 2026-01-27
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,16 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-27 ⭐ 前端首屏预加载护栏 + Research 最小产出
+
+1. **前端 build 防回归：禁止首屏预加载重依赖**
+   - 新增 `frontend/web/scripts/check-entry-preloads.mjs`，在 `npm run build` 后检查 `dist/index.html` 的 `modulepreload` 列表
+   - 修复 `pdf-vendor` 被首屏误拉起的问题：通过禁用 `vite` 的 `build.modulePreload`，避免 preload helper 落入大 vendor chunk
+
+2. **Phase 6.0 最小可复现产出：BA>=100 Top lncRNA 榜单**
+   - 新增脚本 `scripts/research/top_lncrna_by_binding_affinity.py`，输出 `docs/reports/top-lncrna-ba100-species1.(csv|md)`
+   - Phase 6.0 规划文档已补齐“一条命令复现”的入口（`docs/PHASE_6.0_RESEARCH_ANALYSIS_PLAN.md`）
 
 ### 2026-01-26 ⭐ 文档一致性护栏（现状指引）
 
