@@ -396,6 +396,19 @@ compare_enrichment(enrichment, enrichment_specific)
 
 #### 3.1 ChIP-seq 峰与调控位点重叠
 
+**可复现脚本（推荐）**：
+```bash
+# 真实数据库（默认 out_dir=docs/reports）
+python3 scripts/research/epigenetic_summary_by_binding_affinity.py --min-ba 100
+
+# 本地 sample DB 烟测（不依赖真实大库；样例 BA≈55–82，默认 MIN_BA=50）
+bash scripts/research/generate_epigenetic_summary_sample_baseline_local.sh
+```
+
+输出文件（默认 `--out-dir docs/reports`）：
+- `epigenetic-summary-ba<MIN_BA>.tsv`（mark×category×cell_type 明细）
+- `epigenetic-summary-ba<MIN_BA>.md`（Top marks / Top cell types / category 汇总）
+
 **查询重叠数据**:
 ```sql
 -- 使用物化视图（Phase 4.2 优化）
@@ -493,6 +506,20 @@ ORDER BY regulation_count DESC;
 **研究目标**: 构建疾病-lncRNA-靶基因三层网络，识别潜在治疗靶点
 
 #### 4.1 三层网络构建
+
+**可复现脚本（最小汇总）**：
+```bash
+# 真实数据库（默认 out_dir=docs/reports）
+python3 scripts/research/disease_network_summary.py --evidence-species-id 1 --top-traits 50 --top-lncrnas 50
+
+# 本地 sample DB 烟测（不依赖真实大库）
+bash scripts/research/generate_disease_network_summary_sample_baseline_local.sh
+```
+
+输出文件（默认 `--out-dir docs/reports`）：
+- `disease-network-traits-evidence-<EVIDENCE_SPECIES_ID|all>.tsv`（Top diseases）
+- `disease-network-lncrnas-evidence-<EVIDENCE_SPECIES_ID|all>.tsv`（Top lncRNAs）
+- `disease-network-summary-evidence-<EVIDENCE_SPECIES_ID|all>.md`（参数与预览摘要）
 
 **数据整合**:
 ```python

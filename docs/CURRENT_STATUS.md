@@ -55,6 +55,8 @@
    - 保守性矩阵（物种两两共享数量 + 行归一化共享率）：`scripts/research/conservation_matrix_by_binding_affinity.py`（输出 counts/row-share CSV + MD，可选 PNG）
    - 进化距离 vs 保守性相关性：`scripts/research/conservation_distance_correlation_by_binding_affinity.py`（输出 pairwise CSV/MD，可选散点图 PNG；Pearson/Spearman）
    - 保守等级分层靶基因列表（富集输入）：`scripts/research/conserved_lncrna_target_genes_for_enrichment.py`（输出 TSV/TXT/MD；支持对比 species_count==1）
+   - 表观遗传重叠汇总（mark×cell_type×category）：`scripts/research/epigenetic_summary_by_binding_affinity.py`（输出 TSV/MD）
+   - 疾病网络汇总（Top diseases / Top lncRNAs）：`scripts/research/disease_network_summary.py`（输出 TSV/MD）
    - Phase 6.0 规划文档已补齐“一条命令复现”的入口（`docs/PHASE_6.0_RESEARCH_ANALYSIS_PLAN.md`）
 
 ### 2026-01-26 ⭐ 文档一致性护栏（现状指引）
