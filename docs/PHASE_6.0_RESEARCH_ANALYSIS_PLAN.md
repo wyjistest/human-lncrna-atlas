@@ -251,6 +251,26 @@ bash scripts/research/generate_conserved_lncrna_sample_baseline_local.sh
 
 #### 2.2 保守性矩阵与热力图
 
+✅ **可复现产出（保守性矩阵 + 热力图）**：基于 BA 阈值，按 lncRNA `core_id` 聚合，输出“物种两两共享数量矩阵 + 行归一化共享率矩阵”（CSV + Markdown），并在本机安装 `matplotlib` 时额外输出 PNG 热力图（缺失依赖则跳过，不报错）。
+
+```bash
+# 真实数据库（需后端 Python 依赖可用，环境变量同 backend：DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD）
+python3 scripts/research/conservation_matrix_by_binding_affinity.py \
+  --species-ids all \
+  --min-ba 100 \
+  --out-dir docs/reports
+
+# 本地 sample DB 烟测（不依赖真实大库；样例数据 lncRNA 仅在 human，其他物种矩阵可能为 0）
+bash scripts/research/generate_conservation_matrix_sample_baseline_local.sh
+```
+
+输出文件（默认 `--out-dir docs/reports`）：
+- `conservation-matrix-ba<MIN_BA>-species-<group>-counts.csv`（共享数量矩阵）
+- `conservation-matrix-ba<MIN_BA>-species-<group>-row-share.csv`（行归一化共享率矩阵）
+- `conservation-matrix-ba<MIN_BA>-species-<group>.md`（口径说明 + 表格摘要）
+- `conservation-matrix-ba<MIN_BA>-species-<group>-counts.png`（可选：counts 热力图）
+- `conservation-matrix-ba<MIN_BA>-species-<group>-row-share.png`（可选：row-share 热力图）
+
 **计算物种间共享矩阵**:
 ```python
 import numpy as np

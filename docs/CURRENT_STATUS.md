@@ -52,6 +52,7 @@
    - BA>=100 Top lncRNA 榜单：`scripts/research/top_lncrna_by_binding_affinity.py`（输出 `docs/reports/top-lncrna-ba100-species1.(csv|md)`）
    - Top lncRNA 靶基因导出（富集输入）：`scripts/research/top_lncrna_target_genes_for_enrichment.py`（输出 TSV/TXT/MD）
    - 跨物种保守性分层统计 + Top 列表：`scripts/research/conserved_lncrna_by_binding_affinity.py`（按 core_id 聚合，输出 CSV/MD）
+   - 保守性矩阵（物种两两共享数量 + 行归一化共享率）：`scripts/research/conservation_matrix_by_binding_affinity.py`（输出 counts/row-share CSV + MD，可选 PNG）
    - Phase 6.0 规划文档已补齐“一条命令复现”的入口（`docs/PHASE_6.0_RESEARCH_ANALYSIS_PLAN.md`）
 
 ### 2026-01-26 ⭐ 文档一致性护栏（现状指引）
