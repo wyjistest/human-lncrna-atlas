@@ -228,6 +228,7 @@ def _write_markdown(
     limit: int,
     csv_path: Path,
     rows: list[RowOut],
+    generated_at_utc: str,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -237,7 +238,7 @@ def _write_markdown(
     lines.append(f"- Species: {species_label}")
     lines.append(f"- BA threshold: >= {min_ba}")
     lines.append(f"- Limit: {limit}")
-    lines.append(f"- Generated (UTC): {_iso_ts()}")
+    lines.append(f"- Generated (UTC): {generated_at_utc}")
     lines.append("")
     lines.append(f"CSV: `{csv_path}`")
     lines.append("")
@@ -290,6 +291,7 @@ def _write_multi_index_markdown(
     min_ba: float,
     limit: int,
     outputs: list[tuple[int, str, Path, Path]],
+    generated_at_utc: str,
 ) -> None:
     """
     outputs: [(species_id, species_label, csv_path, md_path), ...]
@@ -302,7 +304,7 @@ def _write_multi_index_markdown(
     lines.append(f"- Species IDs: {', '.join(str(s) for s in species_ids)}")
     lines.append(f"- BA threshold: >= {min_ba}")
     lines.append(f"- Limit (per species): {limit}")
-    lines.append(f"- Generated (UTC): {_iso_ts()}")
+    lines.append(f"- Generated (UTC): {generated_at_utc}")
     lines.append("")
 
     for sid, label, csv_path, md_path in outputs:
@@ -326,6 +328,12 @@ def main() -> int:
     )
     parser.add_argument("--min-ba", type=float, default=100.0, help="Minimum binding affinity (default: 100).")
     parser.add_argument("--limit", type=int, default=50, help="Max rows to export (default: 50).")
+    parser.add_argument(
+        "--generated-at",
+        type=str,
+        default="",
+        help="Override 'Generated (UTC)' in Markdown outputs. Empty = use current UTC time.",
+    )
     parser.add_argument(
         "--out-dir",
         type=str,
@@ -351,6 +359,7 @@ def main() -> int:
     outputs: list[tuple[int, str, Path, Path]] = []
     species_ids: list[int] = []
     index_md: Optional[Path] = None
+    generated_at_utc = (args.generated_at or "").strip() or _iso_ts()
 
     db = SessionLocal()
     try:
@@ -380,6 +389,7 @@ def main() -> int:
                 limit=args.limit,
                 csv_path=csv_path,
                 rows=rows,
+                generated_at_utc=generated_at_utc,
             )
             outputs.append((sid, species_label, csv_path, md_path))
 
@@ -387,7 +397,12 @@ def main() -> int:
             group = "all" if raw_species_ids.lower() in {"all", "*"} else "-".join(str(s) for s in species_ids)
             index_md = out_dir / f"top-lncrna-ba{int(args.min_ba)}-species-{group}.md"
             _write_multi_index_markdown(
-                index_md, species_ids=species_ids, min_ba=args.min_ba, limit=args.limit, outputs=outputs
+                index_md,
+                species_ids=species_ids,
+                min_ba=args.min_ba,
+                limit=args.limit,
+                outputs=outputs,
+                generated_at_utc=generated_at_utc,
             )
     finally:
         db.close()
