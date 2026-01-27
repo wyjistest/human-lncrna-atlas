@@ -11,6 +11,10 @@ on:
         description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
         required: false
         default: ""
+      api_base_url:
+        description: "Backend origin for E2E (e.g. http://127.0.0.1:8000). Used for health checks and Vite build VITE_API_BASE_URL."
+        required: false
+        default: "http://127.0.0.1:8000"
       enable_postgres_jobs:
         description: "Enable Postgres service jobs when running on self-hosted (default false)."
         required: false
@@ -32,6 +36,8 @@ permissions:
 env:
   # 解析后的 runs-on（用于 step 条件判断）
   CI_RUNS_ON: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+  # 默认用于 self-hosted 集成向 E2E（以及 build 时注入 VITE_API_BASE_URL）。可选：用 repo variable `CI_API_BASE_URL` 提供默认值。
+  API_BASE_URL: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.api_base_url) || vars.CI_API_BASE_URL || 'http://127.0.0.1:8000' }}
   NODE_VERSION: '20'
   PYTHON_VERSION: '3.11'
 
@@ -671,6 +677,9 @@ jobs:
 
       - name: Build
         working-directory: frontend/web
+        env:
+          # Ensure CI build points to the intended backend (overrides committed frontend/web/.env).
+          VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
         run: npm run build
 
       - name: Upload build artifacts
@@ -967,8 +976,9 @@ jobs:
       - name: Wait for backend service
         run: |
           # Wait for backend to be ready (assumes services are running on self-hosted runner)
+          backend_health_url="${API_BASE_URL%/}/health"
           timeout=60
-          while ! curl -fsS --max-time 5 "http://localhost:8000/health" >/dev/null 2>&1; do
+          while ! curl -fsS --connect-timeout 2 --max-time 5 "${backend_health_url}" >/dev/null 2>&1; do
             if [ $timeout -le 0 ]; then
               echo "Backend service not available"
               exit 1
@@ -982,6 +992,7 @@ jobs:
       - name: Run E2E tests
         working-directory: frontend/web
         env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
           PREVIEW_HOST: 127.0.0.1
           PREVIEW_PORT: "5173"
           CI: true

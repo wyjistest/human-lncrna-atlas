@@ -82,7 +82,7 @@ npx playwright install-deps chromium
 
 ### 4.1) 可选：E2E Tests (Playwright)
 
-`E2E Tests (Playwright)` 是 self-hosted 的“集成向”E2E（会检查 backend 是否可用，默认访问 `http://localhost:8000/health`）。该 job 默认关闭；如需运行，在手动触发 `Tests` workflow 时填写 `enable_e2e_tests=true`。
+`E2E Tests (Playwright)` 是 self-hosted 的“集成向”E2E（会检查 backend 是否可用）。该 job 默认关闭；如需运行，在手动触发 `Tests` workflow 时填写 `enable_e2e_tests=true`，并可选通过 `api_base_url` 覆盖后端地址（默认 `http://127.0.0.1:8000`，健康检查为 `${API_BASE_URL}/health`）。
 
 ### 5) 如何验证是否生效
 
