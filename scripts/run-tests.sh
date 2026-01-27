@@ -385,14 +385,31 @@ run_etl_checks() {
 }
 
 run_scripts_smoke_tests() {
+    cd "$PROJECT_ROOT"
+
     echo -e "${YELLOW}运行脚本冒烟测试（离线资源下载脚本）...${NC}"
-    if bash scripts/genomes/tests/test_download_igv_assets.sh; then
-        echo -e "${GREEN}脚本冒烟测试通过!${NC}"
-        return 0
-    else
-        echo -e "${RED}脚本冒烟测试失败${NC}"
+    if ! bash scripts/genomes/tests/test_download_igv_assets.sh; then
+        echo -e "${RED}脚本冒烟测试失败（离线资源下载）${NC}"
         return 1
     fi
+
+    echo -e "${YELLOW}运行脚本冒烟测试（Research 导出脚本语法检查）...${NC}"
+    require_cmd python3 || return 1
+
+    if ! python3 -m py_compile scripts/research/top_lncrna_by_binding_affinity.py; then
+        echo -e "${RED}脚本冒烟测试失败（Research Python 语法检查）${NC}"
+        return 1
+    fi
+
+    if [ -f scripts/research/generate_top_lncrna_sample_baseline_local.sh ]; then
+        if ! bash -n scripts/research/generate_top_lncrna_sample_baseline_local.sh; then
+            echo -e "${RED}脚本冒烟测试失败（Research Bash 语法检查）${NC}"
+            return 1
+        fi
+    fi
+
+    echo -e "${GREEN}脚本冒烟测试通过!${NC}"
+    return 0
 }
 
 run_docs_checks() {
