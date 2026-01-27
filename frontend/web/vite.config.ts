@@ -30,9 +30,29 @@ export default defineConfig(({ mode }) => {
     pure: ['console.log', 'console.debug', 'console.info'],  // 移除 log/debug/info，保留 warn/error
   } : {},
   build: {
-    // PERF: Avoid pulling huge vendor chunks into the initial HTML via Vite's modulepreload helper.
-    // We rely on route-level lazy loading for heavy pages (IGV/ECharts/PDF/etc).
-    modulePreload: false,
+    // PERF: Prevent Vite from modulepreloading huge vendor chunks on first paint.
+    // Keep modulepreload enabled for better route transitions, but restrict the initial HTML
+    // to only preload "core" vendors.
+    modulePreload: {
+      polyfill: true,
+      resolveDependencies: (_filename, deps, { hostType }) => {
+        if (hostType !== 'html') {
+          return deps
+        }
+
+        const allowedPrefixes = [
+          '/assets/react-vendor-',
+          '/assets/query-vendor-',
+          '/assets/i18n-vendor-',
+          '/assets/antd-vendor-',
+        ]
+
+        return deps.filter((dep) => {
+          const href = dep.startsWith('/') ? dep : `/${dep}`
+          return allowedPrefixes.some((p) => href.startsWith(p))
+        })
+      },
+    },
     minify: 'esbuild',  // Use esbuild (faster)
     rollupOptions: {
       output: {
