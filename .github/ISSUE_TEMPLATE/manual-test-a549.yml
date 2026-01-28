@@ -1,0 +1,52 @@
+name: Manual Test - A549 Validation
+description: A549 集成后手工验证清单（可附截图/结论）
+title: "[Manual Test] A549 - YYYY-MM-DD"
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        来源：`docs/reports/A549_VALIDATION_REPORT.md`
+
+        目的：每次导入/回归后对 A549 相关功能逐项验证并留痕。
+        注意：请勿粘贴任何敏感信息（密钥/Token/内部地址）。
+  - type: input
+    id: base_url
+    attributes:
+      label: BASE_URL (Frontend)
+      placeholder: http://localhost:5173
+    validations:
+      required: true
+  - type: input
+    id: api_base_url
+    attributes:
+      label: API_BASE_URL (Backend)
+      placeholder: http://localhost:8000
+    validations:
+      required: true
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      value: |
+        - [ ] A549 appears in cell type dropdown (6 total: K562, GM12878, HepG2, H1-hESC, A549, B-lymphocyte)
+        - [ ] Selecting A549 + any mark (H3K27ac, H3K27me3, etc.) loads data
+        - [ ] Data table displays correct columns: LncRNA, Cell Type, Mark, Peak Position
+        - [ ] Statistics cards show non-zero values for A549
+        - [ ] Heatmap shows 5×6 matrix with A549 row
+        - [ ] Export button downloads CSV/Excel with A549 data
+        - [ ] No JavaScript console errors (F12)
+        - [ ] Page load time similar to before (~5-10s)
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence（截图/日志/结论）
+      placeholder: |
+        - ✅ 结论：
+        - 📎 截图：
+        - 🔍 异常/问题（如有）：
+    validations:
+      required: false

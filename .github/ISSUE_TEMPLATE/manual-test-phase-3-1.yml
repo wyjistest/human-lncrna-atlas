@@ -1,0 +1,134 @@
+name: Manual Test - Phase 3.1 Checklist
+description: Phase 3.1 HepG2×H3K9me3 手工验证清单（可附截图/结论）
+title: "[Manual Test] Phase 3.1 - YYYY-MM-DD"
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        来源：`docs/testing/phase-3-1-manual-checklist.md`
+
+        目的：每次导入/回归后逐项勾选并留痕（截图/结论/发现问题的复现步骤）。
+        注意：请勿粘贴任何敏感信息（密钥/Token/内部地址）。
+  - type: input
+    id: base_url
+    attributes:
+      label: BASE_URL (Frontend)
+      placeholder: http://localhost:5173
+    validations:
+      required: true
+  - type: input
+    id: api_base_url
+    attributes:
+      label: API_BASE_URL (Backend)
+      placeholder: http://localhost:8000
+    validations:
+      required: true
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      description: 创建后可继续编辑勾选（或标注 N/A）
+      value: |
+        Pre-Testing Setup
+        - [ ] Backend server is running (`http://localhost:8000`)
+        - [ ] Frontend dev server is running (`http://localhost:5173`)
+        - [ ] Data has been imported successfully
+        - [ ] Browser DevTools open (F12)
+        - [ ] Screenshot tool ready
+
+        Section 1: Filter Panel
+        - [ ] Navigate to `/lncrna-chipseq-overlap`
+        - [ ] Click on "Mark Type" dropdown
+        - [ ] VERIFY: H3K9me3 appears in the list
+        - [ ] Select "H3K9me3"
+        - [ ] VERIFY: Filter applies successfully (no error)
+        - [ ] Screenshot: `01-mark-type-filter.png`
+
+        - [ ] Click on "Cell Type" dropdown
+        - [ ] VERIFY: HepG2 appears in the list
+        - [ ] Select "HepG2"
+        - [ ] VERIFY: Filter applies successfully
+        - [ ] Screenshot: `02-cell-type-filter.png`
+
+        - [ ] With both H3K9me3 and HepG2 selected:
+        - [ ] VERIFY: No error messages appear
+        - [ ] VERIFY: Table shows loading indicator or data
+        - [ ] VERIFY: Browser console has no errors
+        - [ ] Screenshot: `03-combined-filters.png`
+
+        - [ ] Select "chr22" from chromosome dropdown
+        - [ ] Wait for data to load (2-3 seconds)
+        - [ ] VERIFY: Results filtered to chr22 only
+        - [ ] Screenshot: `04-chromosome-filter.png`
+
+        Section 2: Results Table
+        - [ ] VERIFY: Table displays data rows
+        - [ ] VERIFY: Columns include (Chromosome / lncRNA Name / Target Gene / Mark Type / Cell Type / Binding Affinity / Peak Signal)
+        - [ ] Screenshot: `05-results-table.png`
+
+        - [ ] Inspect first 5 rows
+        - [ ] VERIFY: Mark Type column shows "H3K9me3"
+        - [ ] VERIFY: Cell Type column shows "HepG2"
+        - [ ] VERIFY: Chromosome column shows "chr22" (if filtered)
+        - [ ] VERIFY: Numeric values look reasonable (not NaN/null/0)
+
+        - [ ] Test sorting by Binding Affinity
+        - [ ] VERIFY: Sort order changes correctly
+        - [ ] Screenshot: `06-sorting.png`
+
+        - [ ] Navigate to page 2 (pagination)
+        - [ ] VERIFY: New data loads
+        - [ ] Screenshot: `07-pagination.png`
+
+        Section 3: Statistics Cards
+        - [ ] VERIFY: Total Overlaps shows non-zero value
+        - [ ] VERIFY: Unique lncRNAs shows non-zero value
+        - [ ] VERIFY: Unique targets shows non-zero value
+        - [ ] Screenshot: `08-statistics.png`
+
+        Section 4: Export
+        - [ ] Click "Export BED" button
+        - [ ] VERIFY: File downloads successfully
+        - [ ] VERIFY: File contains expected columns
+        - [ ] Screenshot: `09-export-bed.png`
+
+        - [ ] Click "Export CSV" button
+        - [ ] VERIFY: File downloads successfully
+        - [ ] VERIFY: File opens in Excel
+        - [ ] Screenshot: `10-export-csv.png`
+
+        Section 5: Console / Network
+        - [ ] VERIFY: No red errors in DevTools Console
+        - [ ] Screenshot: `11-console-no-errors.png`
+
+        - [ ] VERIFY: Network request to `/api/v1/lncrna-chipseq-overlap` returns 200
+        - [ ] VERIFY: Response time < 500ms
+        - [ ] Screenshot: `12-network-tab.png`
+
+        Section 6: i18n
+        - [ ] Switch to English
+        - [ ] VERIFY: Labels display in English
+        - [ ] Screenshot: `13-english-ui.png`
+
+        - [ ] Switch to Chinese
+        - [ ] VERIFY: Labels display in Chinese
+        - [ ] Screenshot: `14-chinese-ui.png`
+
+        收尾
+        - [ ] Archive screenshots to `docs/testing/screenshots/phase-3-1/`
+        - [ ] Document issues found (new issues)
+        - [ ] Complete test report using `docs/testing/phase-3-1-testing-strategy.md` template
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence（截图/日志/结论）
+      placeholder: |
+        - ✅ 结论：
+        - 📎 截图（建议按清单命名）：
+        - 🔍 异常/问题（如有）：
+    validations:
+      required: false

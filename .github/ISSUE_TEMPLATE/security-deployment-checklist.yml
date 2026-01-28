@@ -1,0 +1,52 @@
+name: Ops/Security - Deployment Checklist
+description: 部署前安全自检清单（Admin Key / CORS / GENOMES_DIR）
+title: "[Ops/Security] Deployment checklist - YYYY-MM-DD"
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        来源：`docs/SECURITY_DEPLOYMENT.md`
+
+        目的：每次 production 部署/变更前做最小安全自检并留痕。
+        ⚠️ 请勿在此 issue 中粘贴任何密钥、Token、私有域名或内部 IP。
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: 本次检查面向的环境（例如 staging / production）
+      placeholder: production
+    validations:
+      required: true
+  - type: input
+    id: frontend_origin
+    attributes:
+      label: Frontend Origin
+      description: 实际前端域名（用于核对 CORS）
+      placeholder: https://example.com
+    validations:
+      required: false
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      value: |
+        - [ ] `VITE_ADMIN_API_KEY` 在公网部署时未设置（或仅用于本地/受控环境）
+        - [ ] 使用反向代理注入 Admin Key 或实现会话认证（避免把 key 打进前端构建产物）
+        - [ ] `GENOMES_DIR` 指向专用目录，无敏感文件
+        - [ ] `CORS_ORIGINS` 仅包含实际前端域名
+        - [ ] Admin 端点有 IP 白名单或二次认证
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes（配置摘要/结论）
+      description: 仅写“结论/变更摘要”，不要贴敏感信息
+      placeholder: |
+        - ✅ 结论：
+        - 🧾 变更摘要：
+        - ⚠️ 风险/待办（如有）：
+    validations:
+      required: false

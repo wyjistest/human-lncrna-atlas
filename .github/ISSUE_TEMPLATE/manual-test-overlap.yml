@@ -1,0 +1,114 @@
+name: Manual Test - Overlap Page
+description: lncRNA-ChIP-seq Overlap 页面手工回归清单（可附截图/结论）
+title: "[Manual Test] Overlap - YYYY-MM-DD"
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        来源：`docs/reports/HOW_TO_TEST_OVERLAP_PAGE.md`
+
+        目的：用于每次回归时逐项勾选并留痕（截图/结论/发现问题的复现步骤）。
+        注意：请勿粘贴任何敏感信息（密钥/Token/内部地址）。
+  - type: input
+    id: base_url
+    attributes:
+      label: BASE_URL (Frontend)
+      description: 前端地址（默认 Vite 为 5173）
+      placeholder: http://localhost:5173
+    validations:
+      required: true
+  - type: input
+    id: api_base_url
+    attributes:
+      label: API_BASE_URL (Backend)
+      description: 后端地址（默认 8000）
+      placeholder: http://localhost:8000
+    validations:
+      required: true
+  - type: input
+    id: commit_sha
+    attributes:
+      label: Commit SHA
+      description: 本次验证对应的代码版本（例如 main 最新 commit）
+      placeholder: e.g. 0a399f0
+    validations:
+      required: false
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist
+      description: 创建后可继续编辑勾选（或标注 N/A）
+      value: |
+        1) 页面加载
+        - [ ] 页面标题显示正确
+        - [ ] 面包屑导航显示: Home → Regulations → lncRNA-ChIP-seq Overlap
+        - [ ] 页面描述文本显示正确
+        - [ ] 主组件（表格和筛选面板）加载成功
+
+        2) 国际化
+        - [ ] 点击右上角语言切换按钮
+        - [ ] 切换到英文，所有文本变为英文
+        - [ ] 切换到中文，所有文本变为中文
+        - [ ] 确认无翻译键泄漏（如 "overlap.page.title"）
+
+        3) 筛选面板
+        - [ ] 点击"高级筛选"展开筛选面板
+        - [ ] Mark 类型选择器正常工作
+        - [ ] 细胞系选择器正常工作
+        - [ ] 染色体选择器正常工作
+        - [ ] 数值筛选器（最小重叠长度等）可以输入
+        - [ ] 点击"重置"按钮清空筛选条件
+
+        4) 数据表格
+        - [ ] 表格显示列标题（lncRNA, 靶基因, Mark, 细胞系等）
+        - [ ] 表格数据正常显示
+        - [ ] 分页器正常工作
+        - [ ] 排序功能正常（点击列标题）
+        - [ ] 行选择功能正常
+
+        5) 统计卡片
+        - [ ] 统计卡片显示总重叠数
+        - [ ] 统计卡片显示涉及的 lncRNA 数量
+        - [ ] 统计卡片显示涉及的靶基因数量
+        - [ ] 平均值统计显示正确
+
+        6) 导出
+        - [ ] 导出 CSV 按钮可点击
+        - [ ] 导出 BED 按钮可点击
+        - [ ] 提示信息正确显示
+
+        7) 响应式
+        - [ ] 调整浏览器窗口大小，布局自动调整
+        - [ ] 在小屏幕上，组件适当折叠或重排
+        - [ ] 移动端视图正常工作
+
+        8) 错误/空数据/加载态
+        - [ ] 网络错误时显示友好错误信息
+        - [ ] 数据为空时显示空状态提示
+        - [ ] 加载状态显示正确（Loading spinner）
+
+        9) 浏览器兼容（手工）
+        - [ ] Chrome/Edge (最新版)
+        - [ ] Firefox (最新版)
+        - [ ] Safari (最新版)
+
+        10) 性能（主观 + 简要量化）
+        - [ ] 首次加载时间 < 3 秒
+        - [ ] 筛选操作响应 < 500ms
+        - [ ] 分页操作响应 < 300ms
+        - [ ] 无明显卡顿或延迟
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence（截图/日志/结论）
+      description: 建议粘贴关键截图链接/简要结论；发现问题请给出复现步骤与期望/实际
+      placeholder: |
+        - ✅ 结论：
+        - 📎 截图：
+        - 🔍 异常/问题（如有）：
+    validations:
+      required: false
