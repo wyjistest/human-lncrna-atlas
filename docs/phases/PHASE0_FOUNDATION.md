@@ -685,11 +685,11 @@ export const mockDetailedStats: DetailedStatsResponse = {
 }
 ```
 
-**验证清单**:
-- [ ] `src/config/constants.ts` 创建成功
-- [ ] `generateBABuckets()` 函数测试通过
-- [ ] 确认 BA_CONFIG 在 Slider/直方图/Mock 中统一使用
-- [ ] Feature Flags 配置正确
+**现状说明（2026-01）**：
+- `frontend/web/src/config/constants.ts` 已存在；`BA_CONFIG` 仅作为静态回退值
+- 实际 BA 范围由后端 `/api/v1/stats/ba-range` 返回，前端通过 `useBARange` 动态获取
+- `generateBABuckets()` 仍保留在 `constants.ts` 作为通用工具函数；是否补单测按需要决定
+- `VITE_USE_MOCK` 仅用于可选 MSW 框架；当前 handlers 为空，默认无需开启
 
 ---
 
@@ -973,13 +973,11 @@ export default function Regulations() {
 }
 ```
 
-**验证清单**:
-- [ ] `src/utils/export.ts` 创建成功
-- [ ] `escapeCSV()` 函数测试（防注入）
-- [ ] `fetchAllRegulations()` 分页逻辑正确
-- [ ] `exportToXLSX()` 动态导入 XLSX
-- [ ] 导出上限校验（0, <1000, 1000-10000, >10000）
-- [ ] UI 提示 Modal 正确显示
+**现状说明（2026-01）**：
+- 导出逻辑已迁移到后端（openpyxl），避免前端 `xlsx` 依赖的漏洞风险
+- `frontend/web/src/utils/export.ts` 负责调用后端导出接口并处理下载；小量选中行支持本地 CSV
+- CSV 防注入转义在 `frontend/web/src/utils/csv.ts`（`escapeCSV`）
+- 前端仍保留导出上限与 UI 提示（见 `EXPORT_LIMITS` 与导出结果处理）
 
 ---
 

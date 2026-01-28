@@ -3,7 +3,7 @@
 **项目**: Human LncRNA Atlas - 前端增强（技术栈对齐版）
 **版本**: v2.0
 **日期**: 2025-11-27
-**状态**: ✅ 技术栈已对齐，待实施
+**状态**: 🗄️ 历史计划（保留稿，仅供参考）
 
 ---
 
@@ -100,16 +100,16 @@ binding_affinity: Optional[Decimal]  // 无上限约束！
 min_ba: Optional[float] = Field(ge=0)  // 只约束 ≥ 0
 ```
 
-**实际数据范围**（需验证）:
-- 理论范围：0 - ∞（Decimal 类型）
-- 实际业务范围：需查询数据库 `SELECT MIN(binding_affinity), MAX(binding_affinity) FROM regulations`
+**实际数据范围**（已实现）:
+- 后端已提供 `GET /api/v1/stats/ba-range` 返回真实范围（当前样例：50.0 - 755.99）
+- 前端通过 `useBARange` 动态获取；`BA_CONFIG` 仅作为静态回退值（见 `frontend/web/src/config/constants.ts`）
 
 #### 调整方案
 
 **方案 A：后端提供范围端点（推荐）**
 
 ```python
-# 后端新增 API
+# 已实现：后端接口见 `frontend/backend/app/routers/stats.py`
 @router.get("/api/v1/stats/ba-range")
 async def get_ba_range():
     """获取 BA 值的实际范围"""
