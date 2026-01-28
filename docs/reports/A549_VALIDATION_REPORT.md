@@ -4,7 +4,8 @@
 **Status**: PENDING - Awaiting Backend Import Completion
 **Test Agent**: Frontend Testing Specialist (Playwright)
 > 提示（2026-01-26）：本报告为阶段性验证记录，现状以 `docs/CURRENT_STATUS.md` 为准。
-> 可追踪清单（用于实际勾选与记录结果）：https://github.com/wyjistest/human-lncrna-atlas/issues/73
+> Issue Template：`.github/ISSUE_TEMPLATE/manual-test-a549.yml`（推荐：每次创建一份新 issue 逐项勾选并留痕）
+> 历史追踪：https://github.com/wyjistest/human-lncrna-atlas/issues/73（已迁移模板，作为历史记录）
 
 ---
 
