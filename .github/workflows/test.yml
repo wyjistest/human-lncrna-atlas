@@ -311,6 +311,20 @@ jobs:
 
           echo "Recovered workspace from tarball."
 
+      - name: Prepare git snapshot (self-hosted fallback)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+
+          # tarball 兜底会移除 .git；部分 CI 校验（docs drift check 等）依赖 `git ls-files`。
+          # 这里创建一个“git 快照”（无需 push），确保后续脚本在 fallback 场景也可运行。
+          if [ ! -d ".git" ]; then
+            git init
+            git config user.email "ci@example.invalid"
+            git config user.name "CI"
+            git add -A
+          fi
+
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
         uses: actions/setup-python@v5
