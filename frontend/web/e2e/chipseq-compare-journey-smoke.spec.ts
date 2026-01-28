@@ -212,22 +212,23 @@ test.describe('ChIP-seq compare journey - mocked smoke', () => {
     await page.goto(`/genes/${TEST_GENE_ID}`)
     await page.waitForLoadState('domcontentloaded')
 
-    const genomicFeaturesTab = page.getByRole('tab', { name: /Genomic Features|基因组特征/i })
-    if ((await genomicFeaturesTab.count()) > 0) {
-      await genomicFeaturesTab.click()
-      await page.waitForTimeout(300)
-    }
+    const genomicFeaturesTab = page
+      .getByRole('tab', { name: /Genomic Features|基因组特征/i })
+      .first()
+    await expect(genomicFeaturesTab).toBeVisible({ timeout: 15000 })
+    await genomicFeaturesTab.click()
+    await expect(genomicFeaturesTab).toHaveAttribute('aria-selected', 'true')
 
-    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq|ChIP|表观遗传/i })
-    await expect(chipseqTab.first()).toBeVisible({ timeout: 15000 })
-    await chipseqTab.first().click()
+    const chipseqTab = page.getByRole('tab', { name: /ChIP-seq Peaks|ChIP-seq|ChIP|表观遗传/i }).first()
+    await expect(chipseqTab).toBeVisible({ timeout: 15000 })
+    await chipseqTab.click()
 
     await expect(page.getByTestId('chipseq-container')).toBeVisible({ timeout: 15000 })
 
     const compareButton = page.getByTestId('compare-marks-button')
-      .or(page.getByRole('button', { name: /Compare|对比/i }))
-    await expect(compareButton.first()).toBeVisible({ timeout: 15000 })
-    await compareButton.first().click()
+    await expect(compareButton).toBeVisible({ timeout: 15000 })
+    await compareButton.click()
+    await expect(page.getByTestId('exit-compare-button')).toBeVisible({ timeout: 15000 })
 
     const markSelector = page.getByTestId('mark-selector')
     await markSelector.first().click()
