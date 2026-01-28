@@ -59,6 +59,8 @@ jobs:
           export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
           echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
           git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
 
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -128,6 +130,8 @@ jobs:
           export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
           echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
           git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
 
       - name: Checkout repository
         uses: actions/checkout@v6
