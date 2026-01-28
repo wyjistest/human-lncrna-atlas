@@ -125,31 +125,73 @@ jobs:
 
           echo "Recovered workspace from tarball."
 
-      - name: Prepare git snapshot for gitleaks (self-hosted fallback)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+      - name: Detect git repository state
+        id: gitleaks_repo
         run: |
           set -euo pipefail
-
-          # gitleaks-action 默认按 git repo 扫描；tarball 兜底会移除 .git。
-          # 这里创建一个“单提交快照”，确保 gitleaks 能扫描到当前 commit 引入的内容。
-          if [ ! -d ".git" ]; then
-            git init
-            git config user.email "ci@example.invalid"
-            git config user.name "CI"
-            git add -A
-            git commit -m "CI: snapshot for gitleaks" --no-gpg-sign
+          if [ -d ".git" ]; then
+            echo "has_git=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          # tarball 兜底会移除 .git（无 commit 历史），此时 gitleaks-action 的 `${base}^..${head}` 范围会失败；
+          # 改为 filesystem 扫描当前工作区，保证“可用且可审计”。
+          echo "has_git=false" >> "$GITHUB_OUTPUT"
 
       - name: Cleanup gitleaks temp
         run: |
           rm -f /tmp/gitleaks.tmp
 
-      - name: Run Gitleaks
+      - name: Run Gitleaks (git history)
+        if: ${{ steps.gitleaks_repo.outputs.has_git == 'true' }}
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # self-hosted runner 上 artifact 上传偶发路径兼容性问题；这里直接关闭上传。
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+      - name: Install gitleaks (filesystem fallback)
+        if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
+        env:
+          GITLEAKS_VERSION: "8.24.3"
+        run: |
+          set -euo pipefail
+
+          version="${GITLEAKS_VERSION}"
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m)"
+          case "$arch" in
+            x86_64) arch="x64" ;;
+            aarch64) arch="arm64" ;;
+            arm64) arch="arm64" ;;
+            *)
+              echo "::error::Unsupported architecture: ${arch}"
+              exit 1
+              ;;
+          esac
+
+          url="https://github.com/zricethezav/gitleaks/releases/download/v${version}/gitleaks_${version}_${os}_${arch}.tar.gz"
+          tmp_dir="$(mktemp -d)"
+          curl -fsSL "$url" -o "${tmp_dir}/gitleaks.tar.gz"
+          tar -xzf "${tmp_dir}/gitleaks.tar.gz" -C "$tmp_dir"
+
+          install -m 0755 "${tmp_dir}/gitleaks" "${RUNNER_TEMP}/gitleaks"
+          echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+
+      - name: Run Gitleaks (filesystem fallback)
+        if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
+        run: |
+          set -euo pipefail
+
+          gitleaks detect \
+            --no-git \
+            --source . \
+            --redact \
+            -v \
+            --exit-code=2 \
+            --report-format=sarif \
+            --report-path=results.sarif \
+            --log-level=debug
 
   frontend-unit-tests:
     name: Frontend Unit Tests
