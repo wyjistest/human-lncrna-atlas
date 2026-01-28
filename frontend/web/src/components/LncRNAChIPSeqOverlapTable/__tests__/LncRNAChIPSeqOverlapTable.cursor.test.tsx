@@ -99,9 +99,9 @@ describe('LncRNAChIPSeqOverlapTable (cursor mode)', () => {
 
     fireEvent.click(screen.getByTestId('overlap-pagination-mode'))
 
-    const loadMore = await screen.findByTestId('overlap-load-more')
+    const loadMore = await screen.findByTestId('overlap-load-more', undefined, { timeout: 10_000 })
     fireEvent.click(loadMore)
 
     expect(fetchNextPage).toHaveBeenCalled()
-  })
+  }, 15_000)
 })

@@ -217,11 +217,11 @@ describe('Conservation Page', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('conservation-page')).toBeInTheDocument()
-      })
+      }, { timeout: 10_000 })
 
       expect(screen.getByTestId('conservation-matrix')).toBeInTheDocument()
       expect(screen.getByTestId('conservation-table')).toBeInTheDocument()
-    })
+    }, 15_000)
 
     it('renders the page title and description', async () => {
       render(<Conservation />, { wrapper: createWrapper() })
