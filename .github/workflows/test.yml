@@ -23,6 +23,10 @@ on:
         description: "Enable self-hosted E2E Tests job (requires backend services running)."
         required: false
         default: "false"
+      enable_firefox_smoke:
+        description: "Enable optional Firefox run for E2E smoke (workflow_dispatch only)."
+        required: false
+        default: "false"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -38,6 +42,8 @@ env:
   CI_RUNS_ON: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
   # 默认用于 self-hosted 集成向 E2E（以及 build 时注入 VITE_API_BASE_URL）。可选：用 repo variable `CI_API_BASE_URL` 提供默认值。
   API_BASE_URL: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.api_base_url) || vars.CI_API_BASE_URL || 'http://127.0.0.1:8000' }}
+  # 可选：在 workflow_dispatch 时额外跑一轮 Firefox smoke（默认 false，不影响 push CI）
+  ENABLE_FIREFOX_SMOKE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_firefox_smoke == 'true' }}
   NODE_VERSION: '20'
   PYTHON_VERSION: '3.11'
 
@@ -830,10 +836,15 @@ jobs:
 
           # GitHub-hosted runner 可用 `--with-deps` 自动安装系统依赖；
           # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
+          browsers="chromium"
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            browsers="chromium firefox"
+          fi
+
           if [ "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
-            npx playwright install chromium
+            npx playwright install ${browsers}
           else
-            npx playwright install chromium --with-deps
+            npx playwright install ${browsers} --with-deps
           fi
 
       - name: Run E2E smoke tests
@@ -876,21 +887,29 @@ jobs:
             timeout=$((timeout - 2))
           done
 
-          npx playwright test \
-            e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
-            e2e/genes-smoke.spec.ts \
-            e2e/regulations-smoke.spec.ts \
-            e2e/stats-smoke.spec.ts \
-            e2e/diseases-smoke.spec.ts \
-            e2e/analysis-smoke.spec.ts \
-            e2e/conservation-smoke.spec.ts \
-            e2e/chipseq-compare-smoke.spec.ts \
-            e2e/chipseq-compare-journey-smoke.spec.ts \
-            e2e/visualization-hub-smoke.spec.ts \
-            e2e/admin-monitoring-smoke.spec.ts \
-            e2e/admin-cache-smoke.spec.ts \
-            e2e/admin-materialized-views-smoke.spec.ts \
-            --reporter=list
+          specs=(
+            e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts
+            e2e/genes-smoke.spec.ts
+            e2e/regulations-smoke.spec.ts
+            e2e/stats-smoke.spec.ts
+            e2e/diseases-smoke.spec.ts
+            e2e/analysis-smoke.spec.ts
+            e2e/conservation-smoke.spec.ts
+            e2e/chipseq-compare-smoke.spec.ts
+            e2e/chipseq-compare-journey-smoke.spec.ts
+            e2e/visualization-hub-smoke.spec.ts
+            e2e/admin-monitoring-smoke.spec.ts
+            e2e/admin-cache-smoke.spec.ts
+            e2e/admin-materialized-views-smoke.spec.ts
+          )
+
+          # 默认保持 chromium-only（与历史 CI 行为一致）
+          npx playwright test "${specs[@]}" --project=chromium --reporter=list
+
+          # 可选：workflow_dispatch 时追加跑 Firefox（更早发现跨浏览器回归）
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            npx playwright test "${specs[@]}" --project=firefox --reporter=list
+          fi
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
@@ -1070,6 +1089,7 @@ jobs:
             e2e/genes-flow.spec.ts \
             e2e/lncrna-chipseq-overlap.spec.ts \
             e2e/conservation.spec.ts \
+            --project=chromium \
             --reporter=list
 
       - name: Upload test results

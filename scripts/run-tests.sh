@@ -535,7 +535,9 @@ run_frontend_build() {
 
 # 运行 E2E Smoke（完全 mocked，对齐 CI；不依赖后端/DB）
 run_frontend_e2e_smoke_tests() {
-    echo -e "${YELLOW}运行前端 E2E smoke（完全 mocked，对齐 CI）...${NC}"
+    local project="${1:-chromium}"
+
+    echo -e "${YELLOW}运行前端 E2E smoke（完全 mocked，对齐 CI；browser=${project}）...${NC}"
     ensure_frontend_deps || return 1
     require_cmd curl || return 1
 
@@ -585,26 +587,28 @@ run_frontend_e2e_smoke_tests() {
         timeout=$((timeout - 2))
     done
 
-	    local failed=0
-	    if BASE_URL="$base_url" CI=true npx playwright test \
-	        e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
-	        e2e/genes-smoke.spec.ts \
-	        e2e/regulations-smoke.spec.ts \
-	        e2e/stats-smoke.spec.ts \
-	        e2e/diseases-smoke.spec.ts \
-	        e2e/analysis-smoke.spec.ts \
-	        e2e/conservation-smoke.spec.ts \
-	        e2e/chipseq-compare-smoke.spec.ts \
-	        e2e/visualization-hub-smoke.spec.ts \
-	        e2e/admin-monitoring-smoke.spec.ts \
-	        e2e/admin-cache-smoke.spec.ts \
-	        e2e/admin-materialized-views-smoke.spec.ts \
-	        --reporter=list; then
-	        echo -e "${GREEN}E2E smoke 通过!${NC}"
-	    else
+    local failed=0
+    if BASE_URL="$base_url" CI=true npx playwright test \
+        e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
+        e2e/genes-smoke.spec.ts \
+        e2e/regulations-smoke.spec.ts \
+        e2e/stats-smoke.spec.ts \
+        e2e/diseases-smoke.spec.ts \
+        e2e/analysis-smoke.spec.ts \
+        e2e/conservation-smoke.spec.ts \
+        e2e/chipseq-compare-smoke.spec.ts \
+        e2e/chipseq-compare-journey-smoke.spec.ts \
+        e2e/visualization-hub-smoke.spec.ts \
+        e2e/admin-monitoring-smoke.spec.ts \
+        e2e/admin-cache-smoke.spec.ts \
+        e2e/admin-materialized-views-smoke.spec.ts \
+        --project="$project" \
+        --reporter=list; then
+        echo -e "${GREEN}E2E smoke 通过!${NC}"
+    else
         failed=1
         echo -e "${RED}E2E smoke 失败${NC}"
-        echo -e "${YELLOW}若提示缺少浏览器，可运行：cd ${FRONTEND_DIR} && npx playwright install chromium${NC}"
+        echo -e "${YELLOW}若提示缺少浏览器，可运行：cd ${FRONTEND_DIR} && npx playwright install ${project}${NC}"
     fi
 
     kill "$preview_pid" > /dev/null 2>&1 || true
@@ -672,6 +676,9 @@ main() {
             ;;
         e2e-smoke)
             run_frontend_e2e_smoke_tests || failed=1
+            ;;
+        e2e-smoke-firefox)
+            run_frontend_e2e_smoke_tests firefox || failed=1
             ;;
         smoke)
             # 默认: 运行所有无外部依赖的单元测试
@@ -769,7 +776,7 @@ main() {
             run_docs_checks || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|ci|backend|e2e|status|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|ci|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
@@ -782,6 +789,7 @@ main() {
             echo "  frontend-lint  - 运行前端 Lint (ESLint)"
             echo "  frontend-build - 运行前端构建 (Vite build)"
             echo "  e2e-smoke     - 运行 Playwright E2E smoke（完全 mocked，对齐 CI，无需后端/DB）"
+            echo "  e2e-smoke-firefox - 运行 Playwright E2E smoke（Firefox，可选 cross-browser）"
             echo "  ci           - 对齐 GitHub Actions 的核心检查集合"
             echo "  ci-plus      - ci + e2e-smoke（更接近原 GH Tests，仍无需后端/DB）"
             echo "  ci-full      - ci-plus + security-audit（最严格门禁）"

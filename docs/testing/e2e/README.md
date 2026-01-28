@@ -108,6 +108,12 @@ npm ci
 npx playwright install chromium
 ```
 
+可选：如果需要做 cross-browser 回归（例如 Firefox smoke），再安装：
+
+```bash
+npx playwright install firefox
+```
+
 ### 3. Start Frontend Development Server
 
 ```bash
@@ -149,8 +155,11 @@ This mirrors the `.github/workflows/test.yml` `e2e-smoke` job (Vite build artifa
 Notes:
 - Requires port `5173` to be free (uses `--strictPort` like CI).
 - In CI, `BASE_URL` is derived from the preview server host/port (see `.github/workflows/test.yml`) to avoid hard-coding `localhost:5173`.
+- In GitHub Actions manual trigger (`workflow_dispatch`), set input `enable_firefox_smoke=true` to additionally run Firefox smoke.
 - If Playwright reports missing browsers, install once:
   - `cd frontend/web && npx playwright install chromium`
+- Optional cross-browser smoke:
+  - `./scripts/run-tests.sh e2e-smoke-firefox` (requires `cd frontend/web && npx playwright install firefox`)
 - Current smoke specs (fully mocked):
   - `e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts`
   - `e2e/genes-smoke.spec.ts`
@@ -160,6 +169,7 @@ Notes:
   - `e2e/analysis-smoke.spec.ts`
   - `e2e/conservation-smoke.spec.ts`
   - `e2e/chipseq-compare-smoke.spec.ts`
+  - `e2e/chipseq-compare-journey-smoke.spec.ts`
   - `e2e/visualization-hub-smoke.spec.ts`
   - `e2e/admin-monitoring-smoke.spec.ts`
   - `e2e/admin-cache-smoke.spec.ts`

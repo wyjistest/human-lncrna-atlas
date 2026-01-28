@@ -234,10 +234,17 @@ test.describe('ChIP-seq compare journey - mocked smoke', () => {
     await markSelector.first().click()
     const markOption = page.locator('.ant-select-dropdown').getByText('H3K4me3', { exact: false })
     await markOption.first().click()
+    // Ant Design 多选下拉默认不会在选择后自动关闭；在 Firefox 上可能遮挡后续 tab 点击。
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.ant-select-dropdown:visible')).toHaveCount(0)
 
-    const statsTab = page.getByRole('tab', { name: /Statistics|统计/i })
+    const statsTab = page.getByRole('tab', { name: /Statistics|统计/i }).first()
     if ((await statsTab.count()) > 0) {
-      await statsTab.first().click()
+      const selected = await statsTab.getAttribute('aria-selected')
+      if (selected !== 'true') {
+        await statsTab.click()
+        await expect(statsTab).toHaveAttribute('aria-selected', 'true')
+      }
     }
 
     await expect(page.getByTestId('radar-compare-chart')).toBeVisible({ timeout: 15000 })

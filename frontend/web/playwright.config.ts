@@ -59,10 +59,14 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    // 可选：添加更多浏览器
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    // 可选：WebKit（更接近 Safari；Linux self-hosted 可能缺系统依赖）
     // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
+    //   name: 'webkit',
+    //   use: { ...devices['Desktop Safari'] },
     // },
   ],
 
