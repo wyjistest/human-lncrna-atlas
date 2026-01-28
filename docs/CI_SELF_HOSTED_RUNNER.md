@@ -115,6 +115,24 @@ gh run list --branch main --limit 5
 1. 让 runner 进程不要继承代理环境变量（例如在启动 runner 的脚本里 `unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY`）。
 2. 或为代理正确配置系统 CA / MITM 证书（取决于你的代理实现与安全策略）。
 
+### 6.1) 常见排障：actions/checkout 失败（git gnutls_handshake）
+
+如果 self-hosted runner 偶发出现类似报错：
+
+- `fatal: unable to access 'https://github.com/...': gnutls_handshake() failed: The TLS connection was non-properly terminated`
+
+这是 git HTTPS 握手不稳定导致的 `actions/checkout` 偶发失败（和代码逻辑通常无关）。
+
+本仓库的 `Tests` / `Security Audit` workflow 已做“止损”：
+
+1. workflow 内对 git transport 做稳定性配置（HTTP/1.1 + TLSv1.2）。
+2. 当 `actions/checkout` 仍失败时：自动通过 GitHub API 下载 `${repo}@${sha}` tarball 恢复源码继续执行。
+   - 对需要 `.git` 的门禁（例如 gitleaks、docs drift check）：在 tarball 场景会额外初始化一个本地 git snapshot（用于 `git ls-files`）。
+
+如果你仍频繁遇到 checkout 失败：
+- 优先检查 runner 的代理/网络（见上面 6)）。
+- 其次考虑把 runner 放在更稳定的网络环境，或为 git 配置更稳定的出口。
+
 ---
 
 ## 本地止损（无需 Actions）
