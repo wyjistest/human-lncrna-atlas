@@ -1,7 +1,7 @@
 # Genes API Integration - Deliverables Summary
 
 **Date**: 2025-12-10
-**Status**: ✅ Complete - Ready for Backend Implementation
+**Status**: ✅ Implemented - Synced with current code (2026-01)
 **Phase**: 5.2 (Genes Options API Optimization)
 
 > 更新（2026-01-24）：本文档为交付总结/集成方案快照（面向“后端实现”），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
@@ -11,12 +11,12 @@
 
 ## Deliverables Overview
 
-| File | Size | Purpose |
-|------|------|---------|
-| `GENES_API_INTEGRATION_PLAN.md` | 21 KB | Complete integration plan with architecture, types, templates |
-| `GENES_API_QUICK_START.md` | 7.9 KB | Quick reference for immediate integration |
-| `src/api/genes.ts.NEW` | 4.6 KB | Ready-to-use implementation (replaces current file) |
-| `src/api/genes.ts` (original) | 620 B | Original file (backup before replacement) |
+| Item | Purpose |
+|------|---------|
+| `docs/api/GENES_API_INTEGRATION_PLAN.md` | Integration plan with architecture, types, templates |
+| `docs/api/GENES_API_QUICK_START.md` | Quick reference for integration / verification |
+| `frontend/backend/app/routers/genes.py` | Backend endpoint: `GET /api/v1/genes/options` |
+| `frontend/web/src/api/genes.ts` | Frontend API client: `genesApi.getOptions()` |
 
 ---
 
@@ -83,96 +83,30 @@ Four ready-to-use templates:
 
 ---
 
-## Next Steps
+## Current Implementation Status（2026-01）
 
-### Step 1: Backend Implementation (Day 1)
+本节用于把“计划/待办”改写为“已实现事实”，并给出可回溯锚点（代码/测试/文档）。
 
-**Backend Agent Tasks**:
-- [ ] Create `/api/v1/genes/options` endpoint in `app/routers/genes.py`
-- [ ] Implement `GeneOption` and `GeneOptionsResponse` schemas (already in `app/schemas/gene.py`)
-- [ ] Add Redis caching with 30-minute TTL
-- [ ] Support query parameters: `species_id`, `gene_type`
-- [ ] Auto-remove species suffixes (`_chimp`, `_macaque`, `_marmoset`)
-- [ ] Performance test (target < 500ms)
+### Backend
 
-**Backend Schema Reference**: `<repo-root>/frontend/backend/app/schemas/gene.py` lines 103-119
+- ✅ Endpoint：`GET /api/v1/genes/options`
+  - 实现：`frontend/backend/app/routers/genes.py`（`get_gene_options`）
+  - 参数：`species_id`（1-4）、`gene_type`（`lncRNA`/`protein_coding`）、`q`（typeahead 搜索）、`limit`
+  - 缓存：仅在 **q 为空且未传 limit** 时启用（避免为大量组合生成缓存键）；TTL 约 30 分钟
+  - 兼容：会移除物种后缀（`_chimp/_chimpanzee/_macaque/_marmoset`）
+- ✅ Schema：`frontend/backend/app/schemas/gene.py`（`GeneOption` / `GeneOptionsResponse`）
+- ✅ Regression test：`frontend/backend/tests/test_genes_options_limit_order_unit.py`
+  - 目的：确保 SQLAlchemy 2.x 下 `order_by()` 在 `limit()` 之前调用（避免运行时异常）
 
-### Step 2: Frontend Integration (Day 1-2)
+### Frontend
 
-**One Command Replacement**:
-```bash
-cd <repo-root>/frontend/web
-mv src/api/genes.ts src/api/genes.ts.backup
-mv src/api/genes.ts.NEW src/api/genes.ts
-```
+- ✅ API client：`frontend/web/src/api/genes.ts`
+  - 方法：`genesApi.getOptions(params?, signal?)`
+  - 说明：用于轻量级 gene selector / autocomplete 等场景；不会替代 `/genes` 页面分页 list
 
-**Verification**:
-```bash
-npm run build  # Should succeed with no errors
-npm run dev    # Test existing pages still work
-```
+### CI / Baseline
 
-**API Test** (in browser console):
-```javascript
-const { genesApi } = await import('/src/api/genes.ts')
-const all = await genesApi.getOptions()
-console.log('Total genes:', all.genes.length)  // Expected: 17248
-```
-
-### Step 3: Feature Development (Day 2+)
-
-**Wait for Feature Request**, then apply templates:
-- **Regulations Page**: Add gene autocomplete to AdvancedFilters (Template 3)
-- **Network Page**: Add gene-based filtering (Template 2)
-- **New Feature**: Gene comparison tool, gene set enrichment, etc.
-
-### Step 4: Documentation (Day 3)
-
-**Update Project Memory** (`CLAUDE.md`):
-```markdown
-### Genes Options API (Phase 5.2 - 2025-12-10)
-
-基因选项 API 优化，为基因列表页面提供快速选项加载，复用 Phase 5.1 成功模式。
-
-| 指标 | 数值 |
-|------|------|
-| API 响应时间（首次） | 308 ms |
-| 返回数据 | 17,248 条 |
-| 缓存命中 | Redis 30min |
-
-#### API 端点
-- `/api/v1/genes/options` - 轻量级基因选项（id + name + species）
-```
-
----
-
-## Implementation Checklist
-
-### Pre-Integration Checks
-- [ ] Backend endpoint `/api/v1/genes/options` implemented
-- [ ] Backend returns data in `GeneOptionsResponse` format
-- [ ] Redis cache configured (30min TTL)
-- [ ] Backend performance test passed (< 500ms)
-- [ ] Backend documentation updated
-
-### Frontend Integration
-- [ ] Replace `src/api/genes.ts` with `genes.ts.NEW`
-- [ ] Run `npm run build` (should succeed)
-- [ ] Test API in browser console
-- [ ] Verify existing pages still work:
-  - [ ] `/genes` (table loads)
-  - [ ] `/genes/1` (detail page loads)
-  - [ ] `/regulations` (filters work)
-- [ ] Test new API:
-  - [ ] All genes: `genesApi.getOptions()`
-  - [ ] Human genes: `genesApi.getOptions({ species_id: 1 })`
-  - [ ] lncRNA genes: `genesApi.getOptions({ gene_type: 'lncRNA' })`
-
-### Post-Integration
-- [ ] Monitor performance (backend logs)
-- [ ] Monitor cache hit rate (Redis)
-- [ ] Update `CLAUDE.md` with Phase 5.2 section
-- [ ] Create GitHub commit with Phase 5.2 tag
+- ✅ API Snapshot baseline 中包含 `/api/v1/genes/options`（用于回归锚点）
 
 ---
 
@@ -245,17 +179,16 @@ console.table([
 ## File Locations (Absolute Paths)
 
 ### Documentation
-- **Integration Plan**: `<repo-root>/frontend/web/GENES_API_INTEGRATION_PLAN.md`
-- **Quick Start Guide**: `<repo-root>/frontend/web/GENES_API_QUICK_START.md`
-- **This Summary**: `<repo-root>/frontend/web/GENES_API_DELIVERABLES.md`
+- **Integration Plan**: `<repo-root>/docs/api/GENES_API_INTEGRATION_PLAN.md`
+- **Quick Start Guide**: `<repo-root>/docs/api/GENES_API_QUICK_START.md`
+- **This Summary**: `<repo-root>/docs/api/GENES_API_DELIVERABLES.md`
 
 ### Code Files
-- **New Implementation**: `<repo-root>/frontend/web/src/api/genes.ts.NEW`
-- **Current File (to be replaced)**: `<repo-root>/frontend/web/src/api/genes.ts`
+- **Frontend API client**: `<repo-root>/frontend/web/src/api/genes.ts`
 
 ### Backend Reference
 - **Schema Definition**: `<repo-root>/frontend/backend/app/schemas/gene.py`
-- **Router (to be updated)**: `<repo-root>/frontend/backend/app/routers/genes.py`
+- **Router**: `<repo-root>/frontend/backend/app/routers/genes.py`
 
 ---
 
@@ -289,22 +222,14 @@ console.table([
 ## Quick Commands Reference
 
 ```bash
-# Integration
-cd <repo-root>/frontend/web
-mv src/api/genes.ts.NEW src/api/genes.ts
-npm run build
-
-# Testing
+# Verification (backend + cache)
 curl http://localhost:8000/api/v1/genes/options | jq
 redis-cli KEYS "lncrna:genes:options*"
-
-# Rollback (if needed)
-mv src/api/genes.ts.backup src/api/genes.ts
 ```
 
 ---
 
 **Prepared By**: Frontend Agent
 **Date**: 2025-12-10
-**Status**: ✅ Complete - Ready for Backend Implementation
-**Next**: Backend Agent to implement `/api/v1/genes/options` endpoint
+**Status**: ✅ Implemented - Synced with current code (2026-01)
+**Next**: 持续监控性能与缓存命中率（如需优化再开新 issue）
