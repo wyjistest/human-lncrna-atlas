@@ -215,6 +215,7 @@ export function OverlapFilterPanel({
                 style={{ width: '100%', ...(highlightSet.has('cell_type') ? highlightStyle : {}) }}
               >
                 <Select
+                  aria-label={t('filters.cellType', 'Cell Type')}
                   mode="multiple"
                   virtual={false}
                   style={{ width: '100%' }}
@@ -243,6 +244,7 @@ export function OverlapFilterPanel({
                 style={{ width: '100%', ...(highlightSet.has('chromosome') ? highlightStyle : {}) }}
               >
                 <Select
+                  aria-label={t('filters.chromosome', 'Chromosome')}
                   virtual={false}
                   style={{ width: '100%' }}
                   value={filters.chromosome}
@@ -281,6 +283,7 @@ export function OverlapFilterPanel({
 	                style={{ width: '100%', ...(highlightSet.has('min_binding_affinity') ? highlightStyle : {}) }}
 	              >
 	                <InputNumber
+	                  aria-label={t('filters.minBindingAffinity', 'Min Binding Affinity')}
 	                  style={{ width: '100%' }}
 	                  value={filters.min_binding_affinity}
 	                  onChange={handleBAChange}
@@ -312,6 +315,7 @@ export function OverlapFilterPanel({
 	                style={{ width: '100%', ...(highlightSet.has('min_peak_strength') ? highlightStyle : {}) }}
 	              >
 	                <InputNumber
+	                  aria-label={t('filters.minPeakStrength', 'Min Peak Strength')}
 	                  style={{ width: '100%' }}
 	                  value={filters.min_peak_strength}
 	                  onChange={handlePeakStrengthChange}
@@ -340,6 +344,7 @@ export function OverlapFilterPanel({
 	                style={{ width: '100%', ...(highlightSet.has('max_qvalue') ? highlightStyle : {}) }}
 	              >
 	                <InputNumber
+	                  aria-label={t('filters.maxQValue', 'Max Q-value (FDR)')}
 	                  style={{ width: '100%' }}
 	                  value={filters.max_qvalue}
 	                  onChange={handleQValueChange}
@@ -375,6 +380,7 @@ export function OverlapFilterPanel({
 	                <Space style={{ width: '100%' }} align="center">
 	                  <Slider
 	                    style={{ width: 300 }}
+	                    ariaLabelForHandle={t('filters.minOverlapLength', 'Min Overlap Length')}
 	                    min={0}
 	                    max={10000}
 	                    step={100}
@@ -384,6 +390,7 @@ export function OverlapFilterPanel({
 	                    tooltip={{ formatter: (val) => `${val} bp` }}
 	                  />
 	                  <InputNumber
+	                    aria-label={t('filters.minOverlapLength', 'Min Overlap Length')}
 	                    style={{ width: 100 }}
 	                    value={overlapLengthRange}
 	                    onChange={(v) => v !== null && setOverlapLengthRange(v)}

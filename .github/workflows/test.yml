@@ -23,6 +23,10 @@ on:
         description: "Enable self-hosted E2E Tests job (requires backend services running)."
         required: false
         default: "false"
+      enable_performance_audit:
+        description: "Enable Performance Audit job (Playwright performance suite; requires backend services running)."
+        required: false
+        default: "false"
       enable_firefox_smoke:
         description: "Enable optional Firefox run for E2E smoke (workflow_dispatch only)."
         required: false
@@ -1382,6 +1386,17 @@ jobs:
             npx playwright test "${specs[@]}" --project=firefox --reporter=list
           fi
 
+          # 生产前门禁（轻量）：A11y smoke（axe-core）
+          npx playwright test e2e/a11y-smoke.spec.ts --project=chromium --reporter=list
+
+          # 生产前门禁（轻量）：视觉回归 smoke（screenshots）
+          # 说明：视觉快照对环境更敏感（字体/渲染差异），默认仅在 self-hosted 上跑，避免跨环境误报。
+          if [ "${CI_RUNS_ON}" = "self-hosted" ]; then
+            npx playwright test e2e/visual-regression-smoke.spec.ts --project=chromium --reporter=list
+          else
+            echo "::notice::Skip visual regression smoke on non-self-hosted runner (CI_RUNS_ON=${CI_RUNS_ON})."
+          fi
+
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: always()
@@ -1634,3 +1649,204 @@ jobs:
           name: playwright-screenshots
           path: frontend/web/test-results/
           retention-days: 7
+
+  # Performance audit - requires running backend server (manual trigger only)
+  performance-audit:
+    name: Performance Audit (Playwright)
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_performance_audit == 'true' }}
+    needs: [build]
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+
+      - name: Checkout code
+        id: checkout
+        uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
+
+      - name: Set up Node.js
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Node.js (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: build
+          path: frontend/web/dist
+
+      - name: Normalize dist path for preview
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # Prefer dist in-place (ideal).
+          if [ -d "dist" ] && [ -f "dist/index.html" ]; then
+            exit 0
+          fi
+
+          # Common extraction patterns for actions/download-artifact.
+          if [ -d "../dist" ] && [ -f "../dist/index.html" ]; then
+            mv ../dist dist
+            exit 0
+          fi
+
+          if [ -d "../build" ] && [ -f "../build/index.html" ]; then
+            mkdir -p dist
+            cp -R ../build/* dist/
+            exit 0
+          fi
+
+          if [ -d "build" ] && [ -f "build/index.html" ]; then
+            mkdir -p dist
+            cp -R build/* dist/
+            exit 0
+          fi
+
+          echo "::error::Unable to locate Vite build output after downloading artifact"
+          exit 1
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          if [ "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install chromium --with-deps
+          fi
+
+      - name: Run performance audit (requires backend)
+        working-directory: frontend/web
+        env:
+          PREVIEW_HOST: 127.0.0.1
+          CI: true
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          export NO_PROXY="127.0.0.1,localhost,::1"
+          export no_proxy="${NO_PROXY}"
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          # Backend health check (manual job: user must provide running backend)
+          if ! curl -fsS --connect-timeout 2 --max-time 5 "${API_BASE_URL}/health" >/dev/null 2>&1; then
+            echo "::error::Backend is not reachable: ${API_BASE_URL}/health"
+            echo "::error::This job requires a running backend on the runner machine."
+            exit 1
+          fi
+
+          PREVIEW_PORT="$(
+            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
+          )"
+          export PREVIEW_PORT
+
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS --max-time 5 "${BASE_URL}/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          npm run test:performance
+          node scripts/compare-performance-metrics.js \
+            --baseline performance-baseline-metrics.json \
+            --current test-results/performance-latest-metrics.json \
+            --out test-results/performance-compare.txt
+
+      - name: Upload performance artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-audit
+          path: |
+            frontend/web/test-results/
+            frontend/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

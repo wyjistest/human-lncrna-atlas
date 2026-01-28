@@ -533,11 +533,18 @@ run_frontend_build() {
     fi
 }
 
-# 运行 E2E Smoke（完全 mocked，对齐 CI；不依赖后端/DB）
-run_frontend_e2e_smoke_tests() {
+# 运行 Playwright tests（本地 preview + mocked；不依赖后端/DB）
+run_frontend_playwright_preview_tests() {
     local project="${1:-chromium}"
+    shift || true
+    local specs=("$@")
 
-    echo -e "${YELLOW}运行前端 E2E smoke（完全 mocked，对齐 CI；browser=${project}）...${NC}"
+    if [ "${#specs[@]}" -eq 0 ]; then
+        echo -e "${RED}内部错误：未提供 Playwright spec 列表${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}运行前端 Playwright tests（preview + mocked；browser=${project}）...${NC}"
     ensure_frontend_deps || return 1
     require_cmd curl || return 1
 
@@ -552,7 +559,7 @@ run_frontend_e2e_smoke_tests() {
     local default_port=5173
     local port="$default_port"
 
-    # e2e-smoke 通过本地 preview server + Playwright 进行验证。
+    # 通过本地 preview server + Playwright 进行验证。
     # 为了保持与 CI 一致，默认使用 5173；但允许通过 BASE_URL 提供自定义端口（仅限 localhost/127.0.0.1）。
     if [ -n "${BASE_URL:-}" ]; then
         if [[ "${BASE_URL}" =~ ^http://(localhost|127\.0\.0\.1)(:([0-9]+))?(/.*)?$ ]]; then
@@ -560,7 +567,7 @@ run_frontend_e2e_smoke_tests() {
                 port="${BASH_REMATCH[3]}"
             fi
         else
-            echo -e "${YELLOW}e2e-smoke 仅支持本地 preview server。忽略 BASE_URL=${BASE_URL}${NC}"
+            echo -e "${YELLOW}仅支持本地 preview server。忽略 BASE_URL=${BASE_URL}${NC}"
             echo -e "${YELLOW}如需自定义端口，请设为 http://127.0.0.1:<port> 或 http://localhost:<port>${NC}"
         fi
     fi
@@ -587,8 +594,31 @@ run_frontend_e2e_smoke_tests() {
         timeout=$((timeout - 2))
     done
 
+    local extra_args=()
+    if [ "${PLAYWRIGHT_UPDATE_SNAPSHOTS:-}" = "1" ] || [ "${PLAYWRIGHT_UPDATE_SNAPSHOTS:-}" = "true" ]; then
+        extra_args+=(--update-snapshots)
+        echo -e "${YELLOW}已启用 --update-snapshots（将更新 Playwright 快照基线）${NC}"
+    fi
+
     local failed=0
-    if BASE_URL="$base_url" CI=true npx playwright test \
+    if BASE_URL="$base_url" CI=true npx playwright test "${specs[@]}" --project="$project" --reporter=list "${extra_args[@]}"; then
+        echo -e "${GREEN}Playwright tests 通过!${NC}"
+    else
+        failed=1
+        echo -e "${RED}Playwright tests 失败${NC}"
+        echo -e "${YELLOW}若提示缺少浏览器，可运行：cd ${FRONTEND_DIR} && npx playwright install ${project}${NC}"
+    fi
+
+    kill "$preview_pid" > /dev/null 2>&1 || true
+    wait "$preview_pid" > /dev/null 2>&1 || true
+
+    return $failed
+}
+
+# 运行 E2E Smoke（完全 mocked，对齐 CI；不依赖后端/DB）
+run_frontend_e2e_smoke_tests() {
+    local project="${1:-chromium}"
+    run_frontend_playwright_preview_tests "$project" \
         e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts \
         e2e/genes-smoke.spec.ts \
         e2e/regulations-smoke.spec.ts \
@@ -601,19 +631,90 @@ run_frontend_e2e_smoke_tests() {
         e2e/visualization-hub-smoke.spec.ts \
         e2e/admin-monitoring-smoke.spec.ts \
         e2e/admin-cache-smoke.spec.ts \
-        e2e/admin-materialized-views-smoke.spec.ts \
-        --project="$project" \
-        --reporter=list; then
-        echo -e "${GREEN}E2E smoke 通过!${NC}"
+        e2e/admin-materialized-views-smoke.spec.ts
+}
+
+# A11y Smoke（axe-core；完全 mocked，不依赖后端/DB）
+run_frontend_e2e_a11y_smoke_tests() {
+    local project="${1:-chromium}"
+    run_frontend_playwright_preview_tests "$project" e2e/a11y-smoke.spec.ts
+}
+
+# Visual regression Smoke（Playwright screenshots；完全 mocked，不依赖后端/DB）
+run_frontend_e2e_visual_smoke_tests() {
+    local project="${1:-chromium}"
+    run_frontend_playwright_preview_tests "$project" e2e/visual-regression-smoke.spec.ts
+}
+
+# Performance audit（需要可用后端；仅建议手动/CI workflow_dispatch 运行）
+run_frontend_performance_audit() {
+    echo -e "${YELLOW}运行前端 Performance audit（Playwright performance suite）...${NC}"
+    ensure_frontend_deps || return 1
+    require_cmd curl || return 1
+
+    cd "$FRONTEND_DIR"
+
+    # 确保 dist 存在（performance suite 默认依赖 baseURL 指向可访问的前端入口）
+    if [ ! -d "dist" ] || [ ! -f "dist/index.html" ]; then
+        echo -e "${YELLOW}未找到 dist/，先执行 npm run build...${NC}"
+        npm run build || return 1
+    fi
+
+    local default_port=5173
+    local port="$default_port"
+
+    # 与 e2e-smoke 保持一致：仅支持本地 preview server，且默认 strictPort 5173。
+    if [ -n "${BASE_URL:-}" ]; then
+        if [[ "${BASE_URL}" =~ ^http://(localhost|127\.0\.0\.1)(:([0-9]+))?(/.*)?$ ]]; then
+            if [ -n "${BASH_REMATCH[3]:-}" ]; then
+                port="${BASH_REMATCH[3]}"
+            fi
+        else
+            echo -e "${YELLOW}performance-audit 仅支持本地 preview server。忽略 BASE_URL=${BASE_URL}${NC}"
+            echo -e "${YELLOW}如需自定义端口，请设为 http://127.0.0.1:<port> 或 http://localhost:<port>${NC}"
+        fi
+    fi
+
+    local base_url="http://127.0.0.1:${port}"
+
+    if curl -fsS "${base_url}/" > /dev/null 2>&1; then
+        echo -e "${RED}端口 ${port} 已被占用（${base_url} 可访问），请先停止占用该端口的服务。${NC}"
+        return 1
+    fi
+
+    npm run preview -- --host 127.0.0.1 --port "${port}" --strictPort &
+    local preview_pid=$!
+
+    local timeout=60
+    while ! curl -fsS "${base_url}/" > /dev/null 2>&1; do
+        if [ $timeout -le 0 ]; then
+            echo -e "${RED}前端 preview server 未在预期时间内就绪${NC}"
+            kill "$preview_pid" > /dev/null 2>&1 || true
+            return 1
+        fi
+        sleep 2
+        timeout=$((timeout - 2))
+    done
+
+    local api_base_url="${API_BASE_URL:-http://127.0.0.1:8000}"
+    if ! curl -fsS "${api_base_url}/health" > /dev/null 2>&1; then
+        echo -e "${RED}后端健康检查失败：${api_base_url}/health 不可访问${NC}"
+        echo -e "${YELLOW}提示：performance-audit 需要可用后端（可通过 API_BASE_URL 覆盖）。${NC}"
+        kill "$preview_pid" > /dev/null 2>&1 || true
+        wait "$preview_pid" > /dev/null 2>&1 || true
+        return 1
+    fi
+
+    local failed=0
+    if BASE_URL="$base_url" API_BASE_URL="$api_base_url" CI=true npm run test:performance:check; then
+        echo -e "${GREEN}Performance audit 通过!${NC}"
     else
         failed=1
-        echo -e "${RED}E2E smoke 失败${NC}"
-        echo -e "${YELLOW}若提示缺少浏览器，可运行：cd ${FRONTEND_DIR} && npx playwright install ${project}${NC}"
+        echo -e "${RED}Performance audit 失败${NC}"
     fi
 
     kill "$preview_pid" > /dev/null 2>&1 || true
     wait "$preview_pid" > /dev/null 2>&1 || true
-
     return $failed
 }
 
@@ -679,6 +780,15 @@ main() {
             ;;
         e2e-smoke-firefox)
             run_frontend_e2e_smoke_tests firefox || failed=1
+            ;;
+        e2e-a11y-smoke)
+            run_frontend_e2e_a11y_smoke_tests || failed=1
+            ;;
+        e2e-visual-smoke)
+            run_frontend_e2e_visual_smoke_tests || failed=1
+            ;;
+        performance-audit)
+            run_frontend_performance_audit || failed=1
             ;;
         smoke)
             # 默认: 运行所有无外部依赖的单元测试
@@ -776,7 +886,7 @@ main() {
             run_docs_checks || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|ci|backend|e2e|status|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
@@ -790,6 +900,9 @@ main() {
             echo "  frontend-build - 运行前端构建 (Vite build)"
             echo "  e2e-smoke     - 运行 Playwright E2E smoke（完全 mocked，对齐 CI，无需后端/DB）"
             echo "  e2e-smoke-firefox - 运行 Playwright E2E smoke（Firefox，可选 cross-browser）"
+            echo "  e2e-a11y-smoke - 运行 Playwright A11y smoke（axe-core；完全 mocked）"
+            echo "  e2e-visual-smoke - 运行 Playwright 视觉回归 smoke（screenshots；完全 mocked）"
+            echo "  performance-audit - 运行 Playwright performance suite（需要可用后端；建议手动）"
             echo "  ci           - 对齐 GitHub Actions 的核心检查集合"
             echo "  ci-plus      - ci + e2e-smoke（更接近原 GH Tests，仍无需后端/DB）"
             echo "  ci-full      - ci-plus + security-audit（最严格门禁）"

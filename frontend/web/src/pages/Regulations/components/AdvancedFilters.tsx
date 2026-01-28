@@ -132,6 +132,7 @@ export function AdvancedFilters({ filters, onFilterChange, onReset }: AdvancedFi
                 <Col xs={24} sm={12} md={8}>
                   <Form.Item label={t('filters.species')} style={{ marginBottom: 12 }}>
                     <Select
+                      aria-label={t('filters.species')}
                       mode="multiple"
                       placeholder={i18n.language?.startsWith('en') ? 'Select species' : '选择物种（可多选）'}
                       value={filters.species_ids}
@@ -147,6 +148,7 @@ export function AdvancedFilters({ filters, onFilterChange, onReset }: AdvancedFi
                 <Col xs={24} sm={12} md={8}>
                   <Form.Item label={t('filters.chromosome')} style={{ marginBottom: 12 }}>
                     <Select
+                      aria-label={t('filters.chromosome')}
                       mode="multiple"
                       placeholder={i18n.language?.startsWith('en') ? 'Select chromosomes' : '选择染色体（可多选）'}
                       value={filters.chromosomes}
@@ -167,6 +169,7 @@ export function AdvancedFilters({ filters, onFilterChange, onReset }: AdvancedFi
                   >
                     <Space.Compact style={{ width: '100%' }}>
                       <InputNumber
+                        aria-label={i18n.language?.startsWith('en') ? 'Min BA' : '最小BA'}
                         placeholder={baRangeLoading ? '...' : `最小: ${baRange?.min_ba?.toFixed(0) || BA_CONFIG.MIN}`}
                         min={baRange?.min_ba ?? BA_CONFIG.MIN}
                         max={baRange?.max_ba ?? BA_CONFIG.MAX}
@@ -176,6 +179,7 @@ export function AdvancedFilters({ filters, onFilterChange, onReset }: AdvancedFi
                         style={{ width: '50%' }}
                       />
                       <InputNumber
+                        aria-label={i18n.language?.startsWith('en') ? 'Max BA' : '最大BA'}
                         placeholder={baRangeLoading ? '...' : `最大: ${baRange?.max_ba?.toFixed(0) || BA_CONFIG.MAX}`}
                         min={baRange?.min_ba ?? BA_CONFIG.MIN}
                         max={baRange?.max_ba ?? BA_CONFIG.MAX}
@@ -192,6 +196,7 @@ export function AdvancedFilters({ filters, onFilterChange, onReset }: AdvancedFi
                 <Col xs={24} sm={12} md={8}>
                   <Form.Item label={t('filters.lncrnaName')} style={{ marginBottom: 12 }}>
                     <Input
+                      aria-label={t('filters.lncrnaName')}
                       placeholder={i18n.language?.startsWith('en') ? 'e.g. CATG' : '模糊搜索，如: CATG'}
                       prefix={<SearchOutlined style={{ color: '#999' }} />}
                       value={lncrnaInput}
@@ -206,6 +211,7 @@ export function AdvancedFilters({ filters, onFilterChange, onReset }: AdvancedFi
                 <Col xs={24} sm={12} md={8}>
                   <Form.Item label={t('filters.targetName')} style={{ marginBottom: 12 }}>
                     <Input
+                      aria-label={t('filters.targetName')}
                       placeholder={i18n.language?.startsWith('en') ? 'e.g. BRCA' : '模糊搜索，如: BRCA'}
                       prefix={<SearchOutlined style={{ color: '#999' }} />}
                       value={targetInput}

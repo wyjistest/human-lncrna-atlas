@@ -248,6 +248,7 @@ export function MarkSelector({
   return (
     <Select
       data-testid="mark-selector"
+      aria-label={placeholder || defaultPlaceholder}
       mode={multiple ? 'multiple' : undefined}
       value={value}
       onChange={handleChange}
@@ -303,6 +304,7 @@ export function CompactMarkSelector({
 
   return (
     <Select
+      aria-label="Mark"
       value={value}
       onChange={onChange}
       options={options}

@@ -107,6 +107,7 @@ export const LoadingState = ({
         {showProgress && estimatedTime && (
           <div style={{ width: 200 }}>
             <Progress
+              aria-label={t('loading.progress', 'Loading progress')}
               percent={progressPercent}
               size="small"
               status="active"

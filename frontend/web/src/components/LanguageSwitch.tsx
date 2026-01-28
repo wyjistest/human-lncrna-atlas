@@ -21,7 +21,9 @@ export function LanguageSwitch() {
 
   return (
     <Select
+      aria-label={currentLang === 'zh-CN' ? '语言' : 'Language'}
       data-testid="language-switcher"
+      className="language-switcher"
       value={currentLang}
       onChange={handleChange}
       options={SUPPORTED_LANGUAGES.map(lang => ({

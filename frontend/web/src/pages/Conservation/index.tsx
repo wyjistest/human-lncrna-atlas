@@ -470,6 +470,7 @@ export default function Conservation() {
               <Slider
                 min={2}
                 max={4}
+                ariaLabelForHandle={t('filters.minConservation', 'Min. Conservation')}
                 value={minConservation}
                 onChange={(value) => {
                   setMinConservation(value)
@@ -487,6 +488,7 @@ export default function Conservation() {
               <Slider
                 min={0}
                 max={100}
+                ariaLabelForHandle={t('filters.minBA', 'Min. Binding Affinity')}
                 value={minBA}
                 onChange={(value) => {
                   setMinBA(value)

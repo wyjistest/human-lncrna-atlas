@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Key } from 'react'
+import { cloneElement, isValidElement, useCallback, useEffect, useMemo, useState } from 'react'
+import type { Key, ReactElement } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { DownloadOutlined } from '@ant-design/icons'
@@ -303,6 +303,19 @@ export default function Genes() {
       setSelectedRowKeys(keys)
       setSelectedRows(rows)
     },
+    getTitleCheckboxProps: () => ({
+      'aria-label': tCommon('table.selectAll', { defaultValue: 'Select all rows' }),
+    }),
+    renderCell: (_checked, record, _index, originNode) => {
+      const ariaLabel = tCommon('table.selectRow', {
+        defaultValue: `Select row ${record.gene_name || record.core_id || record.gene_id}`,
+      })
+
+      if (isValidElement(originNode)) {
+        return cloneElement(originNode as ReactElement<Record<string, unknown>>, { 'aria-label': ariaLabel })
+      }
+      return originNode
+    },
   }
 
   return (
@@ -327,6 +340,7 @@ export default function Genes() {
             children: (
               <Space wrap style={{ marginBottom: 16 }}>
                 <Input.Search
+                  aria-label={t('search.placeholder')}
                   placeholder={t('search.placeholder')}
                   value={searchInput}
                   onChange={(e) => {
@@ -342,6 +356,7 @@ export default function Genes() {
                   allowClear
                 />
                 <Select
+                  aria-label={t('search.geneType')}
                   placeholder={t('search.geneType')}
                   style={{ width: 160 }}
                   value={geneType}
@@ -356,6 +371,7 @@ export default function Genes() {
                   ]}
                 />
                 <Select
+                  aria-label={t('filters.species')}
                   placeholder={t('filters.species')}
                   style={{ width: 160 }}
                   value={speciesId}
@@ -367,6 +383,7 @@ export default function Genes() {
                   options={speciesOptions}
                 />
                 <Input
+                  aria-label={t('filters.chromosome')}
                   placeholder={t('filters.chromosome')}
                   style={{ width: 140 }}
                   value={chromosome}
@@ -377,6 +394,7 @@ export default function Genes() {
                   allowClear
                 />
                 <Select
+                  aria-label={t('filters.hasRegulation')}
                   placeholder={t('filters.hasRegulation')}
                   style={{ width: 200 }}
                   value={hasRegulation}
@@ -391,6 +409,7 @@ export default function Genes() {
                   ]}
                 />
                 <InputNumber
+                  aria-label={t('filters.minRegulationCount')}
                   placeholder={t('filters.minRegulationCount')}
                   style={{ width: 200 }}
                   min={0}
@@ -413,6 +432,7 @@ export default function Genes() {
               <Space orientation="vertical" style={{ width: '100%', marginBottom: 16 }}>
                 <Space wrap>
                   <Select
+                    aria-label={t('filters.species')}
                     placeholder={t('filters.species')}
                     style={{ width: 160 }}
                     value={speciesId}
@@ -421,6 +441,7 @@ export default function Genes() {
                     options={speciesOptions}
                   />
                   <Select
+                    aria-label={t('search.geneType')}
                     placeholder={t('search.geneType')}
                     style={{ width: 160 }}
                     value={geneType}
@@ -434,6 +455,7 @@ export default function Genes() {
                 </Space>
 
                 <Input.TextArea
+                  aria-label={t('batch.placeholder')}
                   value={batchInput}
                   onChange={(e) => setBatchInput(e.target.value)}
                   placeholder={t('batch.placeholder')}

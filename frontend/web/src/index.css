@@ -18,3 +18,26 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Header 语言切换（暗色 Header 背景下保证对比度与可读性） */
+.language-switcher .ant-select-selector,
+.language-switcher .ant-select-selection-item,
+.language-switcher .ant-select-selection-placeholder,
+.language-switcher .ant-select-content-value {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.language-switcher .ant-select-arrow,
+.language-switcher .ant-select-clear {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+/* 侧边栏菜单选中态对比度（axe: color-contrast） */
+.ant-menu-light .ant-menu-item-selected,
+.ant-menu-light .ant-menu-item-selected > .ant-menu-title-content {
+  color: #0958d9 !important;
+}
+
+.ant-menu-light .ant-menu-item-selected .anticon {
+  color: #0958d9 !important;
+}

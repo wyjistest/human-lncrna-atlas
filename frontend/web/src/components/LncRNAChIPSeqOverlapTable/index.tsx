@@ -1187,6 +1187,7 @@ export function LncRNAChIPSeqOverlapTable({
                   {t('action.showIGV', 'Show IGV Browser')}:
                 </span>
                 <Switch
+                  aria-label={t('action.showIGV', 'Show IGV Browser')}
                   checked={showIGV}
                   onChange={setShowIGV}
                   size="small"
@@ -1221,6 +1222,7 @@ export function LncRNAChIPSeqOverlapTable({
                   <SyncOutlined spin={autoSyncTrack && trackLoading} />
                   <span style={{ fontSize: 12 }}>{t('igv.autoSync', 'Auto Sync')}:</span>
                   <Switch
+                    aria-label={t('igv.autoSync', 'Auto Sync')}
                     checked={autoSyncTrack}
                     onChange={setAutoSyncTrack}
                     size="small"
@@ -1238,6 +1240,7 @@ export function LncRNAChIPSeqOverlapTable({
                   {t('action.showStats', 'Show Statistics')}:
                 </span>
                 <Switch
+                  aria-label={t('action.showStats', 'Show Statistics')}
                   checked={showStats}
                   onChange={setShowStats}
                   size="small"
@@ -1269,6 +1272,7 @@ export function LncRNAChIPSeqOverlapTable({
                   {t('action.showVisualization', 'Show Visualization')}:
                 </span>
                 <Switch
+                  aria-label={t('action.showVisualization', 'Show Visualization')}
                   checked={showVisualization}
                   onChange={setShowVisualization}
                   size="small"
@@ -1504,6 +1508,7 @@ export function LncRNAChIPSeqOverlapTable({
             >
               <Switch
                 data-testid="overlap-pagination-mode"
+                aria-label={t('table.paginationMode', 'Pagination mode')}
                 size="small"
                 checked={isCursorPagination}
                 onChange={(checked) => {

@@ -255,6 +255,7 @@ export default function HighAffinityTab() {
         <Space wrap style={{ marginBottom: 16 }}>
           <span>Minimum BA:</span>
           <InputNumber
+            aria-label="Minimum BA"
             min={50}
             max={300}
             value={minBa}
@@ -267,6 +268,7 @@ export default function HighAffinityTab() {
           />
           <span>Species:</span>
           <Select
+            aria-label="Species"
             style={{ width: 150 }}
             value={speciesId}
             onChange={(value) => {

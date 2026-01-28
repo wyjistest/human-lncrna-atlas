@@ -48,7 +48,18 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <ConfigProvider locale={antdLocale}>
+      <ConfigProvider
+        locale={antdLocale}
+        theme={{
+          token: {
+            // AntD 默认 primary（#1677ff）在白底 14px 文本下对比度略低（axe: color-contrast）。
+            // 选择更深的蓝色以满足 WCAG AA（≥4.5:1）。
+            colorPrimary: '#0958d9',
+            // breadcrumb / secondary 描述文本默认较浅（约 #8c8c8c），对比度不足；提升可读性。
+            colorTextDescription: '#595959',
+          },
+        }}
+      >
         <Routes>
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Home />} />

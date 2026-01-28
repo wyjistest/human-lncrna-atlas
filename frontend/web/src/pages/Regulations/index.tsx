@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { cloneElement, isValidElement, useState, useMemo, useCallback, useEffect } from 'react'
+import type { ReactElement } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Table, Button, Dropdown, Space, message, Modal, Progress } from 'antd'
 import { DownloadOutlined, ExperimentOutlined } from '@ant-design/icons'
@@ -201,6 +202,19 @@ export default function Regulations() {
       setSelectedRowKeys(keys)
       setSelectedRows(rows)
     },
+    getTitleCheckboxProps: () => ({
+      'aria-label': t('selection.selectAll', { defaultValue: 'Select all rows' }),
+    }),
+    renderCell: (_checked, record, _index, originNode) => {
+      const ariaLabel = t('selection.selectRow', {
+        defaultValue: `Select row ${record.lncrna_gene_name || '-'} → ${record.target_gene_name || '-'}`,
+      })
+
+      if (isValidElement(originNode)) {
+        return cloneElement(originNode as ReactElement<Record<string, unknown>>, { 'aria-label': ariaLabel })
+      }
+      return originNode
+    },
     preserveSelectedRowKeys: true,
     columnWidth: 48,
     selections: [
@@ -305,6 +319,7 @@ export default function Regulations() {
       {/* 导出进度条 */}
       {exporting && (
         <Progress
+          aria-label={t('export.exporting', { percent: exportProgress })}
           percent={exportProgress}
           status="active"
           style={{ marginBottom: 16 }}

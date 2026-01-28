@@ -175,6 +175,55 @@ Notes:
   - `e2e/admin-cache-smoke.spec.ts`
   - `e2e/admin-materialized-views-smoke.spec.ts`
 
+### Production Gates (A11y / Visual Regression / Performance Audit)
+
+这些门禁的设计目标是：在不依赖后端/DB 的前提下，尽早发现“明显的无障碍/视觉回归”；并保留一条手动触发的性能审计入口（需要可用后端）。
+
+#### A11y smoke (axe-core, mocked)
+
+```bash
+# From repo root
+./scripts/run-tests.sh e2e-a11y-smoke
+```
+
+说明：
+- 仅阻断 `serious/critical` 级别的 axe violations（保守策略，降低误报/flake）。
+- 默认禁用 `color-contrast` 规则（placeholder/disabled/主题变量等在自动化中噪声较高）；对比度建议留给人工审查或专项任务。
+
+#### Visual regression smoke (screenshots, mocked)
+
+```bash
+# From repo root
+./scripts/run-tests.sh e2e-visual-smoke
+```
+
+更新快照基线（需要提交生成的 png）：
+
+```bash
+# From repo root
+PLAYWRIGHT_UPDATE_SNAPSHOTS=1 ./scripts/run-tests.sh e2e-visual-smoke
+```
+
+#### Performance audit (Playwright performance suite, requires backend)
+
+```bash
+# From repo root
+API_BASE_URL=http://127.0.0.1:8000 ./scripts/run-tests.sh performance-audit
+```
+
+说明：
+- 该命令会先启动 `vite preview`，再跑 `frontend/web/e2e/performance/*`；
+- 需要 `API_BASE_URL/health` 可访问，否则会 fail-fast 提示你先启动后端。
+
+#### CI triggers
+
+- `Tests` workflow（`main` push）：
+  - 默认跑 `e2e-smoke` + `a11y-smoke`（chromium）
+  - `visual-regression-smoke` 默认仅在 `CI_RUNS_ON=self-hosted` 时运行（避免跨环境渲染差异导致误报）
+- `Tests` workflow（`workflow_dispatch`）：
+  - `enable_firefox_smoke=true`：在 `e2e-smoke` 基础上额外跑 Firefox
+  - `enable_performance_audit=true`：启用 Performance Audit job（需要 self-hosted 上有可用后端）
+
 ### Run All Tests
 
 ```bash
