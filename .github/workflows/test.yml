@@ -51,7 +51,11 @@ jobs:
   # Secret scanning - runs first to fail fast on credential leaks
   secret-scan:
     name: Secret Scanning
-    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    # 说明：self-hosted runner 上 git fetch 偶发 gnutls_handshake 失败；
+    # 为保证“安全门禁”稳定，Secret Scanning 固定跑在 GitHub-hosted runner。
+    runs-on: ubuntu-latest
+    env:
+      CI_RUNS_ON: ubuntu-latest
     steps:
       - name: Configure git transport (self-hosted)
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -95,7 +99,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -135,7 +192,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -219,7 +329,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -260,7 +423,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -324,7 +540,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -542,7 +811,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -644,7 +966,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -966,7 +1341,60 @@ jobs:
           git config --global http.sslVersion tlsv1.2
 
       - name: Checkout code
+        id: checkout
         uses: actions/checkout@v6
+        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
