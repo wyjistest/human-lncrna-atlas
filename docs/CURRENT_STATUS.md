@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-27
+> 最后更新: 2026-01-28
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,16 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-28 ⭐ CI 止损增强（self-hosted checkout + Firefox smoke）
+
+1. **self-hosted：checkout 失败兜底可继续跑完门禁**
+   - self-hosted 环境下 `actions/checkout` 偶发 `gnutls_handshake()` 中断时：`Tests` workflow 会通过 GitHub API tarball 恢复源码
+   - tarball 场景会缺少 `.git`，而部分门禁（docs drift check 等）依赖 `git ls-files`；现已在 fallback 场景自动初始化 git snapshot，确保后续脚本可运行
+
+2. **E2E smoke：可选 Firefox 复核（默认仍仅 chromium）**
+   - `Tests` 默认只跑 `--project=chromium`，避免 CI 变慢与重复跑
+   - `workflow_dispatch` 可通过 `enable_firefox_smoke=true` 额外跑一轮 Firefox smoke（用于 cross-browser 止损复核）
 
 ### 2026-01-27 ⭐ 前端首屏预加载护栏 + Research 最小产出
 
