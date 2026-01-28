@@ -184,33 +184,9 @@ jobs:
             -o "$release_json"
 
           if command -v python3 >/dev/null 2>&1; then
-            asset_id="$(
-              python3 - "$release_json" "$asset_name" <<'PY'
-import json, sys
-path, name = sys.argv[1], sys.argv[2]
-with open(path, encoding="utf-8") as f:
-    data = json.load(f)
-for asset in data.get("assets", []):
-    if asset.get("name") == name:
-        print(asset.get("id"))
-        raise SystemExit(0)
-raise SystemExit(1)
-PY
-            )"
+            asset_id="$(python3 -c 'import json,sys; data=json.load(open(sys.argv[1], encoding="utf-8")); name=sys.argv[2]; ids=[a.get("id") for a in data.get("assets", []) if a.get("name")==name]; print(ids[0]) if ids else sys.exit(1)' "$release_json" "$asset_name")"
           elif command -v python >/dev/null 2>&1; then
-            asset_id="$(
-              python - "$release_json" "$asset_name" <<'PY'
-import json, sys
-path, name = sys.argv[1], sys.argv[2]
-with open(path) as f:
-    data = json.load(f)
-for asset in data.get("assets", []):
-    if asset.get("name") == name:
-        print(asset.get("id"))
-        raise SystemExit(0)
-raise SystemExit(1)
-PY
-            )"
+            asset_id="$(python -c 'import json,sys; data=json.load(open(sys.argv[1])); name=sys.argv[2]; ids=[a.get("id") for a in data.get("assets", []) if a.get("name")==name]; print(ids[0]) if ids else sys.exit(1)' "$release_json" "$asset_name")"
           elif command -v node >/dev/null 2>&1; then
             asset_id="$(node -e 'const fs=require("fs");const p=process.argv[1];const n=process.argv[2];const d=JSON.parse(fs.readFileSync(p,"utf8"));const a=(d.assets||[]).find(x=>x.name===n);if(!a){process.exit(1);}process.stdout.write(String(a.id));' "$release_json" "$asset_name")"
           else
