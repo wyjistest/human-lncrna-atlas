@@ -400,6 +400,7 @@ export function ChIPSeqPeaksTable({
               icon={<DownloadOutlined />}
               onClick={handleExport}
               disabled={peaksData.total === 0}
+              data-testid="export-button"
             >
               {t('detail.chipseq.exportBED', 'Export BED')}
             </Button>
@@ -616,6 +617,7 @@ export function ChIPSeqPeaksTable({
                   icon={<DownloadOutlined />}
                   onClick={handleExport}
                   disabled={allPeaks.length === 0}
+                  data-testid="export-button"
                 >
                   {t('detail.chipseq.exportCSV', 'Export CSV')}
                 </Button>
@@ -639,7 +641,12 @@ export function ChIPSeqPeaksTable({
   }
 
   return (
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+    <Space
+      orientation="vertical"
+      size="large"
+      style={{ width: '100%' }}
+      data-testid="chipseq-container"
+    >
       {/* Header with mark selector */}
       <Card size="small">
         <Row gutter={[16, 16]} align="middle">
@@ -690,6 +697,7 @@ export function ChIPSeqPeaksTable({
                   type={compareMode ? 'primary' : 'default'}
                   icon={<ExperimentOutlined />}
                   onClick={handleToggleCompareMode}
+                  data-testid={compareMode ? 'exit-compare-button' : 'compare-marks-button'}
                 >
                   {compareMode
                     ? t('detail.chipseq.exitCompare', 'Exit Comparison')

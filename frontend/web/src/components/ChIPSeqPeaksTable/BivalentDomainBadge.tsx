@@ -141,6 +141,7 @@ export function BivalentDomainBadge({
     return (
       <Tooltip title={tooltipContent} placement="bottom">
         <Badge
+          data-testid="bivalent-domain-badge"
           count={
             <Space size={4} style={{ cursor: 'help' }}>
               <ExperimentOutlined style={{ color: '#722ed1', fontSize: 14 }} />
@@ -166,6 +167,7 @@ export function BivalentDomainBadge({
   // Alert display mode
   return (
     <Alert
+      data-testid="bivalent-domain-badge"
       type="info"
       icon={<ExperimentOutlined />}
       showIcon

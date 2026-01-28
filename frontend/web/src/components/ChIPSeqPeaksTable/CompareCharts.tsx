@@ -124,6 +124,7 @@ function PeakCountChart({
 
   return (
     <ReactECharts
+      data-testid="radar-compare-chart"
       echarts={echarts}
       option={option}
       style={{ height: 350 }}

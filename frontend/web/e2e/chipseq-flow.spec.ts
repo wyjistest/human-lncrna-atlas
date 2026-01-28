@@ -71,7 +71,9 @@ test.describe('ChIP-seq Data Browsing', () => {
 
     if (response) {
       // Verify table or data content is displayed
-      const dataContent = page.locator('.ant-table, [data-testid="peaks-table"], .ant-card')
+      const dataContent = page.getByTestId('peaks-table')
+        .or(page.locator('.ant-table'))
+        .or(page.locator('.ant-card'))
       await expect(dataContent.first()).toBeVisible({ timeout: 15000 })
     }
   })
@@ -86,7 +88,7 @@ test.describe('ChIP-seq Data Browsing', () => {
       await page.waitForTimeout(1000)
 
       // Look for mark selector (dropdown or segmented control)
-      const markSelector = page.locator('[data-testid="mark-selector"]')
+      const markSelector = page.getByTestId('mark-selector')
         .or(page.locator('.ant-select').filter({ hasText: /H3K|Mark/i }))
         .or(page.locator('.ant-segmented'))
 
@@ -110,7 +112,8 @@ test.describe('ChIP-seq Data Browsing', () => {
     await page.waitForTimeout(1000)
 
     // Find mark selector
-    const markSelector = page.locator('.ant-select').filter({ hasText: /H3K|Mark/i })
+    const markSelector = page.getByTestId('mark-selector')
+      .or(page.locator('.ant-select').filter({ hasText: /H3K|Mark/i }))
       .or(page.locator('.ant-segmented'))
       .or(page.getByText(/H3K27me3|H3K4me3/))
 
@@ -148,7 +151,7 @@ test.describe('Cell Line Filter Panel', () => {
 
   test('should show cell type filter dropdown', async ({ page }) => {
     // Look for cell type filter
-    const cellTypeFilter = page.locator('[data-testid="cell-type-filter"]')
+    const cellTypeFilter = page.getByTestId('cell-type-filter')
       .or(page.getByPlaceholder(/cell type/i))
       .or(page.locator('.ant-select').filter({ hasText: /Cell/i }))
 
@@ -160,7 +163,7 @@ test.describe('Cell Line Filter Panel', () => {
 
   test('should filter by K562 cell type', async ({ page }) => {
     // Find cell type dropdown
-    const cellTypeSelect = page.locator('[data-testid="cell-type-filter"]')
+    const cellTypeSelect = page.getByTestId('cell-type-filter')
       .or(page.locator('.ant-select').filter({ hasText: /Cell|K562|GM12878/i }))
 
     const selectCount = await cellTypeSelect.count()
@@ -185,7 +188,8 @@ test.describe('Cell Line Filter Panel', () => {
   })
 
   test('should filter by GM12878 cell type', async ({ page }) => {
-    const cellTypeSelect = page.locator('.ant-select').filter({ hasText: /Cell|K562|GM12878/i })
+    const cellTypeSelect = page.getByTestId('cell-type-filter')
+      .or(page.locator('.ant-select').filter({ hasText: /Cell|K562|GM12878/i }))
 
     if ((await cellTypeSelect.count()) === 0) {
       test.skip()
@@ -204,7 +208,8 @@ test.describe('Cell Line Filter Panel', () => {
   })
 
   test('should filter by HepG2 cell type (new)', async ({ page }) => {
-    const cellTypeSelect = page.locator('.ant-select').filter({ hasText: /Cell/i })
+    const cellTypeSelect = page.getByTestId('cell-type-filter')
+      .or(page.locator('.ant-select').filter({ hasText: /Cell/i }))
 
     if ((await cellTypeSelect.count()) === 0) {
       test.skip()
@@ -290,7 +295,8 @@ test.describe('ChIP-seq Statistics Cards', () => {
 
   test('should display statistics cards', async ({ page }) => {
     // Look for stats cards (typically in a Row/Col layout or ant-statistic)
-    const statsCards = page.locator('.ant-statistic, .ant-card-statistic, [data-testid="stats-card"]')
+    const statsCards = page.getByTestId('stats-cards-container')
+      .or(page.locator('.ant-statistic, .ant-card-statistic, [data-testid="stats-card"]'))
       .or(page.locator('.ant-card').filter({ hasText: /Peak|Signal|Fold|Total/i }))
 
     const cardsCount = await statsCards.count()
@@ -324,8 +330,8 @@ test.describe('ChIP-seq Peaks Table', () => {
   })
 
   test('should display peaks data table', async ({ page }) => {
-    const peaksTable = page.locator('.ant-table')
-      .or(page.locator('[data-testid="peaks-table"]'))
+    const peaksTable = page.getByTestId('peaks-table')
+      .or(page.locator('.ant-table'))
 
     if ((await peaksTable.count()) > 0) {
       await expect(peaksTable.first()).toBeVisible({ timeout: 15000 })
@@ -378,7 +384,7 @@ test.describe('ChIP-seq Filter Panel', () => {
 
   test('should display filter panel', async ({ page }) => {
     // Look for filter panel (might be in collapse or visible)
-    const filterPanel = page.locator('[data-testid="filter-panel"]')
+    const filterPanel = page.getByTestId('filter-panel')
       .or(page.locator('.ant-collapse').filter({ hasText: /Filter/i }))
       .or(page.locator('.ant-form').filter({ hasText: /Fold|Signal|Q-value/i }))
 
@@ -424,7 +430,8 @@ test.describe('ChIP-seq Compare Mode', () => {
 
   test('should have compare mode toggle', async ({ page }) => {
     // Look for compare button or toggle
-    const compareButton = page.getByRole('button', { name: /Compare|对比/i })
+    const compareButton = page.getByTestId('compare-marks-button')
+      .or(page.getByRole('button', { name: /Compare|对比/i }))
       .or(page.locator('[data-testid="compare-toggle"]'))
       .or(page.locator('.ant-switch').filter({ hasText: /Compare/i }))
 
@@ -435,7 +442,8 @@ test.describe('ChIP-seq Compare Mode', () => {
 
   test('should enable multi-mark selection in compare mode', async ({ page }) => {
     // Find and click compare button
-    const compareButton = page.getByRole('button', { name: /Compare|对比/i })
+    const compareButton = page.getByTestId('compare-marks-button')
+      .or(page.getByRole('button', { name: /Compare|对比/i }))
       .or(page.locator('button').filter({ hasText: /Compare/i }))
 
     if ((await compareButton.count()) > 0) {

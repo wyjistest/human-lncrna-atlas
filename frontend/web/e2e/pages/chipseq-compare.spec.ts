@@ -89,9 +89,9 @@ test.describe('ChIP-seq Compare Page - Basic Rendering', () => {
       await page.waitForTimeout(1000)
 
       // Verify ChIP-seq content is displayed
-      const chipseqContent = page.locator('.ant-table')
+      const chipseqContent = page.getByTestId('chipseq-container')
+        .or(page.locator('.ant-table'))
         .or(page.locator('.ant-card'))
-        .or(page.locator('[data-testid="chipseq-container"]'))
 
       await expect(chipseqContent.first()).toBeVisible({ timeout: 10000 })
     }
@@ -118,7 +118,7 @@ test.describe('ChIP-seq Mark Selector', () => {
   })
 
   test('should display mark selector', async ({ page }) => {
-    const markSelector = page.locator('[data-testid="mark-selector"]')
+    const markSelector = page.getByTestId('mark-selector')
       .or(page.locator('.ant-select').first())
       .or(page.locator('.ant-segmented'))
 
@@ -199,9 +199,9 @@ test.describe('ChIP-seq Compare Mode', () => {
   })
 
   test('should display compare marks button', async ({ page }) => {
-    const compareButton = page.getByRole('button', { name: /Compare|对比/i })
+    const compareButton = page.getByTestId('compare-marks-button')
+      .or(page.getByRole('button', { name: /Compare|对比/i }))
       .or(page.locator('button').filter({ hasText: /Compare|对比/i }))
-      .or(page.locator('[data-testid="compare-marks-button"]'))
 
     const buttonCount = await compareButton.count()
     if (buttonCount > 0) {
@@ -212,7 +212,8 @@ test.describe('ChIP-seq Compare Mode', () => {
   })
 
   test('should enter compare mode when clicking compare button', async ({ page }) => {
-    const compareButton = page.getByRole('button', { name: /Compare|对比/i })
+    const compareButton = page.getByTestId('compare-marks-button')
+      .or(page.getByRole('button', { name: /Compare|对比/i }))
 
     if ((await compareButton.count()) === 0) {
       test.skip()
@@ -227,9 +228,9 @@ test.describe('ChIP-seq Compare Mode', () => {
     // 2. Multi-select for marks
     // 3. View mode tabs (Merged, Parallel, Statistics)
 
-    const exitButton = page.getByRole('button', { name: /Exit|退出/i })
+    const exitButton = page.getByTestId('exit-compare-button')
+      .or(page.getByRole('button', { name: /Exit|退出/i }))
       .or(page.locator('button').filter({ hasText: /Exit|退出/i }))
-      .or(page.locator('[data-testid="exit-compare-button"]'))
 
     if ((await exitButton.count()) > 0) {
       await expect(exitButton.first()).toBeVisible()
@@ -237,7 +238,8 @@ test.describe('ChIP-seq Compare Mode', () => {
   })
 
   test('should display view mode tabs in compare mode', async ({ page }) => {
-    const compareButton = page.getByRole('button', { name: /Compare|对比/i })
+    const compareButton = page.getByTestId('compare-marks-button')
+      .or(page.getByRole('button', { name: /Compare|对比/i }))
 
     if ((await compareButton.count()) === 0) {
       test.skip()
@@ -319,7 +321,8 @@ test.describe('ChIP-seq Compare Charts', () => {
   })
 
   test('should display statistics cards', async ({ page }) => {
-    const statsCards = page.locator('.ant-statistic')
+    const statsCards = page.getByTestId('stats-cards-container')
+      .or(page.locator('.ant-statistic'))
       .or(page.locator('.ant-card').filter({ hasText: /Peak|Signal|Fold|峰值/i }))
       .or(page.locator('[data-testid="stats-card"]'))
 
@@ -404,7 +407,7 @@ test.describe('ChIP-seq Compare Charts', () => {
           await page.waitForTimeout(1500)
 
           // Look for radar chart (specific data-testid or canvas)
-          const radarChart = page.locator('[data-testid="radar-compare-chart"]')
+          const radarChart = page.getByTestId('radar-compare-chart')
             .or(page.locator('.ant-card').filter({ hasText: /Radar|雷达/i }).locator('canvas'))
 
           const chartCount = await radarChart.count()
@@ -464,7 +467,7 @@ test.describe('ChIP-seq Heatmap Matrix', () => {
           await page.waitForTimeout(1500)
 
           // Look for heatmap canvas
-          const heatmap = page.locator('[data-testid="cell-line-matrix-chart"]')
+          const heatmap = page.getByTestId('cell-line-matrix-chart')
             .or(page.locator('[data-testid="heatmap-matrix"]'))
             .or(page.locator('canvas'))
 
@@ -503,7 +506,7 @@ test.describe('ChIP-seq Heatmap Matrix', () => {
           await page.waitForTimeout(1000)
 
           // Look for metric selector
-          const metricSelector = page.locator('[data-testid="metric-selector"]')
+          const metricSelector = page.getByTestId('metric-selector')
             .or(page.locator('.ant-select').filter({ hasText: /Metric|Fold|Peak|Signal/i }))
             .or(page.locator('.ant-radio-group'))
 
@@ -535,7 +538,7 @@ test.describe('ChIP-seq Filter Panel', () => {
   })
 
   test('should display filter controls', async ({ page }) => {
-    const filterPanel = page.locator('[data-testid="filter-panel"]')
+    const filterPanel = page.getByTestId('filter-panel')
       .or(page.locator('.ant-collapse').filter({ hasText: /Filter|过滤/i }))
       .or(page.locator('.ant-form'))
 
@@ -564,7 +567,7 @@ test.describe('ChIP-seq Filter Panel', () => {
   })
 
   test('should filter by cell type', async ({ page }) => {
-    const cellTypeFilter = page.locator('[data-testid="cell-type-filter"]')
+    const cellTypeFilter = page.getByTestId('cell-type-filter')
       .or(page.locator('.ant-select').filter({ hasText: /Cell|K562|GM12878/i }))
 
     const filterCount = await cellTypeFilter.count()
@@ -626,8 +629,8 @@ test.describe('ChIP-seq Peaks Table', () => {
   })
 
   test('should display peaks data table', async ({ page }) => {
-    const table = page.locator('.ant-table:visible')
-      .or(page.locator('[data-testid="peaks-table"]:visible'))
+    const table = page.getByTestId('peaks-table')
+      .or(page.locator('.ant-table:visible'))
 
     const tableCount = await table.count()
     if (tableCount > 0) {
@@ -708,8 +711,8 @@ test.describe('ChIP-seq Export Functionality', () => {
   })
 
   test('should display export button', async ({ page }) => {
-    const exportButton = page.locator('button:visible').filter({ hasText: /Export|Download|BED/i })
-      .or(page.locator('[data-testid="export-button"]:visible'))
+    const exportButton = page.getByTestId('export-button')
+      .or(page.locator('button:visible').filter({ hasText: /Export|Download|BED/i }))
 
     const buttonCount = await exportButton.count()
     if (buttonCount > 0) {
@@ -785,7 +788,7 @@ test.describe('ChIP-seq Bivalent Domain Badge', () => {
         await page.waitForTimeout(1500)
 
         // Look for bivalent domain badge
-        const bivalentBadge = page.locator('[data-testid="bivalent-domain-badge"]')
+        const bivalentBadge = page.getByTestId('bivalent-domain-badge')
           .or(page.getByText(/Bivalent|双价/i))
           .or(page.locator('.ant-alert').filter({ hasText: /Bivalent|双价/i }))
 

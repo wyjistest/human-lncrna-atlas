@@ -37,7 +37,7 @@ import {
 import { LegacyGridContainLabel } from 'echarts/features'
 
 // 渲染器
-import { CanvasRenderer } from 'echarts/renderers'
+import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
 
 // 类型定义
 import type {
@@ -105,6 +105,7 @@ echarts.use([
   RadarComponent,
   LegacyGridContainLabel,
   CanvasRenderer,
+  SVGRenderer,
 ])
 
 export default echarts

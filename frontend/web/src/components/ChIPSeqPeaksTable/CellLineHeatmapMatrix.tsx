@@ -19,11 +19,12 @@ import { useMemo, useRef, useEffect } from 'react'
 import { escapeHtml } from '@/utils/escapeHtml'
 import ReactECharts from 'echarts-for-react'
 import type { EChartsInstance } from 'echarts-for-react'
-import { Card, Row, Col, Statistic, Space, Tag, Segmented, Empty, Typography } from 'antd'
+import { Card, Row, Col, Statistic, Space, Tag, Segmented, Empty, Typography, Button } from 'antd'
+import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import echarts from '@/utils/echarts'
 import type { ECOption } from '@/utils/echarts'
-import { getChartToolbox } from '@/utils/chart-export'
+import { exportChartToSVG, getChartToolbox } from '@/utils/chart-export'
 import { getMinMax } from '@/utils/minMax'
 import { getCellTypeColor, getCellTypeLabel, CELL_TYPE_CONFIGS } from '@/config/cellTypeConfigs'
 import { getMarkConfig, MARK_CONFIGS } from '@/config/markConfigs'
@@ -119,6 +120,11 @@ export function CellLineHeatmapMatrix({
   const { t, i18n } = useTranslation('genes')
   const isZh = i18n.language === 'zh-CN'
   const chartRef = useRef<ReactECharts>(null)
+
+  const handleExportSVG = () => {
+    const chartInstance = chartRef.current?.getEchartsInstance()
+    exportChartToSVG(chartInstance, `heatmap-matrix-${data.gene_name}`)
+  }
 
   // Metric options for segmented control
   const metricOptions = useMemo(
@@ -382,12 +388,23 @@ export function CellLineHeatmapMatrix({
             </Space>
           </Col>
           <Col xs={24} md={14}>
-            <Segmented
-              options={metricOptions}
-              value={metric}
-              onChange={(value) => onMetricChange?.(value as HeatmapMetricType)}
-              block
-            />
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Segmented
+                options={metricOptions}
+                value={metric}
+                onChange={(value) => onMetricChange?.(value as HeatmapMetricType)}
+                block
+                data-testid="metric-selector"
+              />
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleExportSVG}
+                data-testid="export-button"
+                size="small"
+              >
+                {t('export.saveSvg', 'Export SVG')}
+              </Button>
+            </Space>
           </Col>
         </Row>
       </Card>
@@ -463,6 +480,7 @@ export function CellLineHeatmapMatrix({
           style={{ height: chartHeight }}
           notMerge
           lazyUpdate
+          data-testid="cell-line-matrix-chart"
         />
       </Card>
 

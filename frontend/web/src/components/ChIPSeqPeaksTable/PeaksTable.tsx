@@ -321,6 +321,7 @@ export function PeaksTable({
 
   return (
     <Table
+      data-testid="peaks-table"
       columns={columns}
       dataSource={items}
       rowKey="peak_id"

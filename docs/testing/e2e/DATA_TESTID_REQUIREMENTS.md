@@ -198,21 +198,21 @@ Here's how to add `data-testid` to an existing component:
 ## Priority List
 
 ### High Priority (Required for basic test coverage):
-- [ ] `chipseq-container`
-- [ ] `mark-selector`
-- [ ] `compare-marks-button`
-- [ ] `exit-compare-button`
-- [ ] `peaks-table`
-- [ ] `filter-panel`
-- [ ] `export-button`
+- [x] `chipseq-container`
+- [x] `mark-selector`
+- [x] `compare-marks-button`
+- [x] `exit-compare-button`
+- [x] `peaks-table`
+- [x] `filter-panel`
+- [x] `export-button`
 
 ### Medium Priority (For comprehensive coverage):
-- [ ] `stats-cards-container`
-- [ ] `radar-compare-chart`
-- [ ] `cell-line-matrix-chart`
-- [ ] `bivalent-domain-badge`
-- [ ] `metric-selector`
-- [ ] `cell-type-filter`
+- [x] `stats-cards-container`
+- [x] `radar-compare-chart`
+- [x] `cell-line-matrix-chart`
+- [x] `bivalent-domain-badge`
+- [x] `metric-selector`
+- [x] `cell-type-filter`
 
 ### Low Priority (Nice to have):
 - [ ] Individual stat cards

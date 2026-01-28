@@ -247,6 +247,7 @@ export function MarkSelector({
 
   return (
     <Select
+      data-testid="mark-selector"
       mode={multiple ? 'multiple' : undefined}
       value={value}
       onChange={handleChange}

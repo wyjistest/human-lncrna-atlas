@@ -89,8 +89,8 @@ async function navigateToChIPSeqTab(page: Page): Promise<boolean> {
  * Open mark selector dropdown and get available options
  */
 async function getAvailableMarks(page: Page): Promise<string[]> {
-  const markSelector = page.locator('.ant-select').filter({ hasText: /H3K|Mark/i }).first()
-    .or(page.locator('[data-testid="mark-selector"]'))
+  const markSelector = page.getByTestId('mark-selector')
+    .or(page.locator('.ant-select').filter({ hasText: /H3K|Mark/i }).first())
 
   if ((await markSelector.count()) === 0) {
     return []
@@ -450,8 +450,8 @@ test.describe('Heatmap Matrix with Extended Marks', () => {
     }
 
     // Select multiple marks
-    const markSelector = page.locator('.ant-select').filter({ hasText: /H3K|Mark/i }).first()
-      .or(page.locator('[data-testid="mark-selector"]'))
+    const markSelector = page.getByTestId('mark-selector')
+      .or(page.locator('.ant-select').filter({ hasText: /H3K|Mark/i }).first())
 
     if ((await markSelector.count()) === 0) {
       test.skip()

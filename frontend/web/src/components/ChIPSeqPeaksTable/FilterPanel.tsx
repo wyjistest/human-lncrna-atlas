@@ -189,6 +189,7 @@ export function FilterPanel({
 
   return (
     <Card
+      data-testid="filter-panel"
       title={
         <Space>
           <FilterOutlined />
@@ -301,6 +302,7 @@ export function FilterPanel({
                 {t('detail.chipseq.cellType', 'Cell Type')}:
               </span>
               <Select
+                data-testid="cell-type-filter"
                 style={{ width: '100%' }}
                 placeholder={t('detail.chipseq.allCellTypes', 'All Cell Types')}
                 allowClear

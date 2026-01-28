@@ -4,6 +4,8 @@
  */
 
 import type { EChartsInstance } from 'echarts-for-react'
+import echarts from './echarts'
+import type { ECOption } from './echarts'
 
 export interface ChartExportOptions {
   pixelRatio?: number
@@ -41,6 +43,65 @@ export function exportChartToPNG(
   } catch (error) {
     console.error('[ChartExport] Failed to export chart:', error)
     return false
+  }
+}
+
+/**
+ * 导出图表为 SVG（使用离屏 SVG renderer 渲染）
+ */
+export function exportChartToSVG(
+  chartInstance: EChartsInstance | null | undefined,
+  filename: string,
+  options: ChartExportOptions = {}
+): boolean {
+  if (!chartInstance) {
+    console.warn('[ChartExport] No chart instance provided')
+    return false
+  }
+
+  const { backgroundColor = '#fff' } = options
+
+  const width = typeof chartInstance.getWidth === 'function' ? chartInstance.getWidth() : 800
+  const height = typeof chartInstance.getHeight === 'function' ? chartInstance.getHeight() : 600
+
+  const container = document.createElement('div')
+  container.style.position = 'fixed'
+  container.style.left = '-9999px'
+  container.style.top = '-9999px'
+  container.style.width = `${width}px`
+  container.style.height = `${height}px`
+  document.body.appendChild(container)
+
+  let svgChart: ReturnType<typeof echarts.init> | null = null
+
+  try {
+    svgChart = echarts.init(container, undefined, { renderer: 'svg', width, height })
+    const option = (chartInstance.getOption?.() ?? {}) as ECOption
+    svgChart.setOption(option, { notMerge: true, lazyUpdate: false })
+
+    const url = svgChart.getDataURL({
+      type: 'svg',
+      backgroundColor,
+    })
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${filename}-${Date.now()}.svg`
+    link.click()
+
+    return true
+  } catch (error) {
+    console.error('[ChartExport] Failed to export chart:', error)
+    return false
+  } finally {
+    try {
+      svgChart?.dispose()
+    } catch {
+      // ignore cleanup errors
+    }
+    if (container.parentNode) {
+      container.parentNode.removeChild(container)
+    }
   }
 }
 

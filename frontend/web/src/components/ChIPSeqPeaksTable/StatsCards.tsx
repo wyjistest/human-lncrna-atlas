@@ -85,7 +85,7 @@ export function StatsCards({ markType, summary, loading = false }: StatsCardsPro
   }
 
   return (
-    <Row gutter={[16, 16]}>
+    <Row gutter={[16, 16]} data-testid="stats-cards-container">
       {/* Total Peaks */}
       <Col xs={24} sm={12} md={6}>
         <Card size="small" hoverable loading={loading}>
