@@ -293,6 +293,7 @@ curl "...&include_details=false"
 ## 🎯 未来改进方向
 
 > 说明（更新：2026-01-24）：以下为未来改进方向清单（历史记录/愿景），不代表当前待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+> 可追踪任务：https://github.com/wyjistest/human-lncrna-atlas/issues/74
 
 - [ ] 添加层次聚类（基于 Jaccard 相似性对细胞系排序）
 - [ ] 批量基因矩阵（多个基因 × 细胞系 × marks 的三维可视化）

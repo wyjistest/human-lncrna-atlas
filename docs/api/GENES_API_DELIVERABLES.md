@@ -5,6 +5,7 @@
 **Phase**: 5.2 (Genes Options API Optimization)
 
 > 更新（2026-01-24）：本文档为交付总结/集成方案快照（面向“后端实现”），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+> 可追踪清单（用于逐项对齐实现与回填文档）：https://github.com/wyjistest/human-lncrna-atlas/issues/76
 
 ---
 

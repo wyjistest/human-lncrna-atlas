@@ -1,6 +1,7 @@
 # Phase 3.1: Manual Testing Checklist
 
 > 更新（2026-01-24）：本文档为手工测试执行清单模板（可复制后逐项勾选），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+> 可追踪清单（用于实际勾选与记录结果）：https://github.com/wyjistest/human-lncrna-atlas/issues/72
 
 **Purpose**: Quick reference for manual validation of HepG2 × H3K9me3 import
 

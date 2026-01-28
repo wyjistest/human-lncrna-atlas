@@ -3,6 +3,7 @@
 This directory contains testing strategies, scripts, and checklists for the Human lncRNA Atlas project.
 
 > 更新（2026-01-25）：本目录包含测试策略/手工 checklist/历史测试报告；文中 `[ ]` 代表“验证步骤”，不代表开发待办；现状以 `docs/CURRENT_STATUS.md` 与 `scripts/run-tests.sh` 为准。
+> 部分常用清单已迁移为可追踪的 GitHub Issues（用于实际勾选与记录结果）：https://github.com/wyjistest/human-lncrna-atlas/issues/71
 
 ## Phase 3.1: HepG2 × H3K9me3 Import Testing
 

@@ -1,6 +1,7 @@
 # Phase 1 E2E Testing - Acceptance Checklist
 
 > 更新（2026-01-24）：本文档为历史验收清单快照（用于回溯验收结果），不代表当前开发待办；现状以 `docs/CURRENT_STATUS.md` 为准。
+> 后续增强项追踪：https://github.com/wyjistest/human-lncrna-atlas/issues/78
 
 ## lncRNA-ChIP-seq Overlap Analysis Page
 
