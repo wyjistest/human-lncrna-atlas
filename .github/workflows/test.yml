@@ -885,6 +885,7 @@ jobs:
             e2e/analysis-smoke.spec.ts \
             e2e/conservation-smoke.spec.ts \
             e2e/chipseq-compare-smoke.spec.ts \
+            e2e/chipseq-compare-journey-smoke.spec.ts \
             e2e/visualization-hub-smoke.spec.ts \
             e2e/admin-monitoring-smoke.spec.ts \
             e2e/admin-cache-smoke.spec.ts \

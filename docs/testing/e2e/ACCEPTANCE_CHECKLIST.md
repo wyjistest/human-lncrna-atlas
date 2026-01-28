@@ -262,7 +262,7 @@
 - [ ] Add data export tests (when feature is ready)
 - [ ] Visual regression testing
 - [ ] Load testing with large datasets
-- [ ] End-to-end user journey tests
+- [x] End-to-end user journey tests
 
 ---
 
