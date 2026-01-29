@@ -103,6 +103,20 @@ gh run list --branch main --limit 5
 
 若看到 `Tests` / `Security Audit` 能正常启动并执行 job，说明 self-hosted 止损方案已生效。
 
+3. （可选）确认 job 确实跑在 self-hosted runner 上：
+
+```bash
+# 取最新一次 Tests 的 run_id（或直接从 run URL 里复制 ID）
+gh run list --branch main --workflow Tests --limit 1
+
+# 查看该 run 的 jobs 实际跑在谁身上（runner_name + labels）
+# 说明：需要把 <OWNER>/<REPO> 与 <RUN_ID> 替换成真实值
+gh api "/repos/<OWNER>/<REPO>/actions/runs/<RUN_ID>/jobs" \
+  --jq '.jobs[] | {name,conclusion,runner_name,labels}'
+```
+
+当输出里 `labels` 包含 `self-hosted` 且 `runner_name` 有值时，说明该 job 正在 self-hosted runner 上执行。
+
 ### 6) 常见排障：Actions 下载失败（SSL / Proxy）
 
 如果 self-hosted runner 偶发出现类似报错：
