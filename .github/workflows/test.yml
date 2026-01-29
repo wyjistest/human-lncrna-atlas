@@ -227,9 +227,207 @@ jobs:
             --report-path=results.sarif \
             --log-level=debug
 
+  # self-hosted runner 的 CI 默认只有 1 个 runner 并行度，拆分成多个 job 会导致重复 checkout / install，
+  # 总耗时接近线性叠加。这里提供一个“快路径”：在 self-hosted 上把核心门禁合并到单个 job 内串行执行。
+  self-hosted-fast-ci:
+    name: Self-hosted Fast CI
+    runs-on: self-hosted
+    if: ${{ env.CI_RUNS_ON == 'self-hosted' && github.event_name == 'push' }}
+    needs: [secret-scan]
+    env:
+      CI_RUNS_ON: self-hosted
+    steps:
+      - name: Configure git transport (self-hosted)
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout code
+        id: checkout
+        uses: actions/checkout@v6
+        continue-on-error: true
+
+      - name: Recover workspace when checkout fails (self-hosted)
+        if: ${{ steps.checkout.outcome == 'failure' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
+
+          # 1) If the workspace already contains the expected commit, proceed without fetching.
+          if [ -d ".git" ]; then
+            current_sha="$(git rev-parse HEAD 2>/dev/null || true)"
+            echo "Current HEAD: ${current_sha:-<unknown>}"
+            echo "Expected SHA: ${EXPECTED_SHA}"
+            if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
+              echo "Workspace already at expected SHA, continue."
+              exit 0
+            fi
+          fi
+
+          # 2) Fallback: download repo tarball via GitHub API (avoids git+gnutls flakiness).
+          echo "Falling back to tarball download for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          # Replace workspace contents with extracted source.
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Recovered workspace from tarball."
+
+      - name: Prepare git snapshot (self-hosted fallback)
+        if: ${{ steps.checkout.outcome == 'failure' }}
+        run: |
+          set -euo pipefail
+
+          # tarball 兜底会移除 .git；部分 CI 校验（docs drift check 等）依赖 `git ls-files`。
+          # 这里创建一个“git 快照”（无需 push），确保后续脚本在 fallback 场景也可运行。
+          if [ ! -d ".git" ]; then
+            git init
+            git config user.email "ci@example.invalid"
+            git config user.name "CI"
+            git add -A
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run core checks (self-hosted fast path)
+        env:
+          # Ensure CI build points to the intended backend (overrides committed frontend/web/.env).
+          VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
+        run: |
+          bash scripts/run-tests.sh ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
+          browsers="chromium"
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            browsers="chromium firefox"
+          fi
+
+          npx playwright install ${browsers}
+
+      - name: Run E2E smoke tests
+        working-directory: frontend/web
+        env:
+          PREVIEW_HOST: 127.0.0.1
+          CI: true
+        run: |
+          set -euo pipefail
+
+          # 兼容 runner 的代理环境：避免 curl 对本地地址走代理导致探活误判。
+          export NO_PROXY="127.0.0.1,localhost,::1"
+          export no_proxy="${NO_PROXY}"
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          # self-hosted runner 可能同时被用作开发机，固定端口可能被占用。
+          # 这里优先尝试 5173，若占用则回退到下一个可用端口。
+          PREVIEW_PORT="$(
+            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
+          )"
+          export PREVIEW_PORT
+
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS --max-time 5 "${BASE_URL}/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          specs=(
+            e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts
+            e2e/genes-smoke.spec.ts
+            e2e/regulations-smoke.spec.ts
+            e2e/stats-smoke.spec.ts
+            e2e/diseases-smoke.spec.ts
+            e2e/analysis-smoke.spec.ts
+            e2e/conservation-smoke.spec.ts
+            e2e/chipseq-compare-smoke.spec.ts
+            e2e/chipseq-compare-journey-smoke.spec.ts
+            e2e/visualization-hub-smoke.spec.ts
+            e2e/admin-monitoring-smoke.spec.ts
+            e2e/admin-cache-smoke.spec.ts
+            e2e/admin-materialized-views-smoke.spec.ts
+          )
+
+          # 默认保持 chromium-only（与历史 CI 行为一致）
+          npx playwright test "${specs[@]}" --project=chromium --reporter=list
+
+          # 可选：workflow_dispatch 时追加跑 Firefox（更早发现跨浏览器回归）
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            npx playwright test "${specs[@]}" --project=firefox --reporter=list
+          fi
+
+          # 生产前门禁（轻量）：A11y smoke（axe-core）
+          npx playwright test e2e/a11y-smoke.spec.ts --project=chromium --reporter=list
+
+          # 生产前门禁（轻量）：视觉回归 smoke（screenshots）
+          # 说明：视觉快照对环境更敏感（字体/渲染差异），默认仅在 self-hosted 上跑，避免跨环境误报。
+          if [ "${CI_RUNS_ON}" = "self-hosted" ]; then
+            npx playwright test e2e/visual-regression-smoke.spec.ts --project=chromium --reporter=list
+          else
+            echo "::notice::Skip visual regression smoke on non-self-hosted runner (CI_RUNS_ON=${CI_RUNS_ON})."
+          fi
+
   frontend-unit-tests:
     name: Frontend Unit Tests
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -326,6 +524,7 @@ jobs:
   backend-checks:
     name: Backend Checks
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -480,6 +679,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -577,6 +777,7 @@ jobs:
   backend-unit-tests:
     name: Backend Unit Tests
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -1133,6 +1334,7 @@ jobs:
   build:
     name: Build
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
     needs: [secret-scan, frontend-unit-tests, backend-checks, backend-unit-tests, lint]
     steps:
       - name: Configure git transport (self-hosted)
@@ -1273,6 +1475,7 @@ jobs:
   e2e-smoke:
     name: E2E Smoke (Playwright)
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
     needs: [build]
     steps:
       - name: Configure git transport (self-hosted)

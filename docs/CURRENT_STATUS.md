@@ -50,6 +50,12 @@
    - 修复脚本可执行位后，文档中的 `./scripts/run-tests.sh (ci|docs-check|e2e-smoke|...)` 不再需要额外 `bash` 前缀
    - `ci` 子命令纳入 `scripts/tests/*` 脚本级单测，更贴近 GitHub Actions 的实际门禁
 
+### 2026-01-29 ⭐ CI 提速（self-hosted Fast Path）
+
+1. **self-hosted（main push）：合并核心门禁到单个 job**
+   - `Tests` workflow 在 self-hosted + `push(main)` 场景下新增 `self-hosted-fast-ci`：把核心检查串到一个 job 内执行，避免单 runner 下重复 checkout / install 导致耗时线性叠加
+   - 原多 job 结构保留：仍用于 `ubuntu-latest` 或 `workflow_dispatch`（方便手动触发/调试与启用可选 job）
+
 ### 2026-01-29 ⭐ CI 稳定性增强（Postgres 动态端口 + UTC 时区）
 
 1. **self-hosted：避免 Postgres 端口冲突导致 service 起不来**

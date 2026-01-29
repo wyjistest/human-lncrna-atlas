@@ -43,6 +43,10 @@ GitHub UI 路径：
 
 补充：self-hosted runner 有持久磁盘缓存，因此 `Tests` workflow 在 self-hosted 上会禁用 `setup-node`/`setup-python` 的远端 cache（避免 artifact cache 下载/上传拖慢），依赖缓存由本机 `~/.npm` 与 pip cache 直接复用。
 
+补充 2：self-hosted 机器通常只有 1 个 runner 并行度；把 CI 拆成多个 job 反而会重复 checkout / install。  
+因此 `Tests` workflow 在 **self-hosted + push(main)** 场景默认启用 `self-hosted-fast-ci`（把核心门禁合并到一个 job 内），以缩短总耗时。  
+如果你需要逐 job 排障/手动启用可选 job，请使用 `workflow_dispatch` 手动触发（此时保留原多 job 结构）。
+
 ### 2.1) 资源建议（1 核 1G VPS 是否够）
 
 结论：**1C1G 通常不够跑完整 `Tests` workflow**（尤其是 `npm ci`、前端 `build`、Playwright 安装/运行），很容易出现 OOM 或长时间排队。
