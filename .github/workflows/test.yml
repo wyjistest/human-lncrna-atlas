@@ -232,7 +232,7 @@ jobs:
   self-hosted-fast-ci:
     name: Self-hosted Fast CI
     runs-on: self-hosted
-    if: ${{ env.CI_RUNS_ON == 'self-hosted' && github.event_name == 'push' }}
+    if: ${{ (vars.CI_RUNS_ON || 'ubuntu-latest') == 'self-hosted' && github.event_name == 'push' }}
     needs: [secret-scan]
     env:
       CI_RUNS_ON: self-hosted
@@ -427,7 +427,7 @@ jobs:
   frontend-unit-tests:
     name: Frontend Unit Tests
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
-    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -524,7 +524,7 @@ jobs:
   backend-checks:
     name: Backend Checks
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
-    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -679,7 +679,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
-    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -777,7 +777,7 @@ jobs:
   backend-unit-tests:
     name: Backend Unit Tests
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
-    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     steps:
       - name: Configure git transport (self-hosted)
@@ -1334,7 +1334,7 @@ jobs:
   build:
     name: Build
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
-    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
     needs: [secret-scan, frontend-unit-tests, backend-checks, backend-unit-tests, lint]
     steps:
       - name: Configure git transport (self-hosted)
@@ -1475,7 +1475,7 @@ jobs:
   e2e-smoke:
     name: E2E Smoke (Playwright)
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
-    if: ${{ env.CI_RUNS_ON != 'self-hosted' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
     needs: [build]
     steps:
       - name: Configure git transport (self-hosted)
