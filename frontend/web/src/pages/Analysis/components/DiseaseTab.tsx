@@ -7,7 +7,7 @@
  * - Node list table
  */
 
-import { useState, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, Row, Col, Statistic, Table, Space, Button, Input, Tag, Empty } from 'antd'
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -20,12 +20,26 @@ import { getChartToolbox } from '@/utils/chart-export'
 import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { DiseaseNetworkNode, DiseaseNetworkEdge } from '@/api/analysis'
+import { useSearchParams } from 'react-router-dom'
 
 export default function DiseaseTab() {
   const { t } = useTranslation('analysis')
 
-  const [traitNameInput, setTraitNameInput] = useState<string>('')
-  const [traitNameFilter, setTraitNameFilter] = useState<string | undefined>(undefined)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const traitNameFilter = searchParams.get('trait_name')?.trim() || undefined
+
+  const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+
+  const [traitNameInput, setTraitNameInput] = useState<string>(() => traitNameFilter ?? '')
+  useEffect(() => {
+    setTraitNameInput(traitNameFilter ?? '')
+  }, [traitNameFilter])
 
   // Fetch summary and data
   const { data: summary } = useAnalysisSummary()
@@ -41,7 +55,10 @@ export default function DiseaseTab() {
       refetch()
       return
     }
-    setTraitNameFilter(nextFilter)
+    updateParams((params) => {
+      if (nextFilter) params.set('trait_name', nextFilter)
+      else params.delete('trait_name')
+    })
   }
 
   // Network preview chart
@@ -222,7 +239,9 @@ export default function DiseaseTab() {
               const value = e.target.value
               setTraitNameInput(value)
               if (!value.trim()) {
-                setTraitNameFilter(undefined)
+                updateParams((params) => {
+                  params.delete('trait_name')
+                })
               }
             }}
             onPressEnter={applyTraitFilter}

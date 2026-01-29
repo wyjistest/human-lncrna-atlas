@@ -17,7 +17,7 @@
 
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 
@@ -198,6 +198,10 @@ describe('Analysis Page', () => {
     vi.mocked(analysisApi.getDiseaseNetwork).mockResolvedValue({ data: mockDiseaseData })
   })
 
+  afterEach(() => {
+    window.history.replaceState({}, '', '/')
+  })
+
   describe('Page Rendering', () => {
     it('renders stable page and tabs anchors', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
@@ -229,6 +233,17 @@ describe('Analysis Page', () => {
       const tabList = screen.getByRole('tablist')
       const highAffinityTab = within(tabList).getByText('High Affinity')
       const tabElement = highAffinityTab.closest('[role="tab"]')
+      expect(tabElement).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('initializes active tab from URL params', async () => {
+      window.history.pushState({}, '', '/analysis?tab=epigenetic')
+
+      render(<Analysis />, { wrapper: createWrapper() })
+
+      const tabList = screen.getByRole('tablist')
+      const epigeneticTab = within(tabList).getByText('Epigenetic')
+      const tabElement = epigeneticTab.closest('[role="tab"]')
       expect(tabElement).toHaveAttribute('aria-selected', 'true')
     })
   })
@@ -366,6 +381,10 @@ describe('Analysis Tab Content Integration', () => {
     vi.mocked(analysisApi.getDiseaseNetwork).mockResolvedValue({ data: mockDiseaseData })
   })
 
+  afterEach(() => {
+    window.history.replaceState({}, '', '/')
+  })
+
   describe('High Affinity Tab', () => {
     it('loads High Affinity data when tab is active', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
@@ -377,6 +396,23 @@ describe('Analysis Tab Content Integration', () => {
         },
         { timeout: 5000 }
       )
+    })
+
+    it('initializes High Affinity filters from URL params', async () => {
+      window.history.pushState({}, '', '/analysis?tab=highAffinity&min_ba=150&species_id=2')
+
+      render(<Analysis />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(analysisApi.getHighAffinity).toHaveBeenCalled()
+      })
+
+      const [params] = vi.mocked(analysisApi.getHighAffinity).mock.calls[0]
+      expect(params).toMatchObject({
+        min_ba: 150,
+        species_id: 2,
+        limit: 1000,
+      })
     })
   })
 

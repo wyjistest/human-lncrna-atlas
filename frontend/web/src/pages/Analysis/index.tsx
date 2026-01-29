@@ -5,11 +5,12 @@
  * with 4 tabs: High Affinity, Conservation, Epigenetic, Disease Networks
  */
 
-import { useState, lazy, Suspense } from 'react'
+import { lazy, Suspense } from 'react'
 import { Tabs, Spin } from 'antd'
 import { ExperimentOutlined, BranchesOutlined, RadarChartOutlined, ApartmentOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import type { TabsProps } from 'antd'
+import { useSearchParams } from 'react-router-dom'
 
 // Lazy load tab components for better performance
 const HighAffinityTab = lazy(() => import('./components/HighAffinityTab'))
@@ -24,9 +25,29 @@ const TabLoadingFallback = () => (
   </div>
 )
 
+type AnalysisTabKey = 'highAffinity' | 'conservation' | 'epigenetic' | 'disease'
+
+const DEFAULT_TAB: AnalysisTabKey = 'highAffinity'
+const ANALYSIS_TABS: AnalysisTabKey[] = ['highAffinity', 'conservation', 'epigenetic', 'disease']
+
+function parseTab(value: string | null): AnalysisTabKey {
+  const v = value as AnalysisTabKey | null
+  return v && ANALYSIS_TABS.includes(v) ? v : DEFAULT_TAB
+}
+
 export default function Analysis() {
   const { t } = useTranslation('analysis')
-  const [activeTab, setActiveTab] = useState('highAffinity')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const activeTab = parseTab(searchParams.get('tab'))
+
+  const updateParams = (apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }
 
   const items: TabsProps['items'] = [
     {
@@ -98,7 +119,14 @@ export default function Analysis() {
         <Tabs
           activeKey={activeTab}
           items={items}
-          onChange={setActiveTab}
+          onChange={(key) => {
+            const nextTab = parseTab(key)
+            updateParams((params) => {
+              if (nextTab === DEFAULT_TAB) params.delete('tab')
+              else params.set('tab', nextTab)
+              params.delete('page')
+            })
+          }}
           destroyOnHidden
           size="large"
         />

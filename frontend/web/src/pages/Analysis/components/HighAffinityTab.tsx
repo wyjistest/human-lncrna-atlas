@@ -8,7 +8,7 @@
  * - Data table with pagination
  */
 
-import { useState, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Card, Row, Col, Statistic, Table, Space, Button, InputNumber, Select } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -22,15 +22,40 @@ import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { HighAffinityRecord } from '@/api/analysis'
 import type { TooltipFormatterParams } from '@/types/echarts'
+import { useSearchParams } from 'react-router-dom'
+
+const DEFAULT_PAGE = 1
+const MAX_PAGE = 1_000_000
+const DEFAULT_MIN_BA = 100
+const MIN_BA = 50
+const MAX_BA = 300
+
+function parseIntParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
 
 export default function HighAffinityTab() {
   const { t } = useTranslation('analysis')
   const { t: tCommon } = useTranslation('common')
 
-  const [minBa, setMinBa] = useState(100)
-  const [speciesId, setSpeciesId] = useState<number | undefined>(undefined)
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const minBa = parseIntParam(searchParams.get('min_ba'), MIN_BA, MAX_BA) ?? DEFAULT_MIN_BA
+  const speciesId = parseIntParam(searchParams.get('species_id'), 1, 4)
+  const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
   const pageSize = 20
+
+  const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
 
   // Fetch summary and data
   const { data: summary } = useAnalysisSummary()
@@ -260,9 +285,12 @@ export default function HighAffinityTab() {
             max={300}
             value={minBa}
             onChange={(val) => {
-              if (!val) return
-              setMinBa(val)
-              setPage(1)
+              if (typeof val !== 'number' || !Number.isFinite(val)) return
+              updateParams((params) => {
+                if (val === DEFAULT_MIN_BA) params.delete('min_ba')
+                else params.set('min_ba', String(val))
+                params.delete('page')
+              })
             }}
             style={{ width: 120 }}
           />
@@ -272,8 +300,11 @@ export default function HighAffinityTab() {
             style={{ width: 150 }}
             value={speciesId}
             onChange={(value) => {
-              setSpeciesId(value)
-              setPage(1)
+              updateParams((params) => {
+                if (typeof value === 'number') params.set('species_id', String(value))
+                else params.delete('species_id')
+                params.delete('page')
+              })
             }}
             allowClear
             placeholder="All species"
@@ -297,7 +328,12 @@ export default function HighAffinityTab() {
             current: page,
             pageSize,
             total: data?.total || 0,
-            onChange: setPage,
+            onChange: (p) => {
+              updateParams((params) => {
+                if (p === DEFAULT_PAGE) params.delete('page')
+                else params.set('page', String(p))
+              })
+            },
             showSizeChanger: false,
             showTotal: (total) => t('common.total', { count: total }),
           }}

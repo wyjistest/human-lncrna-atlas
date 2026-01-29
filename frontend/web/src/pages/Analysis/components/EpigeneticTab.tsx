@@ -7,7 +7,7 @@
  * - Data table with pagination
  */
 
-import { useState, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Card, Row, Col, Statistic, Table, Space, Button, Select, Tag } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +20,7 @@ import { getChartToolbox } from '@/utils/chart-export'
 import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { ChIPSeqOverlapRecord } from '@/api/analysis'
+import { useSearchParams } from 'react-router-dom'
 
 const HISTONE_MARKS = [
   { value: 'H3K4me1', label: 'H3K4me1', color: '#1890ff', type: 'active' },
@@ -31,14 +32,44 @@ const HISTONE_MARKS = [
 ]
 
 const ALL_HISTONE_MARK_VALUES = HISTONE_MARKS.map((mark) => mark.value)
+const ALLOWED_MARK_VALUES = new Set(ALL_HISTONE_MARK_VALUES)
+
+const DEFAULT_PAGE = 1
+const MAX_PAGE = 1_000_000
+
+function parseIntParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
 
 export default function EpigeneticTab() {
   const { t } = useTranslation('analysis')
 
-  const [selectedMarks, setSelectedMarks] = useState<string[]>([])
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
+
+  const selectedMarks = useMemo(() => {
+    const raw = searchParams
+      .getAll('mark_names')
+      .map(v => v.trim())
+      .filter(Boolean)
+      .filter(v => ALLOWED_MARK_VALUES.has(v))
+    return Array.from(new Set(raw))
+  }, [searchParams])
+
   const pageSize = 20
   const effectiveMarks = selectedMarks.length > 0 ? selectedMarks : ALL_HISTONE_MARK_VALUES
+
+  const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
 
   // Fetch summary and data
   const { data: summary } = useAnalysisSummary()
@@ -244,8 +275,13 @@ export default function EpigeneticTab() {
             style={{ minWidth: 250 }}
             value={selectedMarks}
             onChange={(value) => {
-              setSelectedMarks(value)
-              setPage(1)
+              updateParams((params) => {
+                params.delete('mark_names')
+                for (const mark of value) {
+                  if (ALLOWED_MARK_VALUES.has(mark)) params.append('mark_names', mark)
+                }
+                params.delete('page')
+              })
             }}
             placeholder="Select marks"
             maxTagCount={2}
@@ -273,7 +309,12 @@ export default function EpigeneticTab() {
             current: page,
             pageSize,
             total: data?.total || 0,
-            onChange: setPage,
+            onChange: (p) => {
+              updateParams((params) => {
+                if (p === DEFAULT_PAGE) params.delete('page')
+                else params.set('page', String(p))
+              })
+            },
             showSizeChanger: false,
             showTotal: (total) => t('common.total', { count: total }),
           }}

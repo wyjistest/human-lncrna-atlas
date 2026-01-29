@@ -7,7 +7,7 @@
  * - Data table with pagination
  */
 
-import { useState, useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Card, Row, Col, Statistic, Table, Space, Button, Select } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
@@ -20,13 +20,35 @@ import { getChartToolbox } from '@/utils/chart-export'
 import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { ConservationRecord } from '@/api/analysis'
+import { useSearchParams } from 'react-router-dom'
+
+const DEFAULT_PAGE = 1
+const MAX_PAGE = 1_000_000
+
+function parseIntParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
 
 export default function ConservationTab() {
   const { t } = useTranslation('analysis')
 
-  const [minSpeciesCount, setMinSpeciesCount] = useState<number | undefined>(undefined)
-  const [page, setPage] = useState(1)
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const minSpeciesCount = parseIntParam(searchParams.get('min_species_count'), 2, 4)
+  const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
   const pageSize = 20
+
+  const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
 
   // Fetch summary and data
   const { data: summary } = useAnalysisSummary()
@@ -216,8 +238,11 @@ export default function ConservationTab() {
             style={{ width: 150 }}
             value={minSpeciesCount}
             onChange={(value) => {
-              setMinSpeciesCount(value)
-              setPage(1)
+              updateParams((params) => {
+                if (typeof value === 'number') params.set('min_species_count', String(value))
+                else params.delete('min_species_count')
+                params.delete('page')
+              })
             }}
             allowClear
             placeholder="All"
@@ -240,7 +265,12 @@ export default function ConservationTab() {
             current: page,
             pageSize,
             total: data?.total || 0,
-            onChange: setPage,
+            onChange: (p) => {
+              updateParams((params) => {
+                if (p === DEFAULT_PAGE) params.delete('page')
+                else params.set('page', String(p))
+              })
+            },
             showSizeChanger: false,
             showTotal: (total) => t('common.total', { count: total }),
           }}
