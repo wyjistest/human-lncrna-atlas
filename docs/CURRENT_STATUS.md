@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-28
+> 最后更新: 2026-01-29
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,17 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-01-29 ⭐ URL 参数同步扩展（Stats / Conservation / Analysis）
+
+1. **更多页面支持“可分享/可回放”的 URL**
+   - Stats：支持从 URL 初始化详细统计参数（用于复现筛选组合）
+   - Conservation：筛选条件与 URL 同步（便于分享链接/回放）
+   - Analysis：active tab 与各 tab 的筛选条件与 URL 同步（便于分享链接/回放）
+   - 覆盖对应的前端单元测试（Vitest），防止 URL 行为回归
+
+2. **本地 CI 入口更一致：`./scripts/run-tests.sh` 可直接执行**
+   - 修复脚本可执行位后，文档中的 `./scripts/run-tests.sh (ci|docs-check|e2e-smoke|...)` 不再需要额外 `bash` 前缀
 
 ### 2026-01-28 ⭐ CI 止损增强（self-hosted checkout + Firefox smoke）
 
