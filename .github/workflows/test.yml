@@ -66,6 +66,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -238,6 +241,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -331,6 +337,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -482,6 +491,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -576,6 +588,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -695,6 +710,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -968,6 +986,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -1123,6 +1144,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -1260,6 +1284,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -1509,6 +1536,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
@@ -1743,6 +1773,9 @@ jobs:
           git config --global http.version HTTP/1.1
           # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
           git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
 
       - name: Checkout code
         id: checkout
