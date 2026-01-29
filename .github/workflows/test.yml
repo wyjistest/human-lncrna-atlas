@@ -679,7 +679,7 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: lncrna_etl_ci
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd "pg_isready -U postgres -d lncrna_etl_ci"
           --health-interval 10s
@@ -776,7 +776,7 @@ jobs:
       - name: Wait for Postgres
         env:
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
           DB_NAME: lncrna_etl_ci
           DB_USER: postgres
           DB_PASSWORD: postgres
@@ -812,7 +812,7 @@ jobs:
       - name: Init schema (v2.3 core)
         env:
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
           DB_NAME: lncrna_etl_ci
           DB_USER: postgres
           DB_PASSWORD: postgres
@@ -830,7 +830,7 @@ jobs:
       - name: Seed minimal genes for sample inputs
         env:
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
           DB_NAME: lncrna_etl_ci
           DB_USER: postgres
           DB_PASSWORD: postgres
@@ -905,7 +905,7 @@ jobs:
       - name: Run ETL import_regulations (sample)
         env:
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
           DB_NAME: lncrna_etl_ci
           DB_USER: postgres
           DB_PASSWORD: postgres
@@ -925,7 +925,7 @@ jobs:
       - name: Verify sample import (value-level)
         env:
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
           DB_NAME: lncrna_etl_ci
           DB_USER: postgres
           DB_PASSWORD: postgres
@@ -952,7 +952,7 @@ jobs:
           # This avoids flakiness from auth mismatches while keeping the job self-contained.
           POSTGRES_HOST_AUTH_METHOD: trust
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd "pg_isready -U lncrna -d lncrna_api_baseline_ci"
           --health-interval 10s
@@ -1050,7 +1050,7 @@ jobs:
       - name: Init schema + sample data (v2.3)
         env:
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
           DB_NAME: lncrna_api_baseline_ci
           DB_USER: lncrna
           DB_PASSWORD: postgres
@@ -1076,7 +1076,7 @@ jobs:
       - name: Verify API snapshot baseline (sample dataset)
         env:
           DB_HOST: 127.0.0.1
-          DB_PORT: 5432
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
           DB_NAME: lncrna_api_baseline_ci
           DB_USER: lncrna
           DB_PASSWORD: postgres

@@ -49,6 +49,14 @@
 2. **本地 CI 入口更一致：`./scripts/run-tests.sh` 可直接执行**
    - 修复脚本可执行位后，文档中的 `./scripts/run-tests.sh (ci|docs-check|e2e-smoke|...)` 不再需要额外 `bash` 前缀
 
+### 2026-01-29 ⭐ CI 稳定性增强（Postgres 动态端口 + UTC 时区）
+
+1. **self-hosted：避免 Postgres 端口冲突导致 service 起不来**
+   - `Tests` workflow 的 Postgres service 不再强制绑定宿主机 `5432`，改为动态端口并通过 `${{ job.services.postgres.ports['5432'] }}` 传递给后续步骤（降低 self-hosted 上“本机已有 Postgres/端口占用”的失败概率）。
+
+2. **API snapshot baseline 更稳定（时区不漂移）**
+   - 后端 Postgres 连接建立时统一 `SET TIME ZONE 'UTC'`，避免 runner 本机时区不同导致 `timestamptz` 序列化出现 offset 差异，从而引发 snapshot baseline hash 漂移。
+
 ### 2026-01-28 ⭐ CI 止损增强（self-hosted checkout + Firefox smoke）
 
 1. **self-hosted：checkout 失败兜底可继续跑完门禁**

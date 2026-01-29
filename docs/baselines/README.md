@@ -18,6 +18,7 @@
 
 说明：
 - `api-snapshot.sample.json` 使用 `--deterministic --no-json` 生成，避免时间戳、Git SHA、base_url 或完整 JSON body 导致的噪音 diff。
+- 为避免 runner/本机时区差异导致 `timestamptz` 序列化漂移，后端在 Postgres 连接建立时会统一 `SET TIME ZONE 'UTC'`（见 `frontend/backend/app/core/database.py`）。
 - Snapshot 覆盖少量关键端点（健康检查 + 核心分页查询 + options（含 regulations lncrna/target options）+ ChIP-seq marks/stats/experiments(list+detail)/regions + IGV chipseq marks + overlap list/cursor/statistics + overlap compare（含 `species_ids` 子集用例）+ network available combinations + network disease/gene detail + visualization/sankey-data + visualization/chord-data + export/regulations（JSON, limit=1, species_ids=1）+ conservation/regulations（分页列表）+ export/high-affinity + export/conservation + export/disease-network），用于快速发现“返回结构/数据摘要”的意外变化。
 - 对于仅安装 core/extension 的最小样例库：若未安装 ChIP-seq peaks 相关表，overlap 端点会**优雅降级**为空结果（避免 500 打断基线校验）；这属于预期行为。
 - 为了让基线稳定、且不依赖 Redis，生成脚本默认在 `ENV=development` + `ENABLE_CACHE=false` 下运行（可按需覆盖）。

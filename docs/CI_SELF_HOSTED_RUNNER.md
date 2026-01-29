@@ -66,6 +66,10 @@ GitHub UI 路径：
 
 或在手动触发 `Tests` workflow 时填写 `enable_postgres_jobs=true`（仅对 `workflow_dispatch` 生效）。
 
+补充（常见坑）：
+- 这两个 job 的 Postgres service **不会强制绑定宿主机 `5432`**（避免 runner 机器本地已有 Postgres/端口占用导致容器启动失败）。
+- 如需排障实际端口，可查看 `${{ job.services.postgres.ports['5432'] }}`；本仓库 workflow 已将其写入 `DB_PORT`，无需手动改脚本。
+
 ### 4) Playwright（e2e-smoke）在 self-hosted 的注意事项
 
 `e2e-smoke` 在 GitHub-hosted runner 上使用 `npx playwright install chromium --with-deps` 自动安装系统依赖；
