@@ -21,11 +21,22 @@ labels: ["perf"]
 
 ### 1) Admin metrics 导出（必填）
 
-运行：
+运行（推荐：环境变量优先，避免硬编码地址；也请不要把 `ADMIN_API_KEY` 粘贴到 issue）：
 
-`python3 scripts/admin_metrics_snapshot.py --base-url "http://localhost:8000" --admin-api-key "$ADMIN_API_KEY"`
+```bash
+API_BASE_URL="http://127.0.0.1:8000" ADMIN_API_KEY="$ADMIN_API_KEY" \
+  python3 scripts/admin_metrics_snapshot.py
+```
 
-说明：脚本也支持读取环境变量默认值（`API_BASE_URL` / `ADMIN_API_KEY`），已设置时可省略参数。
+备选（显式参数，同样不要把 `ADMIN_API_KEY` 粘贴到 issue）：
+
+```bash
+python3 scripts/admin_metrics_snapshot.py \
+  --base-url "http://127.0.0.1:8000" \
+  --admin-api-key "$ADMIN_API_KEY"
+```
+
+说明：脚本支持读取环境变量（`API_BASE_URL` / `ADMIN_API_KEY`），已设置时可省略参数。
 若样本不足导致百分位为 null，可先使用 `--warmup-rounds 10` 预热后再导出。
 
 粘贴 `admin-metrics-*.md` 内容：
