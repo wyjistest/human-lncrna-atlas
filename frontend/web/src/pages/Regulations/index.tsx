@@ -1,6 +1,6 @@
 import { cloneElement, isValidElement, useState, useMemo, useCallback, useEffect } from 'react'
 import type { ReactElement } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Table, Button, Dropdown, Space, message, Modal, Progress } from 'antd'
 import { DownloadOutlined, ExperimentOutlined } from '@ant-design/icons'
 import type { TableProps, MenuProps } from 'antd'
@@ -12,19 +12,72 @@ import { AdvancedFilters, type FilterState } from './components/AdvancedFilters'
 import { SelectionToolbar } from './components/SelectionToolbar'
 import { BatchVisualizationModal } from './components/BatchVisualizationModal'
 import { exportRegulations, exportSelectedRegulations, shouldShowExportWarning, isExportLimitExceeded } from '@/utils/export'
-import { EXPORT_LIMITS } from '@/config/constants'
+import { CHROMOSOME_OPTIONS, EXPORT_LIMITS } from '@/config/constants'
 import type { components } from '@/types'
 
 type RegulationListItem = components['schemas']['RegulationListItem']
 
+const DEFAULT_PAGE = 1
+const DEFAULT_PAGE_SIZE = 100
+const MAX_PAGE = 1_000_000
+const MAX_PAGE_SIZE = 1000
+const MAX_BA = 1_000_000
+
+const CHROMOSOME_VALUES = new Set(CHROMOSOME_OPTIONS.map(opt => opt.value))
+
+function parseIntParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
+
+function parseNumberParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
+
+function parseIntListParam(value: string | null, min: number, max: number): number[] | undefined {
+  if (!value) return undefined
+  const tokens = value.split(',').map(v => v.trim()).filter(Boolean)
+  const parsed = tokens
+    .map(v => Number.parseInt(v, 10))
+    .filter(v => Number.isFinite(v) && v >= min && v <= max)
+  const unique = Array.from(new Set(parsed))
+  return unique.length > 0 ? unique : undefined
+}
+
+function parseStringListParam(value: string | null, allowed: Set<string>): string[] | undefined {
+  if (!value) return undefined
+  const tokens = value.split(',').map(v => v.trim()).filter(Boolean)
+  const filtered = tokens.filter(v => allowed.has(v))
+  const unique = Array.from(new Set(filtered))
+  return unique.length > 0 ? unique : undefined
+}
+
 export default function Regulations() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useTranslation('regulations')
   const { t: tc } = useTranslation('common')
   const { t: tGB } = useTranslation('genomeBrowser')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(100)
-  const [filters, setFilters] = useState<FilterState>({})
+
+  const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
+  const pageSize = parseIntParam(searchParams.get('page_size'), 1, MAX_PAGE_SIZE) ?? DEFAULT_PAGE_SIZE
+
+  const filters = useMemo<FilterState>(() => ({
+    min_ba: parseNumberParam(searchParams.get('min_ba'), 0, MAX_BA),
+    max_ba: parseNumberParam(searchParams.get('max_ba'), 0, MAX_BA),
+    species_ids: parseIntListParam(searchParams.get('species_ids'), 1, 4),
+    chromosomes: parseStringListParam(searchParams.get('chromosomes'), CHROMOSOME_VALUES),
+    lncrna_gene_name: searchParams.get('lncrna_gene_name')?.trim() || undefined,
+    target_gene_name: searchParams.get('target_gene_name')?.trim() || undefined,
+  }), [searchParams])
+
   const [exporting, setExporting] = useState(false)
   const [exportProgress, setExportProgress] = useState(0)
 
@@ -81,17 +134,70 @@ export default function Regulations() {
     }
   }, [data, page, pageSize, apiParams, prefetchRegulations])
 
-  // 更新单个筛选器
-  const updateFilter = (key: keyof FilterState, value: unknown) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
-    setPage(1)
-  }
+  const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
 
-  // 重置筛选器
-  const resetFilters = () => {
-    setFilters({})
-    setPage(1)
-  }
+  const setOrDelete = useCallback((params: URLSearchParams, key: string, value: string | undefined) => {
+    const normalized = value?.trim()
+    if (!normalized) {
+      params.delete(key)
+      return
+    }
+    params.set(key, normalized)
+  }, [])
+
+  // 更新单个筛选器（写回 URL；并重置页码）
+  const updateFilter = useCallback((key: keyof FilterState, value: unknown) => {
+    updateParams((params) => {
+      switch (key) {
+        case 'min_ba':
+        case 'max_ba': {
+          const raw = typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined
+          setOrDelete(params, key, raw)
+          break
+        }
+        case 'species_ids': {
+          const raw = Array.isArray(value) ? (value as number[]).join(',') : undefined
+          setOrDelete(params, 'species_ids', raw)
+          break
+        }
+        case 'chromosomes': {
+          const raw = Array.isArray(value) ? (value as string[]).join(',') : undefined
+          setOrDelete(params, 'chromosomes', raw)
+          break
+        }
+        case 'lncrna_gene_name':
+        case 'target_gene_name': {
+          const raw = typeof value === 'string' ? value : undefined
+          setOrDelete(params, key, raw)
+          break
+        }
+        default:
+          break
+      }
+
+      params.delete('page')
+    })
+  }, [setOrDelete, updateParams])
+
+  // 重置筛选器（清空 URL 参数）
+  const resetFilters = useCallback(() => {
+    updateParams((params) => {
+      params.delete('min_ba')
+      params.delete('max_ba')
+      params.delete('species_ids')
+      params.delete('chromosomes')
+      params.delete('lncrna_gene_name')
+      params.delete('target_gene_name')
+      params.delete('page')
+      params.delete('page_size')
+    })
+  }, [updateParams])
 
   // 导出功能（使用 useCallback 避免 stale closure）
   const handleExport = useCallback(async (format: 'csv' | 'xlsx') => {
@@ -341,13 +447,18 @@ export default function Regulations() {
             showSizeChanger: true,
             showTotal: (total) => t('pagination.total', { count: total }),
             onChange: (p, ps) => {
-              // 当 pageSize 改变时，重置到第一页避免竞态条件
-              if (ps !== pageSize) {
-                setPage(1)
-                setPageSize(ps)
-              } else {
-                setPage(p)
-              }
+              updateParams((params) => {
+                // 当 pageSize 改变时，重置到第一页避免竞态条件
+                if (ps !== pageSize) {
+                  if (ps === DEFAULT_PAGE_SIZE) params.delete('page_size')
+                  else params.set('page_size', String(ps))
+                  params.delete('page')
+                  return
+                }
+
+                if (p === DEFAULT_PAGE) params.delete('page')
+                else params.set('page', String(p))
+              })
             },
           }}
         />
