@@ -93,6 +93,10 @@ if _is_postgresql:
         cursor = dbapi_connection.cursor()
         # 使用参数化查询防止 SQL 注入（即使 timeout 来自配置）
         cursor.execute("SET statement_timeout = %s", (QUERY_TIMEOUT_MS,))
+        # 统一会话时区为 UTC：
+        # - 避免 self-hosted runner（本机时区非 UTC）下 timestamptz 返回值带本地 offset
+        # - 保证 API JSON 输出稳定（例如 created_at 序列化为 `...Z`），避免 snapshot baseline 漂移
+        cursor.execute("SET TIME ZONE 'UTC'")
         cursor.close()
         logger.debug(f"Set statement_timeout to {QUERY_TIMEOUT_MS}ms on new connection")
 
