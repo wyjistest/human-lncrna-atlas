@@ -671,7 +671,9 @@ jobs:
     needs: [secret-scan]  # Fail fast if secrets detected
     services:
       postgres:
-        image: postgres:15
+        # self-hosted 环境下 Docker Hub 可能被代理/防火墙/超时影响（registry-1.docker.io 连接不稳定），
+        # 这里改用 Public ECR 镜像源，降低拉取失败概率。
+        image: public.ecr.aws/docker/library/postgres:15
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -939,7 +941,9 @@ jobs:
     needs: [secret-scan]  # Fail fast if secrets detected
     services:
       postgres:
-        image: postgres:15
+        # self-hosted 环境下 Docker Hub 可能被代理/防火墙/超时影响（registry-1.docker.io 连接不稳定），
+        # 这里改用 Public ECR 镜像源，降低拉取失败概率。
+        image: public.ecr.aws/docker/library/postgres:15
         env:
           POSTGRES_USER: lncrna
           POSTGRES_PASSWORD: postgres
