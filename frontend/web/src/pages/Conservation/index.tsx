@@ -34,7 +34,7 @@ import {
   InfoCircleOutlined,
   BranchesOutlined
 } from '@ant-design/icons'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 
@@ -61,24 +61,77 @@ const SPECIES_TAG_COLORS: Record<number, string> = {
   4: 'magenta'    // Marmoset
 }
 
+const DEFAULT_SPECIES_IDS = [1, 2, 3, 4] as const
+const DEFAULT_PAGE = 1
+const DEFAULT_PAGE_SIZE = 20
+const MAX_PAGE_SIZE = 100
+const DEFAULT_MIN_CONSERVATION = 2
+const DEFAULT_MIN_BA = 0
+const MAX_MIN_BA = 100
+const MAX_PAGE = 1_000_000
+
+function parseIntParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
+
+function parseSpeciesIdsParam(value: string | null): number[] | undefined {
+  if (!value) return undefined
+  const tokens = value.split(',').map(v => v.trim()).filter(Boolean)
+  const parsed = tokens
+    .map(v => Number.parseInt(v, 10))
+    .filter(v => Number.isFinite(v) && v >= 1 && v <= 4)
+  const unique = Array.from(new Set(parsed))
+  if (unique.length < 2) return undefined
+  return unique
+}
+
+function isDefaultSpeciesIds(value: number[]): boolean {
+  if (value.length !== DEFAULT_SPECIES_IDS.length) return false
+  return DEFAULT_SPECIES_IDS.every((id, idx) => value[idx] === id)
+}
+
 /**
  * Conservation Analysis Page
  */
 export default function Conservation() {
   const { t } = useTranslation('conservation')
 
-  // State
-  const [selectedSpecies, setSelectedSpecies] = useState<number[]>([1, 2, 3, 4])
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
-  const [minConservation, setMinConservation] = useState(2)
-  const [minBA, setMinBA] = useState(0)
-  const [lncrnaSearch, setLncrnaSearch] = useState('')
-  const [targetSearch, setTargetSearch] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const selectedSpecies = useMemo(
+    () => parseSpeciesIdsParam(searchParams.get('species_ids')) ?? [...DEFAULT_SPECIES_IDS],
+    [searchParams]
+  )
+
+  const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
+  const pageSize = parseIntParam(searchParams.get('page_size'), 1, MAX_PAGE_SIZE) ?? DEFAULT_PAGE_SIZE
+  const minConservation =
+    parseIntParam(searchParams.get('min_conservation'), 2, 4) ?? DEFAULT_MIN_CONSERVATION
+  const minBA = parseIntParam(searchParams.get('min_ba'), 0, MAX_MIN_BA) ?? DEFAULT_MIN_BA
+  const lncrnaSearch = searchParams.get('lncrna_gene_name')?.trim() || ''
+  const targetSearch = searchParams.get('target_gene_name')?.trim() || ''
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedPair, setSelectedPair] = useState<{ speciesX: number; speciesY: number; value: number } | null>(null)
+
+  const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+
+  const setOrDelete = useCallback((params: URLSearchParams, key: string, value: string | undefined) => {
+    const normalized = value?.trim()
+    if (!normalized) params.delete(key)
+    else params.set(key, normalized)
+  }, [])
 
   // API Queries - errors propagate to ErrorState component
   const {
@@ -176,9 +229,12 @@ export default function Conservation() {
 
   // Handlers
   const handleSpeciesChange = useCallback((speciesIds: number[]) => {
-    setSelectedSpecies(speciesIds)
-    setPage(1) // Reset pagination
-  }, [])
+    updateParams((params) => {
+      if (isDefaultSpeciesIds(speciesIds)) params.delete('species_ids')
+      else params.set('species_ids', speciesIds.join(','))
+      params.delete('page')
+    })
+  }, [updateParams])
 
   // Handle matrix cell click
   const handleCellClick = useCallback((speciesX: number, speciesY: number, value: number) => {
@@ -438,8 +494,11 @@ export default function Conservation() {
                 prefix={<SearchOutlined />}
                 value={lncrnaSearch}
                 onChange={(e) => {
-                  setLncrnaSearch(e.target.value)
-                  setPage(1)
+                  const next = e.target.value
+                  updateParams((params) => {
+                    setOrDelete(params, 'lncrna_gene_name', next)
+                    params.delete('page')
+                  })
                 }}
                 allowClear
               />
@@ -455,8 +514,11 @@ export default function Conservation() {
                 prefix={<SearchOutlined />}
                 value={targetSearch}
                 onChange={(e) => {
-                  setTargetSearch(e.target.value)
-                  setPage(1)
+                  const next = e.target.value
+                  updateParams((params) => {
+                    setOrDelete(params, 'target_gene_name', next)
+                    params.delete('page')
+                  })
                 }}
                 allowClear
               />
@@ -473,8 +535,11 @@ export default function Conservation() {
                 ariaLabelForHandle={t('filters.minConservation', 'Min. Conservation')}
                 value={minConservation}
                 onChange={(value) => {
-                  setMinConservation(value)
-                  setPage(1)
+                  updateParams((params) => {
+                    if (value === DEFAULT_MIN_CONSERVATION) params.delete('min_conservation')
+                    else params.set('min_conservation', String(value))
+                    params.delete('page')
+                  })
                 }}
                 marks={{ 2: '2', 3: '3', 4: '4' }}
               />
@@ -491,8 +556,11 @@ export default function Conservation() {
                 ariaLabelForHandle={t('filters.minBA', 'Min. Binding Affinity')}
                 value={minBA}
                 onChange={(value) => {
-                  setMinBA(value)
-                  setPage(1)
+                  updateParams((params) => {
+                    if (value === DEFAULT_MIN_BA) params.delete('min_ba')
+                    else params.set('min_ba', String(value))
+                    params.delete('page')
+                  })
                 }}
                 marks={{ 0: '0', 50: '50', 100: '100' }}
               />
@@ -536,12 +604,17 @@ export default function Conservation() {
               showSizeChanger: true,
               showTotal: (total) => t('table.total', { count: total }),
               onChange: (p, ps) => {
-                if (ps !== pageSize) {
-                  setPage(1)
-                  setPageSize(ps)
-                } else {
-                  setPage(p)
-                }
+                updateParams((params) => {
+                  if (ps !== pageSize) {
+                    if (ps === DEFAULT_PAGE_SIZE) params.delete('page_size')
+                    else params.set('page_size', String(ps))
+                    params.delete('page')
+                    return
+                  }
+
+                  if (p === DEFAULT_PAGE) params.delete('page')
+                  else params.set('page', String(p))
+                })
               }
             }}
             virtual={(regulationsData?.items?.length ?? 0) >= 100}

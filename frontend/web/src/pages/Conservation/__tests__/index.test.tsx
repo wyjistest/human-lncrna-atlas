@@ -14,7 +14,7 @@
 
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 
@@ -211,7 +211,36 @@ describe('Conservation Page', () => {
     vi.mocked(conservationApi.getConservedRegulations).mockResolvedValue(mockRegulations)
   })
 
+  afterEach(() => {
+    window.history.replaceState({}, '', '/')
+  })
+
   describe('Page Rendering', () => {
+    it('initializes filters from URL params', async () => {
+      window.history.pushState(
+        {},
+        '',
+        '/conservation?species_ids=1,2&page=3&page_size=50&min_conservation=4&min_ba=100&lncrna_gene_name=MALAT1&target_gene_name=TP53'
+      )
+
+      render(<Conservation />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(conservationApi.getConservedRegulations).toHaveBeenCalled()
+      })
+
+      const [params] = vi.mocked(conservationApi.getConservedRegulations).mock.calls[0]
+      expect(params).toMatchObject({
+        species_ids: [1, 2],
+        page: 3,
+        page_size: 50,
+        min_conservation: 4,
+        min_ba: 100,
+        lncrna_gene_name: 'MALAT1',
+        target_gene_name: 'TP53',
+      })
+    })
+
     it('renders stable page anchors for mocked smoke tests', async () => {
       render(<Conservation />, { wrapper: createWrapper() })
 
