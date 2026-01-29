@@ -1,4 +1,5 @@
 import { useRef, useState, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Card, Row, Col, Statistic, Spin, Alert, Button, Dropdown, Space, message } from 'antd'
 import { DownloadOutlined, DownOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
@@ -12,9 +13,26 @@ import { BAChart } from './components/BAChart'
 import { TopLncRNAChart } from './components/TopLncRNAChart'
 import { exportToPDF } from '@/utils/pdf-export'
 
+const DEFAULT_BUCKETS = 10
+const DEFAULT_TOP_LIMIT = 10
+const MAX_BUCKETS = 200
+const MAX_TOP_LIMIT = 100
+
+function parseIntParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
+
 export default function Stats() {
+  const [searchParams] = useSearchParams()
+  const buckets = parseIntParam(searchParams.get('buckets'), 1, MAX_BUCKETS) ?? DEFAULT_BUCKETS
+  const topLimit = parseIntParam(searchParams.get('top_limit'), 1, MAX_TOP_LIMIT) ?? DEFAULT_TOP_LIMIT
+
   const { data: overviewData, isLoading: overviewLoading, error: overviewError } = useStats()
-  const { data: detailedData, isLoading: detailedLoading, error: detailedError } = useDetailedStats()
+  const { data: detailedData, isLoading: detailedLoading, error: detailedError } = useDetailedStats({ buckets, topLimit })
   const reportRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
   const { t } = useTranslation('stats')
