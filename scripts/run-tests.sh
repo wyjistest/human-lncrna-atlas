@@ -436,6 +436,41 @@ run_scripts_smoke_tests() {
     return 0
 }
 
+run_scripts_unit_tests() {
+    cd "$PROJECT_ROOT"
+
+    echo -e "${YELLOW}运行脚本单元测试（scripts/tests）...${NC}"
+
+    local tests=(
+        "scripts/tests/test_run_tests_frontend_deps.sh"
+        "scripts/tests/test_run_tests_backend_deps.sh"
+        "scripts/tests/test_check_docs_status_markers.sh"
+    )
+
+    local missing=false
+    for t in "${tests[@]}"; do
+        if [ ! -f "$t" ]; then
+            echo -e "${YELLOW}SKIP  未找到: ${t}${NC}"
+            missing=true
+        fi
+    done
+
+    if [ "$missing" = "true" ]; then
+        echo -e "${YELLOW}部分 scripts/tests 缺失，跳过脚本单元测试${NC}"
+        return 0
+    fi
+
+    for t in "${tests[@]}"; do
+        if ! bash "$t"; then
+            echo -e "${RED}脚本单元测试失败: ${t}${NC}"
+            return 1
+        fi
+    done
+
+    echo -e "${GREEN}脚本单元测试通过!${NC}"
+    return 0
+}
+
 run_docs_checks() {
     echo -e "${YELLOW}运行文档命令漂移检查...${NC}"
     require_cmd python3 || return 1
@@ -806,6 +841,8 @@ main() {
             echo ""
             run_scripts_smoke_tests || failed=1
             echo ""
+            run_scripts_unit_tests || failed=1
+            echo ""
             run_docs_checks || failed=1
             echo ""
             run_db_migrations_verify || failed=1
@@ -828,6 +865,8 @@ main() {
             run_etl_checks || failed=1
             echo ""
             run_scripts_smoke_tests || failed=1
+            echo ""
+            run_scripts_unit_tests || failed=1
             echo ""
             run_docs_checks || failed=1
             echo ""
@@ -853,6 +892,8 @@ main() {
             run_etl_checks || failed=1
             echo ""
             run_scripts_smoke_tests || failed=1
+            echo ""
+            run_scripts_unit_tests || failed=1
             echo ""
             run_docs_checks || failed=1
             echo ""
@@ -885,14 +926,18 @@ main() {
         docs-check)
             run_docs_checks || failed=1
             ;;
+        scripts-tests)
+            run_scripts_unit_tests || failed=1
+            ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
             echo "  unit         - 运行前端单元测试"
             echo "  etl-checks   - 运行 ETL 输入校验单元测试 (pytest etl/tests)"
             echo "  docs-check   - 检查文档命令漂移（启动命令示例）"
+            echo "  scripts-tests - 运行 scripts/tests 下的脚本级单元测试（对齐 CI）"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
             echo "  backend-checks - 运行后端导入与语法检查（对齐 CI）"
             echo "  backend-lint - 运行后端 Lint (ruff check)"

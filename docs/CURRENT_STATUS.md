@@ -48,6 +48,7 @@
 
 2. **本地 CI 入口更一致：`./scripts/run-tests.sh` 可直接执行**
    - 修复脚本可执行位后，文档中的 `./scripts/run-tests.sh (ci|docs-check|e2e-smoke|...)` 不再需要额外 `bash` 前缀
+   - `ci` 子命令纳入 `scripts/tests/*` 脚本级单测，更贴近 GitHub Actions 的实际门禁
 
 ### 2026-01-29 ⭐ CI 稳定性增强（Postgres 动态端口 + UTC 时区）
 
