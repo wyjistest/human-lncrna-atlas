@@ -151,6 +151,28 @@ gh api "/repos/<OWNER>/<REPO>/actions/runs/<RUN_ID>/jobs" \
 - 优先检查 runner 的代理/网络（见上面 6)）。
 - 其次考虑把 runner 放在更稳定的网络环境，或为 git 配置更稳定的出口。
 
+### 6.2) 常见排障：本机 git push/fetch 失败（网络/代理受限）
+
+如果你在本机/自托管 runner 上遇到类似报错：
+
+- `fatal: unable to access 'https://github.com/...': gnutls_handshake() failed`
+- `Failed to connect to github.com port 443`
+
+且你确认 `gh api` 仍可正常访问 GitHub（`gh auth status` 显示已登录），可以使用本仓库提供的“止损推送”脚本：
+
+```bash
+# 先确保 git 没有强制走本机代理（常见于 http.proxy/https.proxy）
+git config --global --unset http.proxy
+git config --global --unset https.proxy
+
+# 以 GitHub API 的方式把本地 HEAD commit 追加到远端 main（不会 force）
+python3 scripts/gh_push_commit.py --branch main --commit HEAD
+```
+
+说明：
+- 该脚本会把“本地 commit 引入的文件变更”重放到远端分支 HEAD 上，并创建一个新的远端 commit（SHA 与本地不相同，这是预期行为）。
+- 默认带“远端覆盖护栏”：若远端同一路径在你本地父提交之后已发生变更，会中止推送，避免误覆盖。
+
 ---
 
 ## 本地止损（无需 Actions）
