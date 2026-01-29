@@ -1,6 +1,6 @@
 import { cloneElement, isValidElement, useCallback, useEffect, useMemo, useState } from 'react'
 import type { Key, ReactElement } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { DownloadOutlined } from '@ant-design/icons'
 import { Alert, Button, Input, InputNumber, Select, Space, Table, Tabs, message } from 'antd'
@@ -21,7 +21,31 @@ type GeneListItem = components['schemas']['GeneListItem']
 type ActiveTab = 'browse' | 'batch'
 type HasRegulationFilter = 'all' | 'with' | 'without'
 
+const DEFAULT_PAGE = 1
+const DEFAULT_PAGE_SIZE = 100
+const MAX_PAGE_SIZE = 1000
+const MAX_PAGE = 1_000_000
 const BATCH_MAX_IDENTIFIERS = 200
+
+function parseIntParam(value: string | null, min: number, max: number): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed)) return undefined
+  if (parsed < min || parsed > max) return undefined
+  return parsed
+}
+
+function parseGeneType(value: string | null): string | undefined {
+  if (!value) return undefined
+  if (value === 'lncRNA' || value === 'protein_coding') return value
+  return undefined
+}
+
+function parseSpeciesId(value: string | null): number | undefined {
+  const parsed = parseIntParam(value, 1, 4)
+  if (!parsed) return undefined
+  return parsed
+}
 
 function parseBatchIdentifiers(input: string): string[] {
   return Array.from(
@@ -36,17 +60,32 @@ function parseBatchIdentifiers(input: string): string[] {
 
 export default function Genes() {
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<ActiveTab>('browse')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(100)
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const [searchInput, setSearchInput] = useState('')
-  const [search, setSearch] = useState<string>()
-  const [geneType, setGeneType] = useState<string>()
-  const [speciesId, setSpeciesId] = useState<number>()
-  const [chromosome, setChromosome] = useState<string>()
-  const [hasRegulation, setHasRegulation] = useState<HasRegulationFilter>('all')
-  const [minRegulationCount, setMinRegulationCount] = useState<number>()
+  const activeTab: ActiveTab = searchParams.get('tab') === 'batch' ? 'batch' : 'browse'
+  const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
+  const pageSize = parseIntParam(searchParams.get('page_size'), 1, MAX_PAGE_SIZE) ?? DEFAULT_PAGE_SIZE
+  const search = searchParams.get('search')?.trim() || undefined
+  const geneType = parseGeneType(searchParams.get('gene_type'))
+  const speciesId = parseSpeciesId(searchParams.get('species_id'))
+  const chromosome = searchParams.get('chromosome')?.trim() || undefined
+  const hasRegulationParam = searchParams.get('has_regulation')
+  const hasRegulation: HasRegulationFilter =
+    hasRegulationParam === 'true' ? 'with' : hasRegulationParam === 'false' ? 'without' : 'all'
+  const minRegulationCount = parseIntParam(searchParams.get('min_regulation_count'), 0, 1_000_000)
+
+  const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      apply(next)
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
+
+  const [searchInput, setSearchInput] = useState(() => search ?? '')
+  useEffect(() => {
+    setSearchInput(search ?? '')
+  }, [search])
 
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
   const [selectedRows, setSelectedRows] = useState<GeneListItem[]>([])
@@ -124,14 +163,17 @@ export default function Genes() {
 
   const handleResetFilters = useCallback(() => {
     setSearchInput('')
-    setSearch(undefined)
-    setGeneType(undefined)
-    setSpeciesId(undefined)
-    setChromosome(undefined)
-    setHasRegulation('all')
-    setMinRegulationCount(undefined)
-    setPage(1)
-  }, [])
+    updateParams((params) => {
+      params.delete('search')
+      params.delete('gene_type')
+      params.delete('species_id')
+      params.delete('chromosome')
+      params.delete('has_regulation')
+      params.delete('min_regulation_count')
+      params.delete('page')
+      params.delete('page_size')
+    })
+  }, [updateParams])
 
   const handleClearBatch = useCallback(() => {
     setBatchInput('')
@@ -215,9 +257,12 @@ export default function Genes() {
 
   const handleSearch = useCallback((value: string) => {
     const next = value.trim()
-    setSearch(next || undefined)
-    setPage(1)
-  }, [])
+    updateParams((params) => {
+      if (next) params.set('search', next)
+      else params.delete('search')
+      params.delete('page')
+    })
+  }, [updateParams])
 
   const columns: TableProps<GeneListItem>['columns'] = useMemo(() => [
     {
@@ -330,8 +375,12 @@ export default function Genes() {
       <Tabs
         activeKey={activeTab}
         onChange={(key) => {
-          setActiveTab(key as ActiveTab)
-          setPage(1)
+          const nextTab = key as ActiveTab
+          updateParams((params) => {
+            if (nextTab === 'browse') params.delete('tab')
+            else params.set('tab', nextTab)
+            params.delete('page')
+          })
         }}
         items={[
           {
@@ -347,8 +396,10 @@ export default function Genes() {
                     const next = e.target.value
                     setSearchInput(next)
                     if (next === '') {
-                      setSearch(undefined)
-                      setPage(1)
+                      updateParams((params) => {
+                        params.delete('search')
+                        params.delete('page')
+                      })
                     }
                   }}
                   onSearch={handleSearch}
@@ -361,8 +412,11 @@ export default function Genes() {
                   style={{ width: 160 }}
                   value={geneType}
                   onChange={(value) => {
-                    setGeneType(value)
-                    setPage(1)
+                    updateParams((params) => {
+                      if (value) params.set('gene_type', value)
+                      else params.delete('gene_type')
+                      params.delete('page')
+                    })
                   }}
                   allowClear
                   options={[
@@ -376,8 +430,11 @@ export default function Genes() {
                   style={{ width: 160 }}
                   value={speciesId}
                   onChange={(value) => {
-                    setSpeciesId(value)
-                    setPage(1)
+                    updateParams((params) => {
+                      if (typeof value === 'number') params.set('species_id', String(value))
+                      else params.delete('species_id')
+                      params.delete('page')
+                    })
                   }}
                   allowClear
                   options={speciesOptions}
@@ -388,8 +445,12 @@ export default function Genes() {
                   style={{ width: 140 }}
                   value={chromosome}
                   onChange={(e) => {
-                    setChromosome(e.target.value || undefined)
-                    setPage(1)
+                    const value = e.target.value.trim()
+                    updateParams((params) => {
+                      if (value) params.set('chromosome', value)
+                      else params.delete('chromosome')
+                      params.delete('page')
+                    })
                   }}
                   allowClear
                 />
@@ -399,8 +460,12 @@ export default function Genes() {
                   style={{ width: 200 }}
                   value={hasRegulation}
                   onChange={(value) => {
-                    setHasRegulation(value)
-                    setPage(1)
+                    updateParams((params) => {
+                      if (value === 'with') params.set('has_regulation', 'true')
+                      else if (value === 'without') params.set('has_regulation', 'false')
+                      else params.delete('has_regulation')
+                      params.delete('page')
+                    })
                   }}
                   options={[
                     { label: t('filters.hasRegulationAll'), value: 'all' },
@@ -415,8 +480,11 @@ export default function Genes() {
                   min={0}
                   value={minRegulationCount}
                   onChange={(value) => {
-                    setMinRegulationCount(value ?? undefined)
-                    setPage(1)
+                    updateParams((params) => {
+                      if (typeof value === 'number') params.set('min_regulation_count', String(value))
+                      else params.delete('min_regulation_count')
+                      params.delete('page')
+                    })
                   }}
                 />
                 <Button onClick={handleResetFilters}>
@@ -436,7 +504,13 @@ export default function Genes() {
                     placeholder={t('filters.species')}
                     style={{ width: 160 }}
                     value={speciesId}
-                    onChange={(value) => setSpeciesId(value)}
+                    onChange={(value) => {
+                      updateParams((params) => {
+                        if (typeof value === 'number') params.set('species_id', String(value))
+                        else params.delete('species_id')
+                        params.delete('page')
+                      })
+                    }}
                     allowClear
                     options={speciesOptions}
                   />
@@ -445,7 +519,13 @@ export default function Genes() {
                     placeholder={t('search.geneType')}
                     style={{ width: 160 }}
                     value={geneType}
-                    onChange={(value) => setGeneType(value)}
+                    onChange={(value) => {
+                      updateParams((params) => {
+                        if (value) params.set('gene_type', value)
+                        else params.delete('gene_type')
+                        params.delete('page')
+                      })
+                    }}
                     allowClear
                     options={[
                       { label: t('geneTypes.lncRNA'), value: 'lncRNA' },
@@ -500,12 +580,18 @@ export default function Genes() {
             showSizeChanger: true,
             showTotal: (total) => t('pagination.total', { count: total }),
             onChange: (p, ps) => {
-              if (ps !== pageSize) {
-                setPage(1)
-                setPageSize(ps)
-              } else {
-                setPage(p)
-              }
+              updateParams((params) => {
+                const nextPageSize = ps ?? DEFAULT_PAGE_SIZE
+                if (nextPageSize !== pageSize) {
+                  if (nextPageSize === DEFAULT_PAGE_SIZE) params.delete('page_size')
+                  else params.set('page_size', String(nextPageSize))
+                  params.delete('page')
+                  return
+                }
+
+                if (p <= 1) params.delete('page')
+                else params.set('page', String(p))
+              })
             },
           } : false}
         />
