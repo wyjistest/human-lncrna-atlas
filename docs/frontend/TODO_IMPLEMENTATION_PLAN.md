@@ -176,9 +176,9 @@ const exportAsSVG = () => {
 - 影响范围较大，建议作为独立任务处理
 
 **验收标准**:
-- [ ] Network 页面 SVG 导出菜单正常工作
-- [ ] 导出的 SVG 文件可在浏览器/Illustrator 中打开
-- [ ] TypeScript 编译无错误
+- Network 页面 SVG 导出菜单正常工作
+- 导出的 SVG 文件可在浏览器/Illustrator 中打开
+- TypeScript 编译无错误
 
 ---
 
@@ -192,9 +192,9 @@ const exportAsSVG = () => {
 **任务**: 验证现有实现，仅在发现问题时修复
 
 **验收标准**:
-- [ ] Stats 页面导出 PDF 分页正确
-- [ ] 图表不在中间截断
-- [ ] 页码显示正确
+- Stats 页面导出 PDF 分页正确
+- 图表不在中间截断
+- 页码显示正确
 
 ---
 
@@ -234,9 +234,9 @@ case 'cose':
 ```
 
 **验收标准**:
-- [ ] 布局选择器在过滤器面板中可用
-- [ ] 切换布局有平滑动画
-- [ ] 各布局正确渲染网络
+- 布局选择器在过滤器面板中可用
+- 切换布局有平滑动画
+- 各布局正确渲染网络
 
 ---
 
@@ -500,10 +500,10 @@ export default function Genes() {
 5. `src/i18n/locales/*/genes.json` - 添加 detail 命名空间
 
 **验收标准**:
-- [ ] 点击 Genes 列表的"查看"可跳转详情页
-- [ ] 详情页正确显示基因信息
-- [ ] 返回按钮正常工作
-- [ ] TypeScript 编译无错误
+- 点击 Genes 列表的"查看"可跳转详情页
+- 详情页正确显示基因信息
+- 返回按钮正常工作
+- TypeScript 编译无错误
 
 ---
 
@@ -635,10 +635,10 @@ const ExpandedRow = ({ traitId }: { traitId: number }) => {
 4. `src/i18n/locales/*/diseases.json` - 翻译
 
 **验收标准**:
-- [ ] Diseases 表格行可展开
-- [ ] 展开后显示关联基因列表
-- [ ] 无关联基因时显示提示
-- [ ] 支持分页 (可选)
+- Diseases 表格行可展开
+- 展开后显示关联基因列表
+- 无关联基因时显示提示
+- 支持分页 (可选)
 
 ---
 
@@ -702,9 +702,9 @@ npm run build
 1. `vite.config.ts` - 构建配置
 
 **验收标准**:
-- [ ] 生产构建成功
-- [ ] 主 bundle < 500KB (gzipped)
-- [ ] 无 console.log 输出
+- 生产构建成功
+- 主 bundle < 500KB (gzipped)
+- 无 console.log 输出
 
 ---
 
@@ -730,8 +730,8 @@ export default [
 ```
 
 **验收标准**:
-- [ ] `npm run lint` 无 error
-- [ ] warnings 可控
+- `npm run lint` 无 error
+- warnings 可控
 
 ---
 
@@ -850,9 +850,9 @@ describe('ErrorState', () => {
 4. `src/components/__tests__/ErrorState.test.tsx` - 示例测试
 
 **验收标准**:
-- [ ] `npm test` 可正常运行
-- [ ] 示例测试通过
-- [ ] TypeScript 编译无错误
+- `npm test` 可正常运行
+- 示例测试通过
+- TypeScript 编译无错误
 
 ---
 

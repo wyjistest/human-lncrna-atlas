@@ -153,22 +153,24 @@ grep -n "if (!sensor)" node_modules/size-sensor/lib/sensors/resizeObserver.js
 
 ---
 
-## 七、待办事项（下次会话）
+## 七、待办事项（历史记录）
+
+> 说明（更新：2026-01-29）：以下为 2025-11-28 会话结束时记录的“后续想法”，仅用于历史回溯，不代表当前待办；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 ### P2 优化项
-- [ ] SVG 导出支持（需 SVGRenderer + cytoscape-svg）
-- [ ] PDF 分页优化
-- [ ] 网络图布局算法选择
+- （历史想法）SVG 导出支持（需 SVGRenderer + cytoscape-svg）
+- （历史想法）PDF 分页优化
+- （历史想法）网络图布局算法选择
 
 ### 其他功能
-- [ ] Network 页面增强
-- [ ] Gene 详情页
-- [ ] Disease 关联展示
+- （历史想法）Network 页面增强
+- （历史想法）Gene 详情页
+- （历史想法）Disease 关联展示
 
 ### 工程优化
-- [ ] Bundle 优化（ECharts 精简）
-- [ ] ESLint 规则优化
-- [ ] 单元测试配置
+- （历史想法）Bundle 优化（ECharts 精简）
+- （历史想法）ESLint 规则优化
+- （历史想法）单元测试配置
 
 ---
 

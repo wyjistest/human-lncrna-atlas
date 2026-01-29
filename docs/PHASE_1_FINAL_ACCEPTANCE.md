@@ -533,23 +533,25 @@ CREATE INDEX idx_mv_overlaps_cell ON mv_lncrna_chipseq_overlaps (cell_type);
 - ✅ Phase 1 所有任务完成（1.1-1.10）
 - ✅ E2E 测试通过
 
+> 更新（2026-01-29）：下列条目为当时的 Week 1/Week 2 计划清单；这些能力已在后续 Phase 2.x–3.x 陆续落地，现状以 `docs/CURRENT_STATUS.md` 为准。
+
 **Day 2**（优化）:
-- [ ] 添加数据库索引
-- [ ] 创建物化视图
-- [ ] 测试性能提升
-- [ ] 启用 P1 E2E 测试
+- [x] 添加数据库索引
+- [x] 创建物化视图
+- [x] 测试性能提升
+- [x] 启用 P1 E2E 测试
 
 **Day 3**（完善）:
-- [ ] 启用统计卡片
-- [ ] 添加导出功能
-- [ ] 完整功能测试
+- [x] 启用统计卡片
+- [x] 添加导出功能
+- [x] 完整功能测试
 
 ### 下周行动（Week 2）
 
 **Phase 2: 高级功能**
-- [ ] Heatmap 矩阵视图
-- [ ] 可视化图表
-- [ ] IGV 集成
+- [x] Heatmap 矩阵视图
+- [x] 可视化图表
+- [x] IGV 集成
 
 ---
 

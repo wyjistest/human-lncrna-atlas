@@ -193,12 +193,12 @@ src/i18n/locales/
 
 ### 3.2 Phase 4.2: 改造 Network 主组件
 
-**改造点**:
-- [ ] 页面标题和描述
-- [ ] 物种选择器 (Select)
-- [ ] 疾病/Ontology 选择器
-- [ ] 查询按钮
-- [ ] 批量导出按钮和 Modal
+**改造点（当时计划）**:
+- 页面标题和描述
+- 物种选择器 (Select)
+- 疾病/Ontology 选择器
+- 查询按钮
+- 批量导出按钮和 Modal
 
 **代码示例**:
 ```tsx
@@ -212,14 +212,14 @@ const { t } = useTranslation('network')
 
 ### 3.3 Phase 4.3: 改造 NetworkCard 组件
 
-**改造点**:
-- [ ] 搜索框 placeholder
-- [ ] 统计信息 (节点/边/lncRNA/靶基因)
-- [ ] 高级过滤器 Collapse
-- [ ] 过滤器标签和选项
-- [ ] 布局选择器
-- [ ] 导出菜单
-- [ ] 消息提示 (message.xxx)
+**改造点（当时计划）**:
+- 搜索框 placeholder
+- 统计信息 (节点/边/lncRNA/靶基因)
+- 高级过滤器 Collapse
+- 过滤器标签和选项
+- 布局选择器
+- 导出菜单
+- 消息提示 (message.xxx)
 
 **关键难点**:
 ```tsx
