@@ -86,6 +86,30 @@ resolve_backend_python() {
         return 0
     fi
 
+    # 本地自举：若开发机未创建后端 venv，且全局 Python 依赖不全（常见：缺 psycopg2/pytest），
+    # 则自动创建 `frontend/backend/.venv`，降低本地 CI 使用门槛。
+    #
+    # 说明：
+    # - CI 环境通常已由 workflow 显式 `pip install -r ...`，此处不应重复创建 venv。
+    # - 如你使用 Conda/pyenv 等外部环境管理，可设置 `SKIP_BACKEND_VENV_BOOTSTRAP=1` 禁用自举，
+    #   并通过 `BACKEND_PYTHON` 指向你的 Python 解释器。
+    if [ "${SKIP_BACKEND_VENV_BOOTSTRAP:-}" != "1" ] && [ "${CI:-}" != "true" ] && [ "${CI:-}" != "1" ]; then
+        local venv_dir="$BACKEND_DIR/.venv"
+        local venv_python="$venv_dir/bin/python"
+        if [ ! -x "$venv_python" ] && command -v python3 >/dev/null 2>&1; then
+            echo -e "${YELLOW}[run-tests] 未检测到后端 venv，正在创建: ${venv_dir}${NC}" >&2
+            if python3 -m venv "$venv_dir"; then
+                echo -e "${GREEN}[run-tests] 已创建后端 venv: ${venv_dir}${NC}" >&2
+            else
+                echo -e "${RED}[run-tests] 后端 venv 创建失败；将回退到系统 python3（可能导致缺依赖失败）${NC}" >&2
+            fi
+        fi
+        if [ -x "$venv_python" ]; then
+            echo "$venv_python"
+            return 0
+        fi
+    fi
+
     echo "python3"
 }
 
@@ -351,17 +375,18 @@ run_backend_checks() {
     local python_bin
     python_bin="$(resolve_backend_python)"
     ensure_backend_python "$python_bin" || return 1
+    ensure_backend_deps "$python_bin" || return 1
 
     cd "$BACKEND_DIR"
 
-    "$python_bin" -c "from app.core.config import settings; print('Config loaded')"
-    "$python_bin" -c "from app.core.database import engine; print('Database module loaded')"
-    "$python_bin" -c "from app.core.cache import cache; print('Cache module loaded')"
-    "$python_bin" -c "from app.core.exceptions import sanitize_db_error; print('Exceptions module loaded')"
-    "$python_bin" -c "import main; print('Main app loaded')"
+    "$python_bin" -c "from app.core.config import settings; print('Config loaded')" || return 1
+    "$python_bin" -c "from app.core.database import engine; print('Database module loaded')" || return 1
+    "$python_bin" -c "from app.core.cache import cache; print('Cache module loaded')" || return 1
+    "$python_bin" -c "from app.core.exceptions import sanitize_db_error; print('Exceptions module loaded')" || return 1
+    "$python_bin" -c "import main; print('Main app loaded')" || return 1
 
-    "$python_bin" -m py_compile main.py
-    find app -name "*.py" -exec "$python_bin" -m py_compile {} \;
+    "$python_bin" -m py_compile main.py || return 1
+    find app -name "*.py" -exec "$python_bin" -m py_compile {} \; || return 1
 
     echo -e "${GREEN}后端导入与语法检查通过!${NC}"
     return 0
@@ -444,6 +469,8 @@ run_scripts_unit_tests() {
     local tests=(
         "scripts/tests/test_run_tests_frontend_deps.sh"
         "scripts/tests/test_run_tests_backend_deps.sh"
+        "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
+        "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
     )
