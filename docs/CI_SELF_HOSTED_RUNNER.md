@@ -207,3 +207,7 @@ python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD"
 ```bash
 bash scripts/run-tests.sh ci
 ```
+
+说明：
+- 若本机未创建后端虚拟环境（`frontend/backend/.venv`），脚本会在本地自动创建并安装后端依赖，降低首次运行门槛。
+- 如你使用 Conda/pyenv 等外部环境管理，且不希望脚本创建 venv，可设置 `SKIP_BACKEND_VENV_BOOTSTRAP=1`，或通过 `BACKEND_PYTHON` 指向你的 Python 解释器。
