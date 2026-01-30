@@ -659,7 +659,10 @@ jobs:
         run: |
           bash scripts/tests/test_run_tests_frontend_deps.sh
           bash scripts/tests/test_run_tests_backend_deps.sh
+          bash scripts/tests/test_run_tests_backend_checks_propagates_failures.sh
+          bash scripts/tests/test_run_tests_backend_bootstrap_venv.sh
           bash scripts/tests/test_check_docs_status_markers.sh
+          bash scripts/tests/test_gh_push_commit_range_dry_run.sh
 
   lint:
     name: Lint
