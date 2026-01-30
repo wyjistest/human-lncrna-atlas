@@ -15,6 +15,7 @@ REPO="${REPO:-${GITHUB_REPOSITORY:-}}"
 EXPECTED_SHA="${EXPECTED_SHA:-${GITHUB_SHA:-}}"
 GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 WORKSPACE="${WORKSPACE:-${GITHUB_WORKSPACE:-$(pwd)}}"
+TARBALL_PATH="${TARBALL_PATH:-}"
 
 if [ -z "${REPO:-}" ]; then
   echo "::error::REPO is required (e.g. owner/repo)" >&2
@@ -38,6 +39,7 @@ echo "repo=${REPO}"
 echo "expected_sha=${EXPECTED_SHA}"
 echo "workspace=${WORKSPACE}"
 echo "token=${GH_TOKEN:+SET}${GH_TOKEN:-UNSET}"
+echo "tarball_path=${TARBALL_PATH:-<unset>}"
 echo "::endgroup::"
 
 # Fast path: if workspace already contains the expected git commit, do nothing.
@@ -57,31 +59,43 @@ cleanup() {
 }
 trap cleanup EXIT
 
-tar_path="${tmp_dir}/src.tar.gz"
 extract_dir="${tmp_dir}/extract"
 
-echo "::group::download tarball"
-echo "Downloading tarball for ${REPO}@${EXPECTED_SHA} ..."
+tar_path=""
+if [ -n "${TARBALL_PATH:-}" ]; then
+  tar_path="$TARBALL_PATH"
+else
+  tar_path="${tmp_dir}/src.tar.gz"
 
-curl_args=(
-  -fsSL
-  --retry 5
-  --retry-connrefused
-  --retry-delay 2
-  --connect-timeout 10
-  --max-time 120
-  -H "Accept: application/vnd.github+json"
-)
-if [ -n "${GH_TOKEN:-}" ]; then
-  curl_args+=(-H "Authorization: Bearer ${GH_TOKEN}")
+  echo "::group::download tarball"
+  echo "Downloading tarball for ${REPO}@${EXPECTED_SHA} ..."
+
+  curl_args=(
+    -fsSL
+    --retry 5
+    --retry-connrefused
+    --retry-delay 2
+    --connect-timeout 10
+    --max-time 120
+    -H "Accept: application/vnd.github+json"
+  )
+  if [ -n "${GH_TOKEN:-}" ]; then
+    curl_args+=(-H "Authorization: Bearer ${GH_TOKEN}")
+  fi
+
+  curl "${curl_args[@]}" \
+    "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+    -o "$tar_path"
+
+  echo "::endgroup::"
 fi
 
-curl "${curl_args[@]}" \
-  "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
-  -o "$tar_path"
-
 if [ ! -s "$tar_path" ]; then
-  echo "::error::Downloaded tarball is empty: ${tar_path}" >&2
+  if [ -n "${TARBALL_PATH:-}" ]; then
+    echo "::error::Provided tarball is missing or empty: ${tar_path}" >&2
+  else
+    echo "::error::Downloaded tarball is empty: ${tar_path}" >&2
+  fi
   exit 1
 fi
 
@@ -92,7 +106,6 @@ fi
 
 mkdir -p "$extract_dir"
 tar -xzf "$tar_path" -C "$extract_dir"
-echo "::endgroup::"
 
 src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
 if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
@@ -119,4 +132,3 @@ echo "Workspace after:"
 echo "::endgroup::"
 
 echo "Checked out workspace from tarball."
-

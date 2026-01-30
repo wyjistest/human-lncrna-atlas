@@ -167,6 +167,29 @@ assert_curl_called
   exit 1
 }
 
+echo "== tarball via TARBALL_PATH: skip curl and replace workspace contents =="
+reset_curl_called
+export FAKE_CURL_MODE="fail"
+
+ws_path="$tmp_root/ws-path"
+mkdir -p "$ws_path"
+echo "old" > "$ws_path/old.txt"
+
+tar_src_parent2="$tmp_root/tar-src2"
+make_tarball_with_top_dir "$tar_src_parent2" "repo-dir" "$fake_tarball_file"
+
+(cd "$tmp_root" && REPO="owner/repo" EXPECTED_SHA="deadbeef" WORKSPACE="$ws_path" TARBALL_PATH="$fake_tarball_file" bash "$SCRIPT_UNDER_TEST" >/dev/null)
+
+assert_curl_not_called
+[ ! -f "$ws_path/old.txt" ] || {
+  echo "expected old workspace file to be removed (TARBALL_PATH)" >&2
+  exit 1
+}
+[ -f "$ws_path/new.txt" ] || {
+  echo "expected tarball contents to be moved into workspace (TARBALL_PATH)" >&2
+  exit 1
+}
+
 echo "== invalid tarball: fails with clear error =="
 reset_curl_called
 export FAKE_CURL_MODE="invalid"
@@ -217,4 +240,3 @@ echo "$out_missing" | grep -F "::error::Failed to locate extracted tarball direc
 }
 
 echo "OK: checkout_tarball.sh behaves as expected"
-
