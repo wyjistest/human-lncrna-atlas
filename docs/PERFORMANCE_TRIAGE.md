@@ -91,6 +91,14 @@ python3 scripts/admin_metrics_snapshot.py --compare \
    - DB P95 高：优先看 slow queries（fingerprint+route）定位具体 SQL 与触发端点
    - 若慢点集中在 `GET /api/v1/lncrna-chipseq-overlap/compare`：可先用 `species_ids=1,3`（或前端弹窗勾选物种子集）缩小计算量，验证是否为“多物种计算”导致尾延迟
 
+## 5) Overlap 性能回归门禁（可选，但推荐）
+
+当你在做 overlap list/compare 的优化/重构，建议用“可提交 baseline + 手动 workflow”做一次回归核验：
+
+- 文档：`docs/testing/performance/OVERLAP_PERF_REGRESSION.md`
+- 工作流（workflow_dispatch）：`Performance Overlap`（`.github/workflows/performance-overlap.yml`）
+- 产物（可直接贴 issue）：`docs/reports/perf-overlap-*.md` / `docs/reports/perf-overlap-*.json`
+
 ## 参考
 
 - `frontend/backend/app/routers/admin.py:864`（`GET /api/v1/admin/metrics`）
