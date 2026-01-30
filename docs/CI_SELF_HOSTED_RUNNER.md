@@ -189,6 +189,7 @@ python3 scripts/gh_push_commit.py --branch main --commit HEAD
 
 # （可选）一次性推送多个 commits：先 dry-run 预览，再执行推送（按提交顺序逐个推送）
 # 说明：range 不要求你能 git fetch 远端；但不支持 merge commit，建议先 rebase/squash 成线性历史。
+# dry-run 会输出每个 commit 的变更文件列表，便于推送前人工复核（可审计/可回滚）。
 python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD" --dry-run
 python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD"
 ```

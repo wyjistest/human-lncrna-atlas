@@ -61,6 +61,10 @@ echo "$out" | grep -F "test: three" >/dev/null || {
   echo "expected commit subject 'test: three' in output" >&2
   exit 1
 }
+echo "$out" | grep -F "file.txt" >/dev/null || {
+  echo "expected changed file list in dry-run output" >&2
+  exit 1
+}
 
 echo "== dry-run rejects merge commits =="
 

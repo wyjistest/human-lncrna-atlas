@@ -395,8 +395,16 @@ def main() -> int:
             print(f"[dry-run] commits ({len(commits)}):")
             for sha in commits:
                 meta = _get_local_commit_meta(repo_dir, sha)
+                changes = _get_commit_changes(repo_dir, meta.sha)
+                if not changes:
+                    raise CmdError(f"该 commit 未包含任何文件变更，停止：{meta.sha}")
                 subject = meta.message.splitlines()[0] if meta.message else ""
                 print(f"- {meta.sha[:7]} {subject}")
+                for ch in changes:
+                    if ch.status in ("R", "C") and ch.old_path:
+                        print(f"  {ch.status}\t{ch.old_path}\t{ch.path}")
+                    else:
+                        print(f"  {ch.status}\t{ch.path}")
             return 0
 
         _ensure_clean_proxy_config()
