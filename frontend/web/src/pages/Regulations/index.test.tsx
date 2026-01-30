@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { act, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
 
 import { renderWithProviders } from '@/test/testUtils'
@@ -7,6 +7,7 @@ import Regulations from './index'
 const mocks = vi.hoisted(() => ({
   useRegulations: vi.fn(),
   usePrefetchRegulations: vi.fn(),
+  advancedFiltersProps: null as null | { onFilterChange: (key: string, value: unknown) => void; onReset: () => void },
 }))
 
 vi.mock('react-i18next', () => ({
@@ -17,7 +18,10 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('./components/AdvancedFilters', () => ({
-  AdvancedFilters: () => null,
+  AdvancedFilters: (props: unknown) => {
+    mocks.advancedFiltersProps = props as typeof mocks.advancedFiltersProps
+    return null
+  },
 }))
 
 vi.mock('./components/SelectionToolbar', () => ({
@@ -94,6 +98,45 @@ describe('Regulations page', () => {
       chromosomes: 'chr1,chr2',
       lncrna_gene_name: 'MALAT1',
       target_gene_name: 'TP53',
+    })
+  })
+
+  it('initializes gene_id filters from URL params', () => {
+    window.history.pushState({}, '', '/regulations?lncrna_gene_id=1&target_gene_id=100')
+
+    renderWithProviders(<Regulations />)
+
+    expect(mocks.useRegulations).toHaveBeenCalled()
+    const [params] = mocks.useRegulations.mock.calls[0]
+    expect(params).toMatchObject({
+      lncrna_gene_id: 1,
+      target_gene_id: 100,
+    })
+  })
+
+  it('writes gene_id filters back to URL when filters change', async () => {
+    renderWithProviders(<Regulations />)
+
+    expect(mocks.advancedFiltersProps).not.toBeNull()
+
+    await act(async () => {
+      mocks.advancedFiltersProps?.onFilterChange('lncrna_gene_id', 1)
+    })
+
+    await waitFor(() => {
+      expect(window.location.search).toContain('lncrna_gene_id=1')
+      const [params] = mocks.useRegulations.mock.calls.at(-1) ?? []
+      expect(params).toMatchObject({ lncrna_gene_id: 1 })
+    })
+
+    await act(async () => {
+      mocks.advancedFiltersProps?.onReset()
+    })
+
+    await waitFor(() => {
+      expect(window.location.search).not.toContain('lncrna_gene_id=')
+      const [params] = mocks.useRegulations.mock.calls.at(-1) ?? []
+      expect((params as { lncrna_gene_id?: number } | undefined)?.lncrna_gene_id).toBeUndefined()
     })
   })
 })
