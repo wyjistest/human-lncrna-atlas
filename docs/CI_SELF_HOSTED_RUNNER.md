@@ -184,14 +184,14 @@ http_proxy=http://localhost:7890 https_proxy=http://localhost:7890 git push
 git config --global --unset http.proxy
 git config --global --unset https.proxy
 
-  # 以 GitHub API 的方式把本地 HEAD commit 追加到远端 main（不会 force）
-  python3 scripts/gh_push_commit.py --branch main --commit HEAD
+# 以 GitHub API 的方式把本地 HEAD commit 追加到远端 main（不会 force）
+python3 scripts/gh_push_commit.py --branch main --commit HEAD
 
-  # （可选）一次性推送多个 commits：先 dry-run 预览，再执行推送（按提交顺序逐个推送）
-  # 说明：range 不要求你能 git fetch 远端；但不支持 merge commit，建议先 rebase/squash 成线性历史。
-  python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD" --dry-run
-  python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD"
-  ```
+# （可选）一次性推送多个 commits：先 dry-run 预览，再执行推送（按提交顺序逐个推送）
+# 说明：range 不要求你能 git fetch 远端；但不支持 merge commit，建议先 rebase/squash 成线性历史。
+python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD" --dry-run
+python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD"
+```
 
 说明：
 - 该脚本会把“本地 commit 引入的文件变更”重放到远端分支 HEAD 上，并创建一个新的远端 commit（SHA 与本地不相同，这是预期行为）。
