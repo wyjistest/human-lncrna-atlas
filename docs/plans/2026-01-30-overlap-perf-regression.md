@@ -3,6 +3,8 @@
 > **For Codex:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 >
 > 目标场景：`GET /api/v1/lncrna-chipseq-overlap` + `GET /api/v1/lncrna-chipseq-overlap/compare`
+>
+> 当前状态参考：`docs/CURRENT_STATUS.md`
 
 **Goal:** 增加一个“Overlap 性能回归”门禁：可在 self-hosted runner 上手动触发（workflow_dispatch），基于 `GET /api/v1/admin/metrics` 的端点尾延迟/DB 百分位，对比仓库内 baseline，阻止明显回归（不阻塞 main push）。
 
@@ -117,4 +119,3 @@ Expected: PASS（包含一个回归用例应触发 FAIL）。
   - 如何跑 `check`、如何调阈值/参数
   - 常见失败：403（缺 Admin API Key）、样本不足、环境抖动
 - `PERFORMANCE_TRIAGE.md` 增加一节链接到上面文档与 workflow 名称。
-
