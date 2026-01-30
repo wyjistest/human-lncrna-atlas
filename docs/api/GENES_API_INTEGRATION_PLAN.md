@@ -315,11 +315,11 @@ const filteredGenes = useMemo(() => {
 
 ### 5.1 Backend Prerequisites
 
-- [ ] Backend API endpoint `/api/v1/genes/options` implemented
-- [ ] Redis cache configured (30min TTL)
-- [ ] Query parameters supported: `species_id`, `gene_type`
-- [ ] Species suffix auto-removal implemented
-- [ ] Performance tested (< 500ms response time)
+- [ ] Confirm backend endpoint exists: `/api/v1/genes/options`
+- [ ] Verify Redis cache is configured (expected TTL: 30min)
+- [ ] Verify query parameters supported: `species_id`, `gene_type`
+- [ ] Verify species suffix auto-removal behavior
+- [ ] Measure performance (< 500ms response time)
 
 ### 5.2 Frontend Changes
 
@@ -612,10 +612,10 @@ test('gene selector loads and filters correctly', async ({ page }) => {
 ## 13. Rollout Plan
 
 ### Phase 1: Backend Implementation (Day 1)
-- [ ] Implement `/api/v1/genes/options` endpoint
-- [ ] Add Redis caching
-- [ ] Performance testing
-- [ ] Documentation
+- [ ] Confirm `/api/v1/genes/options` endpoint is available
+- [ ] Confirm Redis caching works as expected
+- [ ] Run performance testing
+- [ ] Ensure documentation matches reality
 
 ### Phase 2: Frontend Integration (Day 1-2)
 - [ ] Update `src/api/genes.ts` with new types and method
@@ -623,14 +623,14 @@ test('gene selector loads and filters correctly', async ({ page }) => {
 - [ ] Manual API testing
 
 ### Phase 3: Feature Usage (Day 2+)
-- [ ] Wait for feature request (e.g., gene autocomplete)
-- [ ] Apply integration template
-- [ ] User acceptance testing
+- [ ] (Optional) Wait for feature request (e.g., gene autocomplete)
+- [ ] (Optional) Apply integration template
+- [ ] (Optional) User acceptance testing
 
 ### Phase 4: Documentation (Day 3)
-- [ ] Update CLAUDE.md
-- [ ] Add usage examples
-- [ ] Performance report
+- [ ] (Optional) Update CLAUDE.md
+- [ ] (Optional) Add usage examples
+- [ ] (Optional) Performance report
 
 ---
 

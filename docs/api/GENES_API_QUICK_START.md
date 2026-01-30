@@ -253,15 +253,15 @@ npx tsc --noEmit
 
 ## 6. Integration Checklist
 
-Before integrating into a page:
+Before integrating into a page (verification checklist):
 
-- [ ] Backend `/api/v1/genes/options` endpoint is implemented
-- [ ] Backend returns data in `GeneOptionsResponse` format
-- [ ] Redis cache is configured (30min TTL)
-- [ ] Frontend `genes.ts` updated with new method
-- [ ] API test passes in browser console
-- [ ] Response time < 500ms
-- [ ] Existing pages (Genes list, Gene detail) still work
+- [ ] Confirm backend endpoint exists: `GET /api/v1/genes/options`
+- [ ] Confirm backend returns data in `GeneOptionsResponse` format
+- [ ] Verify Redis caching is enabled (expected TTL: 30min)
+- [ ] Confirm frontend `src/api/genes.ts` has `genesApi.getOptions(...)`
+- [ ] Verify API call works in browser console (see examples above)
+- [ ] Measure response time < 500ms (first) and improves when cached
+- [ ] Smoke-check existing pages (Genes list, Gene detail) still work
 
 ---
 
