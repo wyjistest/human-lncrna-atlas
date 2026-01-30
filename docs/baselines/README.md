@@ -46,6 +46,7 @@ CI：
 说明：
 - baseline 初始为 `UNSET`，避免“未初始化基线”的静默通过；请先生成并提交一次 baseline。
 - percentiles 对样本量敏感：脚本会做 warmup，并在样本不足时直接 FAIL（更利于发现“指标不足/环境不稳定”的问题）。
+- 若你没有现成可用后端，可使用 docker compose + sample 数据的止损脚本：`bash scripts/baselines/run_overlap_perf_regression_docker.sh`（见 `docs/testing/performance/OVERLAP_PERF_REGRESSION.md`）。
 
 ## Research（可选：本地烟测）
 

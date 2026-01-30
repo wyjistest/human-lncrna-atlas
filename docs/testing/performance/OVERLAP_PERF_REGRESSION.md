@@ -45,6 +45,16 @@ python3 scripts/perf_overlap_regression.py check \
 - `perf-overlap-<timestamp>.json`（compact snapshot）
 - `perf-overlap-raw-metrics-<timestamp>.json`（原始 `/admin/metrics`）
 
+## 无现成后端时：用 Docker Compose 启动 sample backend（可选）
+
+如果你本机没有可用的 backend（例如 `http://127.0.0.1:8000` 连接拒绝），可以用仓库自带脚本启动一套**隔离的** docker compose（Postgres+Redis+Backend，加载 v2.3 sample 数据），然后跑 perf gate：
+
+```bash
+MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker.sh
+```
+
+该脚本会把生成的 baseline 写回 `docs/baselines/performance/overlap-admin-metrics.baseline.json`，并在退出时自动清理容器（可用 `KEEP_DOCKER=true` 保留用于排障）。
+
 ## 门禁规则（保守）
 
 - 最小样本：每个端点 `requests >= 10`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
@@ -59,11 +69,12 @@ python3 scripts/perf_overlap_regression.py check \
 工作流：`Performance Overlap`（见 `.github/workflows/performance-overlap.yml`）
 
 建议用法：
-1. 第一次：选择 `mode=generate-baseline`，在 self-hosted runner 上运行，下载 artifact 中的 baseline 文件，并提交到仓库。
-2. 后续：选择 `mode=check`，用于验证优化/重构是否引入明显回归。
+1. 第一次：选择 `mode=generate-baseline` 生成 baseline。
+2. 如果 runner 上没有常驻后端：把 `backend_mode` 设为 `docker-sample`（会自动启动 sample backend 后再跑）。
+3. 下载 artifact 中的 baseline 文件，并提交到仓库。
+4. 后续：选择 `mode=check`（同理可选 `backend_mode=docker-sample`）用于验证优化/重构是否引入明显回归。
 
 Artifacts（即使失败也会上传）：
 - `docs/reports/perf-overlap-*.md`
 - `docs/reports/perf-overlap-*.json`
 - `docs/baselines/performance/overlap-admin-metrics.baseline.json`
-

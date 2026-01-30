@@ -7,6 +7,14 @@ on:
         description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
         required: false
         default: ""
+      backend_mode:
+        description: "Where backend comes from: external (use api_base_url) | docker-sample (boot sample backend via docker compose)."
+        required: false
+        default: "external"
+        type: choice
+        options:
+          - external
+          - docker-sample
       api_base_url:
         description: "Backend base URL (e.g. http://127.0.0.1:8000)."
         required: false
@@ -41,6 +49,7 @@ permissions:
 
 env:
   CI_RUNS_ON: ${{ (github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+  BACKEND_MODE: ${{ github.event.inputs.backend_mode || 'external' }}
   API_BASE_URL: ${{ github.event.inputs.api_base_url || 'http://127.0.0.1:8000' }}
   MODE: ${{ github.event.inputs.mode || 'check' }}
   WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '20' }}
@@ -110,6 +119,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Run overlap perf regression
+        if: ${{ env.BACKEND_MODE == 'external' }}
         env:
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
@@ -121,6 +131,12 @@ jobs:
             --lncrna-gene-id "${LNCRNA_GENE_ID}" \
             --species-ids "${SPECIES_IDS}"
 
+      - name: Boot sample backend (docker compose) and run perf regression
+        if: ${{ env.BACKEND_MODE == 'docker-sample' }}
+        run: |
+          set -euo pipefail
+          bash scripts/baselines/run_overlap_perf_regression_docker.sh
+
       - name: Upload artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
@@ -131,4 +147,3 @@ jobs:
             docs/reports/perf-overlap-*.md
             docs/reports/perf-overlap-*.json
             docs/baselines/performance/overlap-admin-metrics.baseline.json
-
