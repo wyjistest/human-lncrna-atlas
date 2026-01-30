@@ -1,0 +1,9 @@
+{
+  "meta": {
+    "schema_version": 1,
+    "status": "UNSET",
+    "note": "Run: python3 scripts/perf_overlap_regression.py generate-baseline --base-url <...> (on a stable environment), then commit this file."
+  },
+  "endpoints": {}
+}
+

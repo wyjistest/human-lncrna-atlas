@@ -26,6 +26,27 @@
 CI：
 - `Tests` 工作流会在 Postgres service 上加载 `schema/v2.3/03_sample_data.sql`，并在 **禁用缓存（`ENABLE_CACHE=false`）** 的情况下校验 `api-snapshot.sample.json`（见 `.github/workflows/test.yml` 的 `api-snapshot-baseline` job）。
 
+## Performance Baseline（Overlap，手动门禁）
+
+- 基线文件：`docs/baselines/performance/overlap-admin-metrics.baseline.json`
+- 生成逻辑：`scripts/perf_overlap_regression.py`（基于 `GET /api/v1/admin/metrics` 的端点尾延迟/DB 百分位）
+- 生成命令（建议在稳定环境，例如 self-hosted runner）：
+
+  ```bash
+  python3 scripts/perf_overlap_regression.py generate-baseline \
+    --base-url "http://127.0.0.1:8000" \
+    --warmup-rounds 20 \
+    --lncrna-gene-id 17276 \
+    --species-ids "1,3"
+  ```
+
+校验：
+- `python3 scripts/perf_overlap_regression.py check --base-url "http://127.0.0.1:8000"`
+
+说明：
+- baseline 初始为 `UNSET`，避免“未初始化基线”的静默通过；请先生成并提交一次 baseline。
+- percentiles 对样本量敏感：脚本会做 warmup，并在样本不足时直接 FAIL（更利于发现“指标不足/环境不稳定”的问题）。
+
 ## Research（可选：本地烟测）
 
 本仓库还提供一个“本地 sample DB 烟测”脚本，用于快速验证 Research 导出脚本能跑通（不依赖真实大库）。

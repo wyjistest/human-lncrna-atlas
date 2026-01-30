@@ -1,0 +1,134 @@
+name: Performance Overlap
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs_on:
+        description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
+        required: false
+        default: ""
+      api_base_url:
+        description: "Backend base URL (e.g. http://127.0.0.1:8000)."
+        required: false
+        default: "http://127.0.0.1:8000"
+      mode:
+        description: "check (gate regressions) | generate-baseline (emit baseline json)."
+        required: true
+        default: "check"
+        type: choice
+        options:
+          - check
+          - generate-baseline
+      warmup_rounds:
+        description: "Warmup rounds before snapshot."
+        required: false
+        default: "20"
+      lncrna_gene_id:
+        description: "Warmup lncRNA gene id."
+        required: false
+        default: "17276"
+      species_ids:
+        description: "Warmup compare species ids (CSV)."
+        required: false
+        default: "1,3"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI_RUNS_ON: ${{ (github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+  API_BASE_URL: ${{ github.event.inputs.api_base_url || 'http://127.0.0.1:8000' }}
+  MODE: ${{ github.event.inputs.mode || 'check' }}
+  WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '20' }}
+  LNCRNA_GENE_ID: ${{ github.event.inputs.lncrna_gene_id || '17276' }}
+  SPECIES_IDS: ${{ github.event.inputs.species_ids || '1,3' }}
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  overlap-perf:
+    name: Overlap Perf Regression
+    runs-on: ${{ (github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          git config --global http.sslVersion tlsv1.2
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          echo "Downloading tarball for ${REPO}@${EXPECTED_SHA} ..."
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          extract_dir="${tmp_dir}/extract"
+          mkdir -p "$extract_dir"
+          tar -xzf "$tar_path" -C "$extract_dir"
+
+          src_dir="$(find "$extract_dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          if [ -z "${src_dir:-}" ] || [ ! -d "$src_dir" ]; then
+            echo "::error::Failed to locate extracted tarball directory"
+            exit 1
+          fi
+
+          shopt -s dotglob
+          rm -rf -- *
+          mv "$src_dir"/* .
+          shopt -u dotglob
+
+          echo "Checked out workspace from tarball."
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run overlap perf regression
+        env:
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 scripts/perf_overlap_regression.py "${MODE}" \
+            --base-url "${API_BASE_URL}" \
+            --warmup-rounds "${WARMUP_ROUNDS}" \
+            --lncrna-gene-id "${LNCRNA_GENE_ID}" \
+            --species-ids "${SPECIES_IDS}"
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: overlap-perf-${{ env.MODE }}-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            docs/reports/perf-overlap-*.md
+            docs/reports/perf-overlap-*.json
+            docs/baselines/performance/overlap-admin-metrics.baseline.json
+
