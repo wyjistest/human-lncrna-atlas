@@ -101,13 +101,19 @@ chmod +x "$tmp_root/bin/python3"
 export FAKE_PIP_CALLED_FILE="$pip_called"
 export PATH="$tmp_root/bin:$PATH"
 
+output_log="$tmp_root/backend-unit.log"
+
 set +e
-(cd "$tmp_root" && bash scripts/run-tests.sh backend-unit >/dev/null 2>&1)
+# 说明：脚本单测会在 GitHub Actions（CI=true）中运行，但我们这里需要模拟“本地开发机”行为，
+# 因此显式覆盖 CI 变量以启用后端 venv 自举逻辑。
+(cd "$tmp_root" && CI=0 bash scripts/run-tests.sh backend-unit >"$output_log" 2>&1)
 status=$?
 set -e
 
 if [ "$status" -ne 0 ]; then
   echo "expected backend-unit to succeed by bootstrapping backend venv" >&2
+  echo "----- backend-unit output (tail) -----" >&2
+  tail -n 200 "$output_log" >&2 || true
   exit 1
 fi
 
@@ -122,4 +128,3 @@ if [ ! -f "$pip_called" ]; then
 fi
 
 echo "OK: backend venv auto-bootstrap works when global python lacks deps"
-
