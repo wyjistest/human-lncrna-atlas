@@ -65,13 +65,8 @@ jobs:
           git config --global http.lowSpeedLimit 1
           git config --global http.lowSpeedTime 30
 
-      - name: Checkout repository
-        id: checkout
-        uses: actions/checkout@v6
-        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-
-      - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+      - name: Download repo tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
         working-directory: .
         env:
           EXPECTED_SHA: ${{ github.sha }}
@@ -80,7 +75,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
           tmp_dir="$(mktemp -d)"
           tar_path="${tmp_dir}/src.tar.gz"
           script_path="${tmp_dir}/checkout_tarball.sh"
@@ -100,6 +94,10 @@ jobs:
           chmod +x "$script_path"
 
           TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout repository
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -172,13 +170,8 @@ jobs:
           git config --global http.lowSpeedLimit 1
           git config --global http.lowSpeedTime 30
 
-      - name: Checkout repository
-        id: checkout
-        uses: actions/checkout@v6
-        continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-
-      - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+      - name: Download repo tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
         working-directory: .
         env:
           EXPECTED_SHA: ${{ github.sha }}
@@ -187,7 +180,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "::warning::actions/checkout failed on self-hosted runner; attempting recovery."
           tmp_dir="$(mktemp -d)"
           tar_path="${tmp_dir}/src.tar.gz"
           script_path="${tmp_dir}/checkout_tarball.sh"
@@ -207,6 +199,10 @@ jobs:
           chmod +x "$script_path"
 
           TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout repository
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
