@@ -162,10 +162,25 @@ gh api "/repos/<OWNER>/<REPO>/actions/runs/<RUN_ID>/jobs" \
 - `fatal: unable to access 'https://github.com/...': gnutls_handshake() failed`
 - `Failed to connect to github.com port 443`
 
-且你确认 `gh api` 仍可正常访问 GitHub（`gh auth status` 显示已登录），可以使用本仓库提供的“止损推送”脚本：
+可以按以下优先级止损（推荐从上到下依次尝试）：
+
+**A) 单次 git 命令显式走本机代理（保留原始 SHA，推荐）**
+
+不建议把代理写进 `git config --global http.proxy/https.proxy`（容易影响 Actions runner 下载与 `actions/checkout`）。
+优先使用“仅对单次命令生效”的方式：
 
 ```bash
-# 先确保 git 没有强制走本机代理（常见于 http.proxy/https.proxy）
+# 如你本机代理端口为 7890（例如 Clash），可用这种方式只影响当前命令
+http_proxy=http://localhost:7890 https_proxy=http://localhost:7890 git fetch --prune
+http_proxy=http://localhost:7890 https_proxy=http://localhost:7890 git push
+```
+
+**B) GitHub API 止损推送（不依赖 git 网络；会生成新 SHA）**
+
+如果你确认 `gh api` 仍可正常访问 GitHub（`gh auth status` 显示已登录），可以使用本仓库提供的“止损推送”脚本：
+
+```bash
+# 可选：如果你之前配置过 git 全局代理（http.proxy/https.proxy），建议先移除，避免影响 runner/checkout 稳定性
 git config --global --unset http.proxy
 git config --global --unset https.proxy
 
