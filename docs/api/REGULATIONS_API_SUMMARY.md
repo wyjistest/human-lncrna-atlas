@@ -32,13 +32,13 @@
 - [x] 添加缓存（默认 30 分钟）
 
 **前端集成**（Frontend Agent）:
-- [ ] （可选增强）修改 `AdvancedFilters.tsx`（替换输入框为选择器）
-- [ ] （可选增强）修改 `index.tsx`（使用 gene_id 参数而非 gene_name）
-- [ ] （可选增强）补齐选择器相关国际化与单测
+- （可选增强，Tracked in #79）修改 `AdvancedFilters.tsx`（替换输入框为选择器）
+- （可选增强，Tracked in #79）修改 `index.tsx`（使用 gene_id 参数而非 gene_name）
+- （可选增强，Tracked in #79/#80）补齐选择器相关国际化与测试覆盖
 
 **测试验证**（Playwright Agent）:
-- [ ] （可选增强）为选择器路径补齐 Playwright 覆盖
-- [ ] （可选增强）性能基准（options API latency / payload / cache hit）
+- （可选增强，Tracked in #80）为选择器路径补齐 Playwright 覆盖
+- （可选增强，Tracked in #80）性能基准（options API latency / payload / cache hit）
 
 ---
 
@@ -324,11 +324,11 @@ const { data: targetOptions, isLoading } = useQuery({
 - ✅ `<repo-root>/frontend/web/REGULATIONS_API_SUMMARY.md`（新建）
 - ✅ `<repo-root>/frontend/web/src/api/regulations.ts`（已更新）
 
-**待修改**:
-- [ ] `src/pages/Regulations/components/AdvancedFilters.tsx`
-- [ ] `src/pages/Regulations/index.tsx`
-- [ ] `src/i18n/locales/zh-CN/regulations.json`
-- [ ] `src/i18n/locales/en-US/regulations.json`
+**待修改（可选增强，Tracked in #79）**:
+- `src/pages/Regulations/components/AdvancedFilters.tsx`
+- `src/pages/Regulations/index.tsx`
+- `src/i18n/locales/zh-CN/regulations.json`
+- `src/i18n/locales/en-US/regulations.json`
 
 ---
 

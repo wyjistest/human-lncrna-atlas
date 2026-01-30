@@ -1038,28 +1038,33 @@ test.describe('Regulations Filters', () => {
 - [x] 准备集成测试用例
 - [x] 编写国际化翻译
 
-### 后端开发工作（待 Backend Agent 执行）
+### 后端开发工作（已完成）
 
-- [ ] 实现 `/api/v1/regulations/lncrna-options` 端点
-- [ ] 实现 `/api/v1/regulations/target-options` 端点
-- [ ] 添加 Redis 缓存
-- [ ] 编写单元测试
-- [ ] 更新 API 文档
+> 更新（2026-01-30）：后端已实现上述端点与缓存（以 `frontend/backend/app/routers/regulations.py` 为准）。
 
-### 前端集成工作（待 Frontend Agent 执行）
+- ✅ 实现 `/api/v1/regulations/lncrna-options` 端点（已完成）
+- ✅ 实现 `/api/v1/regulations/target-options` 端点（已完成）
+- ✅ 添加 Redis 缓存（已完成）
+- ✅ 回归锚点/单测覆盖（例如：`frontend/backend/tests/test_api_snapshot_overlap_compare_unit.py`）
+- ✅ 文档与说明（本文件 + `docs/api/REGULATIONS_API_SUMMARY.md`）
 
-- [ ] 更新 `src/api/regulations.ts`
-- [ ] 修改 `AdvancedFilters.tsx`
-- [ ] 修改 `index.tsx`
-- [ ] 添加国际化翻译
-- [ ] 更新单元测试
+### 前端集成工作（可选增强）
 
-### 测试验证工作（待 Playwright Agent 执行）
+> 说明：前端“选择器 + gene_id”属于可选增强，已拆分为可追踪 issue：
+> - #79（功能改造）
+> - #80（测试覆盖）
 
-- [ ] 运行 Playwright 集成测试
-- [ ] 性能基准测试
-- [ ] UI 交互测试
-- [ ] 回归测试
+- ✅ 更新 `src/api/regulations.ts`（已完成）
+- （可选增强，Tracked in #79）修改 `AdvancedFilters.tsx`
+- （可选增强，Tracked in #79）修改 `index.tsx`
+- （可选增强，Tracked in #79/#80）补齐相关国际化与测试覆盖
+
+### 测试验证工作（可选增强）
+
+- （可选增强，Tracked in #80）运行 Playwright 集成测试
+- （可选增强，Tracked in #80）性能基准测试
+- （可选增强，Tracked in #80）UI 交互测试
+- （可选增强，Tracked in #80）回归测试
 
 ---
 
