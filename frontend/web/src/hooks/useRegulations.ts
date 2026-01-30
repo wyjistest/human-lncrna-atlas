@@ -36,6 +36,40 @@ export const usePrefetchRegulations = () => {
 }
 
 /**
+ * 获取 Regulations - lncRNA options（轻量级，下拉选择器数据源）
+ */
+export const useRegulationLncRNAOptions = (
+  params?: Parameters<typeof regulationsApi.getLncRNAOptions>[0],
+  options?: { enabled?: boolean }
+) => {
+  return useQuery<Awaited<ReturnType<typeof regulationsApi.getLncRNAOptions>>>({
+    queryKey: queryKeys.regulations.lncrnaOptions(params),
+    queryFn: async ({ signal }) => {
+      return regulationsApi.getLncRNAOptions(params, signal)
+    },
+    enabled: options?.enabled ?? true,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+/**
+ * 获取 Regulations - target options（轻量级，下拉选择器数据源）
+ */
+export const useRegulationTargetOptions = (
+  params?: Parameters<typeof regulationsApi.getTargetOptions>[0],
+  options?: { enabled?: boolean }
+) => {
+  return useQuery<Awaited<ReturnType<typeof regulationsApi.getTargetOptions>>>({
+    queryKey: queryKeys.regulations.targetOptions(params),
+    queryFn: async ({ signal }) => {
+      return regulationsApi.getTargetOptions(params, signal)
+    },
+    enabled: options?.enabled ?? true,
+    staleTime: 10 * 60 * 1000,
+  })
+}
+
+/**
  * 获取调控关系详情的 Hook
  * @param regulationId - 调控关系 ID
  * @param options - 可选配置

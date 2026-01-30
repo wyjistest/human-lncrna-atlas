@@ -26,6 +26,8 @@ interface ExportFilterParams {
   max_ba?: number
   species_ids?: string  // 逗号分隔
   chromosomes?: string  // 逗号分隔
+  lncrna_gene_id?: number
+  target_gene_id?: number
   lncrna_gene_name?: string
   target_gene_name?: string
 }
@@ -61,6 +63,12 @@ async function downloadFromBackend(
     }
     if (filters.chromosomes) {
       params.append('chromosomes', filters.chromosomes)
+    }
+    if (filters.lncrna_gene_id !== undefined) {
+      params.append('lncrna_gene_id', String(filters.lncrna_gene_id))
+    }
+    if (filters.target_gene_id !== undefined) {
+      params.append('target_gene_id', String(filters.target_gene_id))
     }
     if (filters.lncrna_gene_name) {
       params.append('lncrna_gene_name', filters.lncrna_gene_name)

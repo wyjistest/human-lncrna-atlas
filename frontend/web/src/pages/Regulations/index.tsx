@@ -74,6 +74,8 @@ export default function Regulations() {
     max_ba: parseNumberParam(searchParams.get('max_ba'), 0, MAX_BA),
     species_ids: parseIntListParam(searchParams.get('species_ids'), 1, 4),
     chromosomes: parseStringListParam(searchParams.get('chromosomes'), CHROMOSOME_VALUES),
+    lncrna_gene_id: parseIntParam(searchParams.get('lncrna_gene_id'), 1, 2_147_483_647),
+    target_gene_id: parseIntParam(searchParams.get('target_gene_id'), 1, 2_147_483_647),
     lncrna_gene_name: searchParams.get('lncrna_gene_name')?.trim() || undefined,
     target_gene_name: searchParams.get('target_gene_name')?.trim() || undefined,
   }), [searchParams])
@@ -99,6 +101,8 @@ export default function Regulations() {
     // 数组转逗号分隔字符串
     species_ids: filters.species_ids?.join(','),
     chromosomes: filters.chromosomes?.join(','),
+    lncrna_gene_id: filters.lncrna_gene_id,
+    target_gene_id: filters.target_gene_id,
     lncrna_gene_name: filters.lncrna_gene_name,
     target_gene_name: filters.target_gene_name,
   }), [
@@ -108,6 +112,8 @@ export default function Regulations() {
     filters.max_ba,
     filters.species_ids,
     filters.chromosomes,
+    filters.lncrna_gene_id,
+    filters.target_gene_id,
     filters.lncrna_gene_name,
     filters.target_gene_name,
   ])
@@ -155,6 +161,12 @@ export default function Regulations() {
   const updateFilter = useCallback((key: keyof FilterState, value: unknown) => {
     updateParams((params) => {
       switch (key) {
+        case 'lncrna_gene_id':
+        case 'target_gene_id': {
+          const raw = typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined
+          setOrDelete(params, key, raw)
+          break
+        }
         case 'min_ba':
         case 'max_ba': {
           const raw = typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined
@@ -192,6 +204,8 @@ export default function Regulations() {
       params.delete('max_ba')
       params.delete('species_ids')
       params.delete('chromosomes')
+      params.delete('lncrna_gene_id')
+      params.delete('target_gene_id')
       params.delete('lncrna_gene_name')
       params.delete('target_gene_name')
       params.delete('page')
@@ -242,6 +256,8 @@ export default function Regulations() {
       max_ba: filters.max_ba,
       species_ids: filters.species_ids?.join(','),
       chromosomes: filters.chromosomes?.join(','),
+      lncrna_gene_id: filters.lncrna_gene_id,
+      target_gene_id: filters.target_gene_id,
       lncrna_gene_name: filters.lncrna_gene_name,
       target_gene_name: filters.target_gene_name,
     }

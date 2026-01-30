@@ -23,7 +23,9 @@
     "species": "Species",
     "chromosome": "Chromosome",
     "lncrnaName": "lncRNA Name",
+    "lncrnaPlaceholder": "Select lncRNA",
     "targetName": "Target Name",
+    "targetPlaceholder": "Select target gene",
     "reset": "Reset Filters"
   },
   "selection": {

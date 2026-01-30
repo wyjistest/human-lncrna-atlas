@@ -23,7 +23,9 @@
     "species": "物种",
     "chromosome": "染色体",
     "lncrnaName": "lncRNA 名称",
+    "lncrnaPlaceholder": "选择 lncRNA",
     "targetName": "Target 名称",
+    "targetPlaceholder": "选择靶基因",
     "reset": "重置筛选"
   },
   "selection": {

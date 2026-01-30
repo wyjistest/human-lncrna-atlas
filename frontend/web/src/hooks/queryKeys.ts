@@ -36,6 +36,18 @@ export const queryKeys = {
       const normalized = normalizeQueryKeyObject(params)
       return normalized ? ([...queryKeys.regulations.lists(), normalized] as const) : queryKeys.regulations.lists()
     },
+    lncrnaOptions: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.regulations.all, 'lncrna-options', normalized] as const)
+        : ([...queryKeys.regulations.all, 'lncrna-options'] as const)
+    },
+    targetOptions: (params?: unknown) => {
+      const normalized = normalizeQueryKeyObject(params)
+      return normalized
+        ? ([...queryKeys.regulations.all, 'target-options', normalized] as const)
+        : ([...queryKeys.regulations.all, 'target-options'] as const)
+    },
     details: () => [...queryKeys.regulations.all, 'detail'] as const,
     detail: (id: number) => [...queryKeys.regulations.details(), id] as const,
   },
