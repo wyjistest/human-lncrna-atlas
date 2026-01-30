@@ -26,6 +26,8 @@ git commit -m "perf(baseline): set overlap admin-metrics baseline"
 
 说明：
 - baseline 文件初始为 `UNSET`，`check` 模式会直接失败，避免“未初始化基线”导致的静默放过。
+- `--lncrna-gene-id` 需要在你的数据库中存在且具备 `core_id`（否则 compare 端点会返回 404/400）。  
+  若 warmup 阶段 compare 返回 404/400/422，脚本会 best-effort 调用 `/api/v1/genes/options` 自动挑选一个带 `core_id` 的候选 gene_id，并把“请求值/实际使用值”记录到输出 snapshot 的 `meta.scenario` 中，便于审计与回滚。
 - 如你的环境对 `/api/v1/admin/metrics` 需要鉴权，请提供 Admin API Key：
   - 环境变量：`export ADMIN_API_KEY="..."`，或
   - 参数：`--admin-api-key "..."`（会作为 `X-Admin-API-Key` 发送）。

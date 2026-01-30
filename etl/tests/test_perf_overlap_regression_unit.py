@@ -14,6 +14,40 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
         def do_GET(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
 
+            if parsed.path == "/api/v1/genes/options":
+                payload = state.get("genes_options_payload")
+                if not isinstance(payload, dict):
+                    self.send_response(500)
+                    self.end_headers()
+                    self.wfile.write(b"missing genes_options_payload\n")
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write((json.dumps(payload) + "\n").encode("utf-8"))
+                return
+
+            if parsed.path.startswith("/api/v1/genes/"):
+                gene_id_s = parsed.path.rsplit("/", 1)[-1]
+                try:
+                    gene_id = int(gene_id_s)
+                except Exception:
+                    gene_id = -1
+                details = state.get("gene_detail_by_id")
+                if not isinstance(details, dict):
+                    details = {}
+                payload = details.get(gene_id)
+                if not isinstance(payload, dict):
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(b"gene not found\n")
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write((json.dumps(payload) + "\n").encode("utf-8"))
+                return
+
             if parsed.path == "/api/v1/lncrna-chipseq-overlap":
                 qs = parse_qs(parsed.query)
                 if "lncrna_gene_id" not in qs or "species_id" not in qs:
@@ -34,6 +68,15 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
                     self.end_headers()
                     self.wfile.write(b"missing query\n")
                     return
+                lncrna_gene_id = int((qs.get("lncrna_gene_id") or ["0"])[0])
+                status_by_gene = state.get("compare_status_by_gene_id")
+                if isinstance(status_by_gene, dict):
+                    code = status_by_gene.get(lncrna_gene_id)
+                    if isinstance(code, int) and code != 200:
+                        self.send_response(code)
+                        self.end_headers()
+                        self.wfile.write(b"forced status\n")
+                        return
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -224,3 +267,58 @@ def test_perf_overlap_check_fails_on_large_regression(tmp_path: Path) -> None:
     finally:
         server.shutdown()
 
+
+def test_perf_overlap_falls_back_to_auto_gene_id_when_default_compare_404(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+        "genes_options_payload": {
+            "genes": [
+                {"gene_id": 101},
+                {"gene_id": 102},
+            ]
+        },
+        "gene_detail_by_id": {
+            # 101 intentionally lacks core_id to simulate an invalid candidate.
+            101: {"gene_id": 101, "core_id": None},
+            102: {"gene_id": 102, "core_id": 999},
+        },
+        # Default gene id used by the perf script should fail compare warmup (sample DB may not contain it).
+        "compare_status_by_gene_id": {17276: 404},
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        baseline_file = tmp_path / "baseline.json"
+        out_dir = tmp_path / "out"
+
+        gen = _run_script(
+            repo_root,
+            env,
+            "generate-baseline",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--timeout-seconds",
+            "1",
+        )
+        output = f"{gen.stdout}\n{gen.stderr}"
+        assert gen.returncode == 0, f"generate-baseline should auto-pick a valid gene_id:\n{output}"
+
+        baseline = json.loads(baseline_file.read_text(encoding="utf-8"))
+        scenario = baseline.get("meta", {}).get("scenario", {})
+        assert scenario.get("lncrna_gene_id") == 102, f"expected auto gene_id=102, got:\n{json.dumps(scenario, indent=2)}"
+    finally:
+        server.shutdown()

@@ -51,6 +51,20 @@ DB_REGRESSION_PCT = 50.0
 DB_REGRESSION_ABS_MS = 300.0
 
 
+class WarmupRequestError(RuntimeError):
+    def __init__(self, url: str, *, status_code: Optional[int], detail: str):
+        super().__init__(f"Warmup request failed: {url}: {detail}".strip())
+        self.url = url
+        self.status_code = status_code
+        self.detail = detail
+
+
+@dataclass(frozen=True)
+class JsonResult:
+    status_code: int
+    json: Any
+
+
 def _iso_ts() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
 
@@ -108,13 +122,72 @@ def _fetch_json(url: str, *, admin_api_key: Optional[str], timeout_seconds: floa
         raise RuntimeError(f"Invalid JSON from {url}: {e}") from e
 
 
+def _fetch_json_result(url: str, *, timeout_seconds: float) -> JsonResult:
+    req = Request(url, headers={"Accept": "application/json"}, method="GET")
+    try:
+        with urlopen(req, timeout=timeout_seconds) as resp:
+            body = resp.read()
+            status_code = int(resp.getcode())
+    except HTTPError as e:
+        status_code = int(e.code)
+        try:
+            body = e.read()
+        except Exception:
+            body = b""
+    except URLError as e:
+        raise RuntimeError(f"Network error fetching {url}: {e}") from e
+
+    text = body.decode("utf-8", errors="replace")
+    if not text.strip():
+        return JsonResult(status_code=status_code, json=None)
+
+    try:
+        return JsonResult(status_code=status_code, json=json.loads(text))
+    except json.JSONDecodeError:
+        return JsonResult(status_code=status_code, json=None)
+
+
+def _pick_lncrna_gene_id_with_core_id(
+    *,
+    base_url: str,
+    species_id: int,
+    timeout_seconds: float,
+) -> Optional[int]:
+    options_url = f"{base_url}/api/v1/genes/options?{urlencode({'species_id': species_id, 'gene_type': 'lncRNA', 'limit': 5})}"
+    options = _fetch_json_result(options_url, timeout_seconds=timeout_seconds)
+    if options.status_code != 200 or not isinstance(options.json, dict):
+        return None
+
+    genes = options.json.get("genes")
+    if not isinstance(genes, list):
+        return None
+
+    for row in genes[:5]:
+        if not isinstance(row, dict):
+            continue
+        gene_id = _to_int(row.get("gene_id"))
+        if gene_id is None or gene_id < 1:
+            continue
+
+        detail = _fetch_json_result(f"{base_url}/api/v1/genes/{gene_id}", timeout_seconds=timeout_seconds)
+        if detail.status_code != 200 or not isinstance(detail.json, dict):
+            continue
+        if detail.json.get("core_id") is None:
+            continue
+        return gene_id
+
+    return None
+
+
 def _warmup_get(url: str, *, timeout_seconds: float) -> None:
     req = Request(url, headers={"Accept": "application/json"}, method="GET")
     try:
         with urlopen(req, timeout=timeout_seconds) as resp:
             resp.read()
+    except HTTPError as e:
+        raise WarmupRequestError(url, status_code=int(e.code), detail=str(e)) from e
     except Exception as e:
-        raise RuntimeError(f"Warmup request failed: {url}: {e}") from e
+        raise WarmupRequestError(url, status_code=None, detail=str(e)) from e
 
 
 def _parse_species_ids(text: str) -> list[int]:
@@ -219,6 +292,8 @@ def _build_compact_snapshot(
     mode: str,
     baseline_file: Path,
     lncrna_gene_id: int,
+    lncrna_gene_id_requested: int,
+    lncrna_gene_id_source: str,
     species_ids: list[int],
     warmup_rounds: int,
     generated_at: str,
@@ -245,6 +320,8 @@ def _build_compact_snapshot(
             "baseline_file": str(baseline_file),
             "scenario": {
                 "lncrna_gene_id": lncrna_gene_id,
+                "lncrna_gene_id_requested": lncrna_gene_id_requested,
+                "lncrna_gene_id_source": lncrna_gene_id_source,
                 "species_ids": species_ids,
                 "warmup_rounds": warmup_rounds,
                 "min_samples": MIN_SAMPLES,
@@ -496,14 +573,55 @@ def main() -> int:
     ts = _iso_ts()
 
     # 1) Warmup traffic (best effort but required for stable percentiles)
+    requested_lncrna_gene_id = int(args.lncrna_gene_id)
+    resolved_lncrna_gene_id = requested_lncrna_gene_id
+    lncrna_gene_id_source = "requested"
     try:
         _warmup_overlap(
             base_url=base_url,
-            lncrna_gene_id=int(args.lncrna_gene_id),
+            lncrna_gene_id=resolved_lncrna_gene_id,
             species_ids=species_ids,
             warmup_rounds=int(args.warmup_rounds),
             timeout_seconds=float(args.timeout_seconds),
         )
+    except WarmupRequestError as e:
+        is_compare = OVERLAP_COMPARE_PATH in (e.url or "")
+        if is_compare and e.status_code in (400, 404, 422):
+            picked = _pick_lncrna_gene_id_with_core_id(
+                base_url=base_url,
+                species_id=species_ids[0],
+                timeout_seconds=float(args.timeout_seconds),
+            )
+            if picked is not None:
+                resolved_lncrna_gene_id = picked
+                lncrna_gene_id_source = "auto"
+                print(
+                    f"[WARN] warmup compare failed for gene_id={requested_lncrna_gene_id} "
+                    f"(HTTP {e.status_code}); auto-picking gene_id={picked} from /api/v1/genes/options",
+                    file=sys.stderr,
+                )
+                try:
+                    _warmup_overlap(
+                        base_url=base_url,
+                        lncrna_gene_id=resolved_lncrna_gene_id,
+                        species_ids=species_ids,
+                        warmup_rounds=int(args.warmup_rounds),
+                        timeout_seconds=float(args.timeout_seconds),
+                    )
+                except Exception as e2:
+                    print(f"[ERROR] {e2}", file=sys.stderr)
+                    return 2
+            else:
+                print(f"[ERROR] {e}", file=sys.stderr)
+                print(
+                    "[HINT] The provided lncrna_gene_id may not exist in this DB. "
+                    "Provide a valid --lncrna-gene-id, or ensure /api/v1/genes/options is available.",
+                    file=sys.stderr,
+                )
+                return 2
+        else:
+            print(f"[ERROR] {e}", file=sys.stderr)
+            return 2
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 2
@@ -525,7 +643,9 @@ def main() -> int:
         base_url=base_url,
         mode=str(args.cmd),
         baseline_file=baseline_file,
-        lncrna_gene_id=int(args.lncrna_gene_id),
+        lncrna_gene_id=resolved_lncrna_gene_id,
+        lncrna_gene_id_requested=requested_lncrna_gene_id,
+        lncrna_gene_id_source=lncrna_gene_id_source,
         species_ids=species_ids,
         warmup_rounds=int(args.warmup_rounds),
         generated_at=ts,
