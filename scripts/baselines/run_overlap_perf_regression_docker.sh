@@ -33,6 +33,7 @@ LNCRNA_GENE_ID="${LNCRNA_GENE_ID:-17276}"
 SPECIES_IDS="${SPECIES_IDS:-1,3}"
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
+COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-scripts/baselines/docker-compose.overlap-perf.yml}"
 
 DB_NAME="${DB_NAME:-lncrna_baseline}"
 DB_USER="${DB_USER:-lncrna}"
@@ -63,6 +64,8 @@ Options (env var compatible):
   WARMUP_ROUNDS=20
   LNCRNA_GENE_ID=17276
   SPECIES_IDS=1,3
+  COMPOSE_FILE=docker-compose.yml
+  COMPOSE_OVERRIDE_FILE=scripts/baselines/docker-compose.overlap-perf.yml
   BASELINE_FILE=docs/baselines/performance/overlap-admin-metrics.baseline.json
   OUT_DIR=docs/reports
   KEEP_DOCKER=false|true
@@ -115,6 +118,12 @@ esac
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-hla-overlap-perf-$(date +%Y%m%d-%H%M%S)}"
 
 compose() {
+  local -a compose_files
+  compose_files=(-f "$COMPOSE_FILE")
+  if [ -n "${COMPOSE_OVERRIDE_FILE:-}" ]; then
+    compose_files+=(-f "$COMPOSE_OVERRIDE_FILE")
+  fi
+
   COMPOSE_PROJECT_NAME="$PROJECT_NAME" \
   ENV="$APP_ENV" \
   ENABLE_CACHE="$ENABLE_CACHE" \
@@ -124,7 +133,7 @@ compose() {
   ADMIN_API_KEY="$ADMIN_API_KEY" \
   TRUSTED_HOSTS="$TRUSTED_HOSTS" \
   CORS_ORIGINS="$CORS_ORIGINS" \
-  docker compose -f "$COMPOSE_FILE" "$@"
+  docker compose "${compose_files[@]}" "$@"
 }
 
 cleanup() {
@@ -196,4 +205,3 @@ python3 scripts/perf_overlap_regression.py "$MODE" \
   --species-ids "$SPECIES_IDS"
 
 echo "[overlap-perf] done"
-
