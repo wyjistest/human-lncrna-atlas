@@ -25,7 +25,8 @@ env:
 jobs:
   actionlint:
     name: actionlint
-    runs-on: ${{ env.CI_RUNS_ON }}
+    # 注意：runs-on 不能引用 env.*（workflow 级 env 在此阶段不可用），需直接用表达式解析。
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Download repo tarball (self-hosted)
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
