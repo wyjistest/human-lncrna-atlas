@@ -164,6 +164,18 @@ jobs:
           # self-hosted 环境对 github.com 直连经常超时；统一走 api.github.com 下载 release asset（会重定向到对象存储）。
           api="https://api.github.com"
           asset_name="gitleaks_${version}_${os}_${arch}.tar.gz"
+
+          # self-hosted runner 通常具备持久磁盘缓存；避免每次都下载 gitleaks release asset。
+          cache_root="${HOME}/.cache/hla-tools/gitleaks"
+          cache_dir="${cache_root}/${version}"
+          cached_bin="${cache_dir}/gitleaks"
+          if [ -x "${cached_bin}" ]; then
+            echo "Using cached gitleaks: ${cached_bin}"
+            install -m 0755 "${cached_bin}" "${RUNNER_TEMP}/gitleaks"
+            echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+            exit 0
+          fi
+
           tmp_dir="$(mktemp -d)"
           release_json="${tmp_dir}/release.json"
 
@@ -198,6 +210,11 @@ jobs:
 
           install -m 0755 "${tmp_dir}/gitleaks" "${RUNNER_TEMP}/gitleaks"
           echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+
+          # 尝试写入缓存（失败不影响 CI）
+          if mkdir -p "${cache_dir}" 2>/dev/null; then
+            install -m 0755 "${tmp_dir}/gitleaks" "${cached_bin}" || true
+          fi
 
       - name: Run Gitleaks (filesystem fallback)
         if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
