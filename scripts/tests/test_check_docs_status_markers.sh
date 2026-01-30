@@ -13,9 +13,23 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 tmp_root="$(mktemp -d)"
 cleanup() {
-  rm -rf "$tmp_root"
+  if [ -n "${tmp_root:-}" ] && [ -d "${tmp_root:-}" ] && [ "${tmp_root:-}" != "/" ]; then
+    rm -rf "$tmp_root"
+  fi
 }
 trap cleanup EXIT
+
+if [ -z "${tmp_root:-}" ] || [ ! -d "$tmp_root" ]; then
+  echo "failed to create tmp dir via mktemp" >&2
+  exit 1
+fi
+
+case "$tmp_root" in
+  "$REPO_ROOT" | "$REPO_ROOT"/*)
+    echo "refusing to run tests with tmp_root inside repo: $tmp_root" >&2
+    exit 1
+    ;;
+esac
 
 mkdir -p "$tmp_root/scripts" "$tmp_root/docs"
 
