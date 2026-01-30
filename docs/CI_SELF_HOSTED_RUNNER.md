@@ -148,7 +148,9 @@ gh api "/repos/<OWNER>/<REPO>/actions/runs/<RUN_ID>/jobs" \
 本仓库的 `Tests` / `Security Audit` workflow 已做“止损”：
 
 1. workflow 内对 git transport 做稳定性配置（HTTP/1.1 + TLSv1.2）。
-2. 当 `actions/checkout` 仍失败时：自动通过 GitHub API 下载 `${repo}@${sha}` tarball 恢复源码继续执行。
+2. 当 `actions/checkout` 仍失败时：
+   - workflow 会通过 GitHub API 下载 `${repo}@${sha}` tarball；
+   - 并从 tarball 内提取并执行 `scripts/ci/checkout_tarball.sh`（同一 commit 版本，避免依赖已有 workspace），用于校验 tarball + 替换工作区源码。
    - 对需要 `.git` 的门禁（例如 gitleaks、docs drift check）：在 tarball 场景会额外初始化一个本地 git snapshot（用于 `git ls-files`）。
 
 如果你仍频繁遇到 checkout 失败：
