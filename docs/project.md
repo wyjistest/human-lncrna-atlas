@@ -1,6 +1,6 @@
 # Human LncRNA Atlas 文档索引
 
-> **更新日期**: 2025-12-09
+> **更新日期**: 2026-01-30
 > **当前版本**: Phase 4.0+
 > **维护者**: Claude Code (Opus 4.5)
 
@@ -23,7 +23,7 @@
 | 文档 | 说明 | 更新频率 |
 |------|------|----------|
 | [PROJECT_STATUS_REPORT.md](PROJECT_STATUS_REPORT.md) | 完整项目状态报告（已完成 + 未完成） | 每阶段 |
-| [CURRENT_STATUS.md](CURRENT_STATUS.md) | 当前进度摘要、数据库统计 | 每日 |
+| [CURRENT_STATUS.md](CURRENT_STATUS.md) | 当前进度摘要、常用入口、已知限制 | 每周/按需 |
 
 ### 架构设计
 

@@ -2,6 +2,10 @@
 
 A cross-species lncRNA (long non-coding RNA) regulatory relationship database and visualization platform. This project integrates regulatory relationship data between lncRNAs and protein-coding genes across four primate species: Human, Chimpanzee, Macaque, and Marmoset.
 
+## Current Status
+
+For the up-to-date project status, common dev/CI entrypoints, and known pitfalls, see `docs/CURRENT_STATUS.md`.
+
 ## Features
 
 - **Regulatory Relationship Query**: Multi-dimensional filtering by species, gene name, chromosome, binding affinity (BA)
