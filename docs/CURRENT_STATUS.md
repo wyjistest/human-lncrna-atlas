@@ -62,7 +62,7 @@ python3 scripts/admin_metrics_snapshot.py --base-url "http://127.0.0.1:8000"
 
 ## 已知限制 / 常见坑
 
-- 本机 `git push` 可能因 pre-push hook 触发 `bash scripts/run-tests.sh ci` 而变慢；如你的 Python 环境缺少 `psycopg2`，后端导入/pytest 收集会报 `ModuleNotFoundError`。
+- 本机 `git push` 可能因 pre-push hook 触发 `bash scripts/run-tests.sh ci` 而变慢；如开发机缺少后端依赖（常见：`psycopg2`），`scripts/run-tests.sh` 会自动创建 `frontend/backend/.venv` 并安装依赖（可用 `SKIP_BACKEND_VENV_BOOTSTRAP=1` 禁用，或用 `BACKEND_PYTHON` 指向你的解释器）。
 - 在代理环境下，`git`/Actions 下载可能出现 TLS 握手不稳定；建议优先“单次命令走代理”，详见 `docs/CI_SELF_HOSTED_RUNNER.md`。
 - self-hosted runner 上 Playwright 可能需要预装系统依赖（`npx playwright install-deps chromium`），详见 `docs/CI_SELF_HOSTED_RUNNER.md`。
 
