@@ -162,13 +162,19 @@ def _pick_lncrna_gene_id_with_core_id(
     if not isinstance(genes, list):
         return None
 
+    candidate_gene_ids: list[int] = []
     for row in genes[:5]:
         if not isinstance(row, dict):
             continue
         gene_id = _to_int(row.get("gene_id"))
         if gene_id is None or gene_id < 1:
             continue
+        candidate_gene_ids.append(gene_id)
 
+    # 确定性：options 结果可能受后端排序/索引变化影响，这里统一按 gene_id 升序挑选。
+    candidate_gene_ids = sorted(set(candidate_gene_ids))
+
+    for gene_id in candidate_gene_ids:
         detail = _fetch_json_result(f"{base_url}/api/v1/genes/{gene_id}", timeout_seconds=timeout_seconds)
         if detail.status_code != 200 or not isinstance(detail.json, dict):
             continue
@@ -298,6 +304,12 @@ def _build_compact_snapshot(
     warmup_rounds: int,
     generated_at: str,
 ) -> dict[str, Any]:
+    baseline_file_resolved = baseline_file.resolve()
+    try:
+        baseline_file_meta = baseline_file_resolved.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        baseline_file_meta = baseline_file_resolved.as_posix()
+
     endpoints: dict[str, Any] = {}
 
     for path in (OVERLAP_LIST_PATH, OVERLAP_COMPARE_PATH):
@@ -317,7 +329,7 @@ def _build_compact_snapshot(
             "status": "CANDIDATE" if mode == "check" else "SET",
             "generated_at": generated_at,
             "base_url": base_url,
-            "baseline_file": str(baseline_file),
+            "baseline_file": baseline_file_meta,
             "scenario": {
                 "lncrna_gene_id": lncrna_gene_id,
                 "lncrna_gene_id_requested": lncrna_gene_id_requested,

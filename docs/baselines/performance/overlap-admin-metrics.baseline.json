@@ -25,7 +25,7 @@
   },
   "meta": {
     "base_url": "http://localhost:8000",
-    "baseline_file": "/data/wenyujianData/actions-runner/_work/human-lncrna-atlas/human-lncrna-atlas/docs/baselines/performance/overlap-admin-metrics.baseline.json",
+    "baseline_file": "docs/baselines/performance/overlap-admin-metrics.baseline.json",
     "generated_at": "2026-01-30T12-22-48Z",
     "scenario": {
       "lncrna_gene_id": 3,

@@ -322,3 +322,117 @@ def test_perf_overlap_falls_back_to_auto_gene_id_when_default_compare_404(tmp_pa
         assert scenario.get("lncrna_gene_id") == 102, f"expected auto gene_id=102, got:\n{json.dumps(scenario, indent=2)}"
     finally:
         server.shutdown()
+
+
+def test_perf_overlap_auto_gene_pick_is_deterministic_by_smallest_gene_id(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+        "genes_options_payload": {
+            "genes": [
+                {"gene_id": 200},
+                {"gene_id": 100},
+            ]
+        },
+        "gene_detail_by_id": {
+            100: {"gene_id": 100, "core_id": 999},
+            200: {"gene_id": 200, "core_id": 888},
+        },
+        "compare_status_by_gene_id": {17276: 404},
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        baseline_file = tmp_path / "baseline.json"
+        out_dir = tmp_path / "out"
+
+        gen = _run_script(
+            repo_root,
+            env,
+            "generate-baseline",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--timeout-seconds",
+            "1",
+        )
+        output = f"{gen.stdout}\n{gen.stderr}"
+        assert gen.returncode == 0, f"generate-baseline should succeed:\n{output}"
+
+        baseline = json.loads(baseline_file.read_text(encoding="utf-8"))
+        scenario = baseline.get("meta", {}).get("scenario", {})
+        assert scenario.get("lncrna_gene_id") == 100, f"expected deterministic smallest gene_id=100, got:\n{json.dumps(scenario, indent=2)}"
+    finally:
+        server.shutdown()
+
+
+def test_perf_overlap_baseline_file_in_snapshot_is_repo_relative_when_under_repo(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        # Use a repo-local baseline path to ensure snapshots don't embed machine-specific absolute paths.
+        rel_baseline = Path(".tmp-tests") / tmp_path.name / "baseline.json"
+        abs_baseline = repo_root / rel_baseline
+        abs_baseline.parent.mkdir(parents=True, exist_ok=True)
+
+        out_dir = tmp_path / "out"
+
+        try:
+            gen = _run_script(
+                repo_root,
+                env,
+                "generate-baseline",
+                "--base-url",
+                base_url,
+                "--baseline-file",
+                str(rel_baseline),
+                "--out-dir",
+                str(out_dir),
+                "--warmup-rounds",
+                "1",
+                "--timeout-seconds",
+                "1",
+            )
+            output = f"{gen.stdout}\n{gen.stderr}"
+            assert gen.returncode == 0, f"generate-baseline should succeed:\n{output}"
+
+            baseline = json.loads(abs_baseline.read_text(encoding="utf-8"))
+            meta = baseline.get("meta", {})
+            assert isinstance(meta, dict)
+            assert meta.get("baseline_file") == str(rel_baseline).replace("\\", "/")
+        finally:
+            if abs_baseline.parent.exists():
+                for p in sorted(abs_baseline.parent.glob("*"), reverse=True):
+                    try:
+                        p.unlink()
+                    except IsADirectoryError:
+                        pass
+                try:
+                    abs_baseline.parent.rmdir()
+                except OSError:
+                    pass
+    finally:
+        server.shutdown()
