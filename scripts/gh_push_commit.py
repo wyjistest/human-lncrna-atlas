@@ -220,6 +220,14 @@ def _get_commit_changes(repo_dir: str, commit: str) -> list[FileChange]:
     return _parse_name_status(raw.splitlines())
 
 
+def _get_commits_in_range(repo_dir: str, commit_range: str) -> list[str]:
+    # 返回值：按提交顺序（oldest -> newest）
+    out = _git_text(repo_dir, ["rev-list", "--reverse", commit_range]).strip()
+    if not out:
+        return []
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
 def _git_blob_sha_and_mode(repo_dir: str, commit: str, path: str) -> tuple[str, str]:
     # 输出：<mode> <type> <sha>\t<path>
     out = _git_text(repo_dir, ["ls-tree", commit, path]).strip()
@@ -361,86 +369,113 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="用 GitHub API 推送本地 git commit（无需 git push）")
     parser.add_argument("--repo-dir", default=os.getcwd(), help="本地仓库目录（默认当前目录）")
     parser.add_argument("--branch", default="main", help="远端分支名（默认 main）")
-    parser.add_argument("--commit", default="HEAD", help="要推送的本地 commit（默认 HEAD）")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--commit", default="HEAD", help="要推送的本地 commit（默认 HEAD）")
+    group.add_argument("--range", dest="commit_range", help="要推送的本地 commit 范围（例如 HEAD~3..HEAD；按顺序逐个推送）")
+    parser.add_argument("--dry-run", action="store_true", help="仅解析并打印将要推送的 commits（不调用 GitHub API）")
     parser.add_argument("--no-guard", action="store_true", help="关闭远端覆盖护栏（不推荐）")
     args = parser.parse_args()
 
     repo_dir = os.path.abspath(args.repo_dir)
     branch = args.branch
     commit = args.commit
+    commit_range = args.commit_range
 
     try:
-        _ensure_clean_proxy_config()
+        commits: list[str]
+        if commit_range:
+            commits = _get_commits_in_range(repo_dir, commit_range)
+            if not commits:
+                raise CmdError(f"commit range 为空或无法解析: {commit_range}")
+        else:
+            commits = [_git_text(repo_dir, ["rev-parse", commit]).strip()]
 
-        meta = _get_local_commit_meta(repo_dir, commit)
-        changes = _get_commit_changes(repo_dir, meta.sha)
-        if not changes:
-            raise CmdError("该 commit 未包含任何文件变更，停止。")
+        # dry-run：不触达 GitHub API，仅做本地解析（也会拒绝 merge commit，确保与推送行为一致）。
+        if args.dry_run:
+            print(f"[dry-run] commits ({len(commits)}):")
+            for sha in commits:
+                meta = _get_local_commit_meta(repo_dir, sha)
+                subject = meta.message.splitlines()[0] if meta.message else ""
+                print(f"- {meta.sha[:7]} {subject}")
+            return 0
+
+        _ensure_clean_proxy_config()
 
         name_with_owner = _gh_repo_name_with_owner(repo_dir)
         if "/" not in name_with_owner:
             raise CmdError(f"无法解析仓库名: {name_with_owner}")
         owner, repo = name_with_owner.split("/", 1)
 
-        remote_parent = _remote_head(owner, repo, branch)
-        base_tree = _remote_base_tree(owner, repo, remote_parent)
+        last_remote_commit: Optional[str] = None
 
-        # 构建 tree entries（先做护栏检查）
-        entries: list[dict[str, Any]] = []
+        for idx, sha in enumerate(commits, start=1):
+            meta = _get_local_commit_meta(repo_dir, sha)
+            changes = _get_commit_changes(repo_dir, meta.sha)
+            if not changes:
+                raise CmdError(f"该 commit 未包含任何文件变更，停止：{meta.sha}")
 
-        def guard_check(path: str, local_expected_parent_blob: Optional[str]) -> None:
-            if args.no_guard:
-                return
-            remote_blob = _remote_blob_sha(owner, repo, path, remote_parent)
-            if remote_blob != local_expected_parent_blob:
-                raise CmdError(
-                    "远端与本地父提交在同一路径上已发生漂移，拒绝覆盖：\n"
-                    f"- path: {path}\n"
-                    f"- local parent blob: {local_expected_parent_blob}\n"
-                    f"- remote head blob:  {remote_blob}\n"
-                    "建议：先把远端最新内容同步到本地，再重新生成/调整该 commit。"
-                )
+            remote_parent = _remote_head(owner, repo, branch)
+            base_tree = _remote_base_tree(owner, repo, remote_parent)
 
-        # 先展开 rename/copy -> delete+add，确保护栏覆盖
-        expanded: list[FileChange] = []
-        for ch in changes:
-            if ch.status in ("R", "C") and ch.old_path:
-                # old 删除（R 才删除；C 不删除 old）
-                if ch.status == "R":
-                    expanded.append(FileChange(status="D", path=ch.old_path))
-                expanded.append(FileChange(status="A", path=ch.path))
-            else:
-                expanded.append(ch)
+            # 构建 tree entries（先做护栏检查）
+            entries: list[dict[str, Any]] = []
 
-        for ch in expanded:
-            status = ch.status
-            path = ch.path
+            def guard_check(path: str, local_expected_parent_blob: Optional[str]) -> None:
+                if args.no_guard:
+                    return
+                remote_blob = _remote_blob_sha(owner, repo, path, remote_parent)
+                if remote_blob != local_expected_parent_blob:
+                    raise CmdError(
+                        "远端与本地父提交在同一路径上已发生漂移，拒绝覆盖：\n"
+                        f"- path: {path}\n"
+                        f"- local parent blob: {local_expected_parent_blob}\n"
+                        f"- remote head blob:  {remote_blob}\n"
+                        "建议：先把远端最新内容同步到本地，再重新生成/调整该 commit。"
+                    )
 
-            if status == "D":
-                local_parent_blob = _git_blob_sha_or_none(repo_dir, meta.parent_sha, path)
-                guard_check(path, local_parent_blob)
-                entries.append({"path": path, "mode": "100644", "type": "blob", "sha": None})
-                continue
+            # 先展开 rename/copy -> delete+add，确保护栏覆盖
+            expanded: list[FileChange] = []
+            for ch in changes:
+                if ch.status in ("R", "C") and ch.old_path:
+                    # old 删除（R 才删除；C 不删除 old）
+                    if ch.status == "R":
+                        expanded.append(FileChange(status="D", path=ch.old_path))
+                    expanded.append(FileChange(status="A", path=ch.path))
+                else:
+                    expanded.append(ch)
 
-            if status in ("A", "M"):
-                local_parent_blob = _git_blob_sha_or_none(repo_dir, meta.parent_sha, path)
-                # A：若本地父提交不存在该文件，则期望远端也不存在；否则会覆盖别人的新增文件
-                guard_check(path, local_parent_blob)
+            for ch in expanded:
+                status = ch.status
+                path = ch.path
 
-                _blob_sha, mode = _git_blob_sha_and_mode(repo_dir, meta.sha, path)
-                content = _git_file_bytes(repo_dir, meta.sha, path)
-                remote_blob_sha = _create_blob(owner, repo, content)
-                entries.append({"path": path, "mode": mode, "type": "blob", "sha": remote_blob_sha})
-                continue
+                if status == "D":
+                    local_parent_blob = _git_blob_sha_or_none(repo_dir, meta.parent_sha, path)
+                    guard_check(path, local_parent_blob)
+                    entries.append({"path": path, "mode": "100644", "type": "blob", "sha": None})
+                    continue
 
-            raise CmdError(f"不支持的变更状态: {status}（path={path}）")
+                if status in ("A", "M"):
+                    local_parent_blob = _git_blob_sha_or_none(repo_dir, meta.parent_sha, path)
+                    # A：若本地父提交不存在该文件，则期望远端也不存在；否则会覆盖别人的新增文件
+                    guard_check(path, local_parent_blob)
 
-        new_tree = _create_tree(owner, repo, base_tree, entries)
-        new_commit = _create_commit(owner, repo, meta.message, new_tree, remote_parent, meta)
-        _update_ref(owner, repo, branch, new_commit)
+                    _blob_sha, mode = _git_blob_sha_and_mode(repo_dir, meta.sha, path)
+                    content = _git_file_bytes(repo_dir, meta.sha, path)
+                    remote_blob_sha = _create_blob(owner, repo, content)
+                    entries.append({"path": path, "mode": mode, "type": "blob", "sha": remote_blob_sha})
+                    continue
 
-        print(f"OK: updated {owner}/{repo}@{branch} -> {new_commit}")
-        print(f"https://github.com/{owner}/{repo}/commit/{new_commit}")
+                raise CmdError(f"不支持的变更状态: {status}（path={path}）")
+
+            new_tree = _create_tree(owner, repo, base_tree, entries)
+            new_commit = _create_commit(owner, repo, meta.message, new_tree, remote_parent, meta)
+            _update_ref(owner, repo, branch, new_commit)
+            last_remote_commit = new_commit
+
+            print(f"OK: updated {owner}/{repo}@{branch} ({idx}/{len(commits)}) -> {new_commit}")
+
+        if last_remote_commit:
+            print(f"https://github.com/{owner}/{repo}/commit/{last_remote_commit}")
         return 0
     except CmdError as exc:
         print(str(exc).rstrip(), file=sys.stderr)
