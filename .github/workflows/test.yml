@@ -325,6 +325,106 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Compare frontend bundle sizes (vs previous commit)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        working-directory: frontend/web
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BEFORE_SHA}" ] || [ "${BEFORE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+            echo "::notice::Skip bundle size diff (missing github.event.before)"
+            exit 0
+          fi
+
+          if [ ! -f "dist/bundle-sizes.json" ]; then
+            echo "::notice::Skip bundle size diff (missing frontend/web/dist/bundle-sizes.json)"
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import io
+          import json
+          import os
+          import sys
+          import urllib.request
+          import zipfile
+
+          before_sha = os.environ.get("BEFORE_SHA", "").strip()
+          token = os.environ.get("GITHUB_TOKEN", "").strip()
+          repo = os.environ.get("GITHUB_REPOSITORY", "").strip()
+          if not repo:
+            print("::warning::GITHUB_REPOSITORY missing; skip baseline download")
+            raise SystemExit(0)
+
+          artifact_name = f"frontend-bundle-sizes-{before_sha}"
+          api_url = f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
+
+          headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "hla-ci",
+          }
+          if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+          req = urllib.request.Request(api_url, headers=headers)
+          with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.load(resp)
+
+          artifacts = data.get("artifacts") or []
+          match = None
+          for a in artifacts:
+            if a.get("name") == artifact_name and not a.get("expired", False):
+              match = a
+              break
+
+          if not match:
+            print(f"::notice::No baseline bundle size artifact found ({artifact_name}); skip diff")
+            raise SystemExit(0)
+
+          download_url = match.get("archive_download_url")
+          if not download_url:
+            print("::warning::Baseline artifact has no archive_download_url; skip diff")
+            raise SystemExit(0)
+
+          req = urllib.request.Request(download_url, headers=headers)
+          with urllib.request.urlopen(req, timeout=60) as resp:
+            blob = resp.read()
+
+          zf = zipfile.ZipFile(io.BytesIO(blob))
+          candidates = [n for n in zf.namelist() if n.endswith("bundle-sizes.json")]
+          if not candidates:
+            print("::warning::Baseline artifact zip missing bundle-sizes.json; skip diff")
+            raise SystemExit(0)
+
+          name = candidates[0]
+          with zf.open(name) as f:
+            content = f.read()
+
+          out_path = os.path.join("dist", "bundle-sizes.baseline.json")
+          with open(out_path, "wb") as f:
+            f.write(content)
+
+          print(f"Baseline bundle snapshot extracted: {name} -> {out_path}")
+          PY
+
+          if [ ! -f "dist/bundle-sizes.baseline.json" ]; then
+            echo "::notice::Skip bundle size diff (baseline snapshot not extracted)"
+            exit 0
+          fi
+
+          node scripts/compare-bundle-sizes.mjs dist/bundle-sizes.baseline.json dist/bundle-sizes.json --top 15 > dist/bundle-sizes.diff.txt
+
+          {
+            echo "## Frontend bundle size diff (vs ${BEFORE_SHA:0:7})"
+            echo
+            echo '```'
+            cat dist/bundle-sizes.diff.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload frontend bundle size artifacts
         if: ${{ hashFiles('frontend/web/dist/bundle-sizes.json') != '' }}
         uses: actions/upload-artifact@v4
@@ -333,6 +433,15 @@ jobs:
           path: |
             frontend/web/dist/bundle-sizes.json
             frontend/web/dist/bundle-sizes.txt
+          retention-days: 14
+
+      - name: Upload frontend bundle size diff artifact
+        if: ${{ hashFiles('frontend/web/dist/bundle-sizes.diff.txt') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-bundle-sizes-diff-${{ github.sha }}
+          path: |
+            frontend/web/dist/bundle-sizes.diff.txt
           retention-days: 14
 
       - name: Install Playwright browsers
