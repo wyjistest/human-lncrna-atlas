@@ -112,8 +112,14 @@ SKIP_LOCAL_CI=1 git push
 ```bash
 cp .env.example .env
 # edit .env (DB_PASSWORD / ADMIN_API_KEY / TRUSTED_HOSTS / CORS_ORIGINS)
+#
+# 本机最小示例（仅用于本地开发/自测；不要提交到仓库）：
+#   DB_PASSWORD=your-password
+#   ADMIN_API_KEY=$(openssl rand -hex 32)
+#   TRUSTED_HOSTS=["localhost","127.0.0.1"]
+#   CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
+# 如前端端口不是 5173，请把 CORS_ORIGINS 里的端口同步改成你的实际端口。
 docker compose up -d
 ```
 
 更多 self-hosted runner / billing 止损细节见：`docs/CI_SELF_HOSTED_RUNNER.md`。
-

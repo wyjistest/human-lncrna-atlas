@@ -98,6 +98,18 @@ npx playwright install-deps chromium
 - 如果你的后端启动时设置了环境变量 `CORS_ORIGINS`（会覆盖后端默认值），必须包含实际的前端 origin（例如 `http://127.0.0.1:5173` / `http://127.0.0.1:5174` 等），否则浏览器会被 CORS 拦截，页面会显示 `Network error`，Playwright 也会失败。
 - 推荐：不要把 `CORS_ORIGINS` 限死在单一端口；至少包含 `5173` 与 `5174`，或按需扩展到 `5173..5192`。
 
+### 4.2) 推荐：每周全量回归（workflow_dispatch）
+
+说明：push/main 在 self-hosted 上默认走 `self-hosted-fast-ci`（更快、更省 IO）；如果你想“更全”的回归覆盖，建议用 `workflow_dispatch` 手动触发一次 `Tests`，按需打开更重的 job。
+
+建议组合（按需选择，默认都为 false）：
+
+- `runs_on=self-hosted`：强制跑在自托管 runner
+- `enable_postgres_jobs=true`：启用需要 Postgres service 的 job（要求 runner 机器可用 Docker）
+- `enable_e2e_tests=true`：启用集成向 E2E（需要可用后端/服务）
+- `enable_performance_audit=true`：启用 Playwright 性能套件（需要可用后端/服务）
+- `enable_firefox_smoke=true`：额外跑一轮 Firefox smoke（仅 workflow_dispatch）
+
 ### 5) 如何验证是否生效
 
 1. 触发方式（二选一）：
