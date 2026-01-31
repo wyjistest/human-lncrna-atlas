@@ -54,19 +54,6 @@ vi.mock('@/config/cellTypeConfigs', () => ({
   ],
 }))
 
-// Mock lodash debounce to execute immediately in tests
-vi.mock('lodash', async (importOriginal) => {
-  const original = await importOriginal<typeof import('lodash')>()
-  return {
-    ...original,
-    debounce: (fn: (...args: unknown[]) => unknown) => {
-      const debouncedFn = fn as { cancel?: () => void }
-      debouncedFn.cancel = vi.fn()
-      return debouncedFn
-    },
-  }
-})
-
 describe('FilterPanel', () => {
   // Default filter values for tests
   const defaultFilters: ChIPSeqFilters = {

@@ -13,7 +13,7 @@ import { Space, Select, Button, AutoComplete, Spin } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { genomeApi, type GeneAutocompleteItem } from '@/api/genome'
-import debounce from 'lodash/debounce'
+import { debounce } from '@/utils/debounce'
 
 interface GenomeBrowserToolbarProps {
   speciesId: number
