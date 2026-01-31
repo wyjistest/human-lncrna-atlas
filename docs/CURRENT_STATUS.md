@@ -16,6 +16,10 @@ bash scripts/run-tests.sh ci
 
 见：`docs/LOCAL_CI_BOOTSTRAP.md`
 
+**最新路线图（1–2 周）**
+
+见：`docs/roadmaps/ROADMAP_CURRENT.md`
+
 **仅跑文档门禁**
 
 ```bash

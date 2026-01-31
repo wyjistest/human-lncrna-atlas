@@ -50,7 +50,9 @@
 
 | 文档 | 说明 |
 |------|------|
-| [roadmaps/ROADMAP_2026-01-26.md](roadmaps/ROADMAP_2026-01-26.md) | 未来 1–2 周路线图（快照；现状以 CURRENT_STATUS 为准） |
+| [roadmaps/ROADMAP_CURRENT.md](roadmaps/ROADMAP_CURRENT.md) | ⭐ 最新路线图（指针；现状以 CURRENT_STATUS 为准） |
+| [roadmaps/ROADMAP_2026-01-31.md](roadmaps/ROADMAP_2026-01-31.md) | 未来 1–2 周路线图（快照；现状以 CURRENT_STATUS 为准） |
+| [roadmaps/ROADMAP_2026-01-26.md](roadmaps/ROADMAP_2026-01-26.md) | 未来 1–2 周路线图（历史快照） |
 | [roadmaps/](roadmaps/) | 路线图目录 |
 
 ### 数据与导入（docs/data/）
