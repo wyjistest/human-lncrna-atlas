@@ -9,6 +9,9 @@ set -euo pipefail
 # - 本测试不触网：通过注入 fake curl 生成/写入 tarball 文件。
 # - 使用真实 tar 来构造最小 tar.gz（避免依赖 GNU tar 特性以外的行为）。
 
+# 兼容 git hooks 环境：避免 GIT_DIR/GIT_WORK_TREE 污染影响临时仓库。
+unset GIT_DIR GIT_WORK_TREE
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCRIPT_UNDER_TEST="$REPO_ROOT/scripts/ci/checkout_tarball.sh"
 

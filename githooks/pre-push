@@ -34,4 +34,6 @@ case "$target" in
 esac
 
 echo "[pre-push] Running local CI: bash scripts/run-tests.sh ${target}"
-bash "scripts/run-tests.sh" "$target"
+# Git hooks 会注入 GIT_DIR/GIT_WORK_TREE；但本仓库的 scripts/tests 会创建临时 git 仓库，
+# 若不清理这些变量，git 可能误把操作指向当前主仓库（导致意外修改/提交）。
+env -u GIT_DIR -u GIT_WORK_TREE bash "scripts/run-tests.sh" "$target"

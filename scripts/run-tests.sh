@@ -490,7 +490,8 @@ run_scripts_unit_tests() {
     fi
 
     for t in "${tests[@]}"; do
-        if ! bash "$t"; then
+        # 兼容 git hooks 环境：避免 GIT_DIR/GIT_WORK_TREE 污染导致 tests 误操作主仓库。
+        if ! env -u GIT_DIR -u GIT_WORK_TREE bash "$t"; then
             echo -e "${RED}脚本单元测试失败: ${t}${NC}"
             return 1
         fi

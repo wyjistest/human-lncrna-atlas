@@ -9,6 +9,9 @@ set -euo pipefail
 # - 测试会在临时目录里创建一个最小 git 仓库，并只提交两份 markdown（CURRENT_STATUS + bad doc）。
 # - 通过在 bad doc 中引入 TODO/marker 来覆盖 fail/pass 两种路径。
 
+# 兼容 git hooks 环境：避免 GIT_DIR/GIT_WORK_TREE 污染影响临时仓库。
+unset GIT_DIR GIT_WORK_TREE
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 tmp_root="$(mktemp -d)"
