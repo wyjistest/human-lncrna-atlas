@@ -28,7 +28,7 @@ import {
   InfoCircleOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import debounce from 'lodash/debounce'
+import { debounce } from '@/utils/debounce'
 import i18n from '@/i18n'
 import { getMarkConfig } from '@/config/markConfigs'
 import { getCellTypeOptions } from '@/config/cellTypeConfigs'
