@@ -325,6 +325,16 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Upload frontend bundle size artifacts
+        if: ${{ hashFiles('frontend/web/dist/bundle-sizes.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-bundle-sizes-${{ github.sha }}
+          path: |
+            frontend/web/dist/bundle-sizes.json
+            frontend/web/dist/bundle-sizes.txt
+          retention-days: 14
+
       - name: Install Playwright browsers
         working-directory: frontend/web
         run: |
