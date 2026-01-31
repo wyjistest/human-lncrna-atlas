@@ -106,7 +106,8 @@ npx playwright install-deps chromium
 2. 用 `gh` 查看运行状态：
 
 ```bash
-gh run list --branch main --limit 5
+gh run list --branch main --limit 5 --json databaseId,name,conclusion,createdAt \
+  --jq '.[] | "\(.databaseId)\t\(.name)\t\(.conclusion)\t\(.createdAt)"'
 ```
 
 若看到 `Tests` / `Security Audit` 能正常启动并执行 job，说明 self-hosted 止损方案已生效。
@@ -115,7 +116,7 @@ gh run list --branch main --limit 5
 
 ```bash
 # 取最新一次 Tests 的 run_id（或直接从 run URL 里复制 ID）
-gh run list --branch main --workflow Tests --limit 1
+gh run list --branch main --workflow Tests --limit 1 --json databaseId,conclusion,createdAt --jq '.[0].databaseId'
 
 # 查看该 run 的 jobs 实际跑在谁身上（runner_name + labels）
 # 说明：需要把 <OWNER>/<REPO> 与 <RUN_ID> 替换成真实值
