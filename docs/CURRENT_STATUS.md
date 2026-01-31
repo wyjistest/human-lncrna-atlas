@@ -12,6 +12,10 @@
 bash scripts/run-tests.sh ci
 ```
 
+**本地 CI 自举指引（新机器/新环境）**
+
+见：`docs/LOCAL_CI_BOOTSTRAP.md`
+
 **仅跑文档门禁**
 
 ```bash
