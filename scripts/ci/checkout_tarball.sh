@@ -43,8 +43,13 @@ echo "tarball_path=${TARBALL_PATH:-<unset>}"
 echo "::endgroup::"
 
 # Fast path: if workspace already contains the expected git commit, do nothing.
-if [ -d "$WORKSPACE/.git" ]; then
-  current_sha="$(cd "$WORKSPACE" && git rev-parse HEAD 2>/dev/null || true)"
+#
+# Note:
+# - In git hooks, Git may export GIT_DIR/GIT_WORK_TREE; if we don't clear them, probing another workspace
+#   (e.g. a temp repo in unit tests) can accidentally read the parent repo SHA and break the fast path.
+# - In worktrees, `.git` can be a *file* instead of a directory; relying on `-d "$WORKSPACE/.git"` is brittle.
+current_sha=""
+if current_sha="$(env -u GIT_DIR -u GIT_WORK_TREE git -C "$WORKSPACE" rev-parse HEAD 2>/dev/null)"; then
   if [ -n "${current_sha:-}" ] && [ "$current_sha" = "$EXPECTED_SHA" ]; then
     echo "::notice::workspace already at expected sha (${EXPECTED_SHA}); skipping tarball checkout."
     exit 0

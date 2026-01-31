@@ -136,7 +136,13 @@ git -C "$ws_fast" add keep.txt
 git -C "$ws_fast" commit -qm "init"
 expected_sha_fast="$(git -C "$ws_fast" rev-parse HEAD)"
 
-(cd "$tmp_root" && REPO="owner/repo" EXPECTED_SHA="$expected_sha_fast" WORKSPACE="$ws_fast" bash "$SCRIPT_UNDER_TEST" >/dev/null)
+(cd "$tmp_root" && \
+  REPO="owner/repo" \
+  EXPECTED_SHA="$expected_sha_fast" \
+  WORKSPACE="$ws_fast" \
+  GIT_DIR="$tmp_root/parent-git-dir" \
+  GIT_WORK_TREE="$tmp_root/parent-work-tree" \
+  bash "$SCRIPT_UNDER_TEST" >/dev/null)
 
 assert_curl_not_called
 [ -f "$ws_fast/keep.txt" ] || {
