@@ -38,6 +38,7 @@ concurrency:
 
 # Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
 permissions:
+  actions: read
   contents: read
   pull-requests: read
 
@@ -349,6 +350,7 @@ jobs:
           import json
           import os
           import sys
+          import urllib.error
           import urllib.request
           import zipfile
 
@@ -370,8 +372,15 @@ jobs:
             headers["Authorization"] = f"Bearer {token}"
 
           req = urllib.request.Request(api_url, headers=headers)
-          with urllib.request.urlopen(req, timeout=30) as resp:
-            data = json.load(resp)
+          try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+              data = json.load(resp)
+          except urllib.error.HTTPError as exc:
+            print(f"::notice::Skip bundle size diff (cannot list artifacts: HTTP {exc.code})")
+            raise SystemExit(0)
+          except Exception as exc:
+            print(f"::notice::Skip bundle size diff (cannot list artifacts: {exc})")
+            raise SystemExit(0)
 
           artifacts = data.get("artifacts") or []
           match = None
@@ -390,8 +399,15 @@ jobs:
             raise SystemExit(0)
 
           req = urllib.request.Request(download_url, headers=headers)
-          with urllib.request.urlopen(req, timeout=60) as resp:
-            blob = resp.read()
+          try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+              blob = resp.read()
+          except urllib.error.HTTPError as exc:
+            print(f"::notice::Skip bundle size diff (cannot download baseline artifact: HTTP {exc.code})")
+            raise SystemExit(0)
+          except Exception as exc:
+            print(f"::notice::Skip bundle size diff (cannot download baseline artifact: {exc})")
+            raise SystemExit(0)
 
           zf = zipfile.ZipFile(io.BytesIO(blob))
           candidates = [n for n in zf.namelist() if n.endswith("bundle-sizes.json")]
