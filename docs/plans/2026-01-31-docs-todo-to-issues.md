@@ -39,6 +39,44 @@ rg -n "\\[ \\]" docs --glob "*.md" --glob "!docs/testing/**"
 
 ---
 
+## 补充盘点：`[ ]` 未勾选清单（去噪）
+
+本轮额外扫描 `docs/` 中包含未勾选 checkbox（`- [ ] ...`）的文档（排除 `docs/testing/**` 与 `docs/plans/**`）。
+
+结论：
+
+- 命中文档共 23 个；均已包含 `docs/CURRENT_STATUS.md` 作为“现状权威入口”，因此这些 `[ ]` 主要代表历史记录/验收清单模板/手工检查项，并不等价于当前 backlog。
+- 部分文档已显式链接到历史 issue（例如 `docs/PHASE_2.9_HEATMAP_MATRIX.md` 指向 #74），无需重复建 issue。
+- 如需继续降低误读风险（例如把“历史待办”更明显地标成历史/已完成），统一在 #88 里收敛处理。
+
+本轮扫描命中列表（按文件名）：
+
+- `docs/IGV_INTEGRATION_PLAN.md`
+- `docs/PERFORMANCE_ISSUE_ANALYSIS.md`
+- `docs/PHASE_1_MVP_COMPLETION_REPORT.md`
+- `docs/PHASE_2.3_2.4_COMPLETION_REPORT.md`
+- `docs/PHASE_2.8_CELL_LINE_COMPARISON.md`
+- `docs/PHASE_2.9_HEATMAP_MATRIX.md`
+- `docs/PHASE_3.0_LNCRNA_CHIPSEQ_OVERLAP.md`
+- `docs/SECURITY_DEPLOYMENT.md`
+- `docs/api/GENES_API_INTEGRATION_PLAN.md`
+- `docs/api/GENES_API_QUICK_START.md`
+- `docs/api/LNCRNA_CHIPSEQ_OVERLAP_API.md`
+- `docs/api/NETWORK_API_VERIFICATION_REPORT.md`
+- `docs/api/SANKEY_API_FEASIBILITY_REPORT.md`
+- `docs/archive/CRITICAL_FIX_v2.3.1.md`
+- `docs/archive/REVISION_SUMMARY_V2.md`
+- `docs/archive/technical_research.md`
+- `docs/backend/DEPLOYMENT.md`
+- `docs/phases/PHASE1_REVISED_PLAN.md`
+- `docs/phases/PHASE3_PLAN.md`
+- `docs/phases/PHASE_5.2_FINAL_REPORT.md`
+- `docs/reports/A549_VALIDATION_REPORT.md`
+- `docs/reports/HOW_TO_TEST_OVERLAP_PAGE.md`
+- `docs/sessions/SESSION_PHASE4_NETWORK_I18N.md`
+
+---
+
 ## 参考
 
 - `docs/CURRENT_STATUS.md:1`
