@@ -1,6 +1,6 @@
 # Current Status
 
-> 最后更新：2026-01-30  
+> 最后更新：2026-01-31  
 > 说明：仓库内大量 `docs/**` 为历史快照/规划记录（用于回溯与对照），不代表当前实现现状。  
 > 当你在文档里看到类似 “TODO / checkbox / mock / stub / 待实现” 等信号时，请以本页为唯一权威现状入口。
 
@@ -57,6 +57,7 @@ python3 scripts/admin_metrics_snapshot.py --base-url "http://127.0.0.1:8000"
 ## 回归与性能门禁（面向开发者）
 
 - 性能定位：`docs/PERFORMANCE_TRIAGE.md`（配套脚本：`scripts/admin_metrics_snapshot.py`）
+- 前端 bundle 体积定位：`cd frontend/web && npm run build && npm run report:bundle -- --top 15`
 - Overlap 性能回归：`docs/testing/performance/OVERLAP_PERF_REGRESSION.md`（workflow：`.github/workflows/performance-overlap.yml`）
 - CI 止损（billing/额度阻塞时）：`docs/CI_SELF_HOSTED_RUNNER.md`
 
