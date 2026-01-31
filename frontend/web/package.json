@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build && node scripts/check-entry-preloads.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint .",
+    "report:bundle": "node scripts/report-bundle-sizes.mjs",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run",
