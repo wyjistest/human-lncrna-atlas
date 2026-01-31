@@ -80,6 +80,10 @@ def main() -> int:
             continue
         try:
             text = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            # 当你在工作区里删除了文件但尚未 staged/commit 时，`git ls-files` 可能仍会列出它。
+            # 为了让该检查在重构期间依然可用，这里对“磁盘不存在”的文件做跳过处理。
+            continue
         except UnicodeDecodeError:
             text = path.read_text(encoding="utf-8", errors="ignore")
         scanned += 1
