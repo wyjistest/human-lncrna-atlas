@@ -431,7 +431,16 @@ jobs:
             exit 0
           fi
 
-          node scripts/compare-bundle-sizes.mjs dist/bundle-sizes.baseline.json dist/bundle-sizes.json --top 15 > dist/bundle-sizes.diff.txt
+          # NOTE: Compare script also serves as a regression gate (exit!=0 when regression exceeds thresholds).
+          # We still want a readable summary even when the gate fails, so capture output first, then exit with code.
+          set +e
+          node scripts/compare-bundle-sizes.mjs dist/bundle-sizes.baseline.json dist/bundle-sizes.json \
+            --top 15 \
+            --max-entry-regression-pct 3 \
+            --max-preloads-regression-pct 3 \
+            > dist/bundle-sizes.diff.txt
+          compare_exit=$?
+          set -e
 
           {
             echo "## Frontend bundle size diff (vs ${BEFORE_SHA:0:7})"
@@ -440,6 +449,11 @@ jobs:
             cat dist/bundle-sizes.diff.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$compare_exit" -ne 0 ]; then
+            echo "::error::Frontend bundle regression gate failed (see diff summary above)"
+            exit "$compare_exit"
+          fi
 
       - name: Upload frontend bundle size artifacts
         if: ${{ hashFiles('frontend/web/dist/bundle-sizes.json') != '' }}
