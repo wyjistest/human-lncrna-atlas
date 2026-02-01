@@ -105,6 +105,7 @@ jobs:
       - name: Checkout code
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
         uses: actions/checkout@v6
+        timeout-minutes: 3
         with:
           fetch-depth: 0  # Full history for scanning all commits
 
@@ -585,6 +586,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -661,6 +663,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -799,6 +802,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -876,6 +880,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -977,6 +982,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -1232,6 +1238,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -1371,6 +1378,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -1491,6 +1499,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         # self-hosted runner 上偶发 `gnutls_handshake()` 失败（网络/TLS 抖动）。
         # E2E smoke 依赖 build artifacts，且通常 workspace 已包含目标 commit；
         # 这里允许 checkout 失败后做一次“使用现有 workspace / tarball 兜底”的恢复。
@@ -1723,6 +1732,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
@@ -1940,6 +1950,7 @@ jobs:
       - name: Checkout code
         id: checkout
         uses: actions/checkout@v6
+        timeout-minutes: 3
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
