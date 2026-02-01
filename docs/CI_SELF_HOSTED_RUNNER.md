@@ -138,6 +138,33 @@ gh api "/repos/<OWNER>/<REPO>/actions/runs/<RUN_ID>/jobs" \
 
 当输出里 `labels` 包含 `self-hosted` 且 `runner_name` 有值时，说明该 job 正在 self-hosted runner 上执行。
 
+### 5.1) PR / Dependabot：为什么没有 checks？怎么验证？
+
+出于安全考虑（self-hosted runner 不应默认执行 PR 的不受信任代码），本仓库的 `Tests` workflow 默认只对 `push(main)` 与 `workflow_dispatch` 触发（未启用 `pull_request`）。
+因此你会看到：**PR 页面没有 CI checks**（包括 Dependabot PR）。
+
+推荐工作流（可审计、可回滚）：
+
+1. 直接 squash merge PR → 让 `push(main)` 的 `Tests` 在 self-hosted 上跑完（`self-hosted-fast-ci`）。
+2. 若 `Tests` 失败：`git revert <merge_sha>` 回滚该次合并，再重新 push。
+
+常用命令（按需）：
+
+```bash
+# 合并（squash）并删除远端分支（适合 Dependabot）
+gh pr merge <PR_NUMBER> --squash --delete-branch
+
+# 等待 main 的 CI 完成（从最新一次 Tests 开始 watch）
+run_id="$(gh run list --branch main --workflow Tests --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "$run_id" --exit-status
+```
+
+如你确实需要“合并前验证”，可以手动对 PR 分支触发一次 `workflow_dispatch`：
+
+```bash
+gh workflow run Tests --ref "<PR_BRANCH>"
+```
+
 ### 6) 常见排障：Actions 下载失败（SSL / Proxy）
 
 如果 self-hosted runner 偶发出现类似报错：
