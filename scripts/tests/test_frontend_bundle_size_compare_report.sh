@@ -51,7 +51,8 @@ cat >"$current" <<'JSON'
 }
 JSON
 
-output="$(node "$REPO_ROOT/frontend/web/scripts/compare-bundle-sizes.mjs" "$baseline" "$current" --top 5)"
+# 说明：本测试关注“差异输出的稳定性”，不关注回归门禁；因此把阈值设得足够大避免因门禁导致 exit!=0。
+output="$(node "$REPO_ROOT/frontend/web/scripts/compare-bundle-sizes.mjs" "$baseline" "$current" --top 5 --max-entry-regression-pct 999 --max-preloads-regression-pct 999)"
 
 echo "$output" | rg -q "\\[bundle-size-diff\\]" || { echo "missing header" >&2; echo "$output" >&2; exit 1; }
 echo "$output" | rg -q "Entry:.*delta \\+20\\.0 kB" || { echo "missing entry delta" >&2; echo "$output" >&2; exit 1; }
@@ -60,4 +61,3 @@ echo "$output" | rg -q "react-vendor:.*delta \\+10\\.0 kB" || { echo "missing re
 echo "$output" | rg -q "antd-vendor:.*delta -100\\.0 kB" || { echo "missing antd-vendor delta" >&2; echo "$output" >&2; exit 1; }
 
 echo "OK: bundle size compare report prints stable deltas"
-
