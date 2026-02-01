@@ -71,8 +71,8 @@ MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker
 
 - 最小样本：每个端点 `requests >= 10`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
 - 触发 FAIL 的回归阈值（同时满足“比例 + 绝对值”）：
-  - Response：`>30%` 且 `>20ms`
-  - DB：`>30%` 且 `>5ms`
+  - Response：`>30%` 且 `>10ms`
+  - DB：`>30%` 且 `>2ms`
 
 > 仍然采用“比例 + 绝对值”双阈值以降低环境抖动；相较早期版本阈值已收紧，用于更早发现回归。
 

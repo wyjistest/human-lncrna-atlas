@@ -333,7 +333,7 @@ def test_perf_overlap_check_fails_on_small_regression_when_thresholds_tightened_
     repo_root = Path(__file__).resolve().parents[2]
 
     state: dict[str, Any] = {
-        "metrics_payload": _base_metrics_payload(response_p95=100.0, response_p99=120.0, db_p95=10.0, db_p99=12.0),
+        "metrics_payload": _base_metrics_payload(response_p95=33.0, response_p99=35.0, db_p95=6.0, db_p99=6.5),
     }
     server = _start_mock_server(state)
     try:
@@ -365,10 +365,12 @@ def test_perf_overlap_check_fails_on_small_regression_when_thresholds_tightened_
         output = f"{gen.stdout}\n{gen.stderr}"
         assert gen.returncode == 0, f"generate-baseline failed:\n{output}"
 
-        # Simulate a smaller regression:
-        # - Response P95 +50ms (50%) => should fail after further tightening of abs_ms threshold.
-        # - DB P95 +10ms (100%) => should fail after further tightening of abs_ms threshold.
-        state["metrics_payload"] = _base_metrics_payload(response_p95=150.0, response_p99=180.0, db_p95=20.0, db_p99=24.0)
+        # Simulate a smaller regression that was below the previous abs_ms thresholds, but should fail
+        # after further tightening (still requires >pct and >abs_ms).
+        #
+        # - Response P95 +12ms (36%) => should be gated if response.abs_ms <= 10ms
+        # - DB P95 +3ms (50%) => should be gated if db.abs_ms <= 2ms
+        state["metrics_payload"] = _base_metrics_payload(response_p95=45.0, response_p99=50.0, db_p95=9.0, db_p99=10.0)
 
         chk = _run_script(
             repo_root,
