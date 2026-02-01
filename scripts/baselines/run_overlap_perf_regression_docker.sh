@@ -50,6 +50,7 @@ ENABLE_CACHE="${ENABLE_CACHE:-false}"
 BASE_URL="${BASE_URL:-http://localhost:8000}"
 OUT_DIR="${OUT_DIR:-docs/reports}"
 BASELINE_FILE="${BASELINE_FILE:-docs/baselines/performance/overlap-admin-metrics.baseline.json}"
+BASELINE_RAW_METRICS_FILE="${BASELINE_RAW_METRICS_FILE:-docs/baselines/performance/overlap-admin-metrics.baseline.raw.json}"
 
 KEEP_DOCKER="${KEEP_DOCKER:-false}"
 
@@ -67,6 +68,7 @@ Options (env var compatible):
   COMPOSE_FILE=docker-compose.yml
   COMPOSE_OVERRIDE_FILE=scripts/baselines/docker-compose.overlap-perf.yml
   BASELINE_FILE=docs/baselines/performance/overlap-admin-metrics.baseline.json
+  BASELINE_RAW_METRICS_FILE=docs/baselines/performance/overlap-admin-metrics.baseline.raw.json
   OUT_DIR=docs/reports
   KEEP_DOCKER=false|true
 
@@ -150,6 +152,7 @@ echo "[overlap-perf] mode: $MODE"
 echo "[overlap-perf] base_url: $BASE_URL"
 echo "[overlap-perf] out_dir: $OUT_DIR"
 echo "[overlap-perf] baseline_file: $BASELINE_FILE"
+echo "[overlap-perf] baseline_raw_metrics_file: $BASELINE_RAW_METRICS_FILE"
 
 # Start DB + Redis first
 compose up -d postgres redis
@@ -200,6 +203,7 @@ python3 scripts/perf_overlap_regression.py "$MODE" \
   --admin-api-key "$ADMIN_API_KEY" \
   --out-dir "$OUT_DIR" \
   --baseline-file "$BASELINE_FILE" \
+  --baseline-raw-metrics-file "$BASELINE_RAW_METRICS_FILE" \
   --warmup-rounds "$WARMUP_ROUNDS" \
   --lncrna-gene-id "$LNCRNA_GENE_ID" \
   --species-ids "$SPECIES_IDS"

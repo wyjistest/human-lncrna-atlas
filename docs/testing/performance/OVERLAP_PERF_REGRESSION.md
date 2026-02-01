@@ -16,11 +16,13 @@
 ```bash
 python3 scripts/perf_overlap_regression.py generate-baseline \
   --base-url "http://127.0.0.1:8000" \
+  --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
   --warmup-rounds 20 \
   --lncrna-gene-id 17276 \
   --species-ids "1,3"
 
-git add docs/baselines/performance/overlap-admin-metrics.baseline.json
+git add docs/baselines/performance/overlap-admin-metrics.baseline.json \
+  docs/baselines/performance/overlap-admin-metrics.baseline.raw.json
 git commit -m "perf(baseline): set overlap admin-metrics baseline"
 ```
 
@@ -38,6 +40,7 @@ git commit -m "perf(baseline): set overlap admin-metrics baseline"
 ```bash
 python3 scripts/perf_overlap_regression.py check \
   --base-url "http://127.0.0.1:8000" \
+  --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
   --warmup-rounds 20 \
   --lncrna-gene-id 17276 \
   --species-ids "1,3"
@@ -47,6 +50,7 @@ python3 scripts/perf_overlap_regression.py check \
 - `perf-overlap-<timestamp>.md`（可直接贴 issue/comment）
 - `perf-overlap-<timestamp>.json`（compact snapshot）
 - `perf-overlap-raw-metrics-<timestamp>.json`（原始 `/admin/metrics`）
+- （可选）`perf-overlap-admin-metrics-diff-<timestamp>.md`（当门禁失败或显式启用 diff 时：对比 baseline raw metrics vs 当前 raw metrics，用于定位慢点/慢查询/缓存变化）
 
 ## 无现成后端时：用 Docker Compose 启动 sample backend（可选）
 
@@ -56,7 +60,12 @@ python3 scripts/perf_overlap_regression.py check \
 MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker.sh
 ```
 
-该脚本会把生成的 baseline 写回 `docs/baselines/performance/overlap-admin-metrics.baseline.json`，并在退出时自动清理容器（可用 `KEEP_DOCKER=true` 保留用于排障）。
+该脚本会把生成的 baseline 写回：
+
+- `docs/baselines/performance/overlap-admin-metrics.baseline.json`
+- `docs/baselines/performance/overlap-admin-metrics.baseline.raw.json`（用于定位 diff）
+
+并在退出时自动清理容器（可用 `KEEP_DOCKER=true` 保留用于排障）。
 
 ## 门禁规则（保守）
 
@@ -81,3 +90,4 @@ Artifacts（即使失败也会上传）：
 - `docs/reports/perf-overlap-*.md`
 - `docs/reports/perf-overlap-*.json`
 - `docs/baselines/performance/overlap-admin-metrics.baseline.json`
+- `docs/baselines/performance/overlap-admin-metrics.baseline.raw.json`
