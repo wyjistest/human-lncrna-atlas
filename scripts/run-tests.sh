@@ -478,6 +478,7 @@ run_scripts_unit_tests() {
         "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
         "scripts/tests/test_checkout_tarball_script.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
+        "scripts/tests/test_check_docs_status_markers_marker_position.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
     )
 
