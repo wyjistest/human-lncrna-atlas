@@ -67,14 +67,14 @@ MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker
 
 并在退出时自动清理容器（可用 `KEEP_DOCKER=true` 保留用于排障）。
 
-## 门禁规则（保守）
+## 门禁规则（当前阈值）
 
 - 最小样本：每个端点 `requests >= 10`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
 - 触发 FAIL 的回归阈值（同时满足“比例 + 绝对值”）：
-  - Response：`>50%` 且 `>500ms`
-  - DB：`>50%` 且 `>300ms`
+  - Response：`>30%` 且 `>300ms`
+  - DB：`>30%` 且 `>200ms`
 
-> 这套阈值刻意偏保守：只拦截“明显回归”，避免环境抖动造成误报。
+> 仍然采用“比例 + 绝对值”双阈值以降低环境抖动；相较早期版本阈值已收紧，用于更早发现回归。
 
 ## GitHub Actions（workflow_dispatch）
 

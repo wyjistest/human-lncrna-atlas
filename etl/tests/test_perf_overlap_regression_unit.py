@@ -268,6 +268,67 @@ def test_perf_overlap_check_fails_on_large_regression(tmp_path: Path) -> None:
         server.shutdown()
 
 
+def test_perf_overlap_check_fails_on_medium_regression_when_thresholds_tightened(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=300.0, db_p99=350.0),
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        baseline_file = tmp_path / "baseline.json"
+        out_dir = tmp_path / "out"
+
+        gen = _run_script(
+            repo_root,
+            env,
+            "generate-baseline",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--timeout-seconds",
+            "1",
+        )
+        output = f"{gen.stdout}\n{gen.stderr}"
+        assert gen.returncode == 0, f"generate-baseline failed:\n{output}"
+
+        # Simulate a smaller regression: it was below the previous thresholds, but should be gated after tightening.
+        state["metrics_payload"] = _base_metrics_payload(response_p95=1350.0, response_p99=1620.0, db_p95=520.0, db_p99=600.0)
+
+        chk = _run_script(
+            repo_root,
+            env,
+            "check",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--timeout-seconds",
+            "1",
+        )
+        output = f"{chk.stdout}\n{chk.stderr}"
+        assert chk.returncode != 0, f"check should fail on regression:\n{output}"
+        assert "REGRESSION" in output or "regression" in output, f"missing regression hint:\n{output}"
+    finally:
+        server.shutdown()
+
+
 def test_perf_overlap_falls_back_to_auto_gene_id_when_default_compare_404(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parents[2]
 
