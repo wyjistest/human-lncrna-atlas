@@ -107,19 +107,16 @@ SKIP_LOCAL_CI=1 git push
   - 启动后端 + 数据库（本机或容器均可）
   - 并按对应文档设置必要的环境变量（例如 `ADMIN_API_KEY` 等）
 
-一个“最小可复现”的容器路径（生产更接近，但需要你配置 `.env`）：
+一个“最短路径”的容器路径（本地 localhost allowlist，推荐）：
 
 ```bash
-cp .env.example .env
-# edit .env (DB_PASSWORD / ADMIN_API_KEY / TRUSTED_HOSTS / CORS_ORIGINS)
-#
-# 本机最小示例（仅用于本地开发/自测；不要提交到仓库）：
-#   DB_PASSWORD=your-password
+cp .env.local.example .env
+# edit .env (DB_PASSWORD / ADMIN_API_KEY)
 #   ADMIN_API_KEY=$(openssl rand -hex 32)
-#   TRUSTED_HOSTS=["localhost","127.0.0.1"]
-#   CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173"]
-# 如前端端口不是 5173，请把 CORS_ORIGINS 里的端口同步改成你的实际端口。
 docker compose up -d
+curl -fsS "http://127.0.0.1:8000/health"
 ```
+
+如你要更贴近生产部署（真实域名 allowlist / 更严格安全默认），请改用 `.env.example` 作为模板（但不要把占位符域名直接用于公网部署）。
 
 更多 self-hosted runner / billing 止损细节见：`docs/CI_SELF_HOSTED_RUNNER.md`。
