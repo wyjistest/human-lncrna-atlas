@@ -54,6 +54,7 @@ jobs:
     steps:
       - name: Configure git transport (self-hosted)
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        working-directory: .
         run: |
           set -euo pipefail
           export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
@@ -159,6 +160,7 @@ jobs:
     steps:
       - name: Configure git transport (self-hosted)
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        working-directory: .
         run: |
           set -euo pipefail
           export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
