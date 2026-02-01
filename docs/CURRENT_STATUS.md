@@ -62,7 +62,7 @@ python3 scripts/admin_metrics_snapshot.py --base-url "http://127.0.0.1:8000"
 
 - 性能定位：`docs/PERFORMANCE_TRIAGE.md`（配套脚本：`scripts/admin_metrics_snapshot.py`）
 - 前端 bundle 体积定位：`cd frontend/web && npm run build && npm run report:bundle -- --top 15`
-- 前端 bundle 体积对比：`cd frontend/web && npm run report:bundle -- --json bundle-baseline.json && npm run build && npm run report:bundle -- --json bundle-current.json && node scripts/compare-bundle-sizes.mjs bundle-baseline.json bundle-current.json`
+- 前端 bundle 体积对比（含首屏回归门禁，默认阈值 +3%）：`cd frontend/web && npm run report:bundle -- --json bundle-baseline.json && npm run build && npm run report:bundle -- --json bundle-current.json && node scripts/compare-bundle-sizes.mjs bundle-baseline.json bundle-current.json --max-entry-regression-pct 3 --max-preloads-regression-pct 3`
 - Overlap 性能回归：`docs/testing/performance/OVERLAP_PERF_REGRESSION.md`（workflow：`.github/workflows/performance-overlap.yml`）
 - CI 止损（billing/额度阻塞时）：`docs/CI_SELF_HOSTED_RUNNER.md`
 
