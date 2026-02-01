@@ -1,0 +1,162 @@
+name: Performance Genes/Regulations
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs_on:
+        description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
+        required: false
+        default: ""
+      backend_mode:
+        description: "Where backend comes from: external (use api_base_url) | docker-sample (boot sample backend via docker compose)."
+        required: false
+        default: "external"
+        type: choice
+        options:
+          - external
+          - docker-sample
+      api_base_url:
+        description: "Backend base URL (e.g. http://127.0.0.1:8000)."
+        required: false
+        default: "http://127.0.0.1:8000"
+      mode:
+        description: "check (gate regressions) | generate-baseline (emit baseline json)."
+        required: true
+        default: "check"
+        type: choice
+        options:
+          - check
+          - generate-baseline
+      warmup_rounds:
+        description: "Warmup rounds before snapshot."
+        required: false
+        default: "20"
+      genes_species_id:
+        description: "Warmup genes species_id."
+        required: false
+        default: "1"
+      genes_gene_type:
+        description: "Warmup genes gene_type (lncRNA/protein_coding)."
+        required: false
+        default: "lncRNA"
+      genes_page_size:
+        description: "Warmup genes page_size."
+        required: false
+        default: "100"
+      regulations_species_id:
+        description: "Warmup regulations species_id."
+        required: false
+        default: "1"
+      regulations_page_size:
+        description: "Warmup regulations page_size."
+        required: false
+        default: "100"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI_RUNS_ON: ${{ (github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+  BACKEND_MODE: ${{ github.event.inputs.backend_mode || 'external' }}
+  API_BASE_URL: ${{ github.event.inputs.api_base_url || 'http://127.0.0.1:8000' }}
+  MODE: ${{ github.event.inputs.mode || 'check' }}
+  WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '20' }}
+  GENES_SPECIES_ID: ${{ github.event.inputs.genes_species_id || '1' }}
+  GENES_GENE_TYPE: ${{ github.event.inputs.genes_gene_type || 'lncRNA' }}
+  GENES_PAGE_SIZE: ${{ github.event.inputs.genes_page_size || '100' }}
+  REGULATIONS_SPECIES_ID: ${{ github.event.inputs.regulations_species_id || '1' }}
+  REGULATIONS_PAGE_SIZE: ${{ github.event.inputs.regulations_page_size || '100' }}
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  genes-regulations-perf:
+    name: Genes/Regulations Perf Regression
+    runs-on: ${{ (github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          git config --global http.sslVersion tlsv1.2
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run genes/regulations perf regression
+        if: ${{ env.BACKEND_MODE == 'external' }}
+        env:
+          ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
+        run: |
+          set -euo pipefail
+          python3 --version
+          python3 scripts/perf_genes_regulations_regression.py "${MODE}" \
+            --base-url "${API_BASE_URL}" \
+            --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
+            --warmup-rounds "${WARMUP_ROUNDS}" \
+            --genes-species-id "${GENES_SPECIES_ID}" \
+            --genes-gene-type "${GENES_GENE_TYPE}" \
+            --genes-page-size "${GENES_PAGE_SIZE}" \
+            --regulations-species-id "${REGULATIONS_SPECIES_ID}" \
+            --regulations-page-size "${REGULATIONS_PAGE_SIZE}"
+
+      - name: Boot sample backend (docker compose) and run perf regression
+        if: ${{ env.BACKEND_MODE == 'docker-sample' }}
+        run: |
+          set -euo pipefail
+          bash scripts/baselines/run_genes_regulations_perf_regression_docker.sh
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: genes-regulations-perf-${{ env.MODE }}-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            docs/reports/perf-genes-regulations-*.md
+            docs/reports/perf-genes-regulations-*.json
+            docs/baselines/performance/genes-regulations-admin-metrics.baseline.json
+            docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json
+
