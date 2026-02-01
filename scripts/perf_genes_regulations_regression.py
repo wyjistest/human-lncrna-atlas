@@ -52,12 +52,12 @@ DEFAULT_GENES_PAGE_SIZE = 100
 DEFAULT_REGULATIONS_SPECIES_ID = 1
 DEFAULT_REGULATIONS_PAGE_SIZE = 100
 
-MIN_SAMPLES = 10
+DEFAULT_MIN_SAMPLES = 10
 
-RESPONSE_REGRESSION_PCT = 30.0
-RESPONSE_REGRESSION_ABS_MS = 10.0
-DB_REGRESSION_PCT = 30.0
-DB_REGRESSION_ABS_MS = 2.0
+DEFAULT_RESPONSE_REGRESSION_PCT = 20.0
+DEFAULT_RESPONSE_REGRESSION_ABS_MS = 10.0
+DEFAULT_DB_REGRESSION_PCT = 20.0
+DEFAULT_DB_REGRESSION_ABS_MS = 2.0
 
 
 class WarmupRequestError(RuntimeError):
@@ -260,6 +260,11 @@ def _build_compact_snapshot(
     regulations_species_id: Optional[int],
     regulations_page_size: int,
     warmup_rounds: int,
+    min_samples: int,
+    response_regression_pct: float,
+    response_regression_abs_ms: float,
+    db_regression_pct: float,
+    db_regression_abs_ms: float,
     generated_at: str,
 ) -> dict[str, Any]:
     def path_meta(p: Optional[Path]) -> Optional[str]:
@@ -293,7 +298,7 @@ def _build_compact_snapshot(
             "baseline_raw_metrics_file": path_meta(baseline_raw_metrics_file),
             "scenario": {
                 "warmup_rounds": warmup_rounds,
-                "min_samples": MIN_SAMPLES,
+                "min_samples": min_samples,
                 "genes": {
                     "species_id": genes_species_id,
                     "gene_type": genes_gene_type,
@@ -305,8 +310,8 @@ def _build_compact_snapshot(
                 },
             },
             "thresholds": {
-                "response": {"pct": RESPONSE_REGRESSION_PCT, "abs_ms": RESPONSE_REGRESSION_ABS_MS},
-                "db": {"pct": DB_REGRESSION_PCT, "abs_ms": DB_REGRESSION_ABS_MS},
+                "response": {"pct": response_regression_pct, "abs_ms": response_regression_abs_ms},
+                "db": {"pct": db_regression_pct, "abs_ms": db_regression_abs_ms},
             },
         },
         "endpoints": endpoints,
@@ -328,7 +333,7 @@ def _fmt_change(base: float, cur: float) -> str:
     return f"{_fmt_ms(base)} → {_fmt_ms(cur)} ({sign}{delta:.2f}ms, {sign}{pct:.1f}%)"
 
 
-def _require_endpoint_samples(snapshot: dict[str, Any], *, label: str) -> None:
+def _require_endpoint_samples(snapshot: dict[str, Any], *, label: str, min_samples: int) -> None:
     endpoints = snapshot.get("endpoints")
     if not isinstance(endpoints, dict):
         raise ValueError(f"{label} endpoints missing or invalid")
@@ -340,11 +345,19 @@ def _require_endpoint_samples(snapshot: dict[str, Any], *, label: str) -> None:
         req = _to_int(ep.get("requests"))
         if req is None:
             raise ValueError(f"{label} invalid requests for: {path}")
-        if req < MIN_SAMPLES:
-            raise ValueError(f"{label} insufficient samples for {path}: {req} (<{MIN_SAMPLES})")
+        if req < min_samples:
+            raise ValueError(f"{label} insufficient samples for {path}: {req} (<{min_samples})")
 
 
-def _gate_regressions(baseline: dict[str, Any], current: dict[str, Any]) -> tuple[bool, list[str]]:
+def _gate_regressions(
+    baseline: dict[str, Any],
+    current: dict[str, Any],
+    *,
+    response_pct_th: float,
+    response_abs_th: float,
+    db_pct_th: float,
+    db_abs_th: float,
+) -> tuple[bool, list[str]]:
     failures: list[str] = []
 
     def row(snapshot: dict[str, Any], path: str) -> dict[str, Any]:
@@ -380,8 +393,8 @@ def _gate_regressions(baseline: dict[str, Any], current: dict[str, Any]) -> tupl
 
     for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
         for metric in ("p95_ms", "p99_ms"):
-            check_one(path, kind="response", metric=metric, pct_th=RESPONSE_REGRESSION_PCT, abs_th=RESPONSE_REGRESSION_ABS_MS)
-            check_one(path, kind="db", metric=metric, pct_th=DB_REGRESSION_PCT, abs_th=DB_REGRESSION_ABS_MS)
+            check_one(path, kind="response", metric=metric, pct_th=response_pct_th, abs_th=response_abs_th)
+            check_one(path, kind="db", metric=metric, pct_th=db_pct_th, abs_th=db_abs_th)
 
     return not failures, failures
 
@@ -397,6 +410,11 @@ def _build_markdown(
     ok: bool,
     failures: list[str],
     admin_metrics_diff_path: Optional[Path],
+    min_samples: int,
+    response_regression_pct: float,
+    response_regression_abs_ms: float,
+    db_regression_pct: float,
+    db_regression_abs_ms: float,
 ) -> str:
     lines: list[str] = [
         "# Genes/Regulations Performance Regression",
@@ -410,9 +428,9 @@ def _build_markdown(
         "",
         "## Gate",
         "",
-        f"- min_samples: `{MIN_SAMPLES}`",
-        f"- response: `>{RESPONSE_REGRESSION_PCT:.0f}%` AND `>{RESPONSE_REGRESSION_ABS_MS:.0f}ms`",
-        f"- db: `>{DB_REGRESSION_PCT:.0f}%` AND `>{DB_REGRESSION_ABS_MS:.0f}ms`",
+        f"- min_samples: `{min_samples}`",
+        f"- response: `>{response_regression_pct:.0f}%` AND `>{response_regression_abs_ms:.0f}ms`",
+        f"- db: `>{db_regression_pct:.0f}%` AND `>{db_regression_abs_ms:.0f}ms`",
         "",
         "## Endpoints",
         "",
@@ -542,6 +560,36 @@ def _parse_args() -> argparse.Namespace:
     )
 
     parser.add_argument("--timeout-seconds", type=float, default=10.0, help="HTTP timeout seconds (default: 10).")
+    parser.add_argument(
+        "--min-samples",
+        type=int,
+        default=DEFAULT_MIN_SAMPLES,
+        help="Minimum samples required per endpoint in /api/v1/admin/metrics (default: 10).",
+    )
+    parser.add_argument(
+        "--response-regression-pct",
+        type=float,
+        default=DEFAULT_RESPONSE_REGRESSION_PCT,
+        help="Gate response regressions when delta_pct > this threshold (default: 20).",
+    )
+    parser.add_argument(
+        "--response-regression-abs-ms",
+        type=float,
+        default=DEFAULT_RESPONSE_REGRESSION_ABS_MS,
+        help="Gate response regressions when delta_ms > this threshold (default: 10).",
+    )
+    parser.add_argument(
+        "--db-regression-pct",
+        type=float,
+        default=DEFAULT_DB_REGRESSION_PCT,
+        help="Gate DB regressions when delta_pct > this threshold (default: 20).",
+    )
+    parser.add_argument(
+        "--db-regression-abs-ms",
+        type=float,
+        default=DEFAULT_DB_REGRESSION_ABS_MS,
+        help="Gate DB regressions when delta_ms > this threshold (default: 2).",
+    )
     return parser.parse_args()
 
 
@@ -564,6 +612,11 @@ def main() -> int:
         baseline_raw_metrics_file.parent.mkdir(parents=True, exist_ok=True)
 
     ts = _iso_ts()
+    min_samples = max(1, int(args.min_samples))
+    response_regression_pct = float(args.response_regression_pct)
+    response_regression_abs_ms = float(args.response_regression_abs_ms)
+    db_regression_pct = float(args.db_regression_pct)
+    db_regression_abs_ms = float(args.db_regression_abs_ms)
 
     # 1) Warmup traffic (required for stable percentiles)
     try:
@@ -604,6 +657,11 @@ def main() -> int:
         regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
         regulations_page_size=int(args.regulations_page_size),
         warmup_rounds=int(args.warmup_rounds),
+        min_samples=min_samples,
+        response_regression_pct=response_regression_pct,
+        response_regression_abs_ms=response_regression_abs_ms,
+        db_regression_pct=db_regression_pct,
+        db_regression_abs_ms=db_regression_abs_ms,
         generated_at=ts,
     )
 
@@ -625,6 +683,11 @@ def main() -> int:
             ok=True,
             failures=[],
             admin_metrics_diff_path=None,
+            min_samples=min_samples,
+            response_regression_pct=response_regression_pct,
+            response_regression_abs_ms=response_regression_abs_ms,
+            db_regression_pct=db_regression_pct,
+            db_regression_abs_ms=db_regression_abs_ms,
         )
         md_path = out_dir / f"perf-genes-regulations-{ts}.md"
         md_path.write_text(md, encoding="utf-8")
@@ -656,13 +719,20 @@ def main() -> int:
         return 3
 
     try:
-        _require_endpoint_samples(baseline, label="baseline")
-        _require_endpoint_samples(current, label="current")
+        _require_endpoint_samples(baseline, label="baseline", min_samples=min_samples)
+        _require_endpoint_samples(current, label="current", min_samples=min_samples)
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 3
 
-    ok, failures = _gate_regressions(baseline, current)
+    ok, failures = _gate_regressions(
+        baseline,
+        current,
+        response_pct_th=response_regression_pct,
+        response_abs_th=response_regression_abs_ms,
+        db_pct_th=db_regression_pct,
+        db_abs_th=db_regression_abs_ms,
+    )
 
     admin_metrics_diff_path: Optional[Path] = None
     emit_diff = bool(args.emit_admin_metrics_diff) or (not ok)
@@ -699,6 +769,11 @@ def main() -> int:
         ok=ok,
         failures=failures,
         admin_metrics_diff_path=admin_metrics_diff_path,
+        min_samples=min_samples,
+        response_regression_pct=response_regression_pct,
+        response_regression_abs_ms=response_regression_abs_ms,
+        db_regression_pct=db_regression_pct,
+        db_regression_abs_ms=db_regression_abs_ms,
     )
     md_path = out_dir / f"perf-genes-regulations-{ts}.md"
     md_path.write_text(md, encoding="utf-8")
@@ -719,4 +794,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

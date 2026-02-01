@@ -46,12 +46,12 @@ DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "reports"
 DEFAULT_LNCRNA_GENE_ID = 17276
 DEFAULT_SPECIES_IDS = "1,3"
 
-MIN_SAMPLES = 10
+DEFAULT_MIN_SAMPLES = 10
 
-RESPONSE_REGRESSION_PCT = 30.0
-RESPONSE_REGRESSION_ABS_MS = 10.0
-DB_REGRESSION_PCT = 30.0
-DB_REGRESSION_ABS_MS = 2.0
+DEFAULT_RESPONSE_REGRESSION_PCT = 20.0
+DEFAULT_RESPONSE_REGRESSION_ABS_MS = 10.0
+DEFAULT_DB_REGRESSION_PCT = 20.0
+DEFAULT_DB_REGRESSION_ABS_MS = 2.0
 
 
 class WarmupRequestError(RuntimeError):
@@ -306,6 +306,11 @@ def _build_compact_snapshot(
     lncrna_gene_id_source: str,
     species_ids: list[int],
     warmup_rounds: int,
+    min_samples: int,
+    response_regression_pct: float,
+    response_regression_abs_ms: float,
+    db_regression_pct: float,
+    db_regression_abs_ms: float,
     generated_at: str,
 ) -> dict[str, Any]:
     def path_meta(p: Optional[Path]) -> Optional[str]:
@@ -347,18 +352,18 @@ def _build_compact_snapshot(
                 "lncrna_gene_id_source": lncrna_gene_id_source,
                 "species_ids": species_ids,
                 "warmup_rounds": warmup_rounds,
-                "min_samples": MIN_SAMPLES,
+                "min_samples": min_samples,
             },
             "thresholds": {
-                "response": {"pct": RESPONSE_REGRESSION_PCT, "abs_ms": RESPONSE_REGRESSION_ABS_MS},
-                "db": {"pct": DB_REGRESSION_PCT, "abs_ms": DB_REGRESSION_ABS_MS},
+                "response": {"pct": response_regression_pct, "abs_ms": response_regression_abs_ms},
+                "db": {"pct": db_regression_pct, "abs_ms": db_regression_abs_ms},
             },
         },
         "endpoints": endpoints,
     }
 
 
-def _require_endpoint_samples(snapshot: dict[str, Any], *, label: str) -> None:
+def _require_endpoint_samples(snapshot: dict[str, Any], *, label: str, min_samples: int) -> None:
     endpoints = snapshot.get("endpoints")
     if not isinstance(endpoints, dict):
         raise RuntimeError(f"{label}: invalid endpoints field")
@@ -368,8 +373,8 @@ def _require_endpoint_samples(snapshot: dict[str, Any], *, label: str) -> None:
         if not isinstance(row, dict):
             raise RuntimeError(f"{label}: missing endpoint stats: {path}")
         requests = _to_int(row.get("requests")) or 0
-        if requests < MIN_SAMPLES:
-            raise RuntimeError(f"{label}: insufficient samples for {path}: requests={requests} (<{MIN_SAMPLES})")
+        if requests < min_samples:
+            raise RuntimeError(f"{label}: insufficient samples for {path}: requests={requests} (<{min_samples})")
 
         resp = row.get("response")
         db = row.get("db")
@@ -397,7 +402,15 @@ def _fmt_change(old: float, new: float) -> str:
     return f"{_fmt_ms(old)} → {_fmt_ms(new)} ({sign}{_fmt_ms(delta)}, {sign}{pct_s})"
 
 
-def _gate_regressions(baseline: dict[str, Any], current: dict[str, Any]) -> tuple[bool, list[str]]:
+def _gate_regressions(
+    baseline: dict[str, Any],
+    current: dict[str, Any],
+    *,
+    response_pct_th: float,
+    response_abs_th: float,
+    db_pct_th: float,
+    db_abs_th: float,
+) -> tuple[bool, list[str]]:
     failures: list[str] = []
 
     base_eps = baseline.get("endpoints") or {}
@@ -431,8 +444,8 @@ def _gate_regressions(baseline: dict[str, Any], current: dict[str, Any]) -> tupl
 
     for path in (OVERLAP_LIST_PATH, OVERLAP_COMPARE_PATH):
         for metric in ("p95_ms", "p99_ms"):
-            check_one(path, kind="response", metric=metric, pct_th=RESPONSE_REGRESSION_PCT, abs_th=RESPONSE_REGRESSION_ABS_MS)
-            check_one(path, kind="db", metric=metric, pct_th=DB_REGRESSION_PCT, abs_th=DB_REGRESSION_ABS_MS)
+            check_one(path, kind="response", metric=metric, pct_th=response_pct_th, abs_th=response_abs_th)
+            check_one(path, kind="db", metric=metric, pct_th=db_pct_th, abs_th=db_abs_th)
 
     return not failures, failures
 
@@ -448,6 +461,11 @@ def _build_markdown(
     ok: bool,
     failures: list[str],
     admin_metrics_diff_path: Optional[Path],
+    min_samples: int,
+    response_regression_pct: float,
+    response_regression_abs_ms: float,
+    db_regression_pct: float,
+    db_regression_abs_ms: float,
 ) -> str:
     lines: list[str] = [
         "# Overlap Performance Regression",
@@ -461,9 +479,9 @@ def _build_markdown(
         "",
         "## Gate",
         "",
-        f"- min_samples: `{MIN_SAMPLES}`",
-        f"- response: `>{RESPONSE_REGRESSION_PCT:.0f}%` AND `>{RESPONSE_REGRESSION_ABS_MS:.0f}ms`",
-        f"- db: `>{DB_REGRESSION_PCT:.0f}%` AND `>{DB_REGRESSION_ABS_MS:.0f}ms`",
+        f"- min_samples: `{min_samples}`",
+        f"- response: `>{response_regression_pct:.0f}%` AND `>{response_regression_abs_ms:.0f}ms`",
+        f"- db: `>{db_regression_pct:.0f}%` AND `>{db_regression_abs_ms:.0f}ms`",
         "",
         "## Endpoints",
         "",
@@ -586,6 +604,36 @@ def _parse_args() -> argparse.Namespace:
         help=f"CSV species ids for compare warmup (default: {DEFAULT_SPECIES_IDS})",
     )
     parser.add_argument("--timeout-seconds", type=float, default=10.0, help="HTTP timeout seconds (default: 10).")
+    parser.add_argument(
+        "--min-samples",
+        type=int,
+        default=DEFAULT_MIN_SAMPLES,
+        help="Minimum samples required per endpoint in /api/v1/admin/metrics (default: 10).",
+    )
+    parser.add_argument(
+        "--response-regression-pct",
+        type=float,
+        default=DEFAULT_RESPONSE_REGRESSION_PCT,
+        help="Gate response regressions when delta_pct > this threshold (default: 20).",
+    )
+    parser.add_argument(
+        "--response-regression-abs-ms",
+        type=float,
+        default=DEFAULT_RESPONSE_REGRESSION_ABS_MS,
+        help="Gate response regressions when delta_ms > this threshold (default: 10).",
+    )
+    parser.add_argument(
+        "--db-regression-pct",
+        type=float,
+        default=DEFAULT_DB_REGRESSION_PCT,
+        help="Gate DB regressions when delta_pct > this threshold (default: 20).",
+    )
+    parser.add_argument(
+        "--db-regression-abs-ms",
+        type=float,
+        default=DEFAULT_DB_REGRESSION_ABS_MS,
+        help="Gate DB regressions when delta_ms > this threshold (default: 2).",
+    )
     return parser.parse_args()
 
 
@@ -614,6 +662,11 @@ def main() -> int:
         return 2
 
     ts = _iso_ts()
+    min_samples = max(1, int(args.min_samples))
+    response_regression_pct = float(args.response_regression_pct)
+    response_regression_abs_ms = float(args.response_regression_abs_ms)
+    db_regression_pct = float(args.db_regression_pct)
+    db_regression_abs_ms = float(args.db_regression_abs_ms)
 
     # 1) Warmup traffic (best effort but required for stable percentiles)
     requested_lncrna_gene_id = int(args.lncrna_gene_id)
@@ -694,6 +747,11 @@ def main() -> int:
         lncrna_gene_id_source=lncrna_gene_id_source,
         species_ids=species_ids,
         warmup_rounds=int(args.warmup_rounds),
+        min_samples=min_samples,
+        response_regression_pct=response_regression_pct,
+        response_regression_abs_ms=response_regression_abs_ms,
+        db_regression_pct=db_regression_pct,
+        db_regression_abs_ms=db_regression_abs_ms,
         generated_at=ts,
     )
 
@@ -702,7 +760,7 @@ def main() -> int:
 
     if args.cmd == "generate-baseline":
         try:
-            _require_endpoint_samples(current, label="current")
+            _require_endpoint_samples(current, label="current", min_samples=min_samples)
         except Exception as e:
             print(f"[ERROR] {e}", file=sys.stderr)
             return 3
@@ -726,6 +784,11 @@ def main() -> int:
             ok=True,
             failures=[],
             admin_metrics_diff_path=None,
+            min_samples=min_samples,
+            response_regression_pct=response_regression_pct,
+            response_regression_abs_ms=response_regression_abs_ms,
+            db_regression_pct=db_regression_pct,
+            db_regression_abs_ms=db_regression_abs_ms,
         )
         md_path = out_dir / f"perf-overlap-{ts}.md"
         md_path.write_text(md, encoding="utf-8")
@@ -754,13 +817,20 @@ def main() -> int:
         return 3
 
     try:
-        _require_endpoint_samples(baseline, label="baseline")
-        _require_endpoint_samples(current, label="current")
+        _require_endpoint_samples(baseline, label="baseline", min_samples=min_samples)
+        _require_endpoint_samples(current, label="current", min_samples=min_samples)
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 3
 
-    ok, failures = _gate_regressions(baseline, current)
+    ok, failures = _gate_regressions(
+        baseline,
+        current,
+        response_pct_th=response_regression_pct,
+        response_abs_th=response_regression_abs_ms,
+        db_pct_th=db_regression_pct,
+        db_abs_th=db_regression_abs_ms,
+    )
 
     admin_metrics_diff_path: Optional[Path] = None
     emit_diff = bool(args.emit_admin_metrics_diff) or (not ok)
@@ -798,6 +868,11 @@ def main() -> int:
         ok=ok,
         failures=failures,
         admin_metrics_diff_path=admin_metrics_diff_path,
+        min_samples=min_samples,
+        response_regression_pct=response_regression_pct,
+        response_regression_abs_ms=response_regression_abs_ms,
+        db_regression_pct=db_regression_pct,
+        db_regression_abs_ms=db_regression_abs_ms,
     )
     md_path = out_dir / f"perf-overlap-{ts}.md"
     md_path.write_text(md, encoding="utf-8")

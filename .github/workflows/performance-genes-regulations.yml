@@ -51,6 +51,26 @@ on:
         description: "Warmup regulations page_size."
         required: false
         default: "100"
+      min_samples:
+        description: "Gate: minimum samples per endpoint (requests >= min_samples)."
+        required: false
+        default: "10"
+      response_regression_pct:
+        description: "Gate: response regression pct threshold."
+        required: false
+        default: "20"
+      response_regression_abs_ms:
+        description: "Gate: response regression abs threshold (ms)."
+        required: false
+        default: "10"
+      db_regression_pct:
+        description: "Gate: db regression pct threshold."
+        required: false
+        default: "20"
+      db_regression_abs_ms:
+        description: "Gate: db regression abs threshold (ms)."
+        required: false
+        default: "2"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -70,6 +90,11 @@ env:
   GENES_PAGE_SIZE: ${{ github.event.inputs.genes_page_size || '100' }}
   REGULATIONS_SPECIES_ID: ${{ github.event.inputs.regulations_species_id || '1' }}
   REGULATIONS_PAGE_SIZE: ${{ github.event.inputs.regulations_page_size || '100' }}
+  MIN_SAMPLES: ${{ github.event.inputs.min_samples || '10' }}
+  RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '20' }}
+  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '10' }}
+  DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '20' }}
+  DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '2' }}
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -140,7 +165,12 @@ jobs:
             --genes-gene-type "${GENES_GENE_TYPE}" \
             --genes-page-size "${GENES_PAGE_SIZE}" \
             --regulations-species-id "${REGULATIONS_SPECIES_ID}" \
-            --regulations-page-size "${REGULATIONS_PAGE_SIZE}"
+            --regulations-page-size "${REGULATIONS_PAGE_SIZE}" \
+            --min-samples "${MIN_SAMPLES}" \
+            --response-regression-pct "${RESPONSE_REGRESSION_PCT}" \
+            --response-regression-abs-ms "${RESPONSE_REGRESSION_ABS_MS}" \
+            --db-regression-pct "${DB_REGRESSION_PCT}" \
+            --db-regression-abs-ms "${DB_REGRESSION_ABS_MS}"
 
       - name: Boot sample backend (docker compose) and run perf regression
         if: ${{ env.BACKEND_MODE == 'docker-sample' }}
@@ -159,4 +189,3 @@ jobs:
             docs/reports/perf-genes-regulations-*.json
             docs/baselines/performance/genes-regulations-admin-metrics.baseline.json
             docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json
-
