@@ -98,6 +98,7 @@ python3 scripts/admin_metrics_snapshot.py --compare \
 - 文档：`docs/testing/performance/OVERLAP_PERF_REGRESSION.md`
 - 工作流（workflow_dispatch）：`Performance Overlap`（`.github/workflows/performance-overlap.yml`）
 - 产物（可直接贴 issue）：`docs/reports/perf-overlap-*.md` / `docs/reports/perf-overlap-*.json`
+- 若配置并提交了 `docs/baselines/performance/overlap-admin-metrics.baseline.raw.json`，门禁失败时会额外生成 `perf-overlap-admin-metrics-diff-*.md`，用于快速定位慢点（端点/慢查询/缓存变化）。
 
 ## 参考
 

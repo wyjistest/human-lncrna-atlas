@@ -119,6 +119,7 @@ jobs:
           python3 --version
           python3 scripts/perf_overlap_regression.py "${MODE}" \
             --base-url "${API_BASE_URL}" \
+            --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
             --warmup-rounds "${WARMUP_ROUNDS}" \
             --lncrna-gene-id "${LNCRNA_GENE_ID}" \
             --species-ids "${SPECIES_IDS}"
@@ -139,3 +140,4 @@ jobs:
             docs/reports/perf-overlap-*.md
             docs/reports/perf-overlap-*.json
             docs/baselines/performance/overlap-admin-metrics.baseline.json
+            docs/baselines/performance/overlap-admin-metrics.baseline.raw.json

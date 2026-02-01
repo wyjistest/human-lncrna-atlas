@@ -38,6 +38,9 @@ OVERLAP_LIST_PATH = "/api/v1/lncrna-chipseq-overlap"
 OVERLAP_COMPARE_PATH = "/api/v1/lncrna-chipseq-overlap/compare"
 
 DEFAULT_BASELINE_FILE = REPO_ROOT / "docs" / "baselines" / "performance" / "overlap-admin-metrics.baseline.json"
+DEFAULT_BASELINE_RAW_METRICS_FILE = (
+    REPO_ROOT / "docs" / "baselines" / "performance" / "overlap-admin-metrics.baseline.raw.json"
+)
 DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "reports"
 
 DEFAULT_LNCRNA_GENE_ID = 17276
@@ -297,6 +300,7 @@ def _build_compact_snapshot(
     base_url: str,
     mode: str,
     baseline_file: Path,
+    baseline_raw_metrics_file: Optional[Path],
     lncrna_gene_id: int,
     lncrna_gene_id_requested: int,
     lncrna_gene_id_source: str,
@@ -304,11 +308,17 @@ def _build_compact_snapshot(
     warmup_rounds: int,
     generated_at: str,
 ) -> dict[str, Any]:
-    baseline_file_resolved = baseline_file.resolve()
-    try:
-        baseline_file_meta = baseline_file_resolved.relative_to(REPO_ROOT).as_posix()
-    except ValueError:
-        baseline_file_meta = baseline_file_resolved.as_posix()
+    def path_meta(p: Optional[Path]) -> Optional[str]:
+        if p is None:
+            return None
+        resolved = p.resolve()
+        try:
+            return resolved.relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            return resolved.as_posix()
+
+    baseline_file_meta = path_meta(baseline_file)
+    baseline_raw_metrics_file_meta = path_meta(baseline_raw_metrics_file)
 
     endpoints: dict[str, Any] = {}
 
@@ -330,6 +340,7 @@ def _build_compact_snapshot(
             "generated_at": generated_at,
             "base_url": base_url,
             "baseline_file": baseline_file_meta,
+            "baseline_raw_metrics_file": baseline_raw_metrics_file_meta,
             "scenario": {
                 "lncrna_gene_id": lncrna_gene_id,
                 "lncrna_gene_id_requested": lncrna_gene_id_requested,
@@ -436,6 +447,7 @@ def _build_markdown(
     current: dict[str, Any],
     ok: bool,
     failures: list[str],
+    admin_metrics_diff_path: Optional[Path],
 ) -> str:
     lines: list[str] = [
         "# Overlap Performance Regression",
@@ -444,6 +456,7 @@ def _build_markdown(
         f"- **generated_at**: `{generated_at}`",
         f"- **base_url**: `{base_url}`",
         f"- **baseline_file**: `{baseline_file}`",
+        f"- **admin_metrics_diff**: `{admin_metrics_diff_path}`" if admin_metrics_diff_path else None,
         f"- **result**: {'✅ PASS' if ok else '❌ FAIL'}",
         "",
         "## Gate",
@@ -500,7 +513,7 @@ def _build_markdown(
             lines.append(f"- {f}")
     lines.append("")
 
-    return "\n".join(lines)
+    return "\n".join([x for x in lines if x is not None])
 
 
 def _load_json_file(path: Path) -> dict[str, Any]:
@@ -547,6 +560,19 @@ def _parse_args() -> argparse.Namespace:
         default=str(DEFAULT_BASELINE_FILE),
         help="Baseline JSON file (default: docs/baselines/performance/overlap-admin-metrics.baseline.json)",
     )
+    parser.add_argument(
+        "--baseline-raw-metrics-file",
+        default="",
+        help=(
+            "Optional: committed baseline raw /api/v1/admin/metrics JSON for localization diff. "
+            "Empty disables. Recommended: docs/baselines/performance/overlap-admin-metrics.baseline.raw.json"
+        ),
+    )
+    parser.add_argument(
+        "--emit-admin-metrics-diff",
+        action="store_true",
+        help="Emit admin-metrics diff even when gate passes (requires --baseline-raw-metrics-file).",
+    )
     parser.add_argument("--warmup-rounds", type=int, default=20, help="Warmup rounds before snapshot (default: 20).")
     parser.add_argument(
         "--lncrna-gene-id",
@@ -575,6 +601,11 @@ def main() -> int:
 
     baseline_file = _resolve_path(str(args.baseline_file))
     baseline_file.parent.mkdir(parents=True, exist_ok=True)
+
+    raw_baseline_str = str(args.baseline_raw_metrics_file or "").strip()
+    baseline_raw_metrics_file = _resolve_path(raw_baseline_str) if raw_baseline_str else None
+    if baseline_raw_metrics_file is not None:
+        baseline_raw_metrics_file.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         species_ids = _parse_species_ids(str(args.species_ids))
@@ -648,6 +679,8 @@ def main() -> int:
 
     raw_path = out_dir / f"perf-overlap-raw-metrics-{ts}.json"
     raw_path.write_text(_stable_json_text(raw_metrics), encoding="utf-8")
+    if args.cmd == "generate-baseline" and baseline_raw_metrics_file is not None:
+        baseline_raw_metrics_file.write_text(_stable_json_text(raw_metrics), encoding="utf-8")
 
     # 3) Build compact snapshot
     current = _build_compact_snapshot(
@@ -655,6 +688,7 @@ def main() -> int:
         base_url=base_url,
         mode=str(args.cmd),
         baseline_file=baseline_file,
+        baseline_raw_metrics_file=baseline_raw_metrics_file,
         lncrna_gene_id=resolved_lncrna_gene_id,
         lncrna_gene_id_requested=requested_lncrna_gene_id,
         lncrna_gene_id_source=lncrna_gene_id_source,
@@ -691,10 +725,13 @@ def main() -> int:
             current=current,
             ok=True,
             failures=[],
+            admin_metrics_diff_path=None,
         )
         md_path = out_dir / f"perf-overlap-{ts}.md"
         md_path.write_text(md, encoding="utf-8")
         print(f"[OK] Baseline generated: {baseline_file}")
+        if baseline_raw_metrics_file is not None:
+            print(f"[OK] Baseline raw metrics: {baseline_raw_metrics_file}")
         print(f"[OK] Report: {md_path}")
         return 0
 
@@ -724,6 +761,33 @@ def main() -> int:
         return 3
 
     ok, failures = _gate_regressions(baseline, current)
+
+    admin_metrics_diff_path: Optional[Path] = None
+    emit_diff = bool(args.emit_admin_metrics_diff) or (not ok)
+    if emit_diff and baseline_raw_metrics_file is not None:
+        if baseline_raw_metrics_file.exists():
+            try:
+                # Import lazily to avoid any accidental side effects and keep check fast when diff is disabled.
+                from admin_metrics_snapshot import build_diff_markdown  # type: ignore
+
+                old_raw = _load_json_file(baseline_raw_metrics_file)
+                diff_md = build_diff_markdown(
+                    old_raw,
+                    raw_metrics,
+                    old_label=str(baseline_raw_metrics_file),
+                    new_label=str(raw_path),
+                    generated_at=ts,
+                )
+                admin_metrics_diff_path = out_dir / f"perf-overlap-admin-metrics-diff-{ts}.md"
+                admin_metrics_diff_path.write_text(diff_md, encoding="utf-8")
+            except Exception as e:
+                print(f"[WARN] Failed to generate admin-metrics diff: {e}", file=sys.stderr)
+        else:
+            print(
+                f"[WARN] baseline raw metrics file not found (skip diff): {baseline_raw_metrics_file}",
+                file=sys.stderr,
+            )
+
     md = _build_markdown(
         mode="check",
         base_url=base_url,
@@ -733,17 +797,22 @@ def main() -> int:
         current=current,
         ok=ok,
         failures=failures,
+        admin_metrics_diff_path=admin_metrics_diff_path,
     )
     md_path = out_dir / f"perf-overlap-{ts}.md"
     md_path.write_text(md, encoding="utf-8")
 
     if ok:
         print(f"[OK] No gated regressions. Report: {md_path}")
+        if admin_metrics_diff_path is not None:
+            print(f"[OK] Admin metrics diff: {admin_metrics_diff_path}")
         return 0
 
     for f in failures:
         print(f, file=sys.stderr)
     print(f"[FAIL] Gated regressions detected. Report: {md_path}", file=sys.stderr)
+    if admin_metrics_diff_path is not None:
+        print(f"[INFO] Admin metrics diff: {admin_metrics_diff_path}", file=sys.stderr)
     return 3
 
 

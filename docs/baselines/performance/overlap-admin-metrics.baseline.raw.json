@@ -1,0 +1,207 @@
+{
+  "alerts": [],
+  "cache_breakdown": {
+    "keys": {
+      "limit": 10,
+      "top": [],
+      "tracked": 0
+    },
+    "namespaces": {
+      "limit": 10,
+      "top": [],
+      "tracked": 0
+    },
+    "routes": {
+      "limit": 10,
+      "top": [],
+      "tracked": 0
+    }
+  },
+  "cache_get_latency": {
+    "hits": null,
+    "hits_samples": 0,
+    "max_samples": 1000,
+    "misses": null,
+    "misses_samples": 0
+  },
+  "cache_stats": {
+    "backend": "memory",
+    "enabled": false,
+    "hit_rate_pct": 0.0,
+    "hits": 0,
+    "misses": 0,
+    "total_requests": 0
+  },
+  "database": {
+    "avg_ms": 1.43,
+    "percentiles": {
+      "p50_ms": 1.63,
+      "p95_ms": 2.61,
+      "p99_ms": 3.21
+    },
+    "query_samples": 144,
+    "request_avg_ms": 4.8,
+    "request_percentiles": {
+      "p50_ms": 4.94,
+      "p95_ms": 6.09,
+      "p99_ms": 6.72
+    },
+    "request_samples": 43,
+    "request_total_ms": 206.58,
+    "slow_queries": [],
+    "slow_query_threshold_ms": 200.0,
+    "total_queries": 144,
+    "total_time_ms": 206.58
+  },
+  "endpoints": [
+    {
+      "avg_ms": 27.7,
+      "db_avg_ms": 4.16,
+      "db_percentiles": {
+        "p50_ms": 4.04,
+        "p95_ms": 5.13,
+        "p99_ms": 5.88
+      },
+      "db_query_avg": 2.05,
+      "db_samples": 21,
+      "error_rate": 0.0,
+      "errors": 0,
+      "path": "/api/v1/lncrna-chipseq-overlap",
+      "percentiles": {
+        "p50_ms": 21.44,
+        "p95_ms": 85.82,
+        "p99_ms": 94.24
+      },
+      "requests": 21,
+      "samples": 21
+    },
+    {
+      "avg_ms": 23.03,
+      "db_avg_ms": 5.66,
+      "db_percentiles": {
+        "p50_ms": 5.9,
+        "p95_ms": 6.72,
+        "p99_ms": 6.72
+      },
+      "db_query_avg": 4.8,
+      "db_samples": 20,
+      "error_rate": 0.0,
+      "errors": 0,
+      "path": "/api/v1/lncrna-chipseq-overlap/compare",
+      "percentiles": {
+        "p50_ms": 23.2,
+        "p95_ms": 33.69,
+        "p99_ms": 33.69
+      },
+      "requests": 20,
+      "samples": 20
+    },
+    {
+      "avg_ms": 29.79,
+      "db_avg_ms": 1.81,
+      "db_percentiles": null,
+      "db_query_avg": 1.0,
+      "db_samples": 1,
+      "error_rate": 0.0,
+      "errors": 0,
+      "path": "/api/v1/genes/options",
+      "percentiles": null,
+      "requests": 1,
+      "samples": 1
+    },
+    {
+      "avg_ms": 37.96,
+      "db_avg_ms": 4.31,
+      "db_percentiles": null,
+      "db_query_avg": 4.0,
+      "db_samples": 1,
+      "error_rate": 0.0,
+      "errors": 0,
+      "path": "/api/v1/genes/{gene_id}",
+      "percentiles": null,
+      "requests": 1,
+      "samples": 1
+    }
+  ],
+  "error_trend": {
+    "error_rates": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "timestamps": [
+      "05:28",
+      "05:29",
+      "05:30",
+      "05:31",
+      "05:32",
+      "05:33",
+      "05:34",
+      "05:35",
+      "05:36",
+      "05:37"
+    ]
+  },
+  "errors": {
+    "rate": 0.0,
+    "total": 0
+  },
+  "health": {
+    "cache": "not_configured",
+    "database": "ok",
+    "status": "healthy",
+    "uptime_seconds": 1
+  },
+  "percentiles": {
+    "p50_ms": 22.31,
+    "p95_ms": 37.96,
+    "p99_ms": 94.24
+  },
+  "request": {
+    "last_minute": 43,
+    "total": 43
+  },
+  "response_time": {
+    "avg_ms": 25.82
+  },
+  "response_time_distribution": {
+    "buckets": [
+      "0-50ms",
+      "50-100ms",
+      "100-200ms",
+      "200-500ms",
+      "500ms+"
+    ],
+    "counts": [
+      41,
+      2,
+      0,
+      0,
+      0
+    ]
+  },
+  "system": {
+    "cpu_percent": 18.0,
+    "disk": {
+      "percent": 40.5,
+      "total_gb": 186.68,
+      "used_gb": 71.67
+    },
+    "memory": {
+      "percent": 19.3,
+      "total_mb": 257430.34,
+      "used_mb": 49674.6
+    },
+    "process": {
+      "cpu_percent": 0.0,
+      "memory_mb": 109.45
+    }
+  }
+}
