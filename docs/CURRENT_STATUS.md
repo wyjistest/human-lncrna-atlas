@@ -36,6 +36,20 @@ python3 scripts/perf_overlap_regression.py check \
   --species-ids "1,3"
 ```
 
+**Genes / Regulations 性能回归门禁（本地）**
+
+```bash
+python3 scripts/perf_genes_regulations_regression.py check \
+  --base-url "http://127.0.0.1:8000" \
+  --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
+  --warmup-rounds 20 \
+  --genes-species-id 1 \
+  --genes-gene-type "lncRNA" \
+  --genes-page-size 100 \
+  --regulations-species-id 1 \
+  --regulations-page-size 100
+```
+
 **性能定位导出（Admin metrics，一键生成 JSON + Markdown）**
 
 ```bash
@@ -64,6 +78,7 @@ python3 scripts/admin_metrics_snapshot.py --base-url "http://127.0.0.1:8000"
 - 前端 bundle 体积定位：`cd frontend/web && npm run build && npm run report:bundle -- --top 15`
 - 前端 bundle 体积对比（含首屏回归门禁，默认阈值 +3%）：`cd frontend/web && npm run report:bundle -- --json bundle-baseline.json && npm run build && npm run report:bundle -- --json bundle-current.json && node scripts/compare-bundle-sizes.mjs bundle-baseline.json bundle-current.json --max-entry-regression-pct 3 --max-preloads-regression-pct 3`
 - Overlap 性能回归：`docs/testing/performance/OVERLAP_PERF_REGRESSION.md`（workflow：`.github/workflows/performance-overlap.yml`）
+- Genes / Regulations 性能回归：`docs/testing/performance/GENES_REGULATIONS_PERF_REGRESSION.md`（workflow：`.github/workflows/performance-genes-regulations.yml`）
 - CI 止损（billing/额度阻塞时）：`docs/CI_SELF_HOSTED_RUNNER.md`
 
 ## CI / self-hosted runner 现状
