@@ -518,6 +518,14 @@ run_docs_checks() {
         return 1
     fi
 
+    echo -e "${YELLOW}运行文档标题伪影检查...${NC}"
+    if python3 scripts/check_docs_heading_artifacts.py; then
+        echo -e "${GREEN}文档标题伪影检查通过!${NC}"
+    else
+        echo -e "${RED}文档标题伪影检查失败${NC}"
+        return 1
+    fi
+
     echo -e "${YELLOW}运行文档状态标注检查...${NC}"
     if python3 scripts/check_docs_status_markers.py; then
         echo -e "${GREEN}文档状态标注检查通过!${NC}"
