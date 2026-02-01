@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Overlap 性能回归检查（基于 /api/v1/admin/metrics）。
+Genes/Regulations 性能回归检查（基于 /api/v1/admin/metrics）。
 
 目标：
-- 针对 Overlap list/compare 两个端点做“可定位、可回滚”的性能门禁；
+- 针对 Genes / Regulations 两个端点做“可定位、可回滚”的性能门禁；
 - 默认不阻塞 main push，仅用于手动 workflow_dispatch（self-hosted 友好）；
 - 仅使用标准库（便于在任意环境快速运行）。
 
@@ -12,9 +12,9 @@ Overlap 性能回归检查（基于 /api/v1/admin/metrics）。
 - check：与 baseline 对比，若出现明显回归则返回非 0
 
 输出：
-- <out-dir>/perf-overlap-<timestamp>.json（compact snapshot）
-- <out-dir>/perf-overlap-<timestamp>.md（issue 友好摘要）
-- <out-dir>/perf-overlap-raw-metrics-<timestamp>.json（原始 /admin/metrics）
+- <out-dir>/perf-genes-regulations-<timestamp>.json（compact snapshot）
+- <out-dir>/perf-genes-regulations-<timestamp>.md（issue 友好摘要）
+- <out-dir>/perf-genes-regulations-raw-metrics-<timestamp>.json（原始 /admin/metrics）
 """
 
 from __future__ import annotations
@@ -34,17 +34,23 @@ from urllib.request import Request, urlopen
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-OVERLAP_LIST_PATH = "/api/v1/lncrna-chipseq-overlap"
-OVERLAP_COMPARE_PATH = "/api/v1/lncrna-chipseq-overlap/compare"
+GENES_LIST_PATH = "/api/v1/genes"
+REGULATIONS_LIST_PATH = "/api/v1/regulations"
 
-DEFAULT_BASELINE_FILE = REPO_ROOT / "docs" / "baselines" / "performance" / "overlap-admin-metrics.baseline.json"
+DEFAULT_BASELINE_FILE = (
+    REPO_ROOT / "docs" / "baselines" / "performance" / "genes-regulations-admin-metrics.baseline.json"
+)
 DEFAULT_BASELINE_RAW_METRICS_FILE = (
-    REPO_ROOT / "docs" / "baselines" / "performance" / "overlap-admin-metrics.baseline.raw.json"
+    REPO_ROOT / "docs" / "baselines" / "performance" / "genes-regulations-admin-metrics.baseline.raw.json"
 )
 DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "reports"
 
-DEFAULT_LNCRNA_GENE_ID = 17276
-DEFAULT_SPECIES_IDS = "1,3"
+DEFAULT_GENES_SPECIES_ID = 1
+DEFAULT_GENES_GENE_TYPE = "lncRNA"
+DEFAULT_GENES_PAGE_SIZE = 100
+
+DEFAULT_REGULATIONS_SPECIES_ID = 1
+DEFAULT_REGULATIONS_PAGE_SIZE = 100
 
 DEFAULT_MIN_SAMPLES = 10
 
@@ -150,44 +156,6 @@ def _fetch_json_result(url: str, *, timeout_seconds: float) -> JsonResult:
         return JsonResult(status_code=status_code, json=None)
 
 
-def _pick_lncrna_gene_id_with_core_id(
-    *,
-    base_url: str,
-    species_id: int,
-    timeout_seconds: float,
-) -> Optional[int]:
-    options_url = f"{base_url}/api/v1/genes/options?{urlencode({'species_id': species_id, 'gene_type': 'lncRNA', 'limit': 5})}"
-    options = _fetch_json_result(options_url, timeout_seconds=timeout_seconds)
-    if options.status_code != 200 or not isinstance(options.json, dict):
-        return None
-
-    genes = options.json.get("genes")
-    if not isinstance(genes, list):
-        return None
-
-    candidate_gene_ids: list[int] = []
-    for row in genes[:5]:
-        if not isinstance(row, dict):
-            continue
-        gene_id = _to_int(row.get("gene_id"))
-        if gene_id is None or gene_id < 1:
-            continue
-        candidate_gene_ids.append(gene_id)
-
-    # 确定性：options 结果可能受后端排序/索引变化影响，这里统一按 gene_id 升序挑选。
-    candidate_gene_ids = sorted(set(candidate_gene_ids))
-
-    for gene_id in candidate_gene_ids:
-        detail = _fetch_json_result(f"{base_url}/api/v1/genes/{gene_id}", timeout_seconds=timeout_seconds)
-        if detail.status_code != 200 or not isinstance(detail.json, dict):
-            continue
-        if detail.json.get("core_id") is None:
-            continue
-        return gene_id
-
-    return None
-
-
 def _warmup_get(url: str, *, timeout_seconds: float) -> None:
     req = Request(url, headers={"Accept": "application/json"}, method="GET")
     try:
@@ -197,32 +165,6 @@ def _warmup_get(url: str, *, timeout_seconds: float) -> None:
         raise WarmupRequestError(url, status_code=int(e.code), detail=str(e)) from e
     except Exception as e:
         raise WarmupRequestError(url, status_code=None, detail=str(e)) from e
-
-
-def _parse_species_ids(text: str) -> list[int]:
-    raw = (text or "").strip()
-    if not raw:
-        raise ValueError("species_ids is empty")
-
-    parts = []
-    for part in raw.replace(" ", "").split(","):
-        if not part:
-            continue
-        parts.append(part)
-
-    ids: list[int] = []
-    for part in parts:
-        try:
-            value = int(part)
-        except Exception as e:
-            raise ValueError(f"Invalid species id: {part}") from e
-        if value <= 0:
-            raise ValueError(f"Invalid species id (must be positive): {value}")
-        ids.append(value)
-
-    if not ids:
-        raise ValueError("species_ids parsed to empty list")
-    return ids
 
 
 @dataclass(frozen=True)
@@ -273,25 +215,36 @@ def _extract_endpoint(metrics: dict[str, Any], path: str) -> Optional[EndpointCo
     return None
 
 
-def _warmup_overlap(
+def _warmup_genes_regulations(
     *,
     base_url: str,
-    lncrna_gene_id: int,
-    species_ids: list[int],
+    genes_species_id: Optional[int],
+    genes_gene_type: Optional[str],
+    genes_page_size: int,
+    regulations_species_id: Optional[int],
+    regulations_page_size: int,
     warmup_rounds: int,
     timeout_seconds: float,
 ) -> None:
     if warmup_rounds <= 0:
         return
 
-    first_species = species_ids[0]
-    compare_species = ",".join(str(x) for x in species_ids)
+    genes_params: dict[str, Any] = {"page": 1, "page_size": genes_page_size}
+    if genes_species_id is not None:
+        genes_params["species_id"] = genes_species_id
+    if genes_gene_type:
+        genes_params["gene_type"] = genes_gene_type
+
+    regs_params: dict[str, Any] = {"page": 1, "page_size": regulations_page_size}
+    if regulations_species_id is not None:
+        regs_params["species_id"] = regulations_species_id
+
+    genes_url = f"{base_url}{GENES_LIST_PATH}?{urlencode(genes_params)}"
+    regs_url = f"{base_url}{REGULATIONS_LIST_PATH}?{urlencode(regs_params)}"
 
     for _ in range(int(warmup_rounds)):
-        list_url = f"{base_url}{OVERLAP_LIST_PATH}?{urlencode({'lncrna_gene_id': lncrna_gene_id, 'species_id': first_species})}"
-        compare_url = f"{base_url}{OVERLAP_COMPARE_PATH}?{urlencode({'lncrna_gene_id': lncrna_gene_id, 'species_ids': compare_species})}"
-        _warmup_get(list_url, timeout_seconds=timeout_seconds)
-        _warmup_get(compare_url, timeout_seconds=timeout_seconds)
+        _warmup_get(genes_url, timeout_seconds=timeout_seconds)
+        _warmup_get(regs_url, timeout_seconds=timeout_seconds)
 
 
 def _build_compact_snapshot(
@@ -301,10 +254,11 @@ def _build_compact_snapshot(
     mode: str,
     baseline_file: Path,
     baseline_raw_metrics_file: Optional[Path],
-    lncrna_gene_id: int,
-    lncrna_gene_id_requested: int,
-    lncrna_gene_id_source: str,
-    species_ids: list[int],
+    genes_species_id: Optional[int],
+    genes_gene_type: Optional[str],
+    genes_page_size: int,
+    regulations_species_id: Optional[int],
+    regulations_page_size: int,
     warmup_rounds: int,
     min_samples: int,
     response_regression_pct: float,
@@ -322,12 +276,8 @@ def _build_compact_snapshot(
         except ValueError:
             return resolved.as_posix()
 
-    baseline_file_meta = path_meta(baseline_file)
-    baseline_raw_metrics_file_meta = path_meta(baseline_raw_metrics_file)
-
     endpoints: dict[str, Any] = {}
-
-    for path in (OVERLAP_LIST_PATH, OVERLAP_COMPARE_PATH):
+    for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
         ep = _extract_endpoint(raw_metrics, path)
         if ep is None:
             endpoints[path] = None
@@ -344,15 +294,20 @@ def _build_compact_snapshot(
             "status": "CANDIDATE" if mode == "check" else "SET",
             "generated_at": generated_at,
             "base_url": base_url,
-            "baseline_file": baseline_file_meta,
-            "baseline_raw_metrics_file": baseline_raw_metrics_file_meta,
+            "baseline_file": path_meta(baseline_file),
+            "baseline_raw_metrics_file": path_meta(baseline_raw_metrics_file),
             "scenario": {
-                "lncrna_gene_id": lncrna_gene_id,
-                "lncrna_gene_id_requested": lncrna_gene_id_requested,
-                "lncrna_gene_id_source": lncrna_gene_id_source,
-                "species_ids": species_ids,
                 "warmup_rounds": warmup_rounds,
                 "min_samples": min_samples,
+                "genes": {
+                    "species_id": genes_species_id,
+                    "gene_type": genes_gene_type,
+                    "page_size": genes_page_size,
+                },
+                "regulations": {
+                    "species_id": regulations_species_id,
+                    "page_size": regulations_page_size,
+                },
             },
             "thresholds": {
                 "response": {"pct": response_regression_pct, "abs_ms": response_regression_abs_ms},
@@ -363,43 +318,35 @@ def _build_compact_snapshot(
     }
 
 
+def _fmt_ms(value: Optional[float]) -> str:
+    if value is None:
+        return "-"
+    return f"{value:.2f}ms"
+
+
+def _fmt_change(base: float, cur: float) -> str:
+    if base <= 0:
+        return f"{_fmt_ms(base)} → {_fmt_ms(cur)}"
+    delta = cur - base
+    pct = delta / base * 100.0
+    sign = "+" if delta >= 0 else ""
+    return f"{_fmt_ms(base)} → {_fmt_ms(cur)} ({sign}{delta:.2f}ms, {sign}{pct:.1f}%)"
+
+
 def _require_endpoint_samples(snapshot: dict[str, Any], *, label: str, min_samples: int) -> None:
     endpoints = snapshot.get("endpoints")
     if not isinstance(endpoints, dict):
-        raise RuntimeError(f"{label}: invalid endpoints field")
+        raise ValueError(f"{label} endpoints missing or invalid")
 
-    for path in (OVERLAP_LIST_PATH, OVERLAP_COMPARE_PATH):
-        row = endpoints.get(path)
-        if not isinstance(row, dict):
-            raise RuntimeError(f"{label}: missing endpoint stats: {path}")
-        requests = _to_int(row.get("requests")) or 0
-        if requests < min_samples:
-            raise RuntimeError(f"{label}: insufficient samples for {path}: requests={requests} (<{min_samples})")
-
-        resp = row.get("response")
-        db = row.get("db")
-        if not isinstance(resp, dict) or not isinstance(db, dict):
-            raise RuntimeError(f"{label}: missing percentile fields for {path}")
-
-        for k in ("p95_ms", "p99_ms"):
-            if _to_float(resp.get(k)) is None:
-                raise RuntimeError(f"{label}: missing response.{k} for {path}")
-            if _to_float(db.get(k)) is None:
-                raise RuntimeError(f"{label}: missing db.{k} for {path}")
-
-
-def _fmt_ms(v: Optional[float]) -> str:
-    if v is None:
-        return "-"
-    return f"{v:.2f}ms"
-
-
-def _fmt_change(old: float, new: float) -> str:
-    delta = new - old
-    pct = (delta / old * 100.0) if old > 0 else float("inf")
-    sign = "+" if delta > 0 else ""
-    pct_s = f"{pct:.1f}%" if pct != float("inf") else "inf%"
-    return f"{_fmt_ms(old)} → {_fmt_ms(new)} ({sign}{_fmt_ms(delta)}, {sign}{pct_s})"
+    for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
+        ep = endpoints.get(path)
+        if not isinstance(ep, dict):
+            raise ValueError(f"{label} missing endpoint metrics for: {path}")
+        req = _to_int(ep.get("requests"))
+        if req is None:
+            raise ValueError(f"{label} invalid requests for: {path}")
+        if req < min_samples:
+            raise ValueError(f"{label} insufficient samples for {path}: {req} (<{min_samples})")
 
 
 def _gate_regressions(
@@ -413,20 +360,22 @@ def _gate_regressions(
 ) -> tuple[bool, list[str]]:
     failures: list[str] = []
 
-    base_eps = baseline.get("endpoints") or {}
-    cur_eps = current.get("endpoints") or {}
-    if not isinstance(base_eps, dict) or not isinstance(cur_eps, dict):
-        return False, ["Invalid snapshot endpoints field"]
+    def row(snapshot: dict[str, Any], path: str) -> dict[str, Any]:
+        eps = snapshot.get("endpoints") or {}
+        if not isinstance(eps, dict):
+            return {}
+        raw = eps.get(path) or {}
+        return raw if isinstance(raw, dict) else {}
 
     def check_one(path: str, *, kind: str, metric: str, pct_th: float, abs_th: float) -> None:
-        base_row = base_eps.get(path) or {}
-        cur_row = cur_eps.get(path) or {}
-        if not isinstance(base_row, dict) or not isinstance(cur_row, dict):
-            failures.append(f"[ERROR] missing endpoint stats for {path}")
-            return
+        cur = row(current, path)
+        base = row(baseline, path)
 
-        base_v = _to_float(((base_row.get(kind) or {}).get(metric) if isinstance(base_row.get(kind), dict) else None))
-        cur_v = _to_float(((cur_row.get(kind) or {}).get(metric) if isinstance(cur_row.get(kind), dict) else None))
+        base_kind = base.get(kind) if isinstance(base.get(kind), dict) else {}
+        cur_kind = cur.get(kind) if isinstance(cur.get(kind), dict) else {}
+
+        base_v = _to_float((base_kind or {}).get(metric))
+        cur_v = _to_float((cur_kind or {}).get(metric))
         if base_v is None or cur_v is None or base_v <= 0:
             failures.append(f"[ERROR] missing/invalid baseline/current value for {path} {kind}.{metric}")
             return
@@ -442,7 +391,7 @@ def _gate_regressions(
                 f"(+{delta:.2f}ms, +{pct:.1f}%; gate: >{pct_th:.0f}% and >{abs_th:.0f}ms)"
             )
 
-    for path in (OVERLAP_LIST_PATH, OVERLAP_COMPARE_PATH):
+    for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
         for metric in ("p95_ms", "p99_ms"):
             check_one(path, kind="response", metric=metric, pct_th=response_pct_th, abs_th=response_abs_th)
             check_one(path, kind="db", metric=metric, pct_th=db_pct_th, abs_th=db_abs_th)
@@ -468,7 +417,7 @@ def _build_markdown(
     db_regression_abs_ms: float,
 ) -> str:
     lines: list[str] = [
-        "# Overlap Performance Regression",
+        "# Genes/Regulations Performance Regression",
         "",
         f"- **mode**: `{mode}`",
         f"- **generated_at**: `{generated_at}`",
@@ -494,7 +443,7 @@ def _build_markdown(
         raw = eps.get(path) or {}
         return raw if isinstance(raw, dict) else {}
 
-    for path in (OVERLAP_LIST_PATH, OVERLAP_COMPARE_PATH):
+    for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
         cur = row(current, path)
         base = row(baseline, path) if baseline else {}
 
@@ -552,7 +501,7 @@ def _parse_args() -> argparse.Namespace:
     env_admin_api_key = os.environ.get("ADMIN_API_KEY") or ""
     default_admin_api_key = env_admin_api_key.strip() or None
 
-    parser = argparse.ArgumentParser(description="Overlap performance regression gate (based on /api/v1/admin/metrics).")
+    parser = argparse.ArgumentParser(description="Genes/Regulations performance regression gate (based on /api/v1/admin/metrics).")
     parser.add_argument(
         "cmd",
         choices=["check", "generate-baseline"],
@@ -576,14 +525,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--baseline-file",
         default=str(DEFAULT_BASELINE_FILE),
-        help="Baseline JSON file (default: docs/baselines/performance/overlap-admin-metrics.baseline.json)",
+        help="Baseline JSON file (default: docs/baselines/performance/genes-regulations-admin-metrics.baseline.json)",
     )
     parser.add_argument(
         "--baseline-raw-metrics-file",
         default="",
         help=(
             "Optional: committed baseline raw /api/v1/admin/metrics JSON for localization diff. "
-            "Empty disables. Recommended: docs/baselines/performance/overlap-admin-metrics.baseline.raw.json"
+            "Empty disables. Recommended: docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json"
         ),
     )
     parser.add_argument(
@@ -592,17 +541,24 @@ def _parse_args() -> argparse.Namespace:
         help="Emit admin-metrics diff even when gate passes (requires --baseline-raw-metrics-file).",
     )
     parser.add_argument("--warmup-rounds", type=int, default=20, help="Warmup rounds before snapshot (default: 20).")
+
+    parser.add_argument("--genes-species-id", type=int, default=DEFAULT_GENES_SPECIES_ID, help="Warmup genes species_id.")
+    parser.add_argument("--genes-gene-type", default=DEFAULT_GENES_GENE_TYPE, help="Warmup genes gene_type.")
+    parser.add_argument("--genes-page-size", type=int, default=DEFAULT_GENES_PAGE_SIZE, help="Warmup genes page_size.")
+
     parser.add_argument(
-        "--lncrna-gene-id",
+        "--regulations-species-id",
         type=int,
-        default=DEFAULT_LNCRNA_GENE_ID,
-        help=f"lncRNA gene id for warmup (default: {DEFAULT_LNCRNA_GENE_ID})",
+        default=DEFAULT_REGULATIONS_SPECIES_ID,
+        help="Warmup regulations species_id.",
     )
     parser.add_argument(
-        "--species-ids",
-        default=DEFAULT_SPECIES_IDS,
-        help=f"CSV species ids for compare warmup (default: {DEFAULT_SPECIES_IDS})",
+        "--regulations-page-size",
+        type=int,
+        default=DEFAULT_REGULATIONS_PAGE_SIZE,
+        help="Warmup regulations page_size.",
     )
+
     parser.add_argument("--timeout-seconds", type=float, default=10.0, help="HTTP timeout seconds (default: 10).")
     parser.add_argument(
         "--min-samples",
@@ -655,12 +611,6 @@ def main() -> int:
     if baseline_raw_metrics_file is not None:
         baseline_raw_metrics_file.parent.mkdir(parents=True, exist_ok=True)
 
-    try:
-        species_ids = _parse_species_ids(str(args.species_ids))
-    except Exception as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
-        return 2
-
     ts = _iso_ts()
     min_samples = max(1, int(args.min_samples))
     response_regression_pct = float(args.response_regression_pct)
@@ -668,56 +618,18 @@ def main() -> int:
     db_regression_pct = float(args.db_regression_pct)
     db_regression_abs_ms = float(args.db_regression_abs_ms)
 
-    # 1) Warmup traffic (best effort but required for stable percentiles)
-    requested_lncrna_gene_id = int(args.lncrna_gene_id)
-    resolved_lncrna_gene_id = requested_lncrna_gene_id
-    lncrna_gene_id_source = "requested"
+    # 1) Warmup traffic (required for stable percentiles)
     try:
-        _warmup_overlap(
+        _warmup_genes_regulations(
             base_url=base_url,
-            lncrna_gene_id=resolved_lncrna_gene_id,
-            species_ids=species_ids,
+            genes_species_id=int(args.genes_species_id) if args.genes_species_id else None,
+            genes_gene_type=str(args.genes_gene_type or "").strip() or None,
+            genes_page_size=int(args.genes_page_size),
+            regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
+            regulations_page_size=int(args.regulations_page_size),
             warmup_rounds=int(args.warmup_rounds),
             timeout_seconds=float(args.timeout_seconds),
         )
-    except WarmupRequestError as e:
-        is_compare = OVERLAP_COMPARE_PATH in (e.url or "")
-        if is_compare and e.status_code in (400, 404, 422):
-            picked = _pick_lncrna_gene_id_with_core_id(
-                base_url=base_url,
-                species_id=species_ids[0],
-                timeout_seconds=float(args.timeout_seconds),
-            )
-            if picked is not None:
-                resolved_lncrna_gene_id = picked
-                lncrna_gene_id_source = "auto"
-                print(
-                    f"[WARN] warmup compare failed for gene_id={requested_lncrna_gene_id} "
-                    f"(HTTP {e.status_code}); auto-picking gene_id={picked} from /api/v1/genes/options",
-                    file=sys.stderr,
-                )
-                try:
-                    _warmup_overlap(
-                        base_url=base_url,
-                        lncrna_gene_id=resolved_lncrna_gene_id,
-                        species_ids=species_ids,
-                        warmup_rounds=int(args.warmup_rounds),
-                        timeout_seconds=float(args.timeout_seconds),
-                    )
-                except Exception as e2:
-                    print(f"[ERROR] {e2}", file=sys.stderr)
-                    return 2
-            else:
-                print(f"[ERROR] {e}", file=sys.stderr)
-                print(
-                    "[HINT] The provided lncrna_gene_id may not exist in this DB. "
-                    "Provide a valid --lncrna-gene-id, or ensure /api/v1/genes/options is available.",
-                    file=sys.stderr,
-                )
-                return 2
-        else:
-            print(f"[ERROR] {e}", file=sys.stderr)
-            return 2
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 2
@@ -730,22 +642,20 @@ def main() -> int:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 2
 
-    raw_path = out_dir / f"perf-overlap-raw-metrics-{ts}.json"
+    raw_path = out_dir / f"perf-genes-regulations-raw-metrics-{ts}.json"
     raw_path.write_text(_stable_json_text(raw_metrics), encoding="utf-8")
-    if args.cmd == "generate-baseline" and baseline_raw_metrics_file is not None:
-        baseline_raw_metrics_file.write_text(_stable_json_text(raw_metrics), encoding="utf-8")
 
-    # 3) Build compact snapshot
     current = _build_compact_snapshot(
         raw_metrics=raw_metrics,
         base_url=base_url,
         mode=str(args.cmd),
         baseline_file=baseline_file,
         baseline_raw_metrics_file=baseline_raw_metrics_file,
-        lncrna_gene_id=resolved_lncrna_gene_id,
-        lncrna_gene_id_requested=requested_lncrna_gene_id,
-        lncrna_gene_id_source=lncrna_gene_id_source,
-        species_ids=species_ids,
+        genes_species_id=int(args.genes_species_id) if args.genes_species_id else None,
+        genes_gene_type=str(args.genes_gene_type or "").strip() or None,
+        genes_page_size=int(args.genes_page_size),
+        regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
+        regulations_page_size=int(args.regulations_page_size),
         warmup_rounds=int(args.warmup_rounds),
         min_samples=min_samples,
         response_regression_pct=response_regression_pct,
@@ -755,24 +665,13 @@ def main() -> int:
         generated_at=ts,
     )
 
-    snap_path = out_dir / f"perf-overlap-{ts}.json"
-    snap_path.write_text(_stable_json_text(current), encoding="utf-8")
+    compact_path = out_dir / f"perf-genes-regulations-{ts}.json"
+    compact_path.write_text(_stable_json_text(current), encoding="utf-8")
 
-    if args.cmd == "generate-baseline":
-        try:
-            _require_endpoint_samples(current, label="current", min_samples=min_samples)
-        except Exception as e:
-            print(f"[ERROR] {e}", file=sys.stderr)
-            return 3
-
-        baseline = json.loads(_stable_json_text(current))
-        baseline_meta = baseline.get("meta") if isinstance(baseline.get("meta"), dict) else {}
-        if isinstance(baseline_meta, dict):
-            baseline_meta["status"] = "SET"
-            baseline_meta["generated_at"] = ts
-            baseline["meta"] = baseline_meta
-
-        baseline_file.write_text(_stable_json_text(baseline), encoding="utf-8")
+    if str(args.cmd) == "generate-baseline":
+        baseline_file.write_text(_stable_json_text(current), encoding="utf-8")
+        if baseline_raw_metrics_file is not None:
+            baseline_raw_metrics_file.write_text(_stable_json_text(raw_metrics), encoding="utf-8")
 
         md = _build_markdown(
             mode="generate-baseline",
@@ -790,7 +689,7 @@ def main() -> int:
             db_regression_pct=db_regression_pct,
             db_regression_abs_ms=db_regression_abs_ms,
         )
-        md_path = out_dir / f"perf-overlap-{ts}.md"
+        md_path = out_dir / f"perf-genes-regulations-{ts}.md"
         md_path.write_text(md, encoding="utf-8")
         print(f"[OK] Baseline generated: {baseline_file}")
         if baseline_raw_metrics_file is not None:
@@ -813,7 +712,10 @@ def main() -> int:
     status = str((meta.get("status") if isinstance(meta, dict) else "") or "").strip().upper()
     if status == "UNSET":
         print(f"[ERROR] baseline is UNSET: {baseline_file}", file=sys.stderr)
-        print("[HINT] Run: python3 scripts/perf_overlap_regression.py generate-baseline ... then commit baseline.", file=sys.stderr)
+        print(
+            "[HINT] Run: python3 scripts/perf_genes_regulations_regression.py generate-baseline ... then commit baseline.",
+            file=sys.stderr,
+        )
         return 3
 
     try:
@@ -837,7 +739,6 @@ def main() -> int:
     if emit_diff and baseline_raw_metrics_file is not None:
         if baseline_raw_metrics_file.exists():
             try:
-                # Import lazily to avoid any accidental side effects and keep check fast when diff is disabled.
                 from admin_metrics_snapshot import build_diff_markdown  # type: ignore
 
                 old_raw = _load_json_file(baseline_raw_metrics_file)
@@ -848,7 +749,7 @@ def main() -> int:
                     new_label=str(raw_path),
                     generated_at=ts,
                 )
-                admin_metrics_diff_path = out_dir / f"perf-overlap-admin-metrics-diff-{ts}.md"
+                admin_metrics_diff_path = out_dir / f"perf-genes-regulations-admin-metrics-diff-{ts}.md"
                 admin_metrics_diff_path.write_text(diff_md, encoding="utf-8")
             except Exception as e:
                 print(f"[WARN] Failed to generate admin-metrics diff: {e}", file=sys.stderr)
@@ -874,7 +775,7 @@ def main() -> int:
         db_regression_pct=db_regression_pct,
         db_regression_abs_ms=db_regression_abs_ms,
     )
-    md_path = out_dir / f"perf-overlap-{ts}.md"
+    md_path = out_dir / f"perf-genes-regulations-{ts}.md"
     md_path.write_text(md, encoding="utf-8")
 
     if ok:

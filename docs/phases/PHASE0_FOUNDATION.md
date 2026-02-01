@@ -640,13 +640,13 @@ export function generateBABuckets(
 
 // ============ Feature Flags（用于生产环境切换） ============
 
-/**
- * 功能开关配置
- *
- * ⚠️ 用于控制 Mock 数据与真实 API 的切换
- */
-export const FEATURE_FLAGS = {
-  /** Stats 详细统计 API（默认使用 Mock） */
+ /**
+  * 功能开关配置
+  *
+  * ⚠️ 历史：用于控制 Mock 数据与真实 API 的切换（现默认关闭）
+  */
+ export const FEATURE_FLAGS = {
+  /** Stats 详细统计 API（历史：可选 Mock；现默认关闭） */
   USE_MOCK_STATS: import.meta.env.VITE_USE_MOCK === 'true',
 
   /** BA 范围动态获取（当前已启用，历史示例） */

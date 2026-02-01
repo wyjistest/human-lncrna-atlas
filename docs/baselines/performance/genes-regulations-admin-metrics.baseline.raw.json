@@ -1,0 +1,181 @@
+{
+  "alerts": [],
+  "cache_breakdown": {
+    "keys": {
+      "limit": 10,
+      "top": [],
+      "tracked": 0
+    },
+    "namespaces": {
+      "limit": 10,
+      "top": [],
+      "tracked": 0
+    },
+    "routes": {
+      "limit": 10,
+      "top": [],
+      "tracked": 0
+    }
+  },
+  "cache_get_latency": {
+    "hits": null,
+    "hits_samples": 0,
+    "max_samples": 1000,
+    "misses": null,
+    "misses_samples": 0
+  },
+  "cache_stats": {
+    "backend": "memory",
+    "enabled": false,
+    "hit_rate_pct": 0.0,
+    "hits": 0,
+    "misses": 0,
+    "total_requests": 0
+  },
+  "database": {
+    "avg_ms": 0.97,
+    "percentiles": {
+      "p50_ms": 1.12,
+      "p95_ms": 1.41,
+      "p99_ms": 4.83
+    },
+    "query_samples": 78,
+    "request_avg_ms": 1.94,
+    "request_percentiles": {
+      "p50_ms": 1.76,
+      "p95_ms": 2.32,
+      "p99_ms": 8.66
+    },
+    "request_samples": 39,
+    "request_total_ms": 75.47,
+    "slow_queries": [],
+    "slow_query_threshold_ms": 200.0,
+    "total_queries": 78,
+    "total_time_ms": 75.47
+  },
+  "endpoints": [
+    {
+      "avg_ms": 17.13,
+      "db_avg_ms": 2.2,
+      "db_percentiles": {
+        "p50_ms": 1.84,
+        "p95_ms": 8.66,
+        "p99_ms": 8.66
+      },
+      "db_query_avg": 2.0,
+      "db_samples": 20,
+      "error_rate": 0.0,
+      "errors": 0,
+      "path": "/api/v1/genes",
+      "percentiles": {
+        "p50_ms": 12.94,
+        "p95_ms": 101.71,
+        "p99_ms": 101.71
+      },
+      "requests": 20,
+      "samples": 20
+    },
+    {
+      "avg_ms": 21.03,
+      "db_avg_ms": 1.65,
+      "db_percentiles": {
+        "p50_ms": 1.69,
+        "p95_ms": 1.78,
+        "p99_ms": 1.78
+      },
+      "db_query_avg": 2.0,
+      "db_samples": 19,
+      "error_rate": 0.0,
+      "errors": 0,
+      "path": "/api/v1/regulations",
+      "percentiles": {
+        "p50_ms": 16.49,
+        "p95_ms": 85.85,
+        "p99_ms": 85.85
+      },
+      "requests": 19,
+      "samples": 19
+    }
+  ],
+  "error_trend": {
+    "error_rates": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "timestamps": [
+      "13:58",
+      "13:59",
+      "14:00",
+      "14:01",
+      "14:02",
+      "14:03",
+      "14:04",
+      "14:05",
+      "14:06",
+      "14:07"
+    ]
+  },
+  "errors": {
+    "rate": 0.0,
+    "total": 0
+  },
+  "health": {
+    "cache": "not_configured",
+    "database": "ok",
+    "status": "healthy",
+    "uptime_seconds": 0
+  },
+  "percentiles": {
+    "p50_ms": 13.82,
+    "p95_ms": 85.85,
+    "p99_ms": 101.71
+  },
+  "request": {
+    "last_minute": 39,
+    "total": 39
+  },
+  "response_time": {
+    "avg_ms": 19.03
+  },
+  "response_time_distribution": {
+    "buckets": [
+      "0-50ms",
+      "50-100ms",
+      "100-200ms",
+      "200-500ms",
+      "500ms+"
+    ],
+    "counts": [
+      37,
+      1,
+      1,
+      0,
+      0
+    ]
+  },
+  "system": {
+    "cpu_percent": 28.1,
+    "disk": {
+      "percent": 40.6,
+      "total_gb": 186.68,
+      "used_gb": 71.86
+    },
+    "memory": {
+      "percent": 20.3,
+      "total_mb": 257430.34,
+      "used_mb": 52327.75
+    },
+    "process": {
+      "cpu_percent": 0.0,
+      "memory_mb": 109.0
+    }
+  }
+}

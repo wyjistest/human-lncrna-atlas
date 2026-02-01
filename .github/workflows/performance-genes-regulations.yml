@@ -1,4 +1,4 @@
-name: Performance Overlap
+name: Performance Genes/Regulations
 
 on:
   workflow_dispatch:
@@ -31,14 +31,26 @@ on:
         description: "Warmup rounds before snapshot."
         required: false
         default: "20"
-      lncrna_gene_id:
-        description: "Warmup lncRNA gene id."
+      genes_species_id:
+        description: "Warmup genes species_id."
         required: false
-        default: "17276"
-      species_ids:
-        description: "Warmup compare species ids (CSV)."
+        default: "1"
+      genes_gene_type:
+        description: "Warmup genes gene_type (lncRNA/protein_coding)."
         required: false
-        default: "1,3"
+        default: "lncRNA"
+      genes_page_size:
+        description: "Warmup genes page_size."
+        required: false
+        default: "100"
+      regulations_species_id:
+        description: "Warmup regulations species_id."
+        required: false
+        default: "1"
+      regulations_page_size:
+        description: "Warmup regulations page_size."
+        required: false
+        default: "100"
       min_samples:
         description: "Gate: minimum samples per endpoint (requests >= min_samples)."
         required: false
@@ -73,8 +85,11 @@ env:
   API_BASE_URL: ${{ github.event.inputs.api_base_url || 'http://127.0.0.1:8000' }}
   MODE: ${{ github.event.inputs.mode || 'check' }}
   WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '20' }}
-  LNCRNA_GENE_ID: ${{ github.event.inputs.lncrna_gene_id || '17276' }}
-  SPECIES_IDS: ${{ github.event.inputs.species_ids || '1,3' }}
+  GENES_SPECIES_ID: ${{ github.event.inputs.genes_species_id || '1' }}
+  GENES_GENE_TYPE: ${{ github.event.inputs.genes_gene_type || 'lncRNA' }}
+  GENES_PAGE_SIZE: ${{ github.event.inputs.genes_page_size || '100' }}
+  REGULATIONS_SPECIES_ID: ${{ github.event.inputs.regulations_species_id || '1' }}
+  REGULATIONS_PAGE_SIZE: ${{ github.event.inputs.regulations_page_size || '100' }}
   MIN_SAMPLES: ${{ github.event.inputs.min_samples || '10' }}
   RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '20' }}
   RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '10' }}
@@ -83,8 +98,8 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
-  overlap-perf:
-    name: Overlap Perf Regression
+  genes-regulations-perf:
+    name: Genes/Regulations Perf Regression
     runs-on: ${{ (github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Configure git transport (self-hosted)
@@ -135,19 +150,22 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Run overlap perf regression
+      - name: Run genes/regulations perf regression
         if: ${{ env.BACKEND_MODE == 'external' }}
         env:
           ADMIN_API_KEY: ${{ secrets.ADMIN_API_KEY }}
         run: |
           set -euo pipefail
           python3 --version
-          python3 scripts/perf_overlap_regression.py "${MODE}" \
+          python3 scripts/perf_genes_regulations_regression.py "${MODE}" \
             --base-url "${API_BASE_URL}" \
-            --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
+            --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
             --warmup-rounds "${WARMUP_ROUNDS}" \
-            --lncrna-gene-id "${LNCRNA_GENE_ID}" \
-            --species-ids "${SPECIES_IDS}" \
+            --genes-species-id "${GENES_SPECIES_ID}" \
+            --genes-gene-type "${GENES_GENE_TYPE}" \
+            --genes-page-size "${GENES_PAGE_SIZE}" \
+            --regulations-species-id "${REGULATIONS_SPECIES_ID}" \
+            --regulations-page-size "${REGULATIONS_PAGE_SIZE}" \
             --min-samples "${MIN_SAMPLES}" \
             --response-regression-pct "${RESPONSE_REGRESSION_PCT}" \
             --response-regression-abs-ms "${RESPONSE_REGRESSION_ABS_MS}" \
@@ -158,16 +176,16 @@ jobs:
         if: ${{ env.BACKEND_MODE == 'docker-sample' }}
         run: |
           set -euo pipefail
-          bash scripts/baselines/run_overlap_perf_regression_docker.sh
+          bash scripts/baselines/run_genes_regulations_perf_regression_docker.sh
 
       - name: Upload artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: overlap-perf-${{ env.MODE }}-${{ github.run_id }}
+          name: genes-regulations-perf-${{ env.MODE }}-${{ github.run_id }}
           if-no-files-found: warn
           path: |
-            docs/reports/perf-overlap-*.md
-            docs/reports/perf-overlap-*.json
-            docs/baselines/performance/overlap-admin-metrics.baseline.json
-            docs/baselines/performance/overlap-admin-metrics.baseline.raw.json
+            docs/reports/perf-genes-regulations-*.md
+            docs/reports/perf-genes-regulations-*.json
+            docs/baselines/performance/genes-regulations-admin-metrics.baseline.json
+            docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json
