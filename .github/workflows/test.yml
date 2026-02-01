@@ -480,12 +480,12 @@ jobs:
           set -euo pipefail
 
           # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
-          browsers="chromium"
+          browsers=(chromium)
           if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
-            browsers="chromium firefox"
+            browsers=(chromium firefox)
           fi
 
-          npx playwright install ${browsers}
+          npx playwright install "${browsers[@]}"
 
       - name: Run E2E smoke tests
         working-directory: frontend/web
@@ -494,6 +494,7 @@ jobs:
           CI: true
         run: |
           set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
 
           # 兼容 runner 的代理环境：避免 curl 对本地地址走代理导致探活误判。
           export NO_PROXY="127.0.0.1,localhost,::1"
@@ -1327,7 +1328,8 @@ jobs:
 
           # Backend startup security gate (required by main.py lifespan).
           # Generate a random key at runtime (do NOT commit secrets; avoids gitleaks false positives).
-          export ADMIN_API_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          ADMIN_API_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          export ADMIN_API_KEY
 
           python -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1 &
           backend_pid=$!
@@ -1592,15 +1594,15 @@ jobs:
 
           # GitHub-hosted runner 可用 `--with-deps` 自动安装系统依赖；
           # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
-          browsers="chromium"
+          browsers=(chromium)
           if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
-            browsers="chromium firefox"
+            browsers=(chromium firefox)
           fi
 
           if [ "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
-            npx playwright install ${browsers}
+            npx playwright install "${browsers[@]}"
           else
-            npx playwright install ${browsers} --with-deps
+            npx playwright install "${browsers[@]}" --with-deps
           fi
 
       - name: Run E2E smoke tests
@@ -1610,6 +1612,7 @@ jobs:
           CI: true
         run: |
           set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
 
           # 兼容 runner 的代理环境：避免 curl 对本地地址走代理导致探活误判。
           export NO_PROXY="127.0.0.1,localhost,::1"
@@ -1833,6 +1836,7 @@ jobs:
           CI: true
         run: |
           set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
 
           if [ ! -d "dist" ]; then
             echo "::error::Missing frontend build output at frontend/web/dist"
@@ -2042,6 +2046,7 @@ jobs:
           API_BASE_URL: ${{ env.API_BASE_URL }}
         run: |
           set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
 
           export NO_PROXY="127.0.0.1,localhost,::1"
           export no_proxy="${NO_PROXY}"
