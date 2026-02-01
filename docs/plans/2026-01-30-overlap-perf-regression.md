@@ -81,8 +81,9 @@ Expected: PASS
   - `response.p95_ms/p99_ms`
   - `db.p95_ms/p99_ms`
 - 保守阈值（触发 FAIL）：
-  - Response：同时满足 `>50%` 且 `>500ms`
-  - DB：同时满足 `>50%` 且 `>300ms`
+  - Response：同时满足 `>30%` 且 `>20ms`
+  - DB：同时满足 `>30%` 且 `>5ms`
+  - （更新：2026-02-01，现状以 `docs/testing/performance/OVERLAP_PERF_REGRESSION.md` 为准）
 - 样本不足（requests < 10）或缺失字段：FAIL（避免“静默放过”）。
 
 **Step 3: Run tests**
