@@ -436,3 +436,120 @@ def test_perf_overlap_baseline_file_in_snapshot_is_repo_relative_when_under_repo
                     pass
     finally:
         server.shutdown()
+
+
+def test_perf_overlap_generate_baseline_writes_baseline_raw_metrics_file_when_configured(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    baseline_raw_file = tmp_path / "baseline.raw.json"
+    baseline_file = tmp_path / "baseline.json"
+    out_dir = tmp_path / "out"
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        gen = _run_script(
+            repo_root,
+            env,
+            "generate-baseline",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--baseline-raw-metrics-file",
+            str(baseline_raw_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--timeout-seconds",
+            "1",
+        )
+
+        output = f"{gen.stdout}\n{gen.stderr}"
+        assert gen.returncode == 0, f"generate-baseline failed:\n{output}"
+        assert baseline_raw_file.exists(), f"baseline raw metrics file not created. Output:\n{output}"
+
+        raw = json.loads(baseline_raw_file.read_text(encoding="utf-8"))
+        assert raw == state["metrics_payload"], "baseline raw metrics content mismatch"
+    finally:
+        server.shutdown()
+
+
+def test_perf_overlap_check_emits_admin_metrics_diff_when_regression_and_baseline_raw_present(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    baseline_raw_file = tmp_path / "baseline.raw.json"
+    baseline_file = tmp_path / "baseline.json"
+    out_dir = tmp_path / "out"
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        gen = _run_script(
+            repo_root,
+            env,
+            "generate-baseline",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--baseline-raw-metrics-file",
+            str(baseline_raw_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--timeout-seconds",
+            "1",
+        )
+        output = f"{gen.stdout}\n{gen.stderr}"
+        assert gen.returncode == 0, f"generate-baseline failed:\n{output}"
+        assert baseline_raw_file.exists(), f"baseline raw metrics file not created. Output:\n{output}"
+
+        # Simulate a large regression (should fail the gate).
+        state["metrics_payload"] = _base_metrics_payload(response_p95=2000.0, response_p99=2400.0, db_p95=700.0, db_p99=900.0)
+
+        chk = _run_script(
+            repo_root,
+            env,
+            "check",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--baseline-raw-metrics-file",
+            str(baseline_raw_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--timeout-seconds",
+            "1",
+        )
+        output = f"{chk.stdout}\n{chk.stderr}"
+        assert chk.returncode != 0, f"check should fail on regression:\n{output}"
+
+        diffs = sorted(out_dir.glob("perf-overlap-admin-metrics-diff-*.md"))
+        assert diffs, f"missing admin-metrics diff report. Output:\n{output}"
+        assert "Performance Snapshot Diff (admin/metrics)" in diffs[-1].read_text(encoding="utf-8")
+    finally:
+        server.shutdown()
