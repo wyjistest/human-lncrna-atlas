@@ -19,7 +19,7 @@
 ✅ **Test Suite Created**: 13 comprehensive E2E test cases
 ❌ **Tests Passing**: 5/13 (38%)
 ⚠️ **Blocked Tests**: 8/13 (62%)
-🐛 **Bugs Discovered**: Export feature not implemented on backend
+🐛 **Bugs Discovered (2025-12-07 snapshot)**: Export flow was blocked at the time (see "Current Status (2026-02-02)")
 
 ---
 
@@ -50,10 +50,10 @@ Error: page.waitForEvent: Test ended.
 waiting for event "download"
 ```
 
-**Root Cause**: Export buttons not found because:
-1. Backend export API endpoint doesn't exist (`/api/v1/lncrna-chipseq-overlap/export` returns 404)
-2. Frontend shows "Export functionality coming in Phase 2" warning
-3. Export buttons only render when `enableExport` is true AND data exists
+**Root Cause (2025-12-07 snapshot)**: Export buttons were not found because:
+1. Backend export API endpoint returned 404 (`/api/v1/lncrna-chipseq-overlap/export`)
+2. Frontend showed "Export functionality coming in Phase 2" warning
+3. Export buttons rendered only when `enableExport` is true AND data exists
 
 #### Blocked Test List
 
@@ -88,11 +88,13 @@ waiting for event "download"
 
 ## 🐛 Bugs Discovered
 
-### Bug #1: Export API Endpoint Missing (CRITICAL)
+### Bug #1: Export API Endpoint Missing (CRITICAL, 2025-12-07 snapshot)
 
 **Severity**: 🔴 P0 - Blocking
 **Component**: Backend API
-**Status**: Not Implemented
+**Status**: 🗂️ HISTORICAL (was blocked on 2025-12-07)
+
+> 说明：该段为 2025-12-07 的历史记录；当前后端导出端点已实现，见本文顶部 "Current Status (2026-02-02)"。
 
 **Expected**:
 ```bash
@@ -112,7 +114,7 @@ $ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=csv&li
 {"detail":"Not Found"}
 ```
 
-**Impact**: All export functionality blocked
+**Impact (2025-12-07)**: Real export downloads were blocked
 
 ---
 
@@ -305,15 +307,15 @@ test('should complete chr22 CSV export within 10 seconds', async ({ page }) => {
 })
 ```
 
-**Status**: ⏸️ Cannot test - Feature not implemented
+**Status (2025-12-07 snapshot)**: ⏸️ Not tested at the time (export flow was blocked then; see "Current Status (2026-02-02)")
 
 ---
 
-## Required Backend Implementation
+## Historical Backend Implementation Notes (2025-12-07 snapshot)
 
 ### 1. Export API Endpoint
 
-**Location**: `backend/app/api/v1/endpoints/lncrna_chipseq_overlap.py`
+**Location (at the time)**: `backend/app/api/v1/endpoints/lncrna_chipseq_overlap.py`
 
 **Endpoint Spec**:
 ```python

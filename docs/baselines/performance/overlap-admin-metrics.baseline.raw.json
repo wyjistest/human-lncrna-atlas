@@ -35,32 +35,32 @@
   "database": {
     "avg_ms": 1.43,
     "percentiles": {
-      "p50_ms": 1.63,
+      "p50_ms": 1.59,
       "p95_ms": 2.61,
-      "p99_ms": 3.21
+      "p99_ms": 4.04
     },
     "query_samples": 144,
     "request_avg_ms": 4.8,
     "request_percentiles": {
-      "p50_ms": 4.94,
-      "p95_ms": 6.09,
-      "p99_ms": 6.72
+      "p50_ms": 4.13,
+      "p95_ms": 6.26,
+      "p99_ms": 11.55
     },
     "request_samples": 43,
-    "request_total_ms": 206.58,
+    "request_total_ms": 206.45,
     "slow_queries": [],
     "slow_query_threshold_ms": 200.0,
     "total_queries": 144,
-    "total_time_ms": 206.58
+    "total_time_ms": 206.45
   },
   "endpoints": [
     {
-      "avg_ms": 27.7,
-      "db_avg_ms": 4.16,
+      "avg_ms": 27.64,
+      "db_avg_ms": 4.33,
       "db_percentiles": {
-        "p50_ms": 4.04,
-        "p95_ms": 5.13,
-        "p99_ms": 5.88
+        "p50_ms": 3.96,
+        "p95_ms": 5.37,
+        "p99_ms": 11.55
       },
       "db_query_avg": 2.05,
       "db_samples": 21,
@@ -68,20 +68,20 @@
       "errors": 0,
       "path": "/api/v1/lncrna-chipseq-overlap",
       "percentiles": {
-        "p50_ms": 21.44,
-        "p95_ms": 85.82,
-        "p99_ms": 94.24
+        "p50_ms": 21.16,
+        "p95_ms": 80.54,
+        "p99_ms": 97.97
       },
       "requests": 21,
       "samples": 21
     },
     {
-      "avg_ms": 23.03,
-      "db_avg_ms": 5.66,
+      "avg_ms": 22.26,
+      "db_avg_ms": 5.52,
       "db_percentiles": {
-        "p50_ms": 5.9,
-        "p95_ms": 6.72,
-        "p99_ms": 6.72
+        "p50_ms": 5.88,
+        "p95_ms": 6.67,
+        "p99_ms": 6.67
       },
       "db_query_avg": 4.8,
       "db_samples": 20,
@@ -89,16 +89,16 @@
       "errors": 0,
       "path": "/api/v1/lncrna-chipseq-overlap/compare",
       "percentiles": {
-        "p50_ms": 23.2,
-        "p95_ms": 33.69,
-        "p99_ms": 33.69
+        "p50_ms": 22.69,
+        "p95_ms": 25.88,
+        "p99_ms": 25.88
       },
       "requests": 20,
       "samples": 20
     },
     {
-      "avg_ms": 29.79,
-      "db_avg_ms": 1.81,
+      "avg_ms": 14.54,
+      "db_avg_ms": 1.67,
       "db_percentiles": null,
       "db_query_avg": 1.0,
       "db_samples": 1,
@@ -110,8 +110,8 @@
       "samples": 1
     },
     {
-      "avg_ms": 37.96,
-      "db_avg_ms": 4.31,
+      "avg_ms": 29.09,
+      "db_avg_ms": 3.47,
       "db_percentiles": null,
       "db_query_avg": 4.0,
       "db_samples": 1,
@@ -137,16 +137,16 @@
       0.0
     ],
     "timestamps": [
-      "05:28",
-      "05:29",
-      "05:30",
-      "05:31",
-      "05:32",
-      "05:33",
-      "05:34",
-      "05:35",
-      "05:36",
-      "05:37"
+      "07:54",
+      "07:55",
+      "07:56",
+      "07:57",
+      "07:58",
+      "07:59",
+      "08:00",
+      "08:01",
+      "08:02",
+      "08:03"
     ]
   },
   "errors": {
@@ -160,16 +160,16 @@
     "uptime_seconds": 1
   },
   "percentiles": {
-    "p50_ms": 22.31,
-    "p95_ms": 37.96,
-    "p99_ms": 94.24
+    "p50_ms": 21.8,
+    "p95_ms": 29.09,
+    "p99_ms": 97.97
   },
   "request": {
     "last_minute": 43,
     "total": 43
   },
   "response_time": {
-    "avg_ms": 25.82
+    "avg_ms": 24.87
   },
   "response_time_distribution": {
     "buckets": [
@@ -188,20 +188,20 @@
     ]
   },
   "system": {
-    "cpu_percent": 18.0,
+    "cpu_percent": 11.0,
     "disk": {
-      "percent": 40.5,
+      "percent": 41.0,
       "total_gb": 186.68,
-      "used_gb": 71.67
+      "used_gb": 72.7
     },
     "memory": {
-      "percent": 19.3,
+      "percent": 10.4,
       "total_mb": 257430.34,
-      "used_mb": 49674.6
+      "used_mb": 26825.76
     },
     "process": {
       "cpu_percent": 0.0,
-      "memory_mb": 109.45
+      "memory_mb": 107.5
     }
   }
 }

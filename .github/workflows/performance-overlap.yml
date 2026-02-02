@@ -46,7 +46,7 @@ on:
       response_regression_pct:
         description: "Gate: response regression pct threshold."
         required: false
-        default: "15"
+        default: "10"
       response_regression_abs_ms:
         description: "Gate: response regression abs threshold (ms)."
         required: false
@@ -54,7 +54,7 @@ on:
       db_regression_pct:
         description: "Gate: db regression pct threshold."
         required: false
-        default: "15"
+        default: "10"
       db_regression_abs_ms:
         description: "Gate: db regression abs threshold (ms)."
         required: false
@@ -76,9 +76,9 @@ env:
   LNCRNA_GENE_ID: ${{ github.event.inputs.lncrna_gene_id || '17276' }}
   SPECIES_IDS: ${{ github.event.inputs.species_ids || '1,3' }}
   MIN_SAMPLES: ${{ github.event.inputs.min_samples || '10' }}
-  RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '15' }}
+  RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '10' }}
   RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '10' }}
-  DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '15' }}
+  DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '10' }}
   DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '2' }}
   PYTHON_VERSION: '3.11'
 

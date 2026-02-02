@@ -48,9 +48,9 @@ DEFAULT_SPECIES_IDS = "1,3"
 
 DEFAULT_MIN_SAMPLES = 10
 
-DEFAULT_RESPONSE_REGRESSION_PCT = 15.0
+DEFAULT_RESPONSE_REGRESSION_PCT = 10.0
 DEFAULT_RESPONSE_REGRESSION_ABS_MS = 10.0
-DEFAULT_DB_REGRESSION_PCT = 15.0
+DEFAULT_DB_REGRESSION_PCT = 10.0
 DEFAULT_DB_REGRESSION_ABS_MS = 2.0
 
 
@@ -442,8 +442,11 @@ def _gate_regressions(
                 f"(+{delta:.2f}ms, +{pct:.1f}%; gate: >{pct_th:.0f}% and >{abs_th:.0f}ms)"
             )
 
+    # 稳定性说明：
+    # - 小样本（例如 ~20 次请求）下，p99 基本等同于“最大值”，抖动非常大；
+    # - 仍保留 p99 用于报告/定位，但门禁只用 p95，降低误报。
     for path in (OVERLAP_LIST_PATH, OVERLAP_COMPARE_PATH):
-        for metric in ("p95_ms", "p99_ms"):
+        for metric in ("p95_ms",):
             check_one(path, kind="response", metric=metric, pct_th=response_pct_th, abs_th=response_abs_th)
             check_one(path, kind="db", metric=metric, pct_th=db_pct_th, abs_th=db_abs_th)
 
@@ -480,6 +483,7 @@ def _build_markdown(
         "## Gate",
         "",
         f"- min_samples: `{min_samples}`",
+        "- metric: `p95_ms` only (p99 is informational)",
         f"- response: `>{response_regression_pct:.0f}%` AND `>{response_regression_abs_ms:.0f}ms`",
         f"- db: `>{db_regression_pct:.0f}%` AND `>{db_regression_abs_ms:.0f}ms`",
         "",
