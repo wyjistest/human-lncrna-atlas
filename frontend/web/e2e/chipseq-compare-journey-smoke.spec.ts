@@ -159,6 +159,22 @@ const mockCompare = {
   bivalent_regions: [],
 }
 
+// Gene 详情页会请求 RepeatMasker（基因组特征）数据。
+// E2E smoke 使用 Vite preview（无后端代理），因此必须 mock 这些接口。
+const mockRepeats = {
+  total: 0,
+  items: [],
+  page: 1,
+  page_size: 20,
+}
+
+const mockRepeatStats = {
+  total_count: 0,
+  class_distribution: {},
+  family_distribution: {},
+  avg_divergence: 0,
+}
+
 test.describe('ChIP-seq compare journey - mocked smoke', () => {
   test('enters compare mode and renders statistics chart', async ({ page }) => {
     await page.route(/\/api\/v1\/genes\/\d+$/, async (route) => {
@@ -182,6 +198,22 @@ test.describe('ChIP-seq compare journey - mocked smoke', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify([]),
+      })
+    })
+
+    await page.route(/\/api\/v1\/features\/genes\/\d+\/repeats(\?|$)/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockRepeats),
+      })
+    })
+
+    await page.route(/\/api\/v1\/features\/genes\/\d+\/repeats\/stats(\?|$)/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockRepeatStats),
       })
     })
 
