@@ -63,6 +63,22 @@ class _DummySession:
         )
 
 
+class _CapturingSession(_DummySession):
+    """
+    扩展 Session stub：捕获 overlap 主查询传入的 params，便于验证查询参数映射。
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.last_overlap_params = None
+
+    def execute(self, sql, params=None):
+        sql_text = getattr(sql, "text", str(sql))
+        if "pg_class" not in sql_text:
+            self.last_overlap_params = dict(params or {})
+        return super().execute(sql, params=params)
+
+
 @pytest.fixture()
 def client() -> TestClient:
     app = FastAPI()
@@ -73,6 +89,20 @@ def client() -> TestClient:
 
     app.dependency_overrides[get_db] = _override_get_db
     return TestClient(app)
+
+
+@pytest.fixture()
+def capturing() -> SimpleNamespace:
+    app = FastAPI()
+    app.include_router(overlap_track_router, prefix="/api/v1/igv")
+
+    session = _CapturingSession()
+
+    def _override_get_db():
+        yield session
+
+    app.dependency_overrides[get_db] = _override_get_db
+    return SimpleNamespace(client=TestClient(app), session=session)
 
 
 def test_missing_chr_and_chromosome_returns_400(client: TestClient):
@@ -126,3 +156,23 @@ def test_mark_type_is_included_in_name_field(client: TestClient):
     line = resp.text.strip().splitlines()[0]
     fields = line.split("\t")
     assert "H3K27me3" in fields[3]
+
+
+def test_cell_line_query_is_forwarded_to_db_query(capturing: SimpleNamespace):
+    resp = capturing.client.get(
+        "/api/v1/igv/overlap-track",
+        params={"chr": "chr1", "start": 0, "end": 100, "cell_line": "GM12878"},
+    )
+    assert resp.status_code == 200
+    assert capturing.session.last_overlap_params is not None
+    assert capturing.session.last_overlap_params.get("cell_line") == "GM12878"
+
+
+def test_min_binding_affinity_alias_is_forwarded_as_min_ba(capturing: SimpleNamespace):
+    resp = capturing.client.get(
+        "/api/v1/igv/overlap-track",
+        params={"chr": "chr1", "start": 0, "end": 100, "min_binding_affinity": 123.5},
+    )
+    assert resp.status_code == 200
+    assert capturing.session.last_overlap_params is not None
+    assert capturing.session.last_overlap_params.get("min_ba") == 123.5

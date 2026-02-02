@@ -123,6 +123,7 @@ def _execute_overlap_query(
     end: int,
     *,
     mark_type: Optional[str],
+    cell_line: Optional[str],
     min_ba: Optional[float],
     limit: int,
 ):
@@ -140,6 +141,7 @@ def _execute_overlap_query(
     bp_start = bindparam("start")
     bp_end = bindparam("end")
     bp_mark_type = bindparam("mark_type")
+    bp_cell_line = bindparam("cell_line")
     bp_min_ba = bindparam("min_ba")
     bp_limit = bindparam("limit")
 
@@ -168,6 +170,8 @@ def _execute_overlap_query(
     ]
     if mark_type is not None:
         mv_where_conditions.append(mv.c.mark_name == bp_mark_type)
+    if cell_line is not None:
+        mv_where_conditions.append(mv.c.cell_type == bp_cell_line)
     if min_ba is not None:
         mv_where_conditions.append(mv.c.binding_affinity >= bp_min_ba)
 
@@ -219,6 +223,8 @@ def _execute_overlap_query(
     ]
     if mark_type is not None:
         fallback_where_conditions.append(EpigeneticMarkType.mark_name == bp_mark_type)
+    if cell_line is not None:
+        fallback_where_conditions.append(ChIPSeqExperiment.cell_type == bp_cell_line)
     if min_ba is not None:
         fallback_where_conditions.append(Regulation.binding_affinity >= bp_min_ba)
 
@@ -257,6 +263,7 @@ def _execute_overlap_query(
         "start": start,
         "end": end,
         "mark_type": mark_type,
+        "cell_line": cell_line,
         "min_ba": min_ba,
         "limit": limit,
     }
@@ -287,7 +294,9 @@ def get_overlap_track(
     start: int = Query(..., ge=0, description="区域起点 (0-based)"),
     end: int = Query(..., ge=0, description="区域终点"),
     mark_type: Optional[str] = Query(None, max_length=64, description="可选：按组蛋白标记过滤，如 H3K27me3"),
+    cell_line: Optional[str] = Query(None, max_length=64, description="可选：按细胞系过滤，如 K562"),
     min_ba: Optional[float] = Query(None, ge=0, description="可选：最小结合亲和力阈值"),
+    min_binding_affinity: Optional[float] = Query(None, ge=0, description="可选：最小结合亲和力阈值（兼容别名，同 min_ba）"),
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT, description="最大返回条目数（防止 IGV 一次拉取过多数据）"),
     db: Session = Depends(get_db),
 ):
@@ -309,13 +318,16 @@ def get_overlap_track(
 
     norm_chr = _normalize_chr(raw_chr)
 
+    effective_min_ba = min_ba if min_ba is not None else min_binding_affinity
+
     logger.info(
-        "IGV overlap-track requested: chr=%s, start=%s, end=%s, mark_type=%s, min_ba=%s, limit=%s",
+        "IGV overlap-track requested: chr=%s, start=%s, end=%s, mark_type=%s, cell_line=%s, min_ba=%s, limit=%s",
         sanitize_for_log(norm_chr),
         start,
         end,
         sanitize_for_log(mark_type),
-        min_ba,
+        sanitize_for_log(cell_line),
+        effective_min_ba,
         limit,
     )
 
@@ -325,7 +337,8 @@ def get_overlap_track(
         start,
         end,
         mark_type=mark_type,
-        min_ba=min_ba,
+        cell_line=cell_line,
+        min_ba=effective_min_ba,
         limit=limit,
     )
 
