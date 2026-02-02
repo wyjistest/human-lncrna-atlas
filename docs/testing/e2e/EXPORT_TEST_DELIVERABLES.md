@@ -72,7 +72,7 @@ Chromosome filter not found, using default data
 
 **Target**: chr22 export < 10 seconds
 
-**Status**: Cannot measure - feature not implemented
+**Status (2025-12-07 snapshot)**: Not measured at the time (export flow was blocked then; see update note at top)
 
 **Test Implementation Ready**:
 ```typescript
@@ -160,7 +160,7 @@ async function applyChr22Filter(page: any): Promise<void> {
 
 ### 7. 🐛 Bugs Discovered During Testing
 
-#### Bug #1: Export API Endpoint Missing (P0 - CRITICAL)
+#### Bug #1: Export API Endpoint Missing (P0 - CRITICAL, 2025-12-07 snapshot)
 
 **Evidence**:
 ```bash
@@ -168,13 +168,13 @@ $ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/export?format=csv&ch
 {"detail":"Not Found"}
 ```
 
-**Impact**: All export functionality blocked
+**Impact (2025-12-07)**: Real export downloads were blocked
 
-**Required**: Backend implementation of `/api/v1/lncrna-chipseq-overlap/export` endpoint
+**Required (at the time)**: Backend implementation of `/api/v1/lncrna-chipseq-overlap/export` endpoint
 
 ---
 
-#### Bug #2: Export Buttons Show "Not Implemented" Warning (P1 - HIGH)
+#### Bug #2: Export Buttons Show "Not Implemented" Warning (P1 - HIGH, 2025-12-07 snapshot)
 
 **Location**: `frontend/web/src/components/LncRNAChIPSeqOverlapTable/index.tsx:187-195`
 
@@ -401,8 +401,9 @@ npx playwright show-report
 - `<repo-root>/frontend/web/src/hooks/useLncRNAChIPSeqOverlap.ts`
 - `<repo-root>/frontend/web/src/hooks/lncRNAChIPSeqOverlapApi.ts`
 
-**Backend (To Be Implemented)**:
-- `<repo-root>/frontend/backend/app/api/v1/endpoints/lncrna_chipseq_overlap.py`
+**Backend (Implemented later; historical reference)**:
+- Current: `<repo-root>/frontend/backend/app/routers/lncrna_chipseq_overlap.py` (`GET /api/v1/lncrna-chipseq-overlap/export`)
+- Historical: `<repo-root>/frontend/backend/app/api/v1/endpoints/lncrna_chipseq_overlap.py`
 
 ---
 
@@ -420,9 +421,9 @@ npx playwright show-report
 
 ---
 
-**Status**: ✅ Test Suite Complete - Ready for Backend Implementation
+**Status**: 🗂️ Historical snapshot — test suite created; backend was implemented later.
 
-**Estimated Total Effort to Unblock**: 8-11 hours
+**Estimated Total Effort (at the time) to Unblock**: 8-11 hours
 - Backend: 4-6 hours
 - Frontend: 1-2 hours
 - QA: 2-3 hours
