@@ -1,1 +1,2104 @@
-�٩�ZnZ��A0��
+name: Tests
+
+on:
+  # CI 默认对 main 分支 push 自动触发（优先使用 self-hosted，避免 GitHub-hosted runner 受账单/额度限制阻塞）。
+  # PR CI（pull_request）在 self-hosted 上存在“运行不受信任代码”的风险，默认不启用；如需启用请评估后再开启。
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      runs_on:
+        description: "Runner label override (e.g. self-hosted). Empty = use repo variable CI_RUNS_ON or default ubuntu-latest."
+        required: false
+        default: ""
+      api_base_url:
+        description: "Backend origin for E2E (e.g. http://127.0.0.1:8000). Used for health checks and Vite build VITE_API_BASE_URL."
+        required: false
+        default: "http://127.0.0.1:8000"
+      enable_postgres_jobs:
+        description: "Enable Postgres service jobs when running on self-hosted (default false)."
+        required: false
+        default: "false"
+      enable_e2e_tests:
+        description: "Enable self-hosted E2E Tests job (requires backend services running)."
+        required: false
+        default: "false"
+      enable_performance_audit:
+        description: "Enable Performance Audit job (Playwright performance suite; requires backend services running)."
+        required: false
+        default: "false"
+      enable_firefox_smoke:
+        description: "Enable optional Firefox run for E2E smoke (workflow_dispatch only)."
+        required: false
+        default: "false"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+# Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+env:
+  # 解析后的 runs-on（用于 step 条件判断）
+  CI_RUNS_ON: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+  # 默认用于 self-hosted 集成向 E2E（以及 build 时注入 VITE_API_BASE_URL）。可选：用 repo variable `CI_API_BASE_URL` 提供默认值。
+  API_BASE_URL: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.api_base_url) || vars.CI_API_BASE_URL || 'http://127.0.0.1:8000' }}
+  # 可选：在 workflow_dispatch 时额外跑一轮 Firefox smoke（默认 false，不影响 push CI）
+  ENABLE_FIREFOX_SMOKE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_firefox_smoke == 'true' }}
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Secret scanning - runs first to fail fast on credential leaks
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted 上 git checkout 偶发卡住（网络/TLS 抖动），这里直接用 GitHub API tarball 取源码，
+          # 并让 gitleaks 在 filesystem 模式运行（可审计、可用且更稳定）。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+        with:
+          fetch-depth: 0  # Full history for scanning all commits
+
+      - name: Detect git repository state
+        id: gitleaks_repo
+        run: |
+          set -euo pipefail
+          if [ -d ".git" ]; then
+            echo "has_git=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # tarball 兜底会移除 .git（无 commit 历史），此时 gitleaks-action 的 `${base}^..${head}` 范围会失败；
+          # 改为 filesystem 扫描当前工作区，保证“可用且可审计”。
+          echo "has_git=false" >> "$GITHUB_OUTPUT"
+
+      - name: Cleanup gitleaks temp
+        run: |
+          rm -f /tmp/gitleaks.tmp
+
+      - name: Run Gitleaks (git history)
+        if: ${{ steps.gitleaks_repo.outputs.has_git == 'true' }}
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # self-hosted runner 上 artifact 上传偶发路径兼容性问题；这里直接关闭上传。
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+
+      - name: Install gitleaks (filesystem fallback)
+        if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_VERSION: "8.24.3"
+        run: |
+          set -euo pipefail
+
+          version="${GITLEAKS_VERSION}"
+          os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+          arch="$(uname -m)"
+          case "$arch" in
+            x86_64) arch="x64" ;;
+            aarch64) arch="arm64" ;;
+            arm64) arch="arm64" ;;
+            *)
+              echo "::error::Unsupported architecture: ${arch}"
+              exit 1
+              ;;
+          esac
+
+          # self-hosted 环境对 github.com 直连经常超时；统一走 api.github.com 下载 release asset（会重定向到对象存储）。
+          api="https://api.github.com"
+          asset_name="gitleaks_${version}_${os}_${arch}.tar.gz"
+
+          # self-hosted runner 通常具备持久磁盘缓存；避免每次都下载 gitleaks release asset。
+          cache_root="${HOME}/.cache/hla-tools/gitleaks"
+          cache_dir="${cache_root}/${version}"
+          cached_bin="${cache_dir}/gitleaks"
+          if [ -x "${cached_bin}" ]; then
+            echo "Using cached gitleaks: ${cached_bin}"
+            install -m 0755 "${cached_bin}" "${RUNNER_TEMP}/gitleaks"
+            echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+            exit 0
+          fi
+
+          tmp_dir="$(mktemp -d)"
+          release_json="${tmp_dir}/release.json"
+
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "${api}/repos/zricethezav/gitleaks/releases/tags/v${version}" \
+            -o "$release_json"
+
+          if command -v python3 >/dev/null 2>&1; then
+            asset_id="$(python3 -c 'import json,sys; data=json.load(open(sys.argv[1], encoding="utf-8")); name=sys.argv[2]; ids=[a.get("id") for a in data.get("assets", []) if a.get("name")==name]; print(ids[0]) if ids else sys.exit(1)' "$release_json" "$asset_name")"
+          elif command -v python >/dev/null 2>&1; then
+            asset_id="$(python -c 'import json,sys; data=json.load(open(sys.argv[1])); name=sys.argv[2]; ids=[a.get("id") for a in data.get("assets", []) if a.get("name")==name]; print(ids[0]) if ids else sys.exit(1)' "$release_json" "$asset_name")"
+          elif command -v node >/dev/null 2>&1; then
+            asset_id="$(node -e 'const fs=require("fs");const p=process.argv[1];const n=process.argv[2];const d=JSON.parse(fs.readFileSync(p,"utf8"));const a=(d.assets||[]).find(x=>x.name===n);if(!a){process.exit(1);}process.stdout.write(String(a.id));' "$release_json" "$asset_name")"
+          else
+            echo "::error::Missing python/node to parse GitHub API response for gitleaks release."
+            exit 1
+          fi
+
+          if [ -z "${asset_id:-}" ]; then
+            echo "::error::Failed to locate gitleaks release asset: ${asset_name}"
+            exit 1
+          fi
+
+          curl -fsSL -L \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/octet-stream" \
+            "${api}/repos/zricethezav/gitleaks/releases/assets/${asset_id}" \
+            -o "${tmp_dir}/gitleaks.tar.gz"
+          tar -xzf "${tmp_dir}/gitleaks.tar.gz" -C "$tmp_dir"
+
+          install -m 0755 "${tmp_dir}/gitleaks" "${RUNNER_TEMP}/gitleaks"
+          echo "${RUNNER_TEMP}" >> "$GITHUB_PATH"
+
+          # 尝试写入缓存（失败不影响 CI）
+          if mkdir -p "${cache_dir}" 2>/dev/null; then
+            install -m 0755 "${tmp_dir}/gitleaks" "${cached_bin}" || true
+          fi
+
+      - name: Run Gitleaks (filesystem fallback)
+        if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
+        run: |
+          set -euo pipefail
+
+          gitleaks detect \
+            --no-git \
+            --source . \
+            --redact \
+            -v \
+            --exit-code=2 \
+            --report-format=sarif \
+            --report-path=results.sarif \
+            --log-level=debug
+
+  # self-hosted runner 的 CI 默认只有 1 个 runner 并行度，拆分成多个 job 会导致重复 checkout / install，
+  # 总耗时接近线性叠加。这里提供一个“快路径”：在 self-hosted 上把核心门禁合并到单个 job 内串行执行。
+  self-hosted-fast-ci:
+    name: Self-hosted Fast CI
+    runs-on: self-hosted
+    if: ${{ (vars.CI_RUNS_ON || 'ubuntu-latest') == 'self-hosted' && github.event_name == 'push' }}
+    needs: [secret-scan]
+    env:
+      CI_RUNS_ON: self-hosted
+    steps:
+      - name: Configure git transport (self-hosted)
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted 上 git checkout 偶发卡住（网络/TLS 抖动），这里直接用 GitHub API tarball 取源码，
+          # 保证 CI 可用且可审计（无需依赖 git 网络传输）。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Prepare git snapshot (self-hosted tarball)
+        run: |
+          set -euo pipefail
+
+          # tarball 会移除 .git；部分 CI 校验（docs drift check 等）依赖 `git ls-files`。
+          # 这里创建一个“git 快照”（无需 push），确保后续脚本可运行。
+          if [ ! -d ".git" ]; then
+            git init
+            git config user.email "ci@example.invalid"
+            git config user.name "CI"
+            git add -A
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Run core checks (self-hosted fast path)
+        env:
+          # Ensure CI build points to the intended backend (overrides committed frontend/web/.env).
+          VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
+        run: |
+          bash scripts/run-tests.sh ci
+
+      - name: Snapshot frontend bundle sizes
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          if [ ! -d "dist" ]; then
+            echo "::notice::Skip bundle size snapshot (missing frontend/web/dist)"
+            exit 0
+          fi
+
+          node scripts/report-bundle-sizes.mjs --dist dist --top 15 --json dist/bundle-sizes.json > dist/bundle-sizes.txt
+
+          {
+            echo "## Frontend bundle sizes"
+            echo
+            echo '```'
+            cat dist/bundle-sizes.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compare frontend bundle sizes (vs previous commit)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        working-directory: frontend/web
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BEFORE_SHA}" ] || [ "${BEFORE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+            echo "::notice::Skip bundle size diff (missing github.event.before)"
+            exit 0
+          fi
+
+          if [ ! -f "dist/bundle-sizes.json" ]; then
+            echo "::notice::Skip bundle size diff (missing frontend/web/dist/bundle-sizes.json)"
+            exit 0
+          fi
+
+          python3 - <<'PY'
+          import io
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.request
+          import zipfile
+
+          before_sha = os.environ.get("BEFORE_SHA", "").strip()
+          token = os.environ.get("GITHUB_TOKEN", "").strip()
+          repo = os.environ.get("GITHUB_REPOSITORY", "").strip()
+          if not repo:
+            print("::warning::GITHUB_REPOSITORY missing; skip baseline download")
+            raise SystemExit(0)
+
+          artifact_name = f"frontend-bundle-sizes-{before_sha}"
+          api_url = f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
+
+          headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "hla-ci",
+          }
+          if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+          req = urllib.request.Request(api_url, headers=headers)
+          try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+              data = json.load(resp)
+          except urllib.error.HTTPError as exc:
+            print(f"::notice::Skip bundle size diff (cannot list artifacts: HTTP {exc.code})")
+            raise SystemExit(0)
+          except Exception as exc:
+            print(f"::notice::Skip bundle size diff (cannot list artifacts: {exc})")
+            raise SystemExit(0)
+
+          artifacts = data.get("artifacts") or []
+          match = None
+          for a in artifacts:
+            if a.get("name") == artifact_name and not a.get("expired", False):
+              match = a
+              break
+
+          if not match:
+            print(f"::notice::No baseline bundle size artifact found ({artifact_name}); skip diff")
+            raise SystemExit(0)
+
+          download_url = match.get("archive_download_url")
+          if not download_url:
+            print("::warning::Baseline artifact has no archive_download_url; skip diff")
+            raise SystemExit(0)
+
+          req = urllib.request.Request(download_url, headers=headers)
+          try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+              blob = resp.read()
+          except urllib.error.HTTPError as exc:
+            print(f"::notice::Skip bundle size diff (cannot download baseline artifact: HTTP {exc.code})")
+            raise SystemExit(0)
+          except Exception as exc:
+            print(f"::notice::Skip bundle size diff (cannot download baseline artifact: {exc})")
+            raise SystemExit(0)
+
+          zf = zipfile.ZipFile(io.BytesIO(blob))
+          candidates = [n for n in zf.namelist() if n.endswith("bundle-sizes.json")]
+          if not candidates:
+            print("::warning::Baseline artifact zip missing bundle-sizes.json; skip diff")
+            raise SystemExit(0)
+
+          name = candidates[0]
+          with zf.open(name) as f:
+            content = f.read()
+
+          out_path = os.path.join("dist", "bundle-sizes.baseline.json")
+          with open(out_path, "wb") as f:
+            f.write(content)
+
+          print(f"Baseline bundle snapshot extracted: {name} -> {out_path}")
+          PY
+
+          if [ ! -f "dist/bundle-sizes.baseline.json" ]; then
+            echo "::notice::Skip bundle size diff (baseline snapshot not extracted)"
+            exit 0
+          fi
+
+          # NOTE: Compare script also serves as a regression gate (exit!=0 when regression exceeds thresholds).
+          # We still want a readable summary even when the gate fails, so capture output first, then exit with code.
+          set +e
+          node scripts/compare-bundle-sizes.mjs dist/bundle-sizes.baseline.json dist/bundle-sizes.json \
+            --top 15 \
+            --max-entry-regression-pct 3 \
+            --max-preloads-regression-pct 3 \
+            > dist/bundle-sizes.diff.txt
+          compare_exit=$?
+          set -e
+
+          {
+            echo "## Frontend bundle size diff (vs ${BEFORE_SHA:0:7})"
+            echo
+            echo '```'
+            cat dist/bundle-sizes.diff.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$compare_exit" -ne 0 ]; then
+            echo "::error::Frontend bundle regression gate failed (see diff summary above)"
+            exit "$compare_exit"
+          fi
+
+      - name: Upload frontend bundle size artifacts
+        if: ${{ hashFiles('frontend/web/dist/bundle-sizes.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-bundle-sizes-${{ github.sha }}
+          path: |
+            frontend/web/dist/bundle-sizes.json
+            frontend/web/dist/bundle-sizes.txt
+          retention-days: 14
+
+      - name: Upload frontend bundle size diff artifact
+        if: ${{ hashFiles('frontend/web/dist/bundle-sizes.diff.txt') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-bundle-sizes-diff-${{ github.sha }}
+          path: |
+            frontend/web/dist/bundle-sizes.diff.txt
+          retention-days: 14
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
+          browsers=(chromium)
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            browsers=(chromium firefox)
+          fi
+
+          npx playwright install "${browsers[@]}"
+
+      - name: Run E2E smoke tests
+        working-directory: frontend/web
+        env:
+          PREVIEW_HOST: 127.0.0.1
+          CI: true
+        run: |
+          set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
+
+          # 兼容 runner 的代理环境：避免 curl 对本地地址走代理导致探活误判。
+          export NO_PROXY="127.0.0.1,localhost,::1"
+          export no_proxy="${NO_PROXY}"
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          # self-hosted runner 可能同时被用作开发机，固定端口可能被占用。
+          # 这里优先尝试 5173，若占用则回退到下一个可用端口。
+          PREVIEW_PORT="$(
+            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
+          )"
+          export PREVIEW_PORT
+
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS --max-time 5 "${BASE_URL}/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          specs=(
+            e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts
+            e2e/genes-smoke.spec.ts
+            e2e/regulations-smoke.spec.ts
+            e2e/stats-smoke.spec.ts
+            e2e/diseases-smoke.spec.ts
+            e2e/analysis-smoke.spec.ts
+            e2e/conservation-smoke.spec.ts
+            e2e/chipseq-compare-smoke.spec.ts
+            e2e/chipseq-compare-journey-smoke.spec.ts
+            e2e/visualization-hub-smoke.spec.ts
+            e2e/admin-monitoring-smoke.spec.ts
+            e2e/admin-cache-smoke.spec.ts
+            e2e/admin-materialized-views-smoke.spec.ts
+          )
+
+          # 默认保持 chromium-only（与历史 CI 行为一致）
+          npx playwright test "${specs[@]}" --project=chromium --reporter=list
+
+          # 可选：workflow_dispatch 时追加跑 Firefox（更早发现跨浏览器回归）
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            npx playwright test "${specs[@]}" --project=firefox --reporter=list
+          fi
+
+          # 生产前门禁（轻量）：A11y smoke（axe-core）
+          npx playwright test e2e/a11y-smoke.spec.ts --project=chromium --reporter=list
+
+          # 生产前门禁（轻量）：视觉回归 smoke（screenshots）
+          # 说明：视觉快照对环境更敏感（字体/渲染差异），默认仅在 self-hosted 上跑，避免跨环境误报。
+          if [ "${CI_RUNS_ON}" = "self-hosted" ]; then
+            npx playwright test e2e/visual-regression-smoke.spec.ts --project=chromium --reporter=list
+          else
+            echo "::notice::Skip visual regression smoke on non-self-hosted runner (CI_RUNS_ON=${CI_RUNS_ON})."
+          fi
+
+  frontend-unit-tests:
+    name: Frontend Unit Tests
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
+    needs: [secret-scan]  # Fail fast if secrets detected
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Node.js
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Node.js (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: frontend/web
+        run: npm run test:run
+
+  backend-checks:
+    name: Backend Checks
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
+    needs: [secret-scan]  # Fail fast if secrets detected
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Prepare git snapshot (self-hosted tarball)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+
+          # tarball 模式会移除 .git；部分 CI 校验（docs drift check 等）依赖 `git ls-files`。
+          # 这里创建一个“git 快照”（无需 push），确保后续脚本可运行。
+          if [ ! -d ".git" ]; then
+            git init
+            git config user.email "ci@example.invalid"
+            git config user.name "CI"
+            git add -A
+          fi
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Python
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Python (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            frontend/backend/requirements*.txt
+            frontend/backend/constraints.txt
+
+      - name: Install dependencies
+        working-directory: frontend/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt -c constraints.txt
+
+      - name: Run Ruff (backend)
+        working-directory: frontend/backend
+        run: |
+          ruff check .
+
+      - name: Verify Python imports
+        working-directory: frontend/backend
+        run: |
+          python -c "from app.core.config import settings; print('Config loaded')"
+          python -c "from app.core.database import engine; print('Database module loaded')"
+          python -c "from app.core.cache import cache; print('Cache module loaded')"
+          python -c "from app.core.exceptions import sanitize_db_error; print('Exceptions module loaded')"
+          python -c "import main; print('Main app loaded')"
+
+      - name: Check for syntax errors
+        working-directory: frontend/backend
+        run: |
+          python -m py_compile main.py
+          find app -name "*.py" -exec python -m py_compile {} \;
+          echo "All Python files have valid syntax"
+
+      - name: Docs drift check (startup commands)
+        run: |
+          python3 scripts/check_docs_commands.py
+          python3 scripts/check_docs_status_markers.py
+
+      - name: Run ETL input checks (unit tests)
+        run: |
+          python -m pytest -q etl/tests
+
+      - name: Verify ETL sample inputs manifest
+        run: |
+          python -m etl.input_manifest verify etl/sample_inputs/etl-inputs.manifest.tsv
+
+      - name: Run scripts smoke tests (offline genome assets)
+        run: |
+          bash scripts/genomes/tests/test_download_igv_assets.sh
+
+      - name: Run scripts unit tests (run-tests.sh)
+        run: |
+          bash scripts/tests/test_run_tests_frontend_deps.sh
+          bash scripts/tests/test_run_tests_backend_deps.sh
+          bash scripts/tests/test_run_tests_backend_checks_propagates_failures.sh
+          bash scripts/tests/test_run_tests_backend_bootstrap_venv.sh
+          bash scripts/tests/test_checkout_tarball_script.sh
+          bash scripts/tests/test_check_docs_status_markers.sh
+          bash scripts/tests/test_gh_push_commit_range_dry_run.sh
+
+  lint:
+    name: Lint
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
+    needs: [secret-scan]  # Fail fast if secrets detected
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Node.js
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Node.js (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend/web
+        run: npm run lint
+        continue-on-error: false
+
+  backend-unit-tests:
+    name: Backend Unit Tests
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
+    needs: [secret-scan]  # Fail fast if secrets detected
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Python
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Python (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            frontend/backend/requirements*.txt
+            frontend/backend/constraints.txt
+
+      - name: Install dependencies
+        working-directory: frontend/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt -c constraints.txt
+
+      - name: Run unit tests (marked with @pytest.mark.unit)
+        working-directory: frontend/backend
+        run: |
+          # Run only unit tests (no external dependencies required)
+          # Uses pytest markers instead of --ignore flags
+          python -m pytest -m unit -v --tb=short
+
+  etl-e2e-smoke:
+    name: ETL E2E Smoke (Postgres)
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    # self-hosted runner 默认不跑 services(Postgres) 作业，避免 Docker/权限差异导致 CI 直接失败。
+    # 如需在 self-hosted 上启用：设置 repo variable `CI_ENABLE_POSTGRES_JOBS=true`。
+    if: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' || ((github.event_name == 'workflow_dispatch' && github.event.inputs.enable_postgres_jobs) || vars.CI_ENABLE_POSTGRES_JOBS) == 'true' }}
+    needs: [secret-scan]  # Fail fast if secrets detected
+    services:
+      postgres:
+        # self-hosted 环境下 Docker Hub 可能被代理/防火墙/超时影响（registry-1.docker.io 连接不稳定），
+        # 这里改用 Public ECR 镜像源，降低拉取失败概率。
+        image: public.ecr.aws/docker/library/postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lncrna_etl_ci
+        ports:
+          - 5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lncrna_etl_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Python
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Python (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            frontend/backend/requirements.txt
+            frontend/backend/constraints.txt
+
+      - name: Install ETL dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install psycopg2-binary==2.9.9
+
+      - name: Wait for Postgres
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+          import time
+
+          import psycopg2
+
+          config = {
+              "host": os.environ["DB_HOST"],
+              "port": os.environ["DB_PORT"],
+              "dbname": os.environ["DB_NAME"],
+              "user": os.environ["DB_USER"],
+              "password": os.environ["DB_PASSWORD"],
+          }
+
+          for _ in range(60):
+              try:
+                  conn = psycopg2.connect(**config)
+                  conn.close()
+                  print("Postgres is ready")
+                  sys.exit(0)
+              except Exception:
+                  time.sleep(1)
+
+          print("Postgres did not become ready in time", file=sys.stderr)
+          sys.exit(1)
+          PY
+
+      - name: Init schema (v2.3 core)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+          export PGPASSWORD="$DB_PASSWORD"
+          psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f schema/v2.3/01_core.sql
+
+      - name: Seed minimal genes for sample inputs
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python - <<'PY'
+          import os
+
+          import psycopg2
+
+          conn = psycopg2.connect(
+              host=os.environ["DB_HOST"],
+              port=os.environ["DB_PORT"],
+              dbname=os.environ["DB_NAME"],
+              user=os.environ["DB_USER"],
+              password=os.environ["DB_PASSWORD"],
+          )
+          conn.autocommit = True
+          cur = conn.cursor()
+
+          cur.execute("SELECT species_id FROM species WHERE species_code = %s", ("human",))
+          row = cur.fetchone()
+          if not row:
+              raise RuntimeError("Missing species row for 'human' after schema init")
+          human_species_id = int(row[0])
+
+          cur.execute(
+              """
+              INSERT INTO genes (species_id, gene_ensembl_id, gene_name, chromosome, gene_start, gene_end, strand)
+              VALUES
+                (%s, %s, %s, %s, %s, %s, %s),
+                (%s, %s, %s, %s, %s, %s, %s),
+                (%s, %s, %s, %s, %s, %s, %s),
+                (%s, %s, %s, %s, %s, %s, %s)
+              """,
+              (
+                  human_species_id,
+                  "CATG00000000034",
+                  "CATG00000000034",
+                  "chr17",
+                  1000000,
+                  1000500,
+                  "+",
+                  human_species_id,
+                  "CATG00000000045",
+                  "CATG00000000045",
+                  "chr17",
+                  81137057,
+                  81137122,
+                  "+",
+                  human_species_id,
+                  "ENSG00000012048",
+                  "ENSG00000012048",
+                  "chr17",
+                  43044295,
+                  43044350,
+                  "+",
+                  human_species_id,
+                  "ENSG00000141510",
+                  "ENSG00000141510",
+                  "chr17",
+                  7661779,
+                  7661830,
+                  "+",
+              ),
+          )
+
+          cur.close()
+          conn.close()
+          print("Seeded minimal genes for ETL sample inputs")
+          PY
+
+      - name: Run ETL import_regulations (sample)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python3 etl/import_regulations.py \
+            --file etl/sample_inputs/human_batch_human.tsv \
+            --species human \
+            --batch-name ci-smoke \
+            --host "$DB_HOST" \
+            --port "$DB_PORT" \
+            --dbname "$DB_NAME" \
+            --user "$DB_USER" \
+            --password "$DB_PASSWORD" \
+            --store-sequences \
+            --commit-every 0
+
+      - name: Verify sample import (value-level)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: lncrna_etl_ci
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: |
+          python3 etl/smoke_verify_sample_import.py
+
+  api-snapshot-baseline:
+    name: API Snapshot Baseline (Postgres)
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    # self-hosted runner 默认不跑 services(Postgres) 作业，避免 Docker/权限差异导致 CI 直接失败。
+    # 如需在 self-hosted 上启用：设置 repo variable `CI_ENABLE_POSTGRES_JOBS=true`。
+    if: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' || ((github.event_name == 'workflow_dispatch' && github.event.inputs.enable_postgres_jobs) || vars.CI_ENABLE_POSTGRES_JOBS) == 'true' }}
+    needs: [secret-scan]  # Fail fast if secrets detected
+    services:
+      postgres:
+        # self-hosted 环境下 Docker Hub 可能被代理/防火墙/超时影响（registry-1.docker.io 连接不稳定），
+        # 这里改用 Public ECR 镜像源，降低拉取失败概率。
+        image: public.ecr.aws/docker/library/postgres:15
+        env:
+          POSTGRES_USER: lncrna
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lncrna_api_baseline_ci
+          # CI-only: allow local TCP connections without password issues (isolated service container).
+          # This avoids flakiness from auth mismatches while keeping the job self-contained.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432
+        options: >-
+          --health-cmd "pg_isready -U lncrna -d lncrna_api_baseline_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Python
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Python (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            frontend/backend/requirements.txt
+            frontend/backend/constraints.txt
+
+      - name: Install backend dependencies
+        working-directory: frontend/backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -c constraints.txt
+
+      - name: Init schema + sample data (v2.3)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: lncrna_api_baseline_ci
+          DB_USER: lncrna
+          DB_PASSWORD: postgres
+        run: |
+          set -euo pipefail
+
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+
+          export PGPASSWORD="$DB_PASSWORD"
+
+          for f in \
+            "schema/v2.3/01_core.sql" \
+            "schema/v2.3/02_extension.sql" \
+            "frontend/backend/sql/chipseq_schema.sql" \
+            "schema/v2.3/03_sample_data.sql"; do
+            echo "[api-baseline] loading: ${f}"
+            psql -v ON_ERROR_STOP=1 -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$f"
+          done
+
+      - name: Verify API snapshot baseline (sample dataset)
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+          DB_NAME: lncrna_api_baseline_ci
+          DB_USER: lncrna
+          DB_PASSWORD: postgres
+          # Baseline is generated with cache disabled to keep results stable and avoid Redis dependency.
+          ENABLE_CACHE: "false"
+        run: |
+          set -euo pipefail
+
+          cd frontend/backend
+
+          # Backend startup security gate (required by main.py lifespan).
+          # Generate a random key at runtime (do NOT commit secrets; avoids gitleaks false positives).
+          ADMIN_API_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          export ADMIN_API_KEY
+
+          python -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1 &
+          backend_pid=$!
+          trap 'kill "$backend_pid" >/dev/null 2>&1 || true' EXIT
+
+          timeout=60
+          while ! curl -fsS --max-time 5 "http://127.0.0.1:8000/health" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Backend did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          python ../../scripts/api_snapshot.py \
+            --base-url "http://127.0.0.1:8000" \
+            --check-baseline ../../docs/baselines/api-snapshot.sample.json
+
+  build:
+    name: Build
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
+    needs: [secret-scan, frontend-unit-tests, backend-checks, backend-unit-tests, lint]
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Node.js
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Node.js (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Security guard - disallow embedded Admin API Key in CI production build
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # P0 SECURITY: Never allow VITE_ADMIN_API_KEY in CI production builds.
+          # Vite will embed it into the JS bundle, and the key can be extracted from dist/.
+          admin_env="$(printf '%s' "${VITE_ADMIN_API_KEY:-}" | tr -d '[:space:]')"
+          if [ -n "${admin_env:-}" ]; then
+            echo "::error::VITE_ADMIN_API_KEY is set in CI environment. Refusing to build production bundle."
+            echo "::error::Use reverse proxy injection (recommended) or session-based auth instead."
+            exit 1
+          fi
+
+          # Also guard against accidentally committed env files (should not happen, but fail fast).
+          for f in .env .env.*; do
+            # Skip non-existent globs and example templates
+            if [ ! -f "$f" ] || [ "$f" = ".env.example" ]; then
+              continue
+            fi
+
+            raw="$(grep -E '^[[:space:]]*VITE_ADMIN_API_KEY=' "$f" | head -n 1 | cut -d= -f2- || true)"
+            trimmed="$(printf '%s' "${raw:-}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+            # Strip one layer of surrounding quotes
+            trimmed="${trimmed%\"}"; trimmed="${trimmed#\"}"
+            trimmed="${trimmed%\'}"; trimmed="${trimmed#\'}"
+
+            if [ -n "${trimmed:-}" ]; then
+              echo "::error::Found non-empty VITE_ADMIN_API_KEY in $f. Refusing to build production bundle."
+              exit 1
+            fi
+          done
+
+      - name: Build
+        working-directory: frontend/web
+        env:
+          # Ensure CI build points to the intended backend (overrides committed frontend/web/.env).
+          VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: frontend/web/dist/
+          retention-days: 7
+
+  # E2E smoke tests - default ubuntu-latest (can switch via CI_RUNS_ON), fully mocked (no backend/db required)
+  e2e-smoke:
+    name: E2E Smoke (Playwright)
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' }}
+    needs: [build]
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Node.js
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Node.js (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: build
+          path: frontend/web/dist
+
+      - name: Normalize dist path for preview
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # Prefer dist in-place (ideal).
+          if [ -d "dist" ] && [ -f "dist/index.html" ]; then
+            exit 0
+          fi
+
+          # Common extraction patterns for actions/download-artifact.
+          if [ -d "../dist" ] && [ -f "../dist/index.html" ]; then
+            mv ../dist dist
+            exit 0
+          fi
+
+          if [ -d "../build" ] && [ -f "../build/index.html" ]; then
+            mkdir -p dist
+            cp -R ../build/* dist/
+            exit 0
+          fi
+
+          if [ -d "build" ] && [ -f "build/index.html" ]; then
+            mkdir -p dist
+            cp -R build/* dist/
+            exit 0
+          fi
+
+          echo "::error::Unable to locate Vite build output after downloading artifact"
+          echo "::group::Workspace root"
+          ls -la ..
+          echo "::endgroup::"
+          echo "::group::Frontend directory"
+          ls -la .
+          echo "::endgroup::"
+          exit 1
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # GitHub-hosted runner 可用 `--with-deps` 自动安装系统依赖；
+          # self-hosted runner 可能无 sudo/apt 权限，避免在 CI 内强行改系统环境。
+          browsers=(chromium)
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            browsers=(chromium firefox)
+          fi
+
+          if [ "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
+            npx playwright install "${browsers[@]}"
+          else
+            npx playwright install "${browsers[@]}" --with-deps
+          fi
+
+      - name: Run E2E smoke tests
+        working-directory: frontend/web
+        env:
+          PREVIEW_HOST: 127.0.0.1
+          CI: true
+        run: |
+          set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
+
+          # 兼容 runner 的代理环境：避免 curl 对本地地址走代理导致探活误判。
+          export NO_PROXY="127.0.0.1,localhost,::1"
+          export no_proxy="${NO_PROXY}"
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          # self-hosted runner 可能同时被用作开发机，固定端口可能被占用。
+          # 这里优先尝试 5173，若占用则回退到下一个可用端口。
+          PREVIEW_PORT="$(
+            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
+          )"
+          export PREVIEW_PORT
+
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS --max-time 5 "${BASE_URL}/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          specs=(
+            e2e/lncrna-chipseq-overlap-query-too-broad.spec.ts
+            e2e/genes-smoke.spec.ts
+            e2e/regulations-smoke.spec.ts
+            e2e/stats-smoke.spec.ts
+            e2e/diseases-smoke.spec.ts
+            e2e/analysis-smoke.spec.ts
+            e2e/conservation-smoke.spec.ts
+            e2e/chipseq-compare-smoke.spec.ts
+            e2e/chipseq-compare-journey-smoke.spec.ts
+            e2e/visualization-hub-smoke.spec.ts
+            e2e/admin-monitoring-smoke.spec.ts
+            e2e/admin-cache-smoke.spec.ts
+            e2e/admin-materialized-views-smoke.spec.ts
+          )
+
+          # 默认保持 chromium-only（与历史 CI 行为一致）
+          npx playwright test "${specs[@]}" --project=chromium --reporter=list
+
+          # 可选：workflow_dispatch 时追加跑 Firefox（更早发现跨浏览器回归）
+          if [ "${ENABLE_FIREFOX_SMOKE}" = "true" ]; then
+            npx playwright test "${specs[@]}" --project=firefox --reporter=list
+          fi
+
+          # 生产前门禁（轻量）：A11y smoke（axe-core）
+          npx playwright test e2e/a11y-smoke.spec.ts --project=chromium --reporter=list
+
+          # 生产前门禁（轻量）：视觉回归 smoke（screenshots）
+          # 说明：视觉快照对环境更敏感（字体/渲染差异），默认仅在 self-hosted 上跑，避免跨环境误报。
+          if [ "${CI_RUNS_ON}" = "self-hosted" ]; then
+            npx playwright test e2e/visual-regression-smoke.spec.ts --project=chromium --reporter=list
+          else
+            echo "::notice::Skip visual regression smoke on non-self-hosted runner (CI_RUNS_ON=${CI_RUNS_ON})."
+          fi
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-smoke-report
+          path: frontend/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Playwright screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-smoke-screenshots
+          path: frontend/web/test-results/
+          retention-days: 7
+
+  # E2E tests - requires running backend server and database
+  # Only runs on workflow_dispatch (manual trigger) on self-hosted runner
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    runs-on: self-hosted
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_e2e_tests == 'true' }}
+    needs: [build]
+    env:
+      CI_RUNS_ON: self-hosted
+    steps:
+      - name: Configure git transport (self-hosted)
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # 本 job 仅在 self-hosted workflow_dispatch 场景运行，直接走 tarball-first。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: build
+          path: frontend/web/dist
+
+      - name: Normalize dist path for preview
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # Prefer dist in-place (ideal).
+          if [ -d "dist" ] && [ -f "dist/index.html" ]; then
+            exit 0
+          fi
+
+          # Common extraction patterns for actions/download-artifact.
+          if [ -d "../dist" ] && [ -f "../dist/index.html" ]; then
+            mv ../dist dist
+            exit 0
+          fi
+
+          if [ -d "../build" ] && [ -f "../build/index.html" ]; then
+            mkdir -p dist
+            cp -R ../build/* dist/
+            exit 0
+          fi
+
+          if [ -d "build" ] && [ -f "build/index.html" ]; then
+            mkdir -p dist
+            cp -R build/* dist/
+            exit 0
+          fi
+
+          echo "::error::Unable to locate Vite build output after downloading artifact"
+          echo "::group::Workspace root"
+          ls -la ..
+          echo "::endgroup::"
+          echo "::group::Frontend directory"
+          ls -la .
+          echo "::endgroup::"
+          exit 1
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: npx playwright install chromium
+
+      - name: Wait for backend service
+        run: |
+          # Wait for backend to be ready (assumes services are running on self-hosted runner)
+          export NO_PROXY="127.0.0.1,localhost,::1"
+          backend_health_url="${API_BASE_URL%/}/health"
+          timeout=60
+          while ! curl -fsS --connect-timeout 2 --max-time 5 "${backend_health_url}" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "Backend service not available"
+              exit 1
+            fi
+            echo "Waiting for backend..."
+            sleep 5
+            timeout=$((timeout - 5))
+          done
+          echo "Backend is ready!"
+
+      - name: Run E2E tests
+        working-directory: frontend/web
+        env:
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+          PREVIEW_HOST: 127.0.0.1
+          CI: true
+        run: |
+          set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          export NO_PROXY="127.0.0.1,localhost,::1"
+
+          # self-hosted runner 可能同时被用作开发机：端口可能被占用；
+          # 同时后端可能通过环境变量 CORS_ORIGINS 限制允许的 Origin。
+          # 这里选择一个同时满足：
+          # 1) preview 端口可用（可绑定）
+          # 2) 后端对该 Origin 返回 Access-Control-Allow-Origin（避免浏览器侧被 CORS 拦截）
+          backend_health_url="${API_BASE_URL%/}/health"
+          PREVIEW_PORT=""
+          for port in $(seq 5173 5192); do
+            # 1) 端口可用性检查（能绑定才算可用）
+            if ! node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const port=Number(process.argv[1]); const server=net.createServer(); server.unref(); server.on("error",()=>process.exit(1)); server.listen(port, host, ()=>server.close(()=>process.exit(0)));' "$port" >/dev/null 2>&1; then
+              continue
+            fi
+
+            # 2) 后端 CORS 允许性检查
+            origin="http://${PREVIEW_HOST}:${port}"
+            if curl -fsS --connect-timeout 2 --max-time 5 -D - -o /dev/null -H "Origin: ${origin}" "${backend_health_url}" \
+              | tr -d '\r' \
+              | grep -qi "^access-control-allow-origin:[[:space:]]*${origin}$"; then
+              PREVIEW_PORT="$port"
+              break
+            fi
+          done
+
+          if [ -z "${PREVIEW_PORT:-}" ]; then
+            echo "::error::No preview port available that is also allowed by backend CORS."
+            echo "::error::Free port 5173 (recommended), or extend backend CORS_ORIGINS to include the chosen preview origin."
+            echo "::error::Example: CORS_ORIGINS='[\"http://127.0.0.1:5173\",\"http://127.0.0.1:5174\",\"http://localhost:5173\",\"http://localhost:5174\"]'"
+            exit 1
+          fi
+          export PREVIEW_PORT
+
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS --max-time 5 "${BASE_URL}/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          # Run a subset of critical E2E tests
+          npx playwright test \
+            e2e/genes-flow.spec.ts \
+            e2e/lncrna-chipseq-overlap.spec.ts \
+            e2e/conservation.spec.ts \
+            --project=chromium \
+            --reporter=list
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots
+          path: frontend/web/test-results/
+          retention-days: 7
+
+  # Performance audit - requires running backend server (manual trigger only)
+  performance-audit:
+    name: Performance Audit (Playwright)
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_performance_audit == 'true' }}
+    needs: [build]
+    steps:
+      - name: Configure git transport (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        run: |
+          set -euo pipefail
+          export GIT_CONFIG_GLOBAL="${RUNNER_TEMP}/gitconfig"
+          echo "GIT_CONFIG_GLOBAL=${GIT_CONFIG_GLOBAL}" >> "$GITHUB_ENV"
+          git config --global http.version HTTP/1.1
+          # self-hosted + 本机代理环境下，git(gnutls) 偶发握手中断；强制 TLSv1.2 提升稳定性
+          git config --global http.sslVersion tlsv1.2
+          # 若网络“卡住不动”，让 git 在低速阈值触发后尽快失败，进入 tarball 兜底（避免 actions/checkout 长时间挂起）。
+          git config --global http.lowSpeedLimit 1
+          git config --global http.lowSpeedTime 30
+
+      - name: Checkout source via tarball (self-hosted)
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # self-hosted runner 上 `actions/checkout` 可能因网络/TLS 抖动导致长时间超时；
+          # workflow_dispatch 场景下直接走 tarball-first，避免每个 job 都白等 checkout 超时。
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Checkout code
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/checkout@v6
+        timeout-minutes: 3
+
+      - name: Set up Node.js
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Set up Node.js (with cache)
+        if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v7
+        with:
+          name: build
+          path: frontend/web/dist
+
+      - name: Normalize dist path for preview
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          # Prefer dist in-place (ideal).
+          if [ -d "dist" ] && [ -f "dist/index.html" ]; then
+            exit 0
+          fi
+
+          # Common extraction patterns for actions/download-artifact.
+          if [ -d "../dist" ] && [ -f "../dist/index.html" ]; then
+            mv ../dist dist
+            exit 0
+          fi
+
+          if [ -d "../build" ] && [ -f "../build/index.html" ]; then
+            mkdir -p dist
+            cp -R ../build/* dist/
+            exit 0
+          fi
+
+          if [ -d "build" ] && [ -f "build/index.html" ]; then
+            mkdir -p dist
+            cp -R build/* dist/
+            exit 0
+          fi
+
+          echo "::error::Unable to locate Vite build output after downloading artifact"
+          exit 1
+
+      - name: Install Playwright browsers
+        working-directory: frontend/web
+        run: |
+          set -euo pipefail
+
+          if [ "${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}" = "self-hosted" ]; then
+            npx playwright install chromium
+          else
+            npx playwright install chromium --with-deps
+          fi
+
+      - name: Run performance audit (requires backend)
+        working-directory: frontend/web
+        env:
+          PREVIEW_HOST: 127.0.0.1
+          CI: true
+          API_BASE_URL: ${{ env.API_BASE_URL }}
+        run: |
+          set -euo pipefail
+          : "${PREVIEW_HOST:=127.0.0.1}"
+
+          export NO_PROXY="127.0.0.1,localhost,::1"
+          export no_proxy="${NO_PROXY}"
+
+          if [ ! -d "dist" ]; then
+            echo "::error::Missing frontend build output at frontend/web/dist"
+            exit 1
+          fi
+
+          # Backend health check (manual job: user must provide running backend)
+          if ! curl -fsS --connect-timeout 2 --max-time 5 "${API_BASE_URL}/health" >/dev/null 2>&1; then
+            echo "::error::Backend is not reachable: ${API_BASE_URL}/health"
+            echo "::error::This job requires a running backend on the runner machine."
+            exit 1
+          fi
+
+          PREVIEW_PORT="$(
+            node -e 'const net=require("net"); const host=process.env.PREVIEW_HOST||"127.0.0.1"; const candidates=Array.from({length:20},(_,i)=>5173+i); (function tryPort(index){ if(index>=candidates.length) process.exit(1); const port=candidates[index]; const server=net.createServer(); server.unref(); server.on("error",()=>tryPort(index+1)); server.listen(port, host, ()=>{ console.log(port); server.close(); }); })(0);'
+          )"
+          export PREVIEW_PORT
+
+          export BASE_URL="http://${PREVIEW_HOST}:${PREVIEW_PORT}"
+
+          npm run preview -- --host "${PREVIEW_HOST}" --port "${PREVIEW_PORT}" --strictPort &
+          preview_pid=$!
+          trap 'kill $preview_pid' EXIT
+
+          timeout=60
+          while ! curl -fsS --max-time 5 "${BASE_URL}/" >/dev/null 2>&1; do
+            if [ $timeout -le 0 ]; then
+              echo "::error::Frontend preview server did not become ready in time"
+              exit 1
+            fi
+            sleep 2
+            timeout=$((timeout - 2))
+          done
+
+          npm run test:performance
+          node scripts/compare-performance-metrics.js \
+            --baseline performance-baseline-metrics.json \
+            --current test-results/performance-latest-metrics.json \
+            --out test-results/performance-compare.txt
+
+      - name: Upload performance artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-audit
+          path: |
+            frontend/web/test-results/
+            frontend/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14
