@@ -214,6 +214,8 @@ API_BASE_URL=http://127.0.0.1:8000 ./scripts/run-tests.sh performance-audit
 说明：
 - 该命令会先启动 `vite preview`，再跑 `frontend/web/e2e/performance/*`；
 - 需要 `API_BASE_URL/health` 可访问，否则会 fail-fast 提示你先启动后端。
+- 会生成 `test-results/performance-compare.txt`；当关键指标相对 baseline 回归超过 5% 时会直接失败（性能门禁）。
+  - 如只想生成对比报告而不拦截：`cd frontend/web && npm run test:performance && npm run test:performance:compare`
 
 #### CI triggers
 

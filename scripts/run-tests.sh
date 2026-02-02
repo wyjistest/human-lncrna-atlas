@@ -473,6 +473,7 @@ run_scripts_unit_tests() {
         "scripts/tests/test_frontend_bundle_size_snapshot_json.sh"
         "scripts/tests/test_frontend_bundle_size_compare_report.sh"
         "scripts/tests/test_frontend_entry_preloads_regression_gate.sh"
+        "scripts/tests/test_compare_performance_metrics_gate.sh"
         "scripts/tests/test_run_tests_backend_deps.sh"
         "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
         "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
@@ -785,8 +786,18 @@ run_frontend_performance_audit() {
     fi
 
     local failed=0
-    if BASE_URL="$base_url" API_BASE_URL="$api_base_url" CI=true npm run test:performance:check; then
-        echo -e "${GREEN}Performance audit 通过!${NC}"
+    if BASE_URL="$base_url" API_BASE_URL="$api_base_url" CI=true npm run test:performance; then
+        if node scripts/compare-performance-metrics.js \
+            --baseline performance-baseline-metrics.json \
+            --current test-results/performance-latest-metrics.json \
+            --fail-on-regression \
+            --regression-threshold 5 \
+            --out test-results/performance-compare.txt; then
+            echo -e "${GREEN}Performance audit 通过!${NC}"
+        else
+            failed=1
+            echo -e "${RED}Performance audit 失败（检测到性能回归）${NC}"
+        fi
     else
         failed=1
         echo -e "${RED}Performance audit 失败${NC}"
