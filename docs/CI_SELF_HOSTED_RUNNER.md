@@ -151,6 +151,34 @@ run_id="$(gh run list --branch main --workflow Tests --limit 1 --json databaseId
 gh run watch "$run_id" --exit-status
 ```
 
+### 4.3) 每周自动全量回归（schedule + 开关）
+
+除上面的 `Tests` workflow 外，本仓库还提供一个“每周自动全量回归”workflow：
+
+- 名称：`Weekly Regression (Self-hosted)`
+- 文件：`.github/workflows/weekly-regression.yml`
+- 内容（串行执行，便于排障/产物分离）：
+  - `bash scripts/run-tests.sh ci-plus`
+  - `MODE=check bash scripts/baselines/run_overlap_perf_regression_docker.sh`（Docker sample，自包含）
+  - `MODE=check bash scripts/baselines/run_genes_regulations_perf_regression_docker.sh`（Docker sample，自包含）
+- 时间：每周一 `02:00 UTC`（约等于北京时间周一 10:00）
+
+⚠️ 为避免占用自托管机器资源，schedule **默认不执行**。如需开启，请在仓库变量里设置：
+
+- `CI_ENABLE_WEEKLY_REGRESSION=true`
+
+手动触发（不受上面开关影响）：
+
+```bash
+gh workflow run "Weekly Regression (Self-hosted)" --ref main
+```
+
+可选：覆盖 runner label（例如临时在 GitHub-hosted 上跑）：
+
+```bash
+gh workflow run "Weekly Regression (Self-hosted)" --ref main -f runs_on=ubuntu-latest
+```
+
 ### 5) 如何验证是否生效
 
 1. 触发方式（二选一）：
