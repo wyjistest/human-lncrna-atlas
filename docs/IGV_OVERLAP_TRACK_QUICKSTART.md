@@ -16,7 +16,8 @@ GET /api/v1/igv/overlap-track
 
 | 参数 | 类型 | 说明 | 示例 |
 |------|------|------|------|
-| `chr` | string | 染色体 | "chr1" 或 "1" |
+| `chr` | string | 染色体（推荐） | "chr1" 或 "1" |
+| `chromosome` | string | `chr` 的别名 | "chr22" 或 "22" |
 | `start` | integer | 起始位置(0-based) | 1000000 |
 | `end` | integer | 结束位置(0-based) | 2000000 |
 
@@ -26,7 +27,9 @@ GET /api/v1/igv/overlap-track
 |------|------|------|------|
 | `mark_type` | string | 筛选特定 Mark 类型 | "H3K27me3" |
 | `cell_line` | string | 筛选特定细胞系 | "K562" |
-| `min_ba` | float | 最小结合亲和力 (0-100) | 80.0 |
+| `min_ba` | float | 最小结合亲和力阈值（>=0） | 80.0 |
+| `min_binding_affinity` | float | `min_ba` 的兼容别名（>=0） | 80.0 |
+| `limit` | integer | 最大返回条目数（防止一次拉取过多数据） | 50000 |
 
 ## 📦 响应格式
 
@@ -35,17 +38,17 @@ GET /api/v1/igv/overlap-track
 **BED6 格式** (6列,tab分隔):
 
 ```
-chr1    1000120 1001050 MALAT1-H3K27me3 850     +
-chr1    1002300 1003100 NEAT1-H3K4me3   750     +
+chr1    1000120 1001050 MALAT1->GENE1|H3K27me3|K562 850     .
+chr1    1002300 1003100 NEAT1->GENE2|H3K4me3|GM12878 750     .
 ```
 
 **列定义**:
 1. 染色体
 2. 起始位置
 3. 结束位置
-4. 名称 (lncRNA-Mark)
+4. 名称（包含 lncRNA/target/mark/cell_line 信息；便于 IGV 展示与排障）
 5. 分数 (BA * 10, 0-1000)
-6. 链 (始终为 '+')
+6. 链（当前为 '.'）
 
 ## 🚀 使用示例
 
@@ -143,13 +146,13 @@ tracks.forEach(track => igvBrowser.loadTrack(track));
 ## ⚡ 性能
 
 - **响应时间**: < 100ms (典型 1-5Mb 区间)
-- **最大记录数**: 10,000 条/请求
+- **最大记录数**: 默认 50,000 条/请求（可通过 `limit` 调整，最大 200,000）
 - **最大区间**: 10Mb (防止超时)
 
 ## ⚠️ 限制
 
 1. **区间大小**: 最大 10Mb (10,000,000 bp)
-2. **记录数**: 最多返回 10,000 条
+2. **记录数**: 最多返回 200,000 条（由 `limit` 控制）
 3. **物种**: 目前仅支持 Human (species_id=1)
 
 ## 🔧 错误处理
@@ -202,7 +205,7 @@ async function safeLoadOverlapTrack(chr, start, end) {
 
 - **API 文档**: http://localhost:8000/docs#/igv/get_overlap_track_api_v1_igv_overlap_track_get
 - **测试脚本**: `/frontend/backend/test_overlap_track.sh`
-- **实现报告**: `/frontend/backend/IGV_OVERLAP_TRACK_IMPLEMENTATION.md`
+- **实现报告**: `/docs/IGV_OVERLAP_TRACK_IMPLEMENTATION.md`
 
 ## 💡 最佳实践
 
@@ -219,4 +222,4 @@ async function safeLoadOverlapTrack(chr, start, end) {
 
 ---
 
-**最后更新**: 2025-12-10
+**最后更新**: 2026-02-02
