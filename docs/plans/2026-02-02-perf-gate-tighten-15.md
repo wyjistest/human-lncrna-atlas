@@ -43,7 +43,7 @@
 
 **Steps:**
 1. 将文档里的 `>20%` 规则更新为 `>15%`，并保留“可通过参数覆盖”的说明。
-2. 仅在确认是过期/误导信息时，清理历史文档中的阈值描述（避免影响真实 TODO）。
+2. 仅在确认是过期/误导信息时，清理历史文档中的阈值描述（避免影响真实待办）。
 
 ---
 
@@ -53,4 +53,3 @@
 1. 运行：`python3 scripts/perf_overlap_regression.py --help` 与 `python3 scripts/perf_genes_regulations_regression.py --help`，确认 default 文案一致。
 2. 运行：`bash scripts/tests/test_checkout_tarball_script.sh`（快速回归）与 `bash scripts/tests/test_check_docs_status_markers.sh`（文档规则）。
 3. Commit：`perf: tighten perf regression gate to 15%`
-
