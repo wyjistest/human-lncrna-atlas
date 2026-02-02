@@ -44,7 +44,7 @@ limits==5.6.0
 markdown-it-py==4.0.0
 mdurl==0.1.2
 msgpack==1.1.2
-numpy==2.4.2
+numpy==2.4.1
 openpyxl==3.1.5
 packageurl-python==0.17.6
 packaging==26.0
@@ -56,7 +56,7 @@ platformdirs==4.5.1
 pluggy==1.6.0
 prometheus-fastapi-instrumentator==7.1.0
 prometheus_client==0.24.1
-psutil==7.2.2
+psutil==6.1.1
 psycopg2-binary==2.9.11
 py-serializable==2.1.0
 pydantic==2.12.5
@@ -92,4 +92,4 @@ uvicorn==0.40.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0
-wrapt==2.1.0
+wrapt==2.0.1
