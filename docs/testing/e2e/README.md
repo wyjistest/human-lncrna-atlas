@@ -214,8 +214,14 @@ API_BASE_URL=http://127.0.0.1:8000 ./scripts/run-tests.sh performance-audit
 说明：
 - 该命令会先启动 `vite preview`，再跑 `frontend/web/e2e/performance/*`；
 - 需要 `API_BASE_URL/health` 可访问，否则会 fail-fast 提示你先启动后端。
-- 会生成 `test-results/performance-compare.txt`；当关键指标相对 baseline 回归超过 5% 时会直接失败（性能门禁）。
-  - 如只想生成对比报告而不拦截：`cd frontend/web && npm run test:performance && npm run test:performance:compare`
+- 默认会跑 3 次（可通过 `PERF_AUDIT_RUNS=5` 覆盖；次数越多越稳但更慢）。
+- 会生成：
+  - `test-results/performance-run-*.json`（每次 run 的原始报告）
+  - `test-results/performance-median-metrics.json`（median 聚合报告，用于门禁比较）
+  - `test-results/performance-compare.txt`（对比报告）
+- 当关键指标相对 baseline 回归超过 2% 时会直接失败（性能门禁，基于 median 报告）。
+  - 如只想生成对比报告而不拦截（单次）：`cd frontend/web && npm run test:performance && npm run test:performance:compare`
+  - 如需复现门禁逻辑（多次 + median）：`cd frontend/web && for i in 1 2 3; do PERF_REPORT_PATH="test-results/performance-run-${i}.json" npm run test:performance; done && node scripts/aggregate-performance-metrics.js --out test-results/performance-median-metrics.json --inputs test-results/performance-run-1.json test-results/performance-run-2.json test-results/performance-run-3.json && node scripts/compare-performance-metrics.js --baseline performance-baseline-metrics.json --current test-results/performance-median-metrics.json --out test-results/performance-compare.txt`
 
 #### CI triggers
 

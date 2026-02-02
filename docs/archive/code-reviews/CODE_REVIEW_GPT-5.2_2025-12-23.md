@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> 本文档为历史记录/会话纪要（可能包含 TODO、checkbox、Mock 等信号，不代表当前实现/待办）。
+> 当前真实状态与下一步请以 `docs/CURRENT_STATUS.md` 为准。
+
 # Human LncRNA Atlas（human-lncrna-atlas-github）代码审查报告（GPT-5.2）
 
 **审查日期**：2025-12-23  
