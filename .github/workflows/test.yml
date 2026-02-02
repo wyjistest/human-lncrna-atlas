@@ -2090,6 +2090,8 @@ jobs:
           node scripts/compare-performance-metrics.js \
             --baseline performance-baseline-metrics.json \
             --current test-results/performance-latest-metrics.json \
+            --fail-on-regression \
+            --regression-threshold 5 \
             --out test-results/performance-compare.txt
 
       - name: Upload performance artifacts
