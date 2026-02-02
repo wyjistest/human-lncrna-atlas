@@ -100,15 +100,56 @@ npx playwright install-deps chromium
 
 ### 4.2) 推荐：每周全量回归（workflow_dispatch）
 
-说明：push/main 在 self-hosted 上默认走 `self-hosted-fast-ci`（更快、更省 IO）；如果你想“更全”的回归覆盖，建议用 `workflow_dispatch` 手动触发一次 `Tests`，按需打开更重的 job。
+说明：push/main 在 self-hosted 上默认走 `self-hosted-fast-ci`（更快、更省 IO）；如果你想“更全”的回归覆盖，建议用 `workflow_dispatch` 手动触发一次 `Tests`，按需打开更重的 job（每周一次即可）。
 
-建议组合（按需选择，默认都为 false）：
+#### 触发方式（GitHub UI）
 
-- `runs_on=self-hosted`：强制跑在自托管 runner
-- `enable_postgres_jobs=true`：启用需要 Postgres service 的 job（要求 runner 机器可用 Docker）
-- `enable_e2e_tests=true`：启用集成向 E2E（需要可用后端/服务）
-- `enable_performance_audit=true`：启用 Playwright 性能套件（需要可用后端/服务）
+1. 打开仓库 **Actions**
+2. 选择 workflow：**Tests**
+3. 点击右侧 **Run workflow**
+4. 选择分支（建议 `main`），并按需填写 inputs（见下节“推荐组合”）
+
+#### 推荐组合（inputs）
+
+> 说明：这些 inputs 都只影响 `workflow_dispatch` 触发；**默认行为不变**（push/main 仍以 fast-ci 为主）。
+
+- `runs_on=self-hosted`：强制跑在自托管 runner（可覆盖仓库变量 `CI_RUNS_ON`）
+- `api_base_url=http://127.0.0.1:8000`：后端地址（用于 health check；同时会注入构建的 `VITE_API_BASE_URL`）
+  - 如果你启用 `enable_e2e_tests` / `enable_performance_audit`：请确保该地址可访问且返回 `${API_BASE_URL}/health`
+  - 推荐把后端跑在 runner 本机（更稳定、网络噪声更少）；也可指向远端后端（但可能引入波动）
+- `enable_postgres_jobs=true`：启用需要 `services: postgres` 的 job（要求 runner 机器可用 Docker）
+- `enable_e2e_tests=true`：启用集成向 E2E（Playwright；**需要可用后端服务**）
+- `enable_performance_audit=true`：启用性能门禁（Playwright performance suite；**需要可用后端服务**）
 - `enable_firefox_smoke=true`：额外跑一轮 Firefox smoke（仅 workflow_dispatch）
+
+#### 触发方式（GH CLI，可复制）
+
+最小“全量回归入口”（只切到 self-hosted，不额外打开重 job）：
+
+```bash
+gh workflow run Tests --ref main \
+  -f runs_on=self-hosted \
+  -f api_base_url=http://127.0.0.1:8000
+```
+
+更重的“每周全量回归”（按你机器能力选择；需要后端可用，Postgres jobs 还要求 Docker）：
+
+```bash
+gh workflow run Tests --ref main \
+  -f runs_on=self-hosted \
+  -f api_base_url=http://127.0.0.1:8000 \
+  -f enable_postgres_jobs=true \
+  -f enable_e2e_tests=true \
+  -f enable_performance_audit=true \
+  -f enable_firefox_smoke=true
+```
+
+触发后建议直接 watch（直到结束，失败返回非 0）：
+
+```bash
+run_id="$(gh run list --branch main --workflow Tests --limit 1 --json databaseId --jq '.[0].databaseId')"
+gh run watch "$run_id" --exit-status
+```
 
 ### 5) 如何验证是否生效
 
