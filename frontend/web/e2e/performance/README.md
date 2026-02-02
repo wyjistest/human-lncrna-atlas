@@ -20,6 +20,27 @@ cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
 npm run test:performance:check
 ```
 
+Run multiple times and aggregate median (recommended for CI gate reproduction):
+```bash
+cd /data/wenyujianData/human-lncrna-atlas-github/frontend/web
+
+# 3 runs -> median report -> gate at 2%
+for i in 1 2 3; do
+  PERF_REPORT_PATH="test-results/performance-run-${i}.json" npm run test:performance
+done
+
+node scripts/aggregate-performance-metrics.js \
+  --out test-results/performance-median-metrics.json \
+  --inputs test-results/performance-run-1.json test-results/performance-run-2.json test-results/performance-run-3.json
+
+node scripts/compare-performance-metrics.js \
+  --baseline performance-baseline-metrics.json \
+  --current test-results/performance-median-metrics.json \
+  --fail-on-regression \
+  --regression-threshold 2 \
+  --out test-results/performance-compare.txt
+```
+
 Run specific performance test:
 ```bash
 npx playwright test e2e/performance/disease-dropdown-performance.spec.ts

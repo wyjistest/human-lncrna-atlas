@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> 本文档为历史记录/会话纪要（可能包含 TODO、checkbox、Mock 等信号，不代表当前实现/待办）。
+> 当前真实状态与下一步请以 `docs/CURRENT_STATUS.md` 为准。
+
 # Phase 4: Network 页面国际化方案
 
 **日期**: 2025-11-28

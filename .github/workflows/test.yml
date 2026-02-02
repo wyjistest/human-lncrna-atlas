@@ -2086,12 +2086,29 @@ jobs:
             timeout=$((timeout - 2))
           done
 
-          npm run test:performance
+          PERF_AUDIT_RUNS="${PERF_AUDIT_RUNS:-3}"
+          if ! [[ "$PERF_AUDIT_RUNS" =~ ^[0-9]+$ ]] || [ "$PERF_AUDIT_RUNS" -lt 1 ] || [ "$PERF_AUDIT_RUNS" -gt 10 ]; then
+            echo "::error::PERF_AUDIT_RUNS must be an integer in [1, 10] (current: ${PERF_AUDIT_RUNS})"
+            exit 1
+          fi
+
+          report_files=()
+          for ((i=1; i<=PERF_AUDIT_RUNS; i++)); do
+            report_path="test-results/performance-run-${i}.json"
+            report_files+=("$report_path")
+            echo "::notice::Performance audit run ${i}/${PERF_AUDIT_RUNS} -> ${report_path}"
+            PERF_REPORT_PATH="$report_path" npm run test:performance
+          done
+
+          node scripts/aggregate-performance-metrics.js \
+            --out test-results/performance-median-metrics.json \
+            --inputs "${report_files[@]}"
+
           node scripts/compare-performance-metrics.js \
             --baseline performance-baseline-metrics.json \
-            --current test-results/performance-latest-metrics.json \
+            --current test-results/performance-median-metrics.json \
             --fail-on-regression \
-            --regression-threshold 5 \
+            --regression-threshold 2 \
             --out test-results/performance-compare.txt
 
       - name: Upload performance artifacts

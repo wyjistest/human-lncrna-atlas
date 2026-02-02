@@ -466,18 +466,19 @@ run_scripts_unit_tests() {
 
     echo -e "${YELLOW}运行脚本单元测试（scripts/tests）...${NC}"
 
-    local tests=(
-        "scripts/tests/test_run_tests_frontend_deps.sh"
-        "scripts/tests/test_frontend_entry_bundle_budget.sh"
-        "scripts/tests/test_frontend_bundle_size_report.sh"
-        "scripts/tests/test_frontend_bundle_size_snapshot_json.sh"
-        "scripts/tests/test_frontend_bundle_size_compare_report.sh"
-        "scripts/tests/test_frontend_entry_preloads_regression_gate.sh"
-        "scripts/tests/test_compare_performance_metrics_gate.sh"
-        "scripts/tests/test_run_tests_backend_deps.sh"
-        "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
-        "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
-        "scripts/tests/test_checkout_tarball_script.sh"
+	    local tests=(
+	        "scripts/tests/test_run_tests_frontend_deps.sh"
+	        "scripts/tests/test_frontend_entry_bundle_budget.sh"
+	        "scripts/tests/test_frontend_bundle_size_report.sh"
+	        "scripts/tests/test_frontend_bundle_size_snapshot_json.sh"
+	        "scripts/tests/test_frontend_bundle_size_compare_report.sh"
+	        "scripts/tests/test_frontend_entry_preloads_regression_gate.sh"
+	        "scripts/tests/test_compare_performance_metrics_gate.sh"
+	        "scripts/tests/test_aggregate_performance_metrics_median.sh"
+	        "scripts/tests/test_run_tests_backend_deps.sh"
+	        "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
+	        "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
+	        "scripts/tests/test_checkout_tarball_script.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
@@ -786,21 +787,45 @@ run_frontend_performance_audit() {
     fi
 
     local failed=0
-    if BASE_URL="$base_url" API_BASE_URL="$api_base_url" CI=true npm run test:performance; then
-        if node scripts/compare-performance-metrics.js \
+    local runs="${PERF_AUDIT_RUNS:-3}"
+    if ! [[ "$runs" =~ ^[0-9]+$ ]] || [ "$runs" -lt 1 ] || [ "$runs" -gt 10 ]; then
+        echo -e "${RED}PERF_AUDIT_RUNS 必须是 1-10 的整数（当前: ${runs}）${NC}"
+        kill "$preview_pid" > /dev/null 2>&1 || true
+        wait "$preview_pid" > /dev/null 2>&1 || true
+        return 1
+    fi
+
+    local report_files=()
+    local i
+    for ((i=1; i<=runs; i++)); do
+        local report_path="test-results/performance-run-${i}.json"
+        report_files+=("$report_path")
+        echo -e "${YELLOW}Performance audit: run ${i}/${runs}（输出: ${report_path}）...${NC}"
+
+        if ! BASE_URL="$base_url" API_BASE_URL="$api_base_url" PERF_REPORT_PATH="$report_path" CI=true npm run test:performance; then
+            failed=1
+            echo -e "${RED}Performance audit 失败（第 ${i}/${runs} 次 run 未通过）${NC}"
+            break
+        fi
+    done
+
+    if [ "$failed" -eq 0 ]; then
+        if ! node scripts/aggregate-performance-metrics.js \
+            --out test-results/performance-median-metrics.json \
+            --inputs "${report_files[@]}"; then
+            failed=1
+            echo -e "${RED}Performance audit 失败（聚合 median 报告失败）${NC}"
+        elif node scripts/compare-performance-metrics.js \
             --baseline performance-baseline-metrics.json \
-            --current test-results/performance-latest-metrics.json \
+            --current test-results/performance-median-metrics.json \
             --fail-on-regression \
-            --regression-threshold 5 \
+            --regression-threshold 2 \
             --out test-results/performance-compare.txt; then
             echo -e "${GREEN}Performance audit 通过!${NC}"
         else
             failed=1
-            echo -e "${RED}Performance audit 失败（检测到性能回归）${NC}"
+            echo -e "${RED}Performance audit 失败（检测到性能回归 >2%）${NC}"
         fi
-    else
-        failed=1
-        echo -e "${RED}Performance audit 失败${NC}"
     fi
 
     kill "$preview_pid" > /dev/null 2>&1 || true
