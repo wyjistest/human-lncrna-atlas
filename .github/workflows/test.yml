@@ -590,7 +590,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -667,7 +667,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -697,7 +697,7 @@ jobs:
           TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
 
       - name: Prepare git snapshot (self-hosted fallback)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         run: |
           set -euo pipefail
 
@@ -806,7 +806,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -884,7 +884,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -986,7 +986,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -1242,7 +1242,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -1382,7 +1382,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -1506,7 +1506,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -1736,7 +1736,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
@@ -1954,7 +1954,7 @@ jobs:
         continue-on-error: ${{ env.CI_RUNS_ON == 'self-hosted' }}
 
       - name: Recover workspace when checkout fails (self-hosted)
-        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome == 'failure' }}
+        if: ${{ env.CI_RUNS_ON == 'self-hosted' && steps.checkout.outcome != 'success' }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
