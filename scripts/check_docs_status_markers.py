@@ -20,26 +20,6 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_MARKER = "docs/CURRENT_STATUS.md"
 EXEMPT_FILES: set[Path] = {REPO_ROOT / REQUIRED_MARKER}
 
-DEFAULT_MAX_MARKER_LINE = 30
-
-# 仅对“入口/用户向”文档强制 marker 必须在文档前 N 行出现（更容易被读到，减少误读为 backlog）。
-# 其他目录仍只要求“出现即可”，避免对历史/内部规划文档造成不必要的侵入。
-POSITION_REQUIRED_PREFIXES: tuple[str, ...] = (
-    "docs/api/",
-    "docs/backend/",
-    "docs/frontend/",
-    "docs/performance/",
-    "docs/reports/",
-    "docs/roadmaps/",
-    "docs/sessions/",
-)
-
-POSITION_REQUIRED_FILES: set[Path] = {
-    Path("docs/project.md"),
-    Path("docs/PITFALLS.md"),
-    Path("docs/LOCAL_CI_BOOTSTRAP.md"),
-}
-
 INDICATORS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bTODO\b", re.IGNORECASE), "TODO"),
     (re.compile(r"\[ \]"), "checkbox"),
@@ -73,20 +53,6 @@ def _find_first_indicator(text: str) -> tuple[int, str] | None:
     return None
 
 
-def _find_marker_line(text: str) -> int | None:
-    for line_no, line in enumerate(text.splitlines(), start=1):
-        if REQUIRED_MARKER in line:
-            return line_no
-    return None
-
-
-def _requires_marker_near_top(rel: Path) -> bool:
-    rel_posix = rel.as_posix()
-    if rel in POSITION_REQUIRED_FILES:
-        return True
-    return any(rel_posix.startswith(prefix) for prefix in POSITION_REQUIRED_PREFIXES)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check docs have CURRENT_STATUS marker when needed.")
     parser.add_argument(
@@ -94,12 +60,6 @@ def main() -> int:
         nargs="*",
         default=["docs"],
         help="Directories to scan (git-tracked markdown files only).",
-    )
-    parser.add_argument(
-        "--max-marker-line",
-        type=int,
-        default=DEFAULT_MAX_MARKER_LINE,
-        help="Require CURRENT_STATUS marker to appear within first N lines for entry docs (default: 30).",
     )
     args = parser.parse_args()
 
@@ -120,45 +80,27 @@ def main() -> int:
             continue
         try:
             text = path.read_text(encoding="utf-8")
-        except FileNotFoundError:
-            # 当你在工作区里删除了文件但尚未 staged/commit 时，`git ls-files` 可能仍会列出它。
-            # 为了让该检查在重构期间依然可用，这里对“磁盘不存在”的文件做跳过处理。
-            continue
         except UnicodeDecodeError:
             text = path.read_text(encoding="utf-8", errors="ignore")
         scanned += 1
 
-        indicator = _find_first_indicator(text)
-        if indicator is None:
+        if not _needs_marker(text):
             continue
-
         if REQUIRED_MARKER not in text:
+            indicator = _find_first_indicator(text)
             try:
                 rel = path.relative_to(REPO_ROOT)
             except ValueError:
                 rel = path
+            if indicator is None:
+                offenders.append(f"{rel}:0: missing marker: `{REQUIRED_MARKER}`")
+                continue
             line_no, label = indicator
             offenders.append(f"{rel}:{line_no}: missing marker: `{REQUIRED_MARKER}` (indicator: {label})")
-            continue
-
-        # Marker exists: for entry docs, require it to be within the first N lines for visibility.
-        try:
-            rel = path.relative_to(REPO_ROOT)
-        except ValueError:
-            rel = path
-        if _requires_marker_near_top(rel):
-            marker_line = _find_marker_line(text) or 0
-            if marker_line > int(args.max_marker_line):
-                _, label = indicator
-                offenders.append(
-                    f"{rel}:{marker_line}: marker too late: `{REQUIRED_MARKER}` "
-                    f"(>{args.max_marker_line}; indicator: {label})"
-                )
 
     if offenders:
         print("Docs status marker check FAILED.")
-        print(f"Marker required when doc contains indicators: `{REQUIRED_MARKER}`")
-        print(f"Entry docs must place the marker within first {int(args.max_marker_line)} line(s).")
+        print(f"Marker required when doc contains indicators, but missing: `{REQUIRED_MARKER}`")
         print("")
         print("Files:")
         for path in sorted(offenders):

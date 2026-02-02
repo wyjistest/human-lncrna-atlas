@@ -161,7 +161,7 @@ export const BA_CONFIG = {
 />
 ```
 
-**现状（2026-02）**：已采用 **方案 A**（后端提供 `/api/v1/stats/ba-range`），`BA_CONFIG` 仅作为静态回退。
+**本次实施选择**：使用 **方案 B**，后续后端实现后切换到方案 A。
 
 **直方图区间调整**:
 ```typescript
@@ -222,10 +222,10 @@ export type NetworkEdge = components['schemas']['NetworkEdge']
 
 // ============ 新增类型（历史：早期后端未实现阶段） ============
 
- /**
-  * 详细统计信息（用于 Stats 页面图表）
-  * 状态：✅ 已实现（真实 API；历史说明）
-  */
+/**
+ * 详细统计信息（用于 Stats 页面图表）
+ * 状态：🔴 Mock（后端待实现）
+ */
 export interface DetailedStatsResponse {
   summary: {
     total_genes: number
@@ -270,10 +270,10 @@ export interface DetailedStatsResponse {
   }>
 }
 
- /**
-  * BA 范围配置
-  * 状态：✅ 已实现（真实 API；历史说明）
-  */
+/**
+ * BA 范围配置
+ * 状态：🔴 Mock（后端待实现）
+ */
 export interface BARange {
   min: number
   max: number

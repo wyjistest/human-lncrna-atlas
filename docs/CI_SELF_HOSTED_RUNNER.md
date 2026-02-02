@@ -187,8 +187,7 @@ gh workflow run "Weekly Regression (Self-hosted)" --ref main -f runs_on=ubuntu-l
 2. 用 `gh` 查看运行状态：
 
 ```bash
-gh run list --branch main --limit 5 --json databaseId,name,conclusion,createdAt \
-  --jq '.[] | "\(.databaseId)\t\(.name)\t\(.conclusion)\t\(.createdAt)"'
+gh run list --branch main --limit 5
 ```
 
 若看到 `Tests` / `Security Audit` 能正常启动并执行 job，说明 self-hosted 止损方案已生效。
@@ -197,7 +196,7 @@ gh run list --branch main --limit 5 --json databaseId,name,conclusion,createdAt 
 
 ```bash
 # 取最新一次 Tests 的 run_id（或直接从 run URL 里复制 ID）
-gh run list --branch main --workflow Tests --limit 1 --json databaseId,conclusion,createdAt --jq '.[0].databaseId'
+gh run list --branch main --workflow Tests --limit 1
 
 # 查看该 run 的 jobs 实际跑在谁身上（runner_name + labels）
 # 说明：需要把 <OWNER>/<REPO> 与 <RUN_ID> 替换成真实值
@@ -257,9 +256,7 @@ gh workflow run Tests --ref "<PR_BRANCH>"
 本仓库的 `Tests` / `Security Audit` workflow 已做“止损”：
 
 1. workflow 内对 git transport 做稳定性配置（HTTP/1.1 + TLSv1.2）。
-2. 当 `actions/checkout` 仍失败时：
-   - workflow 会通过 GitHub API 下载 `${repo}@${sha}` tarball；
-   - 并从 tarball 内提取并执行 `scripts/ci/checkout_tarball.sh`（同一 commit 版本，避免依赖已有 workspace），用于校验 tarball + 替换工作区源码。
+2. 当 `actions/checkout` 仍失败时：自动通过 GitHub API 下载 `${repo}@${sha}` tarball 恢复源码继续执行。
    - 对需要 `.git` 的门禁（例如 gitleaks、docs drift check）：在 tarball 场景会额外初始化一个本地 git snapshot（用于 `git ls-files`）。
 
 如果你仍频繁遇到 checkout 失败：
@@ -318,7 +315,3 @@ python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD"
 ```bash
 bash scripts/run-tests.sh ci
 ```
-
-说明：
-- 若本机未创建后端虚拟环境（`frontend/backend/.venv`），脚本会在本地自动创建并安装后端依赖，降低首次运行门槛。
-- 如你使用 Conda/pyenv 等外部环境管理，且不希望脚本创建 venv，可设置 `SKIP_BACKEND_VENV_BOOTSTRAP=1`，或通过 `BACKEND_PYTHON` 指向你的 Python 解释器。

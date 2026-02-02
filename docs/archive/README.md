@@ -1,7 +1,3 @@
-> [!IMPORTANT]
-> 本文档为历史记录/会话纪要（可能包含 TODO、checkbox、Mock 等信号，不代表当前实现/待办）。
-> 当前真实状态与下一步请以 `docs/CURRENT_STATUS.md` 为准。
-
 # Human lncRNA-DNA Binding Analysis
 
 人类lncRNA-DNA结合分析工具包，支持超大规模数据集（1000万+文件）的高效处理。

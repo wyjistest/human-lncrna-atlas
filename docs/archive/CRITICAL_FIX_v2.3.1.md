@@ -1,7 +1,3 @@
-> [!IMPORTANT]
-> 本文档为历史记录/会话纪要（可能包含 TODO、checkbox、Mock 等信号，不代表当前实现/待办）。
-> 当前真实状态与下一步请以 `docs/CURRENT_STATUS.md` 为准。
-
 # 🚨 紧急修复报告 v2.3.1
 
 > 更新（2026-01-24）：本文档为历史紧急修复报告快照，用于回溯问题与修复过程；现状以 `docs/CURRENT_STATUS.md` 为准。

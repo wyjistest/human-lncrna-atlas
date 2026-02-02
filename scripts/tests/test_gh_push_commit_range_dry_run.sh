@@ -9,9 +9,6 @@ set -euo pipefail
 # 1) 对线性历史：`--range <A..B> --dry-run` 输出按顺序列出 commits，并 exit 0。
 # 2) 对 merge commit：dry-run 也应拒绝，并给出明确提示（保持与单 commit 模式一致）。
 
-# 兼容 git hooks 环境：避免 GIT_DIR/GIT_WORK_TREE 污染影响临时仓库。
-unset GIT_DIR GIT_WORK_TREE
-
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 tmp_root="$(mktemp -d)"

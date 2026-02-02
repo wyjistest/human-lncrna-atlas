@@ -1,8 +1,8 @@
 # Human LncRNA Atlas 文档索引
 
-> **更新日期**: 2026-01-31  
-> **当前版本**: Phase 4.0+  
-> 说明：`docs/` 根目录仅保留少量入口“活文档”；其余旧路径可能是重定向 stub（避免外部链接失效）。现状以 `docs/CURRENT_STATUS.md` 为准。
+> **更新日期**: 2025-12-09
+> **当前版本**: Phase 4.0+
+> **维护者**: Claude Code (Opus 4.5)
 
 ---
 
@@ -13,18 +13,6 @@
 | [@README.md](../README.md) | 项目概述、快速开始、安装部署 |
 | [@CLAUDE.md](../CLAUDE.md) | 项目记忆、开发规范、工作流程 |
 | [@CHANGELOG.md](../CHANGELOG.md) | 版本变更历史 |
-| [CURRENT_STATUS.md](CURRENT_STATUS.md) | ⭐ 当前现状入口（权威） |
-
----
-
-## 入口文档（建议从这里开始）
-
-- [CURRENT_STATUS.md](CURRENT_STATUS.md)：当前进度摘要、常用入口、已知限制（权威）
-- [QUICKSTART_CHIPSEQ.md](QUICKSTART_CHIPSEQ.md)：ChIP-seq 功能快速开始
-- [PERFORMANCE_TRIAGE.md](PERFORMANCE_TRIAGE.md)：性能定位（Admin metrics 导出）
-- [CI_SELF_HOSTED_RUNNER.md](CI_SELF_HOSTED_RUNNER.md)：CI/self-hosted runner 说明与核验
-- [LOCAL_CI_BOOTSTRAP.md](LOCAL_CI_BOOTSTRAP.md)：本地 CI 自举
-- [PITFALLS.md](PITFALLS.md)：常见坑/排障
 
 ---
 
@@ -34,63 +22,34 @@
 
 | 文档 | 说明 | 更新频率 |
 |------|------|----------|
-| [status/PROJECT_STATUS_REPORT.md](status/PROJECT_STATUS_REPORT.md) | 完整项目状态报告（历史快照） | 每阶段 |
-| [CURRENT_STATUS.md](CURRENT_STATUS.md) | 当前进度摘要、常用入口、已知限制 | 每周/按需 |
+| [PROJECT_STATUS_REPORT.md](PROJECT_STATUS_REPORT.md) | 完整项目状态报告（已完成 + 未完成） | 每阶段 |
+| [CURRENT_STATUS.md](CURRENT_STATUS.md) | 当前进度摘要、数据库统计 | 每日 |
 
 ### 架构设计
 
 | 文档 | 说明 |
 |------|------|
-| [architecture/DATABASE_DESIGN_FINAL.md](architecture/DATABASE_DESIGN_FINAL.md) | 数据库设计、表结构、索引策略 |
-| [architecture/VERSION_MIGRATION_STRATEGY.md](architecture/VERSION_MIGRATION_STRATEGY.md) | 版本管理、迁移策略 |
-| [architecture/PHASE_2.3_CHIPSEQ_ARCHITECTURE.md](architecture/PHASE_2.3_CHIPSEQ_ARCHITECTURE.md) | ⭐ ChIP-seq 通用架构设计（推荐阅读） |
-| [architecture/PHASE_2.3_ARCHITECTURE_VISUAL.md](architecture/PHASE_2.3_ARCHITECTURE_VISUAL.md) | 架构可视化图表 |
-
-### 路线图（快照）
-
-| 文档 | 说明 |
-|------|------|
-| [roadmaps/ROADMAP_CURRENT.md](roadmaps/ROADMAP_CURRENT.md) | ⭐ 最新路线图（指针；现状以 CURRENT_STATUS 为准） |
-| [roadmaps/ROADMAP_2026-01-31.md](roadmaps/ROADMAP_2026-01-31.md) | 未来 1–2 周路线图（快照；现状以 CURRENT_STATUS 为准） |
-| [roadmaps/ROADMAP_2026-01-26.md](roadmaps/ROADMAP_2026-01-26.md) | 未来 1–2 周路线图（历史快照） |
-| [roadmaps/](roadmaps/) | 路线图目录 |
-
-### 数据与导入（docs/data/）
-
-| 文档 | 说明 |
-|------|------|
-| [data/ENCODE_DATA_GUIDE.md](data/ENCODE_DATA_GUIDE.md) | ENCODE ChIP-seq 数据下载与导入 |
-| [data/ETL_INPUT_MANIFEST.md](data/ETL_INPUT_MANIFEST.md) | ETL 输入清单 |
-| [data/HG19_OFFLINE_ASSETS.md](data/HG19_OFFLINE_ASSETS.md) | hg19/IGV 离线资源 |
-| [data/GM12878_IMPORT_REPORT.md](data/GM12878_IMPORT_REPORT.md) | GM12878 导入报告（历史记录） |
-| [data/DATA_SUPPLEMENT_REPORT.md](data/DATA_SUPPLEMENT_REPORT.md) | 数据补充报告（历史记录） |
+| [DATABASE_DESIGN_FINAL.md](DATABASE_DESIGN_FINAL.md) | 数据库设计、表结构、索引策略 |
+| [VERSION_MIGRATION_STRATEGY.md](VERSION_MIGRATION_STRATEGY.md) | 版本管理、迁移策略 |
+| [PHASE_2.3_CHIPSEQ_ARCHITECTURE.md](PHASE_2.3_CHIPSEQ_ARCHITECTURE.md) | ⭐ ChIP-seq 通用架构设计（推荐阅读） |
+| [PHASE_2.3_ARCHITECTURE_VISUAL.md](PHASE_2.3_ARCHITECTURE_VISUAL.md) | 架构可视化图表 |
 
 ### 功能模块
 
 | 文档 | 说明 |
 |------|------|
+| [IGV_INTEGRATION_PLAN.md](IGV_INTEGRATION_PLAN.md) | IGV 基因组浏览器集成 |
+| [ENCODE_DATA_GUIDE.md](ENCODE_DATA_GUIDE.md) | ENCODE ChIP-seq 数据下载与导入 |
 | [QUICKSTART_CHIPSEQ.md](QUICKSTART_CHIPSEQ.md) | ChIP-seq 功能快速开始 |
-| [frontend/IGV_INTEGRATION_PLAN.md](frontend/IGV_INTEGRATION_PLAN.md) | IGV 基因组浏览器集成 |
-| [frontend/IGV_OVERLAP_TRACK_QUICKSTART.md](frontend/IGV_OVERLAP_TRACK_QUICKSTART.md) | IGV overlap track 快速开始 |
-| [frontend/IGV_OVERLAP_TRACK_IMPLEMENTATION.md](frontend/IGV_OVERLAP_TRACK_IMPLEMENTATION.md) | IGV overlap track 实现说明 |
-
-### 性能与定位
-
-| 文档 | 说明 |
-|------|------|
-| [PERFORMANCE_TRIAGE.md](PERFORMANCE_TRIAGE.md) | ⭐ 性能定位最短路径 |
-| [performance/PERFORMANCE_ISSUE_ANALYSIS.md](performance/PERFORMANCE_ISSUE_ANALYSIS.md) | 性能问题分析（历史快照） |
-| [testing/performance/OVERLAP_PERF_REGRESSION.md](testing/performance/OVERLAP_PERF_REGRESSION.md) | overlap 性能回归门禁说明 |
 
 ### 里程碑报告
 
 | 文档 | 说明 |
 |------|------|
-| [phases/PHASE_1_MVP_COMPLETION_REPORT.md](phases/PHASE_1_MVP_COMPLETION_REPORT.md) | Phase 1 核心平台完成报告 |
-| [phases/PHASE_2.3_DELIVERY_SUMMARY.md](phases/PHASE_2.3_DELIVERY_SUMMARY.md) | ChIP-seq 架构交付总结 |
-| [phases/PHASE_2.3_2.4_COMPLETION_REPORT.md](phases/PHASE_2.3_2.4_COMPLETION_REPORT.md) | 多 Marks 验证完成报告 |
-| [phases/PHASE_2.3_IMPLEMENTATION_CHECKLIST.md](phases/PHASE_2.3_IMPLEMENTATION_CHECKLIST.md) | 实施检查清单 |
-| [phases/](phases/) | 里程碑目录（建议从 PHASE_HISTORY 开始回溯） |
+| [PHASE_1_MVP_COMPLETION_REPORT.md](PHASE_1_MVP_COMPLETION_REPORT.md) | Phase 1 核心平台完成报告 |
+| [PHASE_2.3_DELIVERY_SUMMARY.md](PHASE_2.3_DELIVERY_SUMMARY.md) | ChIP-seq 架构交付总结 |
+| [PHASE_2.3_2.4_COMPLETION_REPORT.md](PHASE_2.3_2.4_COMPLETION_REPORT.md) | 多 Marks 验证完成报告 |
+| [PHASE_2.3_IMPLEMENTATION_CHECKLIST.md](PHASE_2.3_IMPLEMENTATION_CHECKLIST.md) | 实施检查清单 |
 
 ### 更新日志
 

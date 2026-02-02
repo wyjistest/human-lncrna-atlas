@@ -1,7 +1,3 @@
-> [!IMPORTANT]
-> 本文档为历史记录/会话纪要（可能包含 TODO、checkbox、Mock 等信号，不代表当前实现/待办）。
-> 当前真实状态与下一步请以 `docs/CURRENT_STATUS.md` 为准。
-
 # 肝细胞癌B细胞相关lncRNA表观遗传调控网络分析报告
 
 **Analysis Date**: 2025-11-17

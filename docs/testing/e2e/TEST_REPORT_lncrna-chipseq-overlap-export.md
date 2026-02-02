@@ -2,17 +2,11 @@
 
 **Date**: 2025-12-07
 **Test File**: `<repo-root>/frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts`
-**Status**: 🗂️ **HISTORICAL SNAPSHOT (Was blocked on 2025-12-07)**
+**Status**: ⚠️ **BLOCKED - Feature Not Implemented**
 
-> 更新（2026-02-02）：本文档为 2025-12-07 报告快照；当前导出能力与 E2E 用例已在后续阶段演进，现状以 `docs/CURRENT_STATUS.md`、`docs/testing/README.md` 与 `frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts` 为准。
+> 更新（2026-01-25）：本文档为 2025-12-07 报告快照；当前导出能力与 E2E 用例已在后续阶段演进，现状以 `docs/CURRENT_STATUS.md`、`docs/testing/README.md` 与 `frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts` 为准。
 
 ---
-
-## Current Status (2026-02-02)
-
-- Backend 导出端点已实现：`frontend/backend/app/routers/lncrna_chipseq_overlap.py`（`GET /api/v1/lncrna-chipseq-overlap/export`）
-- Backend 流式导出单元测试：`frontend/backend/tests/test_overlap_export_streaming_unit.py`
-- E2E 用例入口：`frontend/web/e2e/lncrna-chipseq-overlap-export.spec.ts`（按 `docs/testing/e2e/README.md` 的 `BASE_URL` / `API_BASE_URL` 运行）
 
 ## Executive Summary
 
