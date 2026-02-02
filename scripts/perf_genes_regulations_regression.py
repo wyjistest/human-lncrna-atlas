@@ -54,9 +54,9 @@ DEFAULT_REGULATIONS_PAGE_SIZE = 100
 
 DEFAULT_MIN_SAMPLES = 10
 
-DEFAULT_RESPONSE_REGRESSION_PCT = 20.0
+DEFAULT_RESPONSE_REGRESSION_PCT = 15.0
 DEFAULT_RESPONSE_REGRESSION_ABS_MS = 10.0
-DEFAULT_DB_REGRESSION_PCT = 20.0
+DEFAULT_DB_REGRESSION_PCT = 15.0
 DEFAULT_DB_REGRESSION_ABS_MS = 2.0
 
 
@@ -570,7 +570,7 @@ def _parse_args() -> argparse.Namespace:
         "--response-regression-pct",
         type=float,
         default=DEFAULT_RESPONSE_REGRESSION_PCT,
-        help="Gate response regressions when delta_pct > this threshold (default: 20).",
+        help="Gate response regressions when delta_pct > this threshold (default: 15).",
     )
     parser.add_argument(
         "--response-regression-abs-ms",
@@ -582,7 +582,7 @@ def _parse_args() -> argparse.Namespace:
         "--db-regression-pct",
         type=float,
         default=DEFAULT_DB_REGRESSION_PCT,
-        help="Gate DB regressions when delta_pct > this threshold (default: 20).",
+        help="Gate DB regressions when delta_pct > this threshold (default: 15).",
     )
     parser.add_argument(
         "--db-regression-abs-ms",

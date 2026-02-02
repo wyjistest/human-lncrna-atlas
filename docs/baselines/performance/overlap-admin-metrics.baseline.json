@@ -44,11 +44,11 @@
     "thresholds": {
       "db": {
         "abs_ms": 2.0,
-        "pct": 20.0
+        "pct": 15.0
       },
       "response": {
         "abs_ms": 10.0,
-        "pct": 20.0
+        "pct": 15.0
       }
     }
   }
