@@ -100,6 +100,26 @@ SKIP_LOCAL_CI=1 git push
 
 目的是避免 `curl http://localhost:...` 意外走代理导致“命令卡住不动”。如你有更复杂的网络/内网域名需求，可在运行前自行覆盖 `NO_PROXY`。
 
+## 门禁与依赖（是否需要 DB/Redis/backend）
+
+这一节的目标是：让你先选“要跑的门禁”，再决定“需不需要起服务”，避免一上来就把环境搞得很重。
+
+### 不需要 Postgres/Redis/backend（纯本地，无外部服务）
+
+- 核心门禁：`docs-check` / `scripts-tests` / `smoke` / `ci` / `ci-plus` / `ci-full`
+- 后端类：`backend-lint` / `backend-checks` / `backend-unit`
+- 前端类：`unit` / `frontend-lint` / `frontend-build`
+- Playwright mocked：`e2e-smoke` / `e2e-smoke-firefox` / `e2e-a11y-smoke` / `e2e-visual-smoke`
+- ETL：`etl-checks`
+
+### 需要可用后端（通常意味着要起 Postgres/Redis + backend）
+
+- `status`：检查 `API_BASE_URL` / `BASE_URL` 可访问性（用于排障）
+- `backend`：后端 API 合同测试（要求服务运行）
+- `e2e`：前端 E2E（要求服务运行）
+- `all`：完整测试集合（要求服务运行）
+- `performance-audit`：需要 `API_BASE_URL/health` 可访问（会 fail-fast）
+
 ## 数据库相关：何时需要 Postgres/Redis？
 
 - `bash scripts/run-tests.sh ci`：不需要 Postgres/Redis（仅跑单测 + 语法/导入检查 + 文档门禁 + 迁移校验等）。
@@ -109,6 +129,35 @@ SKIP_LOCAL_CI=1 git push
 
 一个“最短路径”的容器路径（本地 localhost allowlist，推荐）：
 
+### 本机 docker compose 最短 `.env` 示例（localhost allowlist）
+
+优先推荐直接用模板（已经是“本机最短路径”配置）：
+
+```bash
+cp .env.local.example .env
+```
+
+`.env.local.example` 的关键点：
+
+- `TRUSTED_HOSTS` / `CORS_ORIGINS` **必须是 JSON 数组**（不是逗号分隔字符串），否则后端会拒绝启动（fail-fast）。
+- `CORS_ORIGINS` 必须包含你实际前端 origin（常见是 `5173`；端口被占用时可能变成 `5174`）。
+
+如果你想自己写 `.env`，至少需要这些字段（示例值可直接复制，记得填 `DB_PASSWORD` / `ADMIN_API_KEY`）：
+
+```env
+ENV=production
+
+DB_USER=lncrna
+DB_NAME=lncrna_production
+DB_PASSWORD=<<fill_me>>
+
+ADMIN_REQUIRE_API_KEY=true
+ADMIN_API_KEY=<<fill_me>>  # openssl rand -hex 32
+
+TRUSTED_HOSTS=["localhost","127.0.0.1","*.localhost"]
+CORS_ORIGINS=["http://localhost:5173","http://127.0.0.1:5173","http://localhost:5174","http://127.0.0.1:5174"]
+```
+
 ```bash
 cp .env.local.example .env
 # edit .env (DB_PASSWORD / ADMIN_API_KEY)
@@ -116,6 +165,17 @@ cp .env.local.example .env
 docker compose up -d
 curl -fsS "http://127.0.0.1:8000/health"
 ```
+
+如果 `health` 失败，优先按下面顺序定位（避免盲猜）：
+
+- `docker compose ps`
+- `docker compose logs backend --tail 200`
+
+常见原因（fail-fast）：
+
+- `TRUSTED_HOSTS` / `CORS_ORIGINS` 不是 JSON 数组，或漏了 `localhost/127.0.0.1`
+- `ADMIN_API_KEY` 为空（docker compose 的后端服务要求必须设置）
+- `DB_PASSWORD` 为空（postgres/backend 都要求必须设置）
 
 如你要更贴近生产部署（真实域名 allowlist / 更严格安全默认），请改用 `.env.example` 作为模板（但不要把占位符域名直接用于公网部署）。
 
