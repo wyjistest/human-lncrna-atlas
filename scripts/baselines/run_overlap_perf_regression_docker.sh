@@ -31,6 +31,7 @@ MODE="${MODE:-check}" # check | generate-baseline
 WARMUP_ROUNDS="${WARMUP_ROUNDS:-30}"
 LNCRNA_GENE_ID="${LNCRNA_GENE_ID:-17276}"
 SPECIES_IDS="${SPECIES_IDS:-1,3}"
+RESET_METRICS="${RESET_METRICS:-true}"
 
 MIN_SAMPLES="${MIN_SAMPLES:-20}"
 RESPONSE_REGRESSION_PCT="${RESPONSE_REGRESSION_PCT:-8}"
@@ -73,6 +74,7 @@ Options (env var compatible):
   WARMUP_ROUNDS=30
   LNCRNA_GENE_ID=17276
   SPECIES_IDS=1,3
+  RESET_METRICS=true|false
   MIN_SAMPLES=20
   RESPONSE_REGRESSION_PCT=8
   RESPONSE_REGRESSION_ABS_MS=5
@@ -164,6 +166,7 @@ trap cleanup EXIT
 echo "[overlap-perf] compose project: $PROJECT_NAME"
 echo "[overlap-perf] mode: $MODE"
 echo "[overlap-perf] base_url: $BASE_URL"
+echo "[overlap-perf] reset_metrics: $RESET_METRICS"
 echo "[overlap-perf] out_dir: $OUT_DIR"
 echo "[overlap-perf] baseline_file: $BASELINE_FILE"
 echo "[overlap-perf] baseline_raw_metrics_file: $BASELINE_RAW_METRICS_FILE"
@@ -212,12 +215,18 @@ mkdir -p "$OUT_DIR"
 mkdir -p "$(dirname "$BASELINE_FILE")"
 
 echo "[overlap-perf] running perf gate..."
+reset_args=()
+if [ "$RESET_METRICS" = "true" ]; then
+  reset_args=(--reset-metrics)
+fi
+
 python3 scripts/perf_overlap_regression.py "$MODE" \
   --base-url "$BASE_URL" \
   --admin-api-key "$ADMIN_API_KEY" \
   --out-dir "$OUT_DIR" \
   --baseline-file "$BASELINE_FILE" \
   --baseline-raw-metrics-file "$BASELINE_RAW_METRICS_FILE" \
+  "${reset_args[@]}" \
   --warmup-rounds "$WARMUP_ROUNDS" \
   --lncrna-gene-id "$LNCRNA_GENE_ID" \
   --species-ids "$SPECIES_IDS" \

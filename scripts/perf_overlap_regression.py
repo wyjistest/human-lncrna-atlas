@@ -36,6 +36,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 OVERLAP_LIST_PATH = "/api/v1/lncrna-chipseq-overlap"
 OVERLAP_COMPARE_PATH = "/api/v1/lncrna-chipseq-overlap/compare"
+ADMIN_METRICS_PATH = "/api/v1/admin/metrics"
+ADMIN_METRICS_RESET_PATH = "/api/v1/admin/metrics/reset-stats"
 
 DEFAULT_BASELINE_FILE = REPO_ROOT / "docs" / "baselines" / "performance" / "overlap-admin-metrics.baseline.json"
 DEFAULT_BASELINE_RAW_METRICS_FILE = (
@@ -139,6 +141,35 @@ def _fetch_json_result(url: str, *, timeout_seconds: float) -> JsonResult:
             body = b""
     except URLError as e:
         raise RuntimeError(f"Network error fetching {url}: {e}") from e
+
+    text = body.decode("utf-8", errors="replace")
+    if not text.strip():
+        return JsonResult(status_code=status_code, json=None)
+
+    try:
+        return JsonResult(status_code=status_code, json=json.loads(text))
+    except json.JSONDecodeError:
+        return JsonResult(status_code=status_code, json=None)
+
+
+def _post_json_result(url: str, *, admin_api_key: Optional[str], timeout_seconds: float) -> JsonResult:
+    headers = {"Accept": "application/json"}
+    if admin_api_key:
+        headers["X-Admin-API-Key"] = admin_api_key
+
+    req = Request(url, headers=headers, method="POST")
+    try:
+        with urlopen(req, timeout=timeout_seconds) as resp:
+            body = resp.read()
+            status_code = int(resp.getcode())
+    except HTTPError as e:
+        status_code = int(e.code)
+        try:
+            body = e.read()
+        except Exception:
+            body = b""
+    except URLError as e:
+        raise RuntimeError(f"Network error posting {url}: {e}") from e
 
     text = body.decode("utf-8", errors="replace")
     if not text.strip():
@@ -301,6 +332,7 @@ def _build_compact_snapshot(
     mode: str,
     baseline_file: Path,
     baseline_raw_metrics_file: Optional[Path],
+    admin_metrics_reset: Optional[dict[str, Any]],
     lncrna_gene_id: int,
     lncrna_gene_id_requested: int,
     lncrna_gene_id_source: str,
@@ -353,6 +385,7 @@ def _build_compact_snapshot(
                 "species_ids": species_ids,
                 "warmup_rounds": warmup_rounds,
                 "min_samples": min_samples,
+                "admin_metrics_reset": admin_metrics_reset,
             },
             "thresholds": {
                 "response": {"pct": response_regression_pct, "abs_ms": response_regression_abs_ms},
@@ -470,6 +503,11 @@ def _build_markdown(
     db_regression_pct: float,
     db_regression_abs_ms: float,
 ) -> str:
+    meta = current.get("meta") if isinstance(current.get("meta"), dict) else {}
+    scenario = meta.get("scenario") if isinstance(meta.get("scenario"), dict) else {}
+    scenario_species_ids = scenario.get("species_ids")
+    admin_metrics_reset = scenario.get("admin_metrics_reset") if isinstance(scenario.get("admin_metrics_reset"), dict) else None
+
     lines: list[str] = [
         "# Overlap Performance Regression",
         "",
@@ -486,6 +524,15 @@ def _build_markdown(
         "- metric: `p95_ms` only (p99 is informational)",
         f"- response: `>{response_regression_pct:.0f}%` AND `>{response_regression_abs_ms:.0f}ms`",
         f"- db: `>{db_regression_pct:.0f}%` AND `>{db_regression_abs_ms:.0f}ms`",
+        "",
+        "## Scenario",
+        "",
+        f"- lncrna_gene_id: `{scenario.get('lncrna_gene_id')}` (requested: `{scenario.get('lncrna_gene_id_requested')}`, source: `{scenario.get('lncrna_gene_id_source')}`)",
+        f"- species_ids: `{scenario_species_ids}`",
+        f"- warmup_rounds: `{scenario.get('warmup_rounds')}`",
+        f"- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
+            f"- admin_metrics_reset: `enabled` (status: `{admin_metrics_reset.get('status_code')}`, ok: `{admin_metrics_reset.get('ok')}`)"
+        ),
         "",
         "## Endpoints",
         "",
@@ -595,6 +642,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit admin-metrics diff even when gate passes (requires --baseline-raw-metrics-file).",
     )
+    parser.add_argument(
+        "--reset-metrics",
+        action="store_true",
+        help="Optional: POST /api/v1/admin/metrics/reset-stats before warmup (recommended for long-lived backends).",
+    )
     parser.add_argument("--warmup-rounds", type=int, default=30, help="Warmup rounds before snapshot (default: 30).")
     parser.add_argument(
         "--lncrna-gene-id",
@@ -672,6 +724,21 @@ def main() -> int:
     db_regression_pct = float(args.db_regression_pct)
     db_regression_abs_ms = float(args.db_regression_abs_ms)
 
+    admin_metrics_reset: Optional[dict[str, Any]] = None
+    if bool(args.reset_metrics):
+        reset_url = f"{base_url}{ADMIN_METRICS_RESET_PATH}"
+        try:
+            res = _post_json_result(reset_url, admin_api_key=admin_api_key, timeout_seconds=float(args.timeout_seconds))
+            admin_metrics_reset = {"status_code": res.status_code, "ok": res.status_code == 200}
+            if res.status_code != 200:
+                print(
+                    f"[WARN] admin metrics reset returned HTTP {res.status_code}: {reset_url} (continue without reset)",
+                    file=sys.stderr,
+                )
+        except Exception as e:
+            admin_metrics_reset = {"status_code": None, "ok": False}
+            print(f"[WARN] admin metrics reset failed: {e} (continue without reset)", file=sys.stderr)
+
     # 1) Warmup traffic (best effort but required for stable percentiles)
     requested_lncrna_gene_id = int(args.lncrna_gene_id)
     resolved_lncrna_gene_id = requested_lncrna_gene_id
@@ -685,6 +752,14 @@ def main() -> int:
             timeout_seconds=float(args.timeout_seconds),
         )
     except WarmupRequestError as e:
+        if e.status_code == 429:
+            print(f"[ERROR] {e}", file=sys.stderr)
+            print(
+                "[HINT] HTTP 429 during warmup. If you're using docker-sample, ensure RATE_LIMIT_BYPASS_PRIVATE=true. "
+                "If you're using an external backend, check any rate limit middleware / allowlist settings.",
+                file=sys.stderr,
+            )
+            return 2
         is_compare = OVERLAP_COMPARE_PATH in (e.url or "")
         if is_compare and e.status_code in (400, 404, 422):
             picked = _pick_lncrna_gene_id_with_core_id(
@@ -727,7 +802,7 @@ def main() -> int:
         return 2
 
     # 2) Fetch metrics
-    metrics_url = f"{base_url}/api/v1/admin/metrics"
+    metrics_url = f"{base_url}{ADMIN_METRICS_PATH}"
     try:
         raw_metrics = _fetch_json(metrics_url, admin_api_key=admin_api_key, timeout_seconds=float(args.timeout_seconds))
     except Exception as e:
@@ -746,6 +821,7 @@ def main() -> int:
         mode=str(args.cmd),
         baseline_file=baseline_file,
         baseline_raw_metrics_file=baseline_raw_metrics_file,
+        admin_metrics_reset=admin_metrics_reset,
         lncrna_gene_id=resolved_lncrna_gene_id,
         lncrna_gene_id_requested=requested_lncrna_gene_id,
         lncrna_gene_id_source=lncrna_gene_id_source,
@@ -803,41 +879,57 @@ def main() -> int:
         return 0
 
     # check mode
+    baseline: Optional[dict[str, Any]] = None
+    ok = False
+    failures: list[str] = []
+    exit_code = 0
+
     if not baseline_file.exists():
-        print(f"[ERROR] baseline file not found: {baseline_file}", file=sys.stderr)
-        return 2
+        failures.append(f"[ERROR] baseline file not found: {baseline_file}")
+        failures.append("[HINT] Run: python3 scripts/perf_overlap_regression.py generate-baseline ... then commit baseline.")
+        exit_code = 2
+    else:
+        try:
+            baseline = _load_json_file(baseline_file)
+        except Exception as e:
+            failures.append(f"[ERROR] failed to read baseline: {baseline_file}: {e}")
+            exit_code = 2
 
-    try:
-        baseline = _load_json_file(baseline_file)
-    except Exception as e:
-        print(f"[ERROR] failed to read baseline: {baseline_file}: {e}", file=sys.stderr)
-        return 2
-
-    meta = baseline.get("meta") or {}
-    status = str((meta.get("status") if isinstance(meta, dict) else "") or "").strip().upper()
-    if status == "UNSET":
-        print(f"[ERROR] baseline is UNSET: {baseline_file}", file=sys.stderr)
-        print("[HINT] Run: python3 scripts/perf_overlap_regression.py generate-baseline ... then commit baseline.", file=sys.stderr)
-        return 3
-
-    try:
-        _require_endpoint_samples(baseline, label="baseline", min_samples=min_samples)
-        _require_endpoint_samples(current, label="current", min_samples=min_samples)
-    except Exception as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
-        return 3
-
-    ok, failures = _gate_regressions(
-        baseline,
-        current,
-        response_pct_th=response_regression_pct,
-        response_abs_th=response_regression_abs_ms,
-        db_pct_th=db_regression_pct,
-        db_abs_th=db_regression_abs_ms,
-    )
+    if baseline is not None:
+        meta = baseline.get("meta") or {}
+        status = str((meta.get("status") if isinstance(meta, dict) else "") or "").strip().upper()
+        if status == "UNSET":
+            failures.append(f"[ERROR] baseline is UNSET: {baseline_file}")
+            failures.append("[HINT] Run: python3 scripts/perf_overlap_regression.py generate-baseline ... then commit baseline.")
+            exit_code = 3
+        else:
+            try:
+                _require_endpoint_samples(baseline, label="baseline", min_samples=min_samples)
+                _require_endpoint_samples(current, label="current", min_samples=min_samples)
+            except Exception as e:
+                msg = str(e)
+                failures.append(f"[ERROR] {msg}")
+                if "insufficient samples" in msg:
+                    failures.append(
+                        "[HINT] Increase --warmup-rounds or lower --min-samples. "
+                        "If you're running against a long-lived backend, consider using --reset-metrics to clear /admin/metrics first."
+                    )
+                exit_code = 3
+            else:
+                gate_ok, gate_failures = _gate_regressions(
+                    baseline,
+                    current,
+                    response_pct_th=response_regression_pct,
+                    response_abs_th=response_regression_abs_ms,
+                    db_pct_th=db_regression_pct,
+                    db_abs_th=db_regression_abs_ms,
+                )
+                ok = gate_ok
+                failures.extend(gate_failures)
+                exit_code = 0 if ok else 3
 
     admin_metrics_diff_path: Optional[Path] = None
-    emit_diff = bool(args.emit_admin_metrics_diff) or (not ok)
+    emit_diff = bool(args.emit_admin_metrics_diff) or (exit_code != 0)
     if emit_diff and baseline_raw_metrics_file is not None:
         if baseline_raw_metrics_file.exists():
             try:
@@ -881,7 +973,7 @@ def main() -> int:
     md_path = out_dir / f"perf-overlap-{ts}.md"
     md_path.write_text(md, encoding="utf-8")
 
-    if ok:
+    if exit_code == 0:
         print(f"[OK] No gated regressions. Report: {md_path}")
         if admin_metrics_diff_path is not None:
             print(f"[OK] Admin metrics diff: {admin_metrics_diff_path}")
@@ -889,10 +981,10 @@ def main() -> int:
 
     for f in failures:
         print(f, file=sys.stderr)
-    print(f"[FAIL] Gated regressions detected. Report: {md_path}", file=sys.stderr)
+    print(f"[FAIL] Perf gate failed. Report: {md_path}", file=sys.stderr)
     if admin_metrics_diff_path is not None:
         print(f"[INFO] Admin metrics diff: {admin_metrics_diff_path}", file=sys.stderr)
-    return 3
+    return exit_code
 
 
 if __name__ == "__main__":

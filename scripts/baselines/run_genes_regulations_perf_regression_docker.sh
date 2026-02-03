@@ -29,6 +29,7 @@ cd "$REPO_ROOT"
 
 MODE="${MODE:-check}" # check | generate-baseline
 WARMUP_ROUNDS="${WARMUP_ROUNDS:-30}"
+RESET_METRICS="${RESET_METRICS:-true}"
 
 GENES_SPECIES_ID="${GENES_SPECIES_ID:-1}"
 GENES_GENE_TYPE="${GENES_GENE_TYPE:-lncRNA}"
@@ -77,6 +78,7 @@ Options (env var compatible):
   MODE=check|generate-baseline
   BASE_URL=http://localhost:8000
   WARMUP_ROUNDS=30
+  RESET_METRICS=true|false
   GENES_SPECIES_ID=1
   GENES_GENE_TYPE=lncRNA
   GENES_PAGE_SIZE=100
@@ -173,6 +175,7 @@ trap cleanup EXIT
 echo "[genes-regulations-perf] compose project: $PROJECT_NAME"
 echo "[genes-regulations-perf] mode: $MODE"
 echo "[genes-regulations-perf] base_url: $BASE_URL"
+echo "[genes-regulations-perf] reset_metrics: $RESET_METRICS"
 echo "[genes-regulations-perf] out_dir: $OUT_DIR"
 echo "[genes-regulations-perf] baseline_file: $BASELINE_FILE"
 echo "[genes-regulations-perf] baseline_raw_metrics_file: $BASELINE_RAW_METRICS_FILE"
@@ -221,12 +224,18 @@ mkdir -p "$OUT_DIR"
 mkdir -p "$(dirname "$BASELINE_FILE")"
 
 echo "[genes-regulations-perf] running perf gate..."
+reset_args=()
+if [ "$RESET_METRICS" = "true" ]; then
+  reset_args=(--reset-metrics)
+fi
+
 python3 scripts/perf_genes_regulations_regression.py "$MODE" \
   --base-url "$BASE_URL" \
   --admin-api-key "$ADMIN_API_KEY" \
   --out-dir "$OUT_DIR" \
   --baseline-file "$BASELINE_FILE" \
   --baseline-raw-metrics-file "$BASELINE_RAW_METRICS_FILE" \
+  "${reset_args[@]}" \
   --warmup-rounds "$WARMUP_ROUNDS" \
   --genes-species-id "$GENES_SPECIES_ID" \
   --genes-gene-type "$GENES_GENE_TYPE" \
