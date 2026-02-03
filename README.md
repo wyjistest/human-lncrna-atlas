@@ -40,6 +40,12 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **Charts**: ECharts 6
 - **Network Graph**: Cytoscape.js
 
+## Status / Roadmap
+
+- Current status: `docs/CURRENT_STATUS.md`
+- Roadmap (1–2 weeks): `docs/ROADMAP_2026-02-03.md`
+- CI / self-hosted runner guide: `docs/CI_SELF_HOSTED_RUNNER.md`
+
 ## Project Structure
 
 ```

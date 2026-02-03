@@ -17,6 +17,7 @@
 python3 scripts/perf_genes_regulations_regression.py generate-baseline \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
+  --reset-metrics \
   --warmup-rounds 30 \
   --genes-species-id 1 \
   --genes-gene-type "lncRNA" \
@@ -40,6 +41,7 @@ git commit -m "perf(baseline): set genes/regulations admin-metrics baseline"
 python3 scripts/perf_genes_regulations_regression.py check \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
+  --reset-metrics \
   --warmup-rounds 30 \
   --genes-species-id 1 \
   --genes-gene-type "lncRNA" \
@@ -71,6 +73,8 @@ MODE=generate-baseline bash scripts/baselines/run_genes_regulations_perf_regress
 - `docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json`（用于定位 diff）
 
 并在退出时自动清理容器（可用 `KEEP_DOCKER=true` 保留用于排障）。
+
+你也可以通过 `RESET_METRICS=false` 禁用“运行前重置 admin metrics”（默认启用，避免长时间运行的 backend 混入旧样本）。
 
 ## 门禁规则（当前阈值）
 

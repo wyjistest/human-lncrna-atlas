@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-01-29
+> 最后更新: 2026-02-03
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -37,6 +37,21 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-02-03 ⭐ perf regression 门禁与排障增强
+
+1. **性能门禁默认阈值收紧 + baseline 刷新**
+   - `Performance Overlap` / `Performance Genes/Regulations`：默认 `warmup_rounds=30`、`min_samples=20`、`pct=8%` 收紧门禁并刷新 baseline（便于更早发现回归）。
+
+2. **门禁可定位性增强：支持重置 admin metrics + 报告更完整**
+   - perf 脚本新增 `--reset-metrics`：在 warmup 前调用 `POST /api/v1/admin/metrics/reset-stats`（适用于长时间运行的 backend，避免旧样本混入）。
+   - check 模式在“基线缺失/UNSET/样本不足”等早期失败时也会输出 `docs/reports/perf-*.md` 报告，便于定位与审计。
+
+3. **docker-sample 稳定性：避免 warmup 触发 429**
+   - docker-sample perf regression 默认启用 `RATE_LIMIT_BYPASS_PRIVATE=true`（docker bridge 私网 IP 不受限流影响）。
+
+4. **网络受限止损路径固化**
+   - 补充 self-hosted runner 排障与 GitHub API 止损推送（`scripts/gh_push_commit.py`），降低 `git push/fetch` 不稳定带来的阻塞。
 
 ### 2026-01-29 ⭐ URL 参数同步扩展（Stats / Conservation / Analysis）
 
