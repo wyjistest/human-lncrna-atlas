@@ -1,6 +1,8 @@
 # Perf Gate Retry + Docs Cleanup Implementation Plan
 
 > **For Codex:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task.
+>
+> 现状与进度以 `docs/CURRENT_STATUS.md` 为准。
 
 **Goal:** 提升 perf regression 在 self-hosted 环境的稳定性与可定位性：对 warmup 期间的 429/5xx 做有限重试（减少偶发误报），并同步相关文档入口与说明。
 
@@ -81,4 +83,3 @@
 **Step 2: 小步提交（可回滚）**
 - Commit 1（代码+测试）：`perf: retry warmup requests in perf regression scripts`
 - Commit 2（文档）：`docs(perf): document warmup retry knobs`
-
