@@ -52,6 +52,8 @@ CORS_ORIGINS="${CORS_ORIGINS:-[\"http://localhost:5173\"]}"
 
 APP_ENV="${APP_ENV:-development}"
 ENABLE_CACHE="${ENABLE_CACHE:-false}"
+# Perf regression should not be blocked by rate limiting (docker bridge IP is private, not loopback).
+RATE_LIMIT_BYPASS_PRIVATE="${RATE_LIMIT_BYPASS_PRIVATE:-true}"
 
 BASE_URL="${BASE_URL:-http://localhost:8000}"
 OUT_DIR="${OUT_DIR:-docs/reports}"
@@ -140,6 +142,7 @@ compose() {
   COMPOSE_PROJECT_NAME="$PROJECT_NAME" \
   ENV="$APP_ENV" \
   ENABLE_CACHE="$ENABLE_CACHE" \
+  RATE_LIMIT_BYPASS_PRIVATE="$RATE_LIMIT_BYPASS_PRIVATE" \
   DB_NAME="$DB_NAME" \
   DB_USER="$DB_USER" \
   DB_PASSWORD="$DB_PASSWORD" \
