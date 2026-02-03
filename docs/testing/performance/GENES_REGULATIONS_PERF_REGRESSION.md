@@ -83,6 +83,21 @@ MODE=generate-baseline bash scripts/baselines/run_genes_regulations_perf_regress
   - Response：`>8%` 且 `>20ms`
   - DB：`>8%` 且 `>2ms`
 
+## warmup 重试（减少偶发 429/5xx）
+
+为降低 self-hosted 环境偶发抖动导致的误报，warmup 请求默认对部分“瞬时错误”做有限重试：
+
+- 默认：每个 warmup 请求最多重试 `2` 次（指数退避，`base=200ms`，最大 `2s`）
+- 可通过参数调整：
+  - `--warmup-max-retries <N>`：每次 warmup 请求的最大重试次数
+  - `--warmup-retry-base-sleep-ms <MS>`：退避 base sleep（毫秒）
+
+说明：
+- 如果你看到 warmup 期间出现 `HTTP 429`：
+  - `docker-sample`：优先确认 `RATE_LIMIT_BYPASS_PRIVATE=true`
+  - `external`：检查 rate limit / allowlist / WAF 等配置
+- 若最终仍失败：脚本会生成 `docs/reports/perf-genes-regulations-*.md/.json` 诊断报告，便于定位与回滚。
+
 > 如需临时调整：可通过参数覆盖（例如 `--response-regression-pct`、`--db-regression-pct`、`--min-samples`）。
 
 ## GitHub Actions（workflow_dispatch）
