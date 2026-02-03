@@ -101,6 +101,7 @@
 
 3. **Phase 6.0 可复现产出（Research scripts）**
    - BA>=100 Top lncRNA 榜单：`scripts/research/top_lncrna_by_binding_affinity.py`（输出 `docs/reports/top-lncrna-ba100-species1.(csv|md)`）
+   - ✅ sample DB 可提交产物示例：`bash scripts/research/generate_top_lncrna_sample_baseline_local.sh`（输出并提交 `docs/baselines/research/top-lncrna-ba50-species1.(csv|md)`；sample_data 的 BA 约 55–82，因此 `MIN_BA` 默认 50）
    - Top lncRNA 靶基因导出（富集输入）：`scripts/research/top_lncrna_target_genes_for_enrichment.py`（输出 TSV/TXT/MD）
    - 跨物种保守性分层统计 + Top 列表：`scripts/research/conserved_lncrna_by_binding_affinity.py`（按 core_id 聚合，输出 CSV/MD）
    - 保守性矩阵（物种两两共享数量 + 行归一化共享率）：`scripts/research/conservation_matrix_by_binding_affinity.py`（输出 counts/row-share CSV + MD，可选 PNG）
@@ -108,6 +109,7 @@
    - 保守等级分层靶基因列表（富集输入）：`scripts/research/conserved_lncrna_target_genes_for_enrichment.py`（输出 TSV/TXT/MD；支持对比 species_count==1）
    - 表观遗传重叠汇总（mark×cell_type×category）：`scripts/research/epigenetic_summary_by_binding_affinity.py`（输出 TSV/MD）
    - 疾病网络汇总（Top diseases / Top lncRNAs）：`scripts/research/disease_network_summary.py`（输出 TSV/MD）
+   - ✅ Research 产物路径展示已统一为 repo-relative（避免把机器绝对路径写入 Markdown）
    - Phase 6.0 规划文档已补齐“一条命令复现”的入口（`docs/PHASE_6.0_RESEARCH_ANALYSIS_PLAN.md`）
 
 ### 2026-01-26 ⭐ 文档一致性护栏（现状指引）

@@ -109,6 +109,10 @@ bash scripts/research/generate_top_lncrna_sample_baseline_local.sh
 - `docs/reports/top-lncrna-ba100-species1.md`
 （多物种模式会额外生成索引，例如：`docs/reports/top-lncrna-ba100-species-all.md`）
 
+sample baseline（可提交小文件，便于 review）：
+- `docs/baselines/research/top-lncrna-ba50-species1.csv`
+- `docs/baselines/research/top-lncrna-ba50-species1.md`
+
 **生成榜单**:
 ```python
 top_100_lncrnas = pd.DataFrame({
