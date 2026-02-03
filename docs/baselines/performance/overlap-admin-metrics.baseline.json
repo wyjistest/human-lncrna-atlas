@@ -43,11 +43,11 @@
     "status": "SET",
     "thresholds": {
       "db": {
-        "abs_ms": 2.0,
+        "abs_ms": 1.0,
         "pct": 8.0
       },
       "response": {
-        "abs_ms": 10.0,
+        "abs_ms": 4.0,
         "pct": 8.0
       }
     }

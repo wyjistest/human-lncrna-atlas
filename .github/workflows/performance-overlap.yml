@@ -54,7 +54,7 @@ on:
       response_regression_abs_ms:
         description: "Gate: response regression abs threshold (ms)."
         required: false
-        default: "5"
+        default: "4"
       db_regression_pct:
         description: "Gate: db regression pct threshold."
         required: false
@@ -62,7 +62,7 @@ on:
       db_regression_abs_ms:
         description: "Gate: db regression abs threshold (ms)."
         required: false
-        default: "2"
+        default: "1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -82,9 +82,9 @@ env:
   RESET_METRICS: ${{ github.event.inputs.reset_metrics || 'false' }}
   MIN_SAMPLES: ${{ github.event.inputs.min_samples || '20' }}
   RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '8' }}
-  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '5' }}
+  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '4' }}
   DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '8' }}
-  DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '2' }}
+  DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '1' }}
   PYTHON_VERSION: '3.11'
 
 jobs:
