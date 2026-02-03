@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -54,6 +55,9 @@ DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
 DEFAULT_RESPONSE_REGRESSION_ABS_MS = 5.0
 DEFAULT_DB_REGRESSION_PCT = 8.0
 DEFAULT_DB_REGRESSION_ABS_MS = 2.0
+
+DEFAULT_WARMUP_MAX_RETRIES = 2
+DEFAULT_WARMUP_RETRY_BASE_SLEEP_MS = 200
 
 
 class WarmupRequestError(RuntimeError):
@@ -220,14 +224,60 @@ def _pick_lncrna_gene_id_with_core_id(
 
 
 def _warmup_get(url: str, *, timeout_seconds: float) -> None:
+    _warmup_get_with_retry(url, timeout_seconds=timeout_seconds, max_retries=0, retry_base_sleep_ms=0)
+
+
+def _warmup_get_with_retry(
+    url: str,
+    *,
+    timeout_seconds: float,
+    max_retries: int,
+    retry_base_sleep_ms: int,
+) -> None:
+    retryable_status = {429, 500, 502, 503, 504}
+    total_attempts = max(1, int(max_retries) + 1)
+    base_sleep_ms = max(0, int(retry_base_sleep_ms))
+
     req = Request(url, headers={"Accept": "application/json"}, method="GET")
-    try:
-        with urlopen(req, timeout=timeout_seconds) as resp:
-            resp.read()
-    except HTTPError as e:
-        raise WarmupRequestError(url, status_code=int(e.code), detail=str(e)) from e
-    except Exception as e:
-        raise WarmupRequestError(url, status_code=None, detail=str(e)) from e
+    for attempt in range(total_attempts):
+        try:
+            with urlopen(req, timeout=timeout_seconds) as resp:
+                resp.read()
+            return
+        except HTTPError as e:
+            status_code = int(e.code)
+            is_retryable = status_code in retryable_status
+            if attempt < total_attempts - 1 and is_retryable:
+                sleep_seconds = min((base_sleep_ms / 1000.0) * (2**attempt), 2.0)
+                if sleep_seconds > 0:
+                    print(
+                        f"[WARN] warmup request HTTP {status_code}; retry in {sleep_seconds:.2f}s "
+                        f"(attempt {attempt + 1}/{total_attempts}): {url}",
+                        file=sys.stderr,
+                    )
+                    time.sleep(sleep_seconds)
+                continue
+            raise WarmupRequestError(
+                url,
+                status_code=status_code,
+                detail=f"{e} (attempt {attempt + 1}/{total_attempts})",
+            ) from e
+        except Exception as e:
+            if attempt < total_attempts - 1:
+                sleep_seconds = min((base_sleep_ms / 1000.0) * (2**attempt), 2.0)
+                if sleep_seconds > 0:
+                    print(
+                        f"[WARN] warmup request error; retry in {sleep_seconds:.2f}s "
+                        f"(attempt {attempt + 1}/{total_attempts}): {url}: {e}",
+                        file=sys.stderr,
+                    )
+                    time.sleep(sleep_seconds)
+                continue
+            raise WarmupRequestError(
+                url,
+                status_code=None,
+                detail=f"{e} (attempt {attempt + 1}/{total_attempts})",
+            ) from e
 
 
 def _parse_species_ids(text: str) -> list[int]:
@@ -310,6 +360,8 @@ def _warmup_overlap(
     lncrna_gene_id: int,
     species_ids: list[int],
     warmup_rounds: int,
+    warmup_max_retries: int,
+    warmup_retry_base_sleep_ms: int,
     timeout_seconds: float,
 ) -> None:
     if warmup_rounds <= 0:
@@ -321,8 +373,18 @@ def _warmup_overlap(
     for _ in range(int(warmup_rounds)):
         list_url = f"{base_url}{OVERLAP_LIST_PATH}?{urlencode({'lncrna_gene_id': lncrna_gene_id, 'species_id': first_species})}"
         compare_url = f"{base_url}{OVERLAP_COMPARE_PATH}?{urlencode({'lncrna_gene_id': lncrna_gene_id, 'species_ids': compare_species})}"
-        _warmup_get(list_url, timeout_seconds=timeout_seconds)
-        _warmup_get(compare_url, timeout_seconds=timeout_seconds)
+        _warmup_get_with_retry(
+            list_url,
+            timeout_seconds=timeout_seconds,
+            max_retries=warmup_max_retries,
+            retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+        )
+        _warmup_get_with_retry(
+            compare_url,
+            timeout_seconds=timeout_seconds,
+            max_retries=warmup_max_retries,
+            retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+        )
 
 
 def _empty_endpoint_row() -> dict[str, Any]:
@@ -340,6 +402,8 @@ def _build_warmup_failure_snapshot(
     lncrna_gene_id_source: str,
     species_ids: list[int],
     warmup_rounds: int,
+    warmup_max_retries: int,
+    warmup_retry_base_sleep_ms: int,
     admin_metrics_reset: Optional[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
@@ -350,6 +414,8 @@ def _build_warmup_failure_snapshot(
                 "lncrna_gene_id_source": lncrna_gene_id_source,
                 "species_ids": species_ids,
                 "warmup_rounds": warmup_rounds,
+                "warmup_max_retries": warmup_max_retries,
+                "warmup_retry_base_sleep_ms": warmup_retry_base_sleep_ms,
                 "admin_metrics_reset": admin_metrics_reset,
             }
         },
@@ -373,6 +439,8 @@ def _build_compact_snapshot(
     lncrna_gene_id_source: str,
     species_ids: list[int],
     warmup_rounds: int,
+    warmup_max_retries: int,
+    warmup_retry_base_sleep_ms: int,
     min_samples: int,
     response_regression_pct: float,
     response_regression_abs_ms: float,
@@ -419,6 +487,8 @@ def _build_compact_snapshot(
                 "lncrna_gene_id_source": lncrna_gene_id_source,
                 "species_ids": species_ids,
                 "warmup_rounds": warmup_rounds,
+                "warmup_max_retries": warmup_max_retries,
+                "warmup_retry_base_sleep_ms": warmup_retry_base_sleep_ms,
                 "min_samples": min_samples,
                 "admin_metrics_reset": admin_metrics_reset,
             },
@@ -565,6 +635,8 @@ def _build_markdown(
         f"- lncrna_gene_id: `{scenario.get('lncrna_gene_id')}` (requested: `{scenario.get('lncrna_gene_id_requested')}`, source: `{scenario.get('lncrna_gene_id_source')}`)",
         f"- species_ids: `{scenario_species_ids}`",
         f"- warmup_rounds: `{scenario.get('warmup_rounds')}`",
+        f"- warmup_max_retries: `{scenario.get('warmup_max_retries')}`",
+        f"- warmup_retry_base_sleep_ms: `{scenario.get('warmup_retry_base_sleep_ms')}`",
         f"- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
             f"- admin_metrics_reset: `enabled` (status: `{admin_metrics_reset.get('status_code')}`, ok: `{admin_metrics_reset.get('ok')}`)"
         ),
@@ -684,6 +756,18 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--warmup-rounds", type=int, default=30, help="Warmup rounds before snapshot (default: 30).")
     parser.add_argument(
+        "--warmup-max-retries",
+        type=int,
+        default=DEFAULT_WARMUP_MAX_RETRIES,
+        help=f"Retries per warmup request on transient errors (default: {DEFAULT_WARMUP_MAX_RETRIES}).",
+    )
+    parser.add_argument(
+        "--warmup-retry-base-sleep-ms",
+        type=int,
+        default=DEFAULT_WARMUP_RETRY_BASE_SLEEP_MS,
+        help=f"Base sleep (ms) for warmup retries (default: {DEFAULT_WARMUP_RETRY_BASE_SLEEP_MS}).",
+    )
+    parser.add_argument(
         "--lncrna-gene-id",
         type=int,
         default=DEFAULT_LNCRNA_GENE_ID,
@@ -758,6 +842,8 @@ def main() -> int:
     response_regression_abs_ms = float(args.response_regression_abs_ms)
     db_regression_pct = float(args.db_regression_pct)
     db_regression_abs_ms = float(args.db_regression_abs_ms)
+    warmup_max_retries = max(0, int(args.warmup_max_retries))
+    warmup_retry_base_sleep_ms = max(0, int(args.warmup_retry_base_sleep_ms))
 
     admin_metrics_reset: Optional[dict[str, Any]] = None
     if bool(args.reset_metrics):
@@ -781,6 +867,8 @@ def main() -> int:
             lncrna_gene_id_source=lncrna_gene_id_source,
             species_ids=species_ids,
             warmup_rounds=int(args.warmup_rounds),
+            warmup_max_retries=warmup_max_retries,
+            warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
             admin_metrics_reset=admin_metrics_reset,
         )
 
@@ -822,6 +910,8 @@ def main() -> int:
             lncrna_gene_id=resolved_lncrna_gene_id,
             species_ids=species_ids,
             warmup_rounds=int(args.warmup_rounds),
+            warmup_max_retries=warmup_max_retries,
+            warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
             timeout_seconds=float(args.timeout_seconds),
         )
     except WarmupRequestError as e:
@@ -854,6 +944,8 @@ def main() -> int:
                         lncrna_gene_id=resolved_lncrna_gene_id,
                         species_ids=species_ids,
                         warmup_rounds=int(args.warmup_rounds),
+                        warmup_max_retries=warmup_max_retries,
+                        warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
                         timeout_seconds=float(args.timeout_seconds),
                     )
                 except Exception as e2:
@@ -897,6 +989,8 @@ def main() -> int:
         lncrna_gene_id_source=lncrna_gene_id_source,
         species_ids=species_ids,
         warmup_rounds=int(args.warmup_rounds),
+        warmup_max_retries=warmup_max_retries,
+        warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
         min_samples=min_samples,
         response_regression_pct=response_regression_pct,
         response_regression_abs_ms=response_regression_abs_ms,

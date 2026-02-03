@@ -69,6 +69,18 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
                     self.wfile.write(b"missing query\n")
                     return
                 lncrna_gene_id = int((qs.get("lncrna_gene_id") or ["0"])[0])
+
+                status_seq_by_gene = state.get("compare_status_sequence_by_gene_id")
+                if isinstance(status_seq_by_gene, dict):
+                    seq = status_seq_by_gene.get(lncrna_gene_id)
+                    if isinstance(seq, list) and seq:
+                        code = seq.pop(0)
+                        if isinstance(code, int) and code != 200:
+                            self.send_response(code)
+                            self.end_headers()
+                            self.wfile.write(b"forced status (sequence)\n")
+                            return
+
                 status_by_gene = state.get("compare_status_by_gene_id")
                 if isinstance(status_by_gene, dict):
                     code = status_by_gene.get(lncrna_gene_id)
@@ -201,6 +213,51 @@ def test_perf_overlap_generate_baseline_and_check_passes(tmp_path: Path) -> None
         )
         output = f"{chk.stdout}\n{chk.stderr}"
         assert chk.returncode == 0, f"check should pass:\n{output}"
+    finally:
+        server.shutdown()
+
+
+def test_perf_overlap_warmup_retries_on_429_then_succeeds(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+        "compare_status_sequence_by_gene_id": {17276: [429, 200]},
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        baseline_file = tmp_path / "baseline.json"
+        out_dir = tmp_path / "out"
+
+        gen = _run_script(
+            repo_root,
+            env,
+            "generate-baseline",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--warmup-max-retries",
+            "1",
+            "--warmup-retry-base-sleep-ms",
+            "0",
+            "--timeout-seconds",
+            "1",
+        )
+
+        output = f"{gen.stdout}\n{gen.stderr}"
+        assert gen.returncode == 0, f"generate-baseline should succeed after retrying warmup:\n{output}"
     finally:
         server.shutdown()
 

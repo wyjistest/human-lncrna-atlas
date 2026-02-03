@@ -21,6 +21,16 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
                     self.end_headers()
                     self.wfile.write(b"missing paging\n")
                     return
+                status_seq_by_path = state.get("status_sequence_by_path")
+                if isinstance(status_seq_by_path, dict):
+                    seq = status_seq_by_path.get("/api/v1/genes")
+                    if isinstance(seq, list) and seq:
+                        code = seq.pop(0)
+                        if isinstance(code, int) and code != 200:
+                            self.send_response(code)
+                            self.end_headers()
+                            self.wfile.write(b"forced status (sequence)\n")
+                            return
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -34,6 +44,16 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
                     self.end_headers()
                     self.wfile.write(b"missing paging\n")
                     return
+                status_seq_by_path = state.get("status_sequence_by_path")
+                if isinstance(status_seq_by_path, dict):
+                    seq = status_seq_by_path.get("/api/v1/regulations")
+                    if isinstance(seq, list) and seq:
+                        code = seq.pop(0)
+                        if isinstance(code, int) and code != 200:
+                            self.send_response(code)
+                            self.end_headers()
+                            self.wfile.write(b"forced status (sequence)\n")
+                            return
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -222,3 +242,46 @@ def test_perf_genes_regulations_check_fails_on_large_regression(tmp_path: Path) 
     finally:
         server.shutdown()
 
+
+def test_perf_genes_regulations_warmup_retries_on_503_then_succeeds(tmp_path: Path) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+
+    state: dict[str, Any] = {
+        "metrics_payload": _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+        "status_sequence_by_path": {"/api/v1/genes": [503, 200]},
+    }
+    server = _start_mock_server(state)
+    try:
+        port = server.server_address[1]
+        base_url = f"http://127.0.0.1:{port}"
+
+        env = os.environ.copy()
+        env.pop("NO_PROXY", None)
+        env.pop("no_proxy", None)
+
+        baseline_file = tmp_path / "baseline.json"
+        out_dir = tmp_path / "out"
+
+        gen = _run_script(
+            repo_root,
+            env,
+            "generate-baseline",
+            "--base-url",
+            base_url,
+            "--baseline-file",
+            str(baseline_file),
+            "--out-dir",
+            str(out_dir),
+            "--warmup-rounds",
+            "1",
+            "--warmup-max-retries",
+            "1",
+            "--warmup-retry-base-sleep-ms",
+            "0",
+            "--timeout-seconds",
+            "1",
+        )
+        output = f"{gen.stdout}\n{gen.stderr}"
+        assert gen.returncode == 0, f"generate-baseline should succeed after retrying warmup:\n{output}"
+    finally:
+        server.shutdown()
