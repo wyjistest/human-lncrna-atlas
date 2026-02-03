@@ -222,6 +222,7 @@ If a workflow fails to start with an annotation like:
 then GitHub Actions is blocked by billing/spending limits. Fix it in GitHub **Settings → Billing & plans**, or run the same checks locally via `./scripts/run-tests.sh ci` (and optionally `./scripts/run-tests.sh e2e-smoke`).
 
 Self-hosted runner fallback (does not consume GitHub Actions minutes): see `docs/CI_SELF_HOSTED_RUNNER.md`.
+If your local `git push` / `git fetch` is unstable due to network/proxy constraints, see `docs/CI_SELF_HOSTED_RUNNER.md` (Section “6.2”: proxy one-liners + GitHub API fallback push via `scripts/gh_push_commit.py`).
 
 ## Database
 
