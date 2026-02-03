@@ -94,6 +94,11 @@ notebooks/results/
 *_REPORT.md
 *_FIX_REPORT.md
 
+# Generated perf regression outputs (local-only)
+docs/reports/perf-*.md
+docs/reports/perf-*.json
+docs/reports/*raw-metrics-*.json
+
 # Claude Code plugins
 .codex/
 .codex-session
