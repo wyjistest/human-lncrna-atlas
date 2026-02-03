@@ -34,6 +34,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from _report_paths import display_path, resolve_out_dir
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "frontend" / "backend"
@@ -248,14 +250,14 @@ def _write_markdown(
     lines.append("")
 
     lines.append("Outputs:")
-    lines.append(f"- Counts CSV: `{counts_csv}`")
-    lines.append(f"- Row-share CSV: `{row_share_csv}`")
+    lines.append(f"- Counts CSV: `{display_path(REPO_ROOT, counts_csv)}`")
+    lines.append(f"- Row-share CSV: `{display_path(REPO_ROOT, row_share_csv)}`")
     if counts_png is not None:
-        lines.append(f"- Counts heatmap (PNG): `{counts_png}`")
+        lines.append(f"- Counts heatmap (PNG): `{display_path(REPO_ROOT, counts_png)}`")
     else:
         lines.append("- Counts heatmap (PNG): _skipped (matplotlib not available)_")
     if row_share_png is not None:
-        lines.append(f"- Row-share heatmap (PNG): `{row_share_png}`")
+        lines.append(f"- Row-share heatmap (PNG): `{display_path(REPO_ROOT, row_share_png)}`")
     else:
         lines.append("- Row-share heatmap (PNG): _skipped (matplotlib not available)_")
     lines.append("")
@@ -356,7 +358,7 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=str(REPO_ROOT / "docs" / "reports"),
+        default="docs/reports",
         help="Output directory (default: docs/reports).",
     )
     args = parser.parse_args()
@@ -372,7 +374,7 @@ def main() -> int:
         )
         raise SystemExit(2) from e
 
-    out_dir = Path(args.out_dir)
+    out_dir = resolve_out_dir(REPO_ROOT, args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     generated_at_utc = (args.generated_at or "").strip() or _iso_ts()
@@ -442,16 +444,15 @@ def main() -> int:
     finally:
         db.close()
 
-    print(f"Wrote: {counts_csv}")
-    print(f"Wrote: {row_share_csv}")
+    print(f"Wrote: {display_path(REPO_ROOT, counts_csv)}")
+    print(f"Wrote: {display_path(REPO_ROOT, row_share_csv)}")
     if counts_png is not None:
-        print(f"Wrote: {counts_png}")
+        print(f"Wrote: {display_path(REPO_ROOT, counts_png)}")
     if row_share_png is not None:
-        print(f"Wrote: {row_share_png}")
-    print(f"Wrote: {report_md}")
+        print(f"Wrote: {display_path(REPO_ROOT, row_share_png)}")
+    print(f"Wrote: {display_path(REPO_ROOT, report_md)}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

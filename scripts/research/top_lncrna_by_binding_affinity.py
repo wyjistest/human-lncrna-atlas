@@ -26,6 +26,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from _report_paths import display_path, resolve_out_dir
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "frontend" / "backend"
@@ -240,7 +242,7 @@ def _write_markdown(
     lines.append(f"- Limit: {limit}")
     lines.append(f"- Generated (UTC): {generated_at_utc}")
     lines.append("")
-    lines.append(f"CSV: `{csv_path}`")
+    lines.append(f"CSV: `{display_path(REPO_ROOT, csv_path)}`")
     lines.append("")
 
     if not rows:
@@ -310,8 +312,8 @@ def _write_multi_index_markdown(
     for sid, label, csv_path, md_path in outputs:
         lines.append(f"## {label}")
         lines.append("")
-        lines.append(f"- Markdown: `{md_path}`")
-        lines.append(f"- CSV: `{csv_path}`")
+        lines.append(f"- Markdown: `{display_path(REPO_ROOT, md_path)}`")
+        lines.append(f"- CSV: `{display_path(REPO_ROOT, csv_path)}`")
         lines.append("")
 
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -337,7 +339,7 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=str(REPO_ROOT / "docs" / "reports"),
+        default="docs/reports",
         help="Output directory (default: docs/reports).",
     )
     args = parser.parse_args()
@@ -353,7 +355,7 @@ def main() -> int:
         )
         raise SystemExit(2) from e
 
-    out_dir = Path(args.out_dir)
+    out_dir = resolve_out_dir(REPO_ROOT, args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     outputs: list[tuple[int, str, Path, Path]] = []
@@ -408,10 +410,10 @@ def main() -> int:
         db.close()
 
     for _sid, _label, csv_path, md_path in outputs:
-        print(f"Wrote: {csv_path}")
-        print(f"Wrote: {md_path}")
+        print(f"Wrote: {display_path(REPO_ROOT, csv_path)}")
+        print(f"Wrote: {display_path(REPO_ROOT, md_path)}")
     if index_md is not None:
-        print(f"Wrote: {index_md}")
+        print(f"Wrote: {display_path(REPO_ROOT, index_md)}")
     return 0
 
 

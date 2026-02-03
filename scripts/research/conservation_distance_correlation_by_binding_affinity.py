@@ -46,6 +46,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from _report_paths import display_path, resolve_out_dir
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "frontend" / "backend"
@@ -368,7 +370,7 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=str(REPO_ROOT / "docs" / "reports"),
+        default="docs/reports",
         help="Output directory (default: docs/reports).",
     )
     args = parser.parse_args()
@@ -384,7 +386,7 @@ def main() -> int:
         )
         raise SystemExit(2) from e
 
-    out_dir = Path(args.out_dir)
+    out_dir = resolve_out_dir(REPO_ROOT, args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     generated_at_utc = (args.generated_at or "").strip() or _iso_ts()
@@ -556,14 +558,14 @@ def main() -> int:
         md_lines.append(f"- Generated (UTC): **{_md_escape(generated_at_utc)}**")
         md_lines.append("")
         md_lines.append("Outputs:")
-        md_lines.append(f"- Pairs CSV: `{csv_path}`")
-        md_lines.append(f"- Report Markdown: `{md_path}`")
+        md_lines.append(f"- Pairs CSV: `{display_path(REPO_ROOT, csv_path)}`")
+        md_lines.append(f"- Report Markdown: `{display_path(REPO_ROOT, md_path)}`")
         if plot_jaccard is not None:
-            md_lines.append(f"- Scatter (Jaccard): `{plot_jaccard}`")
+            md_lines.append(f"- Scatter (Jaccard): `{display_path(REPO_ROOT, plot_jaccard)}`")
         else:
             md_lines.append("- Scatter (Jaccard): _skipped (matplotlib not available)_")
         if plot_avg_row_share is not None:
-            md_lines.append(f"- Scatter (avg row-share): `{plot_avg_row_share}`")
+            md_lines.append(f"- Scatter (avg row-share): `{display_path(REPO_ROOT, plot_avg_row_share)}`")
         else:
             md_lines.append("- Scatter (avg row-share): _skipped (matplotlib not available)_")
         md_lines.append("")
@@ -641,15 +643,14 @@ def main() -> int:
     finally:
         db.close()
 
-    print(f"Wrote: {csv_path}")
+    print(f"Wrote: {display_path(REPO_ROOT, csv_path)}")
     if plot_jaccard is not None:
-        print(f"Wrote: {plot_jaccard}")
+        print(f"Wrote: {display_path(REPO_ROOT, plot_jaccard)}")
     if plot_avg_row_share is not None:
-        print(f"Wrote: {plot_avg_row_share}")
-    print(f"Wrote: {md_path}")
+        print(f"Wrote: {display_path(REPO_ROOT, plot_avg_row_share)}")
+    print(f"Wrote: {display_path(REPO_ROOT, md_path)}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

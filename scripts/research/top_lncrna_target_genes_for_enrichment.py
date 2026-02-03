@@ -26,6 +26,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from _report_paths import display_path, resolve_out_dir
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "frontend" / "backend"
@@ -392,8 +394,8 @@ def _write_markdown(
     lines.append(f"- Target filter: **{'protein_coding only' if target_protein_coding_only else 'none'}**")
     lines.append(f"- Generated (UTC): **{_md_escape(generated_at_utc)}**")
     lines.append("")
-    lines.append(f"- Targets TSV: `{tsv_path}`")
-    lines.append(f"- Targets TXT (for enrichment): `{txt_path}`")
+    lines.append(f"- Targets TSV: `{display_path(REPO_ROOT, tsv_path)}`")
+    lines.append(f"- Targets TXT (for enrichment): `{display_path(REPO_ROOT, txt_path)}`")
     lines.append("")
     lines.append(f"Targets count: **{len(targets)}**")
     lines.append("")
@@ -451,9 +453,9 @@ def _write_multi_index_markdown(
             "| {sid} | {label} | `{tsv}` | `{txt}` | `{md}` |".format(
                 sid=sid,
                 label=_md_escape(label),
-                tsv=tsv_path,
-                txt=txt_path,
-                md=md_path,
+                tsv=display_path(REPO_ROOT, tsv_path),
+                txt=display_path(REPO_ROOT, txt_path),
+                md=display_path(REPO_ROOT, md_path),
             )
         )
     lines.append("")
@@ -492,7 +494,7 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=str(REPO_ROOT / "docs" / "reports"),
+        default="docs/reports",
         help="Output directory (default: docs/reports).",
     )
     args = parser.parse_args()
@@ -508,7 +510,7 @@ def main() -> int:
         )
         raise SystemExit(2) from e
 
-    out_dir = Path(args.out_dir)
+    out_dir = resolve_out_dir(REPO_ROOT, args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     species_ids: list[int] = []
@@ -579,14 +581,13 @@ def main() -> int:
         db.close()
 
     for _sid, _label, tsv_path, txt_path, md_path in outputs:
-        print(f"Wrote: {tsv_path}")
-        print(f"Wrote: {txt_path}")
-        print(f"Wrote: {md_path}")
+        print(f"Wrote: {display_path(REPO_ROOT, tsv_path)}")
+        print(f"Wrote: {display_path(REPO_ROOT, txt_path)}")
+        print(f"Wrote: {display_path(REPO_ROOT, md_path)}")
     if index_md is not None:
-        print(f"Wrote: {index_md}")
+        print(f"Wrote: {display_path(REPO_ROOT, index_md)}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -25,6 +25,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from _report_paths import display_path, resolve_out_dir
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "frontend" / "backend"
@@ -380,7 +382,7 @@ def _write_markdown(
     lines.append(f"- Top limit: **{limit}**")
     lines.append(f"- Generated (UTC): **{_md_escape(generated_at_utc)}**")
     lines.append("")
-    lines.append(f"- Top list CSV: `{csv_path}`")
+    lines.append(f"- Top list CSV: `{display_path(REPO_ROOT, csv_path)}`")
     lines.append("")
 
     lines.append("## Conservation Level Distribution")
@@ -455,7 +457,7 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=str(REPO_ROOT / "docs" / "reports"),
+        default="docs/reports",
         help="Output directory (default: docs/reports).",
     )
     args = parser.parse_args()
@@ -471,7 +473,7 @@ def main() -> int:
         )
         raise SystemExit(2) from e
 
-    out_dir = Path(args.out_dir)
+    out_dir = resolve_out_dir(REPO_ROOT, args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     generated_at_utc = (args.generated_at or "").strip() or _iso_ts()
@@ -522,11 +524,10 @@ def main() -> int:
     finally:
         db.close()
 
-    print(f"Wrote: {csv_path}")
-    print(f"Wrote: {md_path}")
+    print(f"Wrote: {display_path(REPO_ROOT, csv_path)}")
+    print(f"Wrote: {display_path(REPO_ROOT, md_path)}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

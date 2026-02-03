@@ -27,6 +27,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
+from _report_paths import display_path, resolve_out_dir
+
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BACKEND_DIR = REPO_ROOT / "frontend" / "backend"
@@ -286,8 +288,8 @@ def _write_markdown(
     lines.append(f"- Total associations: `{total_associations}`")
     lines.append(f"- Avg connections per disease: `{avg_connections:.2f}`")
     lines.append("")
-    lines.append(f"- Top diseases TSV: `{traits_tsv}`")
-    lines.append(f"- Top lncRNAs TSV: `{lncrnas_tsv}`")
+    lines.append(f"- Top diseases TSV: `{display_path(REPO_ROOT, traits_tsv)}`")
+    lines.append(f"- Top lncRNAs TSV: `{display_path(REPO_ROOT, lncrnas_tsv)}`")
 
     traits_preview = top_traits[: max(0, preview_limit)]
     lncrnas_preview = top_lncrnas[: max(0, preview_limit)]
@@ -357,7 +359,7 @@ def main() -> int:
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=str(REPO_ROOT / "docs" / "reports"),
+        default="docs/reports",
         help="Output directory (default: docs/reports).",
     )
     args = parser.parse_args()
@@ -377,7 +379,7 @@ def main() -> int:
     evidence_filter: Optional[int] = None if evidence_species_id <= 0 else evidence_species_id
     evidence_token = str(evidence_filter) if evidence_filter is not None else "all"
 
-    out_dir = Path(args.out_dir)
+    out_dir = resolve_out_dir(REPO_ROOT, args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     generated_at_utc = (args.generated_at or "").strip() or _iso_ts()
 
@@ -425,12 +427,11 @@ def main() -> int:
     finally:
         db.close()
 
-    print(f"Wrote: {traits_tsv}")
-    print(f"Wrote: {lncrnas_tsv}")
-    print(f"Wrote: {md_path}")
+    print(f"Wrote: {display_path(REPO_ROOT, traits_tsv)}")
+    print(f"Wrote: {display_path(REPO_ROOT, lncrnas_tsv)}")
+    print(f"Wrote: {display_path(REPO_ROOT, md_path)}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
