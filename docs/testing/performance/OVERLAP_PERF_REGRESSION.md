@@ -17,7 +17,7 @@
 python3 scripts/perf_overlap_regression.py generate-baseline \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
-  --warmup-rounds 20 \
+  --warmup-rounds 30 \
   --lncrna-gene-id 17276 \
   --species-ids "1,3"
 
@@ -41,7 +41,7 @@ git commit -m "perf(baseline): set overlap admin-metrics baseline"
 python3 scripts/perf_overlap_regression.py check \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
-  --warmup-rounds 20 \
+  --warmup-rounds 30 \
   --lncrna-gene-id 17276 \
   --species-ids "1,3"
 ```
@@ -69,10 +69,10 @@ MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker
 
 ## 门禁规则（当前阈值）
 
-- 最小样本：每个端点 `requests >= 10`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
+- 最小样本：每个端点 `requests >= 20`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
 - 触发 FAIL 的回归阈值（同时满足“比例 + 绝对值”）：
-  - Response：`>15%` 且 `>10ms`
-  - DB：`>15%` 且 `>2ms`
+  - Response：`>8%` 且 `>5ms`
+  - DB：`>8%` 且 `>2ms`
 
 > 仍然采用“比例 + 绝对值”双阈值以降低环境抖动；阈值已收紧，用于更早发现回归。  
 > 如需临时调整：可通过参数覆盖（例如 `--response-regression-pct`、`--db-regression-pct`、`--min-samples`）。
