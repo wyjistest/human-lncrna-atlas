@@ -32,6 +32,12 @@ WARMUP_ROUNDS="${WARMUP_ROUNDS:-20}"
 LNCRNA_GENE_ID="${LNCRNA_GENE_ID:-17276}"
 SPECIES_IDS="${SPECIES_IDS:-1,3}"
 
+MIN_SAMPLES="${MIN_SAMPLES:-10}"
+RESPONSE_REGRESSION_PCT="${RESPONSE_REGRESSION_PCT:-10}"
+RESPONSE_REGRESSION_ABS_MS="${RESPONSE_REGRESSION_ABS_MS:-10}"
+DB_REGRESSION_PCT="${DB_REGRESSION_PCT:-10}"
+DB_REGRESSION_ABS_MS="${DB_REGRESSION_ABS_MS:-2}"
+
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-scripts/baselines/docker-compose.overlap-perf.yml}"
 
@@ -65,6 +71,11 @@ Options (env var compatible):
   WARMUP_ROUNDS=20
   LNCRNA_GENE_ID=17276
   SPECIES_IDS=1,3
+  MIN_SAMPLES=10
+  RESPONSE_REGRESSION_PCT=10
+  RESPONSE_REGRESSION_ABS_MS=10
+  DB_REGRESSION_PCT=10
+  DB_REGRESSION_ABS_MS=2
   COMPOSE_FILE=docker-compose.yml
   COMPOSE_OVERRIDE_FILE=scripts/baselines/docker-compose.overlap-perf.yml
   BASELINE_FILE=docs/baselines/performance/overlap-admin-metrics.baseline.json
@@ -206,6 +217,11 @@ python3 scripts/perf_overlap_regression.py "$MODE" \
   --baseline-raw-metrics-file "$BASELINE_RAW_METRICS_FILE" \
   --warmup-rounds "$WARMUP_ROUNDS" \
   --lncrna-gene-id "$LNCRNA_GENE_ID" \
-  --species-ids "$SPECIES_IDS"
+  --species-ids "$SPECIES_IDS" \
+  --min-samples "$MIN_SAMPLES" \
+  --response-regression-pct "$RESPONSE_REGRESSION_PCT" \
+  --response-regression-abs-ms "$RESPONSE_REGRESSION_ABS_MS" \
+  --db-regression-pct "$DB_REGRESSION_PCT" \
+  --db-regression-abs-ms "$DB_REGRESSION_ABS_MS"
 
 echo "[overlap-perf] done"

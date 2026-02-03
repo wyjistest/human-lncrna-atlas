@@ -37,6 +37,13 @@ GENES_PAGE_SIZE="${GENES_PAGE_SIZE:-100}"
 REGULATIONS_SPECIES_ID="${REGULATIONS_SPECIES_ID:-1}"
 REGULATIONS_PAGE_SIZE="${REGULATIONS_PAGE_SIZE:-100}"
 
+MIN_SAMPLES="${MIN_SAMPLES:-10}"
+RESPONSE_REGRESSION_PCT="${RESPONSE_REGRESSION_PCT:-10}"
+# 与 scripts/perf_genes_regulations_regression.py 的默认值一致（减少 self-hosted 环境噪声误报）
+RESPONSE_REGRESSION_ABS_MS="${RESPONSE_REGRESSION_ABS_MS:-25}"
+DB_REGRESSION_PCT="${DB_REGRESSION_PCT:-10}"
+DB_REGRESSION_ABS_MS="${DB_REGRESSION_ABS_MS:-2}"
+
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-scripts/baselines/docker-compose.overlap-perf.yml}"
 
@@ -73,6 +80,11 @@ Options (env var compatible):
   GENES_PAGE_SIZE=100
   REGULATIONS_SPECIES_ID=1
   REGULATIONS_PAGE_SIZE=100
+  MIN_SAMPLES=10
+  RESPONSE_REGRESSION_PCT=10
+  RESPONSE_REGRESSION_ABS_MS=25
+  DB_REGRESSION_PCT=10
+  DB_REGRESSION_ABS_MS=2
   COMPOSE_FILE=docker-compose.yml
   COMPOSE_OVERRIDE_FILE=scripts/baselines/docker-compose.overlap-perf.yml
   BASELINE_FILE=docs/baselines/performance/genes-regulations-admin-metrics.baseline.json
@@ -217,7 +229,11 @@ python3 scripts/perf_genes_regulations_regression.py "$MODE" \
   --genes-gene-type "$GENES_GENE_TYPE" \
   --genes-page-size "$GENES_PAGE_SIZE" \
   --regulations-species-id "$REGULATIONS_SPECIES_ID" \
-  --regulations-page-size "$REGULATIONS_PAGE_SIZE"
+  --regulations-page-size "$REGULATIONS_PAGE_SIZE" \
+  --min-samples "$MIN_SAMPLES" \
+  --response-regression-pct "$RESPONSE_REGRESSION_PCT" \
+  --response-regression-abs-ms "$RESPONSE_REGRESSION_ABS_MS" \
+  --db-regression-pct "$DB_REGRESSION_PCT" \
+  --db-regression-abs-ms "$DB_REGRESSION_ABS_MS"
 
 echo "[genes-regulations-perf] done"
-
