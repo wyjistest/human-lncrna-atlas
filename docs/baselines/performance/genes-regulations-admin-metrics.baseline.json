@@ -2,24 +2,24 @@
   "endpoints": {
     "/api/v1/genes": {
       "db": {
-        "p95_ms": 2.01,
-        "p99_ms": 4.56
+        "p95_ms": 0.89,
+        "p99_ms": 1.06
       },
       "requests": 30,
       "response": {
-        "p95_ms": 12.91,
-        "p99_ms": 103.38
+        "p95_ms": 5.8,
+        "p99_ms": 6.85
       }
     },
     "/api/v1/regulations": {
       "db": {
-        "p95_ms": 1.74,
-        "p99_ms": 1.75
+        "p95_ms": 0.75,
+        "p99_ms": 0.75
       },
       "requests": 29,
       "response": {
-        "p95_ms": 27.55,
-        "p99_ms": 85.22
+        "p95_ms": 9.09,
+        "p99_ms": 9.6
       }
     }
   },
@@ -27,8 +27,12 @@
     "base_url": "http://localhost:8000",
     "baseline_file": "docs/baselines/performance/genes-regulations-admin-metrics.baseline.json",
     "baseline_raw_metrics_file": "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json",
-    "generated_at": "2026-02-03T04-07-01Z",
+    "generated_at": "2026-02-03T08-28-40Z",
     "scenario": {
+      "admin_metrics_reset": {
+        "ok": true,
+        "status_code": 200
+      },
       "genes": {
         "gene_type": "lncRNA",
         "page_size": 100,
@@ -39,6 +43,8 @@
         "page_size": 100,
         "species_id": 1
       },
+      "warmup_max_retries": 2,
+      "warmup_retry_base_sleep_ms": 200,
       "warmup_rounds": 30
     },
     "schema_version": 1,
@@ -49,7 +55,7 @@
         "pct": 8.0
       },
       "response": {
-        "abs_ms": 25.0,
+        "abs_ms": 5.0,
         "pct": 8.0
       }
     }

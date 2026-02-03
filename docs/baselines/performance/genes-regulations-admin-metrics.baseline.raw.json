@@ -1,5 +1,13 @@
 {
-  "alerts": [],
+  "alerts": [
+    {
+      "message": "CPU usage 73.1% approaching threshold 80.0%",
+      "metric": "cpu_percent",
+      "threshold": 80.0,
+      "type": "warning",
+      "value": 73.1
+    }
+  ],
   "cache_breakdown": {
     "keys": {
       "limit": 10,
@@ -33,34 +41,34 @@
     "total_requests": 0
   },
   "database": {
-    "avg_ms": 0.89,
+    "avg_ms": 0.38,
     "percentiles": {
-      "p50_ms": 0.91,
-      "p95_ms": 1.4,
-      "p99_ms": 1.41
+      "p50_ms": 0.46,
+      "p95_ms": 0.56,
+      "p99_ms": 0.58
     },
     "query_samples": 118,
-    "request_avg_ms": 1.78,
+    "request_avg_ms": 0.76,
     "request_percentiles": {
-      "p50_ms": 1.74,
-      "p95_ms": 2.0,
-      "p99_ms": 4.56
+      "p50_ms": 0.77,
+      "p95_ms": 0.88,
+      "p99_ms": 1.06
     },
     "request_samples": 59,
-    "request_total_ms": 105.05,
+    "request_total_ms": 45.03,
     "slow_queries": [],
     "slow_query_threshold_ms": 200.0,
     "total_queries": 118,
-    "total_time_ms": 105.05
+    "total_time_ms": 45.03
   },
   "endpoints": [
     {
-      "avg_ms": 15.19,
-      "db_avg_ms": 1.93,
+      "avg_ms": 5.32,
+      "db_avg_ms": 0.82,
       "db_percentiles": {
-        "p50_ms": 1.86,
-        "p95_ms": 2.01,
-        "p99_ms": 4.56
+        "p50_ms": 0.82,
+        "p95_ms": 0.89,
+        "p99_ms": 1.06
       },
       "db_query_avg": 2.0,
       "db_samples": 30,
@@ -68,20 +76,20 @@
       "errors": 0,
       "path": "/api/v1/genes",
       "percentiles": {
-        "p50_ms": 12.27,
-        "p95_ms": 12.91,
-        "p99_ms": 103.38
+        "p50_ms": 5.26,
+        "p95_ms": 5.8,
+        "p99_ms": 6.85
       },
       "requests": 30,
       "samples": 30
     },
     {
-      "avg_ms": 18.48,
-      "db_avg_ms": 1.62,
+      "avg_ms": 6.73,
+      "db_avg_ms": 0.7,
       "db_percentiles": {
-        "p50_ms": 1.64,
-        "p95_ms": 1.74,
-        "p99_ms": 1.75
+        "p50_ms": 0.71,
+        "p95_ms": 0.75,
+        "p99_ms": 0.75
       },
       "db_query_avg": 2.0,
       "db_samples": 29,
@@ -89,9 +97,9 @@
       "errors": 0,
       "path": "/api/v1/regulations",
       "percentiles": {
-        "p50_ms": 15.33,
-        "p95_ms": 27.55,
-        "p99_ms": 85.22
+        "p50_ms": 6.58,
+        "p95_ms": 9.09,
+        "p99_ms": 9.6
       },
       "requests": 29,
       "samples": 29
@@ -111,16 +119,16 @@
       0.0
     ],
     "timestamps": [
-      "03:58",
-      "03:59",
-      "04:00",
-      "04:01",
-      "04:02",
-      "04:03",
-      "04:04",
-      "04:05",
-      "04:06",
-      "04:07"
+      "08:19",
+      "08:20",
+      "08:21",
+      "08:22",
+      "08:23",
+      "08:24",
+      "08:25",
+      "08:26",
+      "08:27",
+      "08:28"
     ]
   },
   "errors": {
@@ -131,19 +139,19 @@
     "cache": "not_configured",
     "database": "ok",
     "status": "healthy",
-    "uptime_seconds": 1
+    "uptime_seconds": 825
   },
   "percentiles": {
-    "p50_ms": 14.31,
-    "p95_ms": 27.55,
-    "p99_ms": 103.38
+    "p50_ms": 5.8,
+    "p95_ms": 8.29,
+    "p99_ms": 9.6
   },
   "request": {
     "last_minute": 59,
     "total": 59
   },
   "response_time": {
-    "avg_ms": 16.81
+    "avg_ms": 6.01
   },
   "response_time_distribution": {
     "buckets": [
@@ -154,28 +162,28 @@
       "500ms+"
     ],
     "counts": [
-      57,
-      1,
-      1,
+      59,
+      0,
+      0,
       0,
       0
     ]
   },
   "system": {
-    "cpu_percent": 11.7,
+    "cpu_percent": 73.1,
     "disk": {
-      "percent": 41.6,
+      "percent": 42.0,
       "total_gb": 186.68,
-      "used_gb": 73.68
+      "used_gb": 74.41
     },
     "memory": {
-      "percent": 14.9,
+      "percent": 25.7,
       "total_mb": 257430.34,
-      "used_mb": 35981.28
+      "used_mb": 63612.46
     },
     "process": {
       "cpu_percent": 0.0,
-      "memory_mb": 108.7
+      "memory_mb": 111.41
     }
   }
 }
