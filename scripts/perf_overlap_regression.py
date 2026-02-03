@@ -46,11 +46,11 @@ DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "reports"
 DEFAULT_LNCRNA_GENE_ID = 17276
 DEFAULT_SPECIES_IDS = "1,3"
 
-DEFAULT_MIN_SAMPLES = 10
+DEFAULT_MIN_SAMPLES = 20
 
-DEFAULT_RESPONSE_REGRESSION_PCT = 10.0
-DEFAULT_RESPONSE_REGRESSION_ABS_MS = 10.0
-DEFAULT_DB_REGRESSION_PCT = 10.0
+DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
+DEFAULT_RESPONSE_REGRESSION_ABS_MS = 5.0
+DEFAULT_DB_REGRESSION_PCT = 8.0
 DEFAULT_DB_REGRESSION_ABS_MS = 2.0
 
 
@@ -595,7 +595,7 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit admin-metrics diff even when gate passes (requires --baseline-raw-metrics-file).",
     )
-    parser.add_argument("--warmup-rounds", type=int, default=20, help="Warmup rounds before snapshot (default: 20).")
+    parser.add_argument("--warmup-rounds", type=int, default=30, help="Warmup rounds before snapshot (default: 30).")
     parser.add_argument(
         "--lncrna-gene-id",
         type=int,
@@ -612,31 +612,31 @@ def _parse_args() -> argparse.Namespace:
         "--min-samples",
         type=int,
         default=DEFAULT_MIN_SAMPLES,
-        help="Minimum samples required per endpoint in /api/v1/admin/metrics (default: 10).",
+        help=f"Minimum samples required per endpoint in /api/v1/admin/metrics (default: {DEFAULT_MIN_SAMPLES}).",
     )
     parser.add_argument(
         "--response-regression-pct",
         type=float,
         default=DEFAULT_RESPONSE_REGRESSION_PCT,
-        help="Gate response regressions when delta_pct > this threshold (default: 15).",
+        help=f"Gate response regressions when delta_pct > this threshold (default: {DEFAULT_RESPONSE_REGRESSION_PCT:.0f}).",
     )
     parser.add_argument(
         "--response-regression-abs-ms",
         type=float,
         default=DEFAULT_RESPONSE_REGRESSION_ABS_MS,
-        help="Gate response regressions when delta_ms > this threshold (default: 10).",
+        help=f"Gate response regressions when delta_ms > this threshold (default: {DEFAULT_RESPONSE_REGRESSION_ABS_MS:.0f}).",
     )
     parser.add_argument(
         "--db-regression-pct",
         type=float,
         default=DEFAULT_DB_REGRESSION_PCT,
-        help="Gate DB regressions when delta_pct > this threshold (default: 15).",
+        help=f"Gate DB regressions when delta_pct > this threshold (default: {DEFAULT_DB_REGRESSION_PCT:.0f}).",
     )
     parser.add_argument(
         "--db-regression-abs-ms",
         type=float,
         default=DEFAULT_DB_REGRESSION_ABS_MS,
-        help="Gate DB regressions when delta_ms > this threshold (default: 2).",
+        help=f"Gate DB regressions when delta_ms > this threshold (default: {DEFAULT_DB_REGRESSION_ABS_MS:.0f}).",
     )
     return parser.parse_args()
 

@@ -62,7 +62,7 @@ on:
       response_regression_abs_ms:
         description: "Gate: response regression abs threshold (ms)."
         required: false
-        default: "25"
+        default: "10"
       db_regression_pct:
         description: "Gate: db regression pct threshold."
         required: false
@@ -92,7 +92,7 @@ env:
   REGULATIONS_PAGE_SIZE: ${{ github.event.inputs.regulations_page_size || '100' }}
   MIN_SAMPLES: ${{ github.event.inputs.min_samples || '20' }}
   RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '8' }}
-  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '25' }}
+  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '10' }}
   DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '8' }}
   DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '2' }}
   PYTHON_VERSION: '3.11'
