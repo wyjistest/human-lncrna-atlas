@@ -280,6 +280,47 @@ def _warmup_genes_regulations(
         _warmup_get(regs_url, timeout_seconds=timeout_seconds)
 
 
+def _empty_endpoint_row() -> dict[str, Any]:
+    return {
+        "requests": 0,
+        "response": {"p95_ms": None, "p99_ms": None},
+        "db": {"p95_ms": None, "p99_ms": None},
+    }
+
+
+def _build_warmup_failure_snapshot(
+    *,
+    warmup_rounds: int,
+    genes_species_id: Optional[int],
+    genes_gene_type: Optional[str],
+    genes_page_size: int,
+    regulations_species_id: Optional[int],
+    regulations_page_size: int,
+    admin_metrics_reset: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "meta": {
+            "scenario": {
+                "warmup_rounds": warmup_rounds,
+                "genes": {
+                    "species_id": genes_species_id,
+                    "gene_type": genes_gene_type,
+                    "page_size": genes_page_size,
+                },
+                "regulations": {
+                    "species_id": regulations_species_id,
+                    "page_size": regulations_page_size,
+                },
+                "admin_metrics_reset": admin_metrics_reset,
+            }
+        },
+        "endpoints": {
+            GENES_LIST_PATH: _empty_endpoint_row(),
+            REGULATIONS_LIST_PATH: _empty_endpoint_row(),
+        },
+    }
+
+
 def _build_compact_snapshot(
     *,
     raw_metrics: dict[str, Any],
@@ -692,6 +733,45 @@ def main() -> int:
             admin_metrics_reset = {"status_code": None, "ok": False}
             print(f"[WARN] admin metrics reset failed: {e} (continue without reset)", file=sys.stderr)
 
+    def emit_warmup_failure_report(*, failures: list[str]) -> int:
+        current = _build_warmup_failure_snapshot(
+            warmup_rounds=int(args.warmup_rounds),
+            genes_species_id=int(args.genes_species_id) if args.genes_species_id else None,
+            genes_gene_type=str(args.genes_gene_type or "").strip() or None,
+            genes_page_size=int(args.genes_page_size),
+            regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
+            regulations_page_size=int(args.regulations_page_size),
+            admin_metrics_reset=admin_metrics_reset,
+        )
+
+        snap_path = out_dir / f"perf-genes-regulations-{ts}.json"
+        snap_path.write_text(_stable_json_text(current), encoding="utf-8")
+
+        md = _build_markdown(
+            mode=str(args.cmd),
+            base_url=base_url,
+            generated_at=ts,
+            baseline_file=baseline_file,
+            baseline=None,
+            current=current,
+            ok=False,
+            failures=failures,
+            admin_metrics_diff_path=None,
+            min_samples=min_samples,
+            response_regression_pct=response_regression_pct,
+            response_regression_abs_ms=response_regression_abs_ms,
+            db_regression_pct=db_regression_pct,
+            db_regression_abs_ms=db_regression_abs_ms,
+        )
+
+        md_path = out_dir / f"perf-genes-regulations-{ts}.md"
+        md_path.write_text(md, encoding="utf-8")
+
+        for f in failures:
+            print(f, file=sys.stderr)
+        print(f"[FAIL] Warmup failed. Report: {md_path}", file=sys.stderr)
+        return 2
+
     # 1) Warmup traffic (required for stable percentiles)
     try:
         _warmup_genes_regulations(
@@ -706,18 +786,16 @@ def main() -> int:
         )
     except WarmupRequestError as e:
         if e.status_code == 429:
-            print(f"[ERROR] {e}", file=sys.stderr)
-            print(
-                "[HINT] HTTP 429 during warmup. If you're using docker-sample, ensure RATE_LIMIT_BYPASS_PRIVATE=true. "
-                "If you're using an external backend, check any rate limit middleware / allowlist settings.",
-                file=sys.stderr,
+            return emit_warmup_failure_report(
+                failures=[
+                    f"[ERROR] {e}",
+                    "[HINT] HTTP 429 during warmup. If you're using docker-sample, ensure RATE_LIMIT_BYPASS_PRIVATE=true. "
+                    "If you're using an external backend, check any rate limit middleware / allowlist settings.",
+                ]
             )
-            return 2
-        print(f"[ERROR] {e}", file=sys.stderr)
-        return 2
+        return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
     except Exception as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
-        return 2
+        return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
 
     # 2) Fetch metrics
     metrics_url = f"{base_url}{ADMIN_METRICS_PATH}"

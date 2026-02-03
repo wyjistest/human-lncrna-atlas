@@ -325,6 +325,41 @@ def _warmup_overlap(
         _warmup_get(compare_url, timeout_seconds=timeout_seconds)
 
 
+def _empty_endpoint_row() -> dict[str, Any]:
+    return {
+        "requests": 0,
+        "response": {"p95_ms": None, "p99_ms": None},
+        "db": {"p95_ms": None, "p99_ms": None},
+    }
+
+
+def _build_warmup_failure_snapshot(
+    *,
+    lncrna_gene_id: int,
+    lncrna_gene_id_requested: int,
+    lncrna_gene_id_source: str,
+    species_ids: list[int],
+    warmup_rounds: int,
+    admin_metrics_reset: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "meta": {
+            "scenario": {
+                "lncrna_gene_id": lncrna_gene_id,
+                "lncrna_gene_id_requested": lncrna_gene_id_requested,
+                "lncrna_gene_id_source": lncrna_gene_id_source,
+                "species_ids": species_ids,
+                "warmup_rounds": warmup_rounds,
+                "admin_metrics_reset": admin_metrics_reset,
+            }
+        },
+        "endpoints": {
+            OVERLAP_LIST_PATH: _empty_endpoint_row(),
+            OVERLAP_COMPARE_PATH: _empty_endpoint_row(),
+        },
+    }
+
+
 def _build_compact_snapshot(
     *,
     raw_metrics: dict[str, Any],
@@ -739,6 +774,44 @@ def main() -> int:
             admin_metrics_reset = {"status_code": None, "ok": False}
             print(f"[WARN] admin metrics reset failed: {e} (continue without reset)", file=sys.stderr)
 
+    def emit_warmup_failure_report(*, failures: list[str]) -> int:
+        current = _build_warmup_failure_snapshot(
+            lncrna_gene_id=resolved_lncrna_gene_id,
+            lncrna_gene_id_requested=requested_lncrna_gene_id,
+            lncrna_gene_id_source=lncrna_gene_id_source,
+            species_ids=species_ids,
+            warmup_rounds=int(args.warmup_rounds),
+            admin_metrics_reset=admin_metrics_reset,
+        )
+
+        snap_path = out_dir / f"perf-overlap-{ts}.json"
+        snap_path.write_text(_stable_json_text(current), encoding="utf-8")
+
+        md = _build_markdown(
+            mode=str(args.cmd),
+            base_url=base_url,
+            generated_at=ts,
+            baseline_file=baseline_file,
+            baseline=None,
+            current=current,
+            ok=False,
+            failures=failures,
+            admin_metrics_diff_path=None,
+            min_samples=min_samples,
+            response_regression_pct=response_regression_pct,
+            response_regression_abs_ms=response_regression_abs_ms,
+            db_regression_pct=db_regression_pct,
+            db_regression_abs_ms=db_regression_abs_ms,
+        )
+
+        md_path = out_dir / f"perf-overlap-{ts}.md"
+        md_path.write_text(md, encoding="utf-8")
+
+        for f in failures:
+            print(f, file=sys.stderr)
+        print(f"[FAIL] Warmup failed. Report: {md_path}", file=sys.stderr)
+        return 2
+
     # 1) Warmup traffic (best effort but required for stable percentiles)
     requested_lncrna_gene_id = int(args.lncrna_gene_id)
     resolved_lncrna_gene_id = requested_lncrna_gene_id
@@ -753,13 +826,13 @@ def main() -> int:
         )
     except WarmupRequestError as e:
         if e.status_code == 429:
-            print(f"[ERROR] {e}", file=sys.stderr)
-            print(
-                "[HINT] HTTP 429 during warmup. If you're using docker-sample, ensure RATE_LIMIT_BYPASS_PRIVATE=true. "
-                "If you're using an external backend, check any rate limit middleware / allowlist settings.",
-                file=sys.stderr,
+            return emit_warmup_failure_report(
+                failures=[
+                    f"[ERROR] {e}",
+                    "[HINT] HTTP 429 during warmup. If you're using docker-sample, ensure RATE_LIMIT_BYPASS_PRIVATE=true. "
+                    "If you're using an external backend, check any rate limit middleware / allowlist settings.",
+                ]
             )
-            return 2
         is_compare = OVERLAP_COMPARE_PATH in (e.url or "")
         if is_compare and e.status_code in (400, 404, 422):
             picked = _pick_lncrna_gene_id_with_core_id(
@@ -784,22 +857,19 @@ def main() -> int:
                         timeout_seconds=float(args.timeout_seconds),
                     )
                 except Exception as e2:
-                    print(f"[ERROR] {e2}", file=sys.stderr)
-                    return 2
+                    return emit_warmup_failure_report(failures=[f"[ERROR] {e2}"])
             else:
-                print(f"[ERROR] {e}", file=sys.stderr)
-                print(
-                    "[HINT] The provided lncrna_gene_id may not exist in this DB. "
-                    "Provide a valid --lncrna-gene-id, or ensure /api/v1/genes/options is available.",
-                    file=sys.stderr,
+                return emit_warmup_failure_report(
+                    failures=[
+                        f"[ERROR] {e}",
+                        "[HINT] The provided lncrna_gene_id may not exist in this DB. "
+                        "Provide a valid --lncrna-gene-id, or ensure /api/v1/genes/options is available.",
+                    ]
                 )
-                return 2
         else:
-            print(f"[ERROR] {e}", file=sys.stderr)
-            return 2
+            return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
     except Exception as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
-        return 2
+        return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
 
     # 2) Fetch metrics
     metrics_url = f"{base_url}{ADMIN_METRICS_PATH}"
