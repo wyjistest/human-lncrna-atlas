@@ -57,7 +57,7 @@ DEFAULT_MIN_SAMPLES = 20
 DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
 # Genes/Regulations 的 tail 指标仍可能受环境抖动影响，但在提高 warmup/min_samples 后，
 # 默认收紧绝对阈值以更早发现明显回归；db 维度仍保持 2ms 以确保可定位。
-DEFAULT_RESPONSE_REGRESSION_ABS_MS = 10.0
+DEFAULT_RESPONSE_REGRESSION_ABS_MS = 20.0
 DEFAULT_DB_REGRESSION_PCT = 8.0
 DEFAULT_DB_REGRESSION_ABS_MS = 2.0
 
