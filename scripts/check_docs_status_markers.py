@@ -5,6 +5,8 @@ Docs 状态标注检查：
 - 仅扫描 git 跟踪的 Markdown 文件（避免把本地生成/忽略文件当作仓库内容）。
 - 若文档包含“Mock/未实现/待实现/TODO/checkbox”等容易被误读为当前待办的信号，
   则必须包含 `docs/CURRENT_STATUS.md` 引用，用于指向真实现状。
+- 对“入口/用户向”文档（如 `docs/api/**`）：marker 必须出现在文档前 N 行（默认 30），
+  避免读者先看到 TODO 等信号而误读当前状态。
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REQUIRED_MARKER = "docs/CURRENT_STATUS.md"
 EXEMPT_FILES: set[Path] = {REPO_ROOT / REQUIRED_MARKER}
+ENTRY_DOC_MARKER_MAX_LINE = 30
 
 INDICATORS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bTODO\b", re.IGNORECASE), "TODO"),
@@ -53,6 +56,19 @@ def _find_first_indicator(text: str) -> tuple[int, str] | None:
     return None
 
 
+def _find_marker_line_no(text: str) -> int | None:
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        if REQUIRED_MARKER in line:
+            return line_no
+    return None
+
+
+def _requires_marker_near_top(rel_path: Path) -> bool:
+    # 入口/用户向文档：避免 TODO 等信号先出现导致误读。
+    rel_posix = rel_path.as_posix()
+    return rel_posix.startswith("docs/api/")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check docs have CURRENT_STATUS marker when needed.")
     parser.add_argument(
@@ -84,19 +100,29 @@ def main() -> int:
             text = path.read_text(encoding="utf-8", errors="ignore")
         scanned += 1
 
+        try:
+            rel = path.relative_to(REPO_ROOT)
+        except ValueError:
+            rel = path
+
         if not _needs_marker(text):
             continue
         if REQUIRED_MARKER not in text:
             indicator = _find_first_indicator(text)
-            try:
-                rel = path.relative_to(REPO_ROOT)
-            except ValueError:
-                rel = path
             if indicator is None:
                 offenders.append(f"{rel}:0: missing marker: `{REQUIRED_MARKER}`")
                 continue
             line_no, label = indicator
             offenders.append(f"{rel}:{line_no}: missing marker: `{REQUIRED_MARKER}` (indicator: {label})")
+            continue
+
+        if _requires_marker_near_top(rel):
+            marker_line = _find_marker_line_no(text)
+            if marker_line is not None and marker_line > ENTRY_DOC_MARKER_MAX_LINE:
+                offenders.append(
+                    f"{rel}:{marker_line}: marker too late: `{REQUIRED_MARKER}` "
+                    f"(expected within first {ENTRY_DOC_MARKER_MAX_LINE} lines)"
+                )
 
     if offenders:
         print("Docs status marker check FAILED.")
