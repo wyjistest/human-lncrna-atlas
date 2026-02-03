@@ -2,24 +2,24 @@
   "endpoints": {
     "/api/v1/lncrna-chipseq-overlap": {
       "db": {
-        "p95_ms": 5.37,
-        "p99_ms": 11.55
+        "p95_ms": 5.14,
+        "p99_ms": 7.59
       },
-      "requests": 21,
+      "requests": 31,
       "response": {
-        "p95_ms": 80.54,
-        "p99_ms": 97.97
+        "p95_ms": 90.32,
+        "p99_ms": 107.17
       }
     },
     "/api/v1/lncrna-chipseq-overlap/compare": {
       "db": {
-        "p95_ms": 6.67,
-        "p99_ms": 6.67
+        "p95_ms": 6.15,
+        "p99_ms": 6.79
       },
-      "requests": 20,
+      "requests": 30,
       "response": {
-        "p95_ms": 25.88,
-        "p99_ms": 25.88
+        "p95_ms": 27.32,
+        "p99_ms": 31.73
       }
     }
   },
@@ -27,28 +27,28 @@
     "base_url": "http://localhost:8000",
     "baseline_file": "docs/baselines/performance/overlap-admin-metrics.baseline.json",
     "baseline_raw_metrics_file": "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json",
-    "generated_at": "2026-02-02T08-03-49Z",
+    "generated_at": "2026-02-03T04-08-41Z",
     "scenario": {
       "lncrna_gene_id": 3,
       "lncrna_gene_id_requested": 17276,
       "lncrna_gene_id_source": "auto",
-      "min_samples": 10,
+      "min_samples": 20,
       "species_ids": [
         1,
         3
       ],
-      "warmup_rounds": 20
+      "warmup_rounds": 30
     },
     "schema_version": 1,
     "status": "SET",
     "thresholds": {
       "db": {
         "abs_ms": 2.0,
-        "pct": 10.0
+        "pct": 8.0
       },
       "response": {
         "abs_ms": 10.0,
-        "pct": 10.0
+        "pct": 8.0
       }
     }
   }

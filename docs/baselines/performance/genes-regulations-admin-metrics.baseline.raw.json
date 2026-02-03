@@ -33,68 +33,68 @@
     "total_requests": 0
   },
   "database": {
-    "avg_ms": 0.95,
+    "avg_ms": 0.89,
     "percentiles": {
-      "p50_ms": 0.78,
-      "p95_ms": 1.74,
-      "p99_ms": 3.36
+      "p50_ms": 0.91,
+      "p95_ms": 1.4,
+      "p99_ms": 1.41
     },
-    "query_samples": 78,
-    "request_avg_ms": 1.9,
+    "query_samples": 118,
+    "request_avg_ms": 1.78,
     "request_percentiles": {
-      "p50_ms": 1.8,
-      "p95_ms": 2.33,
-      "p99_ms": 6.44
+      "p50_ms": 1.74,
+      "p95_ms": 2.0,
+      "p99_ms": 4.56
     },
-    "request_samples": 39,
-    "request_total_ms": 74.16,
+    "request_samples": 59,
+    "request_total_ms": 105.05,
     "slow_queries": [],
     "slow_query_threshold_ms": 200.0,
-    "total_queries": 78,
-    "total_time_ms": 74.16
+    "total_queries": 118,
+    "total_time_ms": 105.05
   },
   "endpoints": [
     {
-      "avg_ms": 15.57,
-      "db_avg_ms": 2.1,
+      "avg_ms": 15.19,
+      "db_avg_ms": 1.93,
       "db_percentiles": {
-        "p50_ms": 1.92,
-        "p95_ms": 6.44,
-        "p99_ms": 6.44
+        "p50_ms": 1.86,
+        "p95_ms": 2.01,
+        "p99_ms": 4.56
       },
       "db_query_avg": 2.0,
-      "db_samples": 20,
+      "db_samples": 30,
       "error_rate": 0.0,
       "errors": 0,
       "path": "/api/v1/genes",
       "percentiles": {
-        "p50_ms": 12.77,
-        "p95_ms": 83.72,
-        "p99_ms": 83.72
+        "p50_ms": 12.27,
+        "p95_ms": 12.91,
+        "p99_ms": 103.38
       },
-      "requests": 20,
-      "samples": 20
+      "requests": 30,
+      "samples": 30
     },
     {
-      "avg_ms": 20.64,
-      "db_avg_ms": 1.7,
+      "avg_ms": 18.48,
+      "db_avg_ms": 1.62,
       "db_percentiles": {
-        "p50_ms": 1.67,
-        "p95_ms": 2.33,
-        "p99_ms": 2.33
+        "p50_ms": 1.64,
+        "p95_ms": 1.74,
+        "p99_ms": 1.75
       },
       "db_query_avg": 2.0,
-      "db_samples": 19,
+      "db_samples": 29,
       "error_rate": 0.0,
       "errors": 0,
       "path": "/api/v1/regulations",
       "percentiles": {
-        "p50_ms": 16.31,
-        "p95_ms": 91.06,
-        "p99_ms": 91.06
+        "p50_ms": 15.33,
+        "p95_ms": 27.55,
+        "p99_ms": 85.22
       },
-      "requests": 19,
-      "samples": 19
+      "requests": 29,
+      "samples": 29
     }
   ],
   "error_trend": {
@@ -111,16 +111,16 @@
       0.0
     ],
     "timestamps": [
-      "09:08",
-      "09:09",
-      "09:10",
-      "09:11",
-      "09:12",
-      "09:13",
-      "09:14",
-      "09:15",
-      "09:16",
-      "09:17"
+      "03:58",
+      "03:59",
+      "04:00",
+      "04:01",
+      "04:02",
+      "04:03",
+      "04:04",
+      "04:05",
+      "04:06",
+      "04:07"
     ]
   },
   "errors": {
@@ -134,16 +134,16 @@
     "uptime_seconds": 1
   },
   "percentiles": {
-    "p50_ms": 13.27,
-    "p95_ms": 83.72,
-    "p99_ms": 91.06
+    "p50_ms": 14.31,
+    "p95_ms": 27.55,
+    "p99_ms": 103.38
   },
   "request": {
-    "last_minute": 39,
-    "total": 39
+    "last_minute": 59,
+    "total": 59
   },
   "response_time": {
-    "avg_ms": 18.04
+    "avg_ms": 16.81
   },
   "response_time_distribution": {
     "buckets": [
@@ -154,28 +154,28 @@
       "500ms+"
     ],
     "counts": [
-      37,
-      2,
-      0,
+      57,
+      1,
+      1,
       0,
       0
     ]
   },
   "system": {
-    "cpu_percent": 11.8,
+    "cpu_percent": 11.7,
     "disk": {
-      "percent": 41.3,
+      "percent": 41.6,
       "total_gb": 186.68,
-      "used_gb": 73.11
+      "used_gb": 73.68
     },
     "memory": {
-      "percent": 10.5,
+      "percent": 14.9,
       "total_mb": 257430.34,
-      "used_mb": 27148.35
+      "used_mb": 35981.28
     },
     "process": {
       "cpu_percent": 0.0,
-      "memory_mb": 107.27
+      "memory_mb": 108.7
     }
   }
 }
