@@ -51,6 +51,10 @@ on:
         description: "Warmup regulations page_size."
         required: false
         default: "100"
+      reset_metrics:
+        description: "Optional: reset /api/v1/admin/metrics stats before warmup (external backend only)."
+        required: false
+        default: "false"
       min_samples:
         description: "Gate: minimum samples per endpoint (requests >= min_samples)."
         required: false
@@ -90,6 +94,7 @@ env:
   GENES_PAGE_SIZE: ${{ github.event.inputs.genes_page_size || '100' }}
   REGULATIONS_SPECIES_ID: ${{ github.event.inputs.regulations_species_id || '1' }}
   REGULATIONS_PAGE_SIZE: ${{ github.event.inputs.regulations_page_size || '100' }}
+  RESET_METRICS: ${{ github.event.inputs.reset_metrics || 'false' }}
   MIN_SAMPLES: ${{ github.event.inputs.min_samples || '20' }}
   RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '8' }}
   RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '20' }}
@@ -157,9 +162,16 @@ jobs:
         run: |
           set -euo pipefail
           python3 --version
+
+          reset_args=()
+          if [ "${RESET_METRICS}" = "true" ]; then
+            reset_args=(--reset-metrics)
+          fi
+
           python3 scripts/perf_genes_regulations_regression.py "${MODE}" \
             --base-url "${API_BASE_URL}" \
             --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
+            "${reset_args[@]}" \
             --warmup-rounds "${WARMUP_ROUNDS}" \
             --genes-species-id "${GENES_SPECIES_ID}" \
             --genes-gene-type "${GENES_GENE_TYPE}" \

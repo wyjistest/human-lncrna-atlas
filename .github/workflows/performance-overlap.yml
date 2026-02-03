@@ -39,6 +39,10 @@ on:
         description: "Warmup compare species ids (CSV)."
         required: false
         default: "1,3"
+      reset_metrics:
+        description: "Optional: reset /api/v1/admin/metrics stats before warmup (external backend only)."
+        required: false
+        default: "false"
       min_samples:
         description: "Gate: minimum samples per endpoint (requests >= min_samples)."
         required: false
@@ -75,6 +79,7 @@ env:
   WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '30' }}
   LNCRNA_GENE_ID: ${{ github.event.inputs.lncrna_gene_id || '17276' }}
   SPECIES_IDS: ${{ github.event.inputs.species_ids || '1,3' }}
+  RESET_METRICS: ${{ github.event.inputs.reset_metrics || 'false' }}
   MIN_SAMPLES: ${{ github.event.inputs.min_samples || '20' }}
   RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '8' }}
   RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '5' }}
@@ -142,9 +147,16 @@ jobs:
         run: |
           set -euo pipefail
           python3 --version
+
+          reset_args=()
+          if [ "${RESET_METRICS}" = "true" ]; then
+            reset_args=(--reset-metrics)
+          fi
+
           python3 scripts/perf_overlap_regression.py "${MODE}" \
             --base-url "${API_BASE_URL}" \
             --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
+            "${reset_args[@]}" \
             --warmup-rounds "${WARMUP_ROUNDS}" \
             --lncrna-gene-id "${LNCRNA_GENE_ID}" \
             --species-ids "${SPECIES_IDS}" \
