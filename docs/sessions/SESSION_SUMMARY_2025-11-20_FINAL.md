@@ -155,7 +155,7 @@ docs/
 ### 项目文档
 ```
 README.md                    # 项目总结 (350行)
-VALIDATION_REPORT_v2.3.1.md  # 验证报告
+docs/archive/reports/VALIDATION_REPORT_v2.3.1.md  # 验证报告（已归档）
 ```
 
 **总计**: 约 **5000+行** 生产级代码和文档
@@ -331,7 +331,7 @@ humanLncAtlas/
 │       ├── CRITICAL_FIX_v2.3.1.md  # 列名修复
 │       └── FK_FIX_v2.3.1.md        # 外键修复
 ├── README.md                       # 项目总结
-├── VALIDATION_REPORT_v2.3.1.md     # 验证报告
+├── docs/archive/reports/VALIDATION_REPORT_v2.3.1.md     # 验证报告（已归档）
 └── SESSION_SUMMARY_2025-11-20_FINAL.md  # 本文档
 ```
 
@@ -351,7 +351,7 @@ humanLncAtlas/
 
 2. **查看文档**
    - `README.md` - 项目概览
-   - `VALIDATION_REPORT_v2.3.1.md` - 验证报告
+   - `docs/archive/reports/VALIDATION_REPORT_v2.3.1.md` - 验证报告（已归档）
    - `docs/FK_FIX_v2.3.1.md` - 最新修复详情
 
 ### 需PostgreSQL环境
@@ -415,7 +415,7 @@ humanLncAtlas/
    - Schema: `schema/v2.3/01_core.sql`
    - 样本数据: `schema/v2.3/03_sample_data.sql` （已修复FK）
    - 测试脚本: `scripts/end_to_end_test.sh`
-   - 验证报告: `VALIDATION_REPORT_v2.3.1.md`
+   - 验证报告: `docs/archive/reports/VALIDATION_REPORT_v2.3.1.md`
 
 5. **已知问题**: 无（第5-6轮审查问题已全部修复）
 
@@ -446,7 +446,7 @@ tree -L 2 -I '__pycache__|*.pyc'
 
 # 查看关键文档
 cat README.md
-cat VALIDATION_REPORT_v2.3.1.md
+cat docs/archive/reports/VALIDATION_REPORT_v2.3.1.md
 ```
 
 ---
@@ -494,4 +494,4 @@ cat VALIDATION_REPORT_v2.3.1.md
 
 **会话总结完成时间**: 2025-11-20
 **文档版本**: Final
-**下次继承**: 阅读本文档 + VALIDATION_REPORT_v2.3.1.md
+**下次继承**: 阅读本文档 + docs/archive/reports/VALIDATION_REPORT_v2.3.1.md
