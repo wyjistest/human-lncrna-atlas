@@ -93,8 +93,9 @@ MODE=generate-baseline bash scripts/baselines/run_genes_regulations_perf_regress
 
 1. 第一次：选择 `mode=generate-baseline` 生成 baseline。
 2. 如果 runner 上没有常驻后端：把 `backend_mode` 设为 `docker-sample`（会自动启动 sample backend 后再跑）。
-3. 下载 artifact 中的 baseline 文件，并提交到仓库。
-4. 后续：选择 `mode=check`（同理可选 `backend_mode=docker-sample`）用于验证优化/重构是否引入明显回归。
+3. （可选）如果使用 `backend_mode=external` 且后端是长时间运行的：设置 `reset_metrics=true`，在 warmup 前调用 `POST /api/v1/admin/metrics/reset-stats`，避免旧样本混入。
+4. 下载 artifact 中的 baseline 文件，并提交到仓库。
+5. 后续：选择 `mode=check`（同理可选 `backend_mode=docker-sample`）用于验证优化/重构是否引入明显回归。
 
 Artifacts（即使失败也会上传）：
 
