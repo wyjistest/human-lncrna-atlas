@@ -4,3 +4,7 @@ services:
     # deterministic aggregation, so force a single worker to avoid samples being split
     # across multiple processes.
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    environment:
+      # Perf regression warmup 会在短时间内打出较多请求；docker bridge 的 client IP 通常是私网段（非 loopback），
+      # 若不绕过限流可能触发 429，导致 perf workflow 误判失败。
+      RATE_LIMIT_BYPASS_PRIVATE: ${RATE_LIMIT_BYPASS_PRIVATE:-true}
