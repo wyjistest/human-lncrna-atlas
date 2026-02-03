@@ -245,6 +245,30 @@ gh workflow run Tests --ref "<PR_BRANCH>"
 1. 让 runner 进程不要继承代理环境变量（例如在启动 runner 的脚本里 `unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY`）。
 2. 或为代理正确配置系统 CA / MITM 证书（取决于你的代理实现与安全策略）。
 
+### 6.2) 常见排障：直连 GitHub 超时 / 不可达（需要代理）
+
+如果你在 self-hosted 机器上发现直连 GitHub 超时（例如 `curl -I -m 8 https://github.com` 超时），可以先用“临时环境变量”的方式为 `gh`/`git` 增加代理（示例以本机代理端口 `7890` 为例）：
+
+```bash
+# 仅影响当前 shell/命令（推荐先这样验证）
+export http_proxy="http://127.0.0.1:7890"
+export https_proxy="http://127.0.0.1:7890"
+
+# 避免把本机服务（backend/health check 等）也走代理，导致卡住
+export NO_PROXY="127.0.0.1,localhost,::1"
+export no_proxy="127.0.0.1,localhost,::1"
+
+# 验证：GitHub 200
+curl -I -m 8 https://github.com | head
+
+# 验证：gh 可用（示例）
+gh run list --branch main --limit 5
+```
+
+注意：
+- 如果你把代理写进 runner 的常驻环境（例如 systemd env），Actions runner 的“下载 action / checkout”也会继承代理；某些代理实现可能导致 SSL 下载不稳定（见上面的 6)）。
+- 如你的环境必须依赖代理才能访问 GitHub，建议优先保证代理的 CA/证书链配置正确，或使用更稳定的网络路径。
+
 ### 6.1) 常见排障：actions/checkout 失败（git gnutls_handshake）
 
 如果 self-hosted runner 偶发出现类似报错：
