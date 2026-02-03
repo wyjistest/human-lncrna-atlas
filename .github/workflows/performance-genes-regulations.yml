@@ -30,7 +30,7 @@ on:
       warmup_rounds:
         description: "Warmup rounds before snapshot."
         required: false
-        default: "20"
+        default: "30"
       genes_species_id:
         description: "Warmup genes species_id."
         required: false
@@ -54,19 +54,19 @@ on:
       min_samples:
         description: "Gate: minimum samples per endpoint (requests >= min_samples)."
         required: false
-        default: "10"
+        default: "20"
       response_regression_pct:
         description: "Gate: response regression pct threshold."
         required: false
-        default: "10"
+        default: "8"
       response_regression_abs_ms:
         description: "Gate: response regression abs threshold (ms)."
         required: false
-        default: "10"
+        default: "25"
       db_regression_pct:
         description: "Gate: db regression pct threshold."
         required: false
-        default: "10"
+        default: "8"
       db_regression_abs_ms:
         description: "Gate: db regression abs threshold (ms)."
         required: false
@@ -84,16 +84,16 @@ env:
   BACKEND_MODE: ${{ github.event.inputs.backend_mode || 'external' }}
   API_BASE_URL: ${{ github.event.inputs.api_base_url || 'http://127.0.0.1:8000' }}
   MODE: ${{ github.event.inputs.mode || 'check' }}
-  WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '20' }}
+  WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '30' }}
   GENES_SPECIES_ID: ${{ github.event.inputs.genes_species_id || '1' }}
   GENES_GENE_TYPE: ${{ github.event.inputs.genes_gene_type || 'lncRNA' }}
   GENES_PAGE_SIZE: ${{ github.event.inputs.genes_page_size || '100' }}
   REGULATIONS_SPECIES_ID: ${{ github.event.inputs.regulations_species_id || '1' }}
   REGULATIONS_PAGE_SIZE: ${{ github.event.inputs.regulations_page_size || '100' }}
-  MIN_SAMPLES: ${{ github.event.inputs.min_samples || '10' }}
-  RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '10' }}
-  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '10' }}
-  DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '10' }}
+  MIN_SAMPLES: ${{ github.event.inputs.min_samples || '20' }}
+  RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '8' }}
+  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '25' }}
+  DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '8' }}
   DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '2' }}
   PYTHON_VERSION: '3.11'
 
