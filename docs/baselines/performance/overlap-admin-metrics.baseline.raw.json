@@ -33,94 +33,68 @@
     "total_requests": 0
   },
   "database": {
-    "avg_ms": 1.39,
+    "avg_ms": 1.31,
     "percentiles": {
-      "p50_ms": 1.62,
-      "p95_ms": 2.55,
-      "p99_ms": 2.67
+      "p50_ms": 1.29,
+      "p95_ms": 2.71,
+      "p99_ms": 2.91
     },
-    "query_samples": 214,
-    "request_avg_ms": 4.71,
+    "query_samples": 205,
+    "request_avg_ms": 4.54,
     "request_percentiles": {
-      "p50_ms": 4.6,
-      "p95_ms": 6.12,
-      "p99_ms": 7.59
+      "p50_ms": 4.32,
+      "p95_ms": 6.63,
+      "p99_ms": 7.04
     },
-    "request_samples": 63,
-    "request_total_ms": 296.48,
+    "request_samples": 59,
+    "request_total_ms": 267.64,
     "slow_queries": [],
     "slow_query_threshold_ms": 200.0,
-    "total_queries": 214,
-    "total_time_ms": 296.48
+    "total_queries": 205,
+    "total_time_ms": 267.64
   },
   "endpoints": [
     {
-      "avg_ms": 25.23,
-      "db_avg_ms": 3.94,
+      "avg_ms": 21.62,
+      "db_avg_ms": 3.73,
       "db_percentiles": {
-        "p50_ms": 3.85,
-        "p95_ms": 5.14,
-        "p99_ms": 7.59
+        "p50_ms": 4.21,
+        "p95_ms": 5.23,
+        "p99_ms": 6.32
       },
-      "db_query_avg": 2.03,
-      "db_samples": 31,
+      "db_query_avg": 2.0,
+      "db_samples": 30,
       "error_rate": 0.0,
       "errors": 0,
       "path": "/api/v1/lncrna-chipseq-overlap",
       "percentiles": {
-        "p50_ms": 20.44,
-        "p95_ms": 90.32,
-        "p99_ms": 107.17
-      },
-      "requests": 31,
-      "samples": 31
-    },
-    {
-      "avg_ms": 22.29,
-      "db_avg_ms": 5.63,
-      "db_percentiles": {
-        "p50_ms": 5.8,
-        "p95_ms": 6.15,
-        "p99_ms": 6.79
-      },
-      "db_query_avg": 4.87,
-      "db_samples": 30,
-      "error_rate": 0.0,
-      "errors": 0,
-      "path": "/api/v1/lncrna-chipseq-overlap/compare",
-      "percentiles": {
-        "p50_ms": 22.11,
-        "p95_ms": 27.32,
-        "p99_ms": 31.73
+        "p50_ms": 21.86,
+        "p95_ms": 27.54,
+        "p99_ms": 28.2
       },
       "requests": 30,
       "samples": 30
     },
     {
-      "avg_ms": 15.21,
-      "db_avg_ms": 1.64,
-      "db_percentiles": null,
-      "db_query_avg": 1.0,
-      "db_samples": 1,
+      "avg_ms": 22.43,
+      "db_avg_ms": 5.37,
+      "db_percentiles": {
+        "p50_ms": 6.03,
+        "p95_ms": 6.93,
+        "p99_ms": 7.04
+      },
+      "db_query_avg": 5.0,
+      "db_samples": 29,
       "error_rate": 0.0,
       "errors": 0,
-      "path": "/api/v1/genes/options",
-      "percentiles": null,
-      "requests": 1,
-      "samples": 1
-    },
-    {
-      "avg_ms": 26.3,
-      "db_avg_ms": 3.58,
-      "db_percentiles": null,
-      "db_query_avg": 4.0,
-      "db_samples": 1,
-      "error_rate": 0.0,
-      "errors": 0,
-      "path": "/api/v1/genes/{gene_id}",
-      "percentiles": null,
-      "requests": 1,
-      "samples": 1
+      "path": "/api/v1/lncrna-chipseq-overlap/compare",
+      "percentiles": {
+        "p50_ms": 22.7,
+        "p95_ms": 25.99,
+        "p99_ms": 27.43
+      },
+      "requests": 29,
+      "samples": 29
     }
   ],
   "error_trend": {
@@ -137,16 +111,16 @@
       0.0
     ],
     "timestamps": [
-      "03:59",
-      "04:00",
-      "04:01",
-      "04:02",
-      "04:03",
-      "04:04",
-      "04:05",
-      "04:06",
-      "04:07",
-      "04:08"
+      "02:31",
+      "02:32",
+      "02:33",
+      "02:34",
+      "02:35",
+      "02:36",
+      "02:37",
+      "02:38",
+      "02:39",
+      "02:40"
     ]
   },
   "errors": {
@@ -157,19 +131,19 @@
     "cache": "not_configured",
     "database": "ok",
     "status": "healthy",
-    "uptime_seconds": 2
+    "uptime_seconds": 3
   },
   "percentiles": {
-    "p50_ms": 21.09,
-    "p95_ms": 27.32,
-    "p99_ms": 107.17
+    "p50_ms": 22.38,
+    "p95_ms": 27.43,
+    "p99_ms": 28.2
   },
   "request": {
-    "last_minute": 63,
-    "total": 63
+    "last_minute": 59,
+    "total": 59
   },
   "response_time": {
-    "avg_ms": 23.69
+    "avg_ms": 22.02
   },
   "response_time_distribution": {
     "buckets": [
@@ -180,28 +154,28 @@
       "500ms+"
     ],
     "counts": [
-      61,
-      1,
-      1,
+      59,
+      0,
+      0,
       0,
       0
     ]
   },
   "system": {
-    "cpu_percent": 11.3,
+    "cpu_percent": 39.2,
     "disk": {
-      "percent": 41.6,
+      "percent": 42.1,
       "total_gb": 186.68,
-      "used_gb": 73.73
+      "used_gb": 74.52
     },
     "memory": {
-      "percent": 14.9,
+      "percent": 36.8,
       "total_mb": 257430.34,
-      "used_mb": 35943.04
+      "used_mb": 91610.94
     },
     "process": {
       "cpu_percent": 0.0,
-      "memory_mb": 108.55
+      "memory_mb": 109.12
     }
   }
 }

@@ -1,13 +1,5 @@
 {
-  "alerts": [
-    {
-      "message": "CPU usage 73.1% approaching threshold 80.0%",
-      "metric": "cpu_percent",
-      "threshold": 80.0,
-      "type": "warning",
-      "value": 73.1
-    }
-  ],
+  "alerts": [],
   "cache_breakdown": {
     "keys": {
       "limit": 10,
@@ -41,34 +33,55 @@
     "total_requests": 0
   },
   "database": {
-    "avg_ms": 0.38,
+    "avg_ms": 0.79,
     "percentiles": {
-      "p50_ms": 0.46,
-      "p95_ms": 0.56,
-      "p99_ms": 0.58
+      "p50_ms": 0.71,
+      "p95_ms": 1.52,
+      "p99_ms": 1.73
     },
-    "query_samples": 118,
-    "request_avg_ms": 0.76,
+    "query_samples": 120,
+    "request_avg_ms": 1.57,
     "request_percentiles": {
-      "p50_ms": 0.77,
-      "p95_ms": 0.88,
-      "p99_ms": 1.06
+      "p50_ms": 1.38,
+      "p95_ms": 2.3,
+      "p99_ms": 2.41
     },
-    "request_samples": 59,
-    "request_total_ms": 45.03,
+    "request_samples": 60,
+    "request_total_ms": 94.47,
     "slow_queries": [],
     "slow_query_threshold_ms": 200.0,
-    "total_queries": 118,
-    "total_time_ms": 45.03
+    "total_queries": 120,
+    "total_time_ms": 94.47
   },
   "endpoints": [
     {
-      "avg_ms": 5.32,
-      "db_avg_ms": 0.82,
+      "avg_ms": 15.74,
+      "db_avg_ms": 1.47,
       "db_percentiles": {
-        "p50_ms": 0.82,
-        "p95_ms": 0.89,
-        "p99_ms": 1.06
+        "p50_ms": 1.37,
+        "p95_ms": 2.16,
+        "p99_ms": 2.27
+      },
+      "db_query_avg": 2.0,
+      "db_samples": 30,
+      "error_rate": 0.0,
+      "errors": 0,
+      "path": "/api/v1/regulations",
+      "percentiles": {
+        "p50_ms": 16.67,
+        "p95_ms": 19.63,
+        "p99_ms": 23.23
+      },
+      "requests": 30,
+      "samples": 30
+    },
+    {
+      "avg_ms": 12.53,
+      "db_avg_ms": 1.68,
+      "db_percentiles": {
+        "p50_ms": 1.58,
+        "p95_ms": 2.36,
+        "p99_ms": 2.41
       },
       "db_query_avg": 2.0,
       "db_samples": 30,
@@ -76,33 +89,12 @@
       "errors": 0,
       "path": "/api/v1/genes",
       "percentiles": {
-        "p50_ms": 5.26,
-        "p95_ms": 5.8,
-        "p99_ms": 6.85
+        "p50_ms": 13.54,
+        "p95_ms": 15.18,
+        "p99_ms": 17.23
       },
       "requests": 30,
       "samples": 30
-    },
-    {
-      "avg_ms": 6.73,
-      "db_avg_ms": 0.7,
-      "db_percentiles": {
-        "p50_ms": 0.71,
-        "p95_ms": 0.75,
-        "p99_ms": 0.75
-      },
-      "db_query_avg": 2.0,
-      "db_samples": 29,
-      "error_rate": 0.0,
-      "errors": 0,
-      "path": "/api/v1/regulations",
-      "percentiles": {
-        "p50_ms": 6.58,
-        "p95_ms": 9.09,
-        "p99_ms": 9.6
-      },
-      "requests": 29,
-      "samples": 29
     }
   ],
   "error_trend": {
@@ -119,16 +111,16 @@
       0.0
     ],
     "timestamps": [
-      "08:19",
-      "08:20",
-      "08:21",
-      "08:22",
-      "08:23",
-      "08:24",
-      "08:25",
-      "08:26",
-      "08:27",
-      "08:28"
+      "02:34",
+      "02:35",
+      "02:36",
+      "02:37",
+      "02:38",
+      "02:39",
+      "02:40",
+      "02:41",
+      "02:42",
+      "02:43"
     ]
   },
   "errors": {
@@ -139,19 +131,19 @@
     "cache": "not_configured",
     "database": "ok",
     "status": "healthy",
-    "uptime_seconds": 825
+    "uptime_seconds": 2
   },
   "percentiles": {
-    "p50_ms": 5.8,
-    "p95_ms": 8.29,
-    "p99_ms": 9.6
+    "p50_ms": 14.01,
+    "p95_ms": 18.58,
+    "p99_ms": 23.23
   },
   "request": {
-    "last_minute": 59,
-    "total": 59
+    "last_minute": 60,
+    "total": 60
   },
   "response_time": {
-    "avg_ms": 6.01
+    "avg_ms": 14.13
   },
   "response_time_distribution": {
     "buckets": [
@@ -162,7 +154,7 @@
       "500ms+"
     ],
     "counts": [
-      59,
+      60,
       0,
       0,
       0,
@@ -170,20 +162,20 @@
     ]
   },
   "system": {
-    "cpu_percent": 73.1,
+    "cpu_percent": 39.1,
     "disk": {
-      "percent": 42.0,
+      "percent": 42.2,
       "total_gb": 186.68,
-      "used_gb": 74.41
+      "used_gb": 74.71
     },
     "memory": {
-      "percent": 25.7,
+      "percent": 32.0,
       "total_mb": 257430.34,
-      "used_mb": 63612.46
+      "used_mb": 79115.53
     },
     "process": {
       "cpu_percent": 0.0,
-      "memory_mb": 111.41
+      "memory_mb": 108.36
     }
   }
 }
