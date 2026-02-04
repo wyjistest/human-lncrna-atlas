@@ -67,3 +67,29 @@ python3 scripts/genomes/validate_track_assemblies.py --genomes-dir "/path/to/gen
 
 说明：
 - 该脚本依赖 `pyBigWig`；若环境缺失，按提示安装：`python3 -m pip install pyBigWig`
+
+## Peak 坐标边界校验（BED/broadPeak/narrowPeak）
+
+BigBed/BigWig 会在生成时强依赖 `chrom.sizes`，但纯文本的 peaks（例如 `.bed/.broadPeak/.narrowPeak`）很容易在导入/拼接时混入不同组装的数据而“静默通过”。常见症状是：
+
+- IGV 能加载，但部分 peak 在染色体末端附近整体错位
+- 或出现 `end > chrom_len` 这类明显越界坐标（例如 hg19 项目里混入 GRCh38 peaks）
+
+仓库提供了一个“只读、可审计”的快速校验脚本：逐行解析坐标，并与 `chrom.sizes` 做边界比对。
+
+```bash
+python3 scripts/genomes/validate_peak_bed_bounds.py \
+  --chrom-sizes "/path/to/genomes/hg19.chrom.sizes" \
+  "/path/to/chipseq_bed"
+
+# 也可用于校验从 UCSC 下载的 .broadPeak.gz / .narrowPeak.gz
+python3 scripts/genomes/validate_peak_bed_bounds.py \
+  --chrom-sizes "/path/to/genomes/hg19.chrom.sizes" \
+  "/tmp/ucsc_hg19_recheck_peaks"
+```
+
+当检测到 `FAIL ... reason=end_gt_chrom_len(...)` 时，优先怀疑：
+- 该 peaks 文件对应的参考组装与项目不一致（hg19/hg38 混用）
+- 或数据库中混入了明确标注为其他 reference genome 的实验（例如 `reference_genome=GRCh38`）
+
+补充：后端在导出 IGV ChIP-seq peaks（`/api/v1/igv/tracks/chipseq/{species_id}.bed`）以及 `scripts/export_chipseq_bed.py` 中，会根据 `get_genome_reference(species_id).id` 对 `chipseq_experiments.reference_genome` 做兼容性过滤（NULL 视为“未知但兼容”，仅排除明确不匹配的值），以避免 hg19/hg38 混用造成的坐标错位。

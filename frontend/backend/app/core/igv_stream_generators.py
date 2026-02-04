@@ -4,7 +4,7 @@ IGV数据流生成器
 """
 from typing import Optional, Generator
 from sqlalchemy.orm import Session, aliased
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, or_
 
 from app.models import (
     Regulation,
@@ -15,6 +15,8 @@ from app.models import (
     EpigeneticMarkType,
 )
 from app.core.igv_utils import get_repeatmasker_track_id
+from app.core.igv_utils import get_genome_reference
+from app.core.genome_assembly import reference_genome_aliases
 from app.utils.bed import sanitize_bed_field, sanitize_bed_track_attr
 
 
@@ -367,6 +369,23 @@ def generate_chipseq_bed_stream(
         .filter(ChIPSeqExperiment.mark_type_id == mark_type_obj.mark_type_id)
         .filter(ChIPSeqExperiment.is_active.is_(True))
     )
+
+    # Filter by reference genome to avoid mixing hg19/hg38 (GRCh37/GRCh38) experiments.
+    # NOTE: 为保持向后兼容，reference_genome 为空时视为“未知”，默认允许通过。
+    try:
+        expected_assembly = get_genome_reference(species_id).id
+    except Exception:
+        expected_assembly = None
+
+    if expected_assembly:
+        aliases = sorted(reference_genome_aliases(expected_assembly))
+        if aliases:
+            query = query.filter(
+                or_(
+                    ChIPSeqExperiment.reference_genome.is_(None),
+                    func.lower(ChIPSeqExperiment.reference_genome).in_(aliases),
+                )
+            )
 
     # Region filter
     if chr_filter:

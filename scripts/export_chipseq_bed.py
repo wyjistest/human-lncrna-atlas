@@ -26,8 +26,10 @@ import subprocess
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "frontend" / "backend"))
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from app.core.database import SessionLocal
+from app.core.igv_utils import get_genome_reference
+from app.core.genome_assembly import reference_genome_aliases
 
 
 # Mark type color mapping (RGB format for BED9 itemRgb)
@@ -87,8 +89,20 @@ def export_chipseq_bed(
     exported_files: Dict[str, str] = {}
 
     try:
+        # Determine expected assembly for this species (e.g. hg19 for human).
+        # NOTE: 为保持向后兼容，reference_genome 为空时视为“未知”，默认允许通过；
+        # 仅排除明确不匹配的实验（例如 GRCh38 在 hg19 项目里）。
+        try:
+            expected_assembly = get_genome_reference(species_id).id
+        except Exception:
+            expected_assembly = None
+
+        allowed_ref_aliases = (
+            sorted(reference_genome_aliases(expected_assembly)) if expected_assembly else []
+        )
+
         # Build query to get all peaks with experiment info
-        query = text("""
+        sql = """
             SELECT
                 p.chromosome,
                 p.peak_start,
@@ -104,14 +118,35 @@ def export_chipseq_bed(
               AND e.is_active = TRUE
               AND (:cell_type IS NULL OR e.cell_type = :cell_type)
               AND (:mark_type IS NULL OR m.mark_name = :mark_type)
-            ORDER BY e.cell_type, p.chromosome, p.peak_start
-        """)
+        """
 
-        result = db.execute(query, {
+        if allowed_ref_aliases:
+            sql += """
+              AND (
+                e.reference_genome IS NULL
+                OR lower(e.reference_genome) IN :allowed_ref_aliases
+              )
+            """
+
+        sql += """
+            ORDER BY e.cell_type, p.chromosome, p.peak_start
+        """
+
+        query = (
+            text(sql).bindparams(bindparam("allowed_ref_aliases", expanding=True))
+            if allowed_ref_aliases
+            else text(sql)
+        )
+
+        params = {
             'species_id': species_id,
             'cell_type': cell_type,
-            'mark_type': mark_type
-        })
+            'mark_type': mark_type,
+        }
+        if allowed_ref_aliases:
+            params["allowed_ref_aliases"] = allowed_ref_aliases
+
+        result = db.execute(query, params)
 
         # Group by cell_type and write to separate files
         current_cell_type = None
