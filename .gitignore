@@ -99,6 +99,9 @@ docs/reports/perf-*.md
 docs/reports/perf-*.json
 docs/reports/*raw-metrics-*.json
 
+# Local debug artifacts (downloaded workflow artifacts, etc.)
+.tmp-artifacts/
+
 # Claude Code plugins
 .codex/
 .codex-session

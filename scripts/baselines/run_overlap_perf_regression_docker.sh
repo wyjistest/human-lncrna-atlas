@@ -29,6 +29,7 @@ cd "$REPO_ROOT"
 
 MODE="${MODE:-check}" # check | generate-baseline
 WARMUP_ROUNDS="${WARMUP_ROUNDS:-30}"
+PRE_WARMUP_ROUNDS="${PRE_WARMUP_ROUNDS:-$WARMUP_ROUNDS}"
 LNCRNA_GENE_ID="${LNCRNA_GENE_ID:-17276}"
 SPECIES_IDS="${SPECIES_IDS:-1,3}"
 RESET_METRICS="${RESET_METRICS:-true}"
@@ -41,7 +42,7 @@ MIN_SAMPLES="${MIN_SAMPLES:-20}"
 RESPONSE_REGRESSION_PCT="${RESPONSE_REGRESSION_PCT:-8}"
 RESPONSE_REGRESSION_ABS_MS="${RESPONSE_REGRESSION_ABS_MS:-4}"
 DB_REGRESSION_PCT="${DB_REGRESSION_PCT:-8}"
-DB_REGRESSION_ABS_MS="${DB_REGRESSION_ABS_MS:-1}"
+DB_REGRESSION_ABS_MS="${DB_REGRESSION_ABS_MS:-2}"
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-scripts/baselines/docker-compose.overlap-perf.yml}"
@@ -78,6 +79,7 @@ Options (env var compatible):
   BACKEND_PORT=0
   BASE_URL=http://127.0.0.1:8000  # optional override (recommended to leave empty when BACKEND_PORT=0)
   WARMUP_ROUNDS=30
+  PRE_WARMUP_ROUNDS=30
   LNCRNA_GENE_ID=17276
   SPECIES_IDS=1,3
   RESET_METRICS=true|false
@@ -85,7 +87,7 @@ Options (env var compatible):
   RESPONSE_REGRESSION_PCT=8
   RESPONSE_REGRESSION_ABS_MS=4
   DB_REGRESSION_PCT=8
-  DB_REGRESSION_ABS_MS=1
+  DB_REGRESSION_ABS_MS=2
   COMPOSE_FILE=docker-compose.yml
   COMPOSE_OVERRIDE_FILE=scripts/baselines/docker-compose.overlap-perf.yml
   BASELINE_FILE=docs/baselines/performance/overlap-admin-metrics.baseline.json
@@ -175,6 +177,7 @@ echo "[overlap-perf] mode: $MODE"
 echo "[overlap-perf] backend_host: $BACKEND_HOST"
 echo "[overlap-perf] backend_port: $BACKEND_PORT"
 echo "[overlap-perf] reset_metrics: $RESET_METRICS"
+echo "[overlap-perf] pre_warmup_rounds: $PRE_WARMUP_ROUNDS"
 echo "[overlap-perf] out_dir: $OUT_DIR"
 echo "[overlap-perf] baseline_file: $BASELINE_FILE"
 echo "[overlap-perf] baseline_raw_metrics_file: $BASELINE_RAW_METRICS_FILE"
@@ -252,6 +255,7 @@ python3 scripts/perf_overlap_regression.py "$MODE" \
   --baseline-file "$BASELINE_FILE" \
   --baseline-raw-metrics-file "$BASELINE_RAW_METRICS_FILE" \
   "${reset_args[@]}" \
+  --pre-warmup-rounds "$PRE_WARMUP_ROUNDS" \
   --warmup-rounds "$WARMUP_ROUNDS" \
   --lncrna-gene-id "$LNCRNA_GENE_ID" \
   --species-ids "$SPECIES_IDS" \

@@ -56,6 +56,7 @@ DEFAULT_REGULATIONS_SPECIES_ID = 1
 DEFAULT_REGULATIONS_PAGE_SIZE = 100
 
 DEFAULT_MIN_SAMPLES = 20
+DEFAULT_PRE_WARMUP_ROUNDS = 0
 
 DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
 # Genes/Regulations 的 tail 指标仍可能受环境抖动影响，但在提高 warmup/min_samples 后，
@@ -357,6 +358,7 @@ def _empty_endpoint_row() -> dict[str, Any]:
 
 def _build_warmup_failure_snapshot(
     *,
+    pre_warmup_rounds: int,
     warmup_rounds: int,
     warmup_max_retries: int,
     warmup_retry_base_sleep_ms: int,
@@ -370,6 +372,7 @@ def _build_warmup_failure_snapshot(
     return {
         "meta": {
             "scenario": {
+                "pre_warmup_rounds": pre_warmup_rounds,
                 "warmup_rounds": warmup_rounds,
                 "warmup_max_retries": warmup_max_retries,
                 "warmup_retry_base_sleep_ms": warmup_retry_base_sleep_ms,
@@ -405,6 +408,7 @@ def _build_compact_snapshot(
     genes_page_size: int,
     regulations_species_id: Optional[int],
     regulations_page_size: int,
+    pre_warmup_rounds: int,
     warmup_rounds: int,
     warmup_max_retries: int,
     warmup_retry_base_sleep_ms: int,
@@ -445,6 +449,7 @@ def _build_compact_snapshot(
             "baseline_file": path_meta(baseline_file),
             "baseline_raw_metrics_file": path_meta(baseline_raw_metrics_file),
             "scenario": {
+                "pre_warmup_rounds": pre_warmup_rounds,
                 "warmup_rounds": warmup_rounds,
                 "warmup_max_retries": warmup_max_retries,
                 "warmup_retry_base_sleep_ms": warmup_retry_base_sleep_ms,
@@ -595,6 +600,7 @@ def _build_markdown(
         "",
         "## Scenario",
         "",
+        f"- pre_warmup_rounds: `{scenario.get('pre_warmup_rounds')}`",
         f"- warmup_rounds: `{scenario.get('warmup_rounds')}`",
         f"- warmup_max_retries: `{scenario.get('warmup_max_retries')}`",
         f"- warmup_retry_base_sleep_ms: `{scenario.get('warmup_retry_base_sleep_ms')}`",
@@ -715,7 +721,20 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reset-metrics",
         action="store_true",
-        help="Optional: POST /api/v1/admin/metrics/reset-stats before warmup (recommended for long-lived backends).",
+        help=(
+            "Optional: POST /api/v1/admin/metrics/reset-stats before collecting measured samples. "
+            "If --pre-warmup-rounds > 0, reset happens AFTER pre-warmup."
+        ),
+    )
+    parser.add_argument(
+        "--pre-warmup-rounds",
+        type=int,
+        default=DEFAULT_PRE_WARMUP_ROUNDS,
+        help=(
+            "Optional: pre-warmup rounds to warm caches. "
+            "Recommended to pair with --reset-metrics so only the subsequent warmup_rounds are measured "
+            f"(default: {DEFAULT_PRE_WARMUP_ROUNDS})."
+        ),
     )
     parser.add_argument("--warmup-rounds", type=int, default=30, help="Warmup rounds before snapshot (default: 30).")
     parser.add_argument(
@@ -808,24 +827,32 @@ def main() -> int:
     db_regression_abs_ms = float(args.db_regression_abs_ms)
     warmup_max_retries = max(0, int(args.warmup_max_retries))
     warmup_retry_base_sleep_ms = max(0, int(args.warmup_retry_base_sleep_ms))
+    pre_warmup_rounds = max(0, int(args.pre_warmup_rounds))
 
-    admin_metrics_reset: Optional[dict[str, Any]] = None
-    if bool(args.reset_metrics):
+    def maybe_reset_admin_metrics(*, stage: str) -> Optional[dict[str, Any]]:
+        if not bool(args.reset_metrics):
+            return None
+
         reset_url = f"{base_url}{ADMIN_METRICS_RESET_PATH}"
         try:
             res = _post_json_result(reset_url, admin_api_key=admin_api_key, timeout_seconds=float(args.timeout_seconds))
-            admin_metrics_reset = {"status_code": res.status_code, "ok": res.status_code == 200}
+            meta = {"status_code": res.status_code, "ok": res.status_code == 200, "stage": stage}
             if res.status_code != 200:
                 print(
                     f"[WARN] admin metrics reset returned HTTP {res.status_code}: {reset_url} (continue without reset)",
                     file=sys.stderr,
                 )
+            return meta
         except Exception as e:
-            admin_metrics_reset = {"status_code": None, "ok": False}
+            meta = {"status_code": None, "ok": False, "stage": stage}
             print(f"[WARN] admin metrics reset failed: {e} (continue without reset)", file=sys.stderr)
+            return meta
+
+    admin_metrics_reset: Optional[dict[str, Any]] = None
 
     def emit_warmup_failure_report(*, failures: list[str]) -> int:
         current = _build_warmup_failure_snapshot(
+            pre_warmup_rounds=pre_warmup_rounds,
             warmup_rounds=int(args.warmup_rounds),
             warmup_max_retries=warmup_max_retries,
             warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
@@ -865,7 +892,45 @@ def main() -> int:
         print(f"[FAIL] Warmup failed. Report: {md_path}", file=sys.stderr)
         return 2
 
+    if pre_warmup_rounds > 0 and not bool(args.reset_metrics):
+        print(
+            "[WARN] pre-warmup enabled but --reset-metrics not set; pre-warmup samples will be included in metrics. "
+            "Recommended: enable --reset-metrics to measure only warm samples.",
+            file=sys.stderr,
+        )
+
     # 1) Warmup traffic (required for stable percentiles)
+    if pre_warmup_rounds > 0:
+        try:
+            _warmup_genes_regulations(
+                base_url=base_url,
+                genes_species_id=int(args.genes_species_id) if args.genes_species_id else None,
+                genes_gene_type=str(args.genes_gene_type or "").strip() or None,
+                genes_page_size=int(args.genes_page_size),
+                regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
+                regulations_page_size=int(args.regulations_page_size),
+                warmup_rounds=pre_warmup_rounds,
+                warmup_max_retries=warmup_max_retries,
+                warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+                timeout_seconds=float(args.timeout_seconds),
+            )
+        except WarmupRequestError as e:
+            if e.status_code == 429:
+                return emit_warmup_failure_report(
+                    failures=[
+                        f"[ERROR] {e}",
+                        "[HINT] HTTP 429 during pre-warmup. If you're using docker-sample, ensure RATE_LIMIT_BYPASS_PRIVATE=true. "
+                        "If you're using an external backend, check any rate limit middleware / allowlist settings.",
+                    ]
+                )
+            return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
+        except Exception as e:
+            return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
+
+        admin_metrics_reset = maybe_reset_admin_metrics(stage="after_pre_warmup")
+    else:
+        admin_metrics_reset = maybe_reset_admin_metrics(stage="before_warmup")
+
     try:
         _warmup_genes_regulations(
             base_url=base_url,
@@ -915,6 +980,7 @@ def main() -> int:
         genes_page_size=int(args.genes_page_size),
         regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
         regulations_page_size=int(args.regulations_page_size),
+        pre_warmup_rounds=pre_warmup_rounds,
         warmup_rounds=int(args.warmup_rounds),
         warmup_max_retries=warmup_max_retries,
         warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,

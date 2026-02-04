@@ -50,6 +50,7 @@ DEFAULT_LNCRNA_GENE_ID = 17276
 DEFAULT_SPECIES_IDS = "1,3"
 
 DEFAULT_MIN_SAMPLES = 20
+DEFAULT_PRE_WARMUP_ROUNDS = 0
 
 DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
 DEFAULT_RESPONSE_REGRESSION_ABS_MS = 4.0
@@ -401,6 +402,7 @@ def _build_warmup_failure_snapshot(
     lncrna_gene_id_requested: int,
     lncrna_gene_id_source: str,
     species_ids: list[int],
+    pre_warmup_rounds: int,
     warmup_rounds: int,
     warmup_max_retries: int,
     warmup_retry_base_sleep_ms: int,
@@ -413,6 +415,7 @@ def _build_warmup_failure_snapshot(
                 "lncrna_gene_id_requested": lncrna_gene_id_requested,
                 "lncrna_gene_id_source": lncrna_gene_id_source,
                 "species_ids": species_ids,
+                "pre_warmup_rounds": pre_warmup_rounds,
                 "warmup_rounds": warmup_rounds,
                 "warmup_max_retries": warmup_max_retries,
                 "warmup_retry_base_sleep_ms": warmup_retry_base_sleep_ms,
@@ -438,6 +441,7 @@ def _build_compact_snapshot(
     lncrna_gene_id_requested: int,
     lncrna_gene_id_source: str,
     species_ids: list[int],
+    pre_warmup_rounds: int,
     warmup_rounds: int,
     warmup_max_retries: int,
     warmup_retry_base_sleep_ms: int,
@@ -486,6 +490,7 @@ def _build_compact_snapshot(
                 "lncrna_gene_id_requested": lncrna_gene_id_requested,
                 "lncrna_gene_id_source": lncrna_gene_id_source,
                 "species_ids": species_ids,
+                "pre_warmup_rounds": pre_warmup_rounds,
                 "warmup_rounds": warmup_rounds,
                 "warmup_max_retries": warmup_max_retries,
                 "warmup_retry_base_sleep_ms": warmup_retry_base_sleep_ms,
@@ -634,6 +639,7 @@ def _build_markdown(
         "",
         f"- lncrna_gene_id: `{scenario.get('lncrna_gene_id')}` (requested: `{scenario.get('lncrna_gene_id_requested')}`, source: `{scenario.get('lncrna_gene_id_source')}`)",
         f"- species_ids: `{scenario_species_ids}`",
+        f"- pre_warmup_rounds: `{scenario.get('pre_warmup_rounds')}`",
         f"- warmup_rounds: `{scenario.get('warmup_rounds')}`",
         f"- warmup_max_retries: `{scenario.get('warmup_max_retries')}`",
         f"- warmup_retry_base_sleep_ms: `{scenario.get('warmup_retry_base_sleep_ms')}`",
@@ -752,7 +758,20 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reset-metrics",
         action="store_true",
-        help="Optional: POST /api/v1/admin/metrics/reset-stats before warmup (recommended for long-lived backends).",
+        help=(
+            "Optional: POST /api/v1/admin/metrics/reset-stats before collecting measured samples. "
+            "If --pre-warmup-rounds > 0, reset happens AFTER pre-warmup."
+        ),
+    )
+    parser.add_argument(
+        "--pre-warmup-rounds",
+        type=int,
+        default=DEFAULT_PRE_WARMUP_ROUNDS,
+        help=(
+            "Optional: pre-warmup rounds to warm caches. "
+            "Recommended to pair with --reset-metrics so only the subsequent warmup_rounds are measured "
+            f"(default: {DEFAULT_PRE_WARMUP_ROUNDS})."
+        ),
     )
     parser.add_argument("--warmup-rounds", type=int, default=30, help="Warmup rounds before snapshot (default: 30).")
     parser.add_argument(
@@ -844,21 +863,28 @@ def main() -> int:
     db_regression_abs_ms = float(args.db_regression_abs_ms)
     warmup_max_retries = max(0, int(args.warmup_max_retries))
     warmup_retry_base_sleep_ms = max(0, int(args.warmup_retry_base_sleep_ms))
+    pre_warmup_rounds = max(0, int(args.pre_warmup_rounds))
 
-    admin_metrics_reset: Optional[dict[str, Any]] = None
-    if bool(args.reset_metrics):
+    def maybe_reset_admin_metrics(*, stage: str) -> Optional[dict[str, Any]]:
+        if not bool(args.reset_metrics):
+            return None
+
         reset_url = f"{base_url}{ADMIN_METRICS_RESET_PATH}"
         try:
             res = _post_json_result(reset_url, admin_api_key=admin_api_key, timeout_seconds=float(args.timeout_seconds))
-            admin_metrics_reset = {"status_code": res.status_code, "ok": res.status_code == 200}
+            meta = {"status_code": res.status_code, "ok": res.status_code == 200, "stage": stage}
             if res.status_code != 200:
                 print(
                     f"[WARN] admin metrics reset returned HTTP {res.status_code}: {reset_url} (continue without reset)",
                     file=sys.stderr,
                 )
+            return meta
         except Exception as e:
-            admin_metrics_reset = {"status_code": None, "ok": False}
+            meta = {"status_code": None, "ok": False, "stage": stage}
             print(f"[WARN] admin metrics reset failed: {e} (continue without reset)", file=sys.stderr)
+            return meta
+
+    admin_metrics_reset: Optional[dict[str, Any]] = None
 
     def emit_warmup_failure_report(*, failures: list[str]) -> int:
         current = _build_warmup_failure_snapshot(
@@ -866,6 +892,7 @@ def main() -> int:
             lncrna_gene_id_requested=requested_lncrna_gene_id,
             lncrna_gene_id_source=lncrna_gene_id_source,
             species_ids=species_ids,
+            pre_warmup_rounds=pre_warmup_rounds,
             warmup_rounds=int(args.warmup_rounds),
             warmup_max_retries=warmup_max_retries,
             warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
@@ -904,16 +931,84 @@ def main() -> int:
     requested_lncrna_gene_id = int(args.lncrna_gene_id)
     resolved_lncrna_gene_id = requested_lncrna_gene_id
     lncrna_gene_id_source = "requested"
-    try:
-        _warmup_overlap(
-            base_url=base_url,
-            lncrna_gene_id=resolved_lncrna_gene_id,
-            species_ids=species_ids,
-            warmup_rounds=int(args.warmup_rounds),
-            warmup_max_retries=warmup_max_retries,
-            warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
-            timeout_seconds=float(args.timeout_seconds),
+
+    def warmup_with_autopick(*, rounds: int) -> None:
+        nonlocal resolved_lncrna_gene_id
+        nonlocal lncrna_gene_id_source
+        try:
+            _warmup_overlap(
+                base_url=base_url,
+                lncrna_gene_id=resolved_lncrna_gene_id,
+                species_ids=species_ids,
+                warmup_rounds=rounds,
+                warmup_max_retries=warmup_max_retries,
+                warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+                timeout_seconds=float(args.timeout_seconds),
+            )
+            return
+        except WarmupRequestError as e:
+            if e.status_code == 429:
+                raise
+
+            is_compare = OVERLAP_COMPARE_PATH in (e.url or "")
+            if is_compare and e.status_code in (400, 404, 422):
+                picked = _pick_lncrna_gene_id_with_core_id(
+                    base_url=base_url,
+                    species_id=species_ids[0],
+                    timeout_seconds=float(args.timeout_seconds),
+                )
+                if picked is None:
+                    raise
+
+                resolved_lncrna_gene_id = picked
+                lncrna_gene_id_source = "auto"
+                print(
+                    f"[WARN] warmup compare failed for gene_id={requested_lncrna_gene_id} "
+                    f"(HTTP {e.status_code}); auto-picking gene_id={picked} from /api/v1/genes/options",
+                    file=sys.stderr,
+                )
+                _warmup_overlap(
+                    base_url=base_url,
+                    lncrna_gene_id=resolved_lncrna_gene_id,
+                    species_ids=species_ids,
+                    warmup_rounds=rounds,
+                    warmup_max_retries=warmup_max_retries,
+                    warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+                    timeout_seconds=float(args.timeout_seconds),
+                )
+                return
+
+            raise
+
+    if pre_warmup_rounds > 0 and not bool(args.reset_metrics):
+        print(
+            "[WARN] pre-warmup enabled but --reset-metrics not set; pre-warmup samples will be included in metrics. "
+            "Recommended: enable --reset-metrics to measure only warm samples.",
+            file=sys.stderr,
         )
+
+    if pre_warmup_rounds > 0:
+        try:
+            warmup_with_autopick(rounds=pre_warmup_rounds)
+        except WarmupRequestError as e:
+            if e.status_code == 429:
+                return emit_warmup_failure_report(
+                    failures=[
+                        f"[ERROR] {e}",
+                        "[HINT] HTTP 429 during pre-warmup. If you're using docker-sample, ensure RATE_LIMIT_BYPASS_PRIVATE=true. "
+                        "If you're using an external backend, check any rate limit middleware / allowlist settings.",
+                    ]
+                )
+            return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
+        except Exception as e:
+            return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
+
+        admin_metrics_reset = maybe_reset_admin_metrics(stage="after_pre_warmup")
+    else:
+        admin_metrics_reset = maybe_reset_admin_metrics(stage="before_warmup")
+
+    try:
+        warmup_with_autopick(rounds=int(args.warmup_rounds))
     except WarmupRequestError as e:
         if e.status_code == 429:
             return emit_warmup_failure_report(
@@ -925,41 +1020,14 @@ def main() -> int:
             )
         is_compare = OVERLAP_COMPARE_PATH in (e.url or "")
         if is_compare and e.status_code in (400, 404, 422):
-            picked = _pick_lncrna_gene_id_with_core_id(
-                base_url=base_url,
-                species_id=species_ids[0],
-                timeout_seconds=float(args.timeout_seconds),
+            return emit_warmup_failure_report(
+                failures=[
+                    f"[ERROR] {e}",
+                    "[HINT] The provided lncrna_gene_id may not exist in this DB. "
+                    "Provide a valid --lncrna-gene-id, or ensure /api/v1/genes/options is available.",
+                ]
             )
-            if picked is not None:
-                resolved_lncrna_gene_id = picked
-                lncrna_gene_id_source = "auto"
-                print(
-                    f"[WARN] warmup compare failed for gene_id={requested_lncrna_gene_id} "
-                    f"(HTTP {e.status_code}); auto-picking gene_id={picked} from /api/v1/genes/options",
-                    file=sys.stderr,
-                )
-                try:
-                    _warmup_overlap(
-                        base_url=base_url,
-                        lncrna_gene_id=resolved_lncrna_gene_id,
-                        species_ids=species_ids,
-                        warmup_rounds=int(args.warmup_rounds),
-                        warmup_max_retries=warmup_max_retries,
-                        warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
-                        timeout_seconds=float(args.timeout_seconds),
-                    )
-                except Exception as e2:
-                    return emit_warmup_failure_report(failures=[f"[ERROR] {e2}"])
-            else:
-                return emit_warmup_failure_report(
-                    failures=[
-                        f"[ERROR] {e}",
-                        "[HINT] The provided lncrna_gene_id may not exist in this DB. "
-                        "Provide a valid --lncrna-gene-id, or ensure /api/v1/genes/options is available.",
-                    ]
-                )
-        else:
-            return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
+        return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
     except Exception as e:
         return emit_warmup_failure_report(failures=[f"[ERROR] {e}"])
 
@@ -988,6 +1056,7 @@ def main() -> int:
         lncrna_gene_id_requested=requested_lncrna_gene_id,
         lncrna_gene_id_source=lncrna_gene_id_source,
         species_ids=species_ids,
+        pre_warmup_rounds=pre_warmup_rounds,
         warmup_rounds=int(args.warmup_rounds),
         warmup_max_retries=warmup_max_retries,
         warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,

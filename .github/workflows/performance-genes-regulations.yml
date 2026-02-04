@@ -31,6 +31,10 @@ on:
         description: "Warmup rounds before snapshot."
         required: false
         default: "30"
+      pre_warmup_rounds:
+        description: "Optional: pre-warmup rounds to warm caches. Recommended with reset_metrics=true."
+        required: false
+        default: "0"
       genes_species_id:
         description: "Warmup genes species_id."
         required: false
@@ -89,6 +93,7 @@ env:
   API_BASE_URL: ${{ github.event.inputs.api_base_url || 'http://127.0.0.1:8000' }}
   MODE: ${{ github.event.inputs.mode || 'check' }}
   WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '30' }}
+  PRE_WARMUP_ROUNDS: ${{ github.event.inputs.pre_warmup_rounds || '0' }}
   GENES_SPECIES_ID: ${{ github.event.inputs.genes_species_id || '1' }}
   GENES_GENE_TYPE: ${{ github.event.inputs.genes_gene_type || 'lncRNA' }}
   GENES_PAGE_SIZE: ${{ github.event.inputs.genes_page_size || '100' }}
@@ -172,6 +177,7 @@ jobs:
             --base-url "${API_BASE_URL}" \
             --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
             "${reset_args[@]}" \
+            --pre-warmup-rounds "${PRE_WARMUP_ROUNDS}" \
             --warmup-rounds "${WARMUP_ROUNDS}" \
             --genes-species-id "${GENES_SPECIES_ID}" \
             --genes-gene-type "${GENES_GENE_TYPE}" \
@@ -186,6 +192,9 @@ jobs:
 
       - name: Boot sample backend (docker compose) and run perf regression
         if: ${{ env.BACKEND_MODE == 'docker-sample' }}
+        env:
+          PRE_WARMUP_ROUNDS: ${{ env.WARMUP_ROUNDS }}
+          RESET_METRICS: "true"
         run: |
           set -euo pipefail
           bash scripts/baselines/run_genes_regulations_perf_regression_docker.sh
