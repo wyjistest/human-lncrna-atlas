@@ -197,7 +197,7 @@ def list_available_genomes(request: Request, db: Session = Depends(get_db)):
             result.append(SpeciesGenomeInfo(
                 species_id=species.species_id,
                 species_name=species.display_name,
-                genome_assembly=species.genome_assembly or reference.id,
+                genome_assembly=reference.id,
                 reference=reference,
                 available=True,
             ))

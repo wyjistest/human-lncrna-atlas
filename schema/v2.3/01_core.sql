@@ -33,16 +33,16 @@ CREATE TABLE species (
 
 COMMENT ON TABLE species IS '物种元数据';
 COMMENT ON COLUMN species.species_code IS '物种代码: human, chimp, macaque, marmoset';
-COMMENT ON COLUMN species.genome_assembly IS '基因组版本: hg38, panTro6等';
+COMMENT ON COLUMN species.genome_assembly IS '基因组版本（UCSC assembly id）: hg19, panTro5等';
 
 -- 预插入数据
 -- 注意：genome_assembly 字段存储的是 UCSC Genome Browser 参考基因组版本
 -- IGV 浏览器使用的版本：hg19 (人类), panTro5 (黑猩猩), rheMac10 (猕猴), calJac3 (狨猴)
 INSERT INTO species (species_code, display_name, latin_name, genome_assembly) VALUES
-('human', '人类', 'Homo sapiens', 'hg38'),
-('chimp', '黑猩猩', 'Pan troglodytes', 'panTro6'),
+('human', '人类', 'Homo sapiens', 'hg19'),
+('chimp', '黑猩猩', 'Pan troglodytes', 'panTro5'),
 ('macaque', '猕猴', 'Macaca mulatta', 'rheMac10'),
-('marmoset', '狨猴', 'Callithrix jacchus', 'calJac4');
+('marmoset', '狨猴', 'Callithrix jacchus', 'calJac3');
 
 -- ============================================================================
 -- 2. core_id管理（修正：添加分配追踪）

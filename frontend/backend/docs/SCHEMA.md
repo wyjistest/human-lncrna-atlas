@@ -19,7 +19,7 @@ Physical storage for supported primate species.
 | species_code | VARCHAR(20) | Short code (e.g., "human", "chimp") |
 | display_name | VARCHAR(100) | Display name (e.g., "Human") |
 | latin_name | VARCHAR(100) | Latin name (e.g., "Homo sapiens") |
-| genome_assembly | VARCHAR(50) | Reference genome (e.g., "hg38") |
+| genome_assembly | VARCHAR(50) | Reference genome (UCSC assembly id, e.g., "hg19") |
 
 ### core_genes
 Cross-species gene identifiers using human orthologs as reference.
