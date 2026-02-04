@@ -2,32 +2,32 @@
   "endpoints": {
     "/api/v1/genes": {
       "db": {
-        "p95_ms": 2.36,
-        "p99_ms": 2.41
+        "p95_ms": 2.27,
+        "p99_ms": 7.14
       },
-      "requests": 30,
+      "requests": 60,
       "response": {
-        "p95_ms": 15.18,
-        "p99_ms": 17.23
+        "p95_ms": 14.78,
+        "p99_ms": 19.77
       }
     },
     "/api/v1/regulations": {
       "db": {
-        "p95_ms": 2.16,
-        "p99_ms": 2.27
+        "p95_ms": 1.96,
+        "p99_ms": 2.66
       },
-      "requests": 30,
+      "requests": 60,
       "response": {
-        "p95_ms": 19.63,
-        "p99_ms": 23.23
+        "p95_ms": 21.88,
+        "p99_ms": 25.22
       }
     }
   },
   "meta": {
-    "base_url": "http://127.0.0.1:32783",
+    "base_url": "http://127.0.0.1:32793",
     "baseline_file": "docs/baselines/performance/genes-regulations-admin-metrics.baseline.json",
     "baseline_raw_metrics_file": "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json",
-    "generated_at": "2026-02-04T02-43-09Z",
+    "generated_at": "2026-02-04T05-25-32Z",
     "scenario": {
       "admin_metrics_reset": {
         "ok": true,
@@ -39,15 +39,15 @@
         "page_size": 100,
         "species_id": 1
       },
-      "min_samples": 20,
-      "pre_warmup_rounds": 30,
+      "min_samples": 40,
+      "pre_warmup_rounds": 60,
       "regulations": {
         "page_size": 100,
         "species_id": 1
       },
       "warmup_max_retries": 2,
       "warmup_retry_base_sleep_ms": 200,
-      "warmup_rounds": 30
+      "warmup_rounds": 60
     },
     "schema_version": 1,
     "status": "SET",
