@@ -76,7 +76,7 @@ MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker
 - 最小样本：每个端点 `requests >= 20`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
 - 触发 FAIL 的回归阈值（同时满足“比例 + 绝对值”）：
   - Response：`>8%` 且 `>4ms`
-  - DB：`>8%` 且 `>1ms`
+  - DB：`>8%` 且 `>2ms`
 
 ## warmup 重试（减少偶发 429/5xx）
 

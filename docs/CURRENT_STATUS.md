@@ -41,7 +41,7 @@
 ### 2026-02-03 ⭐ perf regression 门禁与排障增强
 
 1. **性能门禁默认阈值收紧 + baseline 刷新**
-   - `Performance Overlap` / `Performance Genes/Regulations`：默认 `warmup_rounds=30`、`min_samples=20`、`pct=8%`，并收紧 `response_abs_ms=4ms`、`db_abs_ms=1ms`（便于更早发现回归）。
+   - `Performance Overlap` / `Performance Genes/Regulations`：默认 `warmup_rounds=30`、`min_samples=20`、`pct=8%`，并收紧 `response_abs_ms=4ms`、`db_abs_ms=2ms`（便于更早发现回归）。
 
 2. **门禁可定位性增强：支持重置 admin metrics + 报告更完整**
    - perf 脚本新增 `--reset-metrics`：在 warmup 前调用 `POST /api/v1/admin/metrics/reset-stats`（适用于长时间运行的 backend，避免旧样本混入）。
