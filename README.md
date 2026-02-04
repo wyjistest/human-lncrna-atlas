@@ -42,6 +42,7 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 
 ## Status / Roadmap
 
+- Docs index (dev/maintainers): `docs/README.md`
 - Current status: `docs/CURRENT_STATUS.md`
 - Roadmap (1–2 weeks): `docs/ROADMAP_2026-02-03.md`
 - CI / self-hosted runner guide: `docs/CI_SELF_HOSTED_RUNNER.md`
