@@ -51,3 +51,19 @@ export HG19_PHYLOP_SHA256="<64-hex>"
 - `file`：文件名
 - `bytes`：文件大小（字节）
 - `sha256`：SHA256（小文件默认计算；大文件需要 `--hash-large-files`）
+
+## 组装一致性校验（可选）
+
+当你在 `GENOMES_DIR` 中混入了来自不同来源的 `.bw/.bb` 轨道文件时，最容易踩的坑就是 **hg19/hg38 等组装不一致**（文件能加载，但坐标会整体错位）。
+
+仓库提供了一个“只读、可审计”的快速校验脚本：读取 BigWig/BigBed header 里的染色体表，并与 `<assembly>.chrom.sizes` 比对。
+
+```bash
+python3 scripts/genomes/validate_track_assemblies.py --genomes-dir "/path/to/genomes"
+
+# 对于 chipseq_*.bb / repeatmasker_*.bb 等不带组装前缀的文件，可显式指定默认组装
+python3 scripts/genomes/validate_track_assemblies.py --genomes-dir "/path/to/genomes" --default-assembly hg19
+```
+
+说明：
+- 该脚本依赖 `pyBigWig`；若环境缺失，按提示安装：`python3 -m pip install pyBigWig`
