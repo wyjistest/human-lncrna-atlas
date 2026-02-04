@@ -105,6 +105,8 @@ md_overlap = overlap._build_markdown(
 )
 
 assert_contains(md_overlap, "## Scenario Drift")
+assert_contains(md_overlap, "## Triage Hints")
+assert_contains(md_overlap, "Scenario drift detected")
 assert_contains(md_overlap, "`warmup_rounds`")
 assert_contains(md_overlap, "thresholds.response")
 
@@ -168,9 +170,10 @@ md_gr = genes_regs._build_markdown(
 )
 
 assert_contains(md_gr, "## Scenario Drift")
+assert_contains(md_gr, "## Triage Hints")
+assert_contains(md_gr, "Scenario drift detected")
 assert_contains(md_gr, "`genes`")
 print("OK")
 PY
 
 echo "ok"
-

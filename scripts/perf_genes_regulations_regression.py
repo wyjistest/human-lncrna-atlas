@@ -580,6 +580,7 @@ def _build_markdown(
     scenario_genes = scenario.get("genes")
     scenario_regs = scenario.get("regulations")
     admin_metrics_reset = scenario.get("admin_metrics_reset") if isinstance(scenario.get("admin_metrics_reset"), dict) else None
+    pre_warmup_rounds = _to_int(scenario.get("pre_warmup_rounds")) or 0
     thresholds = meta.get("thresholds") if isinstance(meta.get("thresholds"), dict) else {}
 
     baseline_meta = baseline.get("meta") if baseline and isinstance(baseline.get("meta"), dict) else {}
@@ -621,6 +622,44 @@ def _build_markdown(
                     f"- `thresholds.{key}`: `{_fmt_drift_value(base_v)}` → `{_fmt_drift_value(cur_v)}`"
                 )
 
+    triage_hints: list[str] = []
+    if not baseline:
+        triage_hints.append(
+            "- ℹ️ Baseline not loaded. Run `generate-baseline` and commit the baseline file to enable regression gating."
+        )
+    if scenario_drift:
+        triage_hints.append(
+            "- ⚠️ Scenario drift detected. Baseline comparison may be invalid; align inputs/thresholds or regenerate baseline."
+        )
+    if pre_warmup_rounds > 0 and admin_metrics_reset is None:
+        triage_hints.append(
+            "- ⚠️ pre_warmup_rounds > 0 but admin_metrics_reset is disabled. Warm samples will be included in metrics; "
+            "recommended: enable `--reset-metrics` / `reset_metrics=true`."
+        )
+    if admin_metrics_reset is not None and not bool(admin_metrics_reset.get("ok")):
+        triage_hints.append(
+            "- ⚠️ admin_metrics_reset failed. Metrics may include historical samples; rerun after fixing backend/auth."
+        )
+
+    current_eps = current.get("endpoints") or {}
+    if isinstance(current_eps, dict):
+        for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
+            cur_row = current_eps.get(path) or {}
+            if not isinstance(cur_row, dict):
+                continue
+            cur_requests = _to_int(cur_row.get("requests")) or 0
+            if cur_requests < int(min_samples):
+                triage_hints.append(
+                    f"- ⚠️ Sample shortage: `{path}` requests={cur_requests} < min_samples={min_samples}. "
+                    "Increase `warmup_rounds` or lower `min_samples`."
+                )
+
+    if any(("429" in f) or ("HTTP 429" in f) for f in failures):
+        triage_hints.append(
+            "- ⚠️ HTTP 429 detected during warmup. If you're using docker-sample, ensure `RATE_LIMIT_BYPASS_PRIVATE=true`. "
+            "Otherwise, check rate-limit middleware/allowlist settings."
+        )
+
     lines: list[str] = [
         "# Genes/Regulations Performance Regression",
         "",
@@ -661,6 +700,11 @@ def _build_markdown(
             if scenario_drift
             else None
         ),
+        "",
+        "## Triage Hints",
+        "",
+        "- ✅ No common issues detected." if not triage_hints else None,
+        *triage_hints,
         "",
         "## Endpoints",
         "",
