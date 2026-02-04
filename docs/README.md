@@ -16,6 +16,7 @@
 
 - 统一入口脚本：`scripts/run-tests.sh`
 - 文档检查：`bash scripts/run-tests.sh docs-check`
+- 前端首屏 bundle / modulepreload 回归锚点：`docs/testing/frontend/FRONTEND_BUNDLE_REGRESSION.md`
 
 ### 后端
 

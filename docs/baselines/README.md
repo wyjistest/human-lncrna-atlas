@@ -26,6 +26,13 @@
 CI：
 - `Tests` 工作流会在 Postgres service 上加载 `schema/v2.3/03_sample_data.sql`，并在 **禁用缓存（`ENABLE_CACHE=false`）** 的情况下校验 `api-snapshot.sample.json`（见 `.github/workflows/test.yml` 的 `api-snapshot-baseline` job）。
 
+## Frontend Bundle Baseline（可选）
+
+用于把“首屏 entry/modulepreload 体积”和“关键 vendor chunk 体积”固化为可提交的 JSON 回归锚点。
+
+- 文档：`docs/testing/frontend/FRONTEND_BUNDLE_REGRESSION.md`
+- 目录：`docs/baselines/frontend/`
+
 ## Research（可选：本地烟测）
 
 本仓库还提供一个“本地 sample DB 烟测”脚本，用于快速验证 Research 导出脚本能跑通（不依赖真实大库）。
