@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-02-03
+> 最后更新: 2026-02-04
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -38,13 +38,15 @@
 
 ## ✅ 最近完成的功能
 
-### 2026-02-03 ⭐ perf regression 门禁与排障增强
+### 2026-02-04 ⭐ perf regression 门禁稳定性增强
 
 1. **性能门禁默认阈值收紧 + baseline 刷新**
    - `Performance Overlap` / `Performance Genes/Regulations`：默认 `warmup_rounds=30`、`min_samples=20`、`pct=8%`，并收紧 `response_abs_ms=4ms`、`db_abs_ms=2ms`（便于更早发现回归）。
 
 2. **门禁可定位性增强：支持重置 admin metrics + 报告更完整**
-   - perf 脚本新增 `--reset-metrics`：在 warmup 前调用 `POST /api/v1/admin/metrics/reset-stats`（适用于长时间运行的 backend，避免旧样本混入）。
+   - perf 脚本支持 `--pre-warmup-rounds`（预热）+ `--reset-metrics`（重置后采样）：
+     - 若 `pre_warmup_rounds > 0`：先预热，再调用 `POST /api/v1/admin/metrics/reset-stats`，最后跑 `warmup_rounds` 轮“计入门禁”的采样；
+     - 用于减少冷启动/缓存抖动导致的误报，同时保持门禁阈值敏感度。
    - check 模式在“基线缺失/UNSET/样本不足”等早期失败时也会输出 `docs/reports/perf-*.md` 报告，便于定位与审计。
 
 3. **docker-sample 稳定性：避免 warmup 触发 429**

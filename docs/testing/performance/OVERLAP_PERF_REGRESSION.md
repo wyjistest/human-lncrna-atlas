@@ -18,6 +18,7 @@ python3 scripts/perf_overlap_regression.py generate-baseline \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
   --reset-metrics \
+  --pre-warmup-rounds 30 \
   --warmup-rounds 30 \
   --lncrna-gene-id 17276 \
   --species-ids "1,3"
@@ -43,6 +44,7 @@ python3 scripts/perf_overlap_regression.py check \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json" \
   --reset-metrics \
+  --pre-warmup-rounds 30 \
   --warmup-rounds 30 \
   --lncrna-gene-id 17276 \
   --species-ids "1,3"
@@ -69,7 +71,12 @@ MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker
 
 并在退出时自动清理容器（可用 `KEEP_DOCKER=true` 保留用于排障）。
 
-你也可以通过 `RESET_METRICS=false` 禁用“运行前重置 admin metrics”（默认启用，避免长时间运行的 backend 混入旧样本）。
+默认行为会先做 `PRE_WARMUP_ROUNDS` 轮预热（warm caches），然后（若 `RESET_METRICS=true`）重置 metrics，
+最后再跑 `WARMUP_ROUNDS` 轮“计入门禁”的采样，以降低冷启动/缓存抖动导致的误报。
+
+可选项：
+- `PRE_WARMUP_ROUNDS=0`：禁用预热
+- `RESET_METRICS=false`：禁用 reset（不推荐与预热同时使用，会把预热样本一起计入 percentiles）
 
 ## 门禁规则（当前阈值）
 
@@ -103,7 +110,7 @@ MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker
 建议用法：
 1. 第一次：选择 `mode=generate-baseline` 生成 baseline。
 2. 如果 runner 上没有常驻后端：把 `backend_mode` 设为 `docker-sample`（会自动启动 sample backend 后再跑）。
-3. （可选）如果使用 `backend_mode=external` 且后端是长时间运行的：设置 `reset_metrics=true`，在 warmup 前调用 `POST /api/v1/admin/metrics/reset-stats`，避免旧样本混入。
+3. （可选）如果使用 `backend_mode=external` 且后端是长时间运行的：设置 `reset_metrics=true`，在采样前调用 `POST /api/v1/admin/metrics/reset-stats`，避免旧样本混入（若同时启用 `pre_warmup_rounds`，reset 会发生在预热之后）。
 4. 下载 artifact 中的 baseline 文件，并提交到仓库。
 5. 后续：选择 `mode=check`（同理可选 `backend_mode=docker-sample`）用于验证优化/重构是否引入明显回归。
 
