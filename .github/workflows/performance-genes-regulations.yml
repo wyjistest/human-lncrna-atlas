@@ -70,7 +70,7 @@ on:
       response_regression_abs_ms:
         description: "Gate: response regression abs threshold (ms)."
         required: false
-        default: "4"
+        default: "2"
       db_regression_pct:
         description: "Gate: db regression pct threshold."
         required: false
@@ -78,7 +78,7 @@ on:
       db_regression_abs_ms:
         description: "Gate: db regression abs threshold (ms)."
         required: false
-        default: "2"
+        default: "1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}

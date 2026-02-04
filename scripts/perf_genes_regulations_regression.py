@@ -64,11 +64,11 @@ DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
 #
 # 说明：
 # - 门禁只使用 p95（p99 仅用于报告），并且 warmup 失败会输出诊断报告；
-# - 在 self-hosted 环境连续运行通过后，将 response abs 阈值进一步收紧到 4ms，
+# - 在 self-hosted 环境连续运行通过后，将 response abs 阈值进一步收紧到 2ms，
 #   以便更早捕获明显回归，同时仍保留 pct+abs 双阈值降低误报。
-DEFAULT_RESPONSE_REGRESSION_ABS_MS = 4.0
+DEFAULT_RESPONSE_REGRESSION_ABS_MS = 2.0
 DEFAULT_DB_REGRESSION_PCT = 8.0
-DEFAULT_DB_REGRESSION_ABS_MS = 2.0
+DEFAULT_DB_REGRESSION_ABS_MS = 1.0
 
 DEFAULT_WARMUP_MAX_RETRIES = 2
 DEFAULT_WARMUP_RETRY_BASE_SLEEP_MS = 200
