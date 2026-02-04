@@ -11,7 +11,13 @@
 ## 2026-01 状态更新
 
 - ✅ 后端已实现 `lncrna-options` / `target-options`（含缓存）：`frontend/backend/app/routers/regulations.py`
-- ⚠️ 前端当前仍使用 `lncrna_gene_name` / `target_gene_name` 的模糊搜索输入框；“改为下拉选择器 + 使用 gene_id 参数”属于可选增强（未默认启用）
+- ✅ 前端已完成 gene_id 选择器改造：`AdvancedFilters.tsx` 改为 options Select，`index.tsx` 使用 `lncrna_gene_id` / `target_gene_id`（并兼容 legacy name 参数）
+
+## 2026-02 状态更新
+
+- ✅ 已补齐回归覆盖：
+  - Vitest：options hooks + AdvancedFilters（选择 gene_id 会清空 legacy name 参数，避免 AND 过滤为空）
+  - Playwright mocked smoke：Regulations gene_id selectors（完全 mock，不依赖后端/DB）
 
 ## 1. 任务完成情况
 
@@ -32,12 +38,12 @@
 - [x] 添加缓存（默认 30 分钟）
 
 **前端集成**（Frontend Agent）:
-- （可选增强，Tracked in #79）修改 `AdvancedFilters.tsx`（替换输入框为选择器）
-- （可选增强，Tracked in #79）修改 `index.tsx`（使用 gene_id 参数而非 gene_name）
-- （可选增强，Tracked in #79/#80）补齐选择器相关国际化与测试覆盖
+- [x] （可选增强，Tracked in #79）修改 `AdvancedFilters.tsx`（替换输入框为选择器）
+- [x] （可选增强，Tracked in #79）修改 `index.tsx`（使用 gene_id 参数而非 gene_name）
+- [x] （可选增强，Tracked in #79/#80）补齐选择器相关国际化与测试覆盖
 
 **测试验证**（Playwright Agent）:
-- （可选增强，Tracked in #80）为选择器路径补齐 Playwright 覆盖
+- [x] （可选增强，Tracked in #80）为选择器路径补齐 Playwright 覆盖
 - （可选增强，Tracked in #80）性能基准（options API latency / payload / cache hit）
 
 ---

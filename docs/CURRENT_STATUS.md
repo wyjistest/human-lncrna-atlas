@@ -48,6 +48,7 @@
      - 若 `pre_warmup_rounds > 0`：先预热，再调用 `POST /api/v1/admin/metrics/reset-stats`，最后跑 `warmup_rounds` 轮“计入门禁”的采样；
      - 用于减少冷启动/缓存抖动导致的误报，同时保持门禁阈值敏感度。
    - check 模式在“基线缺失/UNSET/样本不足”等早期失败时也会输出 `docs/reports/perf-*.md` 报告，便于定位与审计。
+   - perf 报告新增 `## Triage Hints`（Scenario drift / sample 不足 / 429 / reset 失败等高频根因提示），降低排障成本。
 
 3. **docker-sample 稳定性：避免 warmup 触发 429**
    - docker-sample perf regression 默认启用 `RATE_LIMIT_BYPASS_PRIVATE=true`（docker bridge 私网 IP 不受限流影响）。
