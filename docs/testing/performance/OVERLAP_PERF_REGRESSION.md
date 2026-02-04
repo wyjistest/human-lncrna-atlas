@@ -56,6 +56,10 @@ python3 scripts/perf_overlap_regression.py check \
 - `perf-overlap-raw-metrics-<timestamp>.json`（原始 `/admin/metrics`）
 - （可选）`perf-overlap-admin-metrics-diff-<timestamp>.md`（当门禁失败或显式启用 diff 时：对比 baseline raw metrics vs 当前 raw metrics，用于定位慢点/慢查询/缓存变化）
 
+报告中的 `Scenario Drift` 小节会对比 **baseline vs current** 的关键参数/阈值：
+
+- 若检测到差异，会提示“对齐参数或重新生成 baseline”，避免因为采样参数漂移导致对比失真。
+
 ## 无现成后端时：用 Docker Compose 启动 sample backend（可选）
 
 如果你本机没有可用的 backend（例如 `http://127.0.0.1:8000` 连接拒绝），可以用仓库自带脚本启动一套**隔离的** docker compose（Postgres+Redis+Backend，加载 v2.3 sample 数据），然后跑 perf gate：

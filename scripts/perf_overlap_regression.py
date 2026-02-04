@@ -617,6 +617,44 @@ def _build_markdown(
     scenario = meta.get("scenario") if isinstance(meta.get("scenario"), dict) else {}
     scenario_species_ids = scenario.get("species_ids")
     admin_metrics_reset = scenario.get("admin_metrics_reset") if isinstance(scenario.get("admin_metrics_reset"), dict) else None
+    thresholds = meta.get("thresholds") if isinstance(meta.get("thresholds"), dict) else {}
+
+    baseline_meta = baseline.get("meta") if baseline and isinstance(baseline.get("meta"), dict) else {}
+    baseline_scenario = baseline_meta.get("scenario") if isinstance(baseline_meta.get("scenario"), dict) else {}
+    baseline_thresholds = baseline_meta.get("thresholds") if isinstance(baseline_meta.get("thresholds"), dict) else {}
+
+    def _fmt_drift_value(v: Any) -> str:
+        if v is None:
+            return "-"
+        if isinstance(v, (dict, list)):
+            return json.dumps(v, ensure_ascii=False, sort_keys=True)
+        return str(v)
+
+    scenario_drift: list[str] = []
+    if baseline:
+        for key in (
+            "lncrna_gene_id",
+            "lncrna_gene_id_requested",
+            "lncrna_gene_id_source",
+            "species_ids",
+            "pre_warmup_rounds",
+            "warmup_rounds",
+            "warmup_max_retries",
+            "warmup_retry_base_sleep_ms",
+            "min_samples",
+        ):
+            base_v = baseline_scenario.get(key)
+            cur_v = scenario.get(key)
+            if base_v != cur_v:
+                scenario_drift.append(f"- `{key}`: `{_fmt_drift_value(base_v)}` → `{_fmt_drift_value(cur_v)}`")
+
+        for key in ("response", "db"):
+            base_v = baseline_thresholds.get(key)
+            cur_v = thresholds.get(key)
+            if base_v != cur_v:
+                scenario_drift.append(
+                    f"- `thresholds.{key}`: `{_fmt_drift_value(base_v)}` → `{_fmt_drift_value(cur_v)}`"
+                )
 
     lines: list[str] = [
         "# Overlap Performance Regression",
@@ -645,6 +683,18 @@ def _build_markdown(
         f"- warmup_retry_base_sleep_ms: `{scenario.get('warmup_retry_base_sleep_ms')}`",
         f"- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
             f"- admin_metrics_reset: `enabled` (status: `{admin_metrics_reset.get('status_code')}`, ok: `{admin_metrics_reset.get('ok')}`)"
+        ),
+        "",
+        "## Scenario Drift",
+        "",
+        "- (skip) baseline not loaded." if not baseline else (
+            "- ✅ No drift detected (baseline vs current run)." if not scenario_drift else None
+        ),
+        *scenario_drift,
+        (
+            "- ⚠️ Detected drift. For apples-to-apples comparison, align inputs/thresholds or regenerate baseline."
+            if scenario_drift
+            else None
         ),
         "",
         "## Endpoints",
