@@ -4,6 +4,8 @@
 
 **Goal:** 修复因 `scripts/perf_*_regression.py` 默认 `--min-samples=40` 导致的 ETL 单元测试失败，确保 GitHub Actions 的 Tests workflow 通过。
 
+**Current Status:** 参考 `docs/CURRENT_STATUS.md`
+
 **Architecture:** 保持 gate 脚本默认值不变，仅调整 ETL 单测的 mock `/api/v1/admin/metrics` payload，把 `requests` 提升到 `>=40`（给一定余量），避免 `insufficient samples` 误报；指标数值不变，确保阈值/回归逻辑测试仍有效。
 
 **Tech Stack:** Python 3、pytest、subprocess 调用 `scripts/perf_overlap_regression.py` / `scripts/perf_genes_regulations_regression.py`
@@ -85,4 +87,3 @@ git commit -m "test(etl): bump perf regression mock sample counts"
 **Step 2: Inspect Tests run**
 - Run: `gh run view <run_id> --log-failed`
 - Expected: Tests workflow SUCCESS（或仅与本变更无关的失败）。
-
