@@ -38,7 +38,8 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      # Default keeps local dev at :8000; perf docker-sample scripts can set BACKEND_PORT=0 to avoid collisions.
+      - "${BACKEND_PORT:-8000}:8000"
     networks:
       # Attach to a non-internal network so host port publishing works.
       # Keep Postgres/Redis on the internal-only network for defense-in-depth.

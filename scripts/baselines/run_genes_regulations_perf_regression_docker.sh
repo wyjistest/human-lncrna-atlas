@@ -31,6 +31,10 @@ MODE="${MODE:-check}" # check | generate-baseline
 WARMUP_ROUNDS="${WARMUP_ROUNDS:-30}"
 RESET_METRICS="${RESET_METRICS:-true}"
 
+# Host port for published backend (0 = random free port; avoids collisions on self-hosted runners).
+BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
+BACKEND_PORT="${BACKEND_PORT:-0}"
+
 GENES_SPECIES_ID="${GENES_SPECIES_ID:-1}"
 GENES_GENE_TYPE="${GENES_GENE_TYPE:-lncRNA}"
 GENES_PAGE_SIZE="${GENES_PAGE_SIZE:-100}"
@@ -41,9 +45,9 @@ REGULATIONS_PAGE_SIZE="${REGULATIONS_PAGE_SIZE:-100}"
 MIN_SAMPLES="${MIN_SAMPLES:-20}"
 RESPONSE_REGRESSION_PCT="${RESPONSE_REGRESSION_PCT:-8}"
 # 与 scripts/perf_genes_regulations_regression.py 的默认值一致（p95 门禁，适度收紧以更早发现回归）
-RESPONSE_REGRESSION_ABS_MS="${RESPONSE_REGRESSION_ABS_MS:-5}"
+RESPONSE_REGRESSION_ABS_MS="${RESPONSE_REGRESSION_ABS_MS:-4}"
 DB_REGRESSION_PCT="${DB_REGRESSION_PCT:-8}"
-DB_REGRESSION_ABS_MS="${DB_REGRESSION_ABS_MS:-2}"
+DB_REGRESSION_ABS_MS="${DB_REGRESSION_ABS_MS:-1}"
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yml}"
 COMPOSE_OVERRIDE_FILE="${COMPOSE_OVERRIDE_FILE:-scripts/baselines/docker-compose.overlap-perf.yml}"
@@ -62,7 +66,7 @@ ENABLE_CACHE="${ENABLE_CACHE:-false}"
 # Perf regression should not be blocked by rate limiting (docker bridge IP is private, not loopback).
 RATE_LIMIT_BYPASS_PRIVATE="${RATE_LIMIT_BYPASS_PRIVATE:-true}"
 
-BASE_URL="${BASE_URL:-http://localhost:8000}"
+BASE_URL="${BASE_URL:-}"
 OUT_DIR="${OUT_DIR:-docs/reports}"
 BASELINE_FILE="${BASELINE_FILE:-docs/baselines/performance/genes-regulations-admin-metrics.baseline.json}"
 BASELINE_RAW_METRICS_FILE="${BASELINE_RAW_METRICS_FILE:-docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json}"
@@ -76,7 +80,9 @@ Usage:
 
 Options (env var compatible):
   MODE=check|generate-baseline
-  BASE_URL=http://localhost:8000
+  BACKEND_HOST=127.0.0.1
+  BACKEND_PORT=0
+  BASE_URL=http://127.0.0.1:8000  # optional override (recommended to leave empty when BACKEND_PORT=0)
   WARMUP_ROUNDS=30
   RESET_METRICS=true|false
   GENES_SPECIES_ID=1
@@ -86,9 +92,9 @@ Options (env var compatible):
   REGULATIONS_PAGE_SIZE=100
   MIN_SAMPLES=20
   RESPONSE_REGRESSION_PCT=8
-  RESPONSE_REGRESSION_ABS_MS=5
+  RESPONSE_REGRESSION_ABS_MS=4
   DB_REGRESSION_PCT=8
-  DB_REGRESSION_ABS_MS=2
+  DB_REGRESSION_ABS_MS=1
   COMPOSE_FILE=docker-compose.yml
   COMPOSE_OVERRIDE_FILE=scripts/baselines/docker-compose.overlap-perf.yml
   BASELINE_FILE=docs/baselines/performance/genes-regulations-admin-metrics.baseline.json
@@ -151,6 +157,7 @@ compose() {
   fi
 
   COMPOSE_PROJECT_NAME="$PROJECT_NAME" \
+  BACKEND_PORT="$BACKEND_PORT" \
   ENV="$APP_ENV" \
   ENABLE_CACHE="$ENABLE_CACHE" \
   RATE_LIMIT_BYPASS_PRIVATE="$RATE_LIMIT_BYPASS_PRIVATE" \
@@ -174,7 +181,8 @@ trap cleanup EXIT
 
 echo "[genes-regulations-perf] compose project: $PROJECT_NAME"
 echo "[genes-regulations-perf] mode: $MODE"
-echo "[genes-regulations-perf] base_url: $BASE_URL"
+echo "[genes-regulations-perf] backend_host: $BACKEND_HOST"
+echo "[genes-regulations-perf] backend_port: $BACKEND_PORT"
 echo "[genes-regulations-perf] reset_metrics: $RESET_METRICS"
 echo "[genes-regulations-perf] out_dir: $OUT_DIR"
 echo "[genes-regulations-perf] baseline_file: $BASELINE_FILE"
@@ -207,6 +215,23 @@ done
 
 echo "[genes-regulations-perf] starting backend..."
 compose up -d --build backend
+
+resolve_backend_url() {
+  local published
+  published="$(compose port backend 8000 | head -n 1 | sed -E 's/.*:([0-9]+)$/\\1/')"
+  if [ -z "$published" ]; then
+    echo "failed to resolve published backend port (docker compose port backend 8000)" >&2
+    compose ps || true
+    compose logs --no-color backend || true
+    exit 1
+  fi
+  if [ -z "$BASE_URL" ]; then
+    BASE_URL="http://${BACKEND_HOST}:${published}"
+  fi
+  echo "[genes-regulations-perf] resolved backend_url: $BASE_URL (published_port=$published)"
+}
+
+resolve_backend_url
 
 echo "[genes-regulations-perf] waiting for backend health..."
 timeout_seconds=60
