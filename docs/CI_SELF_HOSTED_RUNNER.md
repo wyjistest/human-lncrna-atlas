@@ -307,6 +307,13 @@ http_proxy=http://localhost:7890 https_proxy=http://localhost:7890 git fetch --p
 http_proxy=http://localhost:7890 https_proxy=http://localhost:7890 git push
 ```
 
+也可以使用仓库内置脚本（同样是“单次命令生效”，且会自动补齐 `NO_PROXY`，避免本机服务被误走代理）：
+
+```bash
+bash scripts/ci/git_with_proxy.sh fetch --prune
+bash scripts/ci/git_with_proxy.sh push
+```
+
 **B) GitHub API 止损推送（不依赖 git 网络；会生成新 SHA）**
 
 如果你确认 `gh api` 仍可正常访问 GitHub（`gh auth status` 显示已登录），可以使用本仓库提供的“止损推送”脚本：
