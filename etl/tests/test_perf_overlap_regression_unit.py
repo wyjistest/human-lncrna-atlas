@@ -139,13 +139,13 @@ def _base_metrics_payload(*, response_p95: float, response_p99: float, db_p95: f
         "endpoints": [
             {
                 "path": "/api/v1/lncrna-chipseq-overlap",
-                "requests": 20,
+                "requests": 60,
                 "percentiles": {"p95_ms": response_p95, "p99_ms": response_p99},
                 "db_percentiles": {"p95_ms": db_p95, "p99_ms": db_p99},
             },
             {
                 "path": "/api/v1/lncrna-chipseq-overlap/compare",
-                "requests": 20,
+                "requests": 60,
                 "percentiles": {"p95_ms": response_p95, "p99_ms": response_p99},
                 "db_percentiles": {"p95_ms": db_p95, "p99_ms": db_p99},
             },
