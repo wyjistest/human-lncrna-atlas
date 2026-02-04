@@ -30,7 +30,7 @@ on:
       warmup_rounds:
         description: "Warmup rounds before snapshot."
         required: false
-        default: "30"
+        default: "60"
       pre_warmup_rounds:
         description: "Optional: pre-warmup rounds to warm caches. Recommended with reset_metrics=true."
         required: false
@@ -62,7 +62,7 @@ on:
       min_samples:
         description: "Gate: minimum samples per endpoint (requests >= min_samples)."
         required: false
-        default: "20"
+        default: "40"
       response_regression_pct:
         description: "Gate: response regression pct threshold."
         required: false

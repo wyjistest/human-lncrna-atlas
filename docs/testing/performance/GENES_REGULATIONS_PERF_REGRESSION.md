@@ -18,8 +18,8 @@ python3 scripts/perf_genes_regulations_regression.py generate-baseline \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
   --reset-metrics \
-  --pre-warmup-rounds 30 \
-  --warmup-rounds 30 \
+  --pre-warmup-rounds 60 \
+  --warmup-rounds 60 \
   --genes-species-id 1 \
   --genes-gene-type "lncRNA" \
   --genes-page-size 100 \
@@ -43,8 +43,8 @@ python3 scripts/perf_genes_regulations_regression.py check \
   --base-url "http://127.0.0.1:8000" \
   --baseline-raw-metrics-file "docs/baselines/performance/genes-regulations-admin-metrics.baseline.raw.json" \
   --reset-metrics \
-  --pre-warmup-rounds 30 \
-  --warmup-rounds 30 \
+  --pre-warmup-rounds 60 \
+  --warmup-rounds 60 \
   --genes-species-id 1 \
   --genes-gene-type "lncRNA" \
   --genes-page-size 100 \
@@ -89,7 +89,8 @@ MODE=generate-baseline bash scripts/baselines/run_genes_regulations_perf_regress
 
 ## 门禁规则（当前阈值）
 
-- 最小样本：每个端点 `requests >= 20`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
+- 最小样本：每个端点 `requests >= 40`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
+  - 增加 warmup/sample 数量可显著降低小样本下 p95 噪声导致的误报概率（self-hosted 更稳定）。
 - 触发 FAIL 的回归阈值（同时满足“比例 + 绝对值”）：
   - Response：`>8%` 且 `>4ms`
   - DB：`>8%` 且 `>2ms`

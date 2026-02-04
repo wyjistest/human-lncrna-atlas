@@ -55,7 +55,7 @@ DEFAULT_GENES_PAGE_SIZE = 100
 DEFAULT_REGULATIONS_SPECIES_ID = 1
 DEFAULT_REGULATIONS_PAGE_SIZE = 100
 
-DEFAULT_MIN_SAMPLES = 20
+DEFAULT_MIN_SAMPLES = 40
 DEFAULT_PRE_WARMUP_ROUNDS = 0
 
 DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
@@ -788,7 +788,7 @@ def _parse_args() -> argparse.Namespace:
             f"(default: {DEFAULT_PRE_WARMUP_ROUNDS})."
         ),
     )
-    parser.add_argument("--warmup-rounds", type=int, default=30, help="Warmup rounds before snapshot (default: 30).")
+    parser.add_argument("--warmup-rounds", type=int, default=60, help="Warmup rounds before snapshot (default: 60).")
     parser.add_argument(
         "--warmup-max-retries",
         type=int,
