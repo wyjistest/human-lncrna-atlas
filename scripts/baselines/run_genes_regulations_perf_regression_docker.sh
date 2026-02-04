@@ -218,7 +218,7 @@ compose up -d --build backend
 
 resolve_backend_url() {
   local published
-  published="$(compose port backend 8000 | head -n 1 | sed -E 's/.*:([0-9]+)$/\\1/')"
+  published="$(compose port backend 8000 | head -n 1 | sed -E 's/.*:([0-9]+)$/\1/')"
   if [ -z "$published" ]; then
     echo "failed to resolve published backend port (docker compose port backend 8000)" >&2
     compose ps || true
