@@ -16,6 +16,8 @@ import type { ReactNode } from 'react'
 import {
   useRegulations,
   usePrefetchRegulations,
+  useRegulationLncRNAOptions,
+  useRegulationTargetOptions,
   useRegulationDetail,
 } from '../useRegulations'
 
@@ -24,6 +26,8 @@ vi.mock('@/api/regulations', () => ({
   regulationsApi: {
     list: vi.fn(),
     getDetail: vi.fn(),
+    getLncRNAOptions: vi.fn(),
+    getTargetOptions: vi.fn(),
   },
 }))
 
@@ -33,6 +37,8 @@ import { regulationsApi } from '@/api/regulations'
 // Type the mocked functions
 const mockRegulationsApiList = vi.mocked(regulationsApi.list)
 const mockRegulationsApiGetDetail = vi.mocked(regulationsApi.getDetail)
+const mockRegulationsApiGetLncRNAOptions = vi.mocked(regulationsApi.getLncRNAOptions)
+const mockRegulationsApiGetTargetOptions = vi.mocked(regulationsApi.getTargetOptions)
 
 /**
  * Creates a wrapper component with QueryClientProvider for testing hooks
@@ -113,6 +119,32 @@ const mockRegulationDetailResponse = {
     triplex_forming_oligo: 'TCTCTCTCT',
     triplex_target_site: 'AGAGAGAGA',
   },
+}
+
+const mockLncRNAOptionsResponse = {
+  lncrnas: [
+    {
+      gene_id: 1,
+      gene_ensembl_id: 'ENSG00000001',
+      gene_name: 'MALAT1',
+      species_id: 1,
+      species_name: 'Human',
+      regulation_count: 42,
+    },
+  ],
+}
+
+const mockTargetOptionsResponse = {
+  targets: [
+    {
+      gene_id: 100,
+      gene_ensembl_id: 'ENSG00000100',
+      gene_name: 'TP53',
+      species_id: 1,
+      species_name: 'Human',
+      lncrna_count: 12,
+    },
+  ],
 }
 
 describe('useRegulations', () => {
@@ -394,6 +426,66 @@ describe('useRegulations', () => {
 
       // Data should be undefined (not fetched)
       expect(result.current.data).toBeUndefined()
+    })
+  })
+
+  describe('options hooks', () => {
+    it('fetches lncRNA options when enabled', async () => {
+      mockRegulationsApiGetLncRNAOptions.mockResolvedValueOnce(mockLncRNAOptionsResponse)
+
+      const { wrapper } = createWrapper()
+      const { result } = renderHook(
+        () => useRegulationLncRNAOptions({ species_id: 1 }, { enabled: true }),
+        { wrapper }
+      )
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      expect(result.current.data).toEqual(mockLncRNAOptionsResponse)
+      expect(mockRegulationsApiGetLncRNAOptions).toHaveBeenCalledWith({ species_id: 1 }, expect.anything())
+    })
+
+    it('does not fetch lncRNA options when disabled', async () => {
+      const { wrapper } = createWrapper()
+      renderHook(
+        () => useRegulationLncRNAOptions({ species_id: 1 }, { enabled: false }),
+        { wrapper }
+      )
+
+      await waitFor(() => {
+        expect(mockRegulationsApiGetLncRNAOptions).not.toHaveBeenCalled()
+      })
+    })
+
+    it('fetches target options when enabled', async () => {
+      mockRegulationsApiGetTargetOptions.mockResolvedValueOnce(mockTargetOptionsResponse)
+
+      const { wrapper } = createWrapper()
+      const { result } = renderHook(
+        () => useRegulationTargetOptions({ species_id: 1 }, { enabled: true }),
+        { wrapper }
+      )
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true)
+      })
+
+      expect(result.current.data).toEqual(mockTargetOptionsResponse)
+      expect(mockRegulationsApiGetTargetOptions).toHaveBeenCalledWith({ species_id: 1 }, expect.anything())
+    })
+
+    it('does not fetch target options when disabled', async () => {
+      const { wrapper } = createWrapper()
+      renderHook(
+        () => useRegulationTargetOptions({ species_id: 1 }, { enabled: false }),
+        { wrapper }
+      )
+
+      await waitFor(() => {
+        expect(mockRegulationsApiGetTargetOptions).not.toHaveBeenCalled()
+      })
     })
   })
 })
