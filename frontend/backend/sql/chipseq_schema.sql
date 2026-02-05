@@ -308,8 +308,14 @@ WHERE e.is_active = TRUE
 GROUP BY gpa.gene_id, e.species_id, m.mark_name, m.mark_category
 WITH DATA;
 
-CREATE INDEX IF NOT EXISTS idx_mv_gene_mark_gene ON mv_gene_mark_summary(gene_id);
-CREATE INDEX IF NOT EXISTS idx_mv_gene_mark_species_mark ON mv_gene_mark_summary(species_id, mark_name);
+	CREATE INDEX IF NOT EXISTS idx_mv_gene_mark_gene ON mv_gene_mark_summary(gene_id);
+	CREATE INDEX IF NOT EXISTS idx_mv_gene_mark_species_mark ON mv_gene_mark_summary(species_id, mark_name);
+
+	-- 为 REFRESH MATERIALIZED VIEW CONCURRENTLY 提供唯一索引要求
+	-- 说明：mark_category 由 mark_name 唯一决定（epigenetic_mark_types.mark_name 为 UNIQUE），
+	-- 因此 (gene_id, species_id, mark_name) 在该 MV 上可作为唯一键。
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_gene_mark_summary_unique
+	    ON mv_gene_mark_summary(gene_id, species_id, mark_name);
 
 -- ============================================================================
 -- 8. REFRESH FUNCTION FOR MATERIALIZED VIEWS
