@@ -171,6 +171,12 @@ ENCODE_FILES = {
             'file': 'wgEncodeBroadHistoneHepg2H3k36me3StdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k36me3StdPk.broadPeak.gz',
         },
+        'H3K9me3': {
+            # 注意：UCSC HepG2 的 H3K9me3 文件是 Pk（无 Std），且为 H3k09me3（带 0）
+            'file': 'wgEncodeBroadHistoneHepg2H3k09me3Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k09me3Pk.broadPeak.gz',
+            'size_mb': 0.9,
+        },
         'H3K9ac': {
             'file': 'wgEncodeBroadHistoneHepg2H3k9acStdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k9acStdPk.broadPeak.gz',
