@@ -1,0 +1,71 @@
+name: External Data Assembly Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      data_dir:
+        description: "Path to humanLncAtlas data directory on runner (HUMAN_LNC_ATLAS_DATA_DIR)"
+        required: false
+        default: "/data/wenyujianData/humanLncAtlas"
+      assembly:
+        description: "Genome assembly to validate against (ASSEMBLY)"
+        required: false
+        default: "hg19"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+# Least-privilege: restrict default GITHUB_TOKEN permissions (security hardening)
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: hg19 external data audit
+    runs-on: self-hosted
+    steps:
+      - name: Download repo tarball (self-hosted)
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tmp_dir="$(mktemp -d)"
+          tar_path="${tmp_dir}/src.tar.gz"
+          script_path="${tmp_dir}/checkout_tarball.sh"
+
+          curl -fsSL \
+            --retry 5 \
+            --retry-connrefused \
+            --retry-delay 2 \
+            --connect-timeout 10 \
+            --max-time 120 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO}/tarball/${EXPECTED_SHA}" \
+            -o "$tar_path"
+
+          tar -xOzf "$tar_path" --wildcards '*/scripts/ci/checkout_tarball.sh' > "$script_path"
+          chmod +x "$script_path"
+
+          TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
+
+      - name: Run external assembly audit (read-only)
+        id: audit
+        env:
+          HUMAN_LNC_ATLAS_DATA_DIR: ${{ github.event.inputs.data_dir }}
+          ASSEMBLY: ${{ github.event.inputs.assembly }}
+        run: |
+          set -euo pipefail
+          bash scripts/genomes/audit_external_data_assemblies.sh
+
+      - name: Upload audit logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: external-assembly-audit
+          path: ${{ steps.audit.outputs.audit_dir }}
+          if-no-files-found: warn
+

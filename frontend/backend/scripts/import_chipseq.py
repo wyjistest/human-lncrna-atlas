@@ -546,6 +546,170 @@ class ChIPSeqImporter:
         """Commit transaction"""
         self.conn.commit()
 
+    def compute_gene_peak_associations(
+        self,
+        *,
+        experiment_id: int,
+        species_id: int,
+        flanking: int = 10000,
+        promoter_window: int = 2000,
+    ) -> int:
+        """
+        Compute gene-peak associations for a single experiment.
+
+        Notes:
+        - 只在显式启用时调用（默认不执行），因为可能较慢。
+        - 采用 INSERT ... SELECT + ON CONFLICT DO NOTHING，避免重复写入。
+        - overlap_type / distance_to_tss 的逻辑与 API `/features/chipseq/genes/{gene_id}` 保持一致。
+        """
+        if flanking < 0:
+            raise ValueError("flanking must be >= 0")
+        if promoter_window < 0:
+            raise ValueError("promoter_window must be >= 0")
+
+        logger.info(
+            "Computing gene-peak associations (experiment_id=%s species_id=%s flanking=%s promoter_window=%s)...",
+            experiment_id,
+            species_id,
+            flanking,
+            promoter_window,
+        )
+
+        with self.conn.cursor() as cur:
+            # Quick existence check (skip rather than hard-fail on older DBs)
+            cur.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'gene_peak_associations'
+                )
+                """
+            )
+            has_table = bool(cur.fetchone()[0])
+            if not has_table:
+                logger.warning("Table gene_peak_associations not found; skip computing associations.")
+                return 0
+
+            cur.execute(
+                """
+                WITH matched AS (
+                    SELECT
+                        g.gene_id,
+                        p.peak_id,
+                        p.species_id,
+                        p.experiment_id,
+
+                        g.gene_start,
+                        g.gene_end,
+                        COALESCE(g.strand, '+') AS strand,
+                        CASE WHEN COALESCE(g.strand, '+') = '+'
+                            THEN g.gene_start
+                            ELSE g.gene_end
+                        END AS tss,
+
+                        COALESCE(p.summit_position, (p.peak_start + p.peak_end) / 2) AS peak_midpoint,
+
+                        GREATEST(0::bigint, g.gene_start - %(flanking)s::bigint) AS region_start,
+                        (g.gene_end + %(flanking)s::bigint) AS region_end,
+
+                        p.peak_start,
+                        p.peak_end,
+                        (p.peak_end - p.peak_start) AS peak_width,
+                        p.fold_enrichment,
+                        p.qvalue
+                    FROM chipseq_peaks p
+                    JOIN genes g
+                      ON g.species_id = p.species_id
+                     AND g.chromosome = p.chromosome
+                    WHERE p.experiment_id = %(experiment_id)s
+                      AND p.species_id = %(species_id)s
+                      AND g.gene_start IS NOT NULL
+                      AND g.gene_end IS NOT NULL
+                      AND g.chromosome IS NOT NULL
+                      AND p.chromosome IS NOT NULL
+                      AND p.peak_start < (g.gene_end + %(flanking)s::bigint)
+                      AND p.peak_end > GREATEST(0::bigint, g.gene_start - %(flanking)s::bigint)
+                ),
+                computed AS (
+                    SELECT
+                        gene_id,
+                        peak_id,
+                        species_id,
+                        experiment_id,
+                        gene_start,
+                        gene_end,
+                        strand,
+                        tss,
+                        peak_midpoint,
+                        region_start,
+                        region_end,
+                        peak_start,
+                        peak_end,
+                        peak_width,
+                        fold_enrichment,
+                        qvalue,
+                        CASE
+                            WHEN peak_start <= gene_start AND peak_end >= gene_end THEN 'overlapping'
+                            WHEN peak_start >= gene_start AND peak_end <= gene_end THEN 'gene_body'
+                            WHEN peak_end <= gene_start THEN CASE WHEN strand = '+' THEN 'upstream' ELSE 'downstream' END
+                            WHEN peak_start >= gene_end THEN CASE WHEN strand = '+' THEN 'downstream' ELSE 'upstream' END
+                            WHEN ABS(peak_midpoint - tss) <= %(promoter_window)s::bigint THEN 'promoter'
+                            ELSE 'gene_body'
+                        END AS overlap_type,
+                        CASE
+                            WHEN strand = '+'
+                                THEN (peak_midpoint - tss)
+                                ELSE (tss - peak_midpoint)
+                        END AS distance_to_tss,
+                        GREATEST(
+                            0::bigint,
+                            LEAST(peak_end, region_end) - GREATEST(peak_start, region_start)
+                        ) AS overlap_bp
+                    FROM matched
+                )
+                INSERT INTO gene_peak_associations (
+                    gene_id,
+                    peak_id,
+                    species_id,
+                    experiment_id,
+                    overlap_type,
+                    distance_to_tss,
+                    overlap_bp,
+                    overlap_percentage,
+                    peak_fold_enrichment,
+                    peak_qvalue
+                )
+                SELECT
+                    gene_id,
+                    peak_id,
+                    species_id,
+                    experiment_id,
+                    overlap_type,
+                    distance_to_tss::integer,
+                    overlap_bp::integer,
+                    ROUND(
+                        (overlap_bp::numeric / NULLIF(peak_width, 0)::numeric) * 100.0,
+                        2
+                    ) AS overlap_percentage,
+                    fold_enrichment,
+                    qvalue
+                FROM computed
+                ON CONFLICT (gene_id, peak_id, species_id) DO NOTHING
+                """,
+                {
+                    "experiment_id": experiment_id,
+                    "species_id": species_id,
+                    "flanking": flanking,
+                    "promoter_window": promoter_window,
+                },
+            )
+
+            inserted = int(cur.rowcount or 0)
+            logger.info("gene_peak_associations inserted: %s rows", inserted)
+            return inserted
+
     def refresh_materialized_views(self):
         """Refresh materialized views after import"""
         logger.info("Refreshing materialized views...")
@@ -560,7 +724,14 @@ class ChIPSeqImporter:
 # Main Import Function
 # =============================================================================
 
-def import_chipseq(config: ExperimentConfig, db_config: Dict[str, Any]) -> Dict[str, Any]:
+def import_chipseq(
+    config: ExperimentConfig,
+    db_config: Dict[str, Any],
+    *,
+    compute_associations: bool = False,
+    associations_flanking: int = 10000,
+    associations_promoter_window: int = 2000,
+) -> Dict[str, Any]:
     """
     Main import function
 
@@ -586,6 +757,7 @@ def import_chipseq(config: ExperimentConfig, db_config: Dict[str, Any]) -> Dict[
         'mark_type': config.mark_type,
         'peaks_imported': 0,
         'peaks_skipped': 0,
+        'associations_inserted': 0,
         'errors': [],
     }
 
@@ -617,6 +789,15 @@ def import_chipseq(config: ExperimentConfig, db_config: Dict[str, Any]) -> Dict[
 
             # Update batch status
             importer.update_batch_status(batch_id, 'completed', imported)
+
+            # Optional: Compute gene-peak associations (for mv_gene_mark_summary, fast lookups)
+            if compute_associations:
+                results['associations_inserted'] = importer.compute_gene_peak_associations(
+                    experiment_id=experiment_id,
+                    species_id=species_id,
+                    flanking=associations_flanking,
+                    promoter_window=associations_promoter_window,
+                )
 
             # Commit
             importer.commit()
@@ -747,6 +928,23 @@ Examples:
         help='Parse file without importing'
     )
     parser.add_argument(
+        '--compute-associations',
+        action='store_true',
+        help='Compute gene-peak associations into gene_peak_associations table after import (may be slow)',
+    )
+    parser.add_argument(
+        '--associations-flanking',
+        type=int,
+        default=10000,
+        help='Flanking window (bp) used when computing associations (default: 10000)',
+    )
+    parser.add_argument(
+        '--associations-promoter-window',
+        type=int,
+        default=2000,
+        help='Promoter window around TSS (bp) used when classifying overlap_type (default: 2000)',
+    )
+    parser.add_argument(
         '--verbose', '-v',
         action='store_true',
         help='Verbose output'
@@ -811,13 +1009,20 @@ def main():
 
     # Run import
     try:
-        results = import_chipseq(config, db_config)
+        results = import_chipseq(
+            config,
+            db_config,
+            compute_associations=args.compute_associations,
+            associations_flanking=args.associations_flanking,
+            associations_promoter_window=args.associations_promoter_window,
+        )
         print("\n" + "=" * 50)
         print("Import Results:")
         print(f"  Success: {results['success']}")
         print(f"  Experiment ID: {results.get('experiment_id', 'N/A')}")
         print(f"  Peaks imported: {results['peaks_imported']}")
         print(f"  Peaks skipped: {results['peaks_skipped']}")
+        print(f"  Associations inserted: {results.get('associations_inserted', 0)}")
         if results['errors']:
             print(f"  Errors: {results['errors']}")
         print("=" * 50)

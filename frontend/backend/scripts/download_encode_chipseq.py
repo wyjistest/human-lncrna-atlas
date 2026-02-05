@@ -48,6 +48,14 @@ ENCODE_FILES = {
             'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k27acStdPk.broadPeak.gz',
             'size_mb': 4.5,
         },
+        'H3K36me3': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k36me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k36me3StdPk.broadPeak.gz',
+        },
+        'H3K9me3': {
+            'file': 'wgEncodeBroadHistoneGm12878H3k9me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k9me3StdPk.broadPeak.gz',
+        },
         # Phase 5 新增 marks
         'H3K9ac': {
             'file': 'wgEncodeBroadHistoneGm12878H3k9acStdPk.broadPeak.gz',
@@ -80,6 +88,15 @@ ENCODE_FILES = {
             'file': 'wgEncodeBroadHistoneH1hescH3k27acStdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k27acStdPk.broadPeak.gz',
             'size_mb': 3.8,
+        },
+        'H3K36me3': {
+            'file': 'wgEncodeBroadHistoneH1hescH3k36me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k36me3StdPk.broadPeak.gz',
+        },
+        'H3K9me3': {
+            # 注意：UCSC 使用 H3k09me3（带 0），不是 H3k9me3
+            'file': 'wgEncodeBroadHistoneH1hescH3k09me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k09me3StdPk.broadPeak.gz',
         },
         # Phase 5 新增 marks
         'H3K9ac': {
@@ -114,7 +131,54 @@ ENCODE_FILES = {
             'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k27acStdPk.broadPeak.gz',
             'size_mb': 4.2,
         },
-        # 注意: K562 没有 H3K9ac 和 H3K4me2 数据 (ENCODE Broad Histone)
+        'H3K36me3': {
+            'file': 'wgEncodeBroadHistoneK562H3k36me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k36me3StdPk.broadPeak.gz',
+        },
+        'H3K9me3': {
+            'file': 'wgEncodeBroadHistoneK562H3k9me3StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k9me3StdPk.broadPeak.gz',
+        },
+        # Phase 5 新增 marks（UCSC hg19/Broad Histone 也可用）
+        'H3K9ac': {
+            'file': 'wgEncodeBroadHistoneK562H3k9acStdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k9acStdPk.broadPeak.gz',
+        },
+        'H3K4me2': {
+            'file': 'wgEncodeBroadHistoneK562H3k4me2StdPk.broadPeak.gz',
+            'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k4me2StdPk.broadPeak.gz',
+        },
+    },
+    'HepG2': {
+        'H3K27me3': {
+            'file': 'wgEncodeBroadHistoneHepg2H3k27me3StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k27me3StdPk.broadPeak.gz',
+        },
+        'H3K4me1': {
+            # 注意：UCSC 使用 H3k04me1（带 0），不是 H3k4me1
+            'file': 'wgEncodeBroadHistoneHepg2H3k04me1StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k04me1StdPk.broadPeak.gz',
+        },
+        'H3K4me3': {
+            'file': 'wgEncodeBroadHistoneHepg2H3k4me3StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k4me3StdPk.broadPeak.gz',
+        },
+        'H3K27ac': {
+            'file': 'wgEncodeBroadHistoneHepg2H3k27acStdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k27acStdPk.broadPeak.gz',
+        },
+        'H3K36me3': {
+            'file': 'wgEncodeBroadHistoneHepg2H3k36me3StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k36me3StdPk.broadPeak.gz',
+        },
+        'H3K9ac': {
+            'file': 'wgEncodeBroadHistoneHepg2H3k9acStdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k9acStdPk.broadPeak.gz',
+        },
+        'H3K4me2': {
+            'file': 'wgEncodeBroadHistoneHepg2H3k4me2StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k4me2StdPk.broadPeak.gz',
+        },
     },
     # MCF-7: Breast adenocarcinoma cell line (UW Histone track - limited data)
     'MCF-7': {
@@ -177,6 +241,12 @@ CELL_LINE_METADATA = {
         'tissue_type': 'blood',
         'cell_type': 'erythroleukemia',
         'description': 'Chronic myelogenous leukemia',
+        'category': 'cancer',
+    },
+    'HepG2': {
+        'tissue_type': 'liver',
+        'cell_type': 'hepatocellular_carcinoma',
+        'description': 'Hepatocellular carcinoma cell line',
         'category': 'cancer',
     },
     'MCF-7': {
@@ -298,25 +368,37 @@ def download_mark_data(mark_type: str, cell_lines: List[str], output_dir: Path, 
         file_info = ENCODE_FILES[cell_line][mark_type]
 
         print(f'\n  Cell line: {cell_line}')
-        print(f'  File size: ~{file_info["size_mb"]} MB')
+        size_mb = file_info.get("size_mb")
+        if size_mb is not None:
+            print(f'  File size: ~{size_mb} MB')
+        else:
+            print('  File size: unknown')
 
         # Download peaks file
         peaks_filename = file_info['file']
         peaks_path = output_dir / peaks_filename
 
-        expected_mb = float(file_info.get("size_mb") or 0)
+        expected_mb_raw = file_info.get("size_mb")
+        expected_mb = float(expected_mb_raw) if expected_mb_raw is not None else 0.0
         # Allow some variance; this is a sanity guard against empty/error-page downloads.
-        min_bytes = int(expected_mb * 1024 * 1024 * 0.5) if expected_mb > 0 else None
+        if expected_mb > 0:
+            min_bytes = int(expected_mb * 1024 * 1024 * 0.5)
+        else:
+            # 没有 size_mb 时，给一个保守的下限（避免拿到 404/HTML 错误页也“下载成功”）
+            min_bytes = 200 * 1024
 
         if download_file(file_info['url'], peaks_path, dry_run=dry_run, min_bytes=min_bytes):
             # Generate metadata
             metadata = generate_metadata(mark_type, cell_line, file_info)
             metadata_path = output_dir / f'{mark_type}_{cell_line}_metadata.json'
 
-            with open(metadata_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
+            if dry_run:
+                print(f'  [DRY RUN] Would write metadata: {metadata_path.name}')
+            else:
+                with open(metadata_path, 'w') as f:
+                    json.dump(metadata, f, indent=2)
 
-            print(f'  ✓ Metadata: {metadata_path.name}')
+                print(f'  ✓ Metadata: {metadata_path.name}')
 
             downloaded.append({
                 'mark_type': mark_type,
@@ -429,11 +511,22 @@ def main():
     elif args.dry_run:
         print('\n📋 Dry run complete. Run without --dry-run to download.')
         print(f'   Total files to download: {len(all_experiments)}')
-        total_size = sum(
-            ENCODE_FILES[e['cell_line']][e['mark_type']]['size_mb']
-            for e in all_experiments
-        )
-        print(f'   Estimated total size: ~{total_size:.1f} MB')
+        total_size = 0.0
+        unknown_sizes = 0
+        for exp in all_experiments:
+            size_mb = ENCODE_FILES[exp['cell_line']][exp['mark_type']].get('size_mb')
+            if size_mb is None:
+                unknown_sizes += 1
+                continue
+            try:
+                total_size += float(size_mb)
+            except (TypeError, ValueError):
+                unknown_sizes += 1
+
+        if unknown_sizes > 0:
+            print(f'   Estimated total size: >= {total_size:.1f} MB (+{unknown_sizes} unknown)')
+        else:
+            print(f'   Estimated total size: ~{total_size:.1f} MB')
 
 
 if __name__ == '__main__':

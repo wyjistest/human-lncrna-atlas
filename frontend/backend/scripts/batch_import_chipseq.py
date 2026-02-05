@@ -80,6 +80,13 @@ def import_single_experiment(exp_config: dict, options: dict, db_options: dict) 
         '--db-user', str(db_options['user']),
     ]
 
+    if options.get('compute_associations'):
+        cmd.append('--compute-associations')
+        if options.get('associations_flanking') is not None:
+            cmd.extend(['--associations-flanking', str(options['associations_flanking'])])
+        if options.get('associations_promoter_window') is not None:
+            cmd.extend(['--associations-promoter-window', str(options['associations_promoter_window'])])
+
     # Add metadata fields as command arguments
     if metadata.get('cell_type'):
         cmd.extend(['--cell-type', metadata['cell_type']])

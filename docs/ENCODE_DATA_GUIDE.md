@@ -26,6 +26,7 @@
 ### 常见坑
 
 - **HepG2 的 H3K4me1 文件名**：UCSC 上写作 `H3k04me1`（注意 `04`），不是 `H3k4me1`。
+- **H1-hESC 的 H3K9me3 文件名**：UCSC 上写作 `H3k09me3`（注意 `09`），不是 `H3k9me3`。
 
 ### 方案 A：使用我们的下载脚本（自动化）
 
@@ -84,6 +85,16 @@ gunzip *.gz
 ---
 
 ## 数据导入
+
+### 步骤 0：组装审计（推荐）
+
+在导入前建议先做一次 hg19 组装一致性审计（尤其是你手工下载/搬运过 peaks 文件时），可以快速发现 hg38/GRCh38 混入、下载损坏、未知染色体等问题：
+
+```bash
+cd <repo-root>
+HUMAN_LNC_ATLAS_DATA_DIR="/data/wenyujianData/humanLncAtlas" \
+  bash scripts/genomes/audit_external_data_assemblies.sh
+```
 
 ### 步骤 1：准备元数据文件
 
@@ -171,11 +182,12 @@ python3 scripts/import_chipseq.py \
     --source "ENCODE" \
     --format broadPeak \
     --db-name lncrna_production \
-    --db-user amax
+    --db-user amax \
+    --compute-associations  # 可选：生成 gene_peak_associations（可能较慢）
 
 # 导入 H3K4me1
 python3 scripts/import_chipseq.py \
-    --input encode_gm12878/wgEncodeBroadHistoneGm12878H3k4me1StdPeak.broadPeak \
+    --input encode_gm12878/wgEncodeBroadHistoneGm12878H3k4me1StdPk.broadPeak \
     --mark-type H3K4me1 \
     --species human \
     --experiment-name "ENCODE_GM12878_H3K4me1" \
@@ -183,7 +195,8 @@ python3 scripts/import_chipseq.py \
     --cell-type "B-lymphocyte" \
     --tissue-type "blood" \
     --db-name lncrna_production \
-    --db-user amax
+    --db-user amax \
+    --compute-associations  # 可选：生成 gene_peak_associations（可能较慢）
 
 # 类似地导入 H3K4me3 和 H3K27ac
 ```

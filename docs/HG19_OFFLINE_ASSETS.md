@@ -93,3 +93,22 @@ python3 scripts/genomes/validate_peak_bed_bounds.py \
 - 或数据库中混入了明确标注为其他 reference genome 的实验（例如 `reference_genome=GRCh38`）
 
 补充：后端在导出 IGV ChIP-seq peaks（`/api/v1/igv/tracks/chipseq/{species_id}.bed`）以及 `scripts/export_chipseq_bed.py` 中，会根据 `get_genome_reference(species_id).id` 对 `chipseq_experiments.reference_genome` 做兼容性过滤（NULL 视为“未知但兼容”，仅排除明确不匹配的值），以避免 hg19/hg38 混用造成的坐标错位。
+
+## 一键外部数据组装审计（推荐）
+
+如果你有一套“线上生效”的外部数据目录（例如 `/data/wenyujianData/humanLncAtlas`），推荐直接跑一键审计脚本，它会串联本文档提到的两个校验器，并把审计日志落盘，方便回溯与对比：
+
+```bash
+HUMAN_LNC_ATLAS_DATA_DIR="/data/wenyujianData/humanLncAtlas" \
+  bash scripts/genomes/audit_external_data_assemblies.sh
+```
+
+输出目录：`$HUMAN_LNC_ATLAS_DATA_DIR/audits/<timestamp>_external_assembly_audit/`，包含：
+- `meta.env`：审计环境信息（host、repo SHA、路径等）
+- `01_*.log ...`：每一步的详细日志
+- `summary.txt`：总结与审计输出路径
+
+可选环境变量（按需覆盖默认目录）：
+- `ASSEMBLY`（默认 `hg19`）
+- `GENOMES_DIR` / `CHROM_SIZES`
+- `CHIPSEQ_BED_DIR` / `ENCODE_DATA_DIR` / `ENCODE_PEAKS_DIR`
