@@ -51,10 +51,12 @@ ENCODE_FILES = {
         'H3K36me3': {
             'file': 'wgEncodeBroadHistoneGm12878H3k36me3StdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k36me3StdPk.broadPeak.gz',
+            'size_mb': 0.5,
         },
         'H3K9me3': {
             'file': 'wgEncodeBroadHistoneGm12878H3k9me3StdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneGm12878H3k9me3StdPk.broadPeak.gz',
+            'size_mb': 1.1,
         },
         # Phase 5 新增 marks
         'H3K9ac': {
@@ -92,11 +94,13 @@ ENCODE_FILES = {
         'H3K36me3': {
             'file': 'wgEncodeBroadHistoneH1hescH3k36me3StdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k36me3StdPk.broadPeak.gz',
+            'size_mb': 0.6,
         },
         'H3K9me3': {
             # 注意：UCSC 使用 H3k09me3（带 0），不是 H3k9me3
             'file': 'wgEncodeBroadHistoneH1hescH3k09me3StdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneH1hescH3k09me3StdPk.broadPeak.gz',
+            'size_mb': 1.3,
         },
         # Phase 5 新增 marks
         'H3K9ac': {
@@ -134,56 +138,67 @@ ENCODE_FILES = {
         'H3K36me3': {
             'file': 'wgEncodeBroadHistoneK562H3k36me3StdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k36me3StdPk.broadPeak.gz',
+            'size_mb': 0.8,
         },
         'H3K9me3': {
             'file': 'wgEncodeBroadHistoneK562H3k9me3StdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k9me3StdPk.broadPeak.gz',
+            'size_mb': 0.7,
         },
         # Phase 5 新增 marks（UCSC hg19/Broad Histone 也可用）
         'H3K9ac': {
             'file': 'wgEncodeBroadHistoneK562H3k9acStdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k9acStdPk.broadPeak.gz',
+            'size_mb': 0.8,
         },
         'H3K4me2': {
             'file': 'wgEncodeBroadHistoneK562H3k4me2StdPk.broadPeak.gz',
             'url': BASE_URL + 'wgEncodeBroadHistoneK562H3k4me2StdPk.broadPeak.gz',
+            'size_mb': 1.1,
         },
     },
     'HepG2': {
         'H3K27me3': {
             'file': 'wgEncodeBroadHistoneHepg2H3k27me3StdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k27me3StdPk.broadPeak.gz',
+            'size_mb': 1.2,
         },
         'H3K4me1': {
             # 注意：UCSC 使用 H3k04me1（带 0），不是 H3k4me1
             'file': 'wgEncodeBroadHistoneHepg2H3k04me1StdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k04me1StdPk.broadPeak.gz',
+            'size_mb': 2.1,
         },
         'H3K4me3': {
             'file': 'wgEncodeBroadHistoneHepg2H3k4me3StdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k4me3StdPk.broadPeak.gz',
+            'size_mb': 0.8,
         },
         'H3K27ac': {
             'file': 'wgEncodeBroadHistoneHepg2H3k27acStdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k27acStdPk.broadPeak.gz',
+            'size_mb': 0.7,
         },
         'H3K36me3': {
             'file': 'wgEncodeBroadHistoneHepg2H3k36me3StdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k36me3StdPk.broadPeak.gz',
+            'size_mb': 0.6,
         },
         'H3K9me3': {
             # 注意：UCSC HepG2 的 H3K9me3 文件是 Pk（无 Std），且为 H3k09me3（带 0）
             'file': 'wgEncodeBroadHistoneHepg2H3k09me3Pk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k09me3Pk.broadPeak.gz',
-            'size_mb': 0.9,
+            'size_mb': 0.8,
         },
         'H3K9ac': {
             'file': 'wgEncodeBroadHistoneHepg2H3k9acStdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k9acStdPk.broadPeak.gz',
+            'size_mb': 0.8,
         },
         'H3K4me2': {
             'file': 'wgEncodeBroadHistoneHepg2H3k4me2StdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHepg2H3k4me2StdPk.broadPeak.gz',
+            'size_mb': 1.3,
         },
     },
     # MCF-7: Breast adenocarcinoma cell line (UW Histone track - limited data)
