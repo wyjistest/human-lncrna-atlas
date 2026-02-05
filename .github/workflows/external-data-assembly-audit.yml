@@ -11,6 +11,9 @@ on:
         description: "Genome assembly to validate against (ASSEMBLY)"
         required: false
         default: "hg19"
+  schedule:
+    # Weekly audit (UTC). Uses self-hosted runner; if runner offline, job will queue.
+    - cron: "0 3 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
@@ -24,6 +27,20 @@ jobs:
   audit:
     name: hg19 external data audit
     runs-on: self-hosted
+    env:
+      # Default to workflow_dispatch inputs; for schedule these are empty and fall back to defaults.
+      HUMAN_LNC_ATLAS_DATA_DIR: ${{ github.event.inputs.data_dir || '/data/wenyujianData/humanLncAtlas' }}
+      ASSEMBLY: ${{ github.event.inputs.assembly || 'hg19' }}
+
+      # Network: self-hosted runners in restricted environments may require an HTTP proxy.
+      # Override via repo variables (Settings → Secrets and variables → Actions → Variables).
+      PROXY_URL: ${{ vars.PROXY_URL || 'http://127.0.0.1:7890' }}
+      http_proxy: ${{ vars.HTTP_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
+      https_proxy: ${{ vars.HTTPS_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
+      HTTP_PROXY: ${{ vars.HTTP_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
+      HTTPS_PROXY: ${{ vars.HTTPS_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
+      NO_PROXY: ${{ vars.NO_PROXY || '127.0.0.1,localhost,::1' }}
+      no_proxy: ${{ vars.NO_PROXY || '127.0.0.1,localhost,::1' }}
     steps:
       - name: Download repo tarball (self-hosted)
         env:
@@ -54,9 +71,6 @@ jobs:
 
       - name: Run external assembly audit (read-only)
         id: audit
-        env:
-          HUMAN_LNC_ATLAS_DATA_DIR: ${{ github.event.inputs.data_dir }}
-          ASSEMBLY: ${{ github.event.inputs.assembly }}
         run: |
           set -euo pipefail
           bash scripts/genomes/audit_external_data_assemblies.sh
@@ -68,4 +82,3 @@ jobs:
           name: external-assembly-audit
           path: ${{ steps.audit.outputs.audit_dir }}
           if-no-files-found: warn
-

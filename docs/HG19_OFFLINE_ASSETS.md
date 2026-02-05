@@ -94,6 +94,26 @@ python3 scripts/genomes/validate_peak_bed_bounds.py \
 
 补充：后端在导出 IGV ChIP-seq peaks（`/api/v1/igv/tracks/chipseq/{species_id}.bed`）以及 `scripts/export_chipseq_bed.py` 中，会根据 `get_genome_reference(species_id).id` 对 `chipseq_experiments.reference_genome` 做兼容性过滤（NULL 视为“未知但兼容”，仅排除明确不匹配的值），以避免 hg19/hg38 混用造成的坐标错位。
 
+## DB reference_genome 回填（可选，推荐）
+
+当你历史导入过一些 ChIP-seq 实验但 `chipseq_experiments.reference_genome` 仍为空（NULL）时，虽然系统会把 NULL 当作“未知但兼容”，但长期会让审计与排障变得不确定。
+
+仓库提供了一个“可审计、可回滚”的回填脚本：它会对 **DB 中 active 且 reference_genome IS NULL** 的实验做坐标边界校验（`peak_end <= hg19.chrom.sizes`），并生成回填/回滚 SQL（默认不写 DB；`--apply` 才会执行）。
+
+```bash
+# 只读审计（推荐先跑）
+HUMAN_LNC_ATLAS_DATA_DIR="/data/wenyujianData/humanLncAtlas" \
+  bash scripts/genomes/audit_chipseq_reference_genome_db.sh --assembly hg19
+
+# 审计 OK 且确认无误后，可执行回填（会写 DB；会同时生成 rollback SQL）
+HUMAN_LNC_ATLAS_DATA_DIR="/data/wenyujianData/humanLncAtlas" \
+  bash scripts/genomes/audit_chipseq_reference_genome_db.sh --assembly hg19 --apply
+```
+
+输出目录：`$HUMAN_LNC_ATLAS_DATA_DIR/audits/<timestamp>_chipseq_reference_genome_db_audit/`，包含：
+- `chipseq_reference_genome_audit.tsv`：每个实验的峰数量/越界统计
+- `update_reference_genome_hg19.sql` / `rollback_reference_genome_hg19.sql`：可回滚 SQL
+
 ## 一键外部数据组装审计（推荐）
 
 如果你有一套“线上生效”的外部数据目录（例如 `/data/wenyujianData/humanLncAtlas`），推荐直接跑一键审计脚本，它会串联本文档提到的两个校验器，并把审计日志落盘，方便回溯与对比：
