@@ -266,6 +266,7 @@ python3 scripts/compute_gene_peak_associations.py
 - 默认只处理 `reference_genome` 匹配 `hg19/GRCh37` 的 experiments（防止 hg38 混入）；如需要严格要求可加 `--require-reference-genome`。
 - 若需要强制重跑（即使已存在部分 associations），可用 `--force`（依赖 `ON CONFLICT DO NOTHING` 防重复写入）。
 - 如果你只想补齐表而暂不刷新物化视图，可用 `--no-refresh-mvs`。
+- 如需长跑审计/断点续跑，可用 `--report-jsonl <path>` 输出 JSONL 报告；重新运行时配合 `--resume-from <path>` 跳过已处理 experiments（可与 `--report-jsonl` 指向同一文件）；如希望单个 experiment 失败不影响整体，可加 `--continue-on-error`。
 
 备用：你也可以手动刷新物化视图：
 

@@ -25,10 +25,13 @@ python3 scripts/compute_gene_peak_associations.py --force
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -126,6 +129,22 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         default=0,
         help="仅处理前 N 个 active experiments（默认 0 表示不限制）",
     )
+
+    parser.add_argument(
+        "--report-jsonl",
+        default="",
+        help="将执行过程追加写入 JSONL 报告文件（可选；适合长跑审计/排障）",
+    )
+    parser.add_argument(
+        "--resume-from",
+        default="",
+        help="从已有 JSONL 报告恢复：跳过已处理 experiments（可选；断点续跑）",
+    )
+    parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="某个 experiment 失败时继续处理下一个（默认失败即中止）",
+    )
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -148,6 +167,59 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--verbose", action="store_true", help="打印更详细日志")
 
     return parser.parse_args(argv)
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _write_jsonl(path: str, record: dict) -> None:
+    if not path:
+        return
+
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(record, ensure_ascii=False, sort_keys=True)
+    with p.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")
+        f.flush()
+
+
+def _load_resume_done_experiment_ids(path: str) -> set[int]:
+    if not path:
+        return set()
+
+    p = Path(path)
+    if not p.exists():
+        return set()
+
+    done_statuses = {
+        "computed",
+        "skipped_existing",
+        "skipped_reference_mismatch",
+        "skipped_reference_unknown",
+        "skipped_resume",
+    }
+
+    done: set[int] = set()
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        if not isinstance(obj, dict):
+            continue
+
+        status = obj.get("status")
+        exp_id = obj.get("experiment_id")
+        if status in done_statuses and isinstance(exp_id, int):
+            done.add(exp_id)
+
+    return done
 
 
 def _normalize_ref_genome(value: Optional[str]) -> str:
@@ -271,10 +343,32 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     processed = 0
     skipped_existing = 0
+    skipped_resume = 0
     skipped_reference_mismatch = 0
     skipped_reference_unknown = 0
+    errors = 0
     inserted_total = 0
     refresh_called = 0
+
+    report_jsonl = args.report_jsonl
+    if args.resume_from and not report_jsonl:
+        report_jsonl = args.resume_from
+    resume_done = _load_resume_done_experiment_ids(args.resume_from)
+    run_started_at = _utc_now_iso()
+    _write_jsonl(
+        report_jsonl,
+        {
+            "status": "run_start",
+            "started_at": run_started_at,
+            "expected_reference_genome": args.expected_reference_genome,
+            "require_reference_genome": bool(args.require_reference_genome),
+            "force": bool(args.force),
+            "refresh_mvs": bool(args.refresh_mvs),
+            "associations_flanking": int(args.associations_flanking),
+            "associations_promoter_window": int(args.associations_promoter_window),
+            "resume_from": args.resume_from or None,
+        },
+    )
 
     try:
         if not has_gene_peak_associations_table(conn):
@@ -293,6 +387,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         expected = args.expected_reference_genome
         for exp in experiments:
+            exp_started = time.time()
             if exp.reference_genome:
                 if not reference_genome_matches(exp.reference_genome, expected):
                     logger.warning(
@@ -303,6 +398,18 @@ def main(argv: Optional[list[str]] = None) -> int:
                         expected,
                     )
                     skipped_reference_mismatch += 1
+                    _write_jsonl(
+                        report_jsonl,
+                        {
+                            "status": "skipped_reference_mismatch",
+                            "experiment_id": exp.experiment_id,
+                            "species_id": exp.species_id,
+                            "experiment_name": exp.experiment_name,
+                            "reference_genome": exp.reference_genome,
+                            "expected_reference_genome": expected,
+                            "duration_ms": int((time.time() - exp_started) * 1000),
+                        },
+                    )
                     continue
             else:
                 if args.require_reference_genome:
@@ -312,7 +419,39 @@ def main(argv: Optional[list[str]] = None) -> int:
                         exp.experiment_name,
                     )
                     skipped_reference_unknown += 1
+                    _write_jsonl(
+                        report_jsonl,
+                        {
+                            "status": "skipped_reference_unknown",
+                            "experiment_id": exp.experiment_id,
+                            "species_id": exp.species_id,
+                            "experiment_name": exp.experiment_name,
+                            "reference_genome": None,
+                            "expected_reference_genome": expected,
+                            "duration_ms": int((time.time() - exp_started) * 1000),
+                        },
+                    )
                     continue
+
+            if (not args.force) and exp.experiment_id in resume_done:
+                logger.info(
+                    "Skip experiment_id=%s name=%s: already processed in resume report",
+                    exp.experiment_id,
+                    exp.experiment_name,
+                )
+                skipped_resume += 1
+                _write_jsonl(
+                    report_jsonl,
+                    {
+                        "status": "skipped_resume",
+                        "experiment_id": exp.experiment_id,
+                        "species_id": exp.species_id,
+                        "experiment_name": exp.experiment_name,
+                        "reference_genome": exp.reference_genome,
+                        "duration_ms": int((time.time() - exp_started) * 1000),
+                    },
+                )
+                continue
 
             if not args.force and experiment_has_any_associations(conn, exp.experiment_id):
                 logger.info(
@@ -321,6 +460,17 @@ def main(argv: Optional[list[str]] = None) -> int:
                     exp.experiment_name,
                 )
                 skipped_existing += 1
+                _write_jsonl(
+                    report_jsonl,
+                    {
+                        "status": "skipped_existing",
+                        "experiment_id": exp.experiment_id,
+                        "species_id": exp.species_id,
+                        "experiment_name": exp.experiment_name,
+                        "reference_genome": exp.reference_genome,
+                        "duration_ms": int((time.time() - exp_started) * 1000),
+                    },
+                )
                 continue
 
             if args.dry_run:
@@ -329,31 +479,104 @@ def main(argv: Optional[list[str]] = None) -> int:
                     exp.experiment_id,
                     exp.experiment_name,
                 )
+                _write_jsonl(
+                    report_jsonl,
+                    {
+                        "status": "dry_run",
+                        "experiment_id": exp.experiment_id,
+                        "species_id": exp.species_id,
+                        "experiment_name": exp.experiment_name,
+                        "reference_genome": exp.reference_genome,
+                        "duration_ms": int((time.time() - exp_started) * 1000),
+                    },
+                )
                 continue
 
-            inserted = compute_gene_peak_associations_for_experiment(
-                conn,
-                exp.experiment_id,
-                exp.species_id,
-                flanking=args.associations_flanking,
-                promoter_window=args.associations_promoter_window,
-            )
-            conn.commit()
-            processed += 1
-            inserted_total += int(inserted)
+            try:
+                inserted = compute_gene_peak_associations_for_experiment(
+                    conn,
+                    exp.experiment_id,
+                    exp.species_id,
+                    flanking=args.associations_flanking,
+                    promoter_window=args.associations_promoter_window,
+                )
+                conn.commit()
+                processed += 1
+                inserted_total += int(inserted)
+                _write_jsonl(
+                    report_jsonl,
+                    {
+                        "status": "computed",
+                        "experiment_id": exp.experiment_id,
+                        "species_id": exp.species_id,
+                        "experiment_name": exp.experiment_name,
+                        "reference_genome": exp.reference_genome,
+                        "inserted": int(inserted),
+                        "duration_ms": int((time.time() - exp_started) * 1000),
+                    },
+                )
+            except Exception as exc:
+                conn.rollback()
+                errors += 1
+                _write_jsonl(
+                    report_jsonl,
+                    {
+                        "status": "error",
+                        "experiment_id": exp.experiment_id,
+                        "species_id": exp.species_id,
+                        "experiment_name": exp.experiment_name,
+                        "reference_genome": exp.reference_genome,
+                        "error": str(exc),
+                        "duration_ms": int((time.time() - exp_started) * 1000),
+                    },
+                )
+                if not args.continue_on_error:
+                    raise
+                logger.exception(
+                    "Compute associations failed; continue_on_error enabled (experiment_id=%s name=%s)",
+                    exp.experiment_id,
+                    exp.experiment_name,
+                )
 
         if (not args.dry_run) and args.refresh_mvs:
             refresh_chipseq_materialized_views(conn)
             conn.commit()
             refresh_called += 1
+            _write_jsonl(
+                report_jsonl,
+                {
+                    "status": "refresh_mvs",
+                    "refreshed": True,
+                },
+            )
+
+        finished_at = _utc_now_iso()
+        _write_jsonl(
+            report_jsonl,
+            {
+                "status": "run_end",
+                "started_at": run_started_at,
+                "finished_at": finished_at,
+                "processed": processed,
+                "inserted_total": inserted_total,
+                "skipped_existing": skipped_existing,
+                "skipped_resume": skipped_resume,
+                "skipped_reference_mismatch": skipped_reference_mismatch,
+                "skipped_reference_unknown": skipped_reference_unknown,
+                "errors": errors,
+                "refreshed_mvs": refresh_called,
+            },
+        )
 
         logger.info(
-            "Summary: processed=%s inserted_total=%s skipped_existing=%s skipped_ref_mismatch=%s skipped_ref_unknown=%s refreshed_mvs=%s",
+            "Summary: processed=%s inserted_total=%s skipped_existing=%s skipped_resume=%s skipped_ref_mismatch=%s skipped_ref_unknown=%s errors=%s refreshed_mvs=%s",
             processed,
             inserted_total,
             skipped_existing,
+            skipped_resume,
             skipped_reference_mismatch,
             skipped_reference_unknown,
+            errors,
             refresh_called,
         )
         return 0
@@ -366,4 +589,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
