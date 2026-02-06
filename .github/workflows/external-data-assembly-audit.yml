@@ -35,13 +35,17 @@ jobs:
       # Network: self-hosted runners in restricted environments may require an HTTP proxy.
       # Override via repo variables (Settings → Secrets and variables → Actions → Variables).
       PROXY_URL: ${{ vars.PROXY_URL || 'http://127.0.0.1:7890' }}
-      http_proxy: ${{ vars.HTTP_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
-      https_proxy: ${{ vars.HTTPS_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
       HTTP_PROXY: ${{ vars.HTTP_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
       HTTPS_PROXY: ${{ vars.HTTPS_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
       NO_PROXY: ${{ vars.NO_PROXY || '127.0.0.1,localhost,::1' }}
-      no_proxy: ${{ vars.NO_PROXY || '127.0.0.1,localhost,::1' }}
     steps:
+      - name: Export proxy env aliases
+        run: |
+          set -euo pipefail
+          echo "http_proxy=${HTTP_PROXY}" >> "$GITHUB_ENV"
+          echo "https_proxy=${HTTPS_PROXY}" >> "$GITHUB_ENV"
+          echo "no_proxy=${NO_PROXY}" >> "$GITHUB_ENV"
+
       - name: Download repo tarball (self-hosted)
         env:
           EXPECTED_SHA: ${{ github.sha }}
