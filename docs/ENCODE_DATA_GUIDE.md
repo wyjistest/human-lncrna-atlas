@@ -250,6 +250,25 @@ python3 scripts/batch_import_chipseq.py encode_batch_config.json
 
 ### 步骤 3：刷新物化视图
 
+如果你在导入时没有启用 `--compute-associations` / `compute_associations=true`（或你想对历史数据统一补齐 `gene_peak_associations`），建议先运行批量脚本（默认仅处理 `is_active=TRUE` 的 experiments，并在末尾刷新物化视图）：
+
+```bash
+cd <repo-root>/frontend/backend
+
+# 先查看将要处理哪些 experiments
+python3 scripts/compute_gene_peak_associations.py --dry-run
+
+# 真正执行（默认跳过“已存在 associations”的 experiments）
+python3 scripts/compute_gene_peak_associations.py
+```
+
+说明：
+- 默认只处理 `reference_genome` 匹配 `hg19/GRCh37` 的 experiments（防止 hg38 混入）；如需要严格要求可加 `--require-reference-genome`。
+- 若需要强制重跑（即使已存在部分 associations），可用 `--force`（依赖 `ON CONFLICT DO NOTHING` 防重复写入）。
+- 如果你只想补齐表而暂不刷新物化视图，可用 `--no-refresh-mvs`。
+
+备用：你也可以手动刷新物化视图：
+
 ```bash
 psql -U amax -d lncrna_production << 'SQL'
 REFRESH MATERIALIZED VIEW mv_chipseq_mark_stats;
