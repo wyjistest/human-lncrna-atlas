@@ -14,7 +14,7 @@
 
 Long non-coding RNAs (lncRNAs) regulate gene expression through diverse mechanisms, yet cross-species resources that integrate predicted lncRNA–target regulatory relationships with epigenomic context remain limited. Here we present **Human LncRNA Atlas**, a database and visualization platform that integrates lncRNA regulatory relationships across four primate species (human, chimpanzee, macaque, and marmoset), together with orthology-aware comparison and epigenomic annotations.
 
-The current release contains **804,630** predicted lncRNA–protein-coding gene regulations (binding affinity, genomic coordinates, and linked lncRNA/DNA sequences) across four species, with complete sequence coverage for all regulations. To contextualize regulatory relationships, we integrate ENCODE-derived epigenomic tracks including ChIP-seq histone modification peaks (K562; six core marks; **422k** peaks), DNase-seq open chromatin peaks (**1.22M** peaks across 76 cell lines), and RepeatMasker annotations (**5.48M** elements), as well as GWAS trait associations (**~67k** gene–trait links; TBC) to enable disease-centric exploration.
+The current release contains **804,630** predicted lncRNA–protein-coding gene regulations (binding affinity, genomic coordinates, and linked lncRNA/DNA sequences) across four species, with complete sequence coverage for all regulations. To contextualize regulatory relationships, we integrate ENCODE-derived epigenomic tracks including ChIP-seq histone modification peaks (six core marks; **~2.37M** peaks across 7 cell lines), DNase-seq open chromatin peaks (**~1.22M** peaks across 7 cell lines), and RepeatMasker annotations (**5.48M** elements), as well as GWAS trait associations (**~67k** gene–trait links; TBC) to enable disease-centric exploration.
 
 Human LncRNA Atlas provides a web interface and APIs for multi-dimensional querying, interactive network visualization, genome browser inspection, and data export, supporting cross-species hypothesis generation and reproducible downstream analyses.
 
@@ -55,7 +55,7 @@ Genes are linked across species through a shared **core gene identifier** (core_
 
 We provide integrated epigenomic features for contextualizing regulatory relationships:
 
-- ChIP-seq histone modification peaks (ENCODE; K562; H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3; peak-level statistics and multi-mark comparison).
+- ChIP-seq histone modification peaks (ENCODE; 7 cell lines; H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3; peak-level statistics and multi-mark comparison).
 - DNase-seq DNase-HS open chromatin peaks (ENCODE; pre-indexed bigBed for fast genome browser streaming).
 - RepeatMasker repeat element annotations (UCSC; genome-wide coverage).
 

@@ -11,11 +11,11 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **IGV Genome Browser**: Integrated genome browser with multi-species support
   - Genome assemblies: hg19 (Human), panTro5 (Chimpanzee), rheMac10 (Macaque), calJac3 (Marmoset)
   - Reference genomes optimized for IGV.js visualization
-- **ChIP-seq Epigenetic Marks**: Real ENCODE data integration (K562, 6 marks, 422K peaks)
+- **ChIP-seq Epigenetic Marks**: ENCODE Broad Histone peaks (6 marks, 7 cell lines, 36 experiments, ~2.37M peaks; see `docs/CURRENT_STATUS.md`)
   - H3K27me3, H3K4me3, H3K4me1, H3K27ac, H3K36me3, H3K9me3
   - Bivalent domain detection (H3K27me3 + H3K4me3)
   - Multi-mark comparison and visualization
-- **DNase-seq Open Chromatin**: ENCODE DNase-HS data (1.22M peaks, 76 cell lines)
+- **DNase-seq Open Chromatin**: ENCODE DNase-HS peaks (~1.22M peaks, 7 cell lines; see `docs/CURRENT_STATUS.md`)
   - Pre-indexed bigBed (`/genomes/dnase_hs_peaks.bb`) for optimal IGV.js region streaming
   - "Open Chromatin" category in genome browser track selector（ChIP-seq toggle → DNase-HS）
 - **RepeatMasker Annotations**: 5.48M repeat elements (hg19)
