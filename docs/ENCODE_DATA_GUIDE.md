@@ -308,6 +308,24 @@ GROUP BY e.experiment_id, m.mark_name, e.cell_line;
 
 ---
 
+### 步骤 5：组装一致性审计（hg19，推荐）
+
+为避免 hg19/GRCh37 环境中混入 hg38/GRCh38 的 peaks/轨道文件，建议在导入或更新外部数据后运行审计脚本（**只读**、输出落盘、可回溯）：
+
+```bash
+cd <repo-root>
+
+# 外部文件审计：bigWig/bigBed header 与 chrom.sizes 一致性 + peaks 坐标边界校验
+bash "scripts/genomes/audit_external_data_assemblies.sh"
+
+# DB 审计：检查 active experiments 的 reference_genome 回填需求（默认只生成可回滚 SQL，不写 DB）
+DB_USER=amax DB_NAME=lncrna_production bash "scripts/genomes/audit_chipseq_reference_genome_db.sh"
+```
+
+输出默认写入：`/data/wenyujianData/humanLncAtlas/audits/<timestamp>_*_audit/`，包含 `meta.env`、逐步 log，以及（DB 审计场景）可回滚 SQL。
+
+---
+
 ## 预期的 Peak 数量
 
 | Mark | 细胞系 | 预估 Peaks | 文件大小 | 导入时间 |
