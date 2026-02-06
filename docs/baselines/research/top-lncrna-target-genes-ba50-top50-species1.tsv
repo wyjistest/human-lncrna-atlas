@@ -1,0 +1,4 @@
+rank	target_gene_id	target_gene_name	target_ensembl_id	target_core_id	target_gene_type	target_canonical_symbol	target_human_ensembl_id	regulations_count	lncrna_distinct	avg_ba	max_ba
+1	5	GATA3	ENSG00000165424					2	2	77.0000	82.1000
+2	1	BRCA1	ENSG00000012048	10001	protein_coding	BRCA1	ENSG00000012048	2	2	65.3500	75.5000
+3	2	TP53	ENSG00000141510	10002	protein_coding	TP53	ENSG00000141510	2	2	66.0000	68.3000

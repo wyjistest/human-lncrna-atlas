@@ -72,6 +72,7 @@ htmlcov/
 *.txt
 !requirements*.txt
 !frontend/backend/constraints*.txt
+!docs/baselines/research/*.txt
 *.fa
 *.fasta
 *.gtf

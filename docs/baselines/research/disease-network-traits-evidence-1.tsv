@@ -1,0 +1,6 @@
+trait_id	trait_name	trait_category	lncrna_count	gene_count	ontology_count
+1	autism spectrum disorder	neurological	0	2	2
+2	breast cancer	cancer	0	2	2
+5	alzheimer disease	neurological	0	2	1
+3	schizophrenia	neurological	0	1	1
+4	diabetes mellitus	metabolic	0	1	1

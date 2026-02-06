@@ -483,6 +483,8 @@ run_scripts_unit_tests() {
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
+        "scripts/tests/test_run_tests_usage_includes_research_baselines.sh"
+        "scripts/tests/test_verify_research_baselines_help.sh"
     )
 
     local missing=false
@@ -508,6 +510,20 @@ run_scripts_unit_tests() {
 
     echo -e "${GREEN}脚本单元测试通过!${NC}"
     return 0
+}
+
+run_research_baselines_checks() {
+    echo -e "${YELLOW}校验 Research baselines（本地可选；会创建临时 sample DB）...${NC}"
+    require_cmd python3 || return 1
+
+    cd "$PROJECT_ROOT"
+    if python3 scripts/verify_research_baselines.py --mode local; then
+        echo -e "${GREEN}Research baselines 校验通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}Research baselines 校验失败${NC}"
+        return 1
+    fi
 }
 
 run_docs_checks() {
@@ -1007,17 +1023,21 @@ main() {
         docs-check)
             run_docs_checks || failed=1
             ;;
+        research-baselines)
+            run_research_baselines_checks || failed=1
+            ;;
         scripts-tests)
             run_scripts_unit_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|research-baselines|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
             echo "  unit         - 运行前端单元测试"
             echo "  etl-checks   - 运行 ETL 输入校验单元测试 (pytest etl/tests)"
             echo "  docs-check   - 检查文档命令漂移（启动命令示例）"
+            echo "  research-baselines - 校验 research baselines（本地可选；会创建临时 sample DB）"
             echo "  scripts-tests - 运行 scripts/tests 下的脚本级单元测试（对齐 CI）"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
             echo "  backend-checks - 运行后端导入与语法检查（对齐 CI）"
