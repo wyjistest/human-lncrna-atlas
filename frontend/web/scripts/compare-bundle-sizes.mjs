@@ -8,8 +8,8 @@ function usage() {
     '',
     'Options:',
     '  --top <n>       Show top N chunks (default: 10)',
-    '  --max-entry-regression-pct <n>     Fail if entry.gzipBytes regresses by more than N% (default: 3)',
-    '  --max-preloads-regression-pct <n>  Fail if modulepreload gzip total regresses by more than N% (default: 3)',
+    '  --max-entry-regression-pct <n>     Fail if entry.gzipBytes regresses by more than N% (default: 2)',
+    '  --max-preloads-regression-pct <n>  Fail if modulepreload gzip total regresses by more than N% (default: 2)',
     '  -h, --help      Show help',
     '',
     'Notes:',
@@ -23,8 +23,8 @@ function parseArgs(argv) {
     baseline: '',
     current: '',
     top: 10,
-    maxEntryRegressionPct: 3,
-    maxPreloadsRegressionPct: 3,
+    maxEntryRegressionPct: 2,
+    maxPreloadsRegressionPct: 2,
   }
 
   const positional = []
