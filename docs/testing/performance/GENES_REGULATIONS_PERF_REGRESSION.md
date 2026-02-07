@@ -87,6 +87,18 @@ MODE=generate-baseline bash scripts/baselines/run_genes_regulations_perf_regress
 - `PRE_WARMUP_ROUNDS=0`：禁用预热
 - `RESET_METRICS=false`：禁用 reset（不推荐与预热同时使用，会把预热样本一起计入 percentiles）
 
+### Soak 多次运行（MODE=check 可选）
+
+在 self-hosted runner 上如果门禁偶发失败（抖动/冷缓存等），可启用 docker-sample wrapper 的 **soak**：重复运行门禁并按“失败预算”判定整体通过/失败。
+
+- `SOAK_RUNS`：运行次数（默认：本地 `1`；GitHub Actions `3`）
+- `SOAK_MAX_FAILURES`：允许失败次数（默认：本地 `0`；GitHub Actions `1`）
+
+规则：
+- 仅在 `MODE=check` 生效
+- 当 `failures > SOAK_MAX_FAILURES` 时整体失败
+- 每次 run 的 `docs/reports/perf-genes-regulations-*` 报告都会落盘（Actions 也会作为 artifact 上传）
+
 ## 门禁规则（当前阈值）
 
 - 最小样本：每个端点 `requests >= 40`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）

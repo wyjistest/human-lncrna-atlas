@@ -34,6 +34,17 @@ LNCRNA_GENE_ID="${LNCRNA_GENE_ID:-17276}"
 SPECIES_IDS="${SPECIES_IDS:-1,3}"
 RESET_METRICS="${RESET_METRICS:-true}"
 
+# Soak mode (MODE=check only): run gate multiple times to reduce flaky failures.
+# Defaults: local=single run; GitHub Actions=self-hosted soak.
+DEFAULT_SOAK_RUNS=1
+DEFAULT_SOAK_MAX_FAILURES=0
+if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+  DEFAULT_SOAK_RUNS=3
+  DEFAULT_SOAK_MAX_FAILURES=1
+fi
+SOAK_RUNS="${SOAK_RUNS:-$DEFAULT_SOAK_RUNS}"
+SOAK_MAX_FAILURES="${SOAK_MAX_FAILURES:-$DEFAULT_SOAK_MAX_FAILURES}"
+
 # Host port for published backend (0 = random free port; avoids collisions on self-hosted runners).
 BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
 BACKEND_PORT="${BACKEND_PORT:-0}"
@@ -83,6 +94,8 @@ Options (env var compatible):
   LNCRNA_GENE_ID=17276
   SPECIES_IDS=1,3
   RESET_METRICS=true|false
+  SOAK_RUNS=1                # MODE=check only; default local=1, GitHub Actions=3
+  SOAK_MAX_FAILURES=0        # MODE=check only; default local=0, GitHub Actions=1
   MIN_SAMPLES=40
   RESPONSE_REGRESSION_PCT=8
   RESPONSE_REGRESSION_ABS_MS=2
@@ -139,6 +152,19 @@ case "$MODE" in
     ;;
 esac
 
+if ! [[ "$SOAK_RUNS" =~ ^[0-9]+$ ]] || [ "$SOAK_RUNS" -le 0 ]; then
+  echo "invalid SOAK_RUNS: $SOAK_RUNS (expected: int >= 1)" >&2
+  exit 2
+fi
+if ! [[ "$SOAK_MAX_FAILURES" =~ ^[0-9]+$ ]] || [ "$SOAK_MAX_FAILURES" -lt 0 ]; then
+  echo "invalid SOAK_MAX_FAILURES: $SOAK_MAX_FAILURES (expected: int >= 0)" >&2
+  exit 2
+fi
+if [ "$SOAK_MAX_FAILURES" -ge "$SOAK_RUNS" ]; then
+  echo "invalid soak budget: SOAK_MAX_FAILURES must be < SOAK_RUNS (runs=$SOAK_RUNS max_failures=$SOAK_MAX_FAILURES)" >&2
+  exit 2
+fi
+
 # Isolate compose resources (containers/networks/volumes) under a unique project name.
 PROJECT_NAME="${COMPOSE_PROJECT_NAME:-hla-overlap-perf-$(date +%Y%m%d-%H%M%S)}"
 
@@ -178,6 +204,7 @@ echo "[overlap-perf] backend_host: $BACKEND_HOST"
 echo "[overlap-perf] backend_port: $BACKEND_PORT"
 echo "[overlap-perf] reset_metrics: $RESET_METRICS"
 echo "[overlap-perf] pre_warmup_rounds: $PRE_WARMUP_ROUNDS"
+echo "[overlap-perf] soak_runs: $SOAK_RUNS (max_failures=$SOAK_MAX_FAILURES; mode=$MODE)"
 echo "[overlap-perf] out_dir: $OUT_DIR"
 echo "[overlap-perf] baseline_file: $BASELINE_FILE"
 echo "[overlap-perf] baseline_raw_metrics_file: $BASELINE_RAW_METRICS_FILE"
@@ -248,21 +275,51 @@ if [ "$RESET_METRICS" = "true" ]; then
   reset_args=(--reset-metrics)
 fi
 
-python3 scripts/perf_overlap_regression.py "$MODE" \
-  --base-url "$BASE_URL" \
-  --admin-api-key "$ADMIN_API_KEY" \
-  --out-dir "$OUT_DIR" \
-  --baseline-file "$BASELINE_FILE" \
-  --baseline-raw-metrics-file "$BASELINE_RAW_METRICS_FILE" \
-  "${reset_args[@]}" \
-  --pre-warmup-rounds "$PRE_WARMUP_ROUNDS" \
-  --warmup-rounds "$WARMUP_ROUNDS" \
-  --lncrna-gene-id "$LNCRNA_GENE_ID" \
-  --species-ids "$SPECIES_IDS" \
-  --min-samples "$MIN_SAMPLES" \
-  --response-regression-pct "$RESPONSE_REGRESSION_PCT" \
-  --response-regression-abs-ms "$RESPONSE_REGRESSION_ABS_MS" \
-  --db-regression-pct "$DB_REGRESSION_PCT" \
-  --db-regression-abs-ms "$DB_REGRESSION_ABS_MS"
+run_perf_gate_once() {
+  python3 scripts/perf_overlap_regression.py "$MODE" \
+    --base-url "$BASE_URL" \
+    --admin-api-key "$ADMIN_API_KEY" \
+    --out-dir "$OUT_DIR" \
+    --baseline-file "$BASELINE_FILE" \
+    --baseline-raw-metrics-file "$BASELINE_RAW_METRICS_FILE" \
+    "${reset_args[@]}" \
+    --pre-warmup-rounds "$PRE_WARMUP_ROUNDS" \
+    --warmup-rounds "$WARMUP_ROUNDS" \
+    --lncrna-gene-id "$LNCRNA_GENE_ID" \
+    --species-ids "$SPECIES_IDS" \
+    --min-samples "$MIN_SAMPLES" \
+    --response-regression-pct "$RESPONSE_REGRESSION_PCT" \
+    --response-regression-abs-ms "$RESPONSE_REGRESSION_ABS_MS" \
+    --db-regression-pct "$DB_REGRESSION_PCT" \
+    --db-regression-abs-ms "$DB_REGRESSION_ABS_MS"
+}
+
+failures=0
+if [ "$MODE" = "check" ] && [ "$SOAK_RUNS" -gt 1 ]; then
+  echo "[overlap-perf] soak enabled: runs=$SOAK_RUNS max_failures=$SOAK_MAX_FAILURES"
+  for i in $(seq 1 "$SOAK_RUNS"); do
+    echo "[overlap-perf] soak run $i/$SOAK_RUNS..."
+    if run_perf_gate_once; then
+      echo "[overlap-perf] soak run $i: PASS"
+    else
+      rc=$?
+      failures=$((failures + 1))
+      echo "[overlap-perf] soak run $i: FAIL (exit_code=$rc)" >&2
+    fi
+
+    # Avoid timestamp collisions in docs/reports/ when runs are very fast.
+    if [ "$i" -lt "$SOAK_RUNS" ]; then
+      sleep 1
+    fi
+  done
+
+  echo "[overlap-perf] soak summary: failures=$failures max_failures=$SOAK_MAX_FAILURES"
+  if [ "$failures" -gt "$SOAK_MAX_FAILURES" ]; then
+    echo "[overlap-perf] FAIL: soak failures exceeded budget" >&2
+    exit 1
+  fi
+else
+  run_perf_gate_once
+fi
 
 echo "[overlap-perf] done"
