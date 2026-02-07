@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-02-07T03:51:03.278Z",
+  "dist": "dist",
+  "entry": {
+    "href": "/assets/index-BgP9FlAT.js",
+    "file": "index-BgP9FlAT.js",
+    "bytes": 149811,
+    "gzipBytes": 51808
+  },
+  "modulePreloads": [
+    {
+      "href": "/assets/react-vendor-Cv9GDcm1.js",
+      "file": "react-vendor-Cv9GDcm1.js",
+      "bytes": 47680,
+      "gzipBytes": 16959
+    },
+    {
+      "href": "/assets/query-vendor-CM9nhtG3.js",
+      "file": "query-vendor-CM9nhtG3.js",
+      "bytes": 40172,
+      "gzipBytes": 11927
+    },
+    {
+      "href": "/assets/i18n-vendor-B_gW3OEL.js",
+      "file": "i18n-vendor-B_gW3OEL.js",
+      "bytes": 54962,
+      "gzipBytes": 17924
+    },
+    {
+      "href": "/assets/antd-vendor-9HFCXqmc.js",
+      "file": "antd-vendor-9HFCXqmc.js",
+      "bytes": 1162744,
+      "gzipBytes": 371273
+    }
+  ],
+  "assets": [
+    {
+      "file": "CacheKeysTable-CklTv92O.js",
+      "bytes": 3256,
+      "gzipBytes": 878
+    },
+    {
+      "file": "ChIPSeqComparePage-L79UllS4.js",
+      "bytes": 21717,
+      "gzipBytes": 6620
+    },
+    {
+      "file": "ConservationTab-CbW8hO0B.js",
+      "bytes": 4930,
+      "gzipBytes": 1999
+    },
+    {
+      "file": "DiseaseTab-CAzFenBW.js",
+      "bytes": 4781,
+      "gzipBytes": 2078
+    },
+    {
+      "file": "EpigeneticTab-CpoBEEoJ.js",
+      "bytes": 5939,
+      "gzipBytes": 2414
+    },
+    {
+      "file": "ErrorState-DlGHC1yy.js",
+      "bytes": 1553,
+      "gzipBytes": 832
+    },
+    {
+      "file": "GenomeBrowserToolbar-DAnfnnEv.js",
+      "bytes": 2998,
+      "gzipBytes": 1457
+    },
+    {
+      "file": "HighAffinityTab-EGUyeurG.js",
+      "bytes": 5746,
+      "gzipBytes": 2278
+    },
+    {
+      "file": "LncRNAChIPSeqOverlapPage-B4dQZo7M.js",
+      "bytes": 63629,
+      "gzipBytes": 17583
+    },
+    {
+      "file": "LoadingState-B1hFd7nK.js",
+      "bytes": 1532,
+      "gzipBytes": 795
+    },
+    {
+      "file": "MarkSelector-GPDjsIBu.js",
+      "bytes": 2389,
+      "gzipBytes": 1263
+    },
+    {
+      "file": "admin-CDUucO-0.js",
+      "bytes": 820,
+      "gzipBytes": 344
+    },
+    {
+      "file": "antd-vendor-9HFCXqmc.js",
+      "bytes": 1162744,
+      "gzipBytes": 371273
+    },
+    {
+      "file": "cellTypeConfigs-Dog0xieJ.js",
+      "bytes": 2292,
+      "gzipBytes": 913
+    },
+    {
+      "file": "chart-export-B2IbJe9_.js",
+      "bytes": 1451,
+      "gzipBytes": 693
+    },
+    {
+      "file": "conservation-DzRe0uQz.js",
+      "bytes": 481,
+      "gzipBytes": 330
+    },
+    {
+      "file": "csv-8OLDPAVM.js",
+      "bytes": 295,
+      "gzipBytes": 233
+    },
+    {
+      "file": "cytoscape-vendor-Cz3ECXF_.js",
+      "bytes": 462326,
+      "gzipBytes": 148412
+    },
+    {
+      "file": "debounce-Bg79Gf-r.js",
+      "bytes": 3186,
+      "gzipBytes": 1476
+    },
+    {
+      "file": "diseases-ddBAtspt.js",
+      "bytes": 359,
+      "gzipBytes": 218
+    },
+    {
+      "file": "echarts-CX2yIdHB.js",
+      "bytes": 1660,
+      "gzipBytes": 898
+    },
+    {
+      "file": "echarts-core-D6tPd-i1.js",
+      "bytes": 1129847,
+      "gzipBytes": 375628
+    },
+    {
+      "file": "echarts-react-lRNm_csO.js",
+      "bytes": 8484,
+      "gzipBytes": 2985
+    },
+    {
+      "file": "escapeHtml-DNBRM3UA.js",
+      "bytes": 160,
+      "gzipBytes": 152
+    },
+    {
+      "file": "features-B3yDTPoo.js",
+      "bytes": 2183,
+      "gzipBytes": 922
+    },
+    {
+      "file": "file-vendor-DqB_ndYB.js",
+      "bytes": 2634,
+      "gzipBytes": 1263
+    },
+    {
+      "file": "i18n-vendor-B_gW3OEL.js",
+      "bytes": 54962,
+      "gzipBytes": 17924
+    },
+    {
+      "file": "igv-vendor-DDxOgb18.js",
+      "bytes": 1415561,
+      "gzipBytes": 408598
+    },
+    {
+      "file": "index-B45ueOFw.js",
+      "bytes": 4737,
+      "gzipBytes": 1855
+    },
+    {
+      "file": "index-B9IJueQC.js",
+      "bytes": 10048,
+      "gzipBytes": 3519
+    },
+    {
+      "file": "index-BgP9FlAT.js",
+      "bytes": 149811,
+      "gzipBytes": 51808
+    },
+    {
+      "file": "index-BkxY4aoH.js",
+      "bytes": 2976,
+      "gzipBytes": 1134
+    },
+    {
+      "file": "index-Bl9WU_Bf.js",
+      "bytes": 4401,
+      "gzipBytes": 1784
+    },
+    {
+      "file": "index-C6ZYNSZa.js",
+      "bytes": 80185,
+      "gzipBytes": 20699
+    },
+    {
+      "file": "index-CHOseQmm.js",
+      "bytes": 7948,
+      "gzipBytes": 3029
+    },
+    {
+      "file": "index-CRGaesm6.js",
+      "bytes": 2729,
+      "gzipBytes": 1335
+    },
+    {
+      "file": "index-CdKx5MEX.js",
+      "bytes": 19259,
+      "gzipBytes": 6479
+    },
+    {
+      "file": "index-CkGt4Pv5.js",
+      "bytes": 9164,
+      "gzipBytes": 3651
+    },
+    {
+      "file": "index-CyrgvuCA.js",
+      "bytes": 4099,
+      "gzipBytes": 1551
+    },
+    {
+      "file": "index-D1gedkHE.js",
+      "bytes": 8181,
+      "gzipBytes": 3205
+    },
+    {
+      "file": "index-DAoGROGa.js",
+      "bytes": 5178,
+      "gzipBytes": 1909
+    },
+    {
+      "file": "index-DKlwnOfX.js",
+      "bytes": 17529,
+      "gzipBytes": 5623
+    },
+    {
+      "file": "index-DhMZvASR.js",
+      "bytes": 21931,
+      "gzipBytes": 7632
+    },
+    {
+      "file": "index-Dk9y-ePQ.js",
+      "bytes": 23718,
+      "gzipBytes": 6319
+    },
+    {
+      "file": "index-WrH9inLo.js",
+      "bytes": 34395,
+      "gzipBytes": 11354
+    },
+    {
+      "file": "index-xc7FpUIP.js",
+      "bytes": 8104,
+      "gzipBytes": 2975
+    },
+    {
+      "file": "index.es-C4-6bzhK.js",
+      "bytes": 158156,
+      "gzipBytes": 52762
+    },
+    {
+      "file": "jszip.min-BXvc6Nz_.js",
+      "bytes": 234,
+      "gzipBytes": 201
+    },
+    {
+      "file": "markConfigs-BGK-nRCz.js",
+      "bytes": 7849,
+      "gzipBytes": 1917
+    },
+    {
+      "file": "minMax-CXqNj8wG.js",
+      "bytes": 482,
+      "gzipBytes": 266
+    },
+    {
+      "file": "pdf-vendor-C7_KImp4.js",
+      "bytes": 586891,
+      "gzipBytes": 173571
+    },
+    {
+      "file": "purify.es-Bzr520pe.js",
+      "bytes": 22449,
+      "gzipBytes": 8627
+    },
+    {
+      "file": "query-vendor-CM9nhtG3.js",
+      "bytes": 40172,
+      "gzipBytes": 11927
+    },
+    {
+      "file": "react-vendor-Cv9GDcm1.js",
+      "bytes": 47680,
+      "gzipBytes": 16959
+    },
+    {
+      "file": "regulations-BQvuccsX.js",
+      "bytes": 401,
+      "gzipBytes": 215
+    },
+    {
+      "file": "species-BGj5iuLe.js",
+      "bytes": 314,
+      "gzipBytes": 204
+    },
+    {
+      "file": "useAnalysis-e_x6swnW.js",
+      "bytes": 1251,
+      "gzipBytes": 429
+    },
+    {
+      "file": "useDetailedStats-DO2wA6ZY.js",
+      "bytes": 488,
+      "gzipBytes": 287
+    },
+    {
+      "file": "useGenes-Dk0qM0UA.js",
+      "bytes": 1632,
+      "gzipBytes": 645
+    },
+    {
+      "file": "useRegulations-DdhMkKjt.js",
+      "bytes": 1036,
+      "gzipBytes": 470
+    },
+    {
+      "file": "zip-vendor-D-y_QI8U.js",
+      "bytes": 96726,
+      "gzipBytes": 29872
+    }
+  ]
+}
