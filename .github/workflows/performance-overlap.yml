@@ -80,16 +80,16 @@ env:
   BACKEND_MODE: ${{ github.event.inputs.backend_mode || 'external' }}
   API_BASE_URL: ${{ github.event.inputs.api_base_url || 'http://127.0.0.1:8000' }}
   MODE: ${{ github.event.inputs.mode || 'check' }}
-  WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '30' }}
+  WARMUP_ROUNDS: ${{ github.event.inputs.warmup_rounds || '60' }}
   PRE_WARMUP_ROUNDS: ${{ github.event.inputs.pre_warmup_rounds || '0' }}
   LNCRNA_GENE_ID: ${{ github.event.inputs.lncrna_gene_id || '17276' }}
   SPECIES_IDS: ${{ github.event.inputs.species_ids || '1,3' }}
   RESET_METRICS: ${{ github.event.inputs.reset_metrics || 'false' }}
-  MIN_SAMPLES: ${{ github.event.inputs.min_samples || '20' }}
+  MIN_SAMPLES: ${{ github.event.inputs.min_samples || '40' }}
   RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '8' }}
-  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '4' }}
+  RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '2' }}
   DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '8' }}
-  DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '2' }}
+  DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '1' }}
   PYTHON_VERSION: '3.11'
 
 jobs:

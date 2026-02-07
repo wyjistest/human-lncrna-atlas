@@ -11,6 +11,10 @@ on:
         description: "Genome assembly to validate against (ASSEMBLY)"
         required: false
         default: "hg19"
+      enable_db_reference_audit:
+        description: "Optional: audit DB chipseq_experiments.reference_genome consistency (read-only)."
+        required: false
+        default: "false"
   schedule:
     # Weekly audit (UTC). Uses self-hosted runner; if runner offline, job will queue.
     - cron: "0 3 * * 1"
@@ -26,7 +30,10 @@ permissions:
 jobs:
   audit:
     name: hg19 external data audit
+    # Schedule 默认关闭：防止 runner 离线/资源紧张时任务堆积；手动触发不受影响。
+    if: ${{ github.event_name != 'schedule' || vars.CI_ENABLE_EXTERNAL_AUDIT == 'true' }}
     runs-on: self-hosted
+    timeout-minutes: 30
     env:
       # Default to workflow_dispatch inputs; for schedule these are empty and fall back to defaults.
       HUMAN_LNC_ATLAS_DATA_DIR: ${{ github.event.inputs.data_dir || '/data/wenyujianData/humanLncAtlas' }}
@@ -34,17 +41,23 @@ jobs:
 
       # Network: self-hosted runners in restricted environments may require an HTTP proxy.
       # Override via repo variables (Settings → Secrets and variables → Actions → Variables).
-      PROXY_URL: ${{ vars.PROXY_URL || 'http://127.0.0.1:7890' }}
-      HTTP_PROXY: ${{ vars.HTTP_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
-      HTTPS_PROXY: ${{ vars.HTTPS_PROXY || vars.PROXY_URL || 'http://127.0.0.1:7890' }}
+      PROXY_URL: ${{ vars.PROXY_URL || '' }}
+      HTTP_PROXY: ${{ vars.HTTP_PROXY || vars.PROXY_URL || '' }}
+      HTTPS_PROXY: ${{ vars.HTTPS_PROXY || vars.PROXY_URL || '' }}
       NO_PROXY: ${{ vars.NO_PROXY || '127.0.0.1,localhost,::1' }}
     steps:
       - name: Export proxy env aliases
         run: |
           set -euo pipefail
-          echo "http_proxy=${HTTP_PROXY}" >> "$GITHUB_ENV"
-          echo "https_proxy=${HTTPS_PROXY}" >> "$GITHUB_ENV"
-          echo "no_proxy=${NO_PROXY}" >> "$GITHUB_ENV"
+          if [ -n "${HTTP_PROXY}" ]; then
+            echo "http_proxy=${HTTP_PROXY}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${HTTPS_PROXY}" ]; then
+            echo "https_proxy=${HTTPS_PROXY}" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${NO_PROXY}" ]; then
+            echo "no_proxy=${NO_PROXY}" >> "$GITHUB_ENV"
+          fi
 
       - name: Download repo tarball (self-hosted)
         env:
@@ -79,10 +92,25 @@ jobs:
           set -euo pipefail
           bash scripts/genomes/audit_external_data_assemblies.sh
 
+      - name: Run DB reference_genome audit (read-only)
+        id: db_audit
+        if: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.enable_db_reference_audit == 'true') || vars.CI_ENABLE_DB_REFERENCE_AUDIT == 'true' }}
+        run: |
+          set -euo pipefail
+          bash scripts/genomes/audit_chipseq_reference_genome_db.sh --assembly "${ASSEMBLY}"
+
       - name: Upload audit logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: external-assembly-audit
           path: ${{ steps.audit.outputs.audit_dir }}
+          if-no-files-found: warn
+
+      - name: Upload DB audit logs
+        if: ${{ always() && steps.db_audit.conclusion != 'skipped' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: chipseq-reference-genome-db-audit
+          path: ${{ steps.db_audit.outputs.audit_dir }}
           if-no-files-found: warn

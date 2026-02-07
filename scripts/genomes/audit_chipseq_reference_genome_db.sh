@@ -142,6 +142,11 @@ TS="$(date +"%Y-%m-%d_%H-%M-%S")"
 AUDIT_DIR="${AUDIT_ROOT}/${TS}_chipseq_reference_genome_db_audit"
 mkdir -p "${AUDIT_DIR}"
 
+# GitHub Actions step output support
+if [ -n "${GITHUB_OUTPUT:-}" ]; then
+  echo "audit_dir=${AUDIT_DIR}" >> "${GITHUB_OUTPUT}"
+fi
+
 AUDIT_TSV="${AUDIT_DIR}/chipseq_reference_genome_audit.tsv"
 PASS_IDS="${AUDIT_DIR}/pass_experiment_ids.txt"
 FAIL_IDS="${AUDIT_DIR}/fail_experiment_ids.txt"
