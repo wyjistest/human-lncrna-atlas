@@ -38,7 +38,8 @@ CORS_ORIGINS="${CORS_ORIGINS:-[\"http://localhost:5173\"]}"
 APP_ENV="${APP_ENV:-development}"
 ENABLE_CACHE="${ENABLE_CACHE:-false}"
 
-BASE_URL="${BASE_URL:-http://localhost:8000}"
+# Backend base URL (avoid using BASE_URL to prevent clashing with Playwright frontend BASE_URL).
+API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
 OUT_FILE="${OUT_FILE:-docs/baselines/api-snapshot.sample.json}"
 
 KEEP_DOCKER="${KEEP_DOCKER:-false}"
@@ -127,9 +128,9 @@ compose up -d --build backend
 
 echo "[baseline] waiting for backend health..."
 timeout_seconds=60
-while ! curl -fsS --noproxy "*" "$BASE_URL/health" >/dev/null 2>&1; do
+while ! curl -fsS --noproxy "*" "$API_BASE_URL/health" >/dev/null 2>&1; do
   if [ "$timeout_seconds" -le 0 ]; then
-    echo "backend not ready: $BASE_URL/health" >&2
+    echo "backend not ready: $API_BASE_URL/health" >&2
     exit 1
   fi
   sleep 2
@@ -140,7 +141,7 @@ mkdir -p "$(dirname "$OUT_FILE")"
 
 echo "[baseline] generating snapshot..."
 python3 scripts/api_snapshot.py \
-  --base-url "$BASE_URL" \
+  --base-url "$API_BASE_URL" \
   --deterministic \
   --no-json \
   --pretty \

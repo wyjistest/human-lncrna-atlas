@@ -11,7 +11,7 @@
 ## 1. 背景与目标
 
 ### 1.1 优化背景
-- **现状**: 疾病下拉选项通过 `/api/v1/diseases` 端点获取，当前配置 `page_size=500`
+- **现状**: 疾病下拉选项通过轻量端点 `/api/v1/diseases/options` 获取（不分页，返回去重后的 options 列表）
 - **问题**: 可能存在的性能瓶颈包括:
   - API 响应时间过长（特别是初次加载）
   - 前端渲染大量选项导致 UI 卡顿
@@ -152,7 +152,7 @@ test('Scenario 1: Disease dropdown loading performance', async ({ page }) => {
   // 2. 记录 API 响应时间
   const apiStartTime = Date.now()
   const responsePromise = page.waitForResponse(
-    resp => resp.url().includes('/api/v1/diseases') && resp.status() === 200
+    resp => resp.url().includes('/api/v1/diseases/options') && resp.status() === 200
   )
 
   await page.goto('/network')
@@ -176,8 +176,8 @@ test('Scenario 1: Disease dropdown loading performance', async ({ page }) => {
 
   // 4. 验证数据
   const data = await response.json()
-  const totalItems = data.total
-  const returnedItems = data.items?.length || 0
+  const returnedItems = data.traits?.length || 0
+  const totalItems = returnedItems
 
   // 5. 性能断言
   expect(apiResponseTime).toBeLessThan(1000) // 基准: 1s
@@ -354,7 +354,8 @@ test('Scenario 3: Disease selection → Network graph rendering', async ({ page 
 **测试步骤**:
 ```typescript
 test('Scenario 4: Cache layer performance verification', async ({ page }) => {
-  const diseaseAPIUrl = 'http://localhost:8000/api/v1/diseases?page=1&page_size=500'
+  const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8000'
+  const diseaseAPIUrl = `${apiBaseUrl}/api/v1/diseases/options`
 
   // 1. 首次请求 (Cold Cache)
   await page.context().clearCookies()
@@ -704,7 +705,7 @@ test.describe('Disease Dropdown Performance Tests', () => {
 
     // 测量 API 响应时间
     const { response, time: apiTime, data } = await metrics.measureAPIResponse(
-      '/api/v1/diseases',
+      '/api/v1/diseases/options',
       async () => {
         await page.goto('/network')
         await page.waitForLoadState('networkidle')

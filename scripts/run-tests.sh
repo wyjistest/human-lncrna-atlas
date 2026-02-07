@@ -503,7 +503,9 @@ run_scripts_unit_tests() {
 
     for t in "${tests[@]}"; do
         # 兼容 git hooks 环境：避免 GIT_DIR/GIT_WORK_TREE 污染导致 tests 误操作主仓库。
-        if ! env -u GIT_DIR -u GIT_WORK_TREE bash "$t"; then
+        # 说明：脚本单元测试会在临时目录中构造最小仓库结构并验证 run-tests 自举逻辑；
+        # 若外部环境设置了 BACKEND_PYTHON，会污染这些测试并导致误判。
+        if ! env -u GIT_DIR -u GIT_WORK_TREE -u BACKEND_PYTHON bash "$t"; then
             echo -e "${RED}脚本单元测试失败: ${t}${NC}"
             return 1
         fi
