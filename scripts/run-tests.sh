@@ -483,6 +483,7 @@ run_scripts_unit_tests() {
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
+        "scripts/tests/test_run_tests_usage_includes_frontend_baselines.sh"
         "scripts/tests/test_run_tests_usage_includes_research_baselines.sh"
         "scripts/tests/test_verify_research_baselines_help.sh"
     )
@@ -524,6 +525,34 @@ run_research_baselines_checks() {
         echo -e "${RED}Research baselines 校验失败${NC}"
         return 1
     fi
+}
+
+run_frontend_baselines_checks() {
+    echo -e "${YELLOW}校验 Frontend bundle baselines（本地可选；会执行 npm run build）...${NC}"
+
+    local baseline="${FRONTEND_BUNDLE_BASELINE:-${PROJECT_ROOT}/docs/baselines/frontend/bundle-sizes.baseline.json}"
+    if [ ! -f "$baseline" ]; then
+        echo -e "${RED}未找到 baseline 文件：${baseline}${NC}"
+        echo -e "${YELLOW}提示：可在前端目录生成：cd frontend/web && npm run build && node scripts/report-bundle-sizes.mjs --json \"../../docs/baselines/frontend/bundle-sizes.baseline.json\"${NC}"
+        return 1
+    fi
+
+    local current="${FRONTEND_BUNDLE_CURRENT:-${PROJECT_ROOT}/test-results/bundle-sizes.current.json}"
+    mkdir -p "${PROJECT_ROOT}/test-results"
+
+    run_frontend_build || return 1
+
+    cd "$FRONTEND_DIR"
+    if node scripts/report-bundle-sizes.mjs --json "$current" >/dev/null; then
+        if node scripts/compare-bundle-sizes.mjs "$baseline" "$current"; then
+            echo -e "${GREEN}Frontend bundle baselines 校验通过!${NC}"
+            return 0
+        fi
+    fi
+
+    echo -e "${RED}Frontend bundle baselines 校验失败${NC}"
+    echo -e "${YELLOW}current snapshot：${current}${NC}"
+    return 1
 }
 
 run_docs_checks() {
@@ -1023,6 +1052,9 @@ main() {
         docs-check)
             run_docs_checks || failed=1
             ;;
+        frontend-baselines)
+            run_frontend_baselines_checks || failed=1
+            ;;
         research-baselines)
             run_research_baselines_checks || failed=1
             ;;
@@ -1030,13 +1062,14 @@ main() {
             run_scripts_unit_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|research-baselines|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|frontend-baselines|research-baselines|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
             echo "  unit         - 运行前端单元测试"
             echo "  etl-checks   - 运行 ETL 输入校验单元测试 (pytest etl/tests)"
             echo "  docs-check   - 检查文档命令漂移（启动命令示例）"
+            echo "  frontend-baselines - 校验前端 bundle baselines（本地可选；会执行 npm run build）"
             echo "  research-baselines - 校验 research baselines（本地可选；会创建临时 sample DB）"
             echo "  scripts-tests - 运行 scripts/tests 下的脚本级单元测试（对齐 CI）"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"

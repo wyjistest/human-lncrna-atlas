@@ -20,3 +20,9 @@ cd frontend/web
 npm run build
 node scripts/report-bundle-sizes.mjs --json "../../docs/baselines/frontend/bundle-sizes.baseline.json"
 ```
+
+校验（本地可选，不进入默认 CI 门禁）：
+
+```bash
+bash scripts/run-tests.sh frontend-baselines
+```

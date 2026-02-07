@@ -36,6 +36,7 @@ CI：
 - 对比（本地可选）：
   - `cd frontend/web && node scripts/report-bundle-sizes.mjs --json "/tmp/bundle-sizes.current.json"`
   - `cd frontend/web && node scripts/compare-bundle-sizes.mjs "../../docs/baselines/frontend/bundle-sizes.baseline.json" "/tmp/bundle-sizes.current.json"`
+- 校验入口（本地可选，不进入默认 CI 门禁）：`bash scripts/run-tests.sh frontend-baselines`
 
 ## Research（可选：本地烟测）
 
