@@ -32,6 +32,10 @@ CI：
 
 - 文档：`docs/testing/frontend/FRONTEND_BUNDLE_REGRESSION.md`
 - 目录：`docs/baselines/frontend/`
+- baseline 文件：`docs/baselines/frontend/bundle-sizes.baseline.json`
+- 对比（本地可选）：
+  - `cd frontend/web && node scripts/report-bundle-sizes.mjs --json "/tmp/bundle-sizes.current.json"`
+  - `cd frontend/web && node scripts/compare-bundle-sizes.mjs "../../docs/baselines/frontend/bundle-sizes.baseline.json" "/tmp/bundle-sizes.current.json"`
 
 ## Research（可选：本地烟测）
 
