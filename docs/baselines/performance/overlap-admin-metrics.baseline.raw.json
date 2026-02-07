@@ -33,34 +33,34 @@
     "total_requests": 0
   },
   "database": {
-    "avg_ms": 1.48,
+    "avg_ms": 1.47,
     "percentiles": {
       "p50_ms": 1.66,
-      "p95_ms": 2.68,
-      "p99_ms": 2.76
+      "p95_ms": 2.67,
+      "p99_ms": 2.82
     },
     "query_samples": 420,
-    "request_avg_ms": 5.19,
+    "request_avg_ms": 5.13,
     "request_percentiles": {
-      "p50_ms": 4.47,
-      "p95_ms": 6.51,
-      "p99_ms": 7.0
+      "p50_ms": 4.35,
+      "p95_ms": 6.48,
+      "p99_ms": 7.46
     },
     "request_samples": 120,
-    "request_total_ms": 622.56,
+    "request_total_ms": 615.53,
     "slow_queries": [],
     "slow_query_threshold_ms": 200.0,
     "total_queries": 420,
-    "total_time_ms": 622.56
+    "total_time_ms": 615.53
   },
   "endpoints": [
     {
-      "avg_ms": 24.08,
-      "db_avg_ms": 6.37,
+      "avg_ms": 23.45,
+      "db_avg_ms": 5.98,
       "db_percentiles": {
         "p50_ms": 6.26,
-        "p95_ms": 6.89,
-        "p99_ms": 16.22
+        "p95_ms": 6.68,
+        "p99_ms": 7.46
       },
       "db_query_avg": 5.0,
       "db_samples": 60,
@@ -68,20 +68,20 @@
       "errors": 0,
       "path": "/api/v1/lncrna-chipseq-overlap/compare",
       "percentiles": {
-        "p50_ms": 24.44,
-        "p95_ms": 29.58,
-        "p99_ms": 34.87
+        "p50_ms": 24.05,
+        "p95_ms": 29.03,
+        "p99_ms": 31.73
       },
       "requests": 60,
       "samples": 60
     },
     {
-      "avg_ms": 22.32,
-      "db_avg_ms": 4.01,
+      "avg_ms": 22.01,
+      "db_avg_ms": 4.28,
       "db_percentiles": {
-        "p50_ms": 4.2,
-        "p95_ms": 4.38,
-        "p99_ms": 4.47
+        "p50_ms": 4.18,
+        "p95_ms": 4.46,
+        "p99_ms": 12.36
       },
       "db_query_avg": 2.0,
       "db_samples": 60,
@@ -89,9 +89,9 @@
       "errors": 0,
       "path": "/api/v1/lncrna-chipseq-overlap",
       "percentiles": {
-        "p50_ms": 22.78,
-        "p95_ms": 24.2,
-        "p99_ms": 27.51
+        "p50_ms": 22.48,
+        "p95_ms": 27.63,
+        "p99_ms": 30.32
       },
       "requests": 60,
       "samples": 60
@@ -111,16 +111,16 @@
       0.0
     ],
     "timestamps": [
-      "05:13",
-      "05:14",
-      "05:15",
-      "05:16",
-      "05:17",
-      "05:18",
-      "05:19",
-      "05:20",
-      "05:21",
-      "05:22"
+      "09:33",
+      "09:34",
+      "09:35",
+      "09:36",
+      "09:37",
+      "09:38",
+      "09:39",
+      "09:40",
+      "09:41",
+      "09:42"
     ]
   },
   "errors": {
@@ -134,16 +134,16 @@
     "uptime_seconds": 5
   },
   "percentiles": {
-    "p50_ms": 23.32,
-    "p95_ms": 26.12,
-    "p99_ms": 33.24
+    "p50_ms": 22.79,
+    "p95_ms": 27.63,
+    "p99_ms": 30.32
   },
   "request": {
     "last_minute": 120,
     "total": 120
   },
   "response_time": {
-    "avg_ms": 23.2
+    "avg_ms": 22.73
   },
   "response_time_distribution": {
     "buckets": [
@@ -162,20 +162,20 @@
     ]
   },
   "system": {
-    "cpu_percent": 28.3,
+    "cpu_percent": 18.4,
     "disk": {
-      "percent": 42.4,
+      "percent": 44.0,
       "total_gb": 186.68,
-      "used_gb": 75.14
+      "used_gb": 77.87
     },
     "memory": {
-      "percent": 22.4,
+      "percent": 14.5,
       "total_mb": 257430.34,
-      "used_mb": 54523.06
+      "used_mb": 34733.55
     },
     "process": {
       "cpu_percent": 0.0,
-      "memory_mb": 111.04
+      "memory_mb": 109.72
     }
   }
 }

@@ -33,33 +33,33 @@
     "total_requests": 0
   },
   "database": {
-    "avg_ms": 0.95,
+    "avg_ms": 0.89,
     "percentiles": {
-      "p50_ms": 0.71,
+      "p50_ms": 0.72,
       "p95_ms": 1.49,
-      "p99_ms": 2.15
+      "p99_ms": 1.66
     },
     "query_samples": 240,
-    "request_avg_ms": 1.89,
+    "request_avg_ms": 1.78,
     "request_percentiles": {
-      "p50_ms": 1.91,
-      "p95_ms": 2.24,
+      "p50_ms": 1.87,
+      "p95_ms": 2.21,
       "p99_ms": 2.66
     },
     "request_samples": 120,
-    "request_total_ms": 227.06,
+    "request_total_ms": 214.15,
     "slow_queries": [],
     "slow_query_threshold_ms": 200.0,
     "total_queries": 240,
-    "total_time_ms": 227.06
+    "total_time_ms": 214.15
   },
   "endpoints": [
     {
-      "avg_ms": 17.39,
-      "db_avg_ms": 1.71,
+      "avg_ms": 17.22,
+      "db_avg_ms": 1.66,
       "db_percentiles": {
         "p50_ms": 1.77,
-        "p95_ms": 1.96,
+        "p95_ms": 2.08,
         "p99_ms": 2.66
       },
       "db_query_avg": 2.0,
@@ -68,20 +68,20 @@
       "errors": 0,
       "path": "/api/v1/regulations",
       "percentiles": {
-        "p50_ms": 17.0,
-        "p95_ms": 21.88,
-        "p99_ms": 25.22
+        "p50_ms": 17.31,
+        "p95_ms": 22.01,
+        "p99_ms": 24.56
       },
       "requests": 60,
       "samples": 60
     },
     {
-      "avg_ms": 13.53,
-      "db_avg_ms": 2.08,
+      "avg_ms": 13.26,
+      "db_avg_ms": 1.91,
       "db_percentiles": {
-        "p50_ms": 2.08,
-        "p95_ms": 2.27,
-        "p99_ms": 7.14
+        "p50_ms": 2.01,
+        "p95_ms": 2.31,
+        "p99_ms": 2.86
       },
       "db_query_avg": 2.0,
       "db_samples": 60,
@@ -89,9 +89,9 @@
       "errors": 0,
       "path": "/api/v1/genes",
       "percentiles": {
-        "p50_ms": 13.66,
-        "p95_ms": 14.78,
-        "p99_ms": 19.77
+        "p50_ms": 13.65,
+        "p95_ms": 14.56,
+        "p99_ms": 18.15
       },
       "requests": 60,
       "samples": 60
@@ -111,16 +111,16 @@
       0.0
     ],
     "timestamps": [
-      "05:16",
-      "05:17",
-      "05:18",
-      "05:19",
-      "05:20",
-      "05:21",
-      "05:22",
-      "05:23",
-      "05:24",
-      "05:25"
+      "09:34",
+      "09:35",
+      "09:36",
+      "09:37",
+      "09:38",
+      "09:39",
+      "09:40",
+      "09:41",
+      "09:42",
+      "09:43"
     ]
   },
   "errors": {
@@ -134,16 +134,16 @@
     "uptime_seconds": 4
   },
   "percentiles": {
-    "p50_ms": 14.67,
-    "p95_ms": 21.02,
-    "p99_ms": 22.68
+    "p50_ms": 14.41,
+    "p95_ms": 21.0,
+    "p99_ms": 22.55
   },
   "request": {
     "last_minute": 120,
     "total": 120
   },
   "response_time": {
-    "avg_ms": 15.46
+    "avg_ms": 15.24
   },
   "response_time_distribution": {
     "buckets": [
@@ -162,20 +162,20 @@
     ]
   },
   "system": {
-    "cpu_percent": 27.9,
+    "cpu_percent": 18.6,
     "disk": {
-      "percent": 42.4,
+      "percent": 44.0,
       "total_gb": 186.68,
-      "used_gb": 75.19
+      "used_gb": 77.92
     },
     "memory": {
-      "percent": 22.4,
+      "percent": 14.5,
       "total_mb": 257430.34,
-      "used_mb": 54365.64
+      "used_mb": 34784.75
     },
     "process": {
       "cpu_percent": 0.0,
-      "memory_mb": 110.0
+      "memory_mb": 109.74
     }
   }
 }

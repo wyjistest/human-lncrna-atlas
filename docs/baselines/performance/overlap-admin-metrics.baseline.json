@@ -2,32 +2,32 @@
   "endpoints": {
     "/api/v1/lncrna-chipseq-overlap": {
       "db": {
-        "p95_ms": 4.38,
-        "p99_ms": 4.47
+        "p95_ms": 4.46,
+        "p99_ms": 12.36
       },
       "requests": 60,
       "response": {
-        "p95_ms": 24.2,
-        "p99_ms": 27.51
+        "p95_ms": 27.63,
+        "p99_ms": 30.32
       }
     },
     "/api/v1/lncrna-chipseq-overlap/compare": {
       "db": {
-        "p95_ms": 6.89,
-        "p99_ms": 16.22
+        "p95_ms": 6.68,
+        "p99_ms": 7.46
       },
       "requests": 60,
       "response": {
-        "p95_ms": 29.58,
-        "p99_ms": 34.87
+        "p95_ms": 29.03,
+        "p99_ms": 31.73
       }
     }
   },
   "meta": {
-    "base_url": "http://127.0.0.1:32792",
+    "base_url": "http://127.0.0.1:32804",
     "baseline_file": "docs/baselines/performance/overlap-admin-metrics.baseline.json",
     "baseline_raw_metrics_file": "docs/baselines/performance/overlap-admin-metrics.baseline.raw.json",
-    "generated_at": "2026-02-04T05-22-40Z",
+    "generated_at": "2026-02-07T09-42-38Z",
     "scenario": {
       "admin_metrics_reset": {
         "ok": true,
