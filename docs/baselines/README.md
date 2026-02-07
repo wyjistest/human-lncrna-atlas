@@ -58,3 +58,10 @@ CI：
 - 说明：
   - v2.3 sample 数据集的 BA 大约在 55–82，默认 `MIN_BA=50`；若你用 `MIN_BA=100`，大概率会得到空榜单（这是样例数据集的限制，不代表生产数据）。
   - 若需要稳定对比/可提交的 Markdown，可固定 `GENERATED_AT`（脚本默认 `GENERATED_AT=sample`）或使用 `--generated-at` 参数。
+
+当前已提交的 sample baselines（默认均为 `MIN_BA=50`）：
+- `top-lncrna-ba50-species1.(csv|md)`
+- `top-lncrna-target-genes-ba50-top50-species1.(tsv|txt|md)`
+- `epigenetic-summary-ba50.(tsv|md)`
+- `conservation-matrix-ba50-species-all-(counts|row-share).csv` + `.md`（sample 脚本默认 `--no-plots`，避免可选 matplotlib 导致产物漂移；不提交 PNG）
+- `disease-network-(traits|lncrnas)-evidence-1.tsv` + `disease-network-summary-evidence-1.md`
