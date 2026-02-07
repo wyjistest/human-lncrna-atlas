@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-02-04
+> 最后更新: 2026-02-07
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -10,25 +10,29 @@
 | Mark 类型 | 分类 | 细胞系数 | 实验数 | Peaks 数量 |
 |-----------|------|----------|--------|------------|
 | **DNase-HS** | Open Chromatin | **7** | **7** | **1,223,622** |
-| H3K4me1 | Activating | 6 | 6 | **727,149** |
-| H3K4me3 | Activating | 7 | 7 | **426,705** |
-| H3K9me3 | Repressive | 5 | 5 | **323,375** |
-| H3K27me3 | Repressive | 6 | 6 | **295,044** |
-| H3K27ac | Activating | 6 | 6 | **352,975** |
+| CTCF | Structural | 5 | 5 | **248,106** |
+| H3K4me1 | Activating | 6 | 6 | **803,334** |
+| H3K4me2 | Activating | 5 | 5 | **406,645** |
+| H3K4me3 | Activating | 7 | 7 | **447,224** |
+| H3K9ac | Activating | 5 | 5 | **265,785** |
+| H3K9me3 | Repressive | 6 | 6 | **376,602** |
+| H3K27ac | Activating | 6 | 6 | **334,361** |
+| H3K27me3 | Repressive | 6 | 6 | **317,558** |
 | H3K36me3 | Activating | 6 | 6 | **241,345** |
-| **总计** | - | **7** | **43** | **3,590,215** |
+| H4K20me1 | Activating | 3 | 3 | **109,285** |
+| **总计** | - | **7** | **62** | **4,773,867** |
 
 ### 细胞系覆盖
 
 | 细胞系 | 组织 | ChIP-seq Marks | DNase-seq | 总 Peaks |
 |--------|------|----------------|-----------|----------|
-| **MCF-7** | 乳腺癌细胞 | 1 mark (H3K4me3) | ✅ 126,717 | ~239k |
-| **HMEC** | 正常乳腺上皮 | 6 marks | ✅ 140,574 | ~518k |
-| **A549** | 肺腺癌细胞 | 6 marks | ✅ 118,965 | ~579k |
-| K562 | 白血病细胞 | 6 marks | ✅ 202,266 | ~827k |
-| H1-hESC | 人胚胎干细胞 | 6 marks | ✅ 258,188 | ~844k |
-| GM12878 | B淋巴细胞 | 6 marks | ✅ 183,953 | ~728k |
-| HepG2 | 肝癌细胞 | 5 marks | ✅ 192,959 | ~691k |
+| **MCF-7** | 乳腺癌细胞 | 1 mark (H3K4me3) | ✅ 126,717 | 238,634 |
+| **HMEC** | 正常乳腺上皮 | 6 marks | ✅ 140,574 | 518,447 |
+| **A549** | 肺腺癌细胞 | 9 marks | ✅ 118,965 | 782,674 |
+| K562 | 白血病细胞 | 10 marks | ✅ 202,266 | 843,309 |
+| H1-hESC | 人胚胎干细胞 | 10 marks | ✅ 258,188 | 874,023 |
+| GM12878 | B淋巴细胞 | 10 marks | ✅ 183,953 | 734,789 |
+| HepG2 | 肝癌细胞 | 9 marks | ✅ 192,959 | 781,991 |
 
 ### 核心数据
 
@@ -37,6 +41,19 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-02-07 ⭐ hg19 外部数据审计与门禁/文档收口
+
+1. **外部 peaks/轨道组装一致性审计（防止 hg38 混入）**
+   - 对外部数据运行只读审计：`bash scripts/genomes/audit_external_data_assemblies.sh`（输出落盘、可追溯）。
+
+2. **补齐 HepG2 缺失的 H3K9me3（UCSC hg19 Broad Histone）**
+   - 新增实验：`UCSC_hg19_HepG2_H3K9me3`（并生成对应 `gene_peak_associations`）
+   - 同步更新轨道：`/data/wenyujianData/humanLncAtlas/chipseq_bed/chipseq_HepG2.bed` 与 `.../genomes/chipseq_HepG2.bb`（含备份与可回滚审计目录）。
+
+3. **性能基线与脚本一致性**
+   - perf / E2E 文档与脚本统一使用 `API_BASE_URL`（避免与 Playwright 前端 `BASE_URL` 冲突）。
+   - 刷新 `docs/baselines/performance/*admin-metrics*` 两套 baselines，用于收紧并稳定 perf regression 门禁。
 
 ### 2026-02-04 ⭐ perf regression 门禁稳定性增强
 
