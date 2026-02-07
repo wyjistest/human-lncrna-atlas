@@ -117,8 +117,8 @@ DB_NAME="$DB_NAME" \
 "$python_bin" "scripts/research/conservation_matrix_by_binding_affinity.py" \
   --species-ids "$SPECIES_IDS" \
   --min-ba "$MIN_BA" \
+  --no-plots \
   --generated-at "$GENERATED_AT" \
   --out-dir "$OUT_DIR"
 
 echo "[research-baseline-local] done (out_dir=$OUT_DIR)"
-

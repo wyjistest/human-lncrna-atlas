@@ -9,7 +9,10 @@ verify_research_baselines.py
 
 说明：
 - 该校验会调用 bash 生成脚本：
+  - scripts/research/generate_top_lncrna_sample_baseline_local.sh
   - scripts/research/generate_top_lncrna_target_genes_sample_baseline_local.sh
+  - scripts/research/generate_epigenetic_summary_sample_baseline_local.sh
+  - scripts/research/generate_conservation_matrix_sample_baseline_local.sh
   - scripts/research/generate_disease_network_summary_sample_baseline_local.sh
 - 这些脚本需要本机具备 `psql` 且当前用户有 CREATE/DROP DATABASE 权限。
 - 默认不进入 CI 门禁（仅本地可选），避免 CI 环境差异/权限差异导致 flaky。
@@ -35,7 +38,9 @@ def _repo_root() -> Path:
 
 
 def _stable_lines(path: Path) -> list[str]:
-    return path.read_text(encoding="utf-8").splitlines(True)
+    # Normalize CRLF/LF to avoid flaky diffs caused by CSV writers or platform defaults.
+    lines = path.read_text(encoding="utf-8").splitlines(True)
+    return [line.replace("\r\n", "\n") for line in lines]
 
 
 def _normalize_markdown_artifact_paths(lines: list[str], artifact_files: Iterable[str]) -> list[str]:
@@ -71,8 +76,9 @@ def _compare_text_files(expected: Path, actual: Path, *, group_artifacts: Iterab
     if expected.suffix.lower() == ".md":
         expected_lines = _normalize_markdown_artifact_paths(expected_lines, group_artifacts)
         actual_lines = _normalize_markdown_artifact_paths(actual_lines, group_artifacts)
-        if expected_lines == actual_lines:
-            return 0
+
+    if expected_lines == actual_lines:
+        return 0
 
     diff = "".join(
         difflib.unified_diff(
@@ -125,7 +131,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--only",
-        choices=["all", "target-genes", "disease-network"],
+        choices=[
+            "all",
+            "top-lncrna",
+            "target-genes",
+            "epigenetic-summary",
+            "conservation-matrix",
+            "disease-network",
+        ],
         default="all",
         help="Only verify a subset (default: all).",
     )
@@ -176,6 +189,20 @@ def main(argv: list[str] | None = None) -> int:
 
     groups: list[BaselineGroup] = [
         BaselineGroup(
+            name="top-lncrna",
+            generator_script=repo_root / "scripts" / "research" / "generate_top_lncrna_sample_baseline_local.sh",
+            expected_files=(
+                "top-lncrna-ba50-species1.csv",
+                "top-lncrna-ba50-species1.md",
+            ),
+            env_overrides={
+                "SPECIES_ID": "1",
+                "MIN_BA": "50",
+                "LIMIT": "50",
+                "GENERATED_AT": "sample",
+            },
+        ),
+        BaselineGroup(
             name="target-genes",
             generator_script=repo_root
             / "scripts"
@@ -192,6 +219,38 @@ def main(argv: list[str] | None = None) -> int:
                 "TOP_N": "50",
                 "GENERATED_AT": "sample",
                 "TARGET_PROTEIN_CODING_ONLY": "false",
+            },
+        ),
+        BaselineGroup(
+            name="epigenetic-summary",
+            generator_script=repo_root
+            / "scripts"
+            / "research"
+            / "generate_epigenetic_summary_sample_baseline_local.sh",
+            expected_files=(
+                "epigenetic-summary-ba50.tsv",
+                "epigenetic-summary-ba50.md",
+            ),
+            env_overrides={
+                "MIN_BA": "50",
+                "GENERATED_AT": "sample",
+            },
+        ),
+        BaselineGroup(
+            name="conservation-matrix",
+            generator_script=repo_root
+            / "scripts"
+            / "research"
+            / "generate_conservation_matrix_sample_baseline_local.sh",
+            expected_files=(
+                "conservation-matrix-ba50-species-all-counts.csv",
+                "conservation-matrix-ba50-species-all-row-share.csv",
+                "conservation-matrix-ba50-species-all.md",
+            ),
+            env_overrides={
+                "SPECIES_IDS": "all",
+                "MIN_BA": "50",
+                "GENERATED_AT": "sample",
             },
         ),
         BaselineGroup(

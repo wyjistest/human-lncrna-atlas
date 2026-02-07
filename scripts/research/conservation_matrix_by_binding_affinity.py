@@ -361,6 +361,11 @@ def main() -> int:
         default="docs/reports",
         help="Output directory (default: docs/reports).",
     )
+    parser.add_argument(
+        "--no-plots",
+        action="store_true",
+        help="Skip PNG heatmap output (even if matplotlib is available).",
+    )
     args = parser.parse_args()
 
     try:
@@ -410,22 +415,25 @@ def main() -> int:
         _write_counts_csv(counts_csv, species_ids=species_ids, count_matrix=count_matrix)
         _write_row_share_csv(row_share_csv, species_ids=species_ids, share_matrix=row_share_matrix)
 
-        counts_png = _maybe_write_heatmap_png(
-            out_dir / f"conservation-matrix-ba{int(args.min_ba)}-species-{group}-counts.png",
-            title="Shared lncRNA count",
-            species_ids=species_ids,
-            matrix=[[float(v) for v in row] for row in count_matrix],
-            fmt=",.0f",
-            cmap="YlOrRd",
-        )
-        row_share_png = _maybe_write_heatmap_png(
-            out_dir / f"conservation-matrix-ba{int(args.min_ba)}-species-{group}-row-share.png",
-            title="Shared lncRNA row-share",
-            species_ids=species_ids,
-            matrix=row_share_matrix,
-            fmt=".2f",
-            cmap="Blues",
-        )
+        counts_png = None
+        row_share_png = None
+        if not args.no_plots:
+            counts_png = _maybe_write_heatmap_png(
+                out_dir / f"conservation-matrix-ba{int(args.min_ba)}-species-{group}-counts.png",
+                title="Shared lncRNA count",
+                species_ids=species_ids,
+                matrix=[[float(v) for v in row] for row in count_matrix],
+                fmt=",.0f",
+                cmap="YlOrRd",
+            )
+            row_share_png = _maybe_write_heatmap_png(
+                out_dir / f"conservation-matrix-ba{int(args.min_ba)}-species-{group}-row-share.png",
+                title="Shared lncRNA row-share",
+                species_ids=species_ids,
+                matrix=row_share_matrix,
+                fmt=".2f",
+                cmap="Blues",
+            )
 
         _write_markdown(
             report_md,
