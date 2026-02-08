@@ -28,7 +28,7 @@ cyclonedx-python-lib==11.6.0
 defusedxml==0.7.1
 Deprecated==1.3.1
 et_xmlfile==2.0.0
-fastapi==0.128.0
+fastapi==0.128.4
 filelock==3.20.3
 greenlet==3.3.1
 h11==0.16.0
@@ -40,11 +40,11 @@ idna==3.11
 iniconfig==2.3.0
 joblib==1.5.3
 license-expression==30.4.4
-limits==5.6.0
+limits==5.8.0
 markdown-it-py==4.0.0
 mdurl==0.1.2
 msgpack==1.1.2
-numpy==2.4.1
+numpy==2.4.2
 openpyxl==3.1.5
 packageurl-python==0.17.6
 packaging==26.0
@@ -72,8 +72,8 @@ pytz==2025.2
 PyYAML==6.0.3
 redis==5.0.1
 requests==2.32.5
-rich==14.3.1
-ruff==0.14.14
+rich==14.3.2
+ruff==0.15.0
 scikit-learn==1.8.0
 scipy==1.17.0
 six==1.17.0
@@ -81,7 +81,7 @@ slowapi==0.1.9
 sniffio==1.3.1
 sortedcontainers==2.4.0
 SQLAlchemy==2.0.46
-starlette==0.50.0
+starlette==0.52.1
 threadpoolctl==3.6.0
 tomli==2.4.0
 tomli_w==1.2.0
@@ -92,4 +92,4 @@ uvicorn==0.40.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0
-wrapt==2.0.1
+wrapt==2.1.1
