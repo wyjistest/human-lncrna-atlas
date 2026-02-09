@@ -4,6 +4,7 @@
 > **测试人员**: Claude Code (3 Agents 协同)
 > **版本**: Phase 2.8
 > **测试范围**: 后端 API + 前端 UI + E2E 集成
+> 更新（2026-02-09）：本文档为历史阶段测试记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 ---
 

@@ -22,6 +22,15 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    ignore:
+      # 说明：eslint v10 当前与 @typescript-eslint/* 的 peerDependencies 不兼容（npm ci 直接失败）。
+      # 为保持主线可构建，先忽略 eslint / @eslint/js 的 semver-major 更新；待生态支持后再解除。
+      - dependency-name: "eslint"
+        update-types:
+          - "version-update:semver-major"
+      - dependency-name: "@eslint/js"
+        update-types:
+          - "version-update:semver-major"
     groups:
       npm-production-minor-and-patch:
         dependency-type: "production"

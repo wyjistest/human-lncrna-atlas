@@ -227,6 +227,15 @@ run_id="$(gh run list --branch main --workflow Tests --limit 1 --json databaseId
 gh run watch "$run_id" --exit-status
 ```
 
+补充：如果你希望“尽量不要把不可构建状态合进 main”（尤其是依赖/锁文件变更、或 semver-major 升级），
+推荐在 merge 前先在本地对 PR 分支跑一次最小 CI：
+
+```bash
+gh pr checkout <PR_NUMBER>
+bash scripts/run-tests.sh ci
+gh pr merge <PR_NUMBER> --squash --delete-branch
+```
+
 如你确实需要“合并前验证”，可以手动对 PR 分支触发一次 `workflow_dispatch`：
 
 ```bash
