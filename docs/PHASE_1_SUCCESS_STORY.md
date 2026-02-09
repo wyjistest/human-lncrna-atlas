@@ -4,6 +4,7 @@
 > **功能**: lncRNA-ChIP-seq Overlap Analysis
 > **日期**: 2025-12-07
 > **开发模式**: ✨ **前后端 + 测试 Agent 三方协同并行开发**
+> 更新（2026-02-09）：本文档为历史阶段复盘记录；现状以 `docs/CURRENT_STATUS.md` 为准。
 
 ---
 
