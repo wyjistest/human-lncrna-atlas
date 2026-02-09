@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-02-07
+> 最后更新: 2026-02-09
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -41,6 +41,20 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-02-09 ⭐ hg19：按 cell line 补齐 ChIP-seq bed/bigBed 轨道
+
+1. **修复“同一 cell line 被 cell_type 拆分”导致的轨道缺口**
+   - 重新生成 `/data/wenyujianData/humanLncAtlas/chipseq_bed/chipseq_{A549,GM12878,H1_hESC,HepG2,HMEC,K562,MCF7}.bed`
+   - 重新生成 `/data/wenyujianData/humanLncAtlas/genomes/chipseq_{A549,GM12878,H1_hESC,HepG2,HMEC,K562,MCF7}.bb`
+   - 峰数量与本报告统计一致（Human epigenomic 总 peaks = 4,773,867）。
+
+2. **DB 元数据对齐（可回滚、可审计）**
+   - 回填历史 K562 实验缺失的 `cell_line`（避免 `--group-by cell_line` 导出丢失）
+   - 对齐 `species.genome_assembly`：Human=hg19、Chimp=panTro5、Marmoset=calJac3（与项目 IGV/离线资源一致）
+
+3. **外部数据组装一致性复核**
+   - 再次运行 `bash scripts/genomes/audit_external_data_assemblies.sh`，确认无 hg38 混入（输出 OK）
 
 ### 2026-02-07 ⭐ hg19 外部数据审计与门禁/文档收口
 

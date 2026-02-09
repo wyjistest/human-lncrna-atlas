@@ -94,6 +94,28 @@ python3 scripts/genomes/validate_peak_bed_bounds.py \
 
 补充：后端在导出 IGV ChIP-seq peaks（`/api/v1/igv/tracks/chipseq/{species_id}.bed`）以及 `scripts/export_chipseq_bed.py` 中，会根据 `get_genome_reference(species_id).id` 对 `chipseq_experiments.reference_genome` 做兼容性过滤（NULL 视为“未知但兼容”，仅排除明确不匹配的值），以避免 hg19/hg38 混用造成的坐标错位。
 
+## 重新生成 Human cell line 轨道（`chipseq_<CellLine>.bb`）
+
+仓库的 IGV 配置（`frontend/backend/app/config/igv_genomes.py`）默认按 **cell line** 直接引用：
+`/genomes/chipseq_{K562,GM12878,H1_hESC,HepG2,A549,HMEC,MCF7}.bb`。
+
+如果你的 DB 中同一 cell line 的 `cell_type` 命名不一致（例如 GM12878 同时出现 `GM12878` 与 `B-lymphocyte`），
+用旧的“按 `cell_type` 导出”会把 peaks 拆到多个 bed/bb，导致 `chipseq_GM12878.bb` 缺失部分 marks。
+
+推荐使用 `scripts/export_chipseq_bed.py` 的 `--group-by cell_line` 重新导出并转换为 BigBed：
+
+```bash
+# 说明：bedToBigBed 在部分宿主机上可能受 glibc 版本影响；
+# 你可以用能运行的版本（例如下方路径），或在容器中执行后写回宿主机输出目录。
+BIGBED_TOOL="/data/wenyujianData/humanLncAtlas/scripts/bedToBigBed_v385" \
+CHROM_SIZES="/data/wenyujianData/humanLncAtlas/genomes/hg19.chrom.sizes" \
+BIGBED_OUTPUT_DIR="/data/wenyujianData/humanLncAtlas/genomes" \
+python3 scripts/export_chipseq_bed.py \
+  --output-dir "/data/wenyujianData/humanLncAtlas/chipseq_bed" \
+  --convert-bigbed \
+  --group-by cell_line
+```
+
 ## DB reference_genome 回填（可选，推荐）
 
 当你历史导入过一些 ChIP-seq 实验但 `chipseq_experiments.reference_genome` 仍为空（NULL）时，虽然系统会把 NULL 当作“未知但兼容”，但长期会让审计与排障变得不确定。
