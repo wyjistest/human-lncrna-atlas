@@ -18,6 +18,7 @@ Usage:
 """
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Optional, Dict
@@ -66,9 +67,11 @@ def get_mark_color(mark_name: str) -> str:
 def export_chipseq_bed(
     output_dir: str,
     cell_type: Optional[str] = None,
+    cell_line: Optional[str] = None,
     mark_type: Optional[str] = None,
     species_id: int = 1,  # Human
-    batch_size: int = 50000
+    batch_size: int = 50000,
+    group_by: str = "cell_type",
 ) -> Dict[str, str]:
     """
     Export ChIP-seq peaks as BED9 format files grouped by cell_type
@@ -80,8 +83,12 @@ def export_chipseq_bed(
     - thickStart/thickEnd: same as chromStart/chromEnd
     - itemRgb: color based on mark_type
 
-    Returns dict of {cell_type: output_file_path}
+    Returns dict of {group_value: output_file_path}
     """
+    group_by = (group_by or "cell_type").strip().lower()
+    if group_by not in {"cell_type", "cell_line"}:
+        raise ValueError(f"Invalid group_by={group_by!r}; expected 'cell_type' or 'cell_line'")
+
     db = SessionLocal()
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -101,8 +108,16 @@ def export_chipseq_bed(
             sorted(reference_genome_aliases(expected_assembly)) if expected_assembly else []
         )
 
+        group_expr = "e.cell_type" if group_by == "cell_type" else "e.cell_line"
+
+        def safe_group_name(value: str) -> str:
+            # 目标：兼容既有轨道命名（例如 MCF-7 -> MCF7，H1-hESC -> H1_hESC）
+            safe = str(value).strip().replace(" ", "_").replace("-", "_")
+            safe = re.sub(r"^([A-Za-z]+)_([0-9]+)$", r"\1\2", safe)  # MCF_7 -> MCF7
+            return safe
+
         # Build query to get all peaks with experiment info
-        sql = """
+        sql = f"""
             SELECT
                 p.chromosome,
                 p.peak_start,
@@ -110,13 +125,14 @@ def export_chipseq_bed(
                 p.peak_name,
                 p.fold_enrichment,
                 m.mark_name,
-                e.cell_type
+                {group_expr} AS group_key
             FROM chipseq_peaks p
             JOIN chipseq_experiments e ON p.experiment_id = e.experiment_id
             JOIN epigenetic_mark_types m ON e.mark_type_id = m.mark_type_id
             WHERE p.species_id = :species_id
               AND e.is_active = TRUE
               AND (:cell_type IS NULL OR e.cell_type = :cell_type)
+              AND (:cell_line IS NULL OR e.cell_line = :cell_line)
               AND (:mark_type IS NULL OR m.mark_name = :mark_type)
         """
 
@@ -129,7 +145,7 @@ def export_chipseq_bed(
             """
 
         sql += """
-            ORDER BY e.cell_type, p.chromosome, p.peak_start
+            ORDER BY group_key, p.chromosome, p.peak_start
         """
 
         query = (
@@ -141,6 +157,7 @@ def export_chipseq_bed(
         params = {
             'species_id': species_id,
             'cell_type': cell_type,
+            'cell_line': cell_line,
             'mark_type': mark_type,
         }
         if allowed_ref_aliases:
@@ -148,33 +165,37 @@ def export_chipseq_bed(
 
         result = db.execute(query, params)
 
-        # Group by cell_type and write to separate files
-        current_cell_type = None
+        # Group by group_key and write to separate files
+        current_group_value = None
         current_file = None
         processed = 0
-        cell_type_counts: Dict[str, int] = {}
+        group_counts: Dict[str, int] = {}
+        skipped_missing_group = 0
 
         for row in result:
-            chrom, start, end, peak_name, fold_enrichment, mark_name, row_cell_type = row
+            chrom, start, end, peak_name, fold_enrichment, mark_name, row_group_value = row
 
             # Skip invalid coordinates
             if not chrom or start is None or end is None:
                 continue
 
-            # Handle cell_type change
-            if row_cell_type != current_cell_type:
+            if row_group_value is None or not str(row_group_value).strip():
+                skipped_missing_group += 1
+                continue
+
+            # Handle group change
+            if row_group_value != current_group_value:
                 if current_file:
                     current_file.close()
-                    print(f"  ✅ {current_cell_type}: {cell_type_counts.get(current_cell_type, 0):,} peaks")
+                    print(f"  ✅ {current_group_value}: {group_counts.get(str(current_group_value), 0):,} peaks")
 
-                current_cell_type = row_cell_type
-                # Sanitize cell type for filename
-                safe_cell_type = row_cell_type.replace('-', '_').replace(' ', '_')
-                output_file = output_path / f"chipseq_{safe_cell_type}.bed"
+                current_group_value = row_group_value
+                safe_group = safe_group_name(str(row_group_value))
+                output_file = output_path / f"chipseq_{safe_group}.bed"
                 current_file = open(output_file, 'w')
-                exported_files[row_cell_type] = str(output_file)
-                cell_type_counts[row_cell_type] = 0
-                print(f"📝 Exporting {row_cell_type}...")
+                exported_files[str(row_group_value)] = str(output_file)
+                group_counts[str(row_group_value)] = 0
+                print(f"📝 Exporting {row_group_value} ({group_by})...")
 
             # Calculate score (0-1000) from fold_enrichment
             # Typical fold_enrichment: 1-100, map to 0-1000
@@ -193,7 +214,7 @@ def export_chipseq_bed(
                 f"{chrom}\t{start}\t{end}\t{name}\t{score}\t.\t{start}\t{end}\t{item_rgb}\n"
             )
 
-            cell_type_counts[row_cell_type] = cell_type_counts.get(row_cell_type, 0) + 1
+            group_counts[str(row_group_value)] = group_counts.get(str(row_group_value), 0) + 1
             processed += 1
 
             if processed % 500000 == 0:
@@ -202,14 +223,16 @@ def export_chipseq_bed(
         # Close last file
         if current_file:
             current_file.close()
-            print(f"  ✅ {current_cell_type}: {cell_type_counts.get(current_cell_type, 0):,} peaks")
+            print(f"  ✅ {current_group_value}: {group_counts.get(str(current_group_value), 0):,} peaks")
 
         print(f"\n✅ Total exported: {processed:,} peaks to {len(exported_files)} files")
+        if skipped_missing_group:
+            print(f"⚠️ Skipped records with missing {group_by}: {skipped_missing_group:,}")
 
         # Print summary
-        print("\n📊 Summary by cell type:")
-        for ct, count in sorted(cell_type_counts.items()):
-            print(f"  {ct}: {count:,} peaks")
+        print(f"\n📊 Summary by {group_by}:")
+        for key, count in sorted(group_counts.items()):
+            print(f"  {key}: {count:,} peaks")
 
         return exported_files
 
@@ -295,6 +318,9 @@ Examples:
 
   # Export specific cell type
   python3 export_chipseq_bed.py --cell-type K562 --output-dir ./chipseq_bed
+
+  # Export by cell line (recommended for chipseq_<CellLine>.bb)
+  python3 export_chipseq_bed.py --group-by cell_line --output-dir ./chipseq_bed --convert-bigbed
         """
     )
 
@@ -305,9 +331,21 @@ Examples:
         help='Output directory for BED files (default: ./chipseq_bed)'
     )
     parser.add_argument(
+        '--group-by',
+        type=str,
+        choices=['cell_type', 'cell_line'],
+        default=os.environ.get('CHIPSEQ_GROUP_BY', 'cell_type'),
+        help="Group exported tracks by 'cell_type' (default) or 'cell_line' (recommended for IGV bigBed tracks)"
+    )
+    parser.add_argument(
         '--cell-type', '-c',
         type=str,
         help='Filter by cell type (e.g., K562, GM12878)'
+    )
+    parser.add_argument(
+        '--cell-line',
+        type=str,
+        help='Filter by cell line (e.g., K562, GM12878, A549, HMEC, MCF-7)'
     )
     parser.add_argument(
         '--mark-type', '-m',
@@ -350,7 +388,9 @@ Examples:
     print("ChIP-seq BED/BigBed Export Tool")
     print("=" * 60)
     print(f"Output directory: {args.output_dir}")
+    print(f"Group by: {args.group_by}")
     print(f"Cell type filter: {args.cell_type or 'All'}")
+    print(f"Cell line filter: {args.cell_line or 'All'}")
     print(f"Mark type filter: {args.mark_type or 'All'}")
     print(f"Species ID: {args.species_id}")
     print(f"Convert to BigBed: {args.convert_bigbed}")
@@ -361,8 +401,10 @@ Examples:
     exported_files = export_chipseq_bed(
         output_dir=args.output_dir,
         cell_type=args.cell_type,
+        cell_line=args.cell_line,
         mark_type=args.mark_type,
-        species_id=args.species_id
+        species_id=args.species_id,
+        group_by=args.group_by,
     )
 
     if not exported_files:
