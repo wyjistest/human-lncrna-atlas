@@ -49,12 +49,12 @@ DEFAULT_OUT_DIR = REPO_ROOT / "docs" / "reports"
 DEFAULT_LNCRNA_GENE_ID = 17276
 DEFAULT_SPECIES_IDS = "1,3"
 
-DEFAULT_MIN_SAMPLES = 40
+DEFAULT_MIN_SAMPLES = 50
 DEFAULT_PRE_WARMUP_ROUNDS = 0
 
-DEFAULT_RESPONSE_REGRESSION_PCT = 8.0
+DEFAULT_RESPONSE_REGRESSION_PCT = 6.0
 DEFAULT_RESPONSE_REGRESSION_ABS_MS = 2.0
-DEFAULT_DB_REGRESSION_PCT = 8.0
+DEFAULT_DB_REGRESSION_PCT = 6.0
 DEFAULT_DB_REGRESSION_ABS_MS = 1.0
 
 DEFAULT_WARMUP_MAX_RETRIES = 2
@@ -872,7 +872,7 @@ def _parse_args() -> argparse.Namespace:
             f"(default: {DEFAULT_PRE_WARMUP_ROUNDS})."
         ),
     )
-    parser.add_argument("--warmup-rounds", type=int, default=60, help="Warmup rounds before snapshot (default: 60).")
+    parser.add_argument("--warmup-rounds", type=int, default=80, help="Warmup rounds before snapshot (default: 80).")
     parser.add_argument(
         "--warmup-max-retries",
         type=int,
