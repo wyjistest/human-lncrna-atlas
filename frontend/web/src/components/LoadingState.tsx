@@ -134,7 +134,7 @@ export const LoadingState = ({
         )}
         {!message && !tip && (
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {t('loading', 'Loading...')}
+            {t('status.loading', 'Loading...')}
           </Text>
         )}
       </Space>

@@ -7,7 +7,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string) => {
       const translations: Record<string, string> = {
-        'loading': 'Loading...',
+        'status.loading': 'Loading...',
         'loading.elapsed': 'Elapsed',
         'loading.estimated': 'Est.',
       }
