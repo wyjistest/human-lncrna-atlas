@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-02-09
+> 最后更新: 2026-02-10
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -12,22 +12,22 @@
 | **DNase-HS** | Open Chromatin | **7** | **7** | **1,223,622** |
 | CTCF | Structural | 5 | 5 | **248,106** |
 | H3K4me1 | Activating | 6 | 6 | **803,334** |
-| H3K4me2 | Activating | 5 | 5 | **406,645** |
+| H3K4me2 | Activating | 6 | 6 | **505,389** |
 | H3K4me3 | Activating | 7 | 7 | **447,224** |
-| H3K9ac | Activating | 5 | 5 | **265,785** |
+| H3K9ac | Activating | 6 | 6 | **318,090** |
 | H3K9me3 | Repressive | 6 | 6 | **376,602** |
 | H3K27ac | Activating | 6 | 6 | **334,361** |
 | H3K27me3 | Repressive | 6 | 6 | **317,558** |
 | H3K36me3 | Activating | 6 | 6 | **241,345** |
 | H4K20me1 | Activating | 3 | 3 | **109,285** |
-| **总计** | - | **7** | **62** | **4,773,867** |
+| **总计** | - | **7** | **64** | **4,924,916** |
 
 ### 细胞系覆盖
 
 | 细胞系 | 组织 | ChIP-seq Marks | DNase-seq | 总 Peaks |
 |--------|------|----------------|-----------|----------|
 | **MCF-7** | 乳腺癌细胞 | 1 mark (H3K4me3) | ✅ 126,717 | 238,634 |
-| **HMEC** | 正常乳腺上皮 | 6 marks | ✅ 140,574 | 518,447 |
+| **HMEC** | 正常乳腺上皮 | 8 marks | ✅ 140,574 | 669,496 |
 | **A549** | 肺腺癌细胞 | 9 marks | ✅ 118,965 | 782,674 |
 | K562 | 白血病细胞 | 10 marks | ✅ 202,266 | 843,309 |
 | H1-hESC | 人胚胎干细胞 | 10 marks | ✅ 258,188 | 874,023 |
@@ -42,12 +42,22 @@
 
 ## ✅ 最近完成的功能
 
+### 2026-02-10 ⭐ hg19：补齐 HMEC 缺失的 H3K4me2/H3K9ac（UCSC hg19 Broad Histone）
+
+1. **补齐 HMEC 的 8 marks 覆盖**
+   - 新增实验：`H3K4me2_HMEC_BROAD_HMEC_H3K4me2`、`H3K9ac_HMEC_BROAD_HMEC_H3K9ac`（Human active experiments：62 → 64）
+   - 两个实验均写入 `reference_genome=hg19`，并生成对应 `gene_peak_associations`
+
+2. **轨道同步（可回滚、可审计）**
+   - 备份并重生成：`/data/wenyujianData/humanLncAtlas/chipseq_bed/chipseq_HMEC.bed` 与 `/data/wenyujianData/humanLncAtlas/genomes/chipseq_HMEC.bb`
+   - 外部数据组装审计：`bash scripts/genomes/audit_external_data_assemblies.sh`（输出落盘、无 hg38 混入）
+
 ### 2026-02-09 ⭐ hg19：按 cell line 补齐 ChIP-seq bed/bigBed 轨道
 
 1. **修复“同一 cell line 被 cell_type 拆分”导致的轨道缺口**
    - 重新生成 `/data/wenyujianData/humanLncAtlas/chipseq_bed/chipseq_{A549,GM12878,H1_hESC,HepG2,HMEC,K562,MCF7}.bed`
    - 重新生成 `/data/wenyujianData/humanLncAtlas/genomes/chipseq_{A549,GM12878,H1_hESC,HepG2,HMEC,K562,MCF7}.bb`
-   - 峰数量与本报告统计一致（Human epigenomic 总 peaks = 4,773,867）。
+   - 峰数量以本文顶部统计表为准（避免历史数字误读）。
 
 2. **DB 元数据对齐（可回滚、可审计）**
    - 回填历史 K562 实验缺失的 `cell_line`（避免 `--group-by cell_line` 导出丢失）
