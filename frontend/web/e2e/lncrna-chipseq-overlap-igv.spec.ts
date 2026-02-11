@@ -63,7 +63,8 @@ test.describe('Overlap IGV Integration - Layout', () => {
     await expect(table).toBeVisible({ timeout: 10000 })
 
     // 验证表格有数据行
-    const tableRows = page.locator('.ant-table tbody tr')
+    // Overlap 表格开启 Antd `virtual`，行不一定是 <tr>
+    const tableRows = table.locator('.ant-table-row[data-row-key]')
     const rowCount = await tableRows.count()
 
     if (rowCount > 0) {
@@ -111,7 +112,7 @@ test.describe('Overlap IGV Integration - Navigation', () => {
     await table.waitFor({ timeout: 10000 }).catch(() => null)
 
     // 检查是否有数据行
-    const firstRow = page.locator('.ant-table tbody tr').first()
+    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
     const hasRows = await firstRow.isVisible().catch(() => false)
 
     if (!hasRows) {
@@ -147,7 +148,7 @@ test.describe('Overlap IGV Integration - Navigation', () => {
   })
 
   test('should highlight clicked row', async ({ page }) => {
-    const firstRow = page.locator('.ant-table tbody tr').first()
+    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
     const hasRows = await firstRow.isVisible({ timeout: 10000 }).catch(() => false)
 
     if (!hasRows) {
@@ -168,7 +169,7 @@ test.describe('Overlap IGV Integration - Navigation', () => {
 
   test('should update IGV locus to overlap region', async ({ page }) => {
     // 等待表格
-    const firstRow = page.locator('.ant-table tbody tr').first()
+    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
     await firstRow.waitFor({ timeout: 10000 }).catch(() => null)
 
     const hasRows = await firstRow.isVisible().catch(() => false)
@@ -231,7 +232,7 @@ test.describe('Overlap IGV Integration - Performance', () => {
     await page.waitForTimeout(3000)
 
     // 确保表格已加载
-    const firstRow = page.locator('.ant-table tbody tr').first()
+    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
     const hasRows = await firstRow.isVisible({ timeout: 10000 }).catch(() => false)
 
     if (!hasRows) {
@@ -389,7 +390,7 @@ test.describe('Overlap IGV Integration - User Interaction', () => {
 
   test('should maintain selection when switching pages', async ({ page }) => {
     // 等待表格
-    const firstRow = page.locator('.ant-table tbody tr').first()
+    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
     const hasRows = await firstRow.isVisible({ timeout: 10000 }).catch(() => false)
 
     if (!hasRows) {

@@ -234,12 +234,13 @@ test.describe('2. 基因列表页 (/genes) 测试', () => {
     await page.goto('/genes');
     await waitForNetworkIdle(page, 15000);
 
-    // 等待表格加载
-    const table = page.locator('table, .ant-table');
-    await table.first().waitFor({ timeout: 10000 }).catch(() => {});
+    // 等待表格加载（Genes/Regulations 表格可能开启 Antd `virtual`，不一定存在 <tr>）
+    const tableRoot = page.locator('.ant-table').first();
+    await tableRoot.waitFor({ timeout: 10000 }).catch(() => {});
 
-    // 检查表格行数
-    const rows = page.locator('table tbody tr, .ant-table-tbody tr');
+    // 检查表格行数（兼容 virtual table：行可能不是 <tr>）
+    const rows = tableRoot.locator('.ant-table-row');
+    await rows.first().waitFor({ timeout: 15000 }).catch(() => {});
     const rowsCount = await rows.count();
     result.details.push(`表格行数: ${rowsCount}`);
 
@@ -389,8 +390,11 @@ test.describe('3. 调控关系页 (/regulations) 测试', () => {
     const filtersCount = await filters.count();
     result.details.push(`筛选控件数量: ${filtersCount}`);
 
-    // 检查表格
-    const tableRows = page.locator('table tbody tr, .ant-table-tbody tr');
+    // 检查表格（兼容 Antd `virtual`：行可能不是 <tr>）
+    const tableRoot = page.locator('.ant-table').first();
+    await tableRoot.waitFor({ timeout: 10000 }).catch(() => {});
+    const tableRows = tableRoot.locator('.ant-table-row');
+    await tableRows.first().waitFor({ timeout: 15000 }).catch(() => {});
     const rowsCount = await tableRows.count();
     result.details.push(`表格行数: ${rowsCount}`);
 

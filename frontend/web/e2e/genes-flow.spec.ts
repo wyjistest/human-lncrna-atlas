@@ -123,7 +123,7 @@ test.describe('基因浏览流程', () => {
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 15000 })
 
     // 查看按钮在表格最后一列
-    const viewButton = page.locator('.ant-table-tbody tr').first().getByRole('button').first()
+    const viewButton = page.locator('.ant-table-row[data-row-key]').first().getByRole('button').first()
 
     if (await viewButton.count() > 0) {
       await viewButton.click()

@@ -22,7 +22,12 @@ const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
 // Helper function to wait for API response
 async function waitForOverlapAPI(page: Page, timeout = 30000) {
   return page.waitForResponse(
-    (resp) => resp.url().includes('/lncrna-chipseq-overlap') && resp.status() === 200,
+    (resp) => {
+      const url = resp.url()
+      if (!url.includes('/api/v1/lncrna-chipseq-overlap')) return false
+      if (url.includes('/summary') || url.includes('/heatmap') || url.includes('/export')) return false
+      return resp.status() === 200
+    },
     { timeout }
   ).catch(() => null)
 }
@@ -98,8 +103,19 @@ test.describe('ChIP-seq Overlap - Full User Flow', () => {
     await expect(table).toBeVisible({ timeout: 10000 })
 
     // Check for data rows or empty state
-    const dataRows = page.locator('.ant-table-tbody tr.ant-table-row')
+    // NOTE: Overlap table enables Antd `virtual`, so rows are not necessarily <tr>.
+    const dataRows = table.locator('.ant-table-row')
     const emptyState = page.locator('.ant-empty')
+
+    // Wait until either rows appear or empty state is rendered.
+    await expect.poll(
+      async () => {
+        const rowCount = await dataRows.count()
+        const isEmpty = await emptyState.isVisible().catch(() => false)
+        return rowCount > 0 || isEmpty
+      },
+      { timeout: 20000 }
+    ).toBe(true)
 
     const hasData = await dataRows.count() > 0
     const isEmpty = await emptyState.isVisible().catch(() => false)

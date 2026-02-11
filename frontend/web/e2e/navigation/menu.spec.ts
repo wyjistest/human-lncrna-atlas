@@ -39,7 +39,8 @@ test.describe('Main Navigation Menu', () => {
     const itemCount = await homeItem.count()
     if (itemCount > 0) {
       await homeItem.first().click()
-      await expect(page).toHaveURL(/^\/$|\/home|localhost/)
+      // Playwright 的 URL 是完整地址（含 host），这里仅校验回到根路径即可（兼容 127.0.0.1/localhost/LAN IP）。
+      await expect(page).toHaveURL(/\/$/)
     }
   })
 
@@ -105,8 +106,9 @@ test.describe('ChIP-seq Feature Navigation', () => {
 	    await page.waitForLoadState('networkidle')
 	
 	    // 在 Gene List 表格中点击“View →”按钮进入详情（避免误点外链 View →）
-	    const firstRow = page.locator('.ant-table-tbody > tr').first()
-	      .or(page.locator('table tbody tr').first())
+		    // antd Virtual Table 的行不一定是 <tr>，统一用 `.ant-table-row[data-row-key]` 兼容虚拟/非虚拟渲染。
+		    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
+		      .or(page.locator('table tbody tr').first())
 
 	    if ((await firstRow.count()) > 0) {
 	      const viewBtn = firstRow.getByRole('button', { name: /View/i }).first()

@@ -882,7 +882,8 @@ test.describe('P2: Integration with Table', () => {
     }
 
     // Wait for table data
-    const tableRow = page.locator('.ant-table tbody tr').first()
+    // Overlap 表格开启 Antd `virtual`，行不一定是 <tr>
+    const tableRow = page.locator('.ant-table-row[data-row-key]').first()
     const hasRows = await tableRow.isVisible({ timeout: 10000 }).catch(() => false)
 
     if (!hasRows) {

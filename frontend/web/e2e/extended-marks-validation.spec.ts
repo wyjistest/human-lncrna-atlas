@@ -619,7 +619,7 @@ test.describe('Structural Marks (CTCF, H2AZ) Comparison', () => {
         // Verify data table with CTCF peaks
         const table = page.locator('.ant-tabs-tabpane-active .ant-table:visible').first()
         if ((await table.count()) > 0) {
-          const rows = table.locator('.ant-table-tbody tr')
+          const rows = table.locator('.ant-table-row[data-row-key]')
           const rowCount = await rows.count()
           console.log(`CTCF peaks table rows: ${rowCount}`)
         }

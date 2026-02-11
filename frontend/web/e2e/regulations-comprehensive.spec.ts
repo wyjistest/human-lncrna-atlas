@@ -60,7 +60,8 @@ test.describe('Regulations Page - Initial Load', () => {
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Verify table has rows
-    const rows = page.locator('.ant-table-tbody tr')
+    // antd Virtual Table 的行不一定是 <tr>，统一用 `.ant-table-row[data-row-key]` 兼容虚拟/非虚拟渲染。
+    const rows = page.locator('.ant-table-row[data-row-key]')
     await expect(rows.first()).toBeVisible({ timeout: 10000 })
   })
 
@@ -322,7 +323,7 @@ test.describe('Regulations Page - Table Interactions', () => {
   })
 
   test('Row click/detail navigation works', async ({ page }) => {
-    const firstRow = page.locator('.ant-table-tbody tr').first()
+    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
     await expect(firstRow).toBeVisible()
 
     // Look for detail/view button in row
@@ -429,7 +430,7 @@ test.describe('Regulations Page - URL Parameters', () => {
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Verify data is loaded (Human species)
-    await expect(page.locator('.ant-table-tbody tr').first()).toBeVisible()
+    await expect(page.locator('.ant-table-row[data-row-key]').first()).toBeVisible()
     console.log('Species ID URL parameter works')
   })
 
@@ -450,7 +451,7 @@ test.describe('Regulations Page - URL Parameters', () => {
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // Data should be loaded
-    await expect(page.locator('.ant-table-tbody tr').first()).toBeVisible()
+    await expect(page.locator('.ant-table-row[data-row-key]').first()).toBeVisible()
     console.log('BA range URL parameters work')
   })
 
@@ -663,13 +664,14 @@ test.describe('Regulations Page - Accessibility', () => {
     console.log(`Headings: H1=${h1Count}, H2=${h2Count}`)
   })
 
-  test('Table has accessible structure', async ({ page }) => {
-    const table = page.locator('.ant-table')
-    const thead = table.locator('thead')
-    const tbody = table.locator('tbody')
+	  test('Table has accessible structure', async ({ page }) => {
+	    const table = page.locator('.ant-table')
+	    const thead = table.locator('thead')
+	    // antd Virtual Table 的 body 不一定是 <tbody>（可能是 div.ant-table-tbody）
+	    const tbody = table.locator('tbody').or(table.locator('.ant-table-tbody'))
 
-    await expect(thead).toBeVisible()
-    await expect(tbody).toBeVisible()
+	    await expect(thead).toBeVisible()
+	    await expect(tbody).toBeVisible()
 
     // Headers should exist
     const headers = thead.locator('th')

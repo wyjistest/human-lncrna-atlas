@@ -154,7 +154,8 @@ test.describe('Phase 3.1: HepG2 × H3K9me3 Frontend Validation', () => {
     }
 
     // Verify table rows exist or empty state is shown
-    const tableRows = page.locator('.ant-table-tbody tr')
+    // antd Virtual Table 的行不一定是 <tr>，统一用 `.ant-table-row[data-row-key]` 兼容虚拟/非虚拟渲染。
+    const tableRows = page.locator('.ant-table-row[data-row-key]')
     const rowCount = await tableRows.count()
 
     const emptyState = page.locator('.ant-empty')
@@ -304,7 +305,10 @@ test.describe('Phase 3.1: HepG2 × H3K9me3 Frontend Validation', () => {
       (e) =>
         !e.includes('favicon') && // Ignore favicon errors
         !e.includes('sourcemap') && // Ignore sourcemap warnings
-        !e.includes('DevTools')
+        !e.includes('DevTools') &&
+        // antd v5+: `message.*` 静态调用在动态 theme 场景会打 warning（不影响功能）
+        !e.includes('[antd: message]') &&
+        !e.includes('Static function can not consume context')
     )
 
     if (criticalErrors.length > 0) {

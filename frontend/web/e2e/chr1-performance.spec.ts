@@ -229,9 +229,10 @@ test.describe('Chr1 Large Chromosome Query Performance (P0)', () => {
     const table = page.locator('.ant-table')
     await expect(table).toBeVisible({ timeout: 10000 })
 
-    const dataRows = page.locator('.ant-table-tbody tr.ant-table-row')
+    // NOTE: Overlap table enables Antd `virtual`, so rows are not necessarily <tr>.
+    const dataRows = table.locator('.ant-table-row')
+    await expect.poll(async () => dataRows.count(), { timeout: 20000 }).toBeGreaterThan(0)
     const rowCount = await dataRows.count()
-    expect(rowCount).toBeGreaterThan(0)
 
     console.log(`  - Table rows displayed: ${rowCount}`)
   })
@@ -536,9 +537,10 @@ test.describe('Regression Tests (P2)', () => {
     const table = page.locator('.ant-table')
     await expect(table).toBeVisible()
 
-    const rows = page.locator('.ant-table-tbody tr.ant-table-row')
+    // NOTE: Overlap table enables Antd `virtual`, so rows are not necessarily <tr>.
+    const rows = table.locator('.ant-table-row')
+    await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThan(0)
     const rowCount = await rows.count()
-    expect(rowCount).toBeGreaterThan(0)
   })
 
   test('P2: should export functionality work with chr1 (large dataset)', async ({ page }) => {

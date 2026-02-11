@@ -512,7 +512,7 @@ test.describe('P1 - MCF-7 and HMEC Data Accuracy', () => {
     expect(hasTable || hasEmpty, 'Should show either data table or empty state').toBe(true)
 
     if (hasTable) {
-      const rows = await table.locator('.ant-table-tbody tr').count()
+      const rows = await table.locator('.ant-table-row[data-row-key]').count()
       console.log(`MCF-7 peaks: ${rows} rows displayed`)
     }
   })
@@ -545,7 +545,7 @@ test.describe('P1 - MCF-7 and HMEC Data Accuracy', () => {
     expect(hasTable || hasEmpty, 'Should show either data table or empty state').toBe(true)
 
     if (hasTable) {
-      const rows = await table.locator('.ant-table-tbody tr').count()
+      const rows = await table.locator('.ant-table-row[data-row-key]').count()
       console.log(`HMEC peaks: ${rows} rows displayed`)
     }
   })

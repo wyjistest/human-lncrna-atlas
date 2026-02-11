@@ -197,7 +197,7 @@ test.describe('A549 Cell Line Integration', () => {
       return
     }
 
-    const dataTable = page.locator('.ant-table-tbody tr').filter({
+    const dataTable = page.locator('.ant-table-row[data-row-key]').filter({
       hasNotText: /No Data|暂无数据/i
     })
     const rowCount = await dataTable.count()

@@ -18,7 +18,9 @@ test.describe('调控关系筛选流程', () => {
 
   test('调控关系列表正常加载', async ({ page }) => {
     // 验证表格有数据
-    const rows = page.locator('.ant-table-tbody tr')
+    // antd Virtual Table 的行不一定是 <tr>，统一用 `.ant-table-row[data-row-key]` 兼容虚拟/非虚拟渲染。
+    const rows = page.locator('.ant-table-row[data-row-key]')
+    await expect.poll(async () => rows.count(), { timeout: 20000 }).toBeGreaterThan(0)
     await expect(rows.first()).toBeVisible()
 
     // 验证分页器存在
@@ -50,7 +52,7 @@ test.describe('调控关系筛选流程', () => {
 
   test('查看调控关系详情', async ({ page }) => {
     // 等待表格行加载
-    const firstRow = page.locator('.ant-table-tbody tr').first()
+    const firstRow = page.locator('.ant-table-row[data-row-key]').first()
     await expect(firstRow).toBeVisible()
 
     // 尝试找到详情按钮或链接
@@ -109,6 +111,6 @@ test.describe('调控关系 URL 参数', () => {
     await expect(page.locator('.ant-table')).toBeVisible({ timeout: 20000 })
 
     // 验证表格有数据
-    await expect(page.locator('.ant-table-tbody tr').first()).toBeVisible()
+    await expect(page.locator('.ant-table-row[data-row-key]').first()).toBeVisible()
   })
 })
