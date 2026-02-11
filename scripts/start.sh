@@ -44,6 +44,16 @@ MODE="${MODE:-dev}"
 # 如需关闭自动注入：AUTO_LAN=false
 AUTO_LAN="${AUTO_LAN:-true}"
 
+# 可选：公网主机（IP 或域名，不含协议与端口）
+# 例如 PUBLIC_HOST=45.62.117.191，可自动追加到 TRUSTED_HOSTS/CORS_ORIGINS
+PUBLIC_HOST="${PUBLIC_HOST:-}"
+
+# 可选：公网端口（当公网映射端口 != 本地监听端口时使用，例如 FRP/NAT）
+# - PUBLIC_FRONTEND_PORT: 浏览器访问前端时看到的端口（默认同 FRONTEND_PORT）
+# - PUBLIC_BACKEND_PORT: 浏览器访问后端时看到的端口（默认同 BACKEND_PORT）
+PUBLIC_FRONTEND_PORT="${PUBLIC_FRONTEND_PORT:-$FRONTEND_PORT}"
+PUBLIC_BACKEND_PORT="${PUBLIC_BACKEND_PORT:-$BACKEND_PORT}"
+
 # 后端 Python 解释器（可选）：默认自动探测 backend/.venv 或 backend/venv
 BACKEND_PYTHON="${BACKEND_PYTHON:-}"
 
@@ -87,6 +97,23 @@ check_command() {
     return 0
 }
 
+DETACHED_PID=""
+
+run_detached() {
+    # 在新 session 中启动进程，避免父 shell 退出后被“连带”结束（CI/远程命令/非交互环境更稳）。
+    # 写入日志文件；stdin 绑定到 /dev/null，防止读取终端导致阻塞。
+    local log_file="$1"
+    shift
+
+    if command -v setsid > /dev/null 2>&1; then
+        setsid "$@" > "$log_file" 2>&1 < /dev/null &
+    else
+        nohup "$@" > "$log_file" 2>&1 &
+    fi
+
+    DETACHED_PID=$!
+}
+
 detect_lan_ip() {
     # 尽量选择“默认路由出口”的 IPv4（通常就是局域网 IP）
     # 失败则回退到 hostname -I 的第一个地址
@@ -105,6 +132,19 @@ detect_lan_ip() {
     fi
 
     echo "$ip_addr"
+}
+
+normalize_host() {
+    # 规范化 host：移除 scheme/path/port，返回纯主机名（IP 或域名）
+    local raw_host="$1"
+    local host="$raw_host"
+
+    host="${host#http://}"
+    host="${host#https://}"
+    host="${host%%/*}"
+    host="${host%%:*}"
+
+    echo "$host"
 }
 
 resolve_backend_python() {
@@ -140,6 +180,9 @@ apply_dev_env_overrides() {
     fi
 
     local lan_ip="${LAN_IP:-$(detect_lan_ip)}"
+    local normalized_public_host="$(normalize_host "${PUBLIC_HOST:-}")"
+    local public_frontend_port="${PUBLIC_FRONTEND_PORT:-$FRONTEND_PORT}"
+    local public_backend_port="${PUBLIC_BACKEND_PORT:-$BACKEND_PORT}"
 
     # 仅在用户未显式设置时注入，避免覆盖用户配置
     if [ -z "${ENV:-}" ]; then
@@ -147,12 +190,24 @@ apply_dev_env_overrides() {
     fi
 
     if [ -z "${TRUSTED_HOSTS:-}" ]; then
-        export TRUSTED_HOSTS="[\"localhost\",\"127.0.0.1\",\"*.localhost\",\"${lan_ip}\"]"
+        local trusted_hosts_json="[\"localhost\",\"127.0.0.1\",\"*.localhost\",\"${lan_ip}\""
+        if [ -n "$normalized_public_host" ] && [ "$normalized_public_host" != "$lan_ip" ]; then
+            trusted_hosts_json+=",\"${normalized_public_host}\""
+        fi
+        trusted_hosts_json+="]"
+        export TRUSTED_HOSTS="$trusted_hosts_json"
         log_info "dev: 自动注入 TRUSTED_HOSTS=$TRUSTED_HOSTS"
     fi
 
     if [ -z "${CORS_ORIGINS:-}" ]; then
-        export CORS_ORIGINS="[\"http://localhost:${FRONTEND_PORT}\",\"http://127.0.0.1:${FRONTEND_PORT}\",\"http://${lan_ip}:${FRONTEND_PORT}\"]"
+        local cors_origins_json="[\"http://localhost:${FRONTEND_PORT}\",\"http://127.0.0.1:${FRONTEND_PORT}\",\"http://${lan_ip}:${FRONTEND_PORT}\""
+        if [ -n "$normalized_public_host" ]; then
+            if [ "$normalized_public_host" != "$lan_ip" ] || [ "$public_frontend_port" != "$FRONTEND_PORT" ]; then
+                cors_origins_json+=",\"http://${normalized_public_host}:${public_frontend_port}\""
+            fi
+        fi
+        cors_origins_json+="]"
+        export CORS_ORIGINS="$cors_origins_json"
         log_info "dev: 自动注入 CORS_ORIGINS=$CORS_ORIGINS"
     fi
 
@@ -176,7 +231,11 @@ apply_dev_env_overrides() {
     fi
 
     if [ -z "${VITE_API_BASE_URL:-}" ]; then
-        export VITE_API_BASE_URL="http://${lan_ip}:${BACKEND_PORT}"
+        if [ -n "$normalized_public_host" ]; then
+            export VITE_API_BASE_URL="http://${normalized_public_host}:${public_backend_port}"
+        else
+            export VITE_API_BASE_URL="http://${lan_ip}:${BACKEND_PORT}"
+        fi
         log_info "dev: 自动注入 VITE_API_BASE_URL=$VITE_API_BASE_URL"
     fi
 }
@@ -315,22 +374,20 @@ start_backend() {
     chmod 600 "$LOG_DIR/backend.log" 2>/dev/null || true
     if [ "$MODE" = "prod" ]; then
         log_info "生产模式启动..."
-        nohup "$python_bin" -m uvicorn main:app \
+        run_detached "$LOG_DIR/backend.log" "$python_bin" -m uvicorn main:app \
             --host "$BACKEND_HOST" \
             --port "$BACKEND_PORT" \
-            --workers 4 \
-            > "$LOG_DIR/backend.log" 2>&1 &
+            --workers 4
     else
         log_info "开发模式启动 (热重载)..."
-        nohup "$python_bin" -m uvicorn main:app \
+        run_detached "$LOG_DIR/backend.log" "$python_bin" -m uvicorn main:app \
             --host "$BACKEND_HOST" \
             --port "$BACKEND_PORT" \
-            --reload \
-            > "$LOG_DIR/backend.log" 2>&1 &
+            --reload
     fi
 
-    local backend_pid=$!
-    echo $backend_pid > "$LOG_DIR/backend.pid"
+    local backend_pid="$DETACHED_PID"
+    echo "$backend_pid" > "$LOG_DIR/backend.pid"
 
     # 带重试的健康检查（最多 10 次，每次间隔 2 秒，共 20 秒超时）
     if wait_for_health "http://localhost:$BACKEND_PORT/health" "后端" 10 2; then
@@ -375,23 +432,26 @@ start_frontend() {
     if [ "$MODE" = "prod" ]; then
         log_info "生产模式: 构建并预览..."
         npm run build
-        nohup npm run preview -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" \
-            > "$LOG_DIR/frontend.log" 2>&1 &
+        run_detached "$LOG_DIR/frontend.log" npm run preview -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT"
     else
         log_info "开发模式启动..."
-        nohup npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" --strictPort \
-            > "$LOG_DIR/frontend.log" 2>&1 &
+        run_detached "$LOG_DIR/frontend.log" npm run dev -- --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" --strictPort
     fi
 
-    local frontend_pid=$!
-    echo $frontend_pid > "$LOG_DIR/frontend.pid"
+    local frontend_pid="$DETACHED_PID"
+    echo "$frontend_pid" > "$LOG_DIR/frontend.pid"
 
-    # 等待启动
-    sleep 3
-
-    log_success "前端服务启动成功 (PID: $frontend_pid)"
-    log_info "访问地址: http://localhost:$FRONTEND_PORT"
-    log_info "查看日志: tail -f $LOG_DIR/frontend.log"
+    if wait_for_health "http://localhost:$FRONTEND_PORT/" "前端" 10 1; then
+        log_success "前端服务启动成功 (PID: $frontend_pid)"
+        log_info "访问地址: http://localhost:$FRONTEND_PORT"
+        log_info "查看日志: tail -f $LOG_DIR/frontend.log"
+    else
+        log_error "前端服务健康检查失败！"
+        log_error "查看日志: tail -f $LOG_DIR/frontend.log"
+        log_error "最后 20 行日志:"
+        tail -20 "$LOG_DIR/frontend.log" 2>/dev/null || true
+        return 1
+    fi
 }
 
 # ==============================================================================
@@ -411,6 +471,9 @@ show_usage() {
     echo "  PROJECT_ROOT        项目根目录"
     echo "  BACKEND_PORT        后端端口 (默认: 8000)"
     echo "  FRONTEND_PORT       前端端口 (默认: 5173)"
+    echo "  PUBLIC_HOST         公网域名/IP（可选）"
+    echo "  PUBLIC_FRONTEND_PORT  公网前端端口（可选）"
+    echo "  PUBLIC_BACKEND_PORT   公网后端端口（可选）"
     echo "  DB_HOST             数据库主机 (默认: localhost)"
     echo "  DB_NAME             数据库名 (默认: lncrna_production)"
     echo "  MODE                运行模式 (默认: dev)"

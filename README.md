@@ -118,6 +118,18 @@ Some SQL scripts create/require PostgreSQL extensions. You may need elevated pri
 
 This will auto-inject LAN-friendly defaults (`TRUSTED_HOSTS`, `CORS_ORIGINS`, `VITE_API_BASE_URL`) and enable private-IP rate-limit bypass for local development (`RATE_LIMIT_BYPASS_PRIVATE=true`).
 
+If you access via a public IP/domain and see `Invalid host header`, pass it explicitly:
+
+```bash
+PUBLIC_HOST=<public-ip-or-domain> ./scripts/dev.sh
+```
+
+If you are behind FRP/NAT and the public ports differ from local ports, set them too:
+
+```bash
+PUBLIC_HOST=<public-ip-or-domain> PUBLIC_FRONTEND_PORT=6003 PUBLIC_BACKEND_PORT=6004 ./scripts/dev.sh
+```
+
 Stop services:
 
 ```bash
