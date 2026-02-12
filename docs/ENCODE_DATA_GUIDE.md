@@ -274,8 +274,14 @@ cd <repo-root>/frontend/backend
 # 先查看将要处理哪些 experiments
 python3 scripts/compute_gene_peak_associations.py --dry-run
 
+# 如果你本机 Postgres 使用 Unix socket / peer auth（常见现象：`psql` 可直连，但 `localhost:5432` 需要密码），建议显式指定：
+python3 scripts/compute_gene_peak_associations.py --db-host /var/run/postgresql --db-user <os-user> --dry-run
+
 # 真正执行（默认跳过“已存在 associations”的 experiments）
 python3 scripts/compute_gene_peak_associations.py
+
+# 同上（peer auth 场景）
+python3 scripts/compute_gene_peak_associations.py --db-host /var/run/postgresql --db-user <os-user>
 ```
 
 说明：
