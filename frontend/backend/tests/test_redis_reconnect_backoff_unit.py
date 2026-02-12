@@ -21,6 +21,8 @@ def test_redis_cache_reconnect_backoff(monkeypatch):
         self._client = None
 
     monkeypatch.setattr(cache_module.RedisCache, "_connect", _fake_connect)
+    # Keep this unit test independent of optional dependency / cross-test state.
+    monkeypatch.setattr(cache_module, "REDIS_AVAILABLE", True, raising=False)
     monkeypatch.setattr(cache_module.settings, "ENABLE_CACHE", True, raising=False)
     monkeypatch.setattr(cache_module.settings, "REDIS_CONNECT_BACKOFF_SECONDS", 30, raising=False)
 
@@ -43,4 +45,3 @@ def test_redis_cache_reconnect_backoff(monkeypatch):
 
     cache.get("k")
     assert connect_attempts == 2
-
