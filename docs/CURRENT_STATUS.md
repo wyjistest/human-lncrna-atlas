@@ -50,6 +50,7 @@
 
 2. **DB `reference_genome` 缺口审计（只读）**
    - 运行：`bash scripts/genomes/audit_chipseq_reference_genome_db.sh --assembly hg19`
+     - peer auth 场景（`psql` 可直连但 `localhost:5432` 需密码）推荐：`DB_HOST=/var/run/postgresql DB_USER=<os-user> bash scripts/genomes/audit_chipseq_reference_genome_db.sh --assembly hg19`
    - 输出：`/data/wenyujianData/humanLncAtlas/audits/2026-02-12_14-49-21_chipseq_reference_genome_db_audit/`
 
 3. **`gene_peak_associations` 覆盖确认**

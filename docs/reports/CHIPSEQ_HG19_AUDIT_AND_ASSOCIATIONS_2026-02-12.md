@@ -36,9 +36,11 @@ ASSEMBLY=hg19 HUMAN_LNC_ATLAS_DATA_DIR=/data/wenyujianData/humanLncAtlas \
 **命令（只读；默认仅生成可回滚 SQL，不写 DB）**：
 
 ```bash
-DB_USER=amax DB_NAME=lncrna_production HUMAN_LNC_ATLAS_DATA_DIR=/data/wenyujianData/humanLncAtlas \
+DB_HOST=/var/run/postgresql DB_USER=amax DB_NAME=lncrna_production HUMAN_LNC_ATLAS_DATA_DIR=/data/wenyujianData/humanLncAtlas \
   bash scripts/genomes/audit_chipseq_reference_genome_db.sh --assembly hg19
 ```
+
+> 说明：如果你的 Postgres 使用 Unix socket / peer auth（常见现象：`psql` 可直连，但 `localhost:5432` 需要密码），请像上面这样显式设置 `DB_HOST=/var/run/postgresql`。
 
 **审计输出目录**：
 
@@ -75,7 +77,7 @@ DB_USER=amax DB_NAME=lncrna_production HUMAN_LNC_ATLAS_DATA_DIR=/data/wenyujianD
 
 ```bash
 cd frontend/backend
-EXPECTED_REFERENCE_GENOME=hg19 DB_USER=amax DB_NAME=lncrna_production \
+EXPECTED_REFERENCE_GENOME=hg19 DB_HOST=/var/run/postgresql DB_USER=amax DB_NAME=lncrna_production \
   python3 scripts/compute_gene_peak_associations.py --dry-run
 ```
 
@@ -89,4 +91,3 @@ EXPECTED_REFERENCE_GENOME=hg19 DB_USER=amax DB_NAME=lncrna_production \
 - ✅ DB（human active experiments）`reference_genome` 全为 hg19。
 - ✅ `gene_peak_associations` 已覆盖全部 active experiments，可直接用于后续性能/统计/查询优化。
 - 🔜 若需要把 `MCF-7` 补齐到 “8 marks” 覆盖：需要补充该细胞系在 hg19 下的其它 histone peaks 数据源（当前 UCSC 映射为 UW Histone track，数据较少）。
-
