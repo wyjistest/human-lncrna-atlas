@@ -28,6 +28,7 @@
 - **HepG2 的 H3K4me1 文件名**：UCSC 上写作 `H3k04me1`（注意 `04`），不是 `H3k4me1`。
 - **HepG2 的 H3K9me3 文件名**：UCSC 上写作 `H3k09me3Pk`（注意 `09`，且是 `Pk` 不是 `StdPk`）。
 - **H1-hESC 的 H3K9me3 文件名**：UCSC 上写作 `H3k09me3`（注意 `09`），不是 `H3k9me3`。
+- **A549 没有 StdPk**：UCSC hg19 BroadHistone 的 A549 多为处理组（例如 `Etoh02Pk` / `Dex100nmPk`），且常见 `H3k04me1/2/3`、`H3k09ac/H3k09me3`（带前导 0）。
 
 ### 方案 A：使用我们的下载脚本（自动化）
 
@@ -371,6 +372,12 @@ DB_USER=amax DB_NAME=lncrna_production bash "scripts/genomes/audit_chipseq_refer
 ### 下载其他细胞系
 
 ```bash
+# A549（肺癌细胞系；注意：UCSC hg19 BroadHistone 的 A549 多为处理组，无 StdPk；脚本默认选择 Etoh02 版本）
+python3 scripts/download_encode_chipseq.py \
+    --all \
+    --cell-line A549 \
+    --output encode_a549
+
 # H1-hESC（胚胎干细胞）
 python3 scripts/download_encode_chipseq.py \
     --all \

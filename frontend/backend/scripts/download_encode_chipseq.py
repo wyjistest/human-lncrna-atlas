@@ -28,6 +28,63 @@ BASE_URL = BASE_URL_BROAD
 # Example: wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz
 
 ENCODE_FILES = {
+    'A549': {
+        # A549 在 UCSC hg19 BroadHistone 中主要是处理组（例如 Etoh02 / Dex100nm），没有 StdPk。
+        # 为了和当前数据库中的 A549 experiments 对齐，这里选择 Etoh02 版本。
+        'H3K27me3': {
+            'file': 'wgEncodeBroadHistoneA549H3k27me3Etoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k27me3Etoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+        'H3K4me1': {
+            # 注意：UCSC 使用 H3k04me1（带 0），不是 H3k4me1
+            'file': 'wgEncodeBroadHistoneA549H3k04me1Etoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k04me1Etoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+        'H3K4me2': {
+            # 注意：UCSC 使用 H3k04me2（带 0）
+            'file': 'wgEncodeBroadHistoneA549H3k04me2Etoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k04me2Etoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+        'H3K4me3': {
+            # 注意：UCSC 使用 H3k04me3（带 0）
+            'file': 'wgEncodeBroadHistoneA549H3k04me3Etoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k04me3Etoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+        'H3K27ac': {
+            'file': 'wgEncodeBroadHistoneA549H3k27acEtoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k27acEtoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+        'H3K36me3': {
+            'file': 'wgEncodeBroadHistoneA549H3k36me3Etoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k36me3Etoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+        'H3K9ac': {
+            # 注意：UCSC 使用 H3k09ac（带 0），不是 H3k9ac
+            'file': 'wgEncodeBroadHistoneA549H3k09acEtoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k09acEtoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+        'H3K9me3': {
+            # 注意：UCSC 使用 H3k09me3（带 0），不是 H3k9me3
+            'file': 'wgEncodeBroadHistoneA549H3k09me3Etoh02Pk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneA549H3k09me3Etoh02Pk.broadPeak.gz',
+            'size_mb': None,
+            'treatment': 'Etoh02',
+        },
+    },
     'GM12878': {
         'H3K27me3': {
             'file': 'wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz',
@@ -259,6 +316,12 @@ ENCODE_FILES = {
 
 # Metadata for each cell line
 CELL_LINE_METADATA = {
+    'A549': {
+        'tissue_type': 'lung',
+        'cell_type': 'lung_adenocarcinoma',
+        'description': 'Lung carcinoma cell line',
+        'category': 'cancer',
+    },
     'GM12878': {
         'tissue_type': 'blood',
         'cell_type': 'B-lymphocyte',
@@ -435,7 +498,7 @@ def generate_metadata(mark_type: str, cell_line: str, file_info: dict) -> dict:
         'cell_type': cell_info['cell_type'],
         'cell_line': cell_line,
         'category': cell_info.get('category', 'unknown'),
-        'treatment': None,
+        'treatment': file_info.get('treatment'),
         'developmental_stage': 'embryonic' if cell_line == 'H1-hESC' else 'adult',
         'antibody_target': mark_type,
         'antibody_source': antibody_source,
