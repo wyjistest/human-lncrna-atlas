@@ -41,8 +41,8 @@ python3 scripts/download_encode_chipseq.py \
     --dry-run
 
 # 输出示例：
-# Total files to download: 4
-# Estimated total size: ~13.5 MB
+# Total files to download: 8
+# Estimated total size: ~22.1 MB
 
 # 实际下载
 python3 scripts/download_encode_chipseq.py \
@@ -56,8 +56,12 @@ python3 scripts/download_encode_chipseq.py \
 **下载内容**:
 - H3K27me3: wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz (2.1 MB)
 - H3K4me1: wgEncodeBroadHistoneGm12878H3k4me1StdPk.broadPeak.gz (5.1 MB)
+- H3K4me2: wgEncodeBroadHistoneGm12878H3k4me2StdPk.broadPeak.gz (4.0 MB)
 - H3K4me3: wgEncodeBroadHistoneGm12878H3k4me3StdPk.broadPeak.gz (1.8 MB)
 - H3K27ac: wgEncodeBroadHistoneGm12878H3k27acStdPk.broadPeak.gz (4.5 MB)
+- H3K36me3: wgEncodeBroadHistoneGm12878H3k36me3StdPk.broadPeak.gz (0.5 MB)
+- H3K9ac: wgEncodeBroadHistoneGm12878H3k9acStdPk.broadPeak.gz (3.0 MB)
+- H3K9me3: wgEncodeBroadHistoneGm12878H3k9me3StdPk.broadPeak.gz (1.1 MB)
 
 ---
 
@@ -68,16 +72,28 @@ cd <repo-root>/chipseq_data
 mkdir -p encode_gm12878
 
 # 下载 H3K27me3
-wget http://hgdownload.gi.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k27me3StdPk.broadPeak.gz
 
 # 下载 H3K4me1
-wget http://hgdownload.gi.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k4me1StdPk.broadPeak.gz
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k4me1StdPk.broadPeak.gz
+
+# 下载 H3K4me2
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k4me2StdPk.broadPeak.gz
 
 # 下载 H3K4me3
-wget http://hgdownload.gi.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k4me3StdPk.broadPeak.gz
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k4me3StdPk.broadPeak.gz
 
 # 下载 H3K27ac
-wget http://hgdownload.gi.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k27acStdPk.broadPeak.gz
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k27acStdPk.broadPeak.gz
+
+# 下载 H3K36me3
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k36me3StdPk.broadPeak.gz
+
+# 下载 H3K9ac
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k9acStdPk.broadPeak.gz
+
+# 下载 H3K9me3
+wget https://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/wgEncodeBroadHistoneGm12878H3k9me3StdPk.broadPeak.gz
 
 # 解压所有文件
 gunzip *.gz
@@ -326,15 +342,21 @@ DB_USER=amax DB_NAME=lncrna_production bash "scripts/genomes/audit_chipseq_refer
 
 ---
 
-## 预期的 Peak 数量
+## 预期的 Peak 数量（参考：本仓库当前 human/hg19 active experiments）
 
-| Mark | 细胞系 | 预估 Peaks | 文件大小 | 导入时间 |
-|------|--------|-----------|---------|---------|
-| H3K27me3 | GM12878 | ~50,000 | 2.1 MB | ~30秒 |
-| H3K4me1 | GM12878 | ~100,000 | 5.1 MB | ~60秒 |
-| H3K4me3 | GM12878 | ~40,000 | 1.8 MB | ~25秒 |
-| H3K27ac | GM12878 | ~90,000 | 4.5 MB | ~55秒 |
-| **总计** | | **~280,000** | **~14 MB** | **~3 分钟** |
+> 说明：peaks 数量会随 ENCODE 版本、过滤策略、是否合并 replicate 而变化；以下数字用于校验“导入后量级是否合理”。更完整统计以 `docs/CURRENT_STATUS.md` 为准。
+
+| Mark | 细胞系 | Peaks（当前） | 文件大小（UCSC broadPeak.gz） |
+|------|--------|--------------|------------------------------|
+| H3K27me3 | GM12878 | 29,588 | 2.1 MB |
+| H3K4me1 | GM12878 | 109,612 | 5.1 MB |
+| H3K4me2 | GM12878 | 79,675 | 4.0 MB |
+| H3K4me3 | GM12878 | 57,476 | 1.8 MB |
+| H3K27ac | GM12878 | 56,069 | 4.5 MB |
+| H3K36me3 | GM12878 | 33,710 | 0.5 MB |
+| H3K9ac | GM12878 | 41,266 | 3.0 MB |
+| H3K9me3 | GM12878 | 74,515 | 1.1 MB |
+| **总计** | | **481,911** | **~22.1 MB** |
 
 ---
 
@@ -356,14 +378,14 @@ python3 scripts/download_encode_chipseq.py \
     --output encode_k562
 ```
 
-### 数据规模预估（3 个细胞系）
+### 数据规模预估（3 个细胞系 × 8 marks；参考当前数据量）
 
-| 细胞系 | Marks | 预估 Peaks | 文件大小 |
-|--------|-------|-----------|---------|
-| GM12878 | 4 | ~280,000 | ~14 MB |
-| H1-hESC | 4 | ~250,000 | ~12 MB |
-| K562 | 4 | ~270,000 | ~13 MB |
-| **总计** | **12** | **~800,000** | **~40 MB** |
+| 细胞系 | Marks | Peaks（当前） | 文件大小（估算） |
+|--------|-------|--------------|------------------|
+| GM12878 | 8 | 481,911 | ~22.1 MB |
+| H1-hESC | 8 | 508,144 | ~18.6 MB |
+| K562 | 8 | 544,849 | ~16.3 MB |
+| **总计** | **24** | **1,534,904** | **~57.0 MB** |
 
 ---
 
