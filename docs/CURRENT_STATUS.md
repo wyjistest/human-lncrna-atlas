@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-02-10
+> 最后更新: 2026-02-12
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -41,6 +41,22 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-02-12 ⭐ hg19：外部数据/DB 审计复核 + gene_peak_associations 覆盖确认
+
+1. **外部数据组装一致性复核（防 hg38 混入）**
+   - 运行：`bash scripts/genomes/audit_external_data_assemblies.sh`
+   - 输出：`/data/wenyujianData/humanLncAtlas/audits/2026-02-12_14-49-36_external_assembly_audit/`
+
+2. **DB `reference_genome` 缺口审计（只读）**
+   - 运行：`bash scripts/genomes/audit_chipseq_reference_genome_db.sh --assembly hg19`
+   - 输出：`/data/wenyujianData/humanLncAtlas/audits/2026-02-12_14-49-21_chipseq_reference_genome_db_audit/`
+
+3. **`gene_peak_associations` 覆盖确认**
+   - `lncrna_production`：`gene_peak_associations` 已覆盖 `64/64` 个 human active experiments
+
+4. **复核报告**
+   - `docs/reports/CHIPSEQ_HG19_AUDIT_AND_ASSOCIATIONS_2026-02-12.md`
 
 ### 2026-02-10 ⭐ hg19：补齐 HMEC 缺失的 H3K4me2/H3K9ac（UCSC hg19 Broad Histone）
 
