@@ -66,7 +66,7 @@ on:
       response_regression_pct:
         description: "Gate: response regression pct threshold."
         required: false
-        default: "6"
+        default: "5"
       response_regression_abs_ms:
         description: "Gate: response regression abs threshold (ms)."
         required: false
@@ -74,7 +74,7 @@ on:
       db_regression_pct:
         description: "Gate: db regression pct threshold."
         required: false
-        default: "6"
+        default: "5"
       db_regression_abs_ms:
         description: "Gate: db regression abs threshold (ms)."
         required: false
@@ -101,9 +101,9 @@ env:
   REGULATIONS_PAGE_SIZE: ${{ github.event.inputs.regulations_page_size || '100' }}
   RESET_METRICS: ${{ github.event.inputs.reset_metrics || 'false' }}
   MIN_SAMPLES: ${{ github.event.inputs.min_samples || '50' }}
-  RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '6' }}
+  RESPONSE_REGRESSION_PCT: ${{ github.event.inputs.response_regression_pct || '5' }}
   RESPONSE_REGRESSION_ABS_MS: ${{ github.event.inputs.response_regression_abs_ms || '2' }}
-  DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '6' }}
+  DB_REGRESSION_PCT: ${{ github.event.inputs.db_regression_pct || '5' }}
   DB_REGRESSION_ABS_MS: ${{ github.event.inputs.db_regression_abs_ms || '1' }}
   PYTHON_VERSION: '3.11'
 

@@ -99,13 +99,13 @@ MODE=generate-baseline bash scripts/baselines/run_genes_regulations_perf_regress
 - 当 `failures > SOAK_MAX_FAILURES` 时整体失败
 - 每次 run 的 `docs/reports/perf-genes-regulations-*` 报告都会落盘（Actions 也会作为 artifact 上传）
 
-## 门禁规则（当前阈值）
+## 门禁规则（当前默认阈值）
 
-- 最小样本：每个端点 `requests >= 40`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
+- 最小样本：每个端点 `requests >= 50`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
   - 增加 warmup/sample 数量可显著降低小样本下 p95 噪声导致的误报概率（self-hosted 更稳定）。
 - 触发 FAIL 的回归阈值（同时满足“比例 + 绝对值”）：
-  - Response：`>8%` 且 `>2ms`
-  - DB：`>8%` 且 `>1ms`
+  - Response：`>5%` 且 `>2ms`
+  - DB：`>5%` 且 `>1ms`
 
 ## warmup 重试（减少偶发 429/5xx）
 
