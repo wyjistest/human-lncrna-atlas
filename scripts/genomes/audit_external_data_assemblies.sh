@@ -75,8 +75,8 @@ write_meta() {
       echo "host=$(hostname)"
     fi
     if command -v git >/dev/null 2>&1 && git -C "${REPO_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      echo "git_head=$(git -C \"${REPO_ROOT}\" rev-parse HEAD 2>/dev/null || true)"
-      echo "git_branch=$(git -C \"${REPO_ROOT}\" branch --show-current 2>/dev/null || true)"
+      echo "git_head=$(git -C "${REPO_ROOT}" rev-parse HEAD 2>/dev/null || true)"
+      echo "git_branch=$(git -C "${REPO_ROOT}" branch --show-current 2>/dev/null || true)"
     fi
     echo "python=$(python3 --version 2>/dev/null || true)"
   } > "${AUDIT_DIR}/meta.env"
