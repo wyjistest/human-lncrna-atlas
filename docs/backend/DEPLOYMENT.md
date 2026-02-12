@@ -116,6 +116,30 @@ curl http://localhost:8000/health
 open http://localhost:8000/docs
 ```
 
+### 8. FRP/NAT 公网访问（dev，可选）
+
+如果你通过 FRP/NAT 把：
+- 后端 `8000` 映射到公网端口（例如 `6004`）
+- 前端 `5173` 映射到公网端口（例如 `6005`）
+
+推荐直接使用仓库脚本在 **dev 模式** 启动（会自动注入 `TRUSTED_HOSTS`/`CORS_ORIGINS` 等，避免 `Invalid host header`）：
+
+```bash
+cd <repo-root>
+PUBLIC_HOST=<public-ip-or-domain> PUBLIC_FRONTEND_PORT=6005 PUBLIC_BACKEND_PORT=6004 ./scripts/dev.sh
+```
+
+快速自检（确认访问到的是哪个 DB，避免“前端数字很小/全 0”的误判）：
+
+```bash
+curl -s http://<public-ip-or-domain>:<public-backend-port>/ | python3 -m json.tool
+curl -s http://<public-ip-or-domain>:<public-backend-port>/health | python3 -m json.tool
+```
+
+说明：
+- `/` 会返回 `db_mode`/`db_name`（例如 `production/lncrna_production` 或 `baseline/lncrna_baseline`），用于排障与审计。
+- 若仍出现 `Invalid host header`：优先检查是否正确设置了 `PUBLIC_HOST`，以及 FRP 映射端口是否与 `PUBLIC_*_PORT` 一致。
+
 ---
 
 ## 🏭 生产环境部署

@@ -130,9 +130,17 @@ If you are behind FRP/NAT and the public ports differ from local ports, set them
 PUBLIC_HOST=<public-ip-or-domain> PUBLIC_FRONTEND_PORT=6003 PUBLIC_BACKEND_PORT=6004 ./scripts/dev.sh
 ```
 
+Quick self-check (backend):
+
+```bash
+curl -s http://<public-ip-or-domain>:<public-backend-port>/health | python3 -m json.tool
+curl -s http://<public-ip-or-domain>:<public-backend-port>/ | python3 -m json.tool
+```
+
 Tip: if the homepage shows very small numbers (e.g. `Total Genes=12`, `lncRNA=2`), your backend is likely
 using the perf baseline DB (`lncrna_baseline`, used by `scripts/baselines/*`). To run against the full DB
-(`lncrna_production`), start backend on another port and point the frontend to it, for example:
+(`lncrna_production`), confirm `/` returns `db_mode=baseline`/`db_name=lncrna_baseline`, then start backend
+on another port and point the frontend to it, for example:
 
 ```bash
 BACKEND_PORT=8001 ./scripts/dev.sh
