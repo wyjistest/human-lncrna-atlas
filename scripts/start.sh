@@ -114,6 +114,35 @@ run_detached() {
     DETACHED_PID=$!
 }
 
+is_port_listening() {
+    local port="$1"
+    if command -v ss > /dev/null 2>&1; then
+        # ss 输出格式示例：
+        # LISTEN ... 0.0.0.0:5173
+        # LISTEN ... [::]:5173
+        if ss -ltn 2>/dev/null | awk '{print $4}' | grep -Eq ":${port}$"; then
+            return 0
+        fi
+        return 1
+    fi
+
+    if command -v lsof > /dev/null 2>&1; then
+        if lsof -nP -iTCP:"$port" -sTCP:LISTEN > /dev/null 2>&1; then
+            return 0
+        fi
+        return 1
+    fi
+
+    if command -v netstat > /dev/null 2>&1; then
+        if netstat -ltn 2>/dev/null | awk '{print $4}' | grep -Eq ":${port}$"; then
+            return 0
+        fi
+        return 1
+    fi
+
+    return 1
+}
+
 detect_lan_ip() {
     # 尽量选择“默认路由出口”的 IPv4（通常就是局域网 IP）
     # 失败则回退到 hostname -I 的第一个地址
@@ -348,9 +377,9 @@ start_backend() {
 
     cd "$BACKEND_DIR"
 
-    # 检查是否已经在运行
-    if pgrep -f "uvicorn.*main:app.*$BACKEND_PORT" > /dev/null; then
-        log_warning "后端服务已在运行 (端口 $BACKEND_PORT)"
+    # 检查是否已经在运行（以端口监听为准，避免 pgrep 误判/竞态）
+    if is_port_listening "$BACKEND_PORT"; then
+        log_warning "后端端口已在监听 (端口 $BACKEND_PORT)"
         return 0
     fi
 
@@ -408,9 +437,9 @@ start_frontend() {
 
     cd "$FRONTEND_DIR"
 
-    # 检查是否已经在运行
-    if pgrep -f "vite.*$FRONTEND_PORT" > /dev/null; then
-        log_warning "前端服务已在运行 (端口 $FRONTEND_PORT)"
+    # 检查是否已经在运行（以端口监听为准，避免 pgrep 误判/竞态）
+    if is_port_listening "$FRONTEND_PORT"; then
+        log_warning "前端端口已在监听 (端口 $FRONTEND_PORT)"
         return 0
     fi
 
