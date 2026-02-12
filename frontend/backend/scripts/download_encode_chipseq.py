@@ -15,6 +15,7 @@ import subprocess
 from pathlib import Path
 from typing import List, Optional
 import json
+import gzip
 
 
 # UCSC ENCODE Histone base URLs
@@ -216,6 +217,12 @@ ENCODE_FILES = {
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k4me1StdPk.broadPeak.gz',
             'size_mb': 5.0,
         },
+        # Phase 5 新增 marks（补齐 8 marks 覆盖）
+        'H3K4me2': {
+            'file': 'wgEncodeBroadHistoneHmecH3k4me2StdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k4me2StdPk.broadPeak.gz',
+            'size_mb': 1.6,
+        },
         'H3K4me3': {
             'file': 'wgEncodeBroadHistoneHmecH3k4me3StdPk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k4me3StdPk.broadPeak.gz',
@@ -225,6 +232,12 @@ ENCODE_FILES = {
             'file': 'wgEncodeBroadHistoneHmecH3k09me3Pk.broadPeak.gz',
             'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k09me3Pk.broadPeak.gz',
             'size_mb': 2.0,
+        },
+        # Phase 5 新增 marks（补齐 8 marks 覆盖）
+        'H3K9ac': {
+            'file': 'wgEncodeBroadHistoneHmecH3k9acStdPk.broadPeak.gz',
+            'url': BASE_URL_BROAD + 'wgEncodeBroadHistoneHmecH3k9acStdPk.broadPeak.gz',
+            'size_mb': 0.9,
         },
         'H3K27me3': {
             'file': 'wgEncodeBroadHistoneHmecH3k27me3StdPk.broadPeak.gz',
@@ -285,6 +298,65 @@ CELL_LINE_METADATA = {
 }
 
 
+def _validate_downloaded_peak_file(path: Path, *, max_records_to_check: int = 5) -> tuple[bool, str]:
+    """Sanity-check the downloaded broadPeak/narrowPeak file.
+
+    Guardrails:
+    - Catch HTML/404 pages mistakenly saved as .gz
+    - Catch truncated/invalid gzip
+    - Catch obviously wrong TSV format
+    """
+    try:
+        size = path.stat().st_size
+    except OSError as e:
+        return False, f"stat_failed: {e}"
+
+    if size <= 0:
+        return False, "empty_file"
+
+    def _validate_lines(fh) -> tuple[bool, str]:
+        checked = 0
+        for lineno, line in enumerate(fh, 1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("#"):
+                continue
+            if stripped.startswith("track") or stripped.startswith("browser"):
+                continue
+
+            parts = stripped.split("\t")
+            if len(parts) < 3:
+                return False, f"too_few_columns: line={lineno}"
+            try:
+                int(parts[1])
+                int(parts[2])
+            except ValueError:
+                return False, f"invalid_coords: line={lineno}"
+
+            checked += 1
+            if checked >= max_records_to_check:
+                break
+
+        if checked == 0:
+            return False, "no_records"
+        return True, "ok"
+
+    if path.suffix == ".gz":
+        try:
+            with gzip.open(path, "rt", encoding="utf-8", errors="replace") as fh:
+                return _validate_lines(fh)
+        except OSError as e:
+            # e.g. "Not a gzipped file" (HTML error page)
+            return False, f"gzip_open_failed: {e}"
+
+    try:
+        with path.open("r", encoding="utf-8", errors="replace") as fh:
+            return _validate_lines(fh)
+    except OSError as e:
+        return False, f"open_failed: {e}"
+
+
 def download_file(url: str, output_path: Path, *, dry_run: bool = False, min_bytes: Optional[int] = None) -> bool:
     """Download a file using wget"""
     if dry_run:
@@ -318,6 +390,15 @@ def download_file(url: str, output_path: Path, *, dry_run: bool = False, min_byt
                     except OSError:
                         pass
                     return False
+
+            ok, reason = _validate_downloaded_peak_file(output_path)
+            if not ok:
+                print(f'  ✗ Downloaded file validation failed: {reason}')
+                try:
+                    output_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+                return False
 
             print(f'  ✓ Downloaded: {output_path.name}')
             return True
@@ -399,14 +480,8 @@ def download_mark_data(mark_type: str, cell_lines: List[str], output_dir: Path, 
         peaks_filename = file_info['file']
         peaks_path = output_dir / peaks_filename
 
-        expected_mb_raw = file_info.get("size_mb")
-        expected_mb = float(expected_mb_raw) if expected_mb_raw is not None else 0.0
-        # Allow some variance; this is a sanity guard against empty/error-page downloads.
-        if expected_mb > 0:
-            min_bytes = int(expected_mb * 1024 * 1024 * 0.5)
-        else:
-            # 没有 size_mb 时，给一个保守的下限（避免拿到 404/HTML 错误页也“下载成功”）
-            min_bytes = 200 * 1024
+        # Even tiny HTML error pages are typically <<100KB; real peaks are much larger.
+        min_bytes = int(file_info.get("min_bytes", 100 * 1024))
 
         if download_file(file_info['url'], peaks_path, dry_run=dry_run, min_bytes=min_bytes):
             # Generate metadata
