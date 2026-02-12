@@ -18,9 +18,10 @@ import json
 import gzip
 
 
-# UCSC ENCODE Histone base URLs
+# UCSC ENCODE Histone base URLs (hg19)
 BASE_URL_BROAD = 'http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeBroadHistone/'
 BASE_URL_UW = 'http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwHistone/'
+BASE_URL_SYDH = 'http://hgdownload.soe.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeSydhHistone/'
 # Legacy URL (kept for backward compatibility)
 BASE_URL = BASE_URL_BROAD
 
@@ -259,12 +260,41 @@ ENCODE_FILES = {
             'size_mb': 1.3,
         },
     },
-    # MCF-7: Breast adenocarcinoma cell line (UW Histone track - limited data)
+    # MCF-7: Breast adenocarcinoma cell line
+    # - UW Histone: H3K4me3
+    # - Sydh Histone: subset of marks available as narrowPeak (PeakSeq)
     'MCF-7': {
         'H3K4me3': {
             'file': 'wgEncodeUwHistoneMcf7H3k4me3StdHotspotsRep1.broadPeak.gz',
             'url': BASE_URL_UW + 'wgEncodeUwHistoneMcf7H3k4me3StdHotspotsRep1.broadPeak.gz',
             'size_mb': 0.5,
+        },
+        'H3K27ac': {
+            'file': 'wgEncodeSydhHistoneMcf7H3k27acUcdPk.narrowPeak.gz',
+            'url': BASE_URL_SYDH + 'wgEncodeSydhHistoneMcf7H3k27acUcdPk.narrowPeak.gz',
+            'size_mb': 0.5,
+            'peak_type': 'narrow',
+        },
+        'H3K9me3': {
+            # 注意：UCSC 使用 H3k09me3（带 0），不是 H3k9me3
+            'file': 'wgEncodeSydhHistoneMcf7H3k09me3UcdPk.narrowPeak.gz',
+            'url': BASE_URL_SYDH + 'wgEncodeSydhHistoneMcf7H3k09me3UcdPk.narrowPeak.gz',
+            'size_mb': 0.2,
+            'peak_type': 'narrow',
+        },
+        'H3K27me3': {
+            # 注意：UCSC Sydh track 使用 H3k27me3b（H3K27me3 抗体版本标记）
+            'file': 'wgEncodeSydhHistoneMcf7H3k27me3bUcdPk.narrowPeak.gz',
+            'url': BASE_URL_SYDH + 'wgEncodeSydhHistoneMcf7H3k27me3bUcdPk.narrowPeak.gz',
+            'size_mb': 0.4,
+            'peak_type': 'narrow',
+        },
+        'H3K36me3': {
+            # 注意：UCSC Sydh track 使用 H3k36me3b（H3K36me3 抗体版本标记）
+            'file': 'wgEncodeSydhHistoneMcf7H3k36me3bUcdPk.narrowPeak.gz',
+            'url': BASE_URL_SYDH + 'wgEncodeSydhHistoneMcf7H3k36me3bUcdPk.narrowPeak.gz',
+            'size_mb': 0.9,
+            'peak_type': 'narrow',
         },
     },
     # HMEC: Human mammary epithelial cells (Broad Histone track - full data)
@@ -484,11 +514,18 @@ def generate_metadata(mark_type: str, cell_line: str, file_info: dict) -> dict:
         antibody_source = 'University of Washington'
         encode_accession = f'UW_{cell_line}_{mark_type}'
         biosample_accession = f'UW_BS_{cell_line}'
+    elif 'SydhHistone' in url or 'wgEncodeSydh' in url:
+        source_database = 'ENCODE_Sydh'
+        antibody_source = 'Snyder Lab (USC)'
+        encode_accession = f'SYDH_{cell_line}_{mark_type}'
+        biosample_accession = f'SYDH_BS_{cell_line}'
     else:
         source_database = 'ENCODE_Broad'
         antibody_source = 'Broad Institute'
         encode_accession = f'BROAD_{cell_line}_{mark_type}'
         biosample_accession = f'BROAD_BS_{cell_line}'
+
+    peak_type = file_info.get("peak_type") or "broad"
 
     metadata = {
         'mark_type': mark_type,
@@ -504,7 +541,7 @@ def generate_metadata(mark_type: str, cell_line: str, file_info: dict) -> dict:
         'antibody_source': antibody_source,
         'replicate_type': 'pooled',
         'source_database': source_database,
-        'peak_type': 'broad',
+        'peak_type': peak_type,
         'genome_assembly': 'hg19',
         'data_source': 'UCSC_ENCODE',
         'download_url': url,
@@ -635,7 +672,7 @@ def main():
     print('='*60)
     print('ENCODE Histone Modification Data Downloader')
     print('='*60)
-    print('Source: UCSC Broad Histone (hg19)')
+    print('Source: UCSC ENCODE DCC (hg19)')
     print(f'Output: {output_dir}')
     print(f'Cell lines: {", ".join(args.cell_line)}')
     if args.dry_run:

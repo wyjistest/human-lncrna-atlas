@@ -1,7 +1,7 @@
 # ENCODE 真实数据下载和导入指南
 
 > **用途**: 使用真实 ENCODE 数据替换测试数据
-> **数据源**: UCSC ENCODE Broad Histone (hg19)
+> **数据源**: UCSC ENCODE DCC (hg19；包含 Broad/UW/Sydh Histone 等子轨道)
 
 ---
 
@@ -29,6 +29,7 @@
 - **HepG2 的 H3K9me3 文件名**：UCSC 上写作 `H3k09me3Pk`（注意 `09`，且是 `Pk` 不是 `StdPk`）。
 - **H1-hESC 的 H3K9me3 文件名**：UCSC 上写作 `H3k09me3`（注意 `09`），不是 `H3k9me3`。
 - **A549 没有 StdPk**：UCSC hg19 BroadHistone 的 A549 多为处理组（例如 `Etoh02Pk` / `Dex100nmPk`），且常见 `H3k04me1/2/3`、`H3k09ac/H3k09me3`（带前导 0）。
+- **MCF-7 来源不止 Broad/UW**：UCSC hg19 下 MCF-7 的部分 marks 位于 `wgEncodeSydhHistone/`（`narrowPeak.gz`，例如 `H3k27acUcdPk`），并非 BroadHistone 的 `broadPeak.gz`。
 
 ### 方案 A：使用我们的下载脚本（自动化）
 
@@ -389,7 +390,17 @@ python3 scripts/download_encode_chipseq.py \
     --all \
     --cell-line K562 \
     --output encode_k562
+
+# MCF-7（乳腺癌细胞系；UCSC hg19 下 H3K4me3 来自 UW，其余部分 marks 来自 Sydh 的 narrowPeak）
+python3 scripts/download_encode_chipseq.py \
+    --all \
+    --cell-line MCF-7 \
+    --output encode_mcf7
 ```
+
+说明：
+- `MCF-7` 在 UCSC hg19 下并非完整 “8 marks” 覆盖：目前可补齐 `H3K27ac/H3K27me3/H3K36me3/H3K9me3`（来自 `wgEncodeSydhHistone/`，PeakSeq narrowPeak），但仍缺少 `H3K4me1/H3K4me2/H3K9ac`。
+- 如你必须补齐到 8 marks：建议改用 ENCODE Portal（GRCh38）并 `liftOver` 到 hg19（需额外链文件与质量复核，避免隐式混组装）。
 
 ### 数据规模预估（3 个细胞系 × 8 marks；参考当前数据量）
 

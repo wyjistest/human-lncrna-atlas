@@ -34,6 +34,8 @@
 | GM12878 | B淋巴细胞 | 10 marks | ✅ 183,953 | 734,789 |
 | HepG2 | 肝癌细胞 | 9 marks | ✅ 192,959 | 781,991 |
 
+> 备注：仓库脚本已支持从 UCSC `wgEncodeSydhHistone/` 下载 MCF-7 的 `H3K27ac/H3K27me3/H3K36me3/H3K9me3`（hg19 narrowPeak），但当前统计仍以已导入 DB 的 experiments 为准。详见 `docs/ENCODE_DATA_GUIDE.md`。
+
 ### 核心数据
 
 - **物种**: 4种灵长类 (Human, Chimpanzee, Macaque, Marmoset)
