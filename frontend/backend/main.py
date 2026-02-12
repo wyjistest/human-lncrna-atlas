@@ -582,11 +582,27 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": sanitized_exc.detail},
     )
 
+def _compute_db_mode(db_name: str) -> str:
+    """
+    生成对外可展示的数据库运行模式（用于排障，避免误连 baseline DB）。
+
+    说明：
+    - 不暴露 host/user/password 等敏感信息
+    - 仅返回模式 + db_name（你已明确允许暴露最小化元信息）
+    """
+    name = (db_name or "").strip()
+    if name == "lncrna_production":
+        return "production"
+    if "baseline" in name.lower():
+        return "baseline"
+    return "custom"
+
 
 # 根路径
 @app.get("/", tags=["root"])
 def read_root():
     """API根路径"""
+    db_name = settings.DATABASE_NAME
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
@@ -595,6 +611,8 @@ def read_root():
         "redoc": "/redoc",
         "health": "/health",
         "api_prefix": settings.API_V1_PREFIX,
+        "db_mode": _compute_db_mode(db_name),
+        "db_name": db_name,
     }
 
 
@@ -606,6 +624,8 @@ def health_check(request: Request):
     from app.core.database import engine
     from app.core.cache import cache
     from sqlalchemy import text
+
+    db_name = settings.DATABASE_NAME
 
     # 检查数据库状态
     try:
@@ -643,6 +663,8 @@ def health_check(request: Request):
         database=db_status,
         redis=redis_status,
         version=settings.APP_VERSION,
+        db_mode=_compute_db_mode(db_name),
+        db_name=db_name,
     )
 
 

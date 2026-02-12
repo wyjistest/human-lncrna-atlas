@@ -38,5 +38,7 @@ class HealthResponse(BaseModel):
 
     status: str
     database: str
+    db_mode: str
+    db_name: str
     redis: Optional[str] = None
     version: str
