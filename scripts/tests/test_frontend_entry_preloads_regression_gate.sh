@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+re_q() {
+  local pattern="$1"
+  if command -v rg >/dev/null 2>&1; then
+    rg -q "$pattern"
+  else
+    grep -Eq "$pattern"
+  fi
+}
+
 # 目的：
 # - 验证 bundle size compare 脚本具备“首屏回归门禁”：
 #   - entry.gzipBytes 回归 > +2% 时应失败（exit != 0）
@@ -50,7 +59,7 @@ if node "$REPO_ROOT/frontend/web/scripts/compare-bundle-sizes.mjs" "$baseline" "
   exit 1
 fi
 
-cat "$output" | rg -q "entry\\.gzipBytes" || { echo "missing entry.gzipBytes diagnostic" >&2; cat "$output" >&2; exit 1; }
+cat "$output" | re_q "entry\\.gzipBytes" || { echo "missing entry.gzipBytes diagnostic" >&2; cat "$output" >&2; exit 1; }
 
 # <= +2% 应通过
 cat >"$current" <<'JSON'

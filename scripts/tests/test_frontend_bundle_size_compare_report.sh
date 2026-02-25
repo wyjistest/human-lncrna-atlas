@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+re_q() {
+  local pattern="$1"
+  if command -v rg >/dev/null 2>&1; then
+    rg -q "$pattern"
+  else
+    grep -Eq "$pattern"
+  fi
+}
+
 # 目的：
 # - 验证 bundle size compare 脚本能对比两份 JSON 快照，输出稳定且可读的差异摘要（用于定位回归）。
 
@@ -54,10 +63,10 @@ JSON
 # 说明：本测试关注“差异输出的稳定性”，不关注回归门禁；因此把阈值设得足够大避免因门禁导致 exit!=0。
 output="$(node "$REPO_ROOT/frontend/web/scripts/compare-bundle-sizes.mjs" "$baseline" "$current" --top 5 --max-entry-regression-pct 999 --max-preloads-regression-pct 999)"
 
-echo "$output" | rg -q "\\[bundle-size-diff\\]" || { echo "missing header" >&2; echo "$output" >&2; exit 1; }
-echo "$output" | rg -q "Entry:.*delta \\+20\\.0 kB" || { echo "missing entry delta" >&2; echo "$output" >&2; exit 1; }
-echo "$output" | rg -q "Modulepreload total:.*delta -90\\.0 kB" || { echo "missing modulepreload delta" >&2; echo "$output" >&2; exit 1; }
-echo "$output" | rg -q "react-vendor:.*delta \\+10\\.0 kB" || { echo "missing react-vendor delta" >&2; echo "$output" >&2; exit 1; }
-echo "$output" | rg -q "antd-vendor:.*delta -100\\.0 kB" || { echo "missing antd-vendor delta" >&2; echo "$output" >&2; exit 1; }
+echo "$output" | re_q "\\[bundle-size-diff\\]" || { echo "missing header" >&2; echo "$output" >&2; exit 1; }
+echo "$output" | re_q "Entry:.*delta \\+20\\.0 kB" || { echo "missing entry delta" >&2; echo "$output" >&2; exit 1; }
+echo "$output" | re_q "Modulepreload total:.*delta -90\\.0 kB" || { echo "missing modulepreload delta" >&2; echo "$output" >&2; exit 1; }
+echo "$output" | re_q "react-vendor:.*delta \\+10\\.0 kB" || { echo "missing react-vendor delta" >&2; echo "$output" >&2; exit 1; }
+echo "$output" | re_q "antd-vendor:.*delta -100\\.0 kB" || { echo "missing antd-vendor delta" >&2; echo "$output" >&2; exit 1; }
 
 echo "OK: bundle size compare report prints stable deltas"
