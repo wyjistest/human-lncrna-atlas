@@ -99,8 +99,8 @@ MODE=generate-baseline bash scripts/baselines/run_overlap_perf_regression_docker
 - 最小样本：每个端点 `requests >= 50`（否则直接 FAIL，避免“样本不足导致 percentiles 为 null”的静默通过）
   - 增加 warmup/sample 数量可显著降低小样本下 p95 噪声导致的误报概率（self-hosted 更稳定）。
 - 触发 FAIL 的回归阈值（同时满足“比例 + 绝对值”）：
-  - Response：`>5%` 且 `>2ms`
-  - DB：`>5%` 且 `>1ms`
+  - Response：`>4%` 且 `>2ms`
+  - DB：`>4%` 且 `>1ms`
 
 ## warmup 重试（减少偶发 429/5xx）
 
