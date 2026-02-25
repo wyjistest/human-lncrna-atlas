@@ -58,7 +58,7 @@ DEFAULT_REGULATIONS_PAGE_SIZE = 100
 DEFAULT_MIN_SAMPLES = 50
 DEFAULT_PRE_WARMUP_ROUNDS = 0
 
-DEFAULT_RESPONSE_REGRESSION_PCT = 5.0
+DEFAULT_RESPONSE_REGRESSION_PCT = 4.0
 # Genes/Regulations 的 tail 指标仍可能受环境抖动影响，但在提高 warmup/min_samples 后，
 # 默认收紧绝对阈值以更早发现明显回归；db 维度也收紧到 1ms 以提升回归敏感度（仍保留 pct+abs 双阈值降噪）。
 #
@@ -67,7 +67,7 @@ DEFAULT_RESPONSE_REGRESSION_PCT = 5.0
 # - 在 self-hosted 环境连续运行通过后，将 response abs 阈值进一步收紧到 2ms，
 #   以便更早捕获明显回归，同时仍保留 pct+abs 双阈值降低误报。
 DEFAULT_RESPONSE_REGRESSION_ABS_MS = 2.0
-DEFAULT_DB_REGRESSION_PCT = 5.0
+DEFAULT_DB_REGRESSION_PCT = 4.0
 DEFAULT_DB_REGRESSION_ABS_MS = 1.0
 
 DEFAULT_WARMUP_MAX_RETRIES = 2
