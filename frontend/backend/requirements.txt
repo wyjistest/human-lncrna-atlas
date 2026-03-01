@@ -7,10 +7,10 @@ pydantic>=2.5.0,<3.0.0
 
 # 数据库
 psycopg2-binary==2.9.11
-sqlalchemy==2.0.46
+sqlalchemy==2.0.47
 
 # 缓存
-redis==7.2.0
+redis==7.2.1
 hiredis==3.3.0
 
 # 限流 (Rate Limiting)
