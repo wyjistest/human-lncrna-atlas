@@ -140,7 +140,7 @@ jobs:
           pip-audit -r requirements.txt --strict --progress-spinner off
 
       - name: Upload audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: python-audit-report
@@ -238,7 +238,7 @@ jobs:
           npm audit --registry=https://registry.npmjs.org --audit-level=high
 
       - name: Upload audit report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: npm-audit-report
