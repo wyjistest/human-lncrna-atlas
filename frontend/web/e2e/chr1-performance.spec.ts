@@ -48,7 +48,8 @@ const PERF_THRESHOLDS = {
 async function waitForOverlapAPIWithMetadata(
   page: Page,
   timeout = 60000,
-  urlMustInclude: string[] = []
+  urlMustInclude: string[] = [],
+  logTimeoutError = true
 ): Promise<{
   response: any
   responseTime: number
@@ -83,7 +84,9 @@ async function waitForOverlapAPIWithMetadata(
       total: jsonData.total ?? 0
     }
   } catch (error) {
-    console.error('Failed to capture API response:', error)
+    if (logTimeoutError) {
+      console.error('Failed to capture API response:', error)
+    }
     return null
   }
 }
@@ -238,29 +241,34 @@ test.describe('Chr1 Large Chromosome Query Performance (P0)', () => {
   })
 
   test('P0: should handle all chromosomes query with materialized view optimization', async ({ page }) => {
-    // Track API requests to verify MV usage
-    let apiMetadata: any = null
-
-    page.on('response', async (response) => {
-      if (response.url().includes('/api/v1/lncrna-chipseq-overlap') &&
-          !response.url().includes('/summary') &&
-          !response.url().includes('/heatmap') &&
-          !response.url().includes('/export') &&
-          response.status() === 200) {
-        try {
-          apiMetadata = await response.json()
-        } catch (e) {
-          // Ignore JSON parse errors
-        }
-      }
+    // Start from a specific chromosome so clearing the filter always triggers a fresh all-chromosome query.
+    let chr1Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    const selected = await selectChromosome(page, 'chr1', async () => {
+      chr1Response = waitForOverlapAPIWithMetadata(page, PERF_THRESHOLDS.CHR1_MAX_LOAD_TIME, ['chromosome=chr1'])
     })
+    if (!selected) {
+      console.log('Skipping: chr1 selection not available')
+      test.skip()
+      return
+    }
 
-    // Clear any chromosome filter to query all chromosomes
-    await clearChromosomeFilter(page)
-    await page.waitForTimeout(500)
+    await (chr1Response ?? waitForOverlapAPIWithMetadata(page, PERF_THRESHOLDS.CHR1_MAX_LOAD_TIME, ['chromosome=chr1']))
 
-    // Wait for the API response
-    const result = await waitForOverlapAPIWithMetadata(page, PERF_THRESHOLDS.ALL_CHROMOSOMES_MAX_TIME)
+    // Clear the chromosome filter and wait for the new all-chromosome request.
+    const allChromosomeResponse = waitForOverlapAPIWithMetadata(
+      page,
+      PERF_THRESHOLDS.ALL_CHROMOSOMES_MAX_TIME,
+      [],
+      false
+    )
+    const cleared = await clearChromosomeFilter(page)
+    if (!cleared) {
+      console.log('Skipping: could not clear chromosome filter')
+      test.skip()
+      return
+    }
+
+    const result = await allChromosomeResponse
 
     // If no result within timeout, the query may still be running - this is acceptable
     // but we should verify the loading state is displayed
@@ -411,15 +419,17 @@ test.describe('Overlap Query Functionality (P1)', () => {
 
   test('P1: should display info alert for all-chromosome queries', async ({ page }) => {
     // Ensure we start from a specific chromosome so clearing triggers a real state change
-    const selected = await selectChromosome(page, 'chr1')
+    let chr1Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    const selected = await selectChromosome(page, 'chr1', async () => {
+      chr1Response = waitForOverlapAPIWithMetadata(page, 30000, ['chromosome=chr1'])
+    })
     if (!selected) {
       console.log('Skipping: chromosome selector not available')
       test.skip()
       return
     }
 
-    // Wait for chr22 query to settle (best effort)
-    await waitForOverlapAPIWithMetadata(page, 30000)
+    await (chr1Response ?? waitForOverlapAPIWithMetadata(page, 30000, ['chromosome=chr1']))
 
     // Clear chromosome filter to switch back to all-chromosome query
     const cleared = await clearChromosomeFilter(page)
@@ -544,8 +554,11 @@ test.describe('Regression Tests (P2)', () => {
   })
 
   test('P2: should export functionality work with chr1 (large dataset)', async ({ page }) => {
-    // Select chr1
-    const selected = await selectChromosome(page, 'chr1')
+    // Select chr1 and arm the waiter before the click to avoid missing a fast response.
+    let chr1Response: ReturnType<typeof waitForOverlapAPIWithMetadata> | null = null
+    const selected = await selectChromosome(page, 'chr1', async () => {
+      chr1Response = waitForOverlapAPIWithMetadata(page, 45000, ['chromosome=chr1'])
+    })
     if (!selected) {
       console.log('Skipping: chr1 selection not available')
       test.skip()
@@ -553,7 +566,7 @@ test.describe('Regression Tests (P2)', () => {
     }
 
     // Wait for data to load
-    await waitForOverlapAPIWithMetadata(page, 45000)
+    await (chr1Response ?? waitForOverlapAPIWithMetadata(page, 45000, ['chromosome=chr1']))
     await page.waitForTimeout(1000)
 
     // Find export button

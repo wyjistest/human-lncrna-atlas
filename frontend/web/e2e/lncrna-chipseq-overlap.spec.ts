@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { switchLanguage } from './helpers/i18n'
 
 /**
  * lncRNA-ChIP-seq Overlap Analysis E2E Tests
@@ -395,29 +396,15 @@ test.describe('lncRNA-ChIP-seq Overlap Analysis Page', () => {
   })
 
   test('should display English content', async ({ page }) => {
-    // Look for language switcher
-    const langSwitcher = page.locator('[class*="language"]').first()
-      .or(page.getByRole('button', { name: /中文|English/i }).first())
+    const languageSwitcher = page.getByTestId('language-switcher')
+    const currentText = await languageSwitcher.textContent()
 
-    if (await langSwitcher.count() > 0) {
-      // Click to open language menu
-      await langSwitcher.click()
-      await page.waitForTimeout(300)
-
-      // Select English
-      const englishOption = page.getByText('English').first()
-      if (await englishOption.isVisible().catch(() => false)) {
-        await englishOption.click()
-        await page.waitForTimeout(500)
-
-        // Verify English text in title
-        const title = page.locator('h1, h2').first()
-        const titleText = await title.textContent()
-
-        // Title should contain English words
-        expect(titleText).toMatch(/lncRNA.*ChIP.*seq.*Overlap/i)
-      }
+    if (!currentText?.includes('English')) {
+      await switchLanguage(page, /English/i)
     }
+
+    const title = page.locator('h1, h2').first()
+    await expect(title).toContainText(/lncRNA.*ChIP.*seq.*Overlap/i)
 
     // At minimum, verify page loaded successfully
     const mainContent = page.locator('h1, h2, .ant-table').first()

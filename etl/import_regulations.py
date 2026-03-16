@@ -321,6 +321,9 @@ class RegulationsImporter:
                             logger.warning(f"第{i}行: 未知物种 '{sp_code}', 跳过")
                             continue
 
+                        if detected_species_id is None:
+                            detected_species_id = species_id
+
                         # 加载该物种的基因缓存（按需加载，使用Set检查O(1)）
                         if species_id not in self._loaded_species:
                             self._load_gene_cache(species_id)
@@ -424,8 +427,8 @@ class RegulationsImporter:
 
             # 如果还没有创建批次（所有数据都被跳过的情况），现在创建
             if batch_id is None and not dry_run:
-                detected_species_id = regulations[0]['species_id'] if regulations else 1
-                batch_id = self._create_batch(batch_name, detected_species_id, file_path)
+                fallback_species_id = detected_species_id or (regulations[0]['species_id'] if regulations else 1)
+                batch_id = self._create_batch(batch_name, fallback_species_id, file_path)
                 logger.info(f"延迟创建批次: batch_id={batch_id}")
 
             # 插入剩余数据

@@ -15,6 +15,51 @@ import { test, expect } from '@playwright/test'
  */
 
 const PAGE_URL = '/lncrna-chipseq-overlap'
+const MOCK_OVERLAP_RESPONSE = {
+  total: 1,
+  page: 1,
+  page_size: 20,
+  using_materialized_view: false,
+  default_filter_applied: false,
+  effective_chromosome: null,
+  items: [
+    {
+      overlap_id: 'reg_1_peak_1',
+      regulation_id: 1,
+      lncrna_gene_id: 1,
+      lncrna_name: 'MALAT1',
+      target_gene_id: 2,
+      target_gene_name: 'TP53',
+      mark_type: 'H3K27me3',
+      mark_category: 'repressive',
+      cell_type: 'K562',
+      chromosome: 'chr11',
+      lncrna_binding_start: 100,
+      lncrna_binding_end: 120,
+      peak_start: 110,
+      peak_end: 140,
+      overlap_start: 110,
+      overlap_end: 120,
+      overlap_length: 10,
+      binding_affinity: 150.5,
+      peak_fold_enrichment: 12.3,
+      peak_qvalue: 0.01,
+    },
+  ],
+}
+
+const MOCK_OVERLAP_SUMMARY_RESPONSE = {
+  total_overlaps: 1,
+  unique_lncrnas: 1,
+  unique_target_genes: 1,
+  unique_marks: 1,
+  unique_cell_types: 1,
+  avg_overlap_length: 10,
+  avg_binding_affinity: 150.5,
+  avg_peak_strength: 12.3,
+  by_mark_type: [{ mark_type: 'H3K27me3', count: 1, avg_strength: 12.3 }],
+  by_cell_type: [{ cell_type: 'K562', count: 1 }],
+}
 
 // ============================================================================
 // P0 测试：布局渲染
@@ -350,10 +395,29 @@ test.describe('Overlap IGV Integration - Error Handling', () => {
   })
 
   test('should handle IGV initialization failure', async ({ page }) => {
+    // Register the broad pattern FIRST so Playwright's LIFO matching
+    // lets the more specific /summary* route (registered second) take priority.
+    await page.route('**/api/v1/lncrna-chipseq-overlap*', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_OVERLAP_RESPONSE),
+      })
+    })
+
+    await page.route('**/api/v1/lncrna-chipseq-overlap/summary*', (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_OVERLAP_SUMMARY_RESPONSE),
+      })
+    })
+
     // 拦截 IGV 配置 API
     await page.route('**/api/v1/igv/**', (route) => {
       route.fulfill({
         status: 500,
+        contentType: 'application/json',
         body: JSON.stringify({ detail: 'IGV config error' })
       })
     })
@@ -365,6 +429,7 @@ test.describe('Overlap IGV Integration - Error Handling', () => {
     const table = page.locator('.ant-table')
     const hasTable = await table.isVisible({ timeout: 5000 }).catch(() => false)
 
+    expect(hasTable).toBe(true)
     console.log(`Table visible despite IGV error: ${hasTable ? '✓' : '⚠'}`)
 
     // 可能显示 IGV 错误提示

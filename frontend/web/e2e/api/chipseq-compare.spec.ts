@@ -17,8 +17,52 @@ import { test, expect } from '@playwright/test'
 
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8000'
 
-// Test gene ID with known ChIP-seq data
-const TEST_GENE_ID = 17276
+const DEFAULT_TEST_GENE_ID = 1
+const LEGACY_TEST_GENE_ID = 17276
+let TEST_GENE_ID = DEFAULT_TEST_GENE_ID
+
+async function probeChipseq(geneId: number): Promise<boolean> {
+  const response = await fetch(
+    `${API_BASE}/api/v1/features/chipseq/genes/${geneId}?mark_type=H3K27me3&flanking=10000`
+  )
+  return response.ok
+}
+
+async function resolveChipseqGeneId(): Promise<number> {
+  // Fast path: try env var first without any list fetch
+  const envGeneId = Number.parseInt(process.env.TEST_CHIPSEQ_GENE_ID ?? '', 10)
+  if (Number.isInteger(envGeneId) && envGeneId > 0 && await probeChipseq(envGeneId)) {
+    return envGeneId
+  }
+
+  // Try well-known IDs before fetching the gene list
+  for (const id of [DEFAULT_TEST_GENE_ID, LEGACY_TEST_GENE_ID]) {
+    if (await probeChipseq(id)) return id
+  }
+
+  // Fallback: probe genes from the list endpoint
+  try {
+    const genesResponse = await fetch(`${API_BASE}/api/v1/genes?page=1&page_size=20`)
+    if (genesResponse.ok) {
+      const genesPayload = await genesResponse.json()
+      for (const item of genesPayload.items ?? []) {
+        if (typeof item?.gene_id === 'number' && item.gene_id > 0) {
+          if (await probeChipseq(item.gene_id)) return item.gene_id
+        }
+      }
+    }
+  }
+  catch (error) {
+    console.warn('Failed to probe candidate genes from /api/v1/genes:', error)
+  }
+
+  throw new Error(`Unable to resolve a gene with ChIP-seq data from ${API_BASE}`)
+}
+
+test.beforeAll(async () => {
+  TEST_GENE_ID = await resolveChipseqGeneId()
+  console.log(`Using ChIP-seq test gene: ${TEST_GENE_ID}`)
+})
 
 test.describe('ChIP-seq Available Marks API', () => {
   test('GET /api/v1/features/chipseq/marks returns available marks', async ({ request }) => {

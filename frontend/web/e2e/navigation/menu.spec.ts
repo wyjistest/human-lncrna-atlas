@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { switchLanguage } from '../helpers/i18n'
 
 /**
  * Navigation Menu E2E Tests
@@ -14,7 +15,6 @@ import { test, expect } from '@playwright/test'
  *
  * Note: Page language may be Chinese or English depending on browser settings
  */
-
 
 test.describe('Main Navigation Menu', () => {
   test.beforeEach(async ({ page }) => {
@@ -396,24 +396,16 @@ test.describe('Language Switching', () => {
     await page.goto('/')
     await page.waitForLoadState('networkidle')
 
-    const languageSwitcher = page.locator('[data-testid="language-switcher"]')
-      .or(page.locator('.ant-dropdown-trigger').filter({ hasText: /EN|ZH/i }))
+    const languageSwitcher = page.getByTestId('language-switcher')
+    await expect(languageSwitcher).toBeVisible()
 
-    if ((await languageSwitcher.count()) > 0) {
-      await languageSwitcher.click()
-      await page.waitForTimeout(300)
+    const currentText = await languageSwitcher.textContent()
+    const targetPattern = currentText?.includes('English')
+      ? /简体中文|中文/i
+      : /English/i
 
-      // Look for language option
-      const languageOption = page.getByText(/English|中文/i)
-        .or(page.locator('.ant-dropdown-menu-item'))
-
-      if ((await languageOption.count()) > 0) {
-        await languageOption.first().click()
-        await page.waitForTimeout(500)
-
-        // Page should update (menu items should be in selected language)
-        console.log('Language switched')
-      }
-    }
+    await switchLanguage(page, targetPattern)
+    await expect(languageSwitcher).toContainText(targetPattern)
+    console.log('Language switched')
   })
 })

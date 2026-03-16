@@ -44,7 +44,6 @@ export default defineConfig(({ mode }) => {
           '/assets/react-vendor-',
           '/assets/query-vendor-',
           '/assets/i18n-vendor-',
-          '/assets/antd-vendor-',
         ]
 
         return deps.filter((dep) => {

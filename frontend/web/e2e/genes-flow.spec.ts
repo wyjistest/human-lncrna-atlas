@@ -104,12 +104,13 @@ test.describe('基因浏览流程', () => {
     await expect(textarea).toBeVisible()
     await textarea.fill('17276')
 
-    await page.getByRole('button', { name: /Query|查询/i }).click()
-
-    await page.waitForResponse(
-      (response) => response.url().includes('/api/v1/genes/batch') && response.status() === 200,
-      { timeout: 20000 },
-    )
+    await Promise.all([
+      page.waitForResponse(
+        (response) => response.url().includes('/api/v1/genes/batch') && response.status() === 200,
+        { timeout: 20000 },
+      ),
+      page.getByRole('button', { name: /Query|查询/i }).click(),
+    ])
 
     // 表格应刷新并显示结果
     const genesTable = page.getByTestId('genes-table')

@@ -13,6 +13,15 @@ FRONTEND_DIR="$PROJECT_ROOT/frontend/web"
 API_BASE_URL="${API_BASE_URL:-http://localhost:8000}"
 BASE_URL="${BASE_URL:-http://localhost:5173}"
 
+normalize_backend_origin_url() {
+    local raw="${1:-}"
+    raw="${raw%/}"
+    if [[ "$raw" == */api/v1 ]]; then
+        raw="${raw%/api/v1}"
+    fi
+    echo "$raw"
+}
+
 # 兼容本地代理环境：默认绕过 localhost/127.0.0.1，避免 curl 走 http_proxy 导致卡住。
 DEFAULT_NO_PROXY="127.0.0.1,localhost,::1"
 export NO_PROXY="${NO_PROXY:-$DEFAULT_NO_PROXY}"
@@ -337,13 +346,15 @@ run_backend_security_audit() {
 run_backend_tests() {
     echo -e "${YELLOW}运行后端 API 合同测试...${NC}"
     local python_bin
+    local backend_origin_url
     python_bin="$(resolve_backend_python)"
+    backend_origin_url="$(normalize_backend_origin_url "$API_BASE_URL")"
     ensure_backend_pytest "$python_bin" || return 1
 
     cd "$BACKEND_DIR"
 
     # integration 测试默认是 opt-in（见 frontend/backend/tests/conftest.py）
-    if RUN_INTEGRATION_TESTS=1 "$python_bin" -m pytest tests/test_api_contracts.py -v --tb=short; then
+    if RUN_INTEGRATION_TESTS=1 TEST_API_URL="$backend_origin_url" "$python_bin" -m pytest tests/test_api_contracts.py -v --tb=short; then
         echo -e "${GREEN}后端 API 测试通过!${NC}"
         return 0
     else

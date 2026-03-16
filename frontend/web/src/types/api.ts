@@ -430,7 +430,7 @@ export interface components {
             /** Gene Id */
             gene_id: number;
             /** Core Id */
-            core_id: number;
+            core_id: number | null;
             /** Species Id */
             species_id: number;
             /** Species Name */
@@ -483,7 +483,7 @@ export interface components {
             /** Gene Id */
             gene_id: number;
             /** Core Id */
-            core_id: number;
+            core_id: number | null;
             /** Gene Name */
             gene_name?: string | null;
             /** Gene Ensembl Id */

@@ -188,16 +188,30 @@ def validate_single_response(data: dict, schema: type) -> Any:
 # ============== 常用测试数据 ==============
 # 可通过环境变量配置，支持不同环境/数据集
 
-@pytest.fixture
-def known_gene_id() -> int:
+@pytest.fixture(scope="session")
+def known_gene_id(client: httpx.Client) -> int:
     """已知存在的基因 ID（用于详情测试）"""
-    return int(os.getenv("TEST_KNOWN_GENE_ID", "17276"))
+    return resolve_existing_resource_id(
+        api_client=client,
+        env_name="TEST_KNOWN_GENE_ID",
+        fallback_id=17276,
+        list_path="/api/v1/genes?page=1&page_size=1",
+        detail_path_template="/api/v1/genes/{resource_id}",
+        id_field="gene_id",
+    )
 
 
-@pytest.fixture
-def known_regulation_id() -> int:
+@pytest.fixture(scope="session")
+def known_regulation_id(client: httpx.Client) -> int:
     """已知存在的调控关系 ID"""
-    return int(os.getenv("TEST_KNOWN_REGULATION_ID", "804941"))
+    return resolve_existing_resource_id(
+        api_client=client,
+        env_name="TEST_KNOWN_REGULATION_ID",
+        fallback_id=804941,
+        list_path="/api/v1/regulations?page=1&page_size=1",
+        detail_path_template="/api/v1/regulations/{resource_id}",
+        id_field="regulation_id",
+    )
 
 
 @pytest.fixture
@@ -270,6 +284,49 @@ class APIAssertions:
 def api_assert() -> APIAssertions:
     """API 断言辅助"""
     return APIAssertions()
+
+
+def resolve_existing_resource_id(
+    api_client: httpx.Client,
+    env_name: str,
+    fallback_id: int,
+    list_path: str,
+    detail_path_template: str,
+    id_field: str,
+) -> int:
+    """
+    解析当前测试环境中真实存在的资源 ID。
+
+    优先使用环境变量或历史默认值；若详情接口不可用，则回退到列表接口首条记录，
+    避免合同测试被特定样本数据集的固定 ID 绑死。
+    """
+    candidate = _parse_positive_int(os.getenv(env_name)) or fallback_id
+    detail_response = api_client.get(detail_path_template.format(resource_id=candidate))
+    if detail_response.status_code == 200:
+        return candidate
+
+    list_response = api_client.get(list_path)
+    assert list_response.status_code == 200, (
+        f"无法通过 {list_path} 解析可用 ID，状态码: {list_response.status_code}，"
+        f"响应: {list_response.text[:500]}"
+    )
+
+    payload = list_response.json()
+    items = payload.get("items")
+    assert isinstance(items, list) and items, f"{list_path} 未返回可用 items"
+
+    resolved_id = _parse_positive_int(items[0].get(id_field))
+    assert resolved_id is not None, f"{list_path} 返回的首条记录缺少有效的 {id_field}"
+    return resolved_id
+
+
+def _parse_positive_int(value: Any) -> int | None:
+    """将环境变量或 JSON 字段安全解析为正整数。"""
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
 
 
 # ============== 安全测试 Fixtures ==============

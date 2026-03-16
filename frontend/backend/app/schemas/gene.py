@@ -18,7 +18,7 @@ class GeneListItem(BaseModel):
     """基因列表项（用于列表展示）"""
 
     gene_id: int
-    core_id: int
+    core_id: Optional[int] = None
     gene_name: Optional[str] = None
     gene_ensembl_id: Optional[str] = None
     gene_type: str = Field(description="基因类型（lncRNA/protein_coding）")
@@ -62,7 +62,7 @@ class GeneDetail(BaseModel):
 
     # 基本信息
     gene_id: int
-    core_id: int
+    core_id: Optional[int] = None
     species_id: int
     species_name: str
     gene_name: Optional[str] = None

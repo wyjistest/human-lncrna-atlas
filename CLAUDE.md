@@ -4,9 +4,9 @@
 
 | 项目 | 信息 |
 |------|------|
-| 版本 | Phase 9.50 |
+| 版本 | Phase 9.51 |
 | 状态 | 🟢 生产就绪 |
-| 更新 | 2025-12-28 |
+| 更新 | 2026-03-16 |
 | 数据库 | PostgreSQL 15+ (NULLS NOT DISTINCT) |
 | GitHub | https://github.com/wyjistest/human-lncrna-atlas |
 
@@ -291,7 +291,8 @@ DB_POOL_MAX_OVERFLOW=20
 | 9.47 | Codex 三十七次审查修复: 流式导出资源清理 (try/finally close) + CSV 公式注入防护增强 (前导空白/BOM 绕过) | 2025-12-28 |
 | 9.48 | Codex 三十八次审查修复: IGV 轨道 DoS 防护 (区域大小限制 10Mb + 默认记录限制 50k + max_records 参数) | 2025-12-28 |
 | 9.49 | Codex 三十九次审查修复: 日志脱敏 (safeWindow URL redact) + ETL logging 副作用移除 + /genomes percent-encoding 路径遍历加固 + 分块查询防 DoS + 缓存 Singleflight 并发防护 + IGV/Cytoscape 事件监听器清理 | 2025-12-28 |
-| **9.50** | **Codex 四十至四十五次审查修复 (6 轮): CSV 注入绕过防护 + Admin Key 收敛 + Redis 缓存失效 + ETL BatchManager 幂等 + API Path 参数校验 + Cytoscape 类型安全 + Toast 节流 + Flaky Tests 消除 + Redis 重连退避 + Docker Compose + Dependabot** | **2025-12-28** |
+| 9.50 | Codex 四十至四十五次审查修复 (6 轮): CSV 注入绕过防护 + Admin Key 收敛 + Redis 缓存失效 + ETL BatchManager 幂等 + API Path 参数校验 + Cytoscape 类型安全 + Toast 节流 + Flaky Tests 消除 + Redis 重连退避 + Docker Compose + Dependabot | 2025-12-28 |
+| **9.51** | **全面代码审查修复: Playwright 路由 LIFO 顺序修正 + E2E switchLanguage 共享提取 + 恒真断言清理 + pytest fixture session 作用域优化 + resolveChipseqGeneId 快速路径 + mock 信封字段补全 + core_id nullable + ETL species_id 保留 + 测试回归修复** | **2026-03-16** |
 
 > 详细 Phase 历史: [docs/phases/PHASE_HISTORY.md](docs/phases/PHASE_HISTORY.md)
 

@@ -29,6 +29,30 @@ const TEST_PAGES = [
   { path: '/diseases', name: 'Diseases', api: '/api/v1/diseases' },
 ]
 
+const MOCK_GENES_RESPONSE = {
+  items: [],
+  total: 0,
+  page: 1,
+  page_size: 20,
+}
+
+const MOCK_REGULATIONS_RESPONSE = {
+  items: [],
+  total: 0,
+  page: 1,
+  page_size: 20,
+}
+
+async function expectErrorState(page: Page, detailPattern?: RegExp) {
+  const errorState = page.locator('.ant-result').first()
+  await expect(errorState).toBeVisible({ timeout: 10000 })
+  await expect(errorState).toContainText(/Failed to load|Load Failed|加载失败/i)
+
+  if (detailPattern) {
+    await expect(errorState).toContainText(detailPattern)
+  }
+}
+
 // ============================================================================
 // Test Suite: Global Error Boundary
 // ============================================================================
@@ -106,6 +130,7 @@ test.describe('HTTP Error Status Handling', () => {
     const hasError = await errorIndicator.isVisible().catch(() => false) ||
                      await errorText.isVisible().catch(() => false)
 
+    expect(hasError).toBe(true)
     console.log(`400 error handled: ${hasError}`)
   })
 
@@ -125,6 +150,7 @@ test.describe('HTTP Error Status Handling', () => {
     const errorText = page.getByText(/Unauthorized|Login|认证|登录/i)
     const hasError = await errorText.isVisible().catch(() => false)
 
+    expect(hasError).toBe(true)
     console.log(`401 error handled: ${hasError}`)
 
     // Page should not crash
@@ -147,6 +173,7 @@ test.describe('HTTP Error Status Handling', () => {
     const errorText = page.getByText(/Forbidden|Permission|禁止|权限/i)
     const hasError = await errorText.isVisible().catch(() => false)
 
+    expect(hasError).toBe(true)
     console.log(`403 error handled: ${hasError}`)
   })
 
@@ -161,14 +188,8 @@ test.describe('HTTP Error Status Handling', () => {
 
     await page.goto('/genes')
     await page.waitForTimeout(3000)
-
-    const errorText = page.getByText(/Not Found|404|未找到/i)
-    const emptyState = page.locator('.ant-empty')
-
-    const hasError = await errorText.isVisible().catch(() => false)
-    const isEmpty = await emptyState.isVisible().catch(() => false)
-
-    console.log(`404 error handled: error=${hasError}, empty=${isEmpty}`)
+    await expectErrorState(page, /Resource not found|Not Found|404|未找到/i)
+    console.log('404 error handled')
   })
 
 	  test('Handles 500 Internal Server Error', async ({ page }) => {
@@ -207,12 +228,7 @@ test.describe('HTTP Error Status Handling', () => {
     })
 
     await page.goto('/genes')
-    await page.waitForTimeout(3000)
-
-    const errorText = page.getByText(/Gateway|502|网关/i)
-    const hasError = await errorText.isVisible().catch(() => false)
-
-    console.log(`502 error handled: ${hasError}`)
+    await expectErrorState(page, /Request failed|Bad Gateway|502/i)
 
     // Page should not crash
     const body = page.locator('body')
@@ -230,11 +246,8 @@ test.describe('HTTP Error Status Handling', () => {
 
     await page.goto('/regulations')
     await page.waitForTimeout(3000)
-
-    const errorText = page.getByText(/Unavailable|503|服务不可用/i)
-    const hasError = await errorText.isVisible().catch(() => false)
-
-    console.log(`503 error handled: ${hasError}`)
+    await expectErrorState(page, /Service Unavailable|Unavailable|503|服务不可用/i)
+    console.log('503 error handled')
   })
 })
 
@@ -263,6 +276,7 @@ test.describe('Network Error Handling', () => {
     const isLoading = await spinner.isVisible().catch(() => false)
     const hasError = await errorText.isVisible().catch(() => false)
 
+    expect(isLoading || hasError).toBe(true)
     console.log(`Timeout handling: loading=${isLoading}, error=${hasError}`)
   })
 
@@ -272,12 +286,7 @@ test.describe('Network Error Handling', () => {
     })
 
     await page.goto('/regulations')
-    await page.waitForTimeout(3000)
-
-    const errorText = page.getByText(/Network|Connection|Failed|网络|连接/i)
-    const hasError = await errorText.isVisible().catch(() => false)
-
-    console.log(`Network failure handled: ${hasError}`)
+    await expectErrorState(page, /Network error|check your connection|连接/i)
 
     // Page should still render
     const body = page.locator('body')
@@ -302,7 +311,11 @@ test.describe('Network Error Handling', () => {
   test('Handles slow network', async ({ page }) => {
     await page.route('**/api/v1/**', async (route) => {
       await new Promise(resolve => setTimeout(resolve, 5000))
-      route.continue()
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(MOCK_GENES_RESPONSE),
+      })
     })
 
     await page.goto('/genes')
@@ -311,6 +324,7 @@ test.describe('Network Error Handling', () => {
     const spinner = page.locator('.ant-spin')
     const isLoading = await spinner.isVisible({ timeout: 2000 }).catch(() => false)
 
+    expect(isLoading).toBe(true)
     console.log(`Slow network shows loading: ${isLoading}`)
 
     // Eventually should load
@@ -493,7 +507,7 @@ test.describe('Empty States', () => {
 
 test.describe('Retry Mechanisms', () => {
 
-  test('Retry button is shown on error', async ({ page }) => {
+  test('Error state is shown on server error', async ({ page }) => {
     await page.route('**/api/v1/genes*', (route) => {
       route.fulfill({
         status: 500,
@@ -503,12 +517,8 @@ test.describe('Retry Mechanisms', () => {
     })
 
     await page.goto('/genes')
-    await page.waitForTimeout(3000)
-
-    const retryButton = page.getByRole('button', { name: /Retry|Try Again|Reload|重试/i })
-    const hasRetry = await retryButton.count() > 0
-
-    console.log(`Retry button shown: ${hasRetry}`)
+    await expectErrorState(page, /Server Error|Request failed/i)
+    await expect(page.locator('body')).toBeVisible()
   })
 
   test('Retry actually retries the request', async ({ page }) => {
@@ -549,13 +559,18 @@ test.describe('Retry Mechanisms', () => {
       if (requestCount <= 2) {
         route.abort('failed')
       } else {
-        route.continue()
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_REGULATIONS_RESPONSE),
+        })
       }
     })
 
     await page.goto('/regulations')
     await page.waitForTimeout(10000) // Give time for retries
 
+    expect(requestCount).toBeGreaterThan(1)
     console.log(`Auto-retry request count: ${requestCount}`)
   })
 })
@@ -590,38 +605,37 @@ test.describe('Error Recovery', () => {
   })
 
   test('Error state clears on successful refresh', async ({ page }) => {
-    let failFirst = true
+    let requestCount = 0
 
     await page.route('**/api/v1/genes*', (route) => {
-      if (failFirst) {
-        failFirst = false
+      requestCount += 1
+
+      if (requestCount <= 2) {
         route.fulfill({
           status: 500,
           contentType: 'application/json',
           body: JSON.stringify({ detail: 'Error' })
         })
       } else {
-        route.continue()
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(MOCK_GENES_RESPONSE),
+        })
       }
     })
 
     await page.goto('/genes')
-    await page.waitForTimeout(2000)
-
-    // Check error state
-    const hasError = await page.getByText(/Error|错误/i).isVisible().catch(() => false)
-    console.log(`Initial error: ${hasError}`)
+    await expectErrorState(page, /Error|Server Error|Request failed/i)
 
     // Refresh page
     await page.reload()
     await page.waitForLoadState('networkidle')
-    await page.waitForTimeout(2000)
 
     // Should show data now
     const table = page.locator('.ant-table')
-    const tableVisible = await table.isVisible().catch(() => false)
-
-    console.log(`After refresh table visible: ${tableVisible}`)
+    await expect(table).toBeVisible()
+    await expect(page.locator('.ant-result').first()).toBeHidden()
   })
 
   test('Sidebar navigation works after error', async ({ page }) => {
@@ -737,6 +751,7 @@ test.describe('Error Message Quality', () => {
     const hasChinese = /[\u4e00-\u9fa5]/.test(pageText || '')
     const hasEnglish = /Error|Failed|loading/i.test(pageText || '')
 
+    expect(hasChinese || hasEnglish).toBe(true)
     console.log(`Error localization: Chinese=${hasChinese}, English=${hasEnglish}`)
   })
 })

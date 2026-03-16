@@ -41,7 +41,9 @@ class TestGenesAPIContract:
         for item in items:
             assert item.gene_id > 0
             assert item.species_name  # 非空字符串
-            assert item.gene_type in ("lncRNA", "protein_coding")
+            assert item.gene_type in ("lncRNA", "protein_coding", "unknown")
+            if item.gene_type == "unknown":
+                assert item.core_id is None
 
     def test_genes_list_with_filters_contract(self, api_client: httpx.Client, api_assert):
         """验证带筛选条件的基因列表响应"""

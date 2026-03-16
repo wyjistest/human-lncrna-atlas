@@ -10,8 +10,6 @@ const PRELOAD_BUDGETS = [
   { name: 'react-vendor', prefix: '/assets/react-vendor-', maxBytes: 120 * 1024 },
   { name: 'query-vendor', prefix: '/assets/query-vendor-', maxBytes: 120 * 1024 },
   { name: 'i18n-vendor', prefix: '/assets/i18n-vendor-', maxBytes: 200 * 1024 },
-  // AntD is expected to be large; budget is intentionally loose to only catch big regressions.
-  { name: 'antd-vendor', prefix: '/assets/antd-vendor-', maxBytes: 1500 * 1024 },
 ]
 
 function readIndexHtml() {
