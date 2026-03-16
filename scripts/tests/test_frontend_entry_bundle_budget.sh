@@ -27,7 +27,6 @@ cat > "$tmp_root/dist/index.html" <<'EOF'
     <link rel="modulepreload" crossorigin href="/assets/react-vendor-AAA.js">
     <link rel="modulepreload" crossorigin href="/assets/query-vendor-BBB.js">
     <link rel="modulepreload" crossorigin href="/assets/i18n-vendor-CCC.js">
-    <link rel="modulepreload" crossorigin href="/assets/antd-vendor-DDD.js">
   </head>
   <body><div id="root"></div></body>
 </html>
@@ -37,8 +36,6 @@ EOF
 echo "react" > "$tmp_root/dist/assets/react-vendor-AAA.js"
 echo "query" > "$tmp_root/dist/assets/query-vendor-BBB.js"
 echo "i18n" > "$tmp_root/dist/assets/i18n-vendor-CCC.js"
-echo "antd" > "$tmp_root/dist/assets/antd-vendor-DDD.js"
-
 # 让 entry bundle 超预算（> 200KB）。
 (cd "$tmp_root" && python3 - <<'PY'
 from pathlib import Path
