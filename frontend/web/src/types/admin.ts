@@ -19,6 +19,10 @@ export interface MaterializedViewStatusItem {
   last_stats_at: string | null
   last_stats_source: 'analyze' | 'autoanalyze' | 'none'
   stats_age_seconds: number | null
+  health_status: 'healthy' | 'missing' | 'not_populated' | 'stale_stats' | 'stats_unavailable'
+  severity: 'info' | 'warning' | 'critical'
+  recommended_action: string | null
+  affects_features: string[]
 }
 
 export interface MaterializedViewsStatusResponse {

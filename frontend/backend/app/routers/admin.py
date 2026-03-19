@@ -1453,6 +1453,7 @@ class MaterializedViewRefreshRequest(BaseModel):
     - checked_at / database_backend / supported
     - refresh_lock_available
     - 每个 MV 的 exists / populated / rows_estimate / size breakdown / stats freshness
+    - 每个 MV 的 health_status / severity / recommended_action / affects_features
 
     说明：PostgreSQL catalog 不直接暴露 MV 的 last_refresh_at，这里返回的是 last_analyze/autoanalyze 派生的新鲜度信息。
     """,

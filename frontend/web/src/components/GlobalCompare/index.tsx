@@ -6,9 +6,17 @@
  * exposes an honest unavailable state instead of synthetic data.
  */
 
-import { Alert, Card, Space, Tag, Typography } from 'antd'
-import { ClockCircleOutlined, InfoCircleOutlined } from '@ant-design/icons'
+import { useState } from 'react'
+import { Alert, Button, Card, Input, Space, Tag, Typography } from 'antd'
+import {
+  ClockCircleOutlined,
+  DatabaseOutlined,
+  InfoCircleOutlined,
+  InteractionOutlined,
+  LineChartOutlined,
+} from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import type { GlobalCompareFilters, GlobalCompareViewMode } from '@/types/globalCompare'
 
 const { Paragraph, Text, Title } = Typography
@@ -28,6 +36,15 @@ export function GlobalCompareSection({
   showTitle = true,
 }: GlobalCompareSectionProps) {
   const { t } = useTranslation('globalCompare')
+  const navigate = useNavigate()
+  const [geneSearch, setGeneSearch] = useState('')
+
+  const handleGeneSearch = (rawValue?: string) => {
+    const value = (rawValue ?? geneSearch).trim()
+    const params = new URLSearchParams({ gene_type: 'lncRNA' })
+    if (value) params.set('search', value)
+    navigate(`/genes?${params.toString()}`)
+  }
 
   return (
     <Space orientation="vertical" size="large" style={{ width: '100%' }}>
@@ -61,6 +78,56 @@ export function GlobalCompareSection({
                 'For real ChIP-seq analysis, use the gene-specific compare, summary, and heatmap tools from a gene detail page.'
               )}
             </Paragraph>
+
+            <Card
+              size="small"
+              type="inner"
+              title={t('unavailable.nextStepsTitle', 'Use available entry points instead')}
+              data-testid="chipseq-compare-supported-paths"
+            >
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Text>
+                  {t(
+                    'unavailable.searchHint',
+                    'Search an lncRNA or gene name, then continue with gene-scoped compare, summary, export, and genome-browser workflows.'
+                  )}
+                </Text>
+
+                <Input.Search
+                  data-testid="chipseq-compare-gene-search"
+                  placeholder={t('unavailable.searchPlaceholder', 'Search lncRNA or gene name')}
+                  value={geneSearch}
+                  enterButton={t('unavailable.searchButton', 'Browse genes')}
+                  onChange={(event) => setGeneSearch(event.target.value)}
+                  onSearch={handleGeneSearch}
+                />
+
+                <Space size="small" wrap>
+                  <Button
+                    data-testid="chipseq-compare-genes-link"
+                    type="primary"
+                    icon={<DatabaseOutlined />}
+                    onClick={() => handleGeneSearch('')}
+                  >
+                    {t('unavailable.browseGenes', 'Browse lncRNA genes')}
+                  </Button>
+                  <Button
+                    data-testid="chipseq-compare-overlap-link"
+                    icon={<InteractionOutlined />}
+                    onClick={() => navigate('/lncrna-chipseq-overlap')}
+                  >
+                    {t('unavailable.openOverlap', 'Open overlap explorer')}
+                  </Button>
+                  <Button
+                    data-testid="chipseq-compare-analysis-link"
+                    icon={<LineChartOutlined />}
+                    onClick={() => navigate('/analysis?tab=epigenetic')}
+                  >
+                    {t('unavailable.openAnalysis', 'Open epigenetic analysis')}
+                  </Button>
+                </Space>
+              </Space>
+            </Card>
 
             <Card
               size="small"

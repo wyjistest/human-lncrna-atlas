@@ -24,7 +24,8 @@
 - 为了让基线稳定、且不依赖 Redis，生成脚本默认在 `ENV=development` + `ENABLE_CACHE=false` 下运行（可按需覆盖）。
 
 CI：
-- `Tests` 工作流会在 Postgres service 上加载 `schema/v2.3/03_sample_data.sql`，并在 **禁用缓存（`ENABLE_CACHE=false`）** 的情况下校验 `api-snapshot.sample.json`（见 `.github/workflows/test.yml` 的 `api-snapshot-baseline` job）。
+- 非 self-hosted runner：`Tests` 工作流会在 Postgres service 上加载 `schema/v2.3/03_sample_data.sql`，并在 **禁用缓存（`ENABLE_CACHE=false`）** 的情况下通过 `python3 scripts/verify_baselines.py --mode running` 校验 `api-snapshot.sample.json`（见 `.github/workflows/test.yml` 的 `api-snapshot-baseline` job）。
+- self-hosted push：`Tests` 工作流的 fast path 会执行 `bash scripts/run-tests.sh ci-postgres`，其中显式包含 `python3 scripts/verify_baselines.py --mode local`，确保 API snapshot baseline 不会被 fast path 绕过。
 
 ## Frontend Bundle Baseline（可选）
 

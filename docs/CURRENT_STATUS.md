@@ -49,16 +49,19 @@
 1. **self-hosted Fast CI 可解释性增强**
    - `scripts/run-tests.sh ci` 新增可选 Markdown summary 输出（按阶段记录 PASS/FAIL、耗时、提示）
    - `.github/workflows/test.yml` 的 `Self-hosted Fast CI` 会把该 summary 追加到 `GITHUB_STEP_SUMMARY`，并上传独立 artifact，方便直接定位失败阶段
+   - self-hosted push 现改为执行 `bash scripts/run-tests.sh ci-postgres`，fast path 也会显式校验 API snapshot baseline，不再出现“CI 全绿但 baseline job 被跳过”的覆盖盲区
 
 2. **Admin 物化视图状态增强**
    - `GET /api/v1/admin/materialized-views/status` 新增 `checked_at` / `database_backend` / `supported`
    - 每个 MV 额外返回容量拆分（`total/heap/index`）与统计新鲜度（`last_analyze_at` / `last_autoanalyze_at` / `last_stats_at` / `stats_age_seconds`）
+   - 每个 MV 现进一步给出 `health_status` / `severity` / `recommended_action` / `affects_features`，Admin 页面可直接看到“哪些功能受影响、下一步该做什么”
    - 非 PostgreSQL 后端不再直接报错，而是显式返回 `status=unsupported` 的降级状态，便于前端与运维侧识别
 
 3. **export / unavailable compare 回归锚点补强**
    - `scripts/api_snapshot.py` 为 `export/disease-network`、`network/disease` 与 overlap compare 新增稳定摘要字段（nodes/edges、species_count/species_ids）
    - `/chipseq-compare` smoke 现会断言页面保持“不可用”状态，且不会偷偷触发 `/api/v1/chipseq/*` 或 `/api/v1/features/chipseq/*` 请求
    - 前端 `globalCompareApi` 维持显式 unavailable contract，并补单测防止回退到伪接口
+   - `/chipseq-compare` 页面现在会直接引导用户进入真实能力入口（gene 搜索、overlap explorer、analysis），不再只是单纯的 unavailable 死胡同
 
 ### 2026-02-12 ⭐ hg19：外部数据/DB 审计复核 + gene_peak_associations 覆盖确认
 

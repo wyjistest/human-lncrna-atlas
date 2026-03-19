@@ -40,6 +40,75 @@ DEFAULT_MATERIALIZED_VIEWS: tuple[str, ...] = (
 
 _ALLOWED_MV_SET = set(DEFAULT_MATERIALIZED_VIEWS)
 _MV_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,63}$")
+_MV_STATS_STALE_THRESHOLD_SECONDS = 24 * 60 * 60
+
+_MV_OPERABILITY_HINTS: dict[str, dict[str, Any]] = {
+    "mv_analysis_high_affinity_stats_ba100": {
+        "affected_features": ["Analysis summary: high-affinity overview"],
+        "severity_if_missing": "warning",
+        "missing_action": (
+            "High-affinity summary fast path is missing. Recreate the analysis MV set before relying on "
+            "dashboard-level high-affinity aggregates."
+        ),
+        "not_populated_action": (
+            "Refresh this MV before using analysis summary high-affinity cards in production."
+        ),
+        "stale_action": "Run ANALYZE or refresh this MV to keep planner stats current for analysis summary queries.",
+        "stats_unknown_action": "Run ANALYZE on this MV so Admin can report fresh planner statistics.",
+    },
+    "mv_analysis_top_lncrnas_ba100": {
+        "affected_features": ["Analysis summary: top lncRNAs leaderboard"],
+        "severity_if_missing": "warning",
+        "missing_action": (
+            "Top-lncRNA summary fast path is missing. Recreate the analysis MV set before relying on "
+            "dashboard-level ranking cards."
+        ),
+        "not_populated_action": (
+            "Refresh this MV before using analysis summary top-lncRNA aggregates in production."
+        ),
+        "stale_action": "Run ANALYZE or refresh this MV to keep planner stats current for summary ranking queries.",
+        "stats_unknown_action": "Run ANALYZE on this MV so Admin can report fresh planner statistics.",
+    },
+    "mv_lncrna_chipseq_overlaps": {
+        "affected_features": [
+            "Overlap list / cursor / statistics",
+            "Overlap compare",
+            "Overlap export on broad chromosomes",
+            "Analysis summary epigenetic fallback source",
+        ],
+        "severity_if_missing": "critical",
+        "missing_action": (
+            "Create this MV via schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql, then refresh it before "
+            "broad overlap / compare / export queries."
+        ),
+        "not_populated_action": (
+            "Refresh this MV before broad overlap, compare, or export queries. Unpopulated state will force "
+            "slow fallbacks or QUERY_TOO_BROAD guardrails."
+        ),
+        "stale_action": (
+            "Run ANALYZE or refresh this MV after recent imports so planner stats stay aligned with broad "
+            "overlap workloads."
+        ),
+        "stats_unknown_action": (
+            "Run ANALYZE on this MV so Admin can assess whether overlap planner statistics are fresh enough."
+        ),
+    },
+    "mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100": {
+        "affected_features": ["Analysis summary: epigenetic fast path"],
+        "severity_if_missing": "warning",
+        "missing_action": (
+            "Optional epigenetic summary fast path is missing. Analysis summary will fall back to raw overlap "
+            "aggregation or empty epigenetic data."
+        ),
+        "not_populated_action": (
+            "Refresh this MV to restore fast epigenetic summary aggregation for the analysis dashboard."
+        ),
+        "stale_action": (
+            "Run ANALYZE or refresh this MV after overlap data changes so epigenetic summary stats remain trustworthy."
+        ),
+        "stats_unknown_action": "Run ANALYZE on this MV so Admin can report epigenetic summary stats freshness.",
+    },
+}
 
 # Postgres advisory lock key（bigint）。
 # 取 8 字节 ASCII: "LNCRNAMV" => 0x4C4E43524E414D56（< 2^63，正数）
@@ -106,6 +175,7 @@ _MV_STATUS_SQL = text(
 
 
 def _missing_mv_status(mv_name: str) -> dict[str, Any]:
+    hint = _MV_OPERABILITY_HINTS.get(mv_name, {})
     return {
         "name": mv_name,
         "exists": False,
@@ -122,6 +192,10 @@ def _missing_mv_status(mv_name: str) -> dict[str, Any]:
         "last_stats_at": None,
         "last_stats_source": "none",
         "stats_age_seconds": None,
+        "health_status": "missing",
+        "severity": hint.get("severity_if_missing", "warning"),
+        "recommended_action": hint.get("missing_action"),
+        "affects_features": list(hint.get("affected_features", [])),
     }
 
 
@@ -160,6 +234,51 @@ def _pick_latest_stats_timestamp(row: Any) -> tuple[Any, str]:
     return None, "none"
 
 
+def _evaluate_mv_health(
+    mv_name: str,
+    *,
+    exists: bool,
+    populated: Optional[bool],
+    stats_age_seconds: Optional[float],
+) -> tuple[str, str, Optional[str], list[str]]:
+    hint = _MV_OPERABILITY_HINTS.get(mv_name, {})
+    affected_features = list(hint.get("affected_features", []))
+
+    if not exists:
+        return (
+            "missing",
+            str(hint.get("severity_if_missing", "warning")),
+            hint.get("missing_action"),
+            affected_features,
+        )
+
+    if populated is False:
+        return (
+            "not_populated",
+            "critical",
+            hint.get("not_populated_action", "Refresh this materialized view before using dependent features."),
+            affected_features,
+        )
+
+    if stats_age_seconds is None:
+        return (
+            "stats_unavailable",
+            "warning",
+            hint.get("stats_unknown_action", "Run ANALYZE so Admin can report planner stats freshness."),
+            affected_features,
+        )
+
+    if stats_age_seconds >= _MV_STATS_STALE_THRESHOLD_SECONDS:
+        return (
+            "stale_stats",
+            "warning",
+            hint.get("stale_action", "Run ANALYZE or refresh this materialized view."),
+            affected_features,
+        )
+
+    return ("healthy", "info", None, affected_features)
+
+
 def get_mv_status(conn: Connection, mv_name: str) -> dict[str, Any]:
     """查询单个 MV 的存在/填充/大小/行数估计信息（轻量，不做 COUNT(*)）。"""
     _require_postgresql(conn)
@@ -169,11 +288,19 @@ def get_mv_status(conn: Connection, mv_name: str) -> dict[str, Any]:
         return _missing_mv_status(mv_name)
 
     latest_stats_at, latest_stats_source = _pick_latest_stats_timestamp(row)
+    populated = bool(getattr(row, "populated", False))
+    stats_age_seconds = _stats_age_seconds(latest_stats_at)
+    health_status, severity, recommended_action, affects_features = _evaluate_mv_health(
+        mv_name,
+        exists=True,
+        populated=populated,
+        stats_age_seconds=stats_age_seconds,
+    )
 
     return {
         "name": mv_name,
         "exists": True,
-        "populated": bool(getattr(row, "populated", False)),
+        "populated": populated,
         "rows_estimate": int(getattr(row, "rows_estimate", 0) or 0),
         "total_size": getattr(row, "total_size", None),
         "total_size_bytes": int(getattr(row, "total_size_bytes", 0) or 0),
@@ -185,7 +312,11 @@ def get_mv_status(conn: Connection, mv_name: str) -> dict[str, Any]:
         "last_autoanalyze_at": _to_utc_iso8601(getattr(row, "last_autoanalyze", None)),
         "last_stats_at": _to_utc_iso8601(latest_stats_at),
         "last_stats_source": latest_stats_source,
-        "stats_age_seconds": _stats_age_seconds(latest_stats_at),
+        "stats_age_seconds": stats_age_seconds,
+        "health_status": health_status,
+        "severity": severity,
+        "recommended_action": recommended_action,
+        "affects_features": affects_features,
     }
 
 

@@ -1,12 +1,10 @@
 {
   "title": "ChIP-seq Global Mark Comparison",
-  "subtitle": "Compare histone modifications across all genes and cell types",
-
+  "subtitle": "Global ChIP-seq comparison is not publicly available yet. Use the guided gene-scoped entry points below for real data.",
   "demo": {
     "title": "Demo mode",
     "description": "This page currently uses mock data. Backend endpoints are not implemented yet."
   },
-
   "filters": {
     "title": "Filters",
     "marks": "Select Marks",
@@ -17,14 +15,12 @@
     "more": "more",
     "clear": "Clear all"
   },
-
   "tabs": {
     "radar": "Radar Chart",
     "bar": "Bar Chart",
     "boxplot": "Box Plot",
     "matrix": "Cell Matrix"
   },
-
   "stats": {
     "totalMarks": "Marks",
     "totalPeaks": "Total Peaks",
@@ -33,10 +29,8 @@
     "avgSignal": "Avg Signal",
     "avgEnrichment": "Avg Enrichment"
   },
-
   "charts": {
     "noData": "No data available",
-
     "radar": {
       "title": "Multi-Mark Comparison",
       "peakCount": "Peak Count",
@@ -46,7 +40,6 @@
       "geneCount": "Gene Count",
       "foldEnrichment": "Fold Enrichment"
     },
-
     "bar": {
       "title": "Mark Comparison",
       "metricLabel": "Compare by",
@@ -57,7 +50,6 @@
       "avgSignal": "Avg Signal",
       "avgEnrichment": "Avg Enrichment"
     },
-
     "boxplot": {
       "title": "Signal Distribution by Mark",
       "yAxis": "Signal Value",
@@ -71,7 +63,6 @@
       "min": "Min",
       "sampleSize": "Sample Size"
     },
-
     "matrix": {
       "title": "Cell Type x Mark Matrix",
       "metricLabel": "Display Metric",
@@ -84,15 +75,32 @@
       "coverage": "Coverage"
     }
   },
-
   "export": {
     "saveImage": "Save as Image",
     "exportCSV": "Export CSV",
     "exportData": "Export Data"
   },
-
   "errors": {
     "loadFailed": "Failed to load comparison data",
     "noMarksSelected": "Please select at least one mark to compare"
+  },
+  "status": {
+    "comingSoon": "Coming soon"
+  },
+  "unavailable": {
+    "title": "Global compare is not available yet",
+    "description": "This page no longer shows mock data. A public backend contract for cross-gene global comparison has not been implemented yet.",
+    "guidance": "For real ChIP-seq analysis, use the gene-specific compare, summary, and heatmap tools from a gene detail page.",
+    "nextStepsTitle": "Use available entry points instead",
+    "searchHint": "Search an lncRNA or gene name, then continue with gene-scoped compare, summary, export, and genome-browser workflows.",
+    "searchPlaceholder": "Search lncRNA or gene name",
+    "searchButton": "Browse genes",
+    "browseGenes": "Browse lncRNA genes",
+    "openOverlap": "Open overlap explorer",
+    "openAnalysis": "Open epigenetic analysis",
+    "currentScope": "Currently supported scope",
+    "scopeDetail": "The backend currently supports gene-scoped ChIP-seq endpoints rather than a global mark-comparison dataset.",
+    "devNoteTitle": "Developer note",
+    "devNote": "Legacy /api/v1/chipseq/* global-compare endpoints are intentionally not exposed. Frontend code should treat this page as unavailable until a real backend contract is added."
   }
 }

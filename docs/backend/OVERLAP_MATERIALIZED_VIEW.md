@@ -77,10 +77,12 @@ curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application
 - 顶层：`checked_at`、`database_backend`、`supported`、`refresh_lock_available`
 - 每个 MV：`total_size` / `heap_size` / `index_size`
 - 每个 MV：`last_analyze_at`、`last_autoanalyze_at`、`last_stats_at`、`stats_age_seconds`
+- 每个 MV：`health_status`、`severity`、`recommended_action`、`affects_features`
 
 说明：
 - PostgreSQL catalog 不直接提供 `last_refresh_at`，因此接口使用 analyze/autoanalyze 时间近似表达“统计信息新鲜度”
 - 若当前不是 PostgreSQL，接口会返回 `status=unsupported` 的降级响应，而不是直接 500
+- `health_status` 会把原始 catalog 字段归纳为 `healthy / missing / not_populated / stale_stats / stats_unavailable`，方便运维快速判断是否需要 refresh / analyze / 补 schema
 
 ---
 

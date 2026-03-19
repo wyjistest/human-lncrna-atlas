@@ -12,6 +12,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 
+_DEFAULT_TIMESTAMP = object()
+
+
 class _ScalarResult:
     def __init__(self, value):
         self._value = value
@@ -29,12 +32,30 @@ class _FetchResult:
 
 
 class _FakeConnection:
-    def __init__(self, *, lock_available: bool = True, populated: bool = True, mv_exists: bool = True):
+    def __init__(
+        self,
+        *,
+        lock_available: bool = True,
+        populated: bool = True,
+        mv_exists: bool = True,
+        last_analyze=_DEFAULT_TIMESTAMP,
+        last_autoanalyze=_DEFAULT_TIMESTAMP,
+    ):
         self.dialect = types.SimpleNamespace(name="postgresql")
         self.executed: list[tuple[str, dict | None]] = []
         self._lock_available = lock_available
         self._populated = populated
         self._mv_exists = mv_exists
+        self._last_analyze = (
+            datetime.now(timezone.utc) - timedelta(minutes=5)
+            if last_analyze is _DEFAULT_TIMESTAMP
+            else last_analyze
+        )
+        self._last_autoanalyze = (
+            datetime.now(timezone.utc) - timedelta(minutes=3)
+            if last_autoanalyze is _DEFAULT_TIMESTAMP
+            else last_autoanalyze
+        )
 
     def execute(self, statement, params=None):
         sql = (getattr(statement, "text", str(statement)) or "").strip()
@@ -58,8 +79,8 @@ class _FakeConnection:
                 index_size="256 kB",
                 index_size_bytes=262144,
                 rows_estimate=123,
-                last_analyze=datetime.now(timezone.utc) - timedelta(minutes=5),
-                last_autoanalyze=datetime.now(timezone.utc) - timedelta(minutes=3),
+                last_analyze=self._last_analyze,
+                last_autoanalyze=self._last_autoanalyze,
             )
             return _FetchResult(row)
         if sql.startswith("REFRESH MATERIALIZED VIEW"):
@@ -165,3 +186,34 @@ def test_get_mv_status_includes_operational_metadata():
     assert status["last_stats_source"] == "autoanalyze"
     assert isinstance(status["stats_age_seconds"], float)
     assert status["stats_age_seconds"] >= 0
+    assert status["health_status"] == "healthy"
+    assert status["severity"] == "info"
+    assert status["recommended_action"] is None
+    assert "Overlap compare" in status["affects_features"]
+
+
+@pytest.mark.unit
+def test_get_mv_status_marks_missing_overlap_mv_as_critical():
+    from app.core import materialized_views as mv_ops
+
+    conn = _FakeConnection(mv_exists=False)
+    status = mv_ops.get_mv_status(conn, "mv_lncrna_chipseq_overlaps")
+
+    assert status["exists"] is False
+    assert status["health_status"] == "missing"
+    assert status["severity"] == "critical"
+    assert "05_mv_lncrna_chipseq_overlaps.sql" in (status["recommended_action"] or "")
+    assert "Overlap compare" in status["affects_features"]
+
+
+@pytest.mark.unit
+def test_get_mv_status_marks_stale_stats_as_warning():
+    from app.core import materialized_views as mv_ops
+
+    stale = datetime.now(timezone.utc) - timedelta(days=2)
+    conn = _FakeConnection(last_analyze=stale, last_autoanalyze=stale)
+    status = mv_ops.get_mv_status(conn, "mv_lncrna_chipseq_overlaps")
+
+    assert status["health_status"] == "stale_stats"
+    assert status["severity"] == "warning"
+    assert "Run ANALYZE or refresh this MV" in (status["recommended_action"] or "")

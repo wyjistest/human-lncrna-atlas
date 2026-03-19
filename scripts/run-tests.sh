@@ -74,6 +74,20 @@ init_run_tests_summary() {
         echo
         echo "- Mode: \`$(escape_summary_cell "$mode")\`"
         echo "- Started at (UTC): \`$(date -u +"%Y-%m-%dT%H:%M:%SZ")\`"
+        case "$mode" in
+            ci)
+                echo "- Coverage: \`core checks only\`"
+                ;;
+            ci-postgres)
+                echo "- Coverage: \`core checks + API snapshot baseline\`"
+                ;;
+            ci-plus)
+                echo "- Coverage: \`core checks + mocked Playwright e2e-smoke\`"
+                ;;
+            ci-full)
+                echo "- Coverage: \`ci-plus + dependency security audit\`"
+                ;;
+        esac
         echo
         echo "| Stage | Status | Duration (s) | Hint |"
         echo "| --- | --- | ---: | --- |"
@@ -682,6 +696,19 @@ run_frontend_baselines_checks() {
     return 1
 }
 
+run_api_snapshot_baseline_checks() {
+    echo -e "${YELLOW}校验 API snapshot baseline（本地 sample DB）...${NC}"
+    require_cmd python3 || return 1
+
+    if (cd "$PROJECT_ROOT" && python3 scripts/verify_baselines.py --mode local); then
+        echo -e "${GREEN}API snapshot baseline 校验通过!${NC}"
+        return 0
+    fi
+
+    echo -e "${RED}API snapshot baseline 校验失败${NC}"
+    return 1
+}
+
 run_docs_checks() {
     echo -e "${YELLOW}运行文档命令漂移检查...${NC}"
     require_cmd python3 || return 1
@@ -891,6 +918,7 @@ run_frontend_e2e_smoke_tests() {
 run_ci_core_checks() {
     local include_e2e_smoke="${1:-false}"
     local include_security_audit="${2:-false}"
+    local include_api_snapshot_baseline="${3:-false}"
     local failed=0
 
     run_stage_with_summary "Backend lint" "ruff check" run_backend_lint || failed=1
@@ -908,6 +936,10 @@ run_ci_core_checks() {
     run_stage_with_summary "DB migrations verify" "frontend/backend/scripts/db_migrate.sh verify" run_db_migrations_verify || failed=1
     echo ""
     run_stage_with_summary "Backend unit tests" "pytest -m unit" run_backend_unit_tests || failed=1
+    if [ "$include_api_snapshot_baseline" = "true" ]; then
+        echo ""
+        run_stage_with_summary "API snapshot baseline" "python3 scripts/verify_baselines.py --mode local" run_api_snapshot_baseline_checks || failed=1
+    fi
     echo ""
     run_stage_with_summary "Frontend unit tests" "npm run test:run" run_frontend_unit_tests || failed=1
     echo ""
@@ -1133,6 +1165,10 @@ main() {
             # 对齐 GitHub Actions `.github/workflows/test.yml` 的核心质量门禁（不含 secret scan / security-audit）
             run_ci_core_checks false false || failed=1
             ;;
+        ci-postgres)
+            # self-hosted fast path：在 ci 基础上追加 API snapshot baseline（本地临时 sample DB）。
+            run_ci_core_checks false false true || failed=1
+            ;;
         ci-plus)
             # 在 ci 基础上追加 Playwright e2e-smoke（完全 mock，不依赖后端/DB）
             # 适合在 GitHub Actions 暂停自动触发时，本地更完整地覆盖回归锚点。
@@ -1166,7 +1202,7 @@ main() {
             run_scripts_unit_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|frontend-baselines|research-baselines|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|backend|e2e|status|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|frontend-baselines|research-baselines|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|ci-postgres|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
@@ -1187,6 +1223,7 @@ main() {
             echo "  e2e-visual-smoke - 运行 Playwright 视觉回归 smoke（screenshots；完全 mocked）"
             echo "  performance-audit - 运行 Playwright performance suite（需要可用后端；建议手动）"
             echo "  ci           - 对齐 GitHub Actions 的核心检查集合"
+            echo "  ci-postgres  - ci + API snapshot baseline（本地临时 sample DB；对齐 self-hosted fast path）"
             echo "  ci-plus      - ci + e2e-smoke（更接近原 GH Tests，仍无需后端/DB）"
             echo "  ci-full      - ci-plus + security-audit（最严格门禁）"
             echo "  backend      - 运行后端 API 合同测试（需要服务运行）"

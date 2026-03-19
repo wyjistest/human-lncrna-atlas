@@ -11,6 +11,14 @@ import type { MaterializedViewRefreshResultItem, MaterializedViewStatusItem, Mat
 
 const { Text } = Typography
 
+const HEALTH_META = {
+  healthy: { color: 'success', label: 'healthy' },
+  missing: { color: 'error', label: 'missing' },
+  not_populated: { color: 'error', label: 'not populated' },
+  stale_stats: { color: 'warning', label: 'stale stats' },
+  stats_unavailable: { color: 'warning', label: 'stats unavailable' },
+} as const
+
 function formatTimestamp(value: string | null | undefined) {
   if (!value) return '-'
   const date = new Date(value)
@@ -35,6 +43,10 @@ export default function MaterializedViews() {
   const [lastResult, setLastResult] = useState<MaterializedViewsRefreshResponse | null>(null)
 
   const viewNames = useMemo(() => (data?.views ? data.views.map((v) => v.name) : []), [data?.views])
+  const attentionViews = useMemo(
+    () => (data?.supported === false ? [] : (data?.views ?? []).filter((view) => view.health_status !== 'healthy')),
+    [data?.supported, data?.views]
+  )
 
   const columns: ColumnsType<MaterializedViewStatusItem> = useMemo(
     () => [
@@ -66,6 +78,19 @@ export default function MaterializedViews() {
         },
       },
       {
+        title: 'Health',
+        key: 'health',
+        render: (_, row) => {
+          const meta = HEALTH_META[row.health_status]
+          return (
+            <Space direction="vertical" size={0}>
+              <Tag color={meta.color}>{meta.label}</Tag>
+              <Text type="secondary">Severity: {row.severity}</Text>
+            </Space>
+          )
+        },
+      },
+      {
         title: 'Rows (est.)',
         dataIndex: 'rows_estimate',
         key: 'rows_estimate',
@@ -80,6 +105,22 @@ export default function MaterializedViews() {
             <Text>Total: {row.total_size ?? '-'}</Text>
             <Text type="secondary">Heap: {row.heap_size ?? '-'}</Text>
             <Text type="secondary">Indexes: {row.index_size ?? '-'}</Text>
+          </Space>
+        ),
+      },
+      {
+        title: 'Impact / Recommendation',
+        key: 'impact',
+        render: (_, row) => (
+          <Space direction="vertical" size={4}>
+            <Text>{row.recommended_action ?? 'No action needed.'}</Text>
+            {row.affects_features.length > 0 && (
+              <Space size="small" wrap>
+                {row.affects_features.map((feature) => (
+                  <Tag key={feature}>{feature}</Tag>
+                ))}
+              </Space>
+            )}
           </Space>
         ),
       },
@@ -217,6 +258,9 @@ export default function MaterializedViews() {
             </Tag>
             <Text>Checked at: {formatTimestamp(data?.checked_at)}</Text>
             <Text type="secondary">Status payload: {data?.status ?? 'unknown'}</Text>
+            <Tag color={attentionViews.length > 0 ? 'warning' : 'success'}>
+              {attentionViews.length > 0 ? `attention ${attentionViews.length}/${data?.views.length ?? 0}` : 'all healthy'}
+            </Tag>
           </Space>
         </Card>
       </div>
@@ -232,6 +276,19 @@ export default function MaterializedViews() {
         />
       )}
 
+      {data?.supported !== false && attentionViews.length > 0 && (
+        <Alert
+          data-testid="admin-materialized-views-attention"
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={`${attentionViews.length} materialized view(s) need attention`}
+          description={attentionViews
+            .map((view) => `${view.name}: ${view.recommended_action ?? 'Check status details below.'}`)
+            .join(' ')}
+        />
+      )}
+
       <div data-testid="admin-materialized-views-status">
         <Card title="Status">
           <Table<MaterializedViewStatusItem>
@@ -240,6 +297,7 @@ export default function MaterializedViews() {
             rowKey="name"
             size="small"
             pagination={false}
+            scroll={{ x: 1100 }}
           />
         </Card>
       </div>

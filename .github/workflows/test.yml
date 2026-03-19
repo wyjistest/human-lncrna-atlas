@@ -306,7 +306,7 @@ jobs:
           # Ensure CI build points to the intended backend (overrides committed frontend/web/.env).
           VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
         run: |
-          bash scripts/run-tests.sh ci
+          bash scripts/run-tests.sh ci-postgres
 
       - name: Publish core checks summary
         if: ${{ always() }}
@@ -1225,8 +1225,10 @@ jobs:
   api-snapshot-baseline:
     name: API Snapshot Baseline (Postgres)
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
-    # self-hosted runner 默认不跑 services(Postgres) 作业，避免 Docker/权限差异导致 CI 直接失败。
-    # 如需在 self-hosted 上启用：设置 repo variable `CI_ENABLE_POSTGRES_JOBS=true`。
+    # self-hosted push 已由 `self-hosted-fast-ci -> scripts/run-tests.sh ci-postgres`
+    # 覆盖 API snapshot baseline。这里保留 dedicated Postgres service job：
+    # - 非 self-hosted runner 默认执行
+    # - self-hosted runner 仅在显式开启 `CI_ENABLE_POSTGRES_JOBS=true` 时执行
     if: ${{ ((github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest') != 'self-hosted' || ((github.event_name == 'workflow_dispatch' && github.event.inputs.enable_postgres_jobs) || vars.CI_ENABLE_POSTGRES_JOBS) == 'true' }}
     needs: [secret-scan]  # Fail fast if secrets detected
     services:
@@ -1317,7 +1319,7 @@ jobs:
       - name: Install backend dependencies
         working-directory: frontend/backend
         run: |
-          python -m pip install --upgrade pip
+          python3 -m pip install --upgrade pip
           pip install -r requirements.txt -c constraints.txt
 
       - name: Init schema + sample data (v2.3)
@@ -1362,10 +1364,10 @@ jobs:
 
           # Backend startup security gate (required by main.py lifespan).
           # Generate a random key at runtime (do NOT commit secrets; avoids gitleaks false positives).
-          ADMIN_API_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+          ADMIN_API_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(32))')"
           export ADMIN_API_KEY
 
-          python -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1 &
+          python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 --workers 1 &
           backend_pid=$!
           trap 'kill "$backend_pid" >/dev/null 2>&1 || true' EXIT
 
@@ -1379,9 +1381,9 @@ jobs:
             timeout=$((timeout - 2))
           done
 
-          python ../../scripts/api_snapshot.py \
-            --base-url "http://127.0.0.1:8000" \
-            --check-baseline ../../docs/baselines/api-snapshot.sample.json
+          python3 ../../scripts/verify_baselines.py \
+            --mode running \
+            --base-url "http://127.0.0.1:8000"
 
   build:
     name: Build

@@ -29,6 +29,10 @@ vi.mock('@/hooks/useMaterializedViewsStatus', () => ({
           last_stats_at: '2026-03-19T03:57:00Z',
           last_stats_source: 'autoanalyze',
           stats_age_seconds: 180,
+          health_status: 'healthy',
+          severity: 'info',
+          recommended_action: null,
+          affects_features: ['Overlap compare'],
         },
       ],
     },
@@ -53,5 +57,7 @@ describe('Admin Materialized Views page', () => {
     expect(screen.getByText('mv_lncrna_chipseq_overlaps')).toBeInTheDocument()
     expect(screen.getByText('Heap: 8 kB')).toBeInTheDocument()
     expect(screen.getByText('Source: autoanalyze')).toBeInTheDocument()
+    expect(screen.getByText('healthy')).toBeInTheDocument()
+    expect(screen.getByText('No action needed.')).toBeInTheDocument()
   })
 })

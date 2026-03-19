@@ -79,6 +79,9 @@ Verify it (recommended):
 ```bash
 # One command (local Postgres + local backend venv)
 python3 scripts/verify_baselines.py --mode local
+
+# Or, if you want the self-hosted fast-path CI shape locally:
+bash scripts/run-tests.sh ci-postgres
 ```
 
 If the backend is already running (ideally on a fixed dataset), generate a stable snapshot manually:

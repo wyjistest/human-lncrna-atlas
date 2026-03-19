@@ -1,12 +1,10 @@
 {
   "title": "ChIP-seq 全局组蛋白修饰对比",
-  "subtitle": "跨所有基因和细胞类型比较组蛋白修饰",
-
+  "subtitle": "全局 ChIP-seq 对比能力尚未公开提供。请使用下方引导入口进入真实的 gene-scoped 分析路径。",
   "demo": {
     "title": "演示模式",
     "description": "当前页面使用 mock 演示数据，后端真实接口尚未实现。"
   },
-
   "filters": {
     "title": "筛选条件",
     "marks": "选择组蛋白修饰",
@@ -17,14 +15,12 @@
     "more": "更多",
     "clear": "清除全部"
   },
-
   "tabs": {
     "radar": "雷达图",
     "bar": "柱状图",
     "boxplot": "箱线图",
     "matrix": "细胞矩阵"
   },
-
   "stats": {
     "totalMarks": "修饰类型",
     "totalPeaks": "总峰数",
@@ -33,10 +29,8 @@
     "avgSignal": "平均信号",
     "avgEnrichment": "平均富集度"
   },
-
   "charts": {
     "noData": "暂无数据",
-
     "radar": {
       "title": "多修饰类型对比",
       "peakCount": "峰数量",
@@ -46,7 +40,6 @@
       "geneCount": "基因数量",
       "foldEnrichment": "富集倍数"
     },
-
     "bar": {
       "title": "修饰类型对比",
       "metricLabel": "对比指标",
@@ -57,7 +50,6 @@
       "avgSignal": "平均信号",
       "avgEnrichment": "平均富集度"
     },
-
     "boxplot": {
       "title": "信号分布（按修饰类型）",
       "yAxis": "信号值",
@@ -71,7 +63,6 @@
       "min": "最小值",
       "sampleSize": "样本量"
     },
-
     "matrix": {
       "title": "细胞类型 × 修饰类型矩阵",
       "metricLabel": "显示指标",
@@ -84,15 +75,32 @@
       "coverage": "覆盖度"
     }
   },
-
   "export": {
     "saveImage": "保存为图片",
     "exportCSV": "导出 CSV",
     "exportData": "导出数据"
   },
-
   "errors": {
     "loadFailed": "加载对比数据失败",
     "noMarksSelected": "请至少选择一个修饰类型进行对比"
+  },
+  "status": {
+    "comingSoon": "即将提供"
+  },
+  "unavailable": {
+    "title": "全局对比暂未开放",
+    "description": "当前页面不再展示 mock 图表。跨基因的公开全局对比后端契约尚未实现。",
+    "guidance": "如需真实 ChIP-seq 分析，请先进入具体 gene 详情页，再使用 compare、summary、heatmap 和 export 能力。",
+    "nextStepsTitle": "请改用已上线入口",
+    "searchHint": "先搜索 lncRNA 或 gene 名称，再进入基于 gene 的 compare、summary、export 和 genome browser 工作流。",
+    "searchPlaceholder": "搜索 lncRNA 或 gene 名称",
+    "searchButton": "浏览基因",
+    "browseGenes": "浏览 lncRNA 基因",
+    "openOverlap": "打开 overlap 浏览器",
+    "openAnalysis": "打开表观分析",
+    "currentScope": "当前支持范围",
+    "scopeDetail": "当前后端支持的是基于 gene 的 ChIP-seq 端点，而不是跨全局 mark 的公共对比数据集。",
+    "devNoteTitle": "开发说明",
+    "devNote": "旧的 /api/v1/chipseq/* 全局对比端点是故意不暴露的。在真实后端契约落地前，前端必须把该页面视为 unavailable。"
   }
 }

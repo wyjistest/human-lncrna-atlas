@@ -51,7 +51,7 @@ export default function ChIPSeqComparePage() {
       <Paragraph type="secondary" style={{ marginBottom: 24 }}>
         {t(
           'subtitle',
-          'Global ChIP-seq comparison is not publicly available yet. Use gene-level ChIP-seq analysis pages for real data.'
+          'Global ChIP-seq comparison is not publicly available yet. Use the guided gene-scoped entry points below for real data.'
         )}
       </Paragraph>
 
