@@ -1467,13 +1467,19 @@ def get_materialized_views_status(request: Request) -> dict:
     with autocommit_engine.connect() as conn:
         database_backend = conn.dialect.name
         if database_backend != "postgresql":
+            views = [mv_ops._missing_mv_status(name) for name in mv_ops.DEFAULT_MATERIALIZED_VIEWS]
             return {
                 "status": "unsupported",
                 "supported": False,
                 "database_backend": database_backend,
                 "checked_at": checked_at,
                 "refresh_lock_available": None,
-                "views": [mv_ops._missing_mv_status(name) for name in mv_ops.DEFAULT_MATERIALIZED_VIEWS],
+                "attention_summary": mv_ops.build_attention_summary(
+                    views,
+                    supported=False,
+                    database_backend=database_backend,
+                ),
+                "views": views,
             }
 
         lock_available = mv_ops.get_refresh_lock_available(conn)
@@ -1482,9 +1488,14 @@ def get_materialized_views_status(request: Request) -> dict:
     return {
         "status": "success",
         "supported": True,
-        "database_backend": "postgresql",
+        "database_backend": database_backend,
         "checked_at": checked_at,
         "refresh_lock_available": bool(lock_available),
+        "attention_summary": mv_ops.build_attention_summary(
+            views,
+            supported=True,
+            database_backend=database_backend,
+        ),
         "views": views,
     }
 

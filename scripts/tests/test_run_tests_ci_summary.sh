@@ -201,7 +201,10 @@ with open(path, "r", encoding="utf-8") as fh:
     data = json.load(fh)
 
 assert data["result"] == "failed", data
+assert data["schema_version"] == 1, data
+assert data["coverage"] == "core checks only", data
 assert data["first_failed_stage"] == "frontend-lint", data
+assert data["first_failed_log_relpath"] == "run-tests-stage-logs/frontend-lint.log", data
 
 stages = {stage["stage_id"]: stage for stage in data["stages"]}
 assert stages["backend-lint"]["status"] == "PASS", stages

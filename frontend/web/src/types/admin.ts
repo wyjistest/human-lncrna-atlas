@@ -25,12 +25,23 @@ export interface MaterializedViewStatusItem {
   affects_features: string[]
 }
 
+export interface MaterializedViewsAttentionSummary {
+  status: 'healthy' | 'degraded' | 'critical'
+  severity: 'info' | 'warning' | 'critical'
+  message: string
+  recommended_action: string | null
+  attention_count: number
+  total_count: number
+  attention_view_names: string[]
+}
+
 export interface MaterializedViewsStatusResponse {
   status: string
   supported: boolean
   database_backend: string
   checked_at: string
   refresh_lock_available: boolean | null
+  attention_summary: MaterializedViewsAttentionSummary
   views: MaterializedViewStatusItem[]
 }
 

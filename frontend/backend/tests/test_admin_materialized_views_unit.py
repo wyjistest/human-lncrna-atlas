@@ -91,6 +91,22 @@ class _FakeConnection:
         raise AssertionError(f"Unexpected SQL executed in unit test: {sql!r}")
 
 
+def _mv_status_item(
+    name: str,
+    *,
+    health_status: str = "healthy",
+    severity: str = "info",
+    recommended_action: str | None = None,
+):
+    return {
+        "name": name,
+        "health_status": health_status,
+        "severity": severity,
+        "recommended_action": recommended_action,
+        "affects_features": [],
+    }
+
+
 @pytest.mark.unit
 def test_refresh_raises_when_lock_unavailable():
     from app.core import materialized_views as mv_ops
@@ -217,3 +233,96 @@ def test_get_mv_status_marks_stale_stats_as_warning():
     assert status["health_status"] == "stale_stats"
     assert status["severity"] == "warning"
     assert "Run ANALYZE or refresh this MV" in (status["recommended_action"] or "")
+
+
+@pytest.mark.unit
+def test_build_attention_summary_reports_all_healthy():
+    from app.core import materialized_views as mv_ops
+
+    summary = mv_ops.build_attention_summary(
+        [
+            _mv_status_item("mv_analysis_high_affinity_stats_ba100"),
+            _mv_status_item("mv_lncrna_chipseq_overlaps"),
+        ],
+        supported=True,
+        database_backend="postgresql",
+    )
+
+    assert summary["status"] == "healthy"
+    assert summary["severity"] == "info"
+    assert summary["attention_count"] == 0
+    assert summary["total_count"] == 2
+    assert summary["attention_view_names"] == []
+    assert "healthy" in summary["message"].lower()
+    assert summary["recommended_action"] is None
+
+
+@pytest.mark.unit
+def test_build_attention_summary_reports_warning_attention():
+    from app.core import materialized_views as mv_ops
+
+    summary = mv_ops.build_attention_summary(
+        [
+            _mv_status_item("mv_analysis_high_affinity_stats_ba100"),
+            _mv_status_item(
+                "mv_analysis_top_lncrnas_ba100",
+                health_status="stale_stats",
+                severity="warning",
+                recommended_action="Run ANALYZE for top-lncRNA stats.",
+            ),
+        ],
+        supported=True,
+        database_backend="postgresql",
+    )
+
+    assert summary["status"] == "degraded"
+    assert summary["severity"] == "warning"
+    assert summary["attention_count"] == 1
+    assert summary["total_count"] == 2
+    assert summary["attention_view_names"] == ["mv_analysis_top_lncrnas_ba100"]
+    assert "1/2" in summary["message"]
+    assert summary["recommended_action"] == "Run ANALYZE for top-lncRNA stats."
+
+
+@pytest.mark.unit
+def test_build_attention_summary_reports_critical_attention():
+    from app.core import materialized_views as mv_ops
+
+    summary = mv_ops.build_attention_summary(
+        [
+            _mv_status_item("mv_analysis_high_affinity_stats_ba100"),
+            _mv_status_item(
+                "mv_lncrna_chipseq_overlaps",
+                health_status="missing",
+                severity="critical",
+                recommended_action="Recreate overlap MV before serving compare traffic.",
+            ),
+        ],
+        supported=True,
+        database_backend="postgresql",
+    )
+
+    assert summary["status"] == "critical"
+    assert summary["severity"] == "critical"
+    assert summary["attention_count"] == 1
+    assert summary["attention_view_names"] == ["mv_lncrna_chipseq_overlaps"]
+    assert "critical" in summary["message"].lower()
+    assert summary["recommended_action"] == "Recreate overlap MV before serving compare traffic."
+
+
+@pytest.mark.unit
+def test_build_attention_summary_reports_unsupported_backend_as_degraded():
+    from app.core import materialized_views as mv_ops
+
+    summary = mv_ops.build_attention_summary(
+        [_mv_status_item(name) for name in mv_ops.DEFAULT_MATERIALIZED_VIEWS],
+        supported=False,
+        database_backend="sqlite",
+    )
+
+    assert summary["status"] == "degraded"
+    assert summary["severity"] == "warning"
+    assert summary["attention_count"] == len(mv_ops.DEFAULT_MATERIALIZED_VIEWS)
+    assert summary["attention_view_names"] == list(mv_ops.DEFAULT_MATERIALIZED_VIEWS)
+    assert "sqlite" in summary["message"]
+    assert "PostgreSQL" in (summary["recommended_action"] or "")

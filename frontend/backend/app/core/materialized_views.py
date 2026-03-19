@@ -41,6 +41,11 @@ DEFAULT_MATERIALIZED_VIEWS: tuple[str, ...] = (
 _ALLOWED_MV_SET = set(DEFAULT_MATERIALIZED_VIEWS)
 _MV_NAME_PATTERN = re.compile(r"^[a-z0-9_]{1,63}$")
 _MV_STATS_STALE_THRESHOLD_SECONDS = 24 * 60 * 60
+_MV_SEVERITY_ORDER = {
+    "info": 0,
+    "warning": 1,
+    "critical": 2,
+}
 
 _MV_OPERABILITY_HINTS: dict[str, dict[str, Any]] = {
     "mv_analysis_high_affinity_stats_ba100": {
@@ -277,6 +282,84 @@ def _evaluate_mv_health(
         )
 
     return ("healthy", "info", None, affected_features)
+
+
+def build_attention_summary(
+    views: list[dict[str, Any]],
+    *,
+    supported: bool,
+    database_backend: str,
+) -> dict[str, Any]:
+    total_count = len(views)
+    backend_label = (database_backend or "unknown").strip() or "unknown"
+
+    if not supported:
+        attention_view_names = [str(view.get("name")) for view in views if view.get("name")]
+        return {
+            "status": "degraded",
+            "severity": "warning",
+            "message": f"Materialized view operations are unavailable on {backend_label}.",
+            "recommended_action": (
+                "Switch the admin backend to PostgreSQL to refresh or inspect materialized views."
+            ),
+            "attention_count": len(attention_view_names),
+            "total_count": total_count,
+            "attention_view_names": attention_view_names,
+        }
+
+    attention_views = [view for view in views if str(view.get("health_status") or "") != "healthy"]
+    attention_view_names = [str(view.get("name")) for view in attention_views if view.get("name")]
+
+    if not attention_views:
+        return {
+            "status": "healthy",
+            "severity": "info",
+            "message": "All materialized views are healthy.",
+            "recommended_action": None,
+            "attention_count": 0,
+            "total_count": total_count,
+            "attention_view_names": [],
+        }
+
+    highest_severity = max(
+        (
+            str(view.get("severity") or "warning")
+            for view in attention_views
+        ),
+        key=lambda severity: _MV_SEVERITY_ORDER.get(severity, _MV_SEVERITY_ORDER["warning"]),
+    )
+    unique_actions: list[str] = []
+    for view in attention_views:
+        action = str(view.get("recommended_action") or "").strip()
+        if action and action not in unique_actions:
+            unique_actions.append(action)
+
+    if highest_severity == "critical":
+        critical_count = sum(1 for view in attention_views if str(view.get("severity")) == "critical")
+        message = (
+            f"{critical_count} critical materialized view issue(s) detected; "
+            f"{len(attention_views)}/{total_count} view(s) need attention."
+        )
+        status = "critical"
+    else:
+        message = f"{len(attention_views)}/{total_count} materialized view(s) need attention."
+        status = "degraded"
+
+    recommended_action = unique_actions[0] if len(unique_actions) == 1 else None
+    if recommended_action is None and highest_severity != "info":
+        recommended_action = (
+            "Review the affected materialized views in Admin and refresh or ANALYZE the listed views."
+        )
+
+    return {
+        "status": status,
+        "severity": highest_severity,
+        "message": message,
+        "recommended_action": recommended_action,
+        "attention_count": len(attention_views),
+        "total_count": total_count,
+        "attention_view_names": attention_view_names,
+    }
 
 
 def get_mv_status(conn: Connection, mv_name: str) -> dict[str, Any]:

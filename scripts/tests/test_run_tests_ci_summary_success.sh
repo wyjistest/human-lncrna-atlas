@@ -204,7 +204,10 @@ with open(path, "r", encoding="utf-8") as fh:
     data = json.load(fh)
 
 assert data["result"] == "passed", data
+assert data["schema_version"] == 1, data
+assert data["coverage"] == "core checks only", data
 assert data["first_failed_stage"] is None, data
+assert data["first_failed_log_relpath"] is None, data
 assert data["failed_stages"] == 0, data
 assert data["passed_stages"] == len(data["stages"]), data
 

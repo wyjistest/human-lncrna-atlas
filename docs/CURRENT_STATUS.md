@@ -49,14 +49,17 @@
 1. **self-hosted Fast CI 可解释性增强**
    - `scripts/run-tests.sh ci` 现会在启用 summary 时同时生成 Markdown summary、JSON manifest 与按阶段切分的 stage logs；每个阶段会记录稳定 `stage_id`、状态、耗时、hint 与日志相对路径
    - 在 GitHub Actions 环境中，`run-tests` 会为每个阶段输出 `::notice::/::group::` 注解，并在失败时额外发出带 `stage_id + log path` 的 `::error::`
-   - `.github/workflows/test.yml` 的 `Self-hosted Fast CI` 会先根据 JSON manifest 生成一段 overview（含 `first_failed_stage`），再追加 Markdown summary，并上传 `md + json + stage logs` artifact，方便直接定位失败阶段
+   - `run-tests-ci-summary.json` 顶层现额外包含 `schema_version`、`coverage` 与 `first_failed_log_relpath`，`.github/workflows/test.yml` 生成的 overview 会直接展示首个失败日志路径，减少手动翻 artifact 的成本
+   - `.github/workflows/test.yml` 的 `Self-hosted Fast CI` 会先根据 JSON manifest 生成一段 overview（含 `first_failed_stage` / `first_failed_log_relpath`），再追加 Markdown summary，并上传 `md + json + stage logs` artifact，方便直接定位失败阶段
    - self-hosted push 现改为执行 `bash scripts/run-tests.sh ci-postgres`，fast path 也会显式校验 API snapshot baseline，不再出现“CI 全绿但 baseline job 被跳过”的覆盖盲区
 
 2. **Admin 物化视图状态增强**
    - `GET /api/v1/admin/materialized-views/status` 新增 `checked_at` / `database_backend` / `supported`
+   - 顶层新增 `attention_summary`（`status` / `severity` / `message` / `recommended_action` / `attention_count` / `attention_view_names`），前端 Runtime 与运维脚本统一消费这一摘要，而不是各自重复推导
    - 每个 MV 额外返回容量拆分（`total/heap/index`）与统计新鲜度（`last_analyze_at` / `last_autoanalyze_at` / `last_stats_at` / `stats_age_seconds`）
    - 每个 MV 现进一步给出 `health_status` / `severity` / `recommended_action` / `affects_features`，Admin 页面可直接看到“哪些功能受影响、下一步该做什么”
    - 非 PostgreSQL 后端不再直接报错，而是显式返回 `status=unsupported` 的降级状态，便于前端与运维侧识别
+   - 新增 `scripts/check_materialized_views_operability.py`，可直接读取 Admin 状态或离线 JSON，并按 `attention_summary.severity` 输出退出码：`0=healthy`、`1=warning/degraded/unsupported`、`2=critical`
 
 3. **export / unavailable compare 回归锚点补强**
    - `scripts/api_snapshot.py` 为 `export/disease-network`、`network/disease` 与 overlap compare 新增稳定摘要字段（nodes/edges、species_count/species_ids）

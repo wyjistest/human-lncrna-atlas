@@ -45,6 +45,7 @@ RUN_TESTS_SUMMARY_FAILED=0
 RUN_TESTS_SUMMARY_MODE=""
 RUN_TESTS_SUMMARY_STARTED_AT=""
 RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE=""
+RUN_TESTS_SUMMARY_FIRST_FAILED_LOG_RELPATH=""
 RUN_TESTS_SUMMARY_ACTIVE="${RUN_TESTS_SUMMARY_ACTIVE:-0}"
 
 echo "=========================================="
@@ -143,8 +144,30 @@ resolve_stage_log_relpath() {
     printf '%s/%s' "$(basename "$(dirname "$log_path")")" "$(basename "$log_path")"
 }
 
+summary_coverage_label() {
+    case "${1:-}" in
+        ci)
+            echo "core checks only"
+            ;;
+        ci-postgres)
+            echo "core checks + API snapshot baseline"
+            ;;
+        ci-plus)
+            echo "core checks + mocked Playwright e2e-smoke"
+            ;;
+        ci-full)
+            echo "ci-plus + dependency security audit"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
 init_run_tests_summary() {
     local mode="${1:-unknown}"
+    local coverage_label
+    coverage_label="$(summary_coverage_label "$mode")"
     if [ -n "$RUN_TESTS_ARTIFACT_DIR" ]; then
         mkdir -p "$RUN_TESTS_ARTIFACT_DIR"
         if [ -z "$RUN_TESTS_SUMMARY_JSON_PATH" ]; then
@@ -180,6 +203,7 @@ init_run_tests_summary() {
     RUN_TESTS_SUMMARY_MODE="$mode"
     RUN_TESTS_SUMMARY_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE=""
+    RUN_TESTS_SUMMARY_FIRST_FAILED_LOG_RELPATH=""
     RUN_TESTS_SUMMARY_ACTIVE=1
     export RUN_TESTS_SUMMARY_ACTIVE
 
@@ -189,20 +213,9 @@ init_run_tests_summary() {
             echo
             echo "- Mode: \`$(escape_summary_cell "$mode")\`"
             echo "- Started at (UTC): \`$RUN_TESTS_SUMMARY_STARTED_AT\`"
-            case "$mode" in
-                ci)
-                    echo "- Coverage: \`core checks only\`"
-                    ;;
-                ci-postgres)
-                    echo "- Coverage: \`core checks + API snapshot baseline\`"
-                    ;;
-                ci-plus)
-                    echo "- Coverage: \`core checks + mocked Playwright e2e-smoke\`"
-                    ;;
-                ci-full)
-                    echo "- Coverage: \`ci-plus + dependency security audit\`"
-                    ;;
-            esac
+            if [ -n "$coverage_label" ]; then
+                echo "- Coverage: \`$(escape_summary_cell "$coverage_label")\`"
+            fi
             echo
             echo "| Stage | Status | Duration (s) | Hint |"
             echo "| --- | --- | ---: | --- |"
@@ -229,6 +242,7 @@ append_run_tests_summary_row() {
         RUN_TESTS_SUMMARY_FAILED=$((RUN_TESTS_SUMMARY_FAILED + 1))
         if [ -z "$RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE" ]; then
             RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE="$stage_id"
+            RUN_TESTS_SUMMARY_FIRST_FAILED_LOG_RELPATH="$log_relpath"
         fi
     fi
 
@@ -257,12 +271,14 @@ append_run_tests_summary_row() {
 
 finalize_run_tests_summary() {
     local exit_code="${1:-0}"
+    local coverage_label
     if [ "$RUN_TESTS_SUMMARY_ENABLED" != "1" ]; then
         return 0
     fi
 
     local passed=0
     local finished_at result
+    coverage_label="$(summary_coverage_label "$RUN_TESTS_SUMMARY_MODE")"
     passed=$((RUN_TESTS_SUMMARY_TOTAL - RUN_TESTS_SUMMARY_FAILED))
     finished_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     result="failed"
@@ -281,19 +297,25 @@ finalize_run_tests_summary() {
             if [ -n "$RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE" ]; then
                 echo "- First failed stage: \`${RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE}\`"
             fi
+            if [ -n "$RUN_TESTS_SUMMARY_FIRST_FAILED_LOG_RELPATH" ]; then
+                echo "- First failed log: \`${RUN_TESTS_SUMMARY_FIRST_FAILED_LOG_RELPATH}\`"
+            fi
         } >> "$RUN_TESTS_SUMMARY_PATH"
     fi
 
     if [ -n "$RUN_TESTS_SUMMARY_JSON_PATH" ] && [ -n "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE" ]; then
         {
             echo "{"
+            echo "  \"schema_version\": 1,"
             echo "  \"mode\": $(json_string_or_null "$RUN_TESTS_SUMMARY_MODE"),"
+            echo "  \"coverage\": $(json_string_or_null "$coverage_label"),"
             echo "  \"result\": $(json_string_or_null "$result"),"
             echo "  \"started_at\": $(json_string_or_null "$RUN_TESTS_SUMMARY_STARTED_AT"),"
             echo "  \"finished_at\": $(json_string_or_null "$finished_at"),"
             echo "  \"passed_stages\": ${passed},"
             echo "  \"failed_stages\": ${RUN_TESTS_SUMMARY_FAILED},"
             echo "  \"first_failed_stage\": $(json_string_or_null "$RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE"),"
+            echo "  \"first_failed_log_relpath\": $(json_string_or_null "$RUN_TESTS_SUMMARY_FIRST_FAILED_LOG_RELPATH"),"
             echo "  \"stages\": ["
             if [ -s "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE" ]; then
                 awk 'BEGIN { first = 1 } { if (!first) printf(",\n"); printf("    %s", $0); first = 0 } END { if (!first) printf("\n") }' "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE"

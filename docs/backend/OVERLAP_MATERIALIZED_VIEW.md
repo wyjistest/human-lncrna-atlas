@@ -75,6 +75,8 @@ curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application
 `/api/v1/admin/materialized-views/status` 现会额外返回以下运维字段：
 
 - 顶层：`checked_at`、`database_backend`、`supported`、`refresh_lock_available`
+- 顶层：`attention_summary.status` / `attention_summary.severity` / `attention_summary.message`
+- 顶层：`attention_summary.recommended_action` / `attention_summary.attention_count` / `attention_summary.attention_view_names`
 - 每个 MV：`total_size` / `heap_size` / `index_size`
 - 每个 MV：`last_analyze_at`、`last_autoanalyze_at`、`last_stats_at`、`stats_age_seconds`
 - 每个 MV：`health_status`、`severity`、`recommended_action`、`affects_features`
@@ -83,6 +85,25 @@ curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application
 - PostgreSQL catalog 不直接提供 `last_refresh_at`，因此接口使用 analyze/autoanalyze 时间近似表达“统计信息新鲜度”
 - 若当前不是 PostgreSQL，接口会返回 `status=unsupported` 的降级响应，而不是直接 500
 - `health_status` 会把原始 catalog 字段归纳为 `healthy / missing / not_populated / stale_stats / stats_unavailable`，方便运维快速判断是否需要 refresh / analyze / 补 schema
+- `attention_summary` 会把所有 MV 状态汇总成单个运维摘要；非 PostgreSQL 后端默认视为 `degraded + warning`，不会误报成 critical
+
+### 方式 C：operability CLI（适合 cron / CI / systemd）
+
+```bash
+python3 scripts/check_materialized_views_operability.py \
+  --backend-url http://localhost:8000 \
+  --admin-api-key "$ADMIN_API_KEY"
+
+python3 scripts/check_materialized_views_operability.py \
+  --status-json /path/to/materialized-views-status.json
+```
+
+退出码语义：
+
+- `0`：所有 MV healthy
+- `1`：warning / degraded / unsupported
+- `2`：critical
+- `3`：JSON / 网络 / I/O 错误
 
 ---
 

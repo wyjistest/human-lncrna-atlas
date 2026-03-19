@@ -83,7 +83,7 @@ export default function MaterializedViews() {
         render: (_, row) => {
           const meta = HEALTH_META[row.health_status]
           return (
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               <Tag color={meta.color}>{meta.label}</Tag>
               <Text type="secondary">Severity: {row.severity}</Text>
             </Space>
@@ -101,7 +101,7 @@ export default function MaterializedViews() {
         title: 'Storage',
         key: 'storage',
         render: (_, row) => (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text>Total: {row.total_size ?? '-'}</Text>
             <Text type="secondary">Heap: {row.heap_size ?? '-'}</Text>
             <Text type="secondary">Indexes: {row.index_size ?? '-'}</Text>
@@ -112,7 +112,7 @@ export default function MaterializedViews() {
         title: 'Impact / Recommendation',
         key: 'impact',
         render: (_, row) => (
-          <Space direction="vertical" size={4}>
+          <Space orientation="vertical" size={4}>
             <Text>{row.recommended_action ?? 'No action needed.'}</Text>
             {row.affects_features.length > 0 && (
               <Space size="small" wrap>
@@ -128,7 +128,7 @@ export default function MaterializedViews() {
         title: 'Stats Freshness',
         key: 'stats_freshness',
         render: (_, row) => (
-          <Space direction="vertical" size={0}>
+          <Space orientation="vertical" size={0}>
             <Text>Last stats: {formatTimestamp(row.last_stats_at)}</Text>
             <Text type="secondary">Source: {row.last_stats_source}</Text>
             <Text type="secondary">Age: {formatAge(row.stats_age_seconds)}</Text>
@@ -184,6 +184,22 @@ export default function MaterializedViews() {
   const lockColor = lockAvailable == null ? 'default' : (lockAvailable ? 'success' : 'error')
   const lockLabel = lockAvailable == null ? 'unknown' : (lockAvailable ? 'available' : 'busy')
   const refreshDisabled = lockAvailable === false || data?.supported === false
+  const attentionSummary = data?.attention_summary
+  const attentionCount = attentionSummary?.attention_count ?? attentionViews.length
+  const totalCount = attentionSummary?.total_count ?? data?.views.length ?? 0
+  const attentionTagColor =
+    attentionSummary?.severity === 'critical' ? 'error' : attentionSummary?.severity === 'warning' ? 'warning' : 'success'
+  const attentionMessage =
+    attentionSummary?.message ??
+    (attentionViews.length > 0 ? `${attentionViews.length}/${data?.views.length ?? 0} materialized view(s) need attention.` : 'All materialized views are healthy.')
+  const attentionAction =
+    attentionSummary?.recommended_action ??
+    (attentionViews.length > 0 ? 'Review the affected materialized views below.' : null)
+  const attentionNames =
+    attentionSummary?.attention_view_names ?? attentionViews.map((view) => view.name)
+  const attentionDescription = [attentionMessage, attentionAction, attentionNames.length > 0 ? `Views: ${attentionNames.join(', ')}` : null]
+    .filter(Boolean)
+    .join(' ')
 
   const handleRefresh = async () => {
     if (lockAvailable === false) {
@@ -258,8 +274,8 @@ export default function MaterializedViews() {
             </Tag>
             <Text>Checked at: {formatTimestamp(data?.checked_at)}</Text>
             <Text type="secondary">Status payload: {data?.status ?? 'unknown'}</Text>
-            <Tag color={attentionViews.length > 0 ? 'warning' : 'success'}>
-              {attentionViews.length > 0 ? `attention ${attentionViews.length}/${data?.views.length ?? 0}` : 'all healthy'}
+            <Tag color={attentionTagColor}>
+              {attentionCount > 0 ? `attention ${attentionCount}/${totalCount}` : 'all healthy'}
             </Tag>
           </Space>
         </Card>
@@ -272,20 +288,18 @@ export default function MaterializedViews() {
           showIcon
           style={{ marginBottom: 16 }}
           message="Current database backend does not support materialized view operations"
-          description="Status is degraded. Refresh lock and PostgreSQL catalog-derived metadata are unavailable on this backend."
+          description={attentionDescription || 'Status is degraded. Refresh lock and PostgreSQL catalog-derived metadata are unavailable on this backend.'}
         />
       )}
 
-      {data?.supported !== false && attentionViews.length > 0 && (
+      {data?.supported !== false && attentionCount > 0 && (
         <Alert
           data-testid="admin-materialized-views-attention"
-          type="warning"
+          type={attentionSummary?.severity === 'critical' ? 'error' : 'warning'}
           showIcon
           style={{ marginBottom: 16 }}
-          message={`${attentionViews.length} materialized view(s) need attention`}
-          description={attentionViews
-            .map((view) => `${view.name}: ${view.recommended_action ?? 'Check status details below.'}`)
-            .join(' ')}
+          message={attentionMessage}
+          description={attentionDescription}
         />
       )}
 

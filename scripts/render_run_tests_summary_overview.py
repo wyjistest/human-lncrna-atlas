@@ -10,6 +10,7 @@ def render_overview(summary_path: Path) -> str:
     passed = data.get("passed_stages", 0)
     failed = data.get("failed_stages", 0)
     first_failed = data.get("first_failed_stage")
+    first_failed_log = data.get("first_failed_log_relpath")
 
     lines = [
         "## Self-hosted fast CI overview",
@@ -22,6 +23,8 @@ def render_overview(summary_path: Path) -> str:
         lines.append(f"- First failed stage: `{first_failed}`")
     else:
         lines.append("- First failed stage: `none`")
+    if first_failed_log:
+        lines.append(f"- First failed log: `{first_failed_log}`")
     lines.append("")
     return "\n".join(lines)
 
