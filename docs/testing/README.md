@@ -58,6 +58,25 @@ cd frontend/web && npm run test:e2e -- phase-3-1-validation.spec.ts
 4. Document any issues found
 5. Complete test report
 
+### Frontend 定向回归（`/chipseq-compare`）
+
+当修改 gene-set compare workbench、batch heatmap hook 或页面状态机时，优先跑这组前端定向回归：
+
+```bash
+cd frontend/web
+npx eslint src/hooks/useBatchGeneHeatmap.ts \
+  src/hooks/__tests__/useBatchGeneHeatmap.test.tsx \
+  src/pages/__tests__/ChIPSeqComparePage.test.tsx
+npm run test:run -- \
+  src/hooks/__tests__/useBatchGeneHeatmap.test.tsx \
+  src/pages/__tests__/ChIPSeqComparePage.test.tsx
+```
+
+覆盖范围：
+- `useBatchGeneHeatmap` 的空态/disabled 稳定性与错误透传
+- `ChIPSeqComparePage` 的空态、粘贴解析、手动 `Run compare`、dirty state 与失败态
+- 批量 compare 仍通过单次 `/api/v1/features/chipseq/genes/batch-heatmap-matrix` 请求驱动，不会退回 N 次单基因 heatmap 请求
+
 ---
 
 ## API Snapshot Baseline (Optional)

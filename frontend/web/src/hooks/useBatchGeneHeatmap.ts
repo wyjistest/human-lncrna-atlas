@@ -38,6 +38,9 @@ interface BatchGeneQueryStatus {
   error: Error | null;
 }
 
+const EMPTY_BATCH_HEATMAP_GENES: BatchHeatmapMatrixResponse["genes"] = [];
+const EMPTY_BATCH_FAILED_GENE_IDS: number[] = [];
+
 export function useBatchGeneHeatmap(
   genes: BatchHeatmapGeneInfo[],
   marks: MarkType[],
@@ -79,8 +82,9 @@ export function useBatchGeneHeatmap(
     retry,
   });
 
-  const data = query.data?.genes ?? [];
-  const failedGeneIds = query.data?.failed_genes ?? [];
+  const data = query.data?.genes ?? EMPTY_BATCH_HEATMAP_GENES;
+  const failedGeneIds =
+    query.data?.failed_genes ?? EMPTY_BATCH_FAILED_GENE_IDS;
   const successfulGeneIds = useMemo(
     () => data.map((item) => item.gene_id),
     [data],

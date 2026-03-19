@@ -67,6 +67,11 @@
    - 前端已移除 `globalCompareApi` 占位契约，页面改为真实 gene-set compare workbench
    - `/chipseq-compare` 页面支持人类基因搜索 + 批量解析，并在首版聚焦真实 heatmap 可视化而非 batch export
 
+4. **`/chipseq-compare` 前端稳定性补强**
+   - `useBatchGeneHeatmap` 已改为复用稳定的空数组引用，消除 `react-hooks/exhaustive-deps` warning，并保持 batch query key 的顺序敏感语义不变
+   - 新增 `frontend/web/src/pages/__tests__/ChIPSeqComparePage.test.tsx`，覆盖空态、粘贴解析、手动 `Run compare`、dirty state、`Update compare` 与失败告警
+   - `frontend/web/src/hooks/__tests__/useBatchGeneHeatmap.test.tsx` 补充 disabled/空输入回归用例，确认页面初始态不会误发 batch heatmap 请求
+
 ### 2026-02-12 ⭐ hg19：外部数据/DB 审计复核 + gene_peak_associations 覆盖确认
 
 1. **外部数据组装一致性复核（防 hg38 混入）**

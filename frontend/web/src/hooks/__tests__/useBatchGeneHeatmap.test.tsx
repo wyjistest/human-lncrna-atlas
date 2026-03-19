@@ -136,4 +136,34 @@ describe("useBatchGeneHeatmap", () => {
     expect(result.current.error?.message).toBe("network failed");
     expect(result.current.queryStatus[0]?.isError).toBe(true);
   });
+
+  it("keeps empty derived arrays stable when the batch query is disabled", () => {
+    const { wrapper } = createWrapper();
+    const { result, rerender } = renderHook(
+      () =>
+        useBatchGeneHeatmap(
+          [],
+          ["H3K27me3"],
+          ["K562"],
+          "median_fold_enrichment",
+          10000,
+          { enabled: false },
+        ),
+      { wrapper },
+    );
+
+    const firstData = result.current.data;
+    const firstFailedGeneIds = result.current.failedGeneIds;
+    const firstSuccessfulGeneIds = result.current.successfulGeneIds;
+    rerender();
+
+    expect(mockGetBatchHeatmapMatrix).not.toHaveBeenCalled();
+    expect(result.current.data).toEqual([]);
+    expect(result.current.failedGeneIds).toEqual([]);
+    expect(result.current.successfulGeneIds).toEqual([]);
+    expect(result.current.queryStatus).toEqual([]);
+    expect(result.current.data).toBe(firstData);
+    expect(result.current.failedGeneIds).toBe(firstFailedGeneIds);
+    expect(result.current.successfulGeneIds).toBe(firstSuccessfulGeneIds);
+  });
 });
