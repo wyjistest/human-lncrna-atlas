@@ -303,6 +303,8 @@ jobs:
       - name: Run core checks (self-hosted fast path)
         env:
           RUN_TESTS_SUMMARY_PATH: ${{ runner.temp }}/run-tests-ci-summary.md
+          RUN_TESTS_SUMMARY_JSON_PATH: ${{ runner.temp }}/run-tests-ci-summary.json
+          RUN_TESTS_ARTIFACT_DIR: ${{ runner.temp }}
           # Ensure CI build points to the intended backend (overrides committed frontend/web/.env).
           VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
         run: |
@@ -312,8 +314,36 @@ jobs:
         if: ${{ always() }}
         env:
           RUN_TESTS_SUMMARY_PATH: ${{ runner.temp }}/run-tests-ci-summary.md
+          RUN_TESTS_SUMMARY_JSON_PATH: ${{ runner.temp }}/run-tests-ci-summary.json
         run: |
           set -euo pipefail
+
+          if [ -f "$RUN_TESTS_SUMMARY_JSON_PATH" ]; then
+            python3 - "$RUN_TESTS_SUMMARY_JSON_PATH" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+            import json
+            import sys
+
+            path = sys.argv[1]
+            with open(path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+
+            result = (data.get("result") or "unknown").strip()
+            passed = data.get("passed_stages", 0)
+            failed = data.get("failed_stages", 0)
+            first_failed = data.get("first_failed_stage")
+
+            print("## Self-hosted fast CI overview")
+            print()
+            print(f"- Result: **{result}**")
+            print(f"- Passed stages: {passed}")
+            print(f"- Failed stages: {failed}")
+            if first_failed:
+                print(f"- First failed stage: `{first_failed}`")
+            else:
+                print("- First failed stage: `none`")
+            print()
+            PY
+          fi
 
           if [ -f "$RUN_TESTS_SUMMARY_PATH" ]; then
             cat "$RUN_TESTS_SUMMARY_PATH" >> "$GITHUB_STEP_SUMMARY"
@@ -330,7 +360,10 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: self-hosted-fast-ci-summary-${{ github.sha }}
-          path: ${{ runner.temp }}/run-tests-ci-summary.md
+          path: |
+            ${{ runner.temp }}/run-tests-ci-summary.md
+            ${{ runner.temp }}/run-tests-ci-summary.json
+            ${{ runner.temp }}/run-tests-stage-logs/
           if-no-files-found: ignore
           retention-days: 14
 

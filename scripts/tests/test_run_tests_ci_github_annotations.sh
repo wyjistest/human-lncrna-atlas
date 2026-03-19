@@ -110,6 +110,7 @@ chmod +x "$tmp_root/frontend/backend/.venv/bin/python"
 cat > "$tmp_root/frontend/backend/.venv/bin/ruff" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+echo "backend lint ok"
 exit 0
 EOF
 chmod +x "$tmp_root/frontend/backend/.venv/bin/ruff"
@@ -150,17 +151,20 @@ EOF
 summary_path="$tmp_root/test-results/run-tests-summary.md"
 json_path="$tmp_root/test-results/run-tests-summary.json"
 artifact_dir="$tmp_root/test-results/artifacts"
+output_path="$tmp_root/test-results/run-tests-output.log"
+mkdir -p "$tmp_root/test-results"
 
 set +e
 (
   cd "$tmp_root"
   PATH="$tmp_root/bin:$PATH" \
+    GITHUB_ACTIONS=true \
     RUN_TESTS_SUMMARY_ACTIVE=0 \
     RUN_TESTS_SUMMARY_PATH="$summary_path" \
     RUN_TESTS_SUMMARY_JSON_PATH="$json_path" \
     RUN_TESTS_ARTIFACT_DIR="$artifact_dir" \
-    bash scripts/run-tests.sh ci >/dev/null 2>&1
-)
+    bash scripts/run-tests.sh ci
+) >"$output_path" 2>&1
 status=$?
 set -e
 
@@ -169,45 +173,9 @@ if [ "$status" -eq 0 ]; then
   exit 1
 fi
 
-if [ ! -f "$summary_path" ]; then
-  echo "expected summary file to be generated: $summary_path" >&2
-  exit 1
-fi
+grep -F "::notice::[run-tests][backend-lint] Starting Backend lint (ruff check)" "$output_path" >/dev/null
+grep -F "::group::run-tests [backend-lint] Backend lint" "$output_path" >/dev/null
+grep -F "::error::[run-tests][frontend-lint] Failed Frontend lint (npm run lint); log=run-tests-stage-logs/frontend-lint.log" "$output_path" >/dev/null
+grep -F "::endgroup::" "$output_path" >/dev/null
 
-if [ ! -f "$json_path" ]; then
-  echo "expected summary json to be generated: $json_path" >&2
-  exit 1
-fi
-
-frontend_lint_log="$artifact_dir/run-tests-stage-logs/frontend-lint.log"
-if [ ! -f "$frontend_lint_log" ]; then
-  echo "expected frontend lint log to be generated: $frontend_lint_log" >&2
-  exit 1
-fi
-
-grep -F "| Backend lint | PASS |" "$summary_path" >/dev/null
-grep -F "| Frontend lint | FAIL |" "$summary_path" >/dev/null
-grep -F "| Frontend build | PASS |" "$summary_path" >/dev/null
-grep -F -- "- Result: **failed**" "$summary_path" >/dev/null
-
-grep -F "frontend lint failed" "$frontend_lint_log" >/dev/null
-
-python3 - "$json_path" <<'PY'
-import json
-import sys
-
-path = sys.argv[1]
-with open(path, "r", encoding="utf-8") as fh:
-    data = json.load(fh)
-
-assert data["result"] == "failed", data
-assert data["first_failed_stage"] == "frontend-lint", data
-
-stages = {stage["stage_id"]: stage for stage in data["stages"]}
-assert stages["backend-lint"]["status"] == "PASS", stages
-assert stages["frontend-lint"]["status"] == "FAIL", stages
-assert stages["frontend-lint"]["log_relpath"] == "run-tests-stage-logs/frontend-lint.log", stages
-assert stages["frontend-build"]["status"] == "PASS", stages
-PY
-
-echo "OK: ci summary markdown is generated and captures failed stages"
+echo "OK: ci mode emits GitHub annotations for stage start/group/failure"

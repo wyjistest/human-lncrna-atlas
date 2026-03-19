@@ -46,6 +46,7 @@ cat > "$tmp_root/frontend/backend/scripts/db_migrate.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${1:-}" == "verify" ]]; then
+  echo "db migrate verify ok"
   exit 0
 fi
 exit 1
@@ -88,18 +89,22 @@ cat > "$tmp_root/frontend/backend/.venv/bin/python" <<'EOF'
 set -euo pipefail
 
 if [[ "${1:-}" == "-c" ]]; then
+  echo "python import ok"
   exit 0
 fi
 
 if [[ "${1:-}" == "-m" && "${2:-}" == "py_compile" ]]; then
+  echo "py_compile ok"
   exit 0
 fi
 
 if [[ "${1:-}" == "-m" && "${2:-}" == "pip" && "${3:-}" == "install" ]]; then
+  echo "pip install ok"
   exit 0
 fi
 
 if [[ "${1:-}" == "-m" && "${2:-}" == "pytest" ]]; then
+  echo "pytest ok"
   exit 0
 fi
 
@@ -110,6 +115,7 @@ chmod +x "$tmp_root/frontend/backend/.venv/bin/python"
 cat > "$tmp_root/frontend/backend/.venv/bin/ruff" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+echo "backend lint ok"
 exit 0
 EOF
 chmod +x "$tmp_root/frontend/backend/.venv/bin/ruff"
@@ -117,6 +123,7 @@ chmod +x "$tmp_root/frontend/backend/.venv/bin/ruff"
 cat > "$tmp_root/bin/python3" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+echo "python3 ok"
 exit 0
 EOF
 chmod +x "$tmp_root/bin/python3"
@@ -125,14 +132,20 @@ cat > "$tmp_root/bin/npm" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${1:-}" == "run" && "${2:-}" == "test:run" ]]; then
+  echo "frontend unit ok"
+  exit 0
+fi
+
 if [[ "${1:-}" == "run" && "${2:-}" == "lint" ]]; then
-  echo "frontend lint failed" >&2
-  exit 1
+  echo "frontend lint ok"
+  exit 0
 fi
 
 if [[ "${1:-}" == "run" && "${2:-}" == "build" ]]; then
   mkdir -p dist
   echo "<html></html>" > dist/index.html
+  echo "frontend build ok"
   exit 0
 fi
 
@@ -151,7 +164,6 @@ summary_path="$tmp_root/test-results/run-tests-summary.md"
 json_path="$tmp_root/test-results/run-tests-summary.json"
 artifact_dir="$tmp_root/test-results/artifacts"
 
-set +e
 (
   cd "$tmp_root"
   PATH="$tmp_root/bin:$PATH" \
@@ -161,13 +173,6 @@ set +e
     RUN_TESTS_ARTIFACT_DIR="$artifact_dir" \
     bash scripts/run-tests.sh ci >/dev/null 2>&1
 )
-status=$?
-set -e
-
-if [ "$status" -eq 0 ]; then
-  echo "expected ci mode to fail when frontend lint fails" >&2
-  exit 1
-fi
 
 if [ ! -f "$summary_path" ]; then
   echo "expected summary file to be generated: $summary_path" >&2
@@ -179,18 +184,16 @@ if [ ! -f "$json_path" ]; then
   exit 1
 fi
 
-frontend_lint_log="$artifact_dir/run-tests-stage-logs/frontend-lint.log"
-if [ ! -f "$frontend_lint_log" ]; then
-  echo "expected frontend lint log to be generated: $frontend_lint_log" >&2
+backend_lint_log="$artifact_dir/run-tests-stage-logs/backend-lint.log"
+frontend_build_log="$artifact_dir/run-tests-stage-logs/frontend-build.log"
+if [ ! -f "$backend_lint_log" ] || [ ! -f "$frontend_build_log" ]; then
+  echo "expected stage logs to be generated under $artifact_dir/run-tests-stage-logs" >&2
   exit 1
 fi
 
-grep -F "| Backend lint | PASS |" "$summary_path" >/dev/null
-grep -F "| Frontend lint | FAIL |" "$summary_path" >/dev/null
-grep -F "| Frontend build | PASS |" "$summary_path" >/dev/null
-grep -F -- "- Result: **failed**" "$summary_path" >/dev/null
-
-grep -F "frontend lint failed" "$frontend_lint_log" >/dev/null
+grep -F "backend lint ok" "$backend_lint_log" >/dev/null
+grep -F "frontend build ok" "$frontend_build_log" >/dev/null
+grep -F -- "- Result: **passed**" "$summary_path" >/dev/null
 
 python3 - "$json_path" <<'PY'
 import json
@@ -200,14 +203,16 @@ path = sys.argv[1]
 with open(path, "r", encoding="utf-8") as fh:
     data = json.load(fh)
 
-assert data["result"] == "failed", data
-assert data["first_failed_stage"] == "frontend-lint", data
+assert data["result"] == "passed", data
+assert data["first_failed_stage"] is None, data
+assert data["failed_stages"] == 0, data
+assert data["passed_stages"] == len(data["stages"]), data
 
 stages = {stage["stage_id"]: stage for stage in data["stages"]}
 assert stages["backend-lint"]["status"] == "PASS", stages
-assert stages["frontend-lint"]["status"] == "FAIL", stages
-assert stages["frontend-lint"]["log_relpath"] == "run-tests-stage-logs/frontend-lint.log", stages
+assert stages["backend-lint"]["log_relpath"] == "run-tests-stage-logs/backend-lint.log", stages
 assert stages["frontend-build"]["status"] == "PASS", stages
+assert stages["frontend-build"]["log_relpath"] == "run-tests-stage-logs/frontend-build.log", stages
 PY
 
-echo "OK: ci summary markdown is generated and captures failed stages"
+echo "OK: ci summary success path generates json manifest and stage logs"

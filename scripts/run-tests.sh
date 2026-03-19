@@ -34,10 +34,17 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 RUN_TESTS_SUMMARY_PATH="${RUN_TESTS_SUMMARY_PATH:-}"
+RUN_TESTS_SUMMARY_JSON_PATH="${RUN_TESTS_SUMMARY_JSON_PATH:-}"
+RUN_TESTS_ARTIFACT_DIR="${RUN_TESTS_ARTIFACT_DIR:-}"
+RUN_TESTS_STAGE_LOGS_DIR="${RUN_TESTS_STAGE_LOGS_DIR:-}"
 RUN_TESTS_SUMMARY_ENABLED=0
 RUN_TESTS_SUMMARY_ROWS_FILE=""
+RUN_TESTS_SUMMARY_JSON_ROWS_FILE=""
 RUN_TESTS_SUMMARY_TOTAL=0
 RUN_TESTS_SUMMARY_FAILED=0
+RUN_TESTS_SUMMARY_MODE=""
+RUN_TESTS_SUMMARY_STARTED_AT=""
+RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE=""
 RUN_TESTS_SUMMARY_ACTIVE="${RUN_TESTS_SUMMARY_ACTIVE:-0}"
 
 echo "=========================================="
@@ -52,94 +59,253 @@ escape_summary_cell() {
     printf '%s' "$value"
 }
 
+escape_json_string() {
+    local value="${1:-}"
+    value="${value//\\/\\\\}"
+    value="${value//\"/\\\"}"
+    value="${value//$'\n'/\\n}"
+    value="${value//$'\r'/\\r}"
+    value="${value//$'\t'/\\t}"
+    printf '%s' "$value"
+}
+
+json_string_or_null() {
+    local value="${1:-}"
+    if [ -z "$value" ]; then
+        printf 'null'
+        return 0
+    fi
+    printf '"%s"' "$(escape_json_string "$value")"
+}
+
+normalize_stage_id() {
+    local raw="${1:-stage}"
+    local normalized
+    normalized="$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')"
+    if [ -z "$normalized" ]; then
+        normalized="stage"
+    fi
+    printf '%s' "$normalized"
+}
+
+is_github_actions() {
+    [ "${GITHUB_ACTIONS:-}" = "true" ]
+}
+
+announce_github_stage_start() {
+    local stage="$1"
+    local stage_id="$2"
+    local hint="${3:-}"
+    if ! is_github_actions; then
+        return 0
+    fi
+    echo "::notice::[run-tests][${stage_id}] Starting ${stage} (${hint})"
+    echo "::group::run-tests [${stage_id}] ${stage}"
+}
+
+announce_github_stage_end() {
+    if ! is_github_actions; then
+        return 0
+    fi
+    echo "::endgroup::"
+}
+
+announce_github_stage_failure() {
+    local stage="$1"
+    local stage_id="$2"
+    local hint="${3:-}"
+    local log_relpath="${4:-}"
+    if ! is_github_actions; then
+        return 0
+    fi
+
+    local message="[run-tests][${stage_id}] Failed ${stage}"
+    if [ -n "$hint" ]; then
+        message="${message} (${hint})"
+    fi
+    if [ -n "$log_relpath" ]; then
+        message="${message}; log=${log_relpath}"
+    fi
+    echo "::error::${message}"
+}
+
+resolve_stage_log_relpath() {
+    local log_path="${1:-}"
+    if [ -z "$log_path" ]; then
+        return 0
+    fi
+
+    if [ -n "$RUN_TESTS_ARTIFACT_DIR" ] && [[ "$log_path" == "$RUN_TESTS_ARTIFACT_DIR/"* ]]; then
+        printf '%s' "${log_path#"$RUN_TESTS_ARTIFACT_DIR"/}"
+        return 0
+    fi
+
+    printf '%s/%s' "$(basename "$(dirname "$log_path")")" "$(basename "$log_path")"
+}
+
 init_run_tests_summary() {
     local mode="${1:-unknown}"
-    if [ -z "$RUN_TESTS_SUMMARY_PATH" ]; then
+    if [ -n "$RUN_TESTS_ARTIFACT_DIR" ]; then
+        mkdir -p "$RUN_TESTS_ARTIFACT_DIR"
+        if [ -z "$RUN_TESTS_SUMMARY_JSON_PATH" ]; then
+            RUN_TESTS_SUMMARY_JSON_PATH="$RUN_TESTS_ARTIFACT_DIR/run-tests-summary.json"
+        fi
+        if [ -z "$RUN_TESTS_STAGE_LOGS_DIR" ]; then
+            RUN_TESTS_STAGE_LOGS_DIR="$RUN_TESTS_ARTIFACT_DIR/run-tests-stage-logs"
+        fi
+    fi
+
+    if [ -z "$RUN_TESTS_SUMMARY_PATH" ] && [ -z "$RUN_TESTS_SUMMARY_JSON_PATH" ] && [ -z "$RUN_TESTS_STAGE_LOGS_DIR" ]; then
         return 0
     fi
     if [ "$RUN_TESTS_SUMMARY_ACTIVE" = "1" ]; then
         return 0
     fi
 
-    mkdir -p "$(dirname "$RUN_TESTS_SUMMARY_PATH")"
-    RUN_TESTS_SUMMARY_ROWS_FILE="$(mktemp "${TMPDIR:-/tmp}/run-tests-summary.XXXXXX")"
+    if [ -n "$RUN_TESTS_SUMMARY_PATH" ]; then
+        mkdir -p "$(dirname "$RUN_TESTS_SUMMARY_PATH")"
+        RUN_TESTS_SUMMARY_ROWS_FILE="$(mktemp "${TMPDIR:-/tmp}/run-tests-summary.XXXXXX")"
+    fi
+    if [ -n "$RUN_TESTS_SUMMARY_JSON_PATH" ]; then
+        mkdir -p "$(dirname "$RUN_TESTS_SUMMARY_JSON_PATH")"
+        RUN_TESTS_SUMMARY_JSON_ROWS_FILE="$(mktemp "${TMPDIR:-/tmp}/run-tests-summary-json.XXXXXX")"
+    fi
+    if [ -n "$RUN_TESTS_STAGE_LOGS_DIR" ]; then
+        mkdir -p "$RUN_TESTS_STAGE_LOGS_DIR"
+    fi
+
     RUN_TESTS_SUMMARY_ENABLED=1
     RUN_TESTS_SUMMARY_TOTAL=0
     RUN_TESTS_SUMMARY_FAILED=0
+    RUN_TESTS_SUMMARY_MODE="$mode"
+    RUN_TESTS_SUMMARY_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE=""
     RUN_TESTS_SUMMARY_ACTIVE=1
     export RUN_TESTS_SUMMARY_ACTIVE
 
-    {
-        echo "# run-tests summary"
-        echo
-        echo "- Mode: \`$(escape_summary_cell "$mode")\`"
-        echo "- Started at (UTC): \`$(date -u +"%Y-%m-%dT%H:%M:%SZ")\`"
-        case "$mode" in
-            ci)
-                echo "- Coverage: \`core checks only\`"
-                ;;
-            ci-postgres)
-                echo "- Coverage: \`core checks + API snapshot baseline\`"
-                ;;
-            ci-plus)
-                echo "- Coverage: \`core checks + mocked Playwright e2e-smoke\`"
-                ;;
-            ci-full)
-                echo "- Coverage: \`ci-plus + dependency security audit\`"
-                ;;
-        esac
-        echo
-        echo "| Stage | Status | Duration (s) | Hint |"
-        echo "| --- | --- | ---: | --- |"
-    } > "$RUN_TESTS_SUMMARY_PATH"
+    if [ -n "$RUN_TESTS_SUMMARY_PATH" ]; then
+        {
+            echo "# run-tests summary"
+            echo
+            echo "- Mode: \`$(escape_summary_cell "$mode")\`"
+            echo "- Started at (UTC): \`$RUN_TESTS_SUMMARY_STARTED_AT\`"
+            case "$mode" in
+                ci)
+                    echo "- Coverage: \`core checks only\`"
+                    ;;
+                ci-postgres)
+                    echo "- Coverage: \`core checks + API snapshot baseline\`"
+                    ;;
+                ci-plus)
+                    echo "- Coverage: \`core checks + mocked Playwright e2e-smoke\`"
+                    ;;
+                ci-full)
+                    echo "- Coverage: \`ci-plus + dependency security audit\`"
+                    ;;
+            esac
+            echo
+            echo "| Stage | Status | Duration (s) | Hint |"
+            echo "| --- | --- | ---: | --- |"
+        } > "$RUN_TESTS_SUMMARY_PATH"
+    fi
 }
 
 append_run_tests_summary_row() {
     local stage="${1:-}"
-    local status="${2:-}"
-    local duration_seconds="${3:-0}"
-    local hint="${4:-}"
+    local stage_id="${2:-}"
+    local status="${3:-}"
+    local duration_seconds="${4:-0}"
+    local hint="${5:-}"
+    local started_at="${6:-}"
+    local finished_at="${7:-}"
+    local log_relpath="${8:-}"
 
-    if [ "$RUN_TESTS_SUMMARY_ENABLED" != "1" ] || [ -z "$RUN_TESTS_SUMMARY_ROWS_FILE" ]; then
+    if [ "$RUN_TESTS_SUMMARY_ENABLED" != "1" ]; then
         return 0
     fi
 
     RUN_TESTS_SUMMARY_TOTAL=$((RUN_TESTS_SUMMARY_TOTAL + 1))
     if [ "$status" != "PASS" ]; then
         RUN_TESTS_SUMMARY_FAILED=$((RUN_TESTS_SUMMARY_FAILED + 1))
+        if [ -z "$RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE" ]; then
+            RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE="$stage_id"
+        fi
     fi
 
-    printf '| %s | %s | %s | %s |\n' \
-        "$(escape_summary_cell "$stage")" \
-        "$(escape_summary_cell "$status")" \
-        "$(escape_summary_cell "$duration_seconds")" \
-        "$(escape_summary_cell "$hint")" \
-        >> "$RUN_TESTS_SUMMARY_ROWS_FILE"
+    if [ -n "$RUN_TESTS_SUMMARY_ROWS_FILE" ]; then
+        printf '| %s | %s | %s | %s |\n' \
+            "$(escape_summary_cell "$stage")" \
+            "$(escape_summary_cell "$status")" \
+            "$(escape_summary_cell "$duration_seconds")" \
+            "$(escape_summary_cell "$hint")" \
+            >> "$RUN_TESTS_SUMMARY_ROWS_FILE"
+    fi
+
+    if [ -n "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE" ]; then
+        printf '{ "stage_id": "%s", "name": "%s", "status": "%s", "duration_seconds": %s, "hint": %s, "started_at": %s, "finished_at": %s, "log_relpath": %s }\n' \
+            "$(escape_json_string "$stage_id")" \
+            "$(escape_json_string "$stage")" \
+            "$(escape_json_string "$status")" \
+            "$duration_seconds" \
+            "$(json_string_or_null "$hint")" \
+            "$(json_string_or_null "$started_at")" \
+            "$(json_string_or_null "$finished_at")" \
+            "$(json_string_or_null "$log_relpath")" \
+            >> "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE"
+    fi
 }
 
 finalize_run_tests_summary() {
     local exit_code="${1:-0}"
-    if [ "$RUN_TESTS_SUMMARY_ENABLED" != "1" ] || [ -z "$RUN_TESTS_SUMMARY_ROWS_FILE" ]; then
+    if [ "$RUN_TESTS_SUMMARY_ENABLED" != "1" ]; then
         return 0
     fi
 
     local passed=0
+    local finished_at result
     passed=$((RUN_TESTS_SUMMARY_TOTAL - RUN_TESTS_SUMMARY_FAILED))
+    finished_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    result="failed"
+    if [ "$exit_code" -eq 0 ]; then
+        result="passed"
+    fi
 
-    cat "$RUN_TESTS_SUMMARY_ROWS_FILE" >> "$RUN_TESTS_SUMMARY_PATH"
-    {
-        echo
-        if [ "$exit_code" -eq 0 ]; then
-            echo "- Result: **passed**"
-        else
-            echo "- Result: **failed**"
-        fi
-        echo "- Passed stages: ${passed}/${RUN_TESTS_SUMMARY_TOTAL}"
-        echo "- Failed stages: ${RUN_TESTS_SUMMARY_FAILED}"
-    } >> "$RUN_TESTS_SUMMARY_PATH"
+    if [ -n "$RUN_TESTS_SUMMARY_PATH" ] && [ -n "$RUN_TESTS_SUMMARY_ROWS_FILE" ]; then
+        cat "$RUN_TESTS_SUMMARY_ROWS_FILE" >> "$RUN_TESTS_SUMMARY_PATH"
+        {
+            echo
+            echo "- Result: **${result}**"
+            echo "- Finished at (UTC): \`${finished_at}\`"
+            echo "- Passed stages: ${passed}/${RUN_TESTS_SUMMARY_TOTAL}"
+            echo "- Failed stages: ${RUN_TESTS_SUMMARY_FAILED}"
+            if [ -n "$RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE" ]; then
+                echo "- First failed stage: \`${RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE}\`"
+            fi
+        } >> "$RUN_TESTS_SUMMARY_PATH"
+    fi
 
-    rm -f "$RUN_TESTS_SUMMARY_ROWS_FILE"
+    if [ -n "$RUN_TESTS_SUMMARY_JSON_PATH" ] && [ -n "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE" ]; then
+        {
+            echo "{"
+            echo "  \"mode\": $(json_string_or_null "$RUN_TESTS_SUMMARY_MODE"),"
+            echo "  \"result\": $(json_string_or_null "$result"),"
+            echo "  \"started_at\": $(json_string_or_null "$RUN_TESTS_SUMMARY_STARTED_AT"),"
+            echo "  \"finished_at\": $(json_string_or_null "$finished_at"),"
+            echo "  \"passed_stages\": ${passed},"
+            echo "  \"failed_stages\": ${RUN_TESTS_SUMMARY_FAILED},"
+            echo "  \"first_failed_stage\": $(json_string_or_null "$RUN_TESTS_SUMMARY_FIRST_FAILED_STAGE"),"
+            echo "  \"stages\": ["
+            if [ -s "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE" ]; then
+                awk 'BEGIN { first = 1 } { if (!first) printf(",\n"); printf("    %s", $0); first = 0 } END { if (!first) printf("\n") }' "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE"
+            fi
+            echo "  ]"
+            echo "}"
+        } > "$RUN_TESTS_SUMMARY_JSON_PATH"
+    fi
+
+    rm -f "$RUN_TESTS_SUMMARY_ROWS_FILE" "$RUN_TESTS_SUMMARY_JSON_ROWS_FILE"
     RUN_TESTS_SUMMARY_ROWS_FILE=""
+    RUN_TESTS_SUMMARY_JSON_ROWS_FILE=""
 }
 
 run_stage_with_summary() {
@@ -148,20 +314,43 @@ run_stage_with_summary() {
     local fn="$3"
     shift 3 || true
 
-    local started_at ended_at duration_seconds rc status
-    started_at="$(date +%s)"
+    local stage_id started_at_epoch ended_at_epoch duration_seconds rc status
+    local started_at finished_at log_path log_relpath
+    stage_id="$(normalize_stage_id "$stage")"
+    started_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    started_at_epoch="$(date +%s)"
     status="PASS"
+    log_path=""
+    log_relpath=""
+    if [ -n "$RUN_TESTS_STAGE_LOGS_DIR" ]; then
+        log_path="$RUN_TESTS_STAGE_LOGS_DIR/${stage_id}.log"
+        : > "$log_path"
+        log_relpath="$(resolve_stage_log_relpath "$log_path")"
+    fi
 
-    if "$fn" "$@"; then
+    announce_github_stage_start "$stage" "$stage_id" "$hint"
+    if [ -n "$log_path" ]; then
+        if "$fn" "$@" > >(tee -a "$log_path") 2> >(tee -a "$log_path" >&2); then
+            rc=0
+        else
+            rc=$?
+            status="FAIL"
+        fi
+    elif "$fn" "$@"; then
         rc=0
     else
         rc=$?
         status="FAIL"
     fi
 
-    ended_at="$(date +%s)"
-    duration_seconds=$((ended_at - started_at))
-    append_run_tests_summary_row "$stage" "$status" "$duration_seconds" "$hint"
+    announce_github_stage_end
+    ended_at_epoch="$(date +%s)"
+    finished_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    duration_seconds=$((ended_at_epoch - started_at_epoch))
+    append_run_tests_summary_row "$stage" "$stage_id" "$status" "$duration_seconds" "$hint" "$started_at" "$finished_at" "$log_relpath"
+    if [ "$status" != "PASS" ]; then
+        announce_github_stage_failure "$stage" "$stage_id" "$hint" "$log_relpath"
+    fi
     return "$rc"
 }
 
@@ -618,6 +807,8 @@ run_scripts_unit_tests() {
         "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
         "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
         "scripts/tests/test_run_tests_ci_summary.sh"
+        "scripts/tests/test_run_tests_ci_github_annotations.sh"
+        "scripts/tests/test_run_tests_ci_summary_success.sh"
         "scripts/tests/test_checkout_tarball_script.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"

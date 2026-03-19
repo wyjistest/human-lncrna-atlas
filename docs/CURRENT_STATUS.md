@@ -47,8 +47,9 @@
 ### 2026-03-19 ⭐ CI / MV 运维 / compare 回归锚点补强
 
 1. **self-hosted Fast CI 可解释性增强**
-   - `scripts/run-tests.sh ci` 新增可选 Markdown summary 输出（按阶段记录 PASS/FAIL、耗时、提示）
-   - `.github/workflows/test.yml` 的 `Self-hosted Fast CI` 会把该 summary 追加到 `GITHUB_STEP_SUMMARY`，并上传独立 artifact，方便直接定位失败阶段
+   - `scripts/run-tests.sh ci` 现会在启用 summary 时同时生成 Markdown summary、JSON manifest 与按阶段切分的 stage logs；每个阶段会记录稳定 `stage_id`、状态、耗时、hint 与日志相对路径
+   - 在 GitHub Actions 环境中，`run-tests` 会为每个阶段输出 `::notice::/::group::` 注解，并在失败时额外发出带 `stage_id + log path` 的 `::error::`
+   - `.github/workflows/test.yml` 的 `Self-hosted Fast CI` 会先根据 JSON manifest 生成一段 overview（含 `first_failed_stage`），再追加 Markdown summary，并上传 `md + json + stage logs` artifact，方便直接定位失败阶段
    - self-hosted push 现改为执行 `bash scripts/run-tests.sh ci-postgres`，fast path 也会显式校验 API snapshot baseline，不再出现“CI 全绿但 baseline job 被跳过”的覆盖盲区
 
 2. **Admin 物化视图状态增强**

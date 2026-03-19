@@ -84,6 +84,16 @@ python3 scripts/verify_baselines.py --mode local
 bash scripts/run-tests.sh ci-postgres
 ```
 
+如果是 GitHub 上的 `Self-hosted Fast CI` 失败，建议按这个顺序排查：
+
+1. 先看 run 页面的 `Summary` 顶部 overview，确认 `first_failed_stage`
+2. 再看同页追加的 `run-tests summary` 表格，确认阶段 hint 与耗时
+3. 最后下载 `self-hosted-fast-ci-summary-<sha>` artifact，打开：
+   - `run-tests-ci-summary.json`
+   - `run-tests-stage-logs/<stage_id>.log`
+
+这样通常不需要通读整段 raw log，就能先定位到失败层级。
+
 If the backend is already running (ideally on a fixed dataset), generate a stable snapshot manually:
 
 ```bash
