@@ -72,6 +72,16 @@ curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application
   -d '{"concurrently": true, "timeout_seconds": 600}'
 ```
 
+`/api/v1/admin/materialized-views/status` 现会额外返回以下运维字段：
+
+- 顶层：`checked_at`、`database_backend`、`supported`、`refresh_lock_available`
+- 每个 MV：`total_size` / `heap_size` / `index_size`
+- 每个 MV：`last_analyze_at`、`last_autoanalyze_at`、`last_stats_at`、`stats_age_seconds`
+
+说明：
+- PostgreSQL catalog 不直接提供 `last_refresh_at`，因此接口使用 analyze/autoanalyze 时间近似表达“统计信息新鲜度”
+- 若当前不是 PostgreSQL，接口会返回 `status=unsupported` 的降级响应，而不是直接 500
+
 ---
 
 ## 5) 常见问题排查
@@ -102,4 +112,3 @@ curl -X POST -H "X-Admin-API-Key: <ADMIN_API_KEY>" -H "Content-Type: application
 - ChIP-seq schema/扩展：`frontend/backend/sql/chipseq_schema.sql`
 - 刷新脚本：`scripts/refresh_materialized_views.sh`
 - Overlap API 文档：`docs/api/LNCRNA_CHIPSEQ_OVERLAP_API.md`
-

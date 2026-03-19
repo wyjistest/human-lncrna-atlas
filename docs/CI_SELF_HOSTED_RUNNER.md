@@ -206,6 +206,10 @@ gh api "/repos/<OWNER>/<REPO>/actions/runs/<RUN_ID>/jobs" \
 
 当输出里 `labels` 包含 `self-hosted` 且 `runner_name` 有值时，说明该 job 正在 self-hosted runner 上执行。
 
+4. `Self-hosted Fast CI` 的核心检查现会额外产出一份 `run-tests summary`：
+   - 在 GitHub Actions run 页面的 `Summary` 中可直接看到各阶段 PASS/FAIL、耗时与提示
+   - 同时会上传 `self-hosted-fast-ci-summary-<sha>` artifact，便于离线排障或回看历史失败阶段
+
 ### 5.1) PR / Dependabot：为什么没有 checks？怎么验证？
 
 出于安全考虑（self-hosted runner 不应默认执行 PR 的不受信任代码），本仓库的 `Tests` workflow 默认只对 `push(main)` 与 `workflow_dispatch` 触发（未启用 `pull_request`）。

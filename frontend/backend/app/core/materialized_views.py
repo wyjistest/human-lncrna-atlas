@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import text
@@ -86,14 +87,77 @@ _MV_STATUS_SQL = text(
     SELECT
         c.relispopulated AS populated,
         pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
-        c.reltuples::bigint AS rows_estimate
+        pg_total_relation_size(c.oid)::bigint AS total_size_bytes,
+        pg_size_pretty(pg_relation_size(c.oid)) AS heap_size,
+        pg_relation_size(c.oid)::bigint AS heap_size_bytes,
+        pg_size_pretty(pg_indexes_size(c.oid)) AS index_size,
+        pg_indexes_size(c.oid)::bigint AS index_size_bytes,
+        c.reltuples::bigint AS rows_estimate,
+        s.last_analyze AS last_analyze,
+        s.last_autoanalyze AS last_autoanalyze
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_stat_all_tables s ON s.relid = c.oid
     WHERE c.relkind = 'm'
       AND n.nspname = 'public'
       AND c.relname = :mv_name
     """
 )
+
+
+def _missing_mv_status(mv_name: str) -> dict[str, Any]:
+    return {
+        "name": mv_name,
+        "exists": False,
+        "populated": None,
+        "rows_estimate": None,
+        "total_size": None,
+        "total_size_bytes": None,
+        "heap_size": None,
+        "heap_size_bytes": None,
+        "index_size": None,
+        "index_size_bytes": None,
+        "last_analyze_at": None,
+        "last_autoanalyze_at": None,
+        "last_stats_at": None,
+        "last_stats_source": "none",
+        "stats_age_seconds": None,
+    }
+
+
+def _to_utc_iso8601(value: Any) -> Optional[str]:
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return value.isoformat().replace("+00:00", "Z")
+
+
+def _stats_age_seconds(value: Any) -> Optional[float]:
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    else:
+        value = value.astimezone(timezone.utc)
+    return round((datetime.now(timezone.utc) - value).total_seconds(), 3)
+
+
+def _pick_latest_stats_timestamp(row: Any) -> tuple[Any, str]:
+    last_analyze = getattr(row, "last_analyze", None)
+    last_autoanalyze = getattr(row, "last_autoanalyze", None)
+
+    if last_analyze and last_autoanalyze:
+        if last_autoanalyze >= last_analyze:
+            return last_autoanalyze, "autoanalyze"
+        return last_analyze, "analyze"
+    if last_analyze:
+        return last_analyze, "analyze"
+    if last_autoanalyze:
+        return last_autoanalyze, "autoanalyze"
+    return None, "none"
 
 
 def get_mv_status(conn: Connection, mv_name: str) -> dict[str, Any]:
@@ -102,13 +166,9 @@ def get_mv_status(conn: Connection, mv_name: str) -> dict[str, Any]:
 
     row = conn.execute(_MV_STATUS_SQL, {"mv_name": mv_name}).fetchone()
     if not row:
-        return {
-            "name": mv_name,
-            "exists": False,
-            "populated": None,
-            "rows_estimate": None,
-            "total_size": None,
-        }
+        return _missing_mv_status(mv_name)
+
+    latest_stats_at, latest_stats_source = _pick_latest_stats_timestamp(row)
 
     return {
         "name": mv_name,
@@ -116,6 +176,16 @@ def get_mv_status(conn: Connection, mv_name: str) -> dict[str, Any]:
         "populated": bool(getattr(row, "populated", False)),
         "rows_estimate": int(getattr(row, "rows_estimate", 0) or 0),
         "total_size": getattr(row, "total_size", None),
+        "total_size_bytes": int(getattr(row, "total_size_bytes", 0) or 0),
+        "heap_size": getattr(row, "heap_size", None),
+        "heap_size_bytes": int(getattr(row, "heap_size_bytes", 0) or 0),
+        "index_size": getattr(row, "index_size", None),
+        "index_size_bytes": int(getattr(row, "index_size_bytes", 0) or 0),
+        "last_analyze_at": _to_utc_iso8601(getattr(row, "last_analyze", None)),
+        "last_autoanalyze_at": _to_utc_iso8601(getattr(row, "last_autoanalyze", None)),
+        "last_stats_at": _to_utc_iso8601(latest_stats_at),
+        "last_stats_source": latest_stats_source,
+        "stats_age_seconds": _stats_age_seconds(latest_stats_at),
     }
 
 
@@ -270,4 +340,3 @@ def refresh_materialized_views(
                 _unlock_advisory_lock(conn)
             except Exception as e:  # pragma: no cover
                 logger.error("Failed to unlock MV refresh advisory lock: %s", sanitize_for_log(e, max_length=2000))
-

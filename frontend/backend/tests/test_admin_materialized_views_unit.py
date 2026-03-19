@@ -7,6 +7,7 @@ These tests avoid real database connections by using a lightweight fake Connecti
 from __future__ import annotations
 
 import types
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -48,7 +49,18 @@ class _FakeConnection:
         if "FROM pg_class c" in sql:
             if not self._mv_exists:
                 return _FetchResult(None)
-            row = types.SimpleNamespace(populated=self._populated, total_size="1 MB", rows_estimate=123)
+            row = types.SimpleNamespace(
+                populated=self._populated,
+                total_size="1 MB",
+                total_size_bytes=1048576,
+                heap_size="768 kB",
+                heap_size_bytes=786432,
+                index_size="256 kB",
+                index_size_bytes=262144,
+                rows_estimate=123,
+                last_analyze=datetime.now(timezone.utc) - timedelta(minutes=5),
+                last_autoanalyze=datetime.now(timezone.utc) - timedelta(minutes=3),
+            )
             return _FetchResult(row)
         if sql.startswith("REFRESH MATERIALIZED VIEW"):
             return _ScalarResult(True)
@@ -131,3 +143,25 @@ def test_normalize_mv_list_preserves_dependency_order():
         "mv_lncrna_chipseq_overlaps",
         "mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100",
     ]
+
+
+@pytest.mark.unit
+def test_get_mv_status_includes_operational_metadata():
+    from app.core import materialized_views as mv_ops
+
+    conn = _FakeConnection(lock_available=True, populated=True, mv_exists=True)
+    status = mv_ops.get_mv_status(conn, "mv_lncrna_chipseq_overlaps")
+
+    assert status["exists"] is True
+    assert status["total_size"] == "1 MB"
+    assert status["total_size_bytes"] == 1048576
+    assert status["heap_size"] == "768 kB"
+    assert status["heap_size_bytes"] == 786432
+    assert status["index_size"] == "256 kB"
+    assert status["index_size_bytes"] == 262144
+    assert status["last_analyze_at"] is not None
+    assert status["last_autoanalyze_at"] is not None
+    assert status["last_stats_at"] is not None
+    assert status["last_stats_source"] == "autoanalyze"
+    assert isinstance(status["stats_age_seconds"], float)
+    assert status["stats_age_seconds"] >= 0

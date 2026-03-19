@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Button, Card, InputNumber, Popconfirm, Space, Switch, Table, Tag, message } from 'antd'
+import { Alert, Button, Card, InputNumber, Popconfirm, Space, Switch, Table, Tag, Typography, message } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -8,6 +8,23 @@ import { ErrorState } from '@/components/ErrorState'
 import { LoadingState } from '@/components/LoadingState'
 import { useMaterializedViewsStatus } from '@/hooks/useMaterializedViewsStatus'
 import type { MaterializedViewRefreshResultItem, MaterializedViewStatusItem, MaterializedViewsRefreshResponse } from '@/types/admin'
+
+const { Text } = Typography
+
+function formatTimestamp(value: string | null | undefined) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+}
+
+function formatAge(seconds: number | null | undefined) {
+  if (seconds === null || seconds === undefined) return '-'
+  if (seconds < 60) return `${Math.round(seconds)}s`
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m`
+  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
+  return `${Math.round(seconds / 86400)}d`
+}
 
 export default function MaterializedViews() {
   const { data, isLoading, error, refetch, isFetching } = useMaterializedViewsStatus()
@@ -56,11 +73,26 @@ export default function MaterializedViews() {
         render: (value: number | null) => (value === null ? '-' : value.toLocaleString()),
       },
       {
-        title: 'Total Size',
-        dataIndex: 'total_size',
-        key: 'total_size',
-        align: 'right',
-        render: (value: string | null) => value ?? '-',
+        title: 'Storage',
+        key: 'storage',
+        render: (_, row) => (
+          <Space direction="vertical" size={0}>
+            <Text>Total: {row.total_size ?? '-'}</Text>
+            <Text type="secondary">Heap: {row.heap_size ?? '-'}</Text>
+            <Text type="secondary">Indexes: {row.index_size ?? '-'}</Text>
+          </Space>
+        ),
+      },
+      {
+        title: 'Stats Freshness',
+        key: 'stats_freshness',
+        render: (_, row) => (
+          <Space direction="vertical" size={0}>
+            <Text>Last stats: {formatTimestamp(row.last_stats_at)}</Text>
+            <Text type="secondary">Source: {row.last_stats_source}</Text>
+            <Text type="secondary">Age: {formatAge(row.stats_age_seconds)}</Text>
+          </Space>
+        ),
       },
     ],
     []
@@ -108,9 +140,9 @@ export default function MaterializedViews() {
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />
 
   const lockAvailable = data?.refresh_lock_available
-  const lockColor = lockAvailable === undefined ? 'default' : (lockAvailable ? 'success' : 'error')
-  const lockLabel = lockAvailable === undefined ? 'unknown' : (lockAvailable ? 'available' : 'busy')
-  const refreshDisabled = lockAvailable === false
+  const lockColor = lockAvailable == null ? 'default' : (lockAvailable ? 'success' : 'error')
+  const lockLabel = lockAvailable == null ? 'unknown' : (lockAvailable ? 'available' : 'busy')
+  const refreshDisabled = lockAvailable === false || data?.supported === false
 
   const handleRefresh = async () => {
     if (lockAvailable === false) {
@@ -142,6 +174,10 @@ export default function MaterializedViews() {
       <Space style={{ marginBottom: 24, width: '100%', justifyContent: 'space-between' }}>
         <h1 style={{ margin: 0 }}>Materialized Views</h1>
         <Space>
+          <div data-testid="admin-materialized-views-backend">
+            <span style={{ marginRight: 8 }}>Backend</span>
+            <Tag color={data?.supported === false ? 'warning' : 'blue'}>{data?.database_backend ?? 'unknown'}</Tag>
+          </div>
           <div data-testid="admin-materialized-views-refresh-lock">
             <span style={{ marginRight: 8 }}>MV Refresh Lock</span>
             <Tag color={lockColor}>{lockLabel}</Tag>
@@ -172,6 +208,29 @@ export default function MaterializedViews() {
           </Popconfirm>
         </Space>
       </Space>
+
+      <div data-testid="admin-materialized-views-runtime">
+        <Card title="Runtime" size="small" style={{ marginBottom: 16 }}>
+          <Space wrap size="middle">
+            <Tag color={data?.supported === false ? 'warning' : 'success'}>
+              {data?.supported === false ? 'degraded' : 'postgresql-supported'}
+            </Tag>
+            <Text>Checked at: {formatTimestamp(data?.checked_at)}</Text>
+            <Text type="secondary">Status payload: {data?.status ?? 'unknown'}</Text>
+          </Space>
+        </Card>
+      </div>
+
+      {data?.supported === false && (
+        <Alert
+          data-testid="admin-materialized-views-unsupported"
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Current database backend does not support materialized view operations"
+          description="Status is degraded. Refresh lock and PostgreSQL catalog-derived metadata are unavailable on this backend."
+        />
+      )}
 
       <div data-testid="admin-materialized-views-status">
         <Card title="Status">

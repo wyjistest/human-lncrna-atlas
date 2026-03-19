@@ -340,6 +340,23 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         except Exception:
             return None
 
+    def summarize_graph_payload(prefix: str, payload: Any) -> None:
+        if not isinstance(payload, dict):
+            return
+        summaries[f"{prefix}_nodes_len"] = safe_len(payload.get("nodes"))
+        summaries[f"{prefix}_edges_len"] = safe_len(payload.get("edges"))
+
+    def summarize_overlap_compare(prefix: str, payload: Any) -> None:
+        if not isinstance(payload, dict):
+            return
+        species_stats = payload.get("species_stats")
+        if not isinstance(species_stats, dict):
+            return
+
+        species_ids = sorted(str(key) for key in species_stats.keys())
+        summaries[f"{prefix}_species_count"] = len(species_ids)
+        summaries[f"{prefix}_species_ids"] = species_ids
+
     def get_first_id(items: Any, *, keys: tuple[str, ...]) -> Optional[int]:
         if not isinstance(items, list):
             return None
@@ -516,6 +533,22 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
             ),
             timeout_seconds=timeout_seconds,
         )
+
+    network_disease = endpoints.get("network_disease_first_combination")
+    if network_disease and network_disease.json:
+        summarize_graph_payload("network_disease_first_combination", network_disease.json)
+
+    export_disease_network = endpoints.get("export_disease_network_limit_1")
+    if export_disease_network and export_disease_network.json:
+        summarize_graph_payload("export_disease_network", export_disease_network.json)
+
+    overlap_compare = endpoints.get("lncrna_chipseq_overlap_compare_from_lncrna_options_top_n_3")
+    if overlap_compare and overlap_compare.json:
+        summarize_overlap_compare("overlap_compare", overlap_compare.json)
+
+    overlap_compare_subset = endpoints.get("lncrna_chipseq_overlap_compare_from_lncrna_options_species_ids_1_3_top_n_3")
+    if overlap_compare_subset and overlap_compare_subset.json:
+        summarize_overlap_compare("overlap_compare_subset", overlap_compare_subset.json)
 
     return {
         "generated_at": _iso_now(),

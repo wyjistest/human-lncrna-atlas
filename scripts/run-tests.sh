@@ -33,10 +33,123 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+RUN_TESTS_SUMMARY_PATH="${RUN_TESTS_SUMMARY_PATH:-}"
+RUN_TESTS_SUMMARY_ENABLED=0
+RUN_TESTS_SUMMARY_ROWS_FILE=""
+RUN_TESTS_SUMMARY_TOTAL=0
+RUN_TESTS_SUMMARY_FAILED=0
+RUN_TESTS_SUMMARY_ACTIVE="${RUN_TESTS_SUMMARY_ACTIVE:-0}"
+
 echo "=========================================="
 echo "  Human LncRNA Atlas - 测试套件"
 echo "=========================================="
 echo ""
+
+escape_summary_cell() {
+    local value="${1:-}"
+    value="${value//$'\n'/<br>}"
+    value="${value//|/\\|}"
+    printf '%s' "$value"
+}
+
+init_run_tests_summary() {
+    local mode="${1:-unknown}"
+    if [ -z "$RUN_TESTS_SUMMARY_PATH" ]; then
+        return 0
+    fi
+    if [ "$RUN_TESTS_SUMMARY_ACTIVE" = "1" ]; then
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$RUN_TESTS_SUMMARY_PATH")"
+    RUN_TESTS_SUMMARY_ROWS_FILE="$(mktemp "${TMPDIR:-/tmp}/run-tests-summary.XXXXXX")"
+    RUN_TESTS_SUMMARY_ENABLED=1
+    RUN_TESTS_SUMMARY_TOTAL=0
+    RUN_TESTS_SUMMARY_FAILED=0
+    RUN_TESTS_SUMMARY_ACTIVE=1
+    export RUN_TESTS_SUMMARY_ACTIVE
+
+    {
+        echo "# run-tests summary"
+        echo
+        echo "- Mode: \`$(escape_summary_cell "$mode")\`"
+        echo "- Started at (UTC): \`$(date -u +"%Y-%m-%dT%H:%M:%SZ")\`"
+        echo
+        echo "| Stage | Status | Duration (s) | Hint |"
+        echo "| --- | --- | ---: | --- |"
+    } > "$RUN_TESTS_SUMMARY_PATH"
+}
+
+append_run_tests_summary_row() {
+    local stage="${1:-}"
+    local status="${2:-}"
+    local duration_seconds="${3:-0}"
+    local hint="${4:-}"
+
+    if [ "$RUN_TESTS_SUMMARY_ENABLED" != "1" ] || [ -z "$RUN_TESTS_SUMMARY_ROWS_FILE" ]; then
+        return 0
+    fi
+
+    RUN_TESTS_SUMMARY_TOTAL=$((RUN_TESTS_SUMMARY_TOTAL + 1))
+    if [ "$status" != "PASS" ]; then
+        RUN_TESTS_SUMMARY_FAILED=$((RUN_TESTS_SUMMARY_FAILED + 1))
+    fi
+
+    printf '| %s | %s | %s | %s |\n' \
+        "$(escape_summary_cell "$stage")" \
+        "$(escape_summary_cell "$status")" \
+        "$(escape_summary_cell "$duration_seconds")" \
+        "$(escape_summary_cell "$hint")" \
+        >> "$RUN_TESTS_SUMMARY_ROWS_FILE"
+}
+
+finalize_run_tests_summary() {
+    local exit_code="${1:-0}"
+    if [ "$RUN_TESTS_SUMMARY_ENABLED" != "1" ] || [ -z "$RUN_TESTS_SUMMARY_ROWS_FILE" ]; then
+        return 0
+    fi
+
+    local passed=0
+    passed=$((RUN_TESTS_SUMMARY_TOTAL - RUN_TESTS_SUMMARY_FAILED))
+
+    cat "$RUN_TESTS_SUMMARY_ROWS_FILE" >> "$RUN_TESTS_SUMMARY_PATH"
+    {
+        echo
+        if [ "$exit_code" -eq 0 ]; then
+            echo "- Result: **passed**"
+        else
+            echo "- Result: **failed**"
+        fi
+        echo "- Passed stages: ${passed}/${RUN_TESTS_SUMMARY_TOTAL}"
+        echo "- Failed stages: ${RUN_TESTS_SUMMARY_FAILED}"
+    } >> "$RUN_TESTS_SUMMARY_PATH"
+
+    rm -f "$RUN_TESTS_SUMMARY_ROWS_FILE"
+    RUN_TESTS_SUMMARY_ROWS_FILE=""
+}
+
+run_stage_with_summary() {
+    local stage="$1"
+    local hint="$2"
+    local fn="$3"
+    shift 3 || true
+
+    local started_at ended_at duration_seconds rc status
+    started_at="$(date +%s)"
+    status="PASS"
+
+    if "$fn" "$@"; then
+        rc=0
+    else
+        rc=$?
+        status="FAIL"
+    fi
+
+    ended_at="$(date +%s)"
+    duration_seconds=$((ended_at - started_at))
+    append_run_tests_summary_row "$stage" "$status" "$duration_seconds" "$hint"
+    return "$rc"
+}
 
 require_cmd() {
     local cmd="$1"
@@ -487,10 +600,11 @@ run_scripts_unit_tests() {
 	        "scripts/tests/test_compare_performance_metrics_gate.sh"
 	        "scripts/tests/test_aggregate_performance_metrics_median.sh"
 	        "scripts/tests/test_perf_report_scenario_drift.sh"
-	        "scripts/tests/test_run_tests_backend_deps.sh"
-	        "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
-	        "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
-	        "scripts/tests/test_checkout_tarball_script.sh"
+        "scripts/tests/test_run_tests_backend_deps.sh"
+        "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
+        "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
+        "scripts/tests/test_run_tests_ci_summary.sh"
+        "scripts/tests/test_checkout_tarball_script.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
@@ -774,6 +888,48 @@ run_frontend_e2e_smoke_tests() {
         e2e/admin-materialized-views-smoke.spec.ts
 }
 
+run_ci_core_checks() {
+    local include_e2e_smoke="${1:-false}"
+    local include_security_audit="${2:-false}"
+    local failed=0
+
+    run_stage_with_summary "Backend lint" "ruff check" run_backend_lint || failed=1
+    echo ""
+    run_stage_with_summary "Backend checks" "import + py_compile checks" run_backend_checks || failed=1
+    echo ""
+    run_stage_with_summary "ETL checks" "pytest -q etl/tests" run_etl_checks || failed=1
+    echo ""
+    run_stage_with_summary "Scripts smoke" "offline/download + research syntax smoke" run_scripts_smoke_tests || failed=1
+    echo ""
+    run_stage_with_summary "Scripts unit" "scripts/tests shell regressions" run_scripts_unit_tests || failed=1
+    echo ""
+    run_stage_with_summary "Docs checks" "docs drift / heading / status markers" run_docs_checks || failed=1
+    echo ""
+    run_stage_with_summary "DB migrations verify" "frontend/backend/scripts/db_migrate.sh verify" run_db_migrations_verify || failed=1
+    echo ""
+    run_stage_with_summary "Backend unit tests" "pytest -m unit" run_backend_unit_tests || failed=1
+    echo ""
+    run_stage_with_summary "Frontend unit tests" "npm run test:run" run_frontend_unit_tests || failed=1
+    echo ""
+    run_stage_with_summary "Frontend lint" "npm run lint" run_frontend_lint || failed=1
+    echo ""
+    run_stage_with_summary "Frontend build" "npm run build" run_frontend_build || failed=1
+
+    if [ "$include_e2e_smoke" = "true" ]; then
+        echo ""
+        run_stage_with_summary "Frontend e2e smoke" "Playwright mocked smoke (chromium)" run_frontend_e2e_smoke_tests || failed=1
+    fi
+
+    if [ "$include_security_audit" = "true" ]; then
+        echo ""
+        run_stage_with_summary "Backend security audit" "pip-audit --strict" run_backend_security_audit || failed=1
+        echo ""
+        run_stage_with_summary "Frontend security audit" "npm audit --audit-level=high" run_frontend_security_audit || failed=1
+    fi
+
+    return "$failed"
+}
+
 # A11y Smoke（axe-core；完全 mocked，不依赖后端/DB）
 run_frontend_e2e_a11y_smoke_tests() {
     local project="${1:-chromium}"
@@ -910,8 +1066,11 @@ run_e2e_tests() {
 # 主函数
 main() {
     local failed=0
+    local mode="${1:-smoke}"
 
-    case "${1:-smoke}" in
+    init_run_tests_summary "$mode"
+
+    case "$mode" in
         security-audit)
             run_backend_security_audit || failed=1
             echo ""
@@ -972,85 +1131,17 @@ main() {
             ;;
         ci)
             # 对齐 GitHub Actions `.github/workflows/test.yml` 的核心质量门禁（不含 secret scan / security-audit）
-            run_backend_lint || failed=1
-            echo ""
-            run_backend_checks || failed=1
-            echo ""
-            run_etl_checks || failed=1
-            echo ""
-            run_scripts_smoke_tests || failed=1
-            echo ""
-            run_scripts_unit_tests || failed=1
-            echo ""
-            run_docs_checks || failed=1
-            echo ""
-            run_db_migrations_verify || failed=1
-            echo ""
-            run_backend_unit_tests || failed=1
-            echo ""
-            run_frontend_unit_tests || failed=1
-            echo ""
-            run_frontend_lint || failed=1
-            echo ""
-            run_frontend_build || failed=1
+            run_ci_core_checks false false || failed=1
             ;;
         ci-plus)
             # 在 ci 基础上追加 Playwright e2e-smoke（完全 mock，不依赖后端/DB）
             # 适合在 GitHub Actions 暂停自动触发时，本地更完整地覆盖回归锚点。
-            run_backend_lint || failed=1
-            echo ""
-            run_backend_checks || failed=1
-            echo ""
-            run_etl_checks || failed=1
-            echo ""
-            run_scripts_smoke_tests || failed=1
-            echo ""
-            run_scripts_unit_tests || failed=1
-            echo ""
-            run_docs_checks || failed=1
-            echo ""
-            run_db_migrations_verify || failed=1
-            echo ""
-            run_backend_unit_tests || failed=1
-            echo ""
-            run_frontend_unit_tests || failed=1
-            echo ""
-            run_frontend_lint || failed=1
-            echo ""
-            run_frontend_build || failed=1
-            echo ""
-            run_frontend_e2e_smoke_tests || failed=1
+            run_ci_core_checks true false || failed=1
             ;;
         ci-full)
             # 最严格本地门禁：ci-plus + 依赖安全审计（pip-audit + npm audit）
             # 说明：security-audit 可能因环境/网络/依赖漏洞而失败；建议按需使用。
-            run_backend_lint || failed=1
-            echo ""
-            run_backend_checks || failed=1
-            echo ""
-            run_etl_checks || failed=1
-            echo ""
-            run_scripts_smoke_tests || failed=1
-            echo ""
-            run_scripts_unit_tests || failed=1
-            echo ""
-            run_docs_checks || failed=1
-            echo ""
-            run_db_migrations_verify || failed=1
-            echo ""
-            run_backend_unit_tests || failed=1
-            echo ""
-            run_frontend_unit_tests || failed=1
-            echo ""
-            run_frontend_lint || failed=1
-            echo ""
-            run_frontend_build || failed=1
-            echo ""
-            run_frontend_e2e_smoke_tests || failed=1
-            echo ""
-            run_backend_security_audit || failed=1
-            echo ""
-            run_frontend_security_audit || failed=1
+            run_ci_core_checks true true || failed=1
             ;;
         all)
             # 完整测试: 需要后端和前端服务运行
@@ -1105,6 +1196,8 @@ main() {
             exit 1
             ;;
     esac
+
+    finalize_run_tests_summary "$failed"
 
     echo ""
     echo "=========================================="

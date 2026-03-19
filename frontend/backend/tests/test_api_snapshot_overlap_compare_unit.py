@@ -191,3 +191,13 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
 
     assert "network_available_combinations_species_1" in endpoints
     assert endpoints["network_available_combinations_species_1"]["status_code"] == 200
+
+    summaries = snap["summaries"]
+    assert summaries["network_disease_first_combination_nodes_len"] == 0
+    assert summaries["network_disease_first_combination_edges_len"] == 0
+    assert summaries["export_disease_network_nodes_len"] == 0
+    assert summaries["export_disease_network_edges_len"] == 0
+    assert summaries["overlap_compare_species_count"] == 1
+    assert summaries["overlap_compare_species_ids"] == ["1"]
+    assert summaries["overlap_compare_subset_species_count"] == 1
+    assert summaries["overlap_compare_subset_species_ids"] == ["1"]

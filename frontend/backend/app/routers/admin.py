@@ -1448,28 +1448,41 @@ class MaterializedViewRefreshRequest(BaseModel):
 @router.get(
     "/materialized-views/status",
     summary="查询物化视图状态",
-    description="返回后端使用的物化视图状态（exists/populated/size/rows_estimate）以及刷新锁是否可用。",
+    description="""
+    返回后端使用的物化视图状态，以及 Admin 运维常用的可见性字段：
+    - checked_at / database_backend / supported
+    - refresh_lock_available
+    - 每个 MV 的 exists / populated / rows_estimate / size breakdown / stats freshness
+
+    说明：PostgreSQL catalog 不直接暴露 MV 的 last_refresh_at，这里返回的是 last_analyze/autoanalyze 派生的新鲜度信息。
+    """,
 )
 @rate_limit("10/minute")
 def get_materialized_views_status(request: Request) -> dict:
     from app.core import materialized_views as mv_ops
 
+    checked_at = datetime.utcnow().isoformat() + "Z"
     autocommit_engine = engine.execution_options(isolation_level="AUTOCOMMIT")
     with autocommit_engine.connect() as conn:
-        if conn.dialect.name != "postgresql":
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "error": "UNSUPPORTED_DATABASE",
-                    "message": "Materialized view operations require PostgreSQL",
-                },
-            )
+        database_backend = conn.dialect.name
+        if database_backend != "postgresql":
+            return {
+                "status": "unsupported",
+                "supported": False,
+                "database_backend": database_backend,
+                "checked_at": checked_at,
+                "refresh_lock_available": None,
+                "views": [mv_ops._missing_mv_status(name) for name in mv_ops.DEFAULT_MATERIALIZED_VIEWS],
+            }
 
         lock_available = mv_ops.get_refresh_lock_available(conn)
         views = [mv_ops.get_mv_status(conn, name) for name in mv_ops.DEFAULT_MATERIALIZED_VIEWS]
 
     return {
         "status": "success",
+        "supported": True,
+        "database_backend": "postgresql",
+        "checked_at": checked_at,
         "refresh_lock_available": bool(lock_available),
         "views": views,
     }
