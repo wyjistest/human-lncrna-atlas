@@ -24,6 +24,7 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 ## Tech Stack
 
 ### Backend
+
 - **Framework**: FastAPI
 - **ORM**: SQLAlchemy 2.0
 - **Validation**: Pydantic v2
@@ -31,6 +32,7 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **Caching**: Redis (optional)
 
 ### Frontend
+
 - **Framework**: React 19 + TypeScript
 - **Build Tool**: Vite
 - **UI Library**: Ant Design 6
@@ -82,6 +84,7 @@ human-lncrna-atlas/
 ## Quick Start
 
 ### Prerequisites
+
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL 15+
@@ -98,6 +101,7 @@ If you don't have PostgreSQL installed locally (Ubuntu/Debian only):
 ```
 
 Notes:
+
 - Requires root/sudo privileges.
 - Creates a PostgreSQL role matching your OS user by default (override via `APP_DB_USER`).
 - In non-interactive environments, the script exits safely to avoid hanging on sudo prompts (use `ASSUME_YES=yes` only if you know what you're doing).
@@ -167,6 +171,7 @@ docker compose up -d
 ```
 
 数据库用户约定：
+
 - `.env` / 后端运行时里的 `DB_USER` 表示应用连接数据库时使用的账号。
 - `scripts/init_db.sh`、`scripts/refresh_materialized_views.sh` 这类维护脚本可以单独传 `DB_USER=postgres`（或别的高权限维护账号），因为建库、安装扩展、刷新 MV 需要更高权限。
 - 不建议把两类场景强行统一成同一个默认值；关键是按职责选择正确账号。
@@ -190,22 +195,24 @@ npm run dev -- --host 0.0.0.0
 ```
 
 前端环境变量说明：
+
 - `VITE_API_BASE_URL` 只能填写站点 origin，例如 `http://localhost:8000` 或 `https://your-domain.com`。
 - 不要把 `/api` 或 `/api/v1` 拼进 `VITE_API_BASE_URL`，因为前端请求路径本身已经包含 `/api/v1`。
 - `frontend/web/.env.example` 已按这个约定更新。
 
 ChIP-seq Compare 页面说明：
-- `/chipseq-compare` 当前是一个诚实的状态页，不再展示 mock 图表。
-- 现有后端只支持 gene-scoped ChIP-seq 接口（`/api/v1/features/chipseq/genes/{gene_id}/...`）。
-- 如需真实数据，请从基因级 ChIP-seq 页面进入 compare / heatmap / export 流程。
+
+- `/chipseq-compare` 现已升级为真实的 gene-set compare 工作台。
+- 页面支持搜索人类基因、粘贴 `gene_id / gene_name / gene_ensembl_id` 批量解析，并调用 `/api/v1/features/chipseq/genes/batch-heatmap-matrix` 渲染真实热图。
+- 当前首版聚焦可视化 compare，不提供 batch export。
 
 ### Access
 
 **Note**: Replace `<server-ip>` with your server's IP address.
 
-| Service | Local | Network (LAN) |
-|---------|-------|---------------|
-| Frontend | http://localhost:5173 | http://<server-ip>:5173 |
+| Service  | Local                      | Network (LAN)                |
+| -------- | -------------------------- | ---------------------------- |
+| Frontend | http://localhost:5173      | http://<server-ip>:5173      |
 | API Docs | http://localhost:8000/docs | http://<server-ip>:8000/docs |
 
 ### CI / Quality Gates (recommended before push)
@@ -278,14 +285,15 @@ If your local `git push` / `git fetch` is unstable due to network/proxy constrai
 
 ### Species Data Distribution
 
-| Species | Code | Genes | Regulations |
-|---------|------|-------|-------------|
-| Human | human | ~5,484 | 496,064 |
-| Chimpanzee | chimp | ~6,138 | 156,136 |
-| Macaque | macaque | ~5,406 | 102,430 |
-| Marmoset | marmoset | ~4,805 | 50,000 |
+| Species    | Code     | Genes  | Regulations |
+| ---------- | -------- | ------ | ----------- |
+| Human      | human    | ~5,484 | 496,064     |
+| Chimpanzee | chimp    | ~6,138 | 156,136     |
+| Macaque    | macaque  | ~5,406 | 102,430     |
+| Marmoset   | marmoset | ~4,805 | 50,000      |
 
 ### Data Quality
+
 - Total regulations: 804,630
 - Sequences: 804,630 (100% coverage)
 - Empty DNA sequences: 203 (0.025%) - located on unlocated scaffolds
@@ -328,11 +336,13 @@ export HLA_MV_REFRESH_TIMEOUT_SECONDS=600
 ```
 
 Frontend Admin pages (require Admin access):
+
 - `/admin/monitoring` - JSON monitoring dashboard
 - `/admin/cache` - cache management (stats/reset/invalidate/clear)
 - `/admin/materialized-views` - MV status + refresh controls
 
 More details:
+
 - `docs/backend/OVERLAP_MATERIALIZED_VIEW.md` - overlap MV (`mv_lncrna_chipseq_overlaps`) create/refresh + `QUERY_TOO_BROAD` troubleshooting
 
 ### IGV Offline Genome Assets (Optional)
@@ -404,17 +414,17 @@ CI also runs this baseline check (see `.github/workflows/test.yml`, job `api-sna
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/v1/genes` | GET | Gene list (paginated) |
-| `/api/v1/genes/options` | GET | Gene options (lightweight, for selectors) |
-| `/api/v1/genes/batch` | POST | Batch resolve genes by identifiers |
-| `/api/v1/genes/{id}` | GET | Gene details |
-| `/api/v1/regulations` | GET | Regulation list (multi-filter) |
-| `/api/v1/regulations/{id}` | GET | Regulation details with sequences |
-| `/api/v1/stats/overview` | GET | Statistics overview |
-| `/api/v1/diseases` | GET | Disease/trait list |
-| `/api/v1/network/gene/{id}` | GET | Gene network data |
+| Endpoint                    | Method | Description                               |
+| --------------------------- | ------ | ----------------------------------------- |
+| `/api/v1/genes`             | GET    | Gene list (paginated)                     |
+| `/api/v1/genes/options`     | GET    | Gene options (lightweight, for selectors) |
+| `/api/v1/genes/batch`       | POST   | Batch resolve genes by identifiers        |
+| `/api/v1/genes/{id}`        | GET    | Gene details                              |
+| `/api/v1/regulations`       | GET    | Regulation list (multi-filter)            |
+| `/api/v1/regulations/{id}`  | GET    | Regulation details with sequences         |
+| `/api/v1/stats/overview`    | GET    | Statistics overview                       |
+| `/api/v1/diseases`          | GET    | Disease/trait list                        |
+| `/api/v1/network/gene/{id}` | GET    | Gene network data                         |
 
 ## Testing
 

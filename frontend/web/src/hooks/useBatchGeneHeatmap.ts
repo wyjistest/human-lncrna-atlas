@@ -1,220 +1,218 @@
 /**
  * useBatchGeneHeatmap Hook
- * Custom hook for batch gene heatmap data fetching with React Query
- * Uses useQueries for parallel queries of multiple genes
- * Phase 2.10 - Batch Gene Heatmap Feature
+ * 使用单次 batch API 请求获取多个基因的热图矩阵。
  */
 
-import { useQueries, QueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
-import { chipseqApi, chipseqQueryKeys } from '@/api/chipseq'
-import type { HeatmapMetricType, MarkType } from '@/types/chipseq'
+import { QueryClient, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { chipseqApi, chipseqQueryKeys } from "@/api/chipseq";
+import type {
+  BatchHeatmapMatrixResponse,
+  HeatmapMetricType,
+  MarkType,
+} from "@/types/chipseq";
 
-interface GeneInfo {
-  gene_id: number
-  gene_name: string
-  chromosome?: string
-  start?: number
-  end?: number
-}
-
-interface HeatmapMatrixData {
-  gene_name: string
-  gene_id: number
-  chromosome?: string
-  marks: string[]
-  cell_types: string[]
-  matrix: Array<Array<number | null>>
+export interface BatchHeatmapGeneInfo {
+  gene_id: number;
+  gene_name: string;
+  chromosome?: string;
+  start?: number;
+  end?: number;
 }
 
 interface UseBatchGeneHeatmapOptions {
-  /** Whether to enable queries */
-  enabled?: boolean
-  /** Cache time in ms */
-  staleTime?: number
-  /** Retry count */
-  retry?: number
+  /** 是否启用查询 */
+  enabled?: boolean;
+  /** 缓存时间 */
+  staleTime?: number;
+  /** 重试次数 */
+  retry?: number;
 }
 
-/**
- * Hook to fetch batch heatmap matrix data for multiple genes
- *
- * Uses TanStack Query's useQueries to fetch data for multiple genes in parallel.
- * Each gene query fetches the heatmap matrix for all marks and cell types.
- *
- * @param genes - Array of gene info objects
- * @param marks - Array of mark types to include
- * @param cellTypes - Array of cell type names
- * @param metric - Metric to visualize
- * @param flanking - Flanking region in bp
- * @param options - Query options
- *
- * @example
- * ```tsx
- * const { data, isLoading, errors } = useBatchGeneHeatmap(
- *   [{ gene_id: 123, gene_name: 'BRCA1' }],
- *   ['H3K27me3', 'H3K4me3'],
- *   ['H1', 'HepG2'],
- *   'median_fold_enrichment'
- * )
- * ```
- */
+interface BatchGeneQueryStatus {
+  gene_id: number;
+  gene_name: string;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  error: Error | null;
+}
+
 export function useBatchGeneHeatmap(
-  genes: GeneInfo[],
+  genes: BatchHeatmapGeneInfo[],
   marks: MarkType[],
   cellTypes: string[],
   metric: HeatmapMetricType,
   flanking: number = 10000,
-  options?: UseBatchGeneHeatmapOptions
+  options?: UseBatchGeneHeatmapOptions,
 ) {
-  const enabled = options?.enabled ?? true
-  const staleTime = options?.staleTime ?? 30 * 60 * 1000 // 30 minutes
-  const retry = options?.retry ?? 2
+  const enabled = options?.enabled ?? true;
+  const staleTime = options?.staleTime ?? 30 * 60 * 1000;
+  const retry = options?.retry ?? 2;
 
-  // Create queries for each gene
-  const queries = useMemo(
-    () =>
-      genes.map((gene) => ({
-        queryKey: chipseqQueryKeys.heatmapMatrix(gene.gene_id, marks, cellTypes, metric, flanking),
-        queryFn: async ({ signal }: { signal: AbortSignal }) => {
-          const response = await chipseqApi.getHeatmapMatrix(
-            gene.gene_id,
-            marks,
-            cellTypes,
-            metric,
-            flanking,
-            signal
-          )
-          return response.data
+  const geneIds = useMemo(() => genes.map((gene) => gene.gene_id), [genes]);
+
+  const query = useQuery({
+    queryKey: chipseqQueryKeys.batchHeatmapMatrix(
+      geneIds,
+      marks,
+      cellTypes,
+      metric,
+      flanking,
+    ),
+    queryFn: async ({ signal }): Promise<BatchHeatmapMatrixResponse> => {
+      const response = await chipseqApi.getBatchHeatmapMatrix(
+        {
+          gene_ids: geneIds,
+          marks,
+          cell_types: cellTypes,
+          metric,
+          flanking,
         },
-        staleTime,
-        retry,
-        enabled: enabled && genes.length > 0 && marks.length > 0 && cellTypes.length > 0,
-      })),
-    [genes, marks, cellTypes, metric, flanking, staleTime, retry, enabled]
-  )
+        signal,
+      );
+      return response.data;
+    },
+    enabled:
+      enabled && geneIds.length > 0 && marks.length > 0 && cellTypes.length > 0,
+    staleTime,
+    retry,
+  });
 
-  // Execute all queries in parallel
-  const results = useQueries({ queries })
+  const data = query.data?.genes ?? [];
+  const failedGeneIds = query.data?.failed_genes ?? [];
+  const successfulGeneIds = useMemo(
+    () => data.map((item) => item.gene_id),
+    [data],
+  );
 
-  // Combine results
-  const data = useMemo(() => {
-    return results
-      .map((result, index) => {
-        if (!result.data || !genes[index]) return null
-
-        // Map API response to HeatmapMatrixData format
-        const apiData = result.data
-        const gene = genes[index]
-
-        return {
-          gene_name: gene.gene_name,
-          gene_id: gene.gene_id,
-          chromosome: gene.chromosome,
-          marks: apiData.marks || marks,
-          cell_types: apiData.cell_types || cellTypes,
-          matrix: apiData.matrix || [],
-        } as HeatmapMatrixData
-      })
-      .filter((item): item is HeatmapMatrixData => item !== null)
-  }, [results, genes, marks, cellTypes])
-
-  // Determine overall loading state
-  const isLoading = useMemo(() => results.some((r) => r.isPending), [results])
-
-  // Determine overall error state
-  const error = useMemo(() => {
-    const errors = results.filter((r) => r.error).map((r) => r.error)
-    return errors.length > 0 ? errors[0] : null
-  }, [results])
-
-  // Check if any queries succeeded
-  const isSuccess = useMemo(() => results.some((r) => r.isSuccess), [results])
-
-  // Get individual query status
-  const queryStatus = useMemo(
+  const failedGeneNames = useMemo(
     () =>
-      results.map((result, index) => ({
-        gene_id: genes[index]?.gene_id,
-        gene_name: genes[index]?.gene_name,
-        isPending: result.isPending,
-        isSuccess: result.isSuccess,
-        isError: result.isError,
-        error: result.error,
-      })),
-    [results, genes]
-  )
+      genes
+        .filter((gene) => failedGeneIds.includes(gene.gene_id))
+        .map((gene) => gene.gene_name),
+    [genes, failedGeneIds],
+  );
+
+  const successfulGeneNames = useMemo(
+    () =>
+      genes
+        .filter((gene) => successfulGeneIds.includes(gene.gene_id))
+        .map((gene) => gene.gene_name),
+    [genes, successfulGeneIds],
+  );
+
+  const queryStatus = useMemo<BatchGeneQueryStatus[]>(() => {
+    return genes.map((gene) => {
+      if (query.isPending) {
+        return {
+          gene_id: gene.gene_id,
+          gene_name: gene.gene_name,
+          isPending: true,
+          isSuccess: false,
+          isError: false,
+          error: null,
+        };
+      }
+
+      if (query.isError) {
+        return {
+          gene_id: gene.gene_id,
+          gene_name: gene.gene_name,
+          isPending: false,
+          isSuccess: false,
+          isError: true,
+          error: query.error as Error,
+        };
+      }
+
+      const isFailed = failedGeneIds.includes(gene.gene_id);
+      const isSuccessful = successfulGeneIds.includes(gene.gene_id);
+
+      return {
+        gene_id: gene.gene_id,
+        gene_name: gene.gene_name,
+        isPending: false,
+        isSuccess: isSuccessful,
+        isError: isFailed,
+        error: isFailed
+          ? new Error(`Failed to load heatmap matrix for gene ${gene.gene_id}`)
+          : null,
+      };
+    });
+  }, [
+    genes,
+    failedGeneIds,
+    successfulGeneIds,
+    query.error,
+    query.isError,
+    query.isPending,
+  ]);
 
   return {
-    /** Aggregated data for all genes */
+    ...query,
     data,
-    /** Loading state */
-    isLoading,
-    /** Any error that occurred */
-    error,
-    /** Whether at least one query succeeded */
-    isSuccess,
-    /** Status of individual gene queries */
+    error: query.error as Error | null,
+    response: query.data ?? null,
+    failedGeneIds,
+    failedGeneNames,
+    successfulGeneIds,
+    successfulGeneNames,
+    queryTimeMs: query.data?.query_time_ms ?? null,
     queryStatus,
-    /** Raw results from each query */
-    results,
-  }
+  };
 }
 
-/**
- * Prefetch batch heatmap data using query client
- * Useful for preloading when user hovers over gene selections
- *
- * @example
- * ```tsx
- * const queryClient = useQueryClient()
- *
- * const handleGeneHover = (gene: GeneInfo) => {
- *   prefetchBatchGeneHeatmap(queryClient, [gene], marks, cellTypes, metric)
- * }
- * ```
- */
 export async function prefetchBatchGeneHeatmap(
   queryClient: QueryClient,
-  genes: GeneInfo[],
+  genes: BatchHeatmapGeneInfo[],
   marks: MarkType[],
   cellTypes: string[],
   metric: HeatmapMetricType,
-  flanking: number = 10000
+  flanking: number = 10000,
 ) {
-  const promises = genes.map((gene) =>
-    queryClient.prefetchQuery({
-      queryKey: chipseqQueryKeys.heatmapMatrix(gene.gene_id, marks, cellTypes, metric, flanking),
-      queryFn: async ({ signal }) => {
-        const response = await chipseqApi.getHeatmapMatrix(
-          gene.gene_id,
+  const geneIds = genes.map((gene) => gene.gene_id);
+
+  await queryClient.prefetchQuery({
+    queryKey: chipseqQueryKeys.batchHeatmapMatrix(
+      geneIds,
+      marks,
+      cellTypes,
+      metric,
+      flanking,
+    ),
+    queryFn: async ({ signal }) => {
+      const response = await chipseqApi.getBatchHeatmapMatrix(
+        {
+          gene_ids: geneIds,
           marks,
-          cellTypes,
+          cell_types: cellTypes,
           metric,
           flanking,
-          signal
-        )
-        return response.data
-      },
-      staleTime: 30 * 60 * 1000,
-    })
-  )
-
-  await Promise.all(promises)
+        },
+        signal,
+      );
+      return response.data;
+    },
+    staleTime: 30 * 60 * 1000,
+  });
 }
 
-/**
- * Hook to get combined loading and error states for batch queries
- *
- * @param results - Results from useBatchGeneHeatmap
- */
-export function useBatchGeneHeatmapStatus(results: ReturnType<typeof useBatchGeneHeatmap>) {
-  const { queryStatus } = results
+export function useBatchGeneHeatmapStatus(
+  results: ReturnType<typeof useBatchGeneHeatmap>,
+) {
+  const { queryStatus } = results;
 
   return useMemo(() => {
-    const loadingGenes = queryStatus.filter((s) => s.isPending).map((s) => s.gene_name)
-    const failedGenes = queryStatus.filter((s) => s.isError).map((s) => s.gene_name)
-    const successGenes = queryStatus.filter((s) => s.isSuccess).map((s) => s.gene_name)
+    const loadingGenes = queryStatus
+      .filter((status) => status.isPending)
+      .map((status) => status.gene_name);
+    const failedGenes = queryStatus
+      .filter((status) => status.isError)
+      .map((status) => status.gene_name);
+    const successGenes = queryStatus
+      .filter((status) => status.isSuccess)
+      .map((status) => status.gene_name);
 
     return {
       loadingGenes,
@@ -223,11 +221,11 @@ export function useBatchGeneHeatmapStatus(results: ReturnType<typeof useBatchGen
       loadingCount: loadingGenes.length,
       failedCount: failedGenes.length,
       successCount: successGenes.length,
-      allComplete: queryStatus.every((s) => !s.isPending),
+      allComplete: queryStatus.every((status) => !status.isPending),
       anySuccess: successGenes.length > 0,
       anyError: failedGenes.length > 0,
-    }
-  }, [queryStatus])
+    };
+  }, [queryStatus]);
 }
 
-export default useBatchGeneHeatmap
+export default useBatchGeneHeatmap;

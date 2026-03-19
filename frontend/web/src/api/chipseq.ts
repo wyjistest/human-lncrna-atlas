@@ -9,9 +9,9 @@
  * - GET /features/chipseq/genes/{gene_id}/compare?marks=H3K27me3,H3K4me3 - Compare marks
  */
 
-import { apiClient } from './client'
-import { API_BASE_URL } from '@/config/api'
-import { openInNewTab } from '@/utils/safeWindow'
+import { apiClient } from "./client";
+import { API_BASE_URL } from "@/config/api";
+import { openInNewTab } from "@/utils/safeWindow";
 import type {
   MarkType,
   ChIPSeqFilters,
@@ -20,13 +20,15 @@ import type {
   AvailableMarksResponse,
   GeneChIPSeqRawResponse,
   CellLineComparisonResponse,
+  BatchHeatmapMatrixRequest,
+  BatchHeatmapMatrixResponse,
   HeatmapMatrixResponse,
   HeatmapMetricType,
   ChIPSeqExperiment,
   ChIPSeqExperimentListResponse,
   ChIPSeqExperimentFilters,
   ChIPSeqGlobalStats,
-} from '@/types/chipseq'
+} from "@/types/chipseq";
 
 /**
  * ChIP-seq API client object
@@ -37,7 +39,7 @@ export const chipseqApi = {
    * @param speciesId - Species ID (default: 1 for Human)
    */
   getAvailableMarks: (speciesId: number = 1, signal?: AbortSignal) =>
-    apiClient.get<AvailableMarksResponse>('/api/v1/features/chipseq/marks', {
+    apiClient.get<AvailableMarksResponse>("/api/v1/features/chipseq/marks", {
       params: { species_id: speciesId },
       signal,
     }),
@@ -47,25 +49,32 @@ export const chipseqApi = {
    * @param geneId - Gene ID
    * @param filters - Query filters including mark_type, pagination, and filtering options
    */
-  getGenePeaks: (geneId: number, filters?: ChIPSeqFilters, signal?: AbortSignal) =>
-    apiClient.get<GeneChIPSeqRawResponse>(`/api/v1/features/chipseq/genes/${geneId}`, {
-      params: {
-        mark_type: filters?.mark_type,
-        min_fold_enrichment: filters?.min_fold_enrichment,
-        max_fold_enrichment: filters?.max_fold_enrichment,
-        max_qvalue: filters?.max_qvalue,
-        max_pvalue: filters?.max_pvalue,
-        min_signal: filters?.min_signal,
-        relative_position: filters?.relative_position,
-        cell_type: filters?.cell_type,
-        flanking: filters?.flanking,
-        page: filters?.page,
-        page_size: filters?.page_size,
-        sort_by: filters?.sort_by,
-        sort_order: filters?.sort_order,
+  getGenePeaks: (
+    geneId: number,
+    filters?: ChIPSeqFilters,
+    signal?: AbortSignal,
+  ) =>
+    apiClient.get<GeneChIPSeqRawResponse>(
+      `/api/v1/features/chipseq/genes/${geneId}`,
+      {
+        params: {
+          mark_type: filters?.mark_type,
+          min_fold_enrichment: filters?.min_fold_enrichment,
+          max_fold_enrichment: filters?.max_fold_enrichment,
+          max_qvalue: filters?.max_qvalue,
+          max_pvalue: filters?.max_pvalue,
+          min_signal: filters?.min_signal,
+          relative_position: filters?.relative_position,
+          cell_type: filters?.cell_type,
+          flanking: filters?.flanking,
+          page: filters?.page,
+          page_size: filters?.page_size,
+          sort_by: filters?.sort_by,
+          sort_order: filters?.sort_order,
+        },
+        signal,
       },
-      signal,
-    }),
+    ),
 
   /**
    * Get ChIP-seq summary statistics for a gene and mark type
@@ -73,10 +82,13 @@ export const chipseqApi = {
    * @param markType - Histone modification mark type
    */
   getGeneSummary: (geneId: number, markType: MarkType, signal?: AbortSignal) =>
-    apiClient.get<ChIPSeqSummary>(`/api/v1/features/chipseq/genes/${geneId}/summary`, {
-      params: { mark_type: markType },
-      signal,
-    }),
+    apiClient.get<ChIPSeqSummary>(
+      `/api/v1/features/chipseq/genes/${geneId}/summary`,
+      {
+        params: { mark_type: markType },
+        signal,
+      },
+    ),
 
   /**
    * Compare multiple ChIP-seq marks for a gene
@@ -84,14 +96,22 @@ export const chipseqApi = {
    * @param marks - Array of mark types to compare
    * @param flanking - Flanking region in bp (optional)
    */
-  compareMarks: (geneId: number, marks: MarkType[], flanking?: number, signal?: AbortSignal) =>
-    apiClient.get<RawChIPSeqCompareResponse>(`/api/v1/features/chipseq/genes/${geneId}/compare`, {
-      params: {
-        marks: marks.join(','),
-        flanking,
+  compareMarks: (
+    geneId: number,
+    marks: MarkType[],
+    flanking?: number,
+    signal?: AbortSignal,
+  ) =>
+    apiClient.get<RawChIPSeqCompareResponse>(
+      `/api/v1/features/chipseq/genes/${geneId}/compare`,
+      {
+        params: {
+          marks: marks.join(","),
+          flanking,
+        },
+        signal,
       },
-      signal,
-    }),
+    ),
 
   /**
    * Export ChIP-seq peaks as BED format
@@ -100,27 +120,27 @@ export const chipseqApi = {
    * @param filters - Optional filters
    */
   exportPeaksToBED: (geneId: number, filters?: ChIPSeqFilters) => {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams();
 
-    if (filters?.mark_type) params.append('mark_type', filters.mark_type)
+    if (filters?.mark_type) params.append("mark_type", filters.mark_type);
     if (filters?.min_fold_enrichment !== undefined) {
-      params.append('min_fold_enrichment', String(filters.min_fold_enrichment))
+      params.append("min_fold_enrichment", String(filters.min_fold_enrichment));
     }
     if (filters?.max_qvalue !== undefined) {
-      params.append('max_qvalue', String(filters.max_qvalue))
+      params.append("max_qvalue", String(filters.max_qvalue));
     }
     if (filters?.relative_position) {
-      params.append('relative_position', filters.relative_position)
+      params.append("relative_position", filters.relative_position);
     }
     if (filters?.flanking !== undefined) {
-      params.append('flanking', String(filters.flanking))
+      params.append("flanking", String(filters.flanking));
     }
 
-    const queryString = params.toString()
+    const queryString = params.toString();
     const url = `${API_BASE_URL}/api/v1/features/chipseq/genes/${geneId}/export${
-      queryString ? `?${queryString}` : ''
-    }`
-    openInNewTab(url)
+      queryString ? `?${queryString}` : ""
+    }`;
+    openInNewTab(url);
   },
 
   /**
@@ -129,12 +149,12 @@ export const chipseqApi = {
    * @param marks - Array of mark types
    */
   exportComparisonToCSV: (geneId: number, marks: MarkType[]) => {
-    const params = new URLSearchParams()
-    params.append('marks', marks.join(','))
-    params.append('format', 'csv')
+    const params = new URLSearchParams();
+    params.append("marks", marks.join(","));
+    params.append("format", "csv");
 
-    const url = `${API_BASE_URL}/api/v1/features/chipseq/genes/${geneId}/compare/export?${params.toString()}`
-    openInNewTab(url)
+    const url = `${API_BASE_URL}/api/v1/features/chipseq/genes/${geneId}/compare/export?${params.toString()}`;
+    openInNewTab(url);
   },
 
   /**
@@ -149,18 +169,18 @@ export const chipseqApi = {
     markType: MarkType,
     cellTypes: string[],
     flanking?: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ) =>
     apiClient.get<CellLineComparisonResponse>(
       `/api/v1/features/chipseq/genes/${geneId}/compare-cell-lines`,
       {
         params: {
           mark_type: markType,
-          cell_types: cellTypes.join(','),
+          cell_types: cellTypes.join(","),
           flanking,
         },
         signal,
-      }
+      },
     ),
 
   /**
@@ -178,19 +198,33 @@ export const chipseqApi = {
     cellTypes: string[],
     metric: HeatmapMetricType,
     flanking?: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ) =>
     apiClient.get<HeatmapMatrixResponse>(
       `/api/v1/features/chipseq/genes/${geneId}/heatmap-matrix`,
       {
         params: {
-          marks: marks.join(','),
-          cell_types: cellTypes.join(','),
+          marks: marks.join(","),
+          cell_types: cellTypes.join(","),
           metric,
           flanking,
         },
         signal,
-      }
+      },
+    ),
+
+  /**
+   * Get heatmap matrix data for multiple genes in a single batch request
+   * Keeps gene/mark/cell type order from the caller.
+   */
+  getBatchHeatmapMatrix: (
+    payload: BatchHeatmapMatrixRequest,
+    signal?: AbortSignal,
+  ) =>
+    apiClient.post<BatchHeatmapMatrixResponse>(
+      "/api/v1/features/chipseq/genes/batch-heatmap-matrix",
+      payload,
+      { signal },
     ),
 
   // =============================================================================
@@ -203,10 +237,13 @@ export const chipseqApi = {
    * @param filters - Optional filter parameters
    */
   listExperiments: (filters?: ChIPSeqExperimentFilters, signal?: AbortSignal) =>
-    apiClient.get<ChIPSeqExperimentListResponse>('/api/v1/features/chipseq/experiments', {
-      params: filters,
-      signal,
-    }),
+    apiClient.get<ChIPSeqExperimentListResponse>(
+      "/api/v1/features/chipseq/experiments",
+      {
+        params: filters,
+        signal,
+      },
+    ),
 
   /**
    * Get details for a specific ChIP-seq experiment
@@ -215,7 +252,7 @@ export const chipseqApi = {
   getExperiment: (experimentId: number, signal?: AbortSignal) =>
     apiClient.get<ChIPSeqExperiment>(
       `/api/v1/features/chipseq/experiments/${experimentId}`,
-      { signal }
+      { signal },
     ),
 
   // =============================================================================
@@ -228,8 +265,10 @@ export const chipseqApi = {
    * Uses materialized view for fast response
    */
   getGlobalStats: (signal?: AbortSignal) =>
-    apiClient.get<ChIPSeqGlobalStats>('/api/v1/features/chipseq/stats', { signal }),
-}
+    apiClient.get<ChIPSeqGlobalStats>("/api/v1/features/chipseq/stats", {
+      signal,
+    }),
+};
 
 /**
  * Query key factory for React Query
@@ -237,40 +276,44 @@ export const chipseqApi = {
  */
 export const chipseqQueryKeys = {
   /** Base key for all ChIP-seq queries */
-  all: ['chipseq'] as const,
+  all: ["chipseq"] as const,
 
   /** Available marks for a species */
   availableMarks: (speciesId: number) =>
-    [...chipseqQueryKeys.all, 'marks', speciesId] as const,
+    [...chipseqQueryKeys.all, "marks", speciesId] as const,
 
   /** Gene-level queries */
-  gene: (geneId: number) =>
-    [...chipseqQueryKeys.all, 'gene', geneId] as const,
+  gene: (geneId: number) => [...chipseqQueryKeys.all, "gene", geneId] as const,
 
   /** Peaks for a gene with filters */
   peaks: (geneId: number, filters: ChIPSeqFilters) =>
-    [...chipseqQueryKeys.gene(geneId), 'peaks', filters] as const,
+    [...chipseqQueryKeys.gene(geneId), "peaks", filters] as const,
 
   /** Summary for a gene and mark type */
   summary: (geneId: number, markType: MarkType) =>
-    [...chipseqQueryKeys.gene(geneId), 'summary', markType] as const,
+    [...chipseqQueryKeys.gene(geneId), "summary", markType] as const,
 
   /** Comparison data for multiple marks */
   compare: (geneId: number, marks: MarkType[], flanking?: number) =>
     [
       ...chipseqQueryKeys.gene(geneId),
-      'compare',
-      [...marks].sort().join(','),
+      "compare",
+      [...marks].sort().join(","),
       flanking ?? null,
     ] as const,
 
   /** Cell line comparison data for a single mark across multiple cell types */
-  compareCellLines: (geneId: number, markType: MarkType, cellTypes: string[], flanking?: number) =>
+  compareCellLines: (
+    geneId: number,
+    markType: MarkType,
+    cellTypes: string[],
+    flanking?: number,
+  ) =>
     [
       ...chipseqQueryKeys.gene(geneId),
-      'compare-cell-lines',
+      "compare-cell-lines",
       markType,
-      [...cellTypes].sort().join(','),
+      [...cellTypes].sort().join(","),
       flanking ?? null,
     ] as const,
 
@@ -280,28 +323,46 @@ export const chipseqQueryKeys = {
     marks: MarkType[],
     cellTypes: string[],
     metric: HeatmapMetricType,
-    flanking?: number
+    flanking?: number,
   ) =>
     [
       ...chipseqQueryKeys.gene(geneId),
-      'heatmap-matrix',
-      [...marks].sort().join(','),
-      [...cellTypes].sort().join(','),
+      "heatmap-matrix",
+      [...marks].sort().join(","),
+      [...cellTypes].sort().join(","),
+      metric,
+      flanking ?? null,
+    ] as const,
+
+  /** Batch heatmap matrix data for multiple genes */
+  batchHeatmapMatrix: (
+    geneIds: number[],
+    marks: MarkType[],
+    cellTypes: string[],
+    metric: HeatmapMetricType,
+    flanking?: number,
+  ) =>
+    [
+      ...chipseqQueryKeys.all,
+      "batch-heatmap-matrix",
+      geneIds.join(","),
+      marks.join(","),
+      cellTypes.join(","),
       metric,
       flanking ?? null,
     ] as const,
 
   /** All experiments */
-  experiments: () => [...chipseqQueryKeys.all, 'experiments'] as const,
+  experiments: () => [...chipseqQueryKeys.all, "experiments"] as const,
 
   /** Experiments with filters */
   experimentsList: (filters: ChIPSeqExperimentFilters) =>
-    [...chipseqQueryKeys.experiments(), 'list', filters] as const,
+    [...chipseqQueryKeys.experiments(), "list", filters] as const,
 
   /** Single experiment by ID */
   experiment: (experimentId: number) =>
     [...chipseqQueryKeys.experiments(), experimentId] as const,
 
   /** Global statistics */
-  globalStats: () => [...chipseqQueryKeys.all, 'global-stats'] as const,
-}
+  globalStats: () => [...chipseqQueryKeys.all, "global-stats"] as const,
+};

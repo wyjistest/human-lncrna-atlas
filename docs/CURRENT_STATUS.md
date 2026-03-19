@@ -7,32 +7,32 @@
 
 ### Epigenomic Data (ChIP-seq + DNase-seq)
 
-| Mark 类型 | 分类 | 细胞系数 | 实验数 | Peaks 数量 |
-|-----------|------|----------|--------|------------|
-| **DNase-HS** | Open Chromatin | **7** | **7** | **1,223,622** |
-| CTCF | Structural | 5 | 5 | **248,106** |
-| H3K4me1 | Activating | 6 | 6 | **803,334** |
-| H3K4me2 | Activating | 6 | 6 | **505,389** |
-| H3K4me3 | Activating | 7 | 7 | **447,224** |
-| H3K9ac | Activating | 6 | 6 | **318,090** |
-| H3K9me3 | Repressive | 6 | 6 | **376,602** |
-| H3K27ac | Activating | 6 | 6 | **334,361** |
-| H3K27me3 | Repressive | 6 | 6 | **317,558** |
-| H3K36me3 | Activating | 6 | 6 | **241,345** |
-| H4K20me1 | Activating | 3 | 3 | **109,285** |
-| **总计** | - | **7** | **64** | **4,924,916** |
+| Mark 类型    | 分类           | 细胞系数 | 实验数 | Peaks 数量    |
+| ------------ | -------------- | -------- | ------ | ------------- |
+| **DNase-HS** | Open Chromatin | **7**    | **7**  | **1,223,622** |
+| CTCF         | Structural     | 5        | 5      | **248,106**   |
+| H3K4me1      | Activating     | 6        | 6      | **803,334**   |
+| H3K4me2      | Activating     | 6        | 6      | **505,389**   |
+| H3K4me3      | Activating     | 7        | 7      | **447,224**   |
+| H3K9ac       | Activating     | 6        | 6      | **318,090**   |
+| H3K9me3      | Repressive     | 6        | 6      | **376,602**   |
+| H3K27ac      | Activating     | 6        | 6      | **334,361**   |
+| H3K27me3     | Repressive     | 6        | 6      | **317,558**   |
+| H3K36me3     | Activating     | 6        | 6      | **241,345**   |
+| H4K20me1     | Activating     | 3        | 3      | **109,285**   |
+| **总计**     | -              | **7**    | **64** | **4,924,916** |
 
 ### 细胞系覆盖
 
-| 细胞系 | 组织 | ChIP-seq Marks | DNase-seq | 总 Peaks |
-|--------|------|----------------|-----------|----------|
-| **MCF-7** | 乳腺癌细胞 | 1 mark (H3K4me3) | ✅ 126,717 | 238,634 |
-| **HMEC** | 正常乳腺上皮 | 8 marks | ✅ 140,574 | 669,496 |
-| **A549** | 肺腺癌细胞 | 9 marks | ✅ 118,965 | 782,674 |
-| K562 | 白血病细胞 | 10 marks | ✅ 202,266 | 843,309 |
-| H1-hESC | 人胚胎干细胞 | 10 marks | ✅ 258,188 | 874,023 |
-| GM12878 | B淋巴细胞 | 10 marks | ✅ 183,953 | 734,789 |
-| HepG2 | 肝癌细胞 | 9 marks | ✅ 192,959 | 781,991 |
+| 细胞系    | 组织         | ChIP-seq Marks   | DNase-seq  | 总 Peaks |
+| --------- | ------------ | ---------------- | ---------- | -------- |
+| **MCF-7** | 乳腺癌细胞   | 1 mark (H3K4me3) | ✅ 126,717 | 238,634  |
+| **HMEC**  | 正常乳腺上皮 | 8 marks          | ✅ 140,574 | 669,496  |
+| **A549**  | 肺腺癌细胞   | 9 marks          | ✅ 118,965 | 782,674  |
+| K562      | 白血病细胞   | 10 marks         | ✅ 202,266 | 843,309  |
+| H1-hESC   | 人胚胎干细胞 | 10 marks         | ✅ 258,188 | 874,023  |
+| GM12878   | B淋巴细胞    | 10 marks         | ✅ 183,953 | 734,789  |
+| HepG2     | 肝癌细胞     | 9 marks          | ✅ 192,959 | 781,991  |
 
 > 备注：仓库脚本已支持从 UCSC `wgEncodeSydhHistone/` 下载 MCF-7 的 `H3K27ac/H3K27me3/H3K36me3/H3K9me3`（hg19 narrowPeak），但当前统计仍以已导入 DB 的 experiments 为准。详见 `docs/ENCODE_DATA_GUIDE.md`。
 
@@ -61,11 +61,11 @@
    - 非 PostgreSQL 后端不再直接报错，而是显式返回 `status=unsupported` 的降级状态，便于前端与运维侧识别
    - 新增 `scripts/check_materialized_views_operability.py`，可直接读取 Admin 状态或离线 JSON，并按 `attention_summary.severity` 输出退出码：`0=healthy`、`1=warning/degraded/unsupported`、`2=critical`
 
-3. **export / unavailable compare 回归锚点补强**
+3. **export / gene-set compare 回归锚点补强**
    - `scripts/api_snapshot.py` 为 `export/disease-network`、`network/disease` 与 overlap compare 新增稳定摘要字段（nodes/edges、species_count/species_ids）
-   - `/chipseq-compare` smoke 现会断言页面保持“不可用”状态，且不会偷偷触发 `/api/v1/chipseq/*` 或 `/api/v1/features/chipseq/*` 请求
-   - 前端 `globalCompareApi` 维持显式 unavailable contract，并补单测防止回退到伪接口
-   - `/chipseq-compare` 页面现在会直接引导用户进入真实能力入口（gene 搜索、overlap explorer、analysis），不再只是单纯的 unavailable 死胡同
+   - `/chipseq-compare` smoke 现会走真实的 gene-set compare 路径：粘贴解析基因、调用 batch heatmap API，并断言不会退回单基因 N 次 heatmap 请求
+   - 前端已移除 `globalCompareApi` 占位契约，页面改为真实 gene-set compare workbench
+   - `/chipseq-compare` 页面支持人类基因搜索 + 批量解析，并在首版聚焦真实 heatmap 可视化而非 batch export
 
 ### 2026-02-12 ⭐ hg19：外部数据/DB 审计复核 + gene_peak_associations 覆盖确认
 
@@ -222,7 +222,7 @@
 
 1. **admin metrics 快照对比（离线）**
    - `scripts/admin_metrics_snapshot.py` 支持 `--compare OLD_JSON NEW_JSON`，输出 `admin-metrics-diff-*.md`（便于回归/优化对比）
-   - diff 现已覆盖 cache get() 延迟（hits/misses p95/p99）与 cache breakdown（routes/keys/namespaces 的 compute_* / hit_rate / req）变化，便于定位回归根因
+   - diff 现已覆盖 cache get() 延迟（hits/misses p95/p99）与 cache breakdown（routes/keys/namespaces 的 compute\_\* / hit_rate / req）变化，便于定位回归根因
    - 性能定位文档与 issue 模板已补齐对比用法（`docs/PERFORMANCE_TRIAGE.md` / `.github/ISSUE_TEMPLATE/performance-triage.md`）
 
 ### 2026-01-26 ⭐ CI 触发策略（main push）
@@ -610,17 +610,18 @@ npm run dev
 
 ## 📝 最近 Git 提交
 
-| Commit | 描述 |
-|--------|------|
-| 90bd8ad | chore: sync ChIP-seq multi-cell-line UI updates |
+| Commit  | 描述                                                            |
+| ------- | --------------------------------------------------------------- |
+| 90bd8ad | chore: sync ChIP-seq multi-cell-line UI updates                 |
 | 9ea3a0f | feat: add cell type filter for multi-cell-line ChIP-seq support |
-| 113f3f8 | fix: complete Network page i18n - translate Edge tooltip |
-| 85f4bdf | fix: resolve ChIP-seq TypeScript type errors for null values |
-| a78b6cc | docs: update project status - ENCODE data is real, not mock |
+| 113f3f8 | fix: complete Network page i18n - translate Edge tooltip        |
+| 85f4bdf | fix: resolve ChIP-seq TypeScript type errors for null values    |
+| a78b6cc | docs: update project status - ENCODE data is real, not mock     |
 
 ## 🎯 建议的下一步开发
 
 ### 优先级 1: Phase 3.0 - 3.3 核心功能 ✅ 已完成
+
 - [x] ~~ChIP-seq peaks 与 lncRNA 关联分析~~ ✅ 已完成
 - [x] ~~热图可视化组蛋白修饰模式~~ ✅ 已完成
 - [x] ~~批量导出功能 (BED/CSV)~~ ✅ 已完成 (2025-12-07)
@@ -629,6 +630,7 @@ npm run dev
 - [x] ~~DNase-seq 全细胞系覆盖~~ ✅ 已完成 (2025-12-08, Phase 3.3)
 
 ### 优先级 2: 功能增强
+
 - [x] ~~lncRNA-ChIP-seq 重叠结果可视化增强~~ ✅ 已完成 (2025-12-10, Phase 3.4)
 - [x] ~~基因组浏览器集成重叠轨道~~ ✅ 已完成 (2025-12-10, Phase 3.4)
 - [x] ~~动态 Overlap 轨道加载~~ ✅ 已完成 (2025-12-10, Phase 3.5)
@@ -636,6 +638,7 @@ npm run dev
 - [x] ~~ROI 高亮显示重叠区域（P2 扩展功能）~~ ✅ 已完成 (2026-01-18)
 
 ### 优先级 3: 性能优化
+
 - [x] ~~chr1 等大染色体查询优化~~ ✅ 已完成（物化视图 + NO-MV broad query guard，2026-01-20）
 - [x] ~~Redis 缓存策略优化~~ ✅ 已完成（缓存 key 规范化 + TTL 抖动（±10%），2026-01-20）
 - [x] 前端虚拟滚动（Genes/Regulations/Conservation/Diseases 展开表格等大列表）

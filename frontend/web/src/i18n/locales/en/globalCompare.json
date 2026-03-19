@@ -1,106 +1,43 @@
 {
-  "title": "ChIP-seq Global Mark Comparison",
-  "subtitle": "Global ChIP-seq comparison is not publicly available yet. Use the guided gene-scoped entry points below for real data.",
-  "demo": {
-    "title": "Demo mode",
-    "description": "This page currently uses mock data. Backend endpoints are not implemented yet."
+  "title": "ChIP-seq Gene Set Compare",
+  "subtitle": "Compare a curated human gene set with real ChIP-seq heatmaps. Search genes, paste identifiers, and run a batched matrix query.",
+  "input": {
+    "title": "Gene Set Input",
+    "searchTitle": "Search and select genes",
+    "searchDescription": "Load human gene options on demand and keep up to 10 genes in compare order.",
+    "searchPlaceholder": "Search gene symbol, Ensembl ID, or gene ID",
+    "pasteTitle": "Paste identifiers",
+    "pasteDescription": "Supports gene_id, gene_name, and Ensembl ID. Split with spaces, commas, semicolons, or new lines.",
+    "pastePlaceholder": "Example: MALAT1 NEAT1 ENSG00000251562 17276",
+    "resolveButton": "Resolve genes",
+    "selectionCount": "{{count}} / {{max}} genes selected",
+    "missingTitle": "Some identifiers were not resolved",
+    "emptyIdentifiers": "Paste at least one gene_id, gene_name, or Ensembl ID.",
+    "tooManyIdentifiers": "At most {{max}} identifiers can be resolved at once.",
+    "maxGenesReached": "Only the first {{max}} genes are kept in v1."
   },
-  "filters": {
-    "title": "Filters",
-    "marks": "Select Marks",
-    "marksPlaceholder": "All marks (click to filter)",
-    "cellTypes": "Select Cell Types",
-    "cellTypesPlaceholder": "All cell types (click to filter)",
-    "active": "Active filters",
-    "more": "more",
-    "clear": "Clear all"
+  "config": {
+    "title": "Compare Configuration",
+    "marks": "Marks",
+    "marksPlaceholder": "Select marks to compare",
+    "cellTypes": "Cell types",
+    "cellTypesPlaceholder": "Select cell types to compare",
+    "metric": "Metric",
+    "flanking": "Flanking region"
   },
-  "tabs": {
-    "radar": "Radar Chart",
-    "bar": "Bar Chart",
-    "boxplot": "Box Plot",
-    "matrix": "Cell Matrix"
+  "actions": {
+    "runCompare": "Run compare",
+    "updateCompare": "Update compare"
   },
-  "stats": {
-    "totalMarks": "Marks",
-    "totalPeaks": "Total Peaks",
-    "totalGenes": "Total Genes",
-    "cellTypes": "Cell Types",
-    "avgSignal": "Avg Signal",
-    "avgEnrichment": "Avg Enrichment"
-  },
-  "charts": {
-    "noData": "No data available",
-    "radar": {
-      "title": "Multi-Mark Comparison",
-      "peakCount": "Peak Count",
-      "avgSignal": "Avg Signal",
-      "coverage": "Coverage",
-      "cellTypes": "Cell Types",
-      "geneCount": "Gene Count",
-      "foldEnrichment": "Fold Enrichment"
-    },
-    "bar": {
-      "title": "Mark Comparison",
-      "metricLabel": "Compare by",
-      "totalPeaks": "Total Peaks",
-      "geneCount": "Gene Count",
-      "cellTypes": "Cell Types",
-      "coverage": "Coverage",
-      "avgSignal": "Avg Signal",
-      "avgEnrichment": "Avg Enrichment"
-    },
-    "boxplot": {
-      "title": "Signal Distribution by Mark",
-      "yAxis": "Signal Value",
-      "seriesName": "Signal Distribution",
-      "outliers": "Outliers",
-      "outlier": "Outlier",
-      "max": "Max",
-      "q3": "Q3 (75%)",
-      "median": "Median",
-      "q1": "Q1 (25%)",
-      "min": "Min",
-      "sampleSize": "Sample Size"
-    },
-    "matrix": {
-      "title": "Cell Type x Mark Matrix",
-      "metricLabel": "Display Metric",
-      "noData": "No matrix data available",
-      "mark": "Mark",
-      "peakCount": "Peak Count",
-      "geneCount": "Gene Count",
-      "avgSignal": "Avg Signal",
-      "foldEnrichment": "Fold Enrichment",
-      "coverage": "Coverage"
-    }
-  },
-  "export": {
-    "saveImage": "Save as Image",
-    "exportCSV": "Export CSV",
-    "exportData": "Export Data"
-  },
-  "errors": {
-    "loadFailed": "Failed to load comparison data",
-    "noMarksSelected": "Please select at least one mark to compare"
-  },
-  "status": {
-    "comingSoon": "Coming soon"
-  },
-  "unavailable": {
-    "title": "Global compare is not available yet",
-    "description": "This page no longer shows mock data. A public backend contract for cross-gene global comparison has not been implemented yet.",
-    "guidance": "For real ChIP-seq analysis, use the gene-specific compare, summary, and heatmap tools from a gene detail page.",
-    "nextStepsTitle": "Use available entry points instead",
-    "searchHint": "Search an lncRNA or gene name, then continue with gene-scoped compare, summary, export, and genome-browser workflows.",
-    "searchPlaceholder": "Search lncRNA or gene name",
-    "searchButton": "Browse genes",
-    "browseGenes": "Browse lncRNA genes",
-    "openOverlap": "Open overlap explorer",
-    "openAnalysis": "Open epigenetic analysis",
-    "currentScope": "Currently supported scope",
-    "scopeDetail": "The backend currently supports gene-scoped ChIP-seq endpoints rather than a global mark-comparison dataset.",
-    "devNoteTitle": "Developer note",
-    "devNote": "Legacy /api/v1/chipseq/* global-compare endpoints are intentionally not exposed. Frontend code should treat this page as unavailable until a real backend contract is added."
+  "results": {
+    "pendingChanges": "Configuration changed. Run compare again to refresh the heatmap.",
+    "empty": "Choose a human gene set and run compare to render the batched heatmap.",
+    "loadingTitle": "Running batched compare",
+    "loadingDescription": "Fetching heatmap matrices for {{count}} genes.",
+    "errorTitle": "Failed to load compare results",
+    "summaryTitle": "Compare summary",
+    "summaryDescription": "{{success}}/{{total}} genes loaded in {{time}} ms.",
+    "failedGenesTitle": "Some genes could not be rendered",
+    "noSuccessfulGenes": "No gene returned a valid heatmap matrix for the current selection."
   }
 }

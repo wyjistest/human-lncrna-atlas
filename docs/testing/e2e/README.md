@@ -11,12 +11,14 @@ Comprehensive end-to-end tests for the lncRNA-ChIP-seq Overlap Analysis page usi
 ### P0 Tests (Must Pass)
 
 #### 1. Routing and Page Access
+
 - ✅ Page loads successfully via URL
 - ✅ Correct page title displayed
 - ✅ Breadcrumb navigation rendered
 - ✅ Accessible from navigation menu
 
 #### 2. Component Rendering
+
 - ✅ Main component container renders
 - ✅ Filter panel displays
 - ✅ Mark type filter available
@@ -24,6 +26,7 @@ Comprehensive end-to-end tests for the lncRNA-ChIP-seq Overlap Analysis page usi
 - ✅ Table columns render correctly
 
 #### 3. Internationalization
+
 - ✅ Language switching supported
 - ✅ Chinese content displays
 - ✅ English content displays
@@ -36,12 +39,14 @@ the suite stable and independent of backend/DB datasets while still exercising
 real UI interactions and query parameter composition.
 
 #### 4. Filter Functionality
+
 - ✅ Filter by mark type (H3K27me3, H3K4me3, etc.)
 - ✅ Filter by cell type (K562, GM12878, ...)
 - ✅ Filter by chromosome (chr1-chr22, chrX, chrY)
 - ✅ Reset filters
 
 #### 5. Table Interactions
+
 - ✅ Pagination through results
 - ✅ Sort by overlap length
 - ✅ Sort by binding affinity
@@ -50,6 +55,7 @@ real UI interactions and query parameter composition.
 ### Additional Test Suites
 
 #### Performance Tests
+
 - ✅ Page load time under 8 seconds (default budget)
 - ✅ Initial render under 6 seconds (default budget)
 
@@ -57,11 +63,11 @@ real UI interactions and query parameter composition.
 
 Performance assertions are environment-dependent (dev server, CPU, cache). You can override budgets via env vars:
 
-| Env var | Default | Meaning |
-|--------|---------|---------|
-| `BASE_URL` | `http://localhost:5173` | Frontend base URL |
-| `E2E_OVERLAP_PAGE_LOAD_BUDGET_MS` | `8000` | SPA shell load budget (ms) |
-| `E2E_OVERLAP_INITIAL_RENDER_BUDGET_MS` | `6000` | First meaningful content render budget (ms) |
+| Env var                                | Default                 | Meaning                                     |
+| -------------------------------------- | ----------------------- | ------------------------------------------- |
+| `BASE_URL`                             | `http://localhost:5173` | Frontend base URL                           |
+| `E2E_OVERLAP_PAGE_LOAD_BUDGET_MS`      | `8000`                  | SPA shell load budget (ms)                  |
+| `E2E_OVERLAP_INITIAL_RENDER_BUDGET_MS` | `6000`                  | First meaningful content render budget (ms) |
 
 Example:
 
@@ -70,24 +76,29 @@ E2E_OVERLAP_INITIAL_RENDER_BUDGET_MS=12000 npm run test:e2e -- e2e/lncrna-chipse
 ```
 
 #### Error Handling
+
 - ✅ API error gracefully handled
 - ✅ Empty results displayed correctly
 - ✅ Network timeout handled
 
 #### API Integration
+
 - ✅ Correct API calls on page load
 - ✅ Correct query parameters
 
 #### Accessibility
+
 - ✅ Accessible table structure
 - ✅ Keyboard navigation supported
 - ✅ Focus management
 
 #### Deep Links
+
 - ✅ URL parameters for filters
 - ✅ Filters preserved in URL
 
 #### Mobile Responsiveness
+
 - ✅ Responsive on mobile viewport
 - ✅ Accessible navigation on mobile
 
@@ -153,6 +164,7 @@ This mirrors the `.github/workflows/test.yml` `e2e-smoke` job (Vite build artifa
 ```
 
 Notes:
+
 - Requires port `5173` to be free (uses `--strictPort` like CI).
 - In CI, `BASE_URL` is derived from the preview server host/port (see `.github/workflows/test.yml`) to avoid hard-coding `localhost:5173`.
 - In GitHub Actions manual trigger (`workflow_dispatch`), set input `enable_firefox_smoke=true` to additionally run Firefox smoke.
@@ -168,7 +180,7 @@ Notes:
   - `e2e/diseases-smoke.spec.ts`
   - `e2e/analysis-smoke.spec.ts`
   - `e2e/conservation-smoke.spec.ts`
-  - `e2e/chipseq-compare-smoke.spec.ts`
+  - `e2e/chipseq-compare-smoke.spec.ts`：验证 `/chipseq-compare` 真实 gene-set compare workbench（批量解析 + batch heatmap）
   - `e2e/chipseq-compare-journey-smoke.spec.ts`
   - `e2e/visualization-hub-smoke.spec.ts`
   - `e2e/admin-monitoring-smoke.spec.ts`
@@ -187,6 +199,7 @@ Notes:
 ```
 
 说明：
+
 - 仅阻断 `serious/critical` 级别的 axe violations（保守策略，降低误报/flake）。
 - 默认禁用 `color-contrast` 规则（placeholder/disabled/主题变量等在自动化中噪声较高）；对比度建议留给人工审查或专项任务。
 
@@ -212,6 +225,7 @@ API_BASE_URL=http://127.0.0.1:8000 ./scripts/run-tests.sh performance-audit
 ```
 
 说明：
+
 - 该命令会先启动 `vite preview`，再跑 `frontend/web/e2e/performance/*`；
 - 需要 `API_BASE_URL/health` 可访问，否则会 fail-fast 提示你先启动后端。
 
@@ -440,14 +454,17 @@ Running 25 tests using 1 worker
 **Symptom**: `Timeout 60000ms exceeded`
 
 **Solutions**:
+
 1. Increase timeout in test:
+
    ```typescript
-   test('my test', async ({ page }) => {
-     test.setTimeout(120000) // 2 minutes
-   })
+   test("my test", async ({ page }) => {
+     test.setTimeout(120000); // 2 minutes
+   });
    ```
 
 2. Check if frontend server is running:
+
    ```bash
    curl "${BASE_URL:-http://localhost:5173}"
    ```
@@ -459,6 +476,7 @@ Running 25 tests using 1 worker
 **Symptom**: `locator('.ant-table').first() not found`
 
 **Solutions**:
+
 1. 确认路由已注册（例如 `frontend/web/src/App.tsx`）且页面组件可正常渲染
 2. Check if page route exists: `http://localhost:5173/lncrna-chipseq-overlap`
    - 如需覆盖 base URL：`${BASE_URL:-http://localhost:5173}/lncrna-chipseq-overlap`
@@ -469,7 +487,9 @@ Running 25 tests using 1 worker
 **Symptom**: `500 Internal Server Error` or `404 Not Found`
 
 **Solutions**:
+
 1. Check if backend server is running:
+
    ```bash
    curl "${API_BASE_URL:-http://localhost:8000}/api/v1/lncrna-chipseq-overlap"
    ```
@@ -483,9 +503,11 @@ Running 25 tests using 1 worker
 **Symptom**: Language tests fail or skip
 
 **Solutions**:
+
 1. Manually set language before test:
+
    ```typescript
-   await page.goto('/lncrna-chipseq-overlap?lang=zh')
+   await page.goto("/lncrna-chipseq-overlap?lang=zh");
    ```
 
 2. Check i18n configuration in frontend
@@ -507,10 +529,10 @@ npm run test:e2e:debug -- e2e/lncrna-chipseq-overlap.spec.ts -g "should load the
 ### 2. Take Screenshots
 
 ```typescript
-test('my test', async ({ page }) => {
-  await page.goto('/lncrna-chipseq-overlap')
-  await page.screenshot({ path: 'debug-screenshot.png' })
-})
+test("my test", async ({ page }) => {
+  await page.goto("/lncrna-chipseq-overlap");
+  await page.screenshot({ path: "debug-screenshot.png" });
+});
 ```
 
 ### 3. Enable Trace Viewer
@@ -526,14 +548,16 @@ npx playwright show-trace trace.zip
 ### 4. Console Logs
 
 ```typescript
-page.on('console', (msg) => console.log('Browser log:', msg.text()))
+page.on("console", (msg) => console.log("Browser log:", msg.text()));
 ```
 
 ### 5. Network Monitoring
 
 ```typescript
-page.on('request', (request) => console.log('Request:', request.url()))
-page.on('response', (response) => console.log('Response:', response.status(), response.url()))
+page.on("request", (request) => console.log("Request:", request.url()));
+page.on("response", (response) =>
+  console.log("Response:", response.status(), response.url()),
+);
 ```
 
 ## CI/CD Integration
@@ -568,7 +592,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Install dependencies
         run: |
@@ -684,6 +708,7 @@ None - all P0 tests passed.
 ## Contact
 
 For test-related questions or issues:
+
 - Check Playwright documentation: https://playwright.dev
 - Review existing test patterns in `e2e/` directory
 - Contact frontend team for component-specific questions

@@ -1,106 +1,43 @@
 {
-  "title": "ChIP-seq 全局组蛋白修饰对比",
-  "subtitle": "全局 ChIP-seq 对比能力尚未公开提供。请使用下方引导入口进入真实的 gene-scoped 分析路径。",
-  "demo": {
-    "title": "演示模式",
-    "description": "当前页面使用 mock 演示数据，后端真实接口尚未实现。"
+  "title": "ChIP-seq 基因集对比",
+  "subtitle": "使用真实的 ChIP-seq 热图对比人类基因集。支持搜索基因、粘贴标识符，并通过 batch 矩阵接口发起对比。",
+  "input": {
+    "title": "基因集输入",
+    "searchTitle": "搜索并选择基因",
+    "searchDescription": "按需加载人类基因选项，首版最多保留 10 个基因并按选择顺序参与对比。",
+    "searchPlaceholder": "搜索 gene symbol、Ensembl ID 或 gene ID",
+    "pasteTitle": "粘贴标识符",
+    "pasteDescription": "支持 gene_id、gene_name 和 Ensembl ID，可用空格、逗号、分号或换行分隔。",
+    "pastePlaceholder": "示例：MALAT1 NEAT1 ENSG00000251562 17276",
+    "resolveButton": "解析基因",
+    "selectionCount": "已选择 {{count}} / {{max}} 个基因",
+    "missingTitle": "部分标识符未解析成功",
+    "emptyIdentifiers": "请至少粘贴一个 gene_id、gene_name 或 Ensembl ID。",
+    "tooManyIdentifiers": "单次最多解析 {{max}} 个标识符。",
+    "maxGenesReached": "首版最多保留前 {{max}} 个基因。"
   },
-  "filters": {
-    "title": "筛选条件",
-    "marks": "选择组蛋白修饰",
-    "marksPlaceholder": "所有修饰类型（点击筛选）",
-    "cellTypes": "选择细胞类型",
-    "cellTypesPlaceholder": "所有细胞类型（点击筛选）",
-    "active": "当前筛选",
-    "more": "更多",
-    "clear": "清除全部"
-  },
-  "tabs": {
-    "radar": "雷达图",
-    "bar": "柱状图",
-    "boxplot": "箱线图",
-    "matrix": "细胞矩阵"
-  },
-  "stats": {
-    "totalMarks": "修饰类型",
-    "totalPeaks": "总峰数",
-    "totalGenes": "总基因数",
+  "config": {
+    "title": "对比配置",
+    "marks": "组蛋白标记",
+    "marksPlaceholder": "选择要对比的 marks",
     "cellTypes": "细胞类型",
-    "avgSignal": "平均信号",
-    "avgEnrichment": "平均富集度"
+    "cellTypesPlaceholder": "选择要对比的细胞类型",
+    "metric": "度量指标",
+    "flanking": "侧翼区域"
   },
-  "charts": {
-    "noData": "暂无数据",
-    "radar": {
-      "title": "多修饰类型对比",
-      "peakCount": "峰数量",
-      "avgSignal": "平均信号",
-      "coverage": "覆盖度",
-      "cellTypes": "细胞类型数",
-      "geneCount": "基因数量",
-      "foldEnrichment": "富集倍数"
-    },
-    "bar": {
-      "title": "修饰类型对比",
-      "metricLabel": "对比指标",
-      "totalPeaks": "总峰数",
-      "geneCount": "基因数量",
-      "cellTypes": "细胞类型",
-      "coverage": "覆盖度",
-      "avgSignal": "平均信号",
-      "avgEnrichment": "平均富集度"
-    },
-    "boxplot": {
-      "title": "信号分布（按修饰类型）",
-      "yAxis": "信号值",
-      "seriesName": "信号分布",
-      "outliers": "异常值",
-      "outlier": "异常值",
-      "max": "最大值",
-      "q3": "Q3 (75%)",
-      "median": "中位数",
-      "q1": "Q1 (25%)",
-      "min": "最小值",
-      "sampleSize": "样本量"
-    },
-    "matrix": {
-      "title": "细胞类型 × 修饰类型矩阵",
-      "metricLabel": "显示指标",
-      "noData": "暂无矩阵数据",
-      "mark": "修饰类型",
-      "peakCount": "峰数量",
-      "geneCount": "基因数量",
-      "avgSignal": "平均信号",
-      "foldEnrichment": "富集倍数",
-      "coverage": "覆盖度"
-    }
+  "actions": {
+    "runCompare": "运行对比",
+    "updateCompare": "更新对比"
   },
-  "export": {
-    "saveImage": "保存为图片",
-    "exportCSV": "导出 CSV",
-    "exportData": "导出数据"
-  },
-  "errors": {
-    "loadFailed": "加载对比数据失败",
-    "noMarksSelected": "请至少选择一个修饰类型进行对比"
-  },
-  "status": {
-    "comingSoon": "即将提供"
-  },
-  "unavailable": {
-    "title": "全局对比暂未开放",
-    "description": "当前页面不再展示 mock 图表。跨基因的公开全局对比后端契约尚未实现。",
-    "guidance": "如需真实 ChIP-seq 分析，请先进入具体 gene 详情页，再使用 compare、summary、heatmap 和 export 能力。",
-    "nextStepsTitle": "请改用已上线入口",
-    "searchHint": "先搜索 lncRNA 或 gene 名称，再进入基于 gene 的 compare、summary、export 和 genome browser 工作流。",
-    "searchPlaceholder": "搜索 lncRNA 或 gene 名称",
-    "searchButton": "浏览基因",
-    "browseGenes": "浏览 lncRNA 基因",
-    "openOverlap": "打开 overlap 浏览器",
-    "openAnalysis": "打开表观分析",
-    "currentScope": "当前支持范围",
-    "scopeDetail": "当前后端支持的是基于 gene 的 ChIP-seq 端点，而不是跨全局 mark 的公共对比数据集。",
-    "devNoteTitle": "开发说明",
-    "devNote": "旧的 /api/v1/chipseq/* 全局对比端点是故意不暴露的。在真实后端契约落地前，前端必须把该页面视为 unavailable。"
+  "results": {
+    "pendingChanges": "当前配置已变更，请重新运行对比以刷新热图。",
+    "empty": "选择人类基因集后运行对比，即可渲染 batch 热图。",
+    "loadingTitle": "正在运行 batch 对比",
+    "loadingDescription": "正在为 {{count}} 个基因获取热图矩阵。",
+    "errorTitle": "加载对比结果失败",
+    "summaryTitle": "对比摘要",
+    "summaryDescription": "{{success}}/{{total}} 个基因加载成功，用时 {{time}} ms。",
+    "failedGenesTitle": "部分基因未能渲染热图",
+    "noSuccessfulGenes": "当前筛选条件下没有基因返回有效热图矩阵。"
   }
 }

@@ -9,61 +9,68 @@
  */
 export type MarkType =
   // Repressive marks
-  | 'H3K27me3'   // Polycomb repressive mark
-  | 'H3K9me3'    // Heterochromatin mark
-  | 'H3K9me2'    // Heterochromatin mark (weaker)
+  | "H3K27me3" // Polycomb repressive mark
+  | "H3K9me3" // Heterochromatin mark
+  | "H3K9me2" // Heterochromatin mark (weaker)
   // Activating marks - promoter
-  | 'H3K4me3'    // Active promoter mark
-  | 'H3K4me2'    // Active promoter (weaker)
+  | "H3K4me3" // Active promoter mark
+  | "H3K4me2" // Active promoter (weaker)
   // Activating marks - enhancer
-  | 'H3K4me1'    // Enhancer mark
-  | 'H3K27ac'    // Active enhancer mark
-  | 'H3K9ac'     // Active chromatin
-  | 'H3K36me3'   // Transcription elongation
-  | 'H3K79me2'   // Transcription elongation
+  | "H3K4me1" // Enhancer mark
+  | "H3K27ac" // Active enhancer mark
+  | "H3K9ac" // Active chromatin
+  | "H3K36me3" // Transcription elongation
+  | "H3K79me2" // Transcription elongation
   // Other marks
-  | 'H2AZ'       // Histone variant - regulatory regions
-  | 'H2BK120ub'  // Ubiquitination mark
-  | 'H4K20me1'   // Cell cycle regulation
-  | 'H4K20me3'   // Heterochromatin/repressive mark
-  | 'H3K4ac'     // Active chromatin
-  | 'H3K14ac'    // Active chromatin
-  | 'H3K18ac'    // Active chromatin
-  | 'H3K56ac'    // DNA repair/active mark
+  | "H2AZ" // Histone variant - regulatory regions
+  | "H2BK120ub" // Ubiquitination mark
+  | "H4K20me1" // Cell cycle regulation
+  | "H4K20me3" // Heterochromatin/repressive mark
+  | "H3K4ac" // Active chromatin
+  | "H3K14ac" // Active chromatin
+  | "H3K18ac" // Active chromatin
+  | "H3K56ac" // DNA repair/active mark
   // Open Chromatin
-  | 'DNase-HS'   // DNase I Hypersensitive Sites
+  | "DNase-HS" // DNase I Hypersensitive Sites
   // Structural/Insulator
-  | 'CTCF'       // Insulator binding protein
+  | "CTCF"; // Insulator binding protein
 
 /**
  * Mark category for grouping and styling
  */
-export type MarkCategory = 'repressive' | 'activating' | 'enhancer' | 'elongation' | 'other' | 'open_chromatin' | 'structural'
+export type MarkCategory =
+  | "repressive"
+  | "activating"
+  | "enhancer"
+  | "elongation"
+  | "other"
+  | "open_chromatin"
+  | "structural";
 
 /**
  * Configuration interface for each mark type
  */
 export interface MarkConfig {
   /** Display name with functional description */
-  displayName: string
+  displayName: string;
   /** Short name for compact displays */
-  shortName: string
+  shortName: string;
   /** Color for visualization (hex) */
-  color: string
+  color: string;
   /** Secondary/lighter color for backgrounds */
-  secondaryColor: string
+  secondaryColor: string;
   /** Mark category for grouping */
-  category: MarkCategory
+  category: MarkCategory;
   /** Functional description */
-  description: string
+  description: string;
   /** Icon identifier (emoji or icon name) */
-  icon: string
+  icon: string;
   /** Default filter values for this mark */
-  defaultFilters: ChIPSeqFilters
+  defaultFilters: ChIPSeqFilters;
   /** Whether this mark is commonly used */
-  isCommon: boolean
+  isCommon: boolean;
   /** Sort priority (lower = higher priority) */
-  sortOrder: number
+  sortOrder: number;
 }
 
 /**
@@ -71,39 +78,39 @@ export interface MarkConfig {
  */
 export interface ChIPSeqPeak {
   /** Unique peak identifier */
-  peak_id: number
+  peak_id: number;
   /** Gene ID this peak is associated with */
-  gene_id: number
+  gene_id: number;
   /** Mark type (e.g., H3K27me3) */
-  mark_type: MarkType
+  mark_type: MarkType;
   /** Chromosome */
-  chromosome: string
+  chromosome: string;
   /** Peak start position */
-  peak_start: number
+  peak_start: number;
   /** Peak end position */
-  peak_end: number
+  peak_end: number;
   /** Peak width in bp */
-  peak_width: number
+  peak_width: number;
   /** Peak summit position (absolute) */
-  summit_position?: number | null
+  summit_position?: number | null;
   /** Signal value at peak */
-  signal_value: number | null
+  signal_value: number | null;
   /** P-value (-log10) */
-  pvalue: number | null
+  pvalue: number | null;
   /** Q-value (-log10) */
-  qvalue: number | null
+  qvalue: number | null;
   /** Fold enrichment over background */
-  fold_enrichment: number | null
+  fold_enrichment: number | null;
   /** Position relative to gene TSS */
-  relative_position?: string
+  relative_position?: string;
   /** Distance to TSS in bp */
-  distance_to_tss?: number
+  distance_to_tss?: number;
   /** Strand of the gene */
-  strand?: string
+  strand?: string;
   /** Cell type / sample source */
-  cell_type?: string
+  cell_type?: string;
   /** Experiment ID reference */
-  experiment_id?: string | number
+  experiment_id?: string | number;
 }
 
 /**
@@ -111,31 +118,36 @@ export interface ChIPSeqPeak {
  */
 export interface ChIPSeqFilters {
   /** Filter by mark type */
-  mark_type?: MarkType
+  mark_type?: MarkType;
   /** Minimum fold enrichment */
-  min_fold_enrichment?: number
+  min_fold_enrichment?: number;
   /** Maximum fold enrichment */
-  max_fold_enrichment?: number
+  max_fold_enrichment?: number;
   /** Maximum q-value (FDR) */
-  max_qvalue?: number
+  max_qvalue?: number;
   /** Maximum p-value */
-  max_pvalue?: number
+  max_pvalue?: number;
   /** Minimum signal value */
-  min_signal?: number
+  min_signal?: number;
   /** Position relative to gene (e.g., 'promoter', 'intron', 'upstream') */
-  relative_position?: string
+  relative_position?: string;
   /** Filter by cell type */
-  cell_type?: string
+  cell_type?: string;
   /** Flanking region in bp (default 10000) */
-  flanking?: number
+  flanking?: number;
   /** Current page number */
-  page?: number
+  page?: number;
   /** Items per page */
-  page_size?: number
+  page_size?: number;
   /** Sort field */
-  sort_by?: 'signal_value' | 'fold_enrichment' | 'qvalue' | 'pvalue' | 'peak_start'
+  sort_by?:
+    | "signal_value"
+    | "fold_enrichment"
+    | "qvalue"
+    | "pvalue"
+    | "peak_start";
   /** Sort direction */
-  sort_order?: 'asc' | 'desc'
+  sort_order?: "asc" | "desc";
 }
 
 /**
@@ -143,13 +155,13 @@ export interface ChIPSeqFilters {
  */
 export interface ChIPSeqResponse {
   /** Total number of peaks matching filters */
-  total: number
+  total: number;
   /** Current page items */
-  items: ChIPSeqPeak[]
+  items: ChIPSeqPeak[];
   /** Current page number */
-  page: number
+  page: number;
   /** Items per page */
-  page_size: number
+  page_size: number;
 }
 
 /**
@@ -157,37 +169,37 @@ export interface ChIPSeqResponse {
  * This is the actual structure returned by /api/v1/features/chipseq/genes/{gene_id}
  */
 export interface GeneChIPSeqRawResponse {
-  gene_id: number
-  gene_name: string
-  chromosome: string
-  gene_start: number
-  gene_end: number
-  strand: string
-  region_start: number
-  region_end: number
+  gene_id: number;
+  gene_name: string;
+  chromosome: string;
+  gene_start: number;
+  gene_end: number;
+  strand: string;
+  region_start: number;
+  region_end: number;
   /** Peaks grouped by mark type */
-  marks: Record<string, GenePeakAssociation[]>
-  total_peaks: number
-  marks_present: string[]
+  marks: Record<string, GenePeakAssociation[]>;
+  total_peaks: number;
+  marks_present: string[];
 }
 
 /**
  * Peak association data from backend
  */
 export interface GenePeakAssociation {
-  peak_id: number
-  chromosome: string
-  peak_start: number
-  peak_end: number
-  summit_position: number | null
-  overlap_type: string
-  distance_to_tss: number
-  overlap_bp: number
-  fold_enrichment: number | null
-  qvalue: number | null
-  mark_type: MarkType
-  mark_category: string
-  experiment_id: number
+  peak_id: number;
+  chromosome: string;
+  peak_start: number;
+  peak_end: number;
+  summit_position: number | null;
+  overlap_type: string;
+  distance_to_tss: number;
+  overlap_bp: number;
+  fold_enrichment: number | null;
+  qvalue: number | null;
+  mark_type: MarkType;
+  mark_category: string;
+  experiment_id: number;
 }
 
 /**
@@ -195,11 +207,11 @@ export interface GenePeakAssociation {
  */
 export interface PeakWidthPercentiles {
   /** 25th percentile */
-  p25: number
+  p25: number;
   /** 50th percentile (median) */
-  p50: number
+  p50: number;
   /** 75th percentile */
-  p75: number
+  p75: number;
 }
 
 /**
@@ -207,37 +219,37 @@ export interface PeakWidthPercentiles {
  */
 export interface ChIPSeqSummary {
   /** Mark type */
-  mark_type: MarkType
+  mark_type: MarkType;
   /** Total number of peaks */
-  total_peaks: number
+  total_peaks: number;
   /** Average signal value */
-  avg_signal: number
+  avg_signal: number;
   /** Maximum signal value */
-  max_signal: number
+  max_signal: number;
   /** Average fold enrichment */
-  avg_fold_enrichment: number
+  avg_fold_enrichment: number;
   /** Peaks in promoter region */
-  promoter_peaks: number
+  promoter_peaks: number;
   /** Peaks in gene body */
-  gene_body_peaks: number
+  gene_body_peaks: number;
   /** Peaks in upstream region */
-  upstream_peaks: number
+  upstream_peaks: number;
   /** Peaks in downstream region */
-  downstream_peaks: number
+  downstream_peaks: number;
   /** Distribution by relative position */
-  position_distribution: Record<string, number>
+  position_distribution: Record<string, number>;
   /** Signal distribution histogram */
-  signal_distribution?: Array<{ range: string; count: number }>
+  signal_distribution?: Array<{ range: string; count: number }>;
   /** Whether this gene has bivalent domain (H3K4me3 + H3K27me3) */
-  has_bivalent_domain?: boolean
+  has_bivalent_domain?: boolean;
   /** Median fold enrichment */
-  median_fold_enrichment?: number
+  median_fold_enrichment?: number;
   /** Standard deviation of fold enrichment */
-  std_fold_enrichment?: number
+  std_fold_enrichment?: number;
   /** Total coverage in base pairs */
-  total_coverage_bp?: number
+  total_coverage_bp?: number;
   /** Peak width distribution percentiles */
-  peak_width_percentiles?: PeakWidthPercentiles
+  peak_width_percentiles?: PeakWidthPercentiles;
 }
 
 /**
@@ -245,11 +257,11 @@ export interface ChIPSeqSummary {
  */
 export interface MarkComparisonData {
   /** Mark type */
-  mark_type: MarkType
+  mark_type: MarkType;
   /** Summary statistics */
-  summary: ChIPSeqSummary
+  summary: ChIPSeqSummary;
   /** Top peaks (limited) */
-  top_peaks: ChIPSeqPeak[]
+  top_peaks: ChIPSeqPeak[];
 }
 
 /**
@@ -257,13 +269,13 @@ export interface MarkComparisonData {
  */
 export interface OverlapRegion {
   /** First mark type */
-  mark1: MarkType
+  mark1: MarkType;
   /** Second mark type */
-  mark2: MarkType
+  mark2: MarkType;
   /** Number of overlapping regions */
-  region_count: number
+  region_count: number;
   /** Total base pairs in overlap */
-  total_bp: number
+  total_bp: number;
 }
 
 /**
@@ -271,65 +283,65 @@ export interface OverlapRegion {
  */
 export interface OverlappingRegionDetail {
   /** Chromosome */
-  chromosome: string
+  chromosome: string;
   /** Start position */
-  start: number
+  start: number;
   /** End position */
-  end: number
+  end: number;
   /** Marks present in this region */
-  marks: MarkType[]
+  marks: MarkType[];
   /** Domain type classification */
-  domain_type: 'bivalent' | 'active' | 'repressed'
+  domain_type: "bivalent" | "active" | "repressed";
 }
 
 /**
  * Raw mark data from backend compare API
  */
 export interface RawCompareMarkData {
-  mark_type: MarkType
-  mark_category: string
-  display_color: string
+  mark_type: MarkType;
+  mark_category: string;
+  display_color: string;
   peaks: Array<{
-    peak_id: number
-    chromosome: string
-    peak_start: number
-    peak_end: number
-    summit_position: number | null
-    fold_enrichment: number | null
-    qvalue: number | null
-    mark_type: MarkType
-  }>
-  peak_count: number
-  avg_fold_enrichment: number | null
-  median_fold_enrichment: number | null
-  std_fold_enrichment: number | null
-  total_coverage_bp: number | null
-  peak_width_percentiles: PeakWidthPercentiles | null
+    peak_id: number;
+    chromosome: string;
+    peak_start: number;
+    peak_end: number;
+    summit_position: number | null;
+    fold_enrichment: number | null;
+    qvalue: number | null;
+    mark_type: MarkType;
+  }>;
+  peak_count: number;
+  avg_fold_enrichment: number | null;
+  median_fold_enrichment: number | null;
+  std_fold_enrichment: number | null;
+  total_coverage_bp: number | null;
+  peak_width_percentiles: PeakWidthPercentiles | null;
 }
 
 /**
  * Raw response from compare API
  */
 export interface RawChIPSeqCompareResponse {
-  gene_id: number
-  gene_name: string
-  chromosome: string
-  region_start: number
-  region_end: number
-  marks: RawCompareMarkData[]
+  gene_id: number;
+  gene_name: string;
+  chromosome: string;
+  region_start: number;
+  region_end: number;
+  marks: RawCompareMarkData[];
   all_overlaps: Array<{
-    chromosome: string
-    start: number
-    end: number
-    marks: MarkType[]
-  }>
-  overlap_statistics: Record<string, number>
-  overlapping_regions: OverlappingRegionDetail[]
+    chromosome: string;
+    start: number;
+    end: number;
+    marks: MarkType[];
+  }>;
+  overlap_statistics: Record<string, number>;
+  overlapping_regions: OverlappingRegionDetail[];
   bivalent_regions: Array<{
-    chromosome: string
-    start: number
-    end: number
-  }>
+    chromosome: string;
+    start: number;
+    end: number;
+  }>;
 }
 
 /**
@@ -337,19 +349,19 @@ export interface RawChIPSeqCompareResponse {
  */
 export interface ChIPSeqCompareResponse {
   /** Gene ID */
-  gene_id: number
+  gene_id: number;
   /** Gene name (optional) */
-  gene_name?: string
+  gene_name?: string;
   /** Comparison data for each mark */
-  marks: MarkComparisonData[]
+  marks: MarkComparisonData[];
   /** Overlap statistics between marks */
-  overlap_stats?: Record<string, number>
+  overlap_stats?: Record<string, number>;
   /** Overlap regions between mark pairs */
-  overlap_regions?: OverlapRegion[]
+  overlap_regions?: OverlapRegion[];
   /** Detailed overlapping regions with domain classification */
-  overlapping_regions?: OverlappingRegionDetail[]
+  overlapping_regions?: OverlappingRegionDetail[];
   /** Whether bivalent domain is detected (H3K4me3 + H3K27me3) */
-  has_bivalent_domain?: boolean
+  has_bivalent_domain?: boolean;
 }
 
 /**
@@ -357,43 +369,43 @@ export interface ChIPSeqCompareResponse {
  */
 export interface AvailableMarksResponse {
   /** Species ID */
-  species_id: number
+  species_id: number;
   /** List of available marks */
   marks: Array<{
-    mark_type: MarkType
-    display_name: string
-    peak_count: number
-    gene_count: number
-  }>
+    mark_type: MarkType;
+    display_name: string;
+    peak_count: number;
+    gene_count: number;
+  }>;
 }
 
 /**
  * View modes for multi-mark display
  */
-export type CompareViewMode = 'merged' | 'parallel' | 'stats'
+export type CompareViewMode = "merged" | "parallel" | "stats";
 
 /**
  * Position relative to gene
  */
 export const RELATIVE_POSITIONS = [
-  { value: 'promoter', label: 'Promoter' },
-  { value: 'upstream', label: 'Upstream' },
-  { value: 'downstream', label: 'Downstream' },
-  { value: 'exon', label: 'Exon' },
-  { value: 'intron', label: 'Intron' },
-  { value: 'gene_body', label: 'Gene Body' },
-] as const
+  { value: "promoter", label: "Promoter" },
+  { value: "upstream", label: "Upstream" },
+  { value: "downstream", label: "Downstream" },
+  { value: "exon", label: "Exon" },
+  { value: "intron", label: "Intron" },
+  { value: "gene_body", label: "Gene Body" },
+] as const;
 
 /**
  * Sort options for peaks table
  */
 export const SORT_OPTIONS = [
-  { value: 'signal_value', label: 'Signal Value' },
-  { value: 'fold_enrichment', label: 'Fold Enrichment' },
-  { value: 'qvalue', label: 'Q-Value' },
-  { value: 'pvalue', label: 'P-Value' },
-  { value: 'peak_start', label: 'Position' },
-] as const
+  { value: "signal_value", label: "Signal Value" },
+  { value: "fold_enrichment", label: "Fold Enrichment" },
+  { value: "qvalue", label: "Q-Value" },
+  { value: "pvalue", label: "P-Value" },
+  { value: "peak_start", label: "Position" },
+] as const;
 
 /**
  * Default filter values
@@ -402,9 +414,9 @@ export const DEFAULT_CHIPSEQ_FILTERS: ChIPSeqFilters = {
   page: 1,
   page_size: 20,
   flanking: 10000,
-  sort_by: 'fold_enrichment',
-  sort_order: 'desc',
-}
+  sort_by: "fold_enrichment",
+  sort_order: "desc",
+};
 
 // ============================================
 // CELL LINE COMPARISON TYPES (Phase 2.6)
@@ -415,23 +427,23 @@ export const DEFAULT_CHIPSEQ_FILTERS: ChIPSeqFilters = {
  */
 export interface CellLineComparisonEntry {
   /** Cell type identifier (e.g., 'K562', 'GM12878') */
-  cell_type: string
+  cell_type: string;
   /** Optional cell line name */
-  cell_line?: string
+  cell_line?: string;
   /** Peaks for this cell line */
-  peaks: ChIPSeqPeak[]
+  peaks: ChIPSeqPeak[];
   /** Total number of peaks */
-  total_peaks: number
+  total_peaks: number;
   /** Average signal value */
-  avg_signal?: number
+  avg_signal?: number;
   /** Median fold enrichment */
-  median_fold_enrichment?: number
+  median_fold_enrichment?: number;
   /** Standard deviation of fold enrichment */
-  std_fold_enrichment?: number
+  std_fold_enrichment?: number;
   /** Total coverage in base pairs */
-  total_coverage_bp: number
+  total_coverage_bp: number;
   /** Peak width percentile distribution */
-  peak_width_percentiles?: PeakWidthPercentiles
+  peak_width_percentiles?: PeakWidthPercentiles;
 }
 
 /**
@@ -439,21 +451,21 @@ export interface CellLineComparisonEntry {
  */
 export interface CellLineOverlapRegion {
   /** Chromosome */
-  chromosome: string
+  chromosome: string;
   /** Start position */
-  start: number
+  start: number;
   /** End position */
-  end: number
+  end: number;
   /** Length of overlap region */
-  length: number
+  length: number;
   /** First cell type */
-  cell_type_1: string
+  cell_type_1: string;
   /** Second cell type */
-  cell_type_2: string
+  cell_type_2: string;
   /** Peak ID from first cell type */
-  peak_id_1: number
+  peak_id_1: number;
   /** Peak ID from second cell type */
-  peak_id_2: number
+  peak_id_2: number;
 }
 
 /**
@@ -461,25 +473,25 @@ export interface CellLineOverlapRegion {
  */
 export interface CellLineComparisonResponse {
   /** Gene ID */
-  gene_id: number
+  gene_id: number;
   /** Gene name */
-  gene_name: string
+  gene_name: string;
   /** Chromosome */
-  chromosome: string
+  chromosome: string;
   /** Region start position */
-  region_start: number
+  region_start: number;
   /** Region end position */
-  region_end: number
+  region_end: number;
   /** Mark type being compared */
-  mark_type: string
+  mark_type: string;
   /** Data for each cell line */
-  cell_lines: CellLineComparisonEntry[]
+  cell_lines: CellLineComparisonEntry[];
   /** Overlap regions between cell lines */
-  overlap_regions?: CellLineOverlapRegion[]
+  overlap_regions?: CellLineOverlapRegion[];
   /** Total number of cell lines in comparison */
-  total_cell_lines: number
+  total_cell_lines: number;
   /** Number of peaks common across all cell lines */
-  common_peaks: number
+  common_peaks: number;
 }
 
 // ============================================
@@ -491,21 +503,45 @@ export interface CellLineComparisonResponse {
  */
 export interface CellMarkStats {
   /** Median fold enrichment value */
-  median_fold_enrichment?: number
+  median_fold_enrichment?: number;
   /** Number of peaks */
-  peak_count: number
+  peak_count: number;
   /** Total coverage in base pairs */
-  total_coverage_bp: number
+  total_coverage_bp: number;
   /** Average signal value */
-  avg_signal?: number
+  avg_signal?: number;
   /** Standard deviation of fold enrichment */
-  std_fold_enrichment?: number
+  std_fold_enrichment?: number;
 }
 
 /**
  * Metric types available for heatmap matrix visualization
  */
-export type HeatmapMetricType = 'median_fold_enrichment' | 'peak_count' | 'total_coverage_bp' | 'avg_signal'
+export type HeatmapMetricType =
+  | "median_fold_enrichment"
+  | "peak_count"
+  | "total_coverage_bp"
+  | "avg_signal";
+
+/**
+ * Request payload for batch heatmap matrix API
+ */
+export interface BatchHeatmapMatrixRequest {
+  /** Gene IDs to compare */
+  gene_ids: number[];
+  /** Marks to use as columns */
+  marks: MarkType[];
+  /** Cell types to use as rows */
+  cell_types: string[];
+  /** Metric to visualize */
+  metric: HeatmapMetricType;
+  /** Flanking region in bp */
+  flanking?: number;
+  /** Maximum q-value */
+  max_qvalue?: number;
+  /** Whether to include detailed per-cell stats */
+  include_details?: boolean;
+}
 
 /**
  * Response from heatmap matrix API
@@ -513,33 +549,49 @@ export type HeatmapMetricType = 'median_fold_enrichment' | 'peak_count' | 'total
  */
 export interface HeatmapMatrixResponse {
   /** Gene ID */
-  gene_id: number
+  gene_id: number;
   /** Gene name */
-  gene_name: string
+  gene_name: string;
   /** Ensembl ID */
-  gene_ensembl_id: string
+  gene_ensembl_id: string;
   /** Chromosome */
-  chromosome: string
+  chromosome: string;
   /** Region start position */
-  region_start: number
+  region_start: number;
   /** Region end position */
-  region_end: number
+  region_end: number;
   /** List of cell types (Y-axis labels) */
-  cell_types: string[]
+  cell_types: string[];
   /** List of marks (X-axis labels) */
-  marks: string[]
+  marks: string[];
   /** Selected metric for the matrix values */
-  metric: HeatmapMetricType
+  metric: HeatmapMetricType;
   /** 2D matrix of values: matrix[cellTypeIndex][markIndex] */
-  matrix: Array<Array<number | null>>
+  matrix: Array<Array<number | null>>;
   /** Detailed statistics for each cell type + mark combination */
-  details?: Record<string, Record<string, CellMarkStats>>
+  details?: Record<string, Record<string, CellMarkStats>>;
   /** Combinations that have no data */
-  missing_combinations?: Array<{ cell_type: string; mark: string }>
+  missing_combinations?: Array<{ cell_type: string; mark: string }>;
   /** Total possible combinations */
-  total_combinations: number
+  total_combinations: number;
   /** Number of combinations with valid data */
-  valid_combinations: number
+  valid_combinations: number;
+}
+
+/**
+ * Response from batch heatmap matrix API
+ */
+export interface BatchHeatmapMatrixResponse {
+  /** Successful gene matrices in request order */
+  genes: HeatmapMatrixResponse[];
+  /** Total genes requested */
+  total_genes: number;
+  /** Number of genes that returned matrix data */
+  successful_genes: number;
+  /** Gene IDs that failed or were not found */
+  failed_genes: number[];
+  /** Server-side query time */
+  query_time_ms?: number;
 }
 
 // ============================================
@@ -552,47 +604,47 @@ export interface HeatmapMatrixResponse {
  */
 export interface ChIPSeqExperiment {
   /** Unique experiment identifier */
-  experiment_id: number
+  experiment_id: number;
   /** Experiment name */
-  experiment_name: string
+  experiment_name: string;
   /** Species ID */
-  species_id: number
+  species_id: number;
   /** Species code (e.g., 'hg38', 'panTro6') */
-  species_code?: string
+  species_code?: string;
   /** Mark type (e.g., 'H3K27me3') */
-  mark_type: string
+  mark_type: string;
   /** Mark category (e.g., 'repressive', 'activating') */
-  mark_category: string
+  mark_category: string;
   /** Mark display color */
-  mark_display_color?: string
+  mark_display_color?: string;
   /** Cell type (e.g., 'H1-hESC') */
-  cell_type?: string
+  cell_type?: string;
   /** Tissue type (e.g., 'brain') */
-  tissue_type?: string
+  tissue_type?: string;
   /** Cell line */
-  cell_line?: string
+  cell_line?: string;
   /** Treatment condition */
-  treatment?: string
+  treatment?: string;
   /** Data source (e.g., 'ENCODE', 'GEO') */
-  source_database?: string
+  source_database?: string;
   /** Accession number */
-  source_accession?: string
+  source_accession?: string;
   /** Peak caller used (e.g., 'MACS2') */
-  peak_caller?: string
+  peak_caller?: string;
   /** Reference genome (e.g., 'GRCh38') */
-  reference_genome?: string
+  reference_genome?: string;
   /** Total sequencing reads */
-  total_reads?: number
+  total_reads?: number;
   /** Mapped reads count */
-  mapped_reads?: number
+  mapped_reads?: number;
   /** Fraction of Reads in Peaks */
-  frip_score?: number
+  frip_score?: number;
   /** Whether experiment is active */
-  is_active: boolean
+  is_active: boolean;
   /** Creation timestamp */
-  created_at: string
+  created_at: string;
   /** Number of peaks from this experiment */
-  peak_count?: number
+  peak_count?: number;
 }
 
 /**
@@ -600,13 +652,13 @@ export interface ChIPSeqExperiment {
  */
 export interface ChIPSeqExperimentListResponse {
   /** Total number of experiments matching filters */
-  total: number
+  total: number;
   /** Current page experiments */
-  items: ChIPSeqExperiment[]
+  items: ChIPSeqExperiment[];
   /** Current page number */
-  page: number
+  page: number;
   /** Items per page */
-  page_size: number
+  page_size: number;
 }
 
 /**
@@ -614,21 +666,21 @@ export interface ChIPSeqExperimentListResponse {
  */
 export interface ChIPSeqExperimentFilters {
   /** Filter by species ID */
-  species_id?: number
+  species_id?: number;
   /** Filter by mark type(s), comma-separated */
-  mark_type?: string
+  mark_type?: string;
   /** Filter by mark category */
-  mark_category?: string
+  mark_category?: string;
   /** Filter by cell type */
-  cell_type?: string
+  cell_type?: string;
   /** Filter by source database */
-  source_database?: string
+  source_database?: string;
   /** Only return active experiments */
-  active_only?: boolean
+  active_only?: boolean;
   /** Page number */
-  page?: number
+  page?: number;
   /** Items per page */
-  page_size?: number
+  page_size?: number;
 }
 
 /**
@@ -637,23 +689,23 @@ export interface ChIPSeqExperimentFilters {
  */
 export interface ChIPSeqMarkStats {
   /** Mark name (e.g., 'H3K27me3') */
-  mark_name: string
+  mark_name: string;
   /** Mark category */
-  mark_category: string
+  mark_category: string;
   /** Display color */
-  display_color: string
+  display_color: string;
   /** Species code */
-  species_code: string
+  species_code: string;
   /** Number of experiments */
-  experiment_count: number
+  experiment_count: number;
   /** Total number of peaks */
-  total_peaks: number
+  total_peaks: number;
   /** Average fold enrichment */
-  avg_fold_enrichment?: number
+  avg_fold_enrichment?: number;
   /** Median fold enrichment */
-  median_fold_enrichment?: number
+  median_fold_enrichment?: number;
   /** Average peak width in bp */
-  avg_peak_width?: number
+  avg_peak_width?: number;
 }
 
 /**
@@ -662,13 +714,13 @@ export interface ChIPSeqMarkStats {
  */
 export interface ChIPSeqGlobalStats {
   /** Total number of experiments */
-  total_experiments: number
+  total_experiments: number;
   /** Total number of peaks */
-  total_peaks: number
+  total_peaks: number;
   /** List of available mark types */
-  marks_available: string[]
+  marks_available: string[];
   /** List of available species codes */
-  species_available: string[]
+  species_available: string[];
   /** Per-mark statistics */
-  stats_by_mark: ChIPSeqMarkStats[]
+  stats_by_mark: ChIPSeqMarkStats[];
 }
