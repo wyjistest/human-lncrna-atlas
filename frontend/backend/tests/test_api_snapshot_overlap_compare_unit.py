@@ -31,7 +31,7 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
         qs = parse_qs(parsed.query or "")
 
         if path == "/health":
-            return ok({"status": "ok"})
+            return ok({"status": "ok", "db_name": "temp_baseline_db"})
         if path == "/api/v1/stats/overview":
             return ok({"status": "ok"})
         if path == "/api/v1/genes":
@@ -191,6 +191,7 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
 
     assert "network_available_combinations_species_1" in endpoints
     assert endpoints["network_available_combinations_species_1"]["status_code"] == 200
+    assert endpoints["health"]["json"] == {"status": "ok"}
 
     summaries = snap["summaries"]
     assert summaries["network_disease_first_combination_nodes_len"] == 0

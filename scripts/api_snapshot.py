@@ -102,6 +102,15 @@ def _normalize_gene_detail_payload(payload: Any) -> Any:
     return normalized
 
 
+def _normalize_health_payload(payload: Any) -> Any:
+    if not isinstance(payload, dict):
+        return payload
+    normalized = dict(payload)
+    # 健康检查会暴露当前 DB 名称；baseline 生成脚本使用临时数据库，必须剔除该动态字段。
+    normalized.pop("db_name", None)
+    return normalized
+
+
 def _join(base_url: str, path: str) -> str:
     return base_url.rstrip("/") + path
 
@@ -110,7 +119,10 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
     endpoints: dict[str, EndpointResult] = {}
 
     # Root health (no prefix)
-    endpoints["health"] = _http_get_json(_join(base_url, "/health"), timeout_seconds=timeout_seconds)
+    endpoints["health"] = _normalize_endpoint_result(
+        _http_get_json(_join(base_url, "/health"), timeout_seconds=timeout_seconds),
+        normalize=_normalize_health_payload,
+    )
 
     # Core API endpoints (should exist on minimal sample data)
     endpoints["stats_overview"] = _http_get_json(

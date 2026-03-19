@@ -49,6 +49,7 @@ def _is_missing_relation_error(exc: Exception, relation_names: tuple[str, ...]) 
     return (
         "does not exist" in message
         or "undefined_table" in message
+        or "不存在" in message
         or ("relation" in message and "does not exist" in message)
         or ("no such table" in message)
     )

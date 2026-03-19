@@ -146,6 +146,13 @@ def test_analysis_summary_mv_missing_falls_back(monkeypatch):
     assert result.disease.avg_connections == 3.5
 
 
+def test_analysis_summary_mv_missing_detects_localized_postgres_error():
+    from app.routers import analysis as analysis_router
+
+    err = Exception('错误:  关系 "mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100" 不存在')
+    assert analysis_router._is_epigenetic_optional_source_missing_error(err) is True
+
+
 class _TxDummySession(_DummySession):
     """
     更接近 PostgreSQL 行为的 Session stub：
