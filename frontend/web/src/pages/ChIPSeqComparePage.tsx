@@ -2,13 +2,9 @@
  * ChIPSeqComparePage
  * Phase 2.5 - Global ChIP-seq Mark Comparison Page
  *
- * This page provides a comprehensive view for comparing histone modification
- * marks across all genes and cell types in the database.
- *
- * Features:
- * - Multi-mark comparison with various visualizations
- * - Cell type filtering
- * - Export capabilities
+ * This route is intentionally kept as an honest status page.
+ * The previous implementation rendered mock charts for a backend contract that
+ * does not exist yet.
  */
 
 import { useTranslation } from 'react-i18next'
@@ -55,7 +51,7 @@ export default function ChIPSeqComparePage() {
       <Paragraph type="secondary" style={{ marginBottom: 24 }}>
         {t(
           'subtitle',
-          'Compare histone modifications across all genes and cell types to understand global epigenetic patterns.'
+          'Global ChIP-seq comparison is not publicly available yet. Use gene-level ChIP-seq analysis pages for real data.'
         )}
       </Paragraph>
 

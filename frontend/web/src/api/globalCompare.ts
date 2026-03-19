@@ -1,14 +1,12 @@
 /**
- * Global Compare API Client
- * Phase 2.5 - API functions for global multi-marks comparison
+ * Global Compare API contract placeholder.
  *
- * Backend Endpoints (to be implemented):
- * - GET /api/v1/chipseq/global-compare - Get global comparison data
- * - GET /api/v1/chipseq/cell-line-matrix - Get cell line x mark matrix
- * - GET /api/v1/chipseq/signal-distribution - Get signal distribution data
+ * The public /chipseq-compare page currently has no backend support. Keep the
+ * client explicit about that fact so other callers do not silently depend on a
+ * fake /api/v1/chipseq/* namespace.
  */
 
-import { apiClient } from './client'
+import type { AxiosResponse } from 'axios'
 import type {
   GlobalCompareParams,
   GlobalCompareResponse,
@@ -19,52 +17,36 @@ import type {
 } from '@/types/globalCompare'
 import type { MarkType } from '@/types/chipseq'
 
+export const GLOBAL_COMPARE_UNAVAILABLE_MESSAGE =
+  'Global ChIP-seq compare endpoints are not available. Use /api/v1/features/chipseq/genes/{gene_id}/... endpoints instead.'
+
+function rejectUnavailable<T>(): Promise<AxiosResponse<T>> {
+  return Promise.reject(new Error(GLOBAL_COMPARE_UNAVAILABLE_MESSAGE))
+}
+
 /**
  * Global Compare API client object
  */
 export const globalCompareApi = {
+  isAvailable: false,
+  availabilityReason: GLOBAL_COMPARE_UNAVAILABLE_MESSAGE,
   /**
-   * Get global comparison data across all marks
-   * @param params - Query parameters including marks filter
+   * Global compare is intentionally unavailable until a real backend contract exists.
    */
-  getGlobalCompare: (params?: GlobalCompareParams, signal?: AbortSignal) =>
-    apiClient.get<GlobalCompareResponse>('/api/v1/chipseq/global-compare', {
-      params: {
-        marks: params?.marks?.join(','),
-        cell_types: params?.cell_types?.join(','),
-        min_peaks: params?.min_peaks,
-        include_position_distribution: params?.include_position_distribution,
-      },
-      signal,
-    }),
+  getGlobalCompare: (_params?: GlobalCompareParams, _signal?: AbortSignal) =>
+    rejectUnavailable<GlobalCompareResponse>(),
 
   /**
-   * Get cell line x mark matrix data
-   * @param params - Query parameters including marks and cell types
+   * Global compare is intentionally unavailable until a real backend contract exists.
    */
-  getCellLineMatrix: (params: CellLineMatrixParams, signal?: AbortSignal) =>
-    apiClient.get<CellLineMatrixResponse>('/api/v1/chipseq/cell-line-matrix', {
-      params: {
-        marks: params.marks?.join(','),
-        cell_types: params.cell_types?.join(','),
-        metric: params.metric,
-      },
-      signal,
-    }),
+  getCellLineMatrix: (_params: CellLineMatrixParams, _signal?: AbortSignal) =>
+    rejectUnavailable<CellLineMatrixResponse>(),
 
   /**
-   * Get signal distribution data for marks
-   * @param params - Query parameters including marks filter
+   * Global compare is intentionally unavailable until a real backend contract exists.
    */
-  getSignalDistribution: (params?: SignalDistParams, signal?: AbortSignal) =>
-    apiClient.get<SignalDistResponse>('/api/v1/chipseq/signal-distribution', {
-      params: {
-        marks: params?.marks?.join(','),
-        cell_types: params?.cell_types?.join(','),
-        bins: params?.bins,
-      },
-      signal,
-    }),
+  getSignalDistribution: (_params?: SignalDistParams, _signal?: AbortSignal) =>
+    rejectUnavailable<SignalDistResponse>(),
 }
 
 /**

@@ -645,18 +645,8 @@ class TestChIPSeqCellLineComparison:
                 "cell_types": "K562,HepG2"
             }
         )
-        # Should return 404 (not found) for invalid gene
-        # Note: If 500 is returned, this indicates a bug in the API error handling
-        assert response.status_code in [404, 500], \
-            f"Invalid gene should return 404/500, got {response.status_code}"
-
-        # Log a warning if 500 is returned (indicates potential bug)
-        if response.status_code == 500:
-            import warnings
-            warnings.warn(
-                "API returns 500 for invalid gene ID - should return 404. "
-                "This is a potential bug in error handling."
-            )
+        assert response.status_code == 404, \
+            f"Invalid gene should return 404, got {response.status_code}"
 
 
 class TestExtendedHistoneMarks:

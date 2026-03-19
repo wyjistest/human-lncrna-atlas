@@ -99,7 +99,7 @@ class TestDiseaseNetworkExportFiltering:
     """测试 /export/disease-network 端点的 LIKE 过滤行为"""
 
     def test_wildcard_only_limits_to_500(self, api_client):
-        """纯通配符 trait_name 应限制返回（每个查询 500 条）"""
+        """纯通配符 trait_name 应限制总边数到 500 条以内"""
         response = api_client.get(
             "/api/v1/export/disease-network",
             params={"trait_name": "%", "limit": 1000, "format": "json"}
@@ -110,14 +110,12 @@ class TestDiseaseNetworkExportFiltering:
 
         if response.status_code == 200:
             data = response.json()
-            # 边数不应超过 1000（两个查询各 500 条的合理上限）
-            # 注：每个子查询限制 500，总边数 = disease-gene(≤500) + gene-lncrna(≤500)
             edges = data.get("edges", [])
-            assert len(edges) <= 1000, \
-                f"纯通配符过滤应限制每查询 500 条，实际返回 {len(edges)} 条"
+            assert len(edges) <= 500, \
+                f"纯通配符过滤应限制总边数 500 条，实际返回 {len(edges)} 条"
 
     def test_empty_filter_limits_to_500(self, api_client):
-        """空 trait_name 应限制返回（每个查询 500 条）"""
+        """空 trait_name 应限制总边数到 500 条以内"""
         response = api_client.get(
             "/api/v1/export/disease-network",
             params={"trait_name": "", "limit": 1000, "format": "json"}
@@ -128,8 +126,8 @@ class TestDiseaseNetworkExportFiltering:
         if response.status_code == 200:
             data = response.json()
             edges = data.get("edges", [])
-            assert len(edges) <= 1000, \
-                f"空过滤应限制每查询 500 条，实际返回 {len(edges)} 条"
+            assert len(edges) <= 500, \
+                f"空过滤应限制总边数 500 条，实际返回 {len(edges)} 条"
 
     def test_valid_filter_allows_larger_limit(self, api_client):
         """有效 trait_name 应允许更大 limit"""
@@ -240,5 +238,5 @@ class TestLikeFilterEdgeCases:
         if response.status_code == 200:
             data = response.json()
             edges = data.get("edges", [])
-            assert len(edges) <= 1000, \
-                f"纯空白过滤应限制每查询 500 条，实际返回 {len(edges)} 条"
+            assert len(edges) <= 500, \
+                f"纯空白过滤应限制总边数 500 条，实际返回 {len(edges)} 条"

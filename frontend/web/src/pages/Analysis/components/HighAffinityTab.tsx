@@ -8,11 +8,12 @@
  * - Data table with pagination
  */
 
-import { useCallback, useMemo } from 'react'
-import { Card, Row, Col, Statistic, Table, Space, Button, InputNumber, Select } from 'antd'
+import { useCallback, useMemo, useState } from 'react'
+import { Card, Row, Col, Statistic, Table, Space, Button, InputNumber, Select, message } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import ReactECharts from 'echarts-for-react'
+import { analysisApi } from '@/api/analysis'
 import { useHighAffinityData, useAnalysisSummary } from '@/hooks/useAnalysis'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -48,6 +49,7 @@ export default function HighAffinityTab() {
   const speciesId = parseIntParam(searchParams.get('species_id'), 1, 4)
   const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
   const pageSize = 20
+  const [isExporting, setIsExporting] = useState(false)
 
   const updateParams = useCallback((apply: (params: URLSearchParams) => void) => {
     setSearchParams((prev) => {
@@ -200,6 +202,24 @@ export default function HighAffinityTab() {
     },
   ]
 
+  const handleExport = async () => {
+    if (!data?.data?.length) return
+
+    setIsExporting(true)
+    try {
+      await analysisApi.exportHighAffinityCsv({
+        min_ba: minBa,
+        species_id: speciesId,
+        limit: data.total || data.data.length,
+      })
+    } catch (error) {
+      console.error('High affinity export failed:', error)
+      message.error(t('common.error'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (isLoading) return <LoadingState message={t('common.loading')} />
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
@@ -317,7 +337,14 @@ export default function HighAffinityTab() {
           <Button type="primary" onClick={() => refetch()}>
             {t('common.refresh')}
           </Button>
-          <Button icon={<DownloadOutlined />}>{t('common.exportCsv')}</Button>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={isExporting}
+            disabled={!data?.data?.length}
+            onClick={() => { void handleExport() }}
+          >
+            {t('common.exportCsv')}
+          </Button>
         </Space>
 
         <Table

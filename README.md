@@ -166,6 +166,11 @@ cp .env.example .env
 docker compose up -d
 ```
 
+数据库用户约定：
+- `.env` / 后端运行时里的 `DB_USER` 表示应用连接数据库时使用的账号。
+- `scripts/init_db.sh`、`scripts/refresh_materialized_views.sh` 这类维护脚本可以单独传 `DB_USER=postgres`（或别的高权限维护账号），因为建库、安装扩展、刷新 MV 需要更高权限。
+- 不建议把两类场景强行统一成同一个默认值；关键是按职责选择正确账号。
+
 ### Backend Setup
 
 ```bash
@@ -183,6 +188,16 @@ cd frontend/web
 npm ci
 npm run dev -- --host 0.0.0.0
 ```
+
+前端环境变量说明：
+- `VITE_API_BASE_URL` 只能填写站点 origin，例如 `http://localhost:8000` 或 `https://your-domain.com`。
+- 不要把 `/api` 或 `/api/v1` 拼进 `VITE_API_BASE_URL`，因为前端请求路径本身已经包含 `/api/v1`。
+- `frontend/web/.env.example` 已按这个约定更新。
+
+ChIP-seq Compare 页面说明：
+- `/chipseq-compare` 当前是一个诚实的状态页，不再展示 mock 图表。
+- 现有后端只支持 gene-scoped ChIP-seq 接口（`/api/v1/features/chipseq/genes/{gene_id}/...`）。
+- 如需真实数据，请从基因级 ChIP-seq 页面进入 compare / heatmap / export 流程。
 
 ### Access
 

@@ -605,10 +605,13 @@ def _compute_overlap_statistics_impl(
     except Exception as e:
         if _is_chipseq_overlap_schema_missing_error(e):
             logger.warning(
-                "ChIP-seq overlap tables are missing; returning empty overlap list (join query): %s",
+                "ChIP-seq overlap tables are missing; returning empty overlap statistics (join query): %s",
                 sanitize_for_log(e, max_length=2000),
             )
-            return [], 0
+            empty = _empty_overlap_statistics(effective_chromosome=effective_chromosome)
+            empty["default_filter_applied"] = bool(default_filter_applied)
+            empty["effective_chromosome"] = effective_chromosome
+            return empty
         raise sanitize_db_error(e, logger)
 
 

@@ -36,6 +36,27 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
+EPIGENETIC_OPTIONAL_RELATIONS = (
+    "mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100",
+    "mv_lncrna_chipseq_overlaps",
+)
+
+
+def _is_missing_relation_error(exc: Exception, relation_names: tuple[str, ...]) -> bool:
+    message = str(exc or "").lower()
+    if not any(name.lower() in message for name in relation_names):
+        return False
+    return (
+        "does not exist" in message
+        or "undefined_table" in message
+        or ("relation" in message and "does not exist" in message)
+        or ("no such table" in message)
+    )
+
+
+def _is_epigenetic_optional_source_missing_error(exc: Exception) -> bool:
+    return _is_missing_relation_error(exc, EPIGENETIC_OPTIONAL_RELATIONS)
+
 
 @router.get("/summary", response_model=AnalysisSummaryResponse)
 @rate_limit("30/minute")
@@ -239,7 +260,12 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
         try:
             # Fast path: pre-aggregated MV (Phase 9.21)
             epi_result = db.execute(epigenetic_summary_sql.execution_options(stream_results=True))
-        except Exception:
+        except Exception as e:
+            if not _is_missing_relation_error(
+                e,
+                ("mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100",),
+            ):
+                raise
             # PostgreSQL: MV 缺失会导致事务 aborted；回退查询前必须 rollback
             db.rollback()
             # Fallback: aggregate from the raw overlaps MV
@@ -271,15 +297,17 @@ def get_analysis_summary(request: Request, db: Session = Depends(get_db)):
                     repressive_marks += count
 
     except Exception as e:
-        # MV 不存在或查询失败时，降级为空数据（不阻塞其他分析模块）
-        # PostgreSQL: 确保事务从 aborted 状态恢复，避免影响后续 disease 查询
         try:
             db.rollback()
         except Exception:
             pass
+
+        if not _is_epigenetic_optional_source_missing_error(e):
+            raise sanitize_db_error(e, logger)
+
         safe_error = sanitize_for_log(e, max_length=2000)
         logger.warning(
-            "[ANALYSIS] Epigenetic analysis failed (MV may not exist): %s. "
+            "[ANALYSIS] Epigenetic optional source is missing: %s. "
             "Returning empty epigenetic data. "
             "Consider running schema/v2.3/05_mv_lncrna_chipseq_overlaps.sql (and optional 06_mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100.sql).",
             safe_error,

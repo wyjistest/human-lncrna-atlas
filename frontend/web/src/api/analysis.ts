@@ -5,6 +5,7 @@
  */
 
 import { apiClient } from './client'
+import { saveBlobWithFilename } from '@/utils/export'
 
 export interface AnalysisSummary {
   high_affinity: {
@@ -105,6 +106,43 @@ export interface ExportResponse<T> {
   query_params: Record<string, unknown>
 }
 
+type QueryParamValue = string | number | boolean | null | undefined
+type QueryParamInput = QueryParamValue | QueryParamValue[]
+
+function buildSearchParams(params?: Record<string, QueryParamInput>): URLSearchParams | undefined {
+  if (!params) return undefined
+
+  const searchParams = new URLSearchParams()
+
+  Object.entries(params).forEach(([key, rawValue]) => {
+    if (rawValue == null) return
+
+    if (Array.isArray(rawValue)) {
+      rawValue.forEach((value) => {
+        if (value != null) searchParams.append(key, String(value))
+      })
+      return
+    }
+
+    searchParams.append(key, String(rawValue))
+  })
+
+  return searchParams
+}
+
+async function downloadAnalysisFile(
+  path: string,
+  params: Record<string, QueryParamInput>,
+  fallbackFilename: string,
+): Promise<void> {
+  const response = await apiClient.get(path, {
+    params: buildSearchParams(params),
+    responseType: 'blob',
+  })
+
+  saveBlobWithFilename(response.data, response.headers, fallbackFilename)
+}
+
 export const analysisApi = {
   /**
    * Get summary statistics for all analysis modules
@@ -139,7 +177,10 @@ export const analysisApi = {
     min_ba?: number
     limit?: number
   }, signal?: AbortSignal) =>
-    apiClient.get<ExportResponse<ChIPSeqOverlapRecord>>('/api/v1/export/chipseq-overlaps', { params, signal }),
+    apiClient.get<ExportResponse<ChIPSeqOverlapRecord>>('/api/v1/export/chipseq-overlaps', {
+      params: buildSearchParams(params as Record<string, QueryParamInput> | undefined),
+      signal,
+    }),
 
   /**
    * Get disease network data
@@ -149,4 +190,46 @@ export const analysisApi = {
     limit?: number
   }, signal?: AbortSignal) =>
     apiClient.get<DiseaseNetworkResponse>('/api/v1/export/disease-network', { params, signal }),
+
+  exportHighAffinityCsv: (params?: {
+    min_ba?: number
+    species_id?: number
+    limit?: number
+  }) =>
+    downloadAnalysisFile(
+      '/api/v1/export/high-affinity',
+      { ...params, format: 'csv' },
+      `high-affinity-${Date.now()}.csv`,
+    ),
+
+  exportConservationCsv: (params?: {
+    min_species_count?: number
+    limit?: number
+  }) =>
+    downloadAnalysisFile(
+      '/api/v1/export/conservation',
+      { ...params, format: 'csv' },
+      `conservation-${Date.now()}.csv`,
+    ),
+
+  exportChipseqOverlapsCsv: (params?: {
+    mark_names?: string[]
+    min_ba?: number
+    limit?: number
+  }) =>
+    downloadAnalysisFile(
+      '/api/v1/export/chipseq-overlaps',
+      { ...params, format: 'csv' },
+      `chipseq-overlaps-${Date.now()}.csv`,
+    ),
+
+  exportDiseaseNetworkJson: (params?: {
+    trait_name?: string
+    limit?: number
+  }) =>
+    downloadAnalysisFile(
+      '/api/v1/export/disease-network',
+      { ...params, format: 'json' },
+      `disease-network-${Date.now()}.json`,
+    ),
 }

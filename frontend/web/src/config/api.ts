@@ -28,21 +28,37 @@ const DEFAULT_API_BASE_URL = import.meta.env.PROD ? '' : getDefaultDevApiBaseUrl
 const RAW_API_BASE_URL =
   typeof ENV_API_BASE_URL === 'string' ? ENV_API_BASE_URL : DEFAULT_API_BASE_URL
 
-// Basic runtime validation (fail fast on obvious misconfig)
-if (RAW_API_BASE_URL && !/^https?:\/\//i.test(RAW_API_BASE_URL)) {
-  throw new Error(
-    `Invalid VITE_API_BASE_URL: ${RAW_API_BASE_URL}. Expected an absolute http(s) URL, or leave empty for same-origin.`,
-  )
+export function normalizeApiBaseUrl(rawValue: string): string {
+  return rawValue.trim().replace(/\/+$/, '')
 }
 
-// Normalize to avoid double slashes when joining paths (e.g. "https://example.com//api/v1")
-export const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
+export function validateApiBaseUrl(rawValue: string): string {
+  if (!rawValue) return ''
 
-if (import.meta.env.DEV && /\/api\/v1\/?$/i.test(API_BASE_URL)) {
+  if (!/^https?:\/\//i.test(rawValue)) {
+    throw new Error(
+      `Invalid VITE_API_BASE_URL: ${rawValue}. Expected an absolute http(s) URL, or leave empty for same-origin.`,
+    )
+  }
+
+  const normalized = normalizeApiBaseUrl(rawValue)
+  const pathname = new URL(normalized).pathname.replace(/\/+$/, '')
+
+  if (pathname && pathname !== '/') {
+    throw new Error(
+      `Invalid VITE_API_BASE_URL: ${rawValue}. Use only the site origin (for example https://example.com), because API calls already include /api/v1 in their paths.`,
+    )
+  }
+
+  return normalized
+}
+
+export const API_BASE_URL = validateApiBaseUrl(RAW_API_BASE_URL)
+
+if (import.meta.env.DEV && /\/api(?:\/v1)?\/?$/i.test(normalizeApiBaseUrl(RAW_API_BASE_URL))) {
   console.warn(
-    '[API] VITE_API_BASE_URL seems to include /api/v1. ' +
-    'Most API calls in this app already include /api/v1 in their request paths, ' +
-    'so this may cause double /api/v1/api/v1.',
+    '[API] VITE_API_BASE_URL must not include /api or /api/v1. ' +
+    'Most API calls in this app already include /api/v1 in their request paths.',
   )
 }
 

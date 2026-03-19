@@ -257,17 +257,8 @@ class TestCellLineComparisonEdgeCases:
         )
 
         # Should return either 200 with empty data or 404
-        # Note: 500 indicates a bug in error handling
-        assert response.status_code in [200, 404, 500], \
+        assert response.status_code in [200, 404], \
             f"Unexpected status code: {response.status_code}"
-
-        if response.status_code == 500:
-            import warnings
-            warnings.warn(
-                "BUG FOUND: API returns 500 for gene ID 1 - "
-                "should return 404 or 200 with empty data. "
-                "This needs to be fixed in the API error handling."
-            )
 
         if response.status_code == 200:
             data = response.json()
@@ -287,17 +278,8 @@ class TestCellLineComparisonEdgeCases:
         )
 
         # Should handle the hyphen correctly
-        # Note: 500 indicates a bug in handling special characters
-        assert response.status_code in [200, 404, 422, 500], \
+        assert response.status_code in [200, 404, 422], \
             f"Unexpected status code: {response.status_code}"
-
-        if response.status_code == 500:
-            import warnings
-            warnings.warn(
-                "BUG FOUND: API returns 500 for cell type H1-hESC - "
-                "hyphen character may not be handled correctly. "
-                "This needs to be fixed in the API."
-            )
 
 
 class TestCellLineComparisonPerformance:

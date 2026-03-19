@@ -764,6 +764,7 @@ def export_disease_network(
         .select_from(TraitGeneAssociation)
         .join(Trait, TraitGeneAssociation.trait_id == Trait.trait_id)
         .join(Gene, TraitGeneAssociation.core_id == Gene.core_id)
+        .order_by(Trait.trait_id.asc(), Gene.gene_id.asc())
         .limit(effective_limit)
     )
     if escaped_trait_name:
@@ -816,7 +817,9 @@ def export_disease_network(
     # ========================================================================
     # Step 2: 查询基因-lncRNA 边（调控关系）
     # ========================================================================
-    if gene_ids:
+    remaining_limit = max(0, effective_limit - len(edges))
+
+    if gene_ids and remaining_limit > 0:
         gene_lncrna_sql = text("""
             SELECT
                 r.target_gene_id,
@@ -834,7 +837,7 @@ def export_disease_network(
 
         gene_lncrna_result = db.execute(gene_lncrna_sql, {
             "gene_ids": list(gene_ids),
-            "limit": effective_limit
+            "limit": remaining_limit
         })
 
         for row in gene_lncrna_result:

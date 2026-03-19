@@ -12,8 +12,15 @@
 from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 
 pytestmark = pytest.mark.unit
+
+
+def _unwrap(func):
+    while hasattr(func, "__wrapped__"):
+        func = func.__wrapped__  # type: ignore[attr-defined]
+    return func
 
 
 class _DummyResult:
@@ -114,7 +121,7 @@ def test_analysis_summary_mv_missing_falls_back(monkeypatch):
     db = _DummySession()
 
     # Bypass slowapi limiter wrapper; unit test focuses on SQL fallback logic.
-    result = analysis_router.get_analysis_summary.__wrapped__(request=None, db=db)
+    result = _unwrap(analysis_router.get_analysis_summary)(request=None, db=db)
 
     # Assert fallback actually happened for the new analysis summary MVs.
     assert any("mv_analysis_high_affinity_stats_ba100" in s for s in db.calls)
@@ -228,10 +235,34 @@ def test_analysis_summary_mv_missing_rolls_back_transaction(monkeypatch):
 
     db = _TxDummySession()
 
-    result = analysis_router.get_analysis_summary.__wrapped__(request=None, db=db)
+    result = _unwrap(analysis_router.get_analysis_summary)(request=None, db=db)
 
     # Must rollback after MV-missing errors, otherwise later queries would fail under PostgreSQL semantics.
     assert db.rollback_calls >= 1
 
     assert result.high_affinity.total_regulations == 10
     assert result.disease.total_diseases == 1
+
+
+class _BrokenEpigeneticSession(_DummySession):
+    def execute(self, sql, params=None):  # noqa: ARG002 - 与 SQLAlchemy Session.execute 兼容
+        sql_text = getattr(sql, "text", str(sql))
+        if "FROM mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100" in sql_text:
+            raise Exception('permission denied for relation "mv_lncrna_chipseq_overlaps_epigenetic_summary_ba100"')
+        return super().execute(sql, params)
+
+
+def test_analysis_summary_non_missing_epigenetic_error_raises_500(monkeypatch):
+    from app.routers import analysis as analysis_router
+
+    monkeypatch.setattr(analysis_router.cache, "make_key", lambda *a, **k: "analysis:summary:test")
+    monkeypatch.setattr(analysis_router.cache, "get", lambda *a, **k: None)
+    monkeypatch.setattr(analysis_router.cache, "set", lambda *a, **k: None)
+
+    db = _BrokenEpigeneticSession()
+
+    with pytest.raises(HTTPException) as exc_info:
+        _unwrap(analysis_router.get_analysis_summary)(request=None, db=db)
+
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail["error"] == "DATABASE_ERROR"

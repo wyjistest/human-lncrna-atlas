@@ -8,10 +8,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Card, Row, Col, Statistic, Table, Space, Button, Input, Tag, Empty } from 'antd'
+import { Card, Row, Col, Statistic, Table, Space, Button, Input, Tag, Empty, message } from 'antd'
 import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import ReactECharts from 'echarts-for-react'
+import { analysisApi } from '@/api/analysis'
 import { useDiseaseData, useAnalysisSummary } from '@/hooks/useAnalysis'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -37,6 +38,7 @@ export default function DiseaseTab() {
   }, [setSearchParams])
 
   const [traitNameInput, setTraitNameInput] = useState<string>(() => traitNameFilter ?? '')
+  const [isExporting, setIsExporting] = useState(false)
   useEffect(() => {
     setTraitNameInput(traitNameFilter ?? '')
   }, [traitNameFilter])
@@ -59,6 +61,23 @@ export default function DiseaseTab() {
       if (nextFilter) params.set('trait_name', nextFilter)
       else params.delete('trait_name')
     })
+  }
+
+  const handleExport = async () => {
+    if (!data?.nodes?.length) return
+
+    setIsExporting(true)
+    try {
+      await analysisApi.exportDiseaseNetworkJson({
+        trait_name: traitNameFilter,
+        limit: data.query_params?.limit || data.edges.length || 100,
+      })
+    } catch (error) {
+      console.error('Disease network export failed:', error)
+      message.error(t('common.error'))
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   // Network preview chart
@@ -251,7 +270,14 @@ export default function DiseaseTab() {
           <Button type="primary" onClick={applyTraitFilter}>
             {t('common.refresh')}
           </Button>
-          <Button icon={<DownloadOutlined />}>{t('common.exportCsv')}</Button>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={isExporting}
+            disabled={!data?.nodes?.length}
+            onClick={() => { void handleExport() }}
+          >
+            {t('common.exportJson', 'Export JSON')}
+          </Button>
         </Space>
       </Card>
 

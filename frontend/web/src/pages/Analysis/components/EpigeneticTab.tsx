@@ -7,11 +7,12 @@
  * - Data table with pagination
  */
 
-import { useCallback, useMemo } from 'react'
-import { Card, Row, Col, Statistic, Table, Space, Button, Select, Tag } from 'antd'
+import { useCallback, useMemo, useState } from 'react'
+import { Card, Row, Col, Statistic, Table, Space, Button, Select, Tag, message } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import ReactECharts from 'echarts-for-react'
+import { analysisApi } from '@/api/analysis'
 import { useEpigeneticData, useAnalysisSummary } from '@/hooks/useAnalysis'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -50,6 +51,7 @@ export default function EpigeneticTab() {
 
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parseIntParam(searchParams.get('page'), 1, MAX_PAGE) ?? DEFAULT_PAGE
+  const [isExporting, setIsExporting] = useState(false)
 
   const selectedMarks = useMemo(() => {
     const raw = searchParams
@@ -190,6 +192,23 @@ export default function EpigeneticTab() {
     },
   ]
 
+  const handleExport = async () => {
+    if (!data?.data?.length) return
+
+    setIsExporting(true)
+    try {
+      await analysisApi.exportChipseqOverlapsCsv({
+        mark_names: effectiveMarks,
+        limit: data.total || data.data.length,
+      })
+    } catch (error) {
+      console.error('Epigenetic export failed:', error)
+      message.error(t('common.error'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (isLoading) return <LoadingState message={t('common.loading')} />
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
@@ -298,7 +317,14 @@ export default function EpigeneticTab() {
           <Button type="primary" onClick={() => refetch()}>
             {t('common.refresh')}
           </Button>
-          <Button icon={<DownloadOutlined />}>{t('common.exportCsv')}</Button>
+          <Button
+            icon={<DownloadOutlined />}
+            loading={isExporting}
+            disabled={!data?.data?.length}
+            onClick={() => { void handleExport() }}
+          >
+            {t('common.exportCsv')}
+          </Button>
         </Space>
 
         <Table

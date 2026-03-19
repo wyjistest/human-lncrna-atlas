@@ -32,6 +32,63 @@ interface ExportFilterParams {
   target_gene_name?: string
 }
 
+type HeaderValue = string | null | undefined
+
+function stripQuotedValue(value: string): string {
+  return value.trim().replace(/^['"]|['"]$/g, '')
+}
+
+export function parseContentDispositionFilename(contentDisposition: HeaderValue): string | null {
+  if (!contentDisposition) return null
+
+  const filenameStarMatch = contentDisposition.match(/filename\*\s*=\s*([^;]+)/i)
+  if (filenameStarMatch) {
+    const encodedValue = stripQuotedValue(filenameStarMatch[1])
+    const [, encodedFilename = encodedValue] = encodedValue.split("''", 2)
+
+    try {
+      return decodeURIComponent(encodedFilename)
+    } catch {
+      return encodedFilename
+    }
+  }
+
+  const filenameMatch = contentDisposition.match(/filename\s*=\s*([^;]+)/i)
+  if (!filenameMatch) return null
+
+  return stripQuotedValue(filenameMatch[1])
+}
+
+export function getHeaderValue(
+  headers: Record<string, unknown> | { get?: (name: string) => unknown } | undefined,
+  name: string,
+): string | null {
+  if (!headers) return null
+
+  if (typeof headers.get === 'function') {
+    const value = headers.get(name)
+    return typeof value === 'string' ? value : null
+  }
+
+  const matchedHeader = Object.entries(headers as Record<string, unknown>).find(
+    ([key]) => key.toLowerCase() === name.toLowerCase(),
+  )
+  const value = matchedHeader?.[1] ?? null
+  return typeof value === 'string' ? value : null
+}
+
+export function saveBlobWithFilename(
+  data: Blob | BlobPart,
+  headers: Record<string, unknown> | { get?: (name: string) => unknown } | undefined,
+  fallbackFilename: string,
+): string {
+  const contentDisposition = getHeaderValue(headers, 'content-disposition')
+  const filename = parseContentDispositionFilename(contentDisposition) || fallbackFilename
+  const blob = data instanceof Blob ? data : new Blob([data])
+  saveAs(blob, filename)
+  return filename
+}
+
 /**
  * 从后端下载导出文件
  *
@@ -83,19 +140,11 @@ async function downloadFromBackend(
       responseType: 'blob',
     })
 
-    // 从 Content-Disposition 获取文件名，或使用默认名
-    const contentDisposition = response.headers['content-disposition']
-    let filename = `regulations-${Date.now()}.${format === 'xlsx' ? 'xlsx' : 'csv'}`
-
-    if (contentDisposition) {
-      const match = contentDisposition.match(/filename=([^;]+)/)
-      if (match) {
-        filename = match[1].replace(/['"]/g, '')
-      }
-    }
-
-    // 触发浏览器下载
-    saveAs(response.data, filename)
+    saveBlobWithFilename(
+      response.data,
+      response.headers,
+      `regulations-${Date.now()}.${format === 'xlsx' ? 'xlsx' : 'csv'}`,
+    )
 
     return { success: true }
   } catch (error) {

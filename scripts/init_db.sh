@@ -76,20 +76,32 @@ run_psql_postgres() {
     fi
 }
 
-# SECURITY: 限制用于 SQL 标识符/字符串拼接的输入，避免脚本被异常值破坏
-validate_identifier() {
+# SECURITY: 对环境变量做基础校验，避免控制字符破坏 shell/SQL 日志与命令。
+validate_env_value() {
     local name="$1"
     local value="$2"
     if [[ -z "$value" ]]; then
         log_error "$name 不能为空"
         exit 1
     fi
-    # 当前脚本会将 DB_NAME/DB_USER 直接拼接进 SQL（未加引号），因此仅允许安全字符。
-    # 如需使用特殊字符，请改为 psql 变量方式并使用 :\"var\" 引用。
-    if [[ ! "$value" =~ ^[a-zA-Z0-9_]+$ ]]; then
-        log_error "$name 包含非法字符: '$value'（仅允许字母/数字/下划线）"
+    if [[ "$value" =~ [[:cntrl:]] ]]; then
+        log_error "$name 包含控制字符，拒绝继续执行"
         exit 1
     fi
+}
+
+quote_pg_identifier() {
+    local value="$1"
+    local escaped
+    escaped="$(printf '%s' "$value" | sed 's/"/""/g')"
+    printf '"%s"' "$escaped"
+}
+
+quote_pg_literal() {
+    local value="$1"
+    local escaped
+    escaped="$(printf '%s' "$value" | sed "s/'/''/g")"
+    printf "'%s'" "$escaped"
 }
 
 # 检查命令是否存在
@@ -127,9 +139,9 @@ check_prerequisites() {
     log_info "检查依赖..."
     check_command psql
 
-    # 基本输入校验（避免 SQL/命令拼接异常）
-    validate_identifier "DB_NAME" "$DB_NAME"
-    validate_identifier "DB_USER" "$DB_USER"
+    # 基本输入校验（避免控制字符破坏 shell/SQL 命令）
+    validate_env_value "DB_NAME" "$DB_NAME"
+    validate_env_value "DB_USER" "$DB_USER"
 
     # 尽早测试数据库连接，避免后续流程在中途才失败
     log_info "测试 PostgreSQL 连接..."
@@ -156,8 +168,14 @@ check_prerequisites() {
 }
 
 check_database_exists() {
+    local db_name_literal
+    local db_name_identifier
+
+    db_name_literal="$(quote_pg_literal "$DB_NAME")"
+    db_name_identifier="$(quote_pg_identifier "$DB_NAME")"
+
     log_info "检查数据库是否已存在..."
-    if run_psql_postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
+    if run_psql_postgres -tAc "SELECT 1 FROM pg_database WHERE datname=${db_name_literal}" | grep -q 1; then
         log_warning "数据库 '$DB_NAME' 已存在"
 
         # 非交互模式支持
@@ -176,22 +194,25 @@ check_database_exists() {
             exit 0
         fi
         log_info "删除现有数据库..."
-        run_psql_postgres -c "DROP DATABASE IF EXISTS $DB_NAME"
+        run_psql_postgres -c "DROP DATABASE IF EXISTS ${db_name_identifier}"
         log_success "数据库已删除"
     fi
 }
 
 create_database() {
+    local db_name_identifier
+    db_name_identifier="$(quote_pg_identifier "$DB_NAME")"
+
     log_info "创建数据库 '$DB_NAME'..."
     # P1 兼容性：某些环境（例如非 en_US locale 的系统）可能不存在 en_US.UTF-8，导致 CREATE DATABASE 失败。
     # 先尝试显式指定 locale（便于在多数 Linux 环境获得一致排序/比较行为），失败则回退到集群默认 locale。
-    if run_psql_postgres -c "CREATE DATABASE $DB_NAME ENCODING 'UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE=template0"; then
+    if run_psql_postgres -c "CREATE DATABASE ${db_name_identifier} ENCODING 'UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE=template0"; then
         log_success "数据库创建成功"
         return
     fi
 
     log_warning "创建数据库失败：系统可能不支持 en_US.UTF-8 locale，回退使用 PostgreSQL 默认 locale"
-    run_psql_postgres -c "CREATE DATABASE $DB_NAME ENCODING 'UTF8' TEMPLATE=template0"
+    run_psql_postgres -c "CREATE DATABASE ${db_name_identifier} ENCODING 'UTF8' TEMPLATE=template0"
     log_success "数据库创建成功（默认 locale）"
 }
 

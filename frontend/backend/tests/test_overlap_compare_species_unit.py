@@ -148,3 +148,31 @@ def test_overlap_compare_species_ids_filters_output(monkeypatch):
     assert set(result["species_stats"].keys()) == {1, 3}
     assert calls["make_key"]["namespace"] == "overlap:compare"
     assert calls["make_key"]["kwargs"]["species_ids"] == "1,3"
+
+
+class _MissingSchemaSession:
+    def execute(self, stmt, params=None):  # noqa: ANN001
+        raise Exception("no such table: chipseq_peaks_human")
+
+
+@pytest.mark.unit
+def test_compute_overlap_statistics_impl_returns_empty_stats_when_schema_missing(monkeypatch):
+    monkeypatch.setattr(overlap_router, "check_materialized_view_exists", lambda db: False, raising=False)
+
+    result = overlap_router._compute_overlap_statistics_impl(
+        db=_MissingSchemaSession(),
+        species_id=1,
+        lncrna_gene_id=17276,
+        target_gene_id=None,
+        mark_type=None,
+        cell_type=None,
+        chromosome=None,
+        min_binding_affinity=None,
+        max_qvalue=0.05,
+        top_n=10,
+    )
+
+    assert isinstance(result, dict)
+    assert result["total_overlaps"] == 0
+    assert result["by_mark_type"] == []
+    assert result["by_cell_type"] == []
