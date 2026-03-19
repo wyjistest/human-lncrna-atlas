@@ -793,22 +793,23 @@ run_scripts_unit_tests() {
 
     echo -e "${YELLOW}运行脚本单元测试（scripts/tests）...${NC}"
 
-	    local tests=(
-	        "scripts/tests/test_run_tests_frontend_deps.sh"
-	        "scripts/tests/test_frontend_entry_bundle_budget.sh"
-	        "scripts/tests/test_frontend_bundle_size_report.sh"
-	        "scripts/tests/test_frontend_bundle_size_snapshot_json.sh"
-	        "scripts/tests/test_frontend_bundle_size_compare_report.sh"
-	        "scripts/tests/test_frontend_entry_preloads_regression_gate.sh"
-	        "scripts/tests/test_compare_performance_metrics_gate.sh"
-	        "scripts/tests/test_aggregate_performance_metrics_median.sh"
-	        "scripts/tests/test_perf_report_scenario_drift.sh"
+    local tests=(
+        "scripts/tests/test_run_tests_frontend_deps.sh"
+        "scripts/tests/test_frontend_entry_bundle_budget.sh"
+        "scripts/tests/test_frontend_bundle_size_report.sh"
+        "scripts/tests/test_frontend_bundle_size_snapshot_json.sh"
+        "scripts/tests/test_frontend_bundle_size_compare_report.sh"
+        "scripts/tests/test_frontend_entry_preloads_regression_gate.sh"
+        "scripts/tests/test_compare_performance_metrics_gate.sh"
+        "scripts/tests/test_aggregate_performance_metrics_median.sh"
+        "scripts/tests/test_perf_report_scenario_drift.sh"
         "scripts/tests/test_run_tests_backend_deps.sh"
         "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
         "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
         "scripts/tests/test_run_tests_ci_summary.sh"
         "scripts/tests/test_run_tests_ci_github_annotations.sh"
         "scripts/tests/test_run_tests_ci_summary_success.sh"
+        "scripts/tests/test_render_run_tests_summary_overview.sh"
         "scripts/tests/test_checkout_tarball_script.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"
@@ -817,7 +818,6 @@ run_scripts_unit_tests() {
         "scripts/tests/test_run_tests_usage_includes_research_baselines.sh"
         "scripts/tests/test_verify_research_baselines_help.sh"
     )
-
     local missing=false
     for t in "${tests[@]}"; do
         if [ ! -f "$t" ]; then
