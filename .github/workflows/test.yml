@@ -319,30 +319,30 @@ jobs:
           set -euo pipefail
 
           if [ -f "$RUN_TESTS_SUMMARY_JSON_PATH" ]; then
-            python3 - "$RUN_TESTS_SUMMARY_JSON_PATH" >> "$GITHUB_STEP_SUMMARY" <<'PY'
-            import json
-            import sys
+            python3 -c '
+import json
+import sys
 
-            path = sys.argv[1]
-            with open(path, "r", encoding="utf-8") as fh:
-                data = json.load(fh)
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as fh:
+    data = json.load(fh)
 
-            result = (data.get("result") or "unknown").strip()
-            passed = data.get("passed_stages", 0)
-            failed = data.get("failed_stages", 0)
-            first_failed = data.get("first_failed_stage")
+result = (data.get("result") or "unknown").strip()
+passed = data.get("passed_stages", 0)
+failed = data.get("failed_stages", 0)
+first_failed = data.get("first_failed_stage")
 
-            print("## Self-hosted fast CI overview")
-            print()
-            print(f"- Result: **{result}**")
-            print(f"- Passed stages: {passed}")
-            print(f"- Failed stages: {failed}")
-            if first_failed:
-                print(f"- First failed stage: `{first_failed}`")
-            else:
-                print("- First failed stage: `none`")
-            print()
-            PY
+print("## Self-hosted fast CI overview")
+print()
+print(f"- Result: **{result}**")
+print(f"- Passed stages: {passed}")
+print(f"- Failed stages: {failed}")
+if first_failed:
+    print(f"- First failed stage: `{first_failed}`")
+else:
+    print("- First failed stage: `none`")
+print()
+' "$RUN_TESTS_SUMMARY_JSON_PATH" >> "$GITHUB_STEP_SUMMARY"
           fi
 
           if [ -f "$RUN_TESTS_SUMMARY_PATH" ]; then
