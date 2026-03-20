@@ -76,8 +76,9 @@ npm run test:e2e -- e2e/chipseq-compare-smoke.spec.ts
 
 覆盖范围：
 - `useBatchGeneHeatmap` 的空态/disabled 稳定性、summary 聚合和错误透传
-- `ChIPSeqComparePage` 的空态、粘贴解析、summary cards、手动 `Run compare`、dirty state、失败态与 `0 successful matrices` 分支
+- `ChIPSeqComparePage` 的空态、粘贴解析、summary cards、本地 `Export CSV`、手动 `Run compare`、dirty state、失败态与 `0 successful matrices` 分支
 - 批量 compare 仍通过单次 `/api/v1/features/chipseq/genes/batch-heatmap-matrix` 请求驱动，不会退回 N 次单基因 heatmap 请求
+- 本地导出复用最近一次已提交 compare 结果，不会额外发送新的 batch heatmap 请求
 
 ---
 

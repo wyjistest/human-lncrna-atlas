@@ -44,6 +44,18 @@
 
 ## ✅ 最近完成的功能
 
+### 2026-03-20 ⭐ `/chipseq-compare` 本地 CSV 导出闭环
+
+1. **结果导出补齐**
+   - `/chipseq-compare` 新增本地 `Export CSV` 按钮，不新增后端 batch export API，直接复用页面内存中的 `BatchHeatmapMatrixResponse`
+   - 导出内容按最后一次已提交的 `gene -> cell type -> mark` 顺序扁平化，包含 `gene_status / failure_reason / metric / has_data` 等列，便于后续复核成功矩阵与失败基因
+   - 页面进入 dirty state 后，导出仍绑定最近一次成功运行的 compare 结果，不会因为未提交配置而额外触发新的 batch heatmap 请求
+
+2. **定向回归补强**
+   - `frontend/web/src/pages/__tests__/ChIPSeqComparePage.export.test.ts` 覆盖 CSV 扁平化顺序、空矩阵单元与失败基因摘要行
+   - `frontend/web/src/pages/__tests__/ChIPSeqComparePage.test.tsx` 新增本地 `Export CSV` 按钮可用性与 dirty state 绑定行为断言
+   - `frontend/web/e2e/chipseq-compare-smoke.spec.ts` 补充 compare 成功后触发本地导出、且不会额外发送 batch query 的 smoke 覆盖
+
 ### 2026-03-20 ⭐ `/chipseq-compare` 摘要层补强
 
 1. **compare 结果摘要卡片上线**
@@ -81,7 +93,7 @@
    - `scripts/api_snapshot.py` 为 `export/disease-network`、`network/disease` 与 overlap compare 新增稳定摘要字段（nodes/edges、species_count/species_ids）
    - `/chipseq-compare` smoke 现会走真实的 gene-set compare 路径：粘贴解析基因、调用 batch heatmap API，并断言不会退回单基因 N 次 heatmap 请求
    - 前端已移除 `globalCompareApi` 占位契约，页面改为真实 gene-set compare workbench
-   - `/chipseq-compare` 页面支持人类基因搜索 + 批量解析，并在首版聚焦真实 heatmap 可视化而非 batch export
+   - `/chipseq-compare` 页面支持人类基因搜索 + 批量解析；当前已在真实 heatmap 可视化基础上补齐本地 CSV 导出
 
 4. **`/chipseq-compare` 前端稳定性补强**
    - `useBatchGeneHeatmap` 已改为复用稳定的空数组引用，消除 `react-hooks/exhaustive-deps` warning，并保持 batch query key 的顺序敏感语义不变

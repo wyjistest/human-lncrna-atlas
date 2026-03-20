@@ -28,6 +28,7 @@ import {
 } from "@/config/markConfigs";
 import useBatchGeneHeatmap from "@/hooks/useBatchGeneHeatmap";
 import type { HeatmapMetricType, MarkType } from "@/types/chipseq";
+import { exportBatchCompareCsv } from "./ChIPSeqComparePage.export";
 import {
   appendCompareGenes,
   buildCompareSignature,
@@ -265,6 +266,25 @@ export default function ChIPSeqComparePage() {
     selectedMarks.length === 0 ||
     selectedCellTypes.length === 0 ||
     resolveGenesMutation.isPending;
+  const canExportCompare =
+    submittedRequest !== null &&
+    !compareQuery.isLoading &&
+    !compareQuery.error &&
+    (compareQuery.response?.successful_genes ?? 0) > 0;
+
+  const handleExportCompare = useCallback(() => {
+    if (!submittedRequest || !compareQuery.response || !canExportCompare) {
+      return;
+    }
+
+    exportBatchCompareCsv({
+      submittedRequest,
+      response: compareQuery.response,
+    });
+    message.success(
+      t("actions.exportStarted", "CSV export generated from current compare results."),
+    );
+  }, [canExportCompare, compareQuery.response, submittedRequest, t]);
 
   return (
     <div data-testid="chipseq-compare-page" style={{ padding: "0 0 24px 0" }}>
@@ -296,13 +316,13 @@ export default function ChIPSeqComparePage() {
         )}
       </Paragraph>
 
-      <Space direction="vertical" size="large" style={{ width: "100%" }}>
+      <Space orientation="vertical" size="large" style={{ width: "100%" }}>
         <Card
           title={t("input.title", "Gene Set Input")}
           extra={<Tag color="blue">{tCommon("species.human", "Human")}</Tag>}
           data-testid="chipseq-compare-input-card"
         >
-          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
             <div>
               <Text strong>
                 {t("input.searchTitle", "Search and select genes")}
@@ -381,7 +401,7 @@ export default function ChIPSeqComparePage() {
                 type="warning"
                 showIcon
                 data-testid="chipseq-compare-missing-alert"
-                message={t(
+                title={t(
                   "input.missingTitle",
                   "Some identifiers were not resolved",
                 )}
@@ -395,7 +415,7 @@ export default function ChIPSeqComparePage() {
           title={t("config.title", "Compare Configuration")}
           data-testid="chipseq-compare-config-card"
         >
-          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
             <div>
               <Text strong>{t("config.marks", "Marks")}</Text>
               <Select
@@ -480,7 +500,7 @@ export default function ChIPSeqComparePage() {
             type="info"
             showIcon
             data-testid="chipseq-compare-dirty-alert"
-            message={t(
+            title={t(
               "results.pendingChanges",
               "Configuration changed. Run compare again to refresh the heatmap.",
             )}
@@ -497,12 +517,22 @@ export default function ChIPSeqComparePage() {
             />
           </Card>
         ) : (
-          <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+          <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
+            <Space wrap>
+              <Button
+                onClick={handleExportCompare}
+                disabled={!canExportCompare}
+                data-testid="chipseq-compare-export-button"
+              >
+                {t("actions.exportCsv", "Export CSV")}
+              </Button>
+            </Space>
+
             {compareQuery.isLoading && (
               <Alert
                 type="info"
                 showIcon
-                message={t("results.loadingTitle", "Running batched compare")}
+                title={t("results.loadingTitle", "Running batched compare")}
                 description={t("results.loadingDescription", {
                   count: submittedRequest.genes.length,
                   defaultValue: `Fetching heatmap matrices for ${submittedRequest.genes.length} genes.`,
@@ -514,7 +544,7 @@ export default function ChIPSeqComparePage() {
               <Alert
                 type="error"
                 showIcon
-                message={t(
+                title={t(
                   "results.errorTitle",
                   "Failed to load compare results",
                 )}
@@ -539,7 +569,7 @@ export default function ChIPSeqComparePage() {
                   }
                   showIcon
                   data-testid="chipseq-compare-summary-alert"
-                  message={t("results.summaryTitle", "Compare summary")}
+                  title={t("results.summaryTitle", "Compare summary")}
                   description={t("results.summaryDescription", {
                     success: compareQuery.response.successful_genes,
                     total: compareQuery.response.total_genes,
@@ -555,7 +585,7 @@ export default function ChIPSeqComparePage() {
                 <Alert
                   type="warning"
                   showIcon
-                  message={t(
+                  title={t(
                     "results.failedGenesTitle",
                     "Some genes could not be rendered",
                   )}

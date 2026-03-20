@@ -27,7 +27,9 @@
   },
   "actions": {
     "runCompare": "运行对比",
-    "updateCompare": "更新对比"
+    "updateCompare": "更新对比",
+    "exportCsv": "导出 CSV",
+    "exportStarted": "已根据当前对比结果生成 CSV 导出。"
   },
   "results": {
     "pendingChanges": "当前配置已变更，请重新运行对比以刷新热图。",

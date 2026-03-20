@@ -152,7 +152,7 @@ getBatchHeatmapMatrix(
 )
 ```
 
-> 当前公开页面首版只支持可视化 compare，不提供 batch export。
+> 当前公开页面已支持基于最近一次 compare 结果的本地 CSV 导出；该能力复用前端已加载矩阵数据，不新增后端 batch export 端点。
 
 ## 使用示例
 

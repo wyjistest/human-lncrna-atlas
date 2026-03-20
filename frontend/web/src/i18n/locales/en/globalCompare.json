@@ -27,7 +27,9 @@
   },
   "actions": {
     "runCompare": "Run compare",
-    "updateCompare": "Update compare"
+    "updateCompare": "Update compare",
+    "exportCsv": "Export CSV",
+    "exportStarted": "CSV export generated from current compare results."
   },
   "results": {
     "pendingChanges": "Configuration changed. Run compare again to refresh the heatmap.",

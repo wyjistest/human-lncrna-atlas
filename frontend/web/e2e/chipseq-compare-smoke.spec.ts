@@ -139,6 +139,18 @@ test.describe("ChIP-seq Compare workbench smoke", () => {
     ).toContainText("100.0%");
     await expect(page.getByText("NEAT1")).toBeVisible();
     await expect(page.getByTestId("chipseq-compare-results")).toBeVisible();
+    await expect(
+      page.getByTestId("chipseq-compare-export-button"),
+    ).toBeEnabled();
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByTestId("chipseq-compare-export-button").click(),
+    ]);
+
+    expect(download.suggestedFilename()).toMatch(
+      /^chipseq-compare_median_fold_enrichment_.*\.csv$/,
+    );
 
     expect(batchHeatmapPayloads).toHaveLength(1);
     expect(singleGeneHeatmapCalls).toEqual([]);

@@ -206,8 +206,8 @@ ChIP-seq Compare 页面说明：
 - 页面支持搜索人类基因、粘贴 `gene_id / gene_name / gene_ensembl_id` 批量解析，并调用 `/api/v1/features/chipseq/genes/batch-heatmap-matrix` 渲染真实热图。
 - 结果区会额外展示摘要卡片，快速汇总 `loaded/requested genes`、失败基因数、矩阵覆盖率和 batch query 耗时。
 - 即使当前筛选条件下没有成功热图矩阵，摘要卡片仍会保留，便于判断是“全失败”还是“低覆盖”。
-- 当前首版聚焦可视化 compare，不提供 batch export。
-- 前端已补齐页面级 Vitest 回归用例与 compare smoke，覆盖空态、批量解析、summary cards、手动 `Run compare / Update compare`、dirty state 与失败告警。
+- 页面支持基于最后一次已提交 compare 结果的本地 `CSV` 导出；即使当前配置已进入 dirty state，导出仍绑定到最近一次成功运行的结果，不会额外触发新的 batch query。
+- 前端已补齐页面级 Vitest 回归用例与 compare smoke，覆盖空态、批量解析、summary cards、本地 `Export CSV`、手动 `Run compare / Update compare`、dirty state 与失败告警。
 
 ### Access
 

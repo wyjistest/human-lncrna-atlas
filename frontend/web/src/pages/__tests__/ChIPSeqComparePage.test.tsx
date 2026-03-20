@@ -5,6 +5,10 @@ import type { ReactNode } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../ChIPSeqComparePage.export", () => ({
+  exportBatchCompareCsv: vi.fn(),
+}));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown> | string) => {
@@ -79,11 +83,13 @@ vi.mock("@/components/BatchGeneHeatmap/BatchHeatmapMatrix", () => ({
 
 import { genesApi } from "@/api/genes";
 import { chipseqApi } from "@/api/chipseq";
+import { exportBatchCompareCsv } from "../ChIPSeqComparePage.export";
 import ChIPSeqComparePage from "../ChIPSeqComparePage";
 
 const mockBatchResolve = vi.mocked(genesApi.batchResolve);
 const mockGetOptions = vi.mocked(genesApi.getOptions);
 const mockGetBatchHeatmapMatrix = vi.mocked(chipseqApi.getBatchHeatmapMatrix);
+const mockExportBatchCompareCsv = vi.mocked(exportBatchCompareCsv);
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -123,6 +129,9 @@ describe("ChIPSeqComparePage", () => {
     expect(screen.getByRole("button", { name: "Run compare" })).toBeDisabled();
     expect(screen.getByText(/Choose a human gene set and run compare/i)).toBeVisible();
     expect(screen.queryByTestId("chipseq-compare-summary-cards")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("chipseq-compare-export-button"),
+    ).not.toBeInTheDocument();
     expect(mockGetBatchHeatmapMatrix).not.toHaveBeenCalled();
   });
 
@@ -257,6 +266,9 @@ describe("ChIPSeqComparePage", () => {
     expect(screen.getByTestId("batch-heatmap-matrix-mock")).toHaveTextContent(
       "median_fold_enrichment:MALAT1",
     );
+    expect(
+      screen.getByTestId("chipseq-compare-export-button"),
+    ).toBeEnabled();
   });
 
   it("marks the page dirty after configuration changes and only refetches after update compare", async () => {
@@ -406,6 +418,23 @@ describe("ChIPSeqComparePage", () => {
 
     expect(mockGetBatchHeatmapMatrix).toHaveBeenCalledTimes(1);
 
+    await user.click(screen.getByTestId("chipseq-compare-export-button"));
+
+    expect(mockGetBatchHeatmapMatrix).toHaveBeenCalledTimes(1);
+    expect(mockExportBatchCompareCsv).toHaveBeenCalledTimes(1);
+    expect(mockExportBatchCompareCsv).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submittedRequest: expect.objectContaining({
+          genes: [expect.objectContaining({ gene_id: 17276 })],
+          metric: "median_fold_enrichment",
+        }),
+        response: expect.objectContaining({
+          total_genes: 1,
+          successful_genes: 1,
+        }),
+      }),
+    );
+
     await user.click(screen.getByRole("button", { name: "Update compare" }));
 
     await waitFor(() => {
@@ -538,5 +567,8 @@ describe("ChIPSeqComparePage", () => {
     );
     expect(screen.getByText("Some genes could not be rendered")).toBeVisible();
     expect(screen.getByText("MALAT1")).toBeVisible();
+    expect(
+      screen.getByTestId("chipseq-compare-export-button"),
+    ).toBeDisabled();
   });
 });
