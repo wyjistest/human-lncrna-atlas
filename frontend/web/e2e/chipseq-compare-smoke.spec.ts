@@ -128,6 +128,15 @@ test.describe("ChIP-seq Compare workbench smoke", () => {
     await expect(
       page.getByTestId("chipseq-compare-summary-alert"),
     ).toContainText("1/2");
+    await expect(
+      page.getByTestId("chipseq-compare-summary-cards"),
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("chipseq-compare-card-gene-coverage"),
+    ).toContainText("1/2");
+    await expect(
+      page.getByTestId("chipseq-compare-card-matrix-coverage"),
+    ).toContainText("100.0%");
     await expect(page.getByText("NEAT1")).toBeVisible();
     await expect(page.getByTestId("chipseq-compare-results")).toBeVisible();
 

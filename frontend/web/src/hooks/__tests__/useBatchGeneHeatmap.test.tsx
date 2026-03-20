@@ -108,6 +108,15 @@ describe("useBatchGeneHeatmap", () => {
     expect(result.current.failedGeneNames).toEqual(["NEAT1"]);
     expect(result.current.successfulGeneNames).toEqual(["MALAT1"]);
     expect(result.current.queryTimeMs).toBe(42);
+    expect(result.current.summary).toEqual({
+      totalGenes: 2,
+      successfulGenes: 1,
+      failedGenes: 1,
+      validCombinations: 1,
+      totalCombinations: 1,
+      coveragePercent: 100,
+      queryTimeMs: 42,
+    });
   });
 
   it("surfaces request errors as hook errors", async () => {
@@ -165,5 +174,59 @@ describe("useBatchGeneHeatmap", () => {
     expect(result.current.data).toBe(firstData);
     expect(result.current.failedGeneIds).toBe(firstFailedGeneIds);
     expect(result.current.successfulGeneIds).toBe(firstSuccessfulGeneIds);
+    expect(result.current.summary).toBeNull();
+  });
+
+  it("returns zero coverage when the batch response has no valid combinations", async () => {
+    mockGetBatchHeatmapMatrix.mockResolvedValueOnce({
+      data: {
+        genes: [
+          {
+            gene_id: 17276,
+            gene_name: "MALAT1",
+            gene_ensembl_id: "ENSG00000251562",
+            chromosome: "chr11",
+            region_start: 1,
+            region_end: 2,
+            cell_types: ["K562"],
+            marks: ["H3K27me3"],
+            metric: "median_fold_enrichment",
+            matrix: [[null]],
+            total_combinations: 0,
+            valid_combinations: 0,
+          },
+        ],
+        total_genes: 1,
+        successful_genes: 1,
+        failed_genes: [],
+        query_time_ms: 16,
+      },
+    } as never);
+
+    const { wrapper } = createWrapper();
+    const { result } = renderHook(
+      () =>
+        useBatchGeneHeatmap(
+          [{ gene_id: 17276, gene_name: "MALAT1" }],
+          ["H3K27me3"],
+          ["K562"],
+          "median_fold_enrichment",
+        ),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(result.current.summary).toEqual({
+      totalGenes: 1,
+      successfulGenes: 1,
+      failedGenes: 0,
+      validCombinations: 0,
+      totalCombinations: 0,
+      coveragePercent: 0,
+      queryTimeMs: 16,
+    });
   });
 });

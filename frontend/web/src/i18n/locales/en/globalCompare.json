@@ -37,6 +37,16 @@
     "errorTitle": "Failed to load compare results",
     "summaryTitle": "Compare summary",
     "summaryDescription": "{{success}}/{{total}} genes loaded in {{time}} ms.",
+    "stats": {
+      "geneCoverage": "Gene coverage",
+      "geneCoverageHint": "Loaded / requested",
+      "failedGenes": "Failed genes",
+      "failedGenesHint": "Could not render for current selection",
+      "matrixCoverage": "Matrix coverage",
+      "matrixCoverageHint": "{{valid}}/{{total}} valid combinations",
+      "queryTime": "Query time",
+      "queryTimeHint": "Server-side batch query"
+    },
     "failedGenesTitle": "Some genes could not be rendered",
     "noSuccessfulGenes": "No gene returned a valid heatmap matrix for the current selection."
   }

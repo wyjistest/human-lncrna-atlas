@@ -37,6 +37,16 @@
     "errorTitle": "加载对比结果失败",
     "summaryTitle": "对比摘要",
     "summaryDescription": "{{success}}/{{total}} 个基因加载成功，用时 {{time}} ms。",
+    "stats": {
+      "geneCoverage": "基因覆盖率",
+      "geneCoverageHint": "已加载 / 已请求",
+      "failedGenes": "失败基因数",
+      "failedGenesHint": "当前筛选条件下未能渲染",
+      "matrixCoverage": "矩阵覆盖率",
+      "matrixCoverageHint": "{{valid}}/{{total}} 个组合有效",
+      "queryTime": "查询耗时",
+      "queryTimeHint": "服务端 batch 查询"
+    },
     "failedGenesTitle": "部分基因未能渲染热图",
     "noSuccessfulGenes": "当前筛选条件下没有基因返回有效热图矩阵。"
   }

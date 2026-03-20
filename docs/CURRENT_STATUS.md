@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-03-19
+> 最后更新: 2026-03-20
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -43,6 +43,22 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-03-20 ⭐ `/chipseq-compare` 摘要层补强
+
+1. **compare 结果摘要卡片上线**
+   - `/chipseq-compare` 在保留原有 summary alert 的同时，新增 4 张结果摘要卡片：`gene coverage`、`failed genes`、`matrix coverage`、`query time`
+   - 摘要数据完全基于现有 batch heatmap 响应在前端聚合，不新增后端 API，也不改变 `/api/v1/features/chipseq/genes/batch-heatmap-matrix` 契约
+   - `matrix coverage` 采用所有成功基因的 `valid_combinations / total_combinations` 聚合百分比，方便快速判断热图矩阵覆盖质量
+
+2. **空结果与部分失败场景可读性增强**
+   - 即使当前筛选条件下 `0` 个基因返回有效热图矩阵，compare 页面仍会显示摘要卡片，再继续展示原有 empty state / failed genes 提示
+   - 部分失败场景下，用户可以同时看到总体成功率、失败基因数和矩阵覆盖率，而不必只依赖告警文案
+
+3. **定向回归同步扩展**
+   - `frontend/web/src/hooks/__tests__/useBatchGeneHeatmap.test.tsx` 新增 summary 聚合与 `total_combinations=0` 边界回归
+   - `frontend/web/src/pages/__tests__/ChIPSeqComparePage.test.tsx` 新增 summary cards 可见性、部分失败和 `0 successful matrices` 场景断言
+   - `frontend/web/e2e/chipseq-compare-smoke.spec.ts` 现额外断言 summary cards 渲染，确认真实 gene-set compare 路径上的结果摘要层不会回归
 
 ### 2026-03-19 ⭐ CI / MV 运维 / compare 回归锚点补强
 

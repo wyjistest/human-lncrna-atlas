@@ -38,6 +38,16 @@ interface BatchGeneQueryStatus {
   error: Error | null;
 }
 
+export interface BatchHeatmapSummary {
+  totalGenes: number;
+  successfulGenes: number;
+  failedGenes: number;
+  validCombinations: number;
+  totalCombinations: number;
+  coveragePercent: number;
+  queryTimeMs: number | null;
+}
+
 const EMPTY_BATCH_HEATMAP_GENES: BatchHeatmapMatrixResponse["genes"] = [];
 const EMPTY_BATCH_FAILED_GENE_IDS: number[] = [];
 
@@ -106,6 +116,35 @@ export function useBatchGeneHeatmap(
     [genes, successfulGeneIds],
   );
 
+  const summary = useMemo<BatchHeatmapSummary | null>(() => {
+    if (!query.data) {
+      return null;
+    }
+
+    const totalCombinations = data.reduce(
+      (sum, gene) => sum + gene.total_combinations,
+      0,
+    );
+    const validCombinations = data.reduce(
+      (sum, gene) => sum + gene.valid_combinations,
+      0,
+    );
+    const coveragePercent =
+      totalCombinations > 0
+        ? Math.round((validCombinations / totalCombinations) * 1000) / 10
+        : 0;
+
+    return {
+      totalGenes: query.data.total_genes,
+      successfulGenes: query.data.successful_genes,
+      failedGenes: failedGeneIds.length,
+      validCombinations,
+      totalCombinations,
+      coveragePercent,
+      queryTimeMs: query.data.query_time_ms ?? null,
+    };
+  }, [data, failedGeneIds.length, query.data]);
+
   const queryStatus = useMemo<BatchGeneQueryStatus[]>(() => {
     return genes.map((gene) => {
       if (query.isPending) {
@@ -162,6 +201,7 @@ export function useBatchGeneHeatmap(
     failedGeneNames,
     successfulGeneIds,
     successfulGeneNames,
+    summary,
     queryTimeMs: query.data?.query_time_ms ?? null,
     queryStatus,
   };

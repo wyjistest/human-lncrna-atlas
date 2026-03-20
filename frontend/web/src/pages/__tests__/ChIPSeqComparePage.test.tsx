@@ -122,6 +122,7 @@ describe("ChIPSeqComparePage", () => {
     expect(screen.getByTestId("chipseq-compare-page")).toBeVisible();
     expect(screen.getByRole("button", { name: "Run compare" })).toBeDisabled();
     expect(screen.getByText(/Choose a human gene set and run compare/i)).toBeVisible();
+    expect(screen.queryByTestId("chipseq-compare-summary-cards")).not.toBeInTheDocument();
     expect(mockGetBatchHeatmapMatrix).not.toHaveBeenCalled();
   });
 
@@ -220,6 +221,19 @@ describe("ChIPSeqComparePage", () => {
       );
     });
 
+    expect(screen.getByTestId("chipseq-compare-summary-cards")).toBeVisible();
+    expect(screen.getByTestId("chipseq-compare-card-gene-coverage")).toHaveTextContent(
+      "1/2",
+    );
+    expect(screen.getByTestId("chipseq-compare-card-failed-genes")).toHaveTextContent(
+      "1",
+    );
+    expect(
+      screen.getByTestId("chipseq-compare-card-matrix-coverage"),
+    ).toHaveTextContent("100.0%");
+    expect(screen.getByTestId("chipseq-compare-card-query-time")).toHaveTextContent(
+      "87ms",
+    );
     expect(mockGetBatchHeatmapMatrix).toHaveBeenCalledTimes(1);
     expect(mockGetBatchHeatmapMatrix).toHaveBeenCalledWith(
       {
@@ -401,6 +415,9 @@ describe("ChIPSeqComparePage", () => {
       );
     });
 
+    expect(screen.getByTestId("chipseq-compare-card-gene-coverage")).toHaveTextContent(
+      "2/2",
+    );
     expect(mockGetBatchHeatmapMatrix).toHaveBeenLastCalledWith(
       {
         gene_ids: [17276, 17277],
@@ -458,5 +475,68 @@ describe("ChIPSeqComparePage", () => {
       ).toBeVisible();
       expect(screen.getByText("network failed")).toBeVisible();
     });
+  });
+
+  it("keeps summary cards visible when no successful matrices are returned", async () => {
+    mockBatchResolve.mockResolvedValueOnce({
+      items: [
+        {
+          gene_id: 17276,
+          core_id: "CORE_1",
+          gene_name: "MALAT1",
+          gene_ensembl_id: "ENSG00000251562",
+          gene_type: "lncRNA",
+          species_name: "Human",
+          chromosome: "chr11",
+          gene_start: 65273689,
+          gene_end: 65276843,
+          regulation_count: 10,
+        },
+      ],
+      missing: [],
+    } as never);
+    mockGetBatchHeatmapMatrix.mockResolvedValueOnce({
+      data: {
+        genes: [],
+        total_genes: 1,
+        successful_genes: 0,
+        failed_genes: [17276],
+        query_time_ms: 22,
+      },
+    } as never);
+
+    const user = userEvent.setup();
+    render(<ChIPSeqComparePage />, { wrapper: createWrapper() });
+
+    await user.type(screen.getByTestId("chipseq-compare-paste-input"), "MALAT1");
+    await user.click(screen.getByTestId("chipseq-compare-resolve-button"));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Run compare" })).not.toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Run compare" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chipseq-compare-summary-cards")).toBeVisible();
+      expect(screen.getByTestId("chipseq-compare-results")).toHaveTextContent(
+        "No gene returned a valid heatmap matrix for the current selection.",
+      );
+    });
+
+    expect(screen.getByTestId("chipseq-compare-card-gene-coverage")).toHaveTextContent(
+      "0/1",
+    );
+    expect(screen.getByTestId("chipseq-compare-card-failed-genes")).toHaveTextContent(
+      "1",
+    );
+    expect(screen.getByTestId("chipseq-compare-card-matrix-coverage")).toHaveTextContent(
+      "0.0%",
+    );
+    expect(screen.getByTestId("chipseq-compare-card-query-time")).toHaveTextContent(
+      "22ms",
+    );
+    expect(screen.getByText("Some genes could not be rendered")).toBeVisible();
+    expect(screen.getByText("MALAT1")).toBeVisible();
   });
 });

@@ -18,6 +18,7 @@ import { ExperimentOutlined, HomeOutlined } from "@ant-design/icons";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { genesApi } from "@/api/genes";
+import BatchCompareSummaryCards from "@/components/BatchGeneHeatmap/BatchCompareSummaryCards";
 import BatchHeatmapMatrix from "@/components/BatchGeneHeatmap/BatchHeatmapMatrix";
 import { CELL_TYPE_CONFIGS, getAllCellTypes } from "@/config/cellTypeConfigs";
 import {
@@ -520,6 +521,12 @@ export default function ChIPSeqComparePage() {
                 description={compareQuery.error.message}
               />
             )}
+
+            {!compareQuery.isLoading &&
+              !compareQuery.error &&
+              compareQuery.summary && (
+                <BatchCompareSummaryCards summary={compareQuery.summary} />
+              )}
 
             {!compareQuery.isLoading &&
               !compareQuery.error &&
