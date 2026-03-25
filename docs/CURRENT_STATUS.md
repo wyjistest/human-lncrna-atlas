@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-03-20
+> 最后更新: 2026-03-25
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -43,6 +43,20 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-03-25 ⭐ backlog 治理自动化与文档稳定入口
+
+1. **开发入口稳定化**
+   - `docs/README.md`、`docs/CURRENT_STATUS.md` 统一改为通过 `docs/roadmaps/ROADMAP_CURRENT.md` 指向当前路线图，避免在多个入口里重复硬编码日期化 roadmap 文件名
+   - `docs/project.md` 明确标记为历史索引快照，当前开发 / 维护入口统一回到 `docs/README.md`
+
+2. **backlog 单一事实源与 GitHub issue 同步**
+   - 新增 `.github/governance/backlog.yml` 作为 backlog manifest，配套 `scripts/governance/sync_backlog_issues.py` 与 `Governance Sync` workflow
+   - managed issue 通过稳定 `<!-- backlog-id: ... -->` marker 做幂等创建 / 更新 / 关闭，并自动补齐缺失的 labels 与 milestone
+
+3. **治理入口回归检查补齐**
+   - `scripts/governance/check_governance_entrypoints.py` 现会强制检查 `docs/README.md`、`docs/CURRENT_STATUS.md`、`docs/project.md` 与 backlog manifest 的关键入口约束
+   - `scripts/run-tests.sh docs-check` 与 `scripts/run-tests.sh scripts-tests` 已接入治理检查与同步脚本测试，避免文档入口再次漂移
 
 ### 2026-03-20 ⭐ `/chipseq-compare` 本地 CSV 导出闭环
 
@@ -651,31 +665,16 @@ npm run dev
 | 85f4bdf | fix: resolve ChIP-seq TypeScript type errors for null values    |
 | a78b6cc | docs: update project status - ENCODE data is real, not mock     |
 
-## 🎯 建议的下一步开发
+## 🎯 当前方向与 Backlog 入口
 
-### 优先级 1: Phase 3.0 - 3.3 核心功能 ✅ 已完成
+本页只记录**当前事实**，不再承载容易漂移的开发 checklist。
 
-- [x] ~~ChIP-seq peaks 与 lncRNA 关联分析~~ ✅ 已完成
-- [x] ~~热图可视化组蛋白修饰模式~~ ✅ 已完成
-- [x] ~~批量导出功能 (BED/CSV)~~ ✅ 已完成 (2025-12-07)
-- [x] ~~A549 肺癌细胞系数据导入~~ ✅ 已完成 (2025-12-07, Phase 3.1)
-- [x] ~~MCF-7 + HMEC 乳腺细胞系数据~~ ✅ 已完成 (2025-12-07, Phase 3.2)
-- [x] ~~DNase-seq 全细胞系覆盖~~ ✅ 已完成 (2025-12-08, Phase 3.3)
+- 当前路线图（稳定入口）：`docs/roadmaps/ROADMAP_CURRENT.md`
+- backlog 源文件：`.github/governance/backlog.yml`
+- backlog 自动化说明：`docs/governance/BACKLOG_AUTOMATION.md`
+- GitHub backlog issue：由 `Governance Sync` workflow 根据 manifest 自动创建 / 更新 / 关闭
 
-### 优先级 2: 功能增强
-
-- [x] ~~lncRNA-ChIP-seq 重叠结果可视化增强~~ ✅ 已完成 (2025-12-10, Phase 3.4)
-- [x] ~~基因组浏览器集成重叠轨道~~ ✅ 已完成 (2025-12-10, Phase 3.4)
-- [x] ~~动态 Overlap 轨道加载~~ ✅ 已完成 (2025-12-10, Phase 3.5)
-- [x] ~~跨物种重叠比较~~ ✅ 已完成 (2026-01-20)
-- [x] ~~ROI 高亮显示重叠区域（P2 扩展功能）~~ ✅ 已完成 (2026-01-18)
-
-### 优先级 3: 性能优化
-
-- [x] ~~chr1 等大染色体查询优化~~ ✅ 已完成（物化视图 + NO-MV broad query guard，2026-01-20）
-- [x] ~~Redis 缓存策略优化~~ ✅ 已完成（缓存 key 规范化 + TTL 抖动（±10%），2026-01-20）
-- [x] 前端虚拟滚动（Genes/Regulations/Conservation/Diseases 展开表格等大列表）
-- [x] ~~Overlap 列表 cursor（keyset）分页~~ ✅ 已完成（避免 deep OFFSET，支持 peak_qvalue(NULL-safe)，2026-01-20）
+如果你要回答“现在实现到哪了”，看本页；如果你要回答“接下来做什么”，看路线图与 backlog manifest，而不是继续在这里追加勾选列表。
 
 ## 📞 联系方式
 

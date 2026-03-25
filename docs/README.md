@@ -5,10 +5,11 @@
 ## Start Here（推荐顺序）
 
 1. 当前状态：`docs/CURRENT_STATUS.md`
-2. 1–2 周路线图：`docs/ROADMAP_2026-02-03.md`
-3. CI / Self-hosted Runner（含代理/网络止损）：`docs/CI_SELF_HOSTED_RUNNER.md`
-4. 性能定位入口：`docs/PERFORMANCE_TRIAGE.md`
-5. 仓库总览与快速开始：`README.md`
+2. 当前路线图（稳定入口）：`docs/roadmaps/ROADMAP_CURRENT.md`
+3. backlog 自动化与治理规则：`docs/governance/BACKLOG_AUTOMATION.md`
+4. CI / Self-hosted Runner（含代理/网络止损）：`docs/CI_SELF_HOSTED_RUNNER.md`
+5. 性能定位入口：`docs/PERFORMANCE_TRIAGE.md`
+6. 仓库总览与快速开始：`README.md`
 
 ## 日常开发
 
@@ -16,6 +17,7 @@
 
 - 统一入口脚本：`scripts/run-tests.sh`
 - 文档检查：`bash scripts/run-tests.sh docs-check`
+- backlog 同步 dry-run：`python3 scripts/governance/sync_backlog_issues.py --repo "wyjistest/human-lncrna-atlas" --dry-run`
 - 前端首屏 bundle / modulepreload 回归锚点：`docs/testing/frontend/FRONTEND_BUNDLE_REGRESSION.md`
 
 ### 后端

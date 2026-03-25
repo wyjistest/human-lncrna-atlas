@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "default_milestone": "Current Roadmap",
+  "items": [
+    {
+      "id": "docs-roadmap-current-pointer",
+      "title": "docs: stabilize current roadmap pointer and developer entrypoints",
+      "summary": "Replace dated roadmap links in developer-facing docs with a stable current-roadmap pointer so contributors no longer have to guess which roadmap file is current.",
+      "labels": [
+        "documentation",
+        "kind:governance",
+        "kind:backlog",
+        "track:docs-governance",
+        "priority:p1"
+      ],
+      "milestone": "Current Roadmap",
+      "priority": "p1",
+      "state": "open",
+      "body_sections": [
+        {
+          "heading": "Background",
+          "body": "Developer-facing docs currently link to dated roadmap snapshots directly. That works for a moment, then drifts as soon as the next roadmap is written."
+        },
+        {
+          "heading": "Implementation",
+          "body": "Adopt `docs/roadmaps/ROADMAP_CURRENT.md` as the only stable roadmap entrypoint and update docs navigation pages to link to it instead of timestamped files."
+        }
+      ],
+      "acceptance_criteria": [
+        "`docs/README.md` points to `docs/roadmaps/ROADMAP_CURRENT.md` instead of a dated roadmap file.",
+        "`docs/roadmaps/ROADMAP_CURRENT.md` clearly points to the latest dated roadmap snapshot.",
+        "Developer-facing docs no longer require contributors to guess the latest roadmap filename."
+      ]
+    },
+    {
+      "id": "governance-backlog-sync-automation",
+      "title": "governance: auto-sync roadmap backlog into GitHub issues",
+      "summary": "Introduce a machine-readable backlog manifest and a sync script/workflow that keeps GitHub issues aligned with the repository backlog source of truth.",
+      "labels": [
+        "documentation",
+        "kind:governance",
+        "kind:backlog",
+        "track:docs-governance",
+        "priority:p1"
+      ],
+      "milestone": "Current Roadmap",
+      "priority": "p1",
+      "state": "open",
+      "body_sections": [
+        {
+          "heading": "Background",
+          "body": "The repo has had roadmap and issue cleanup work before, but it is not continuously enforced. Closed issues exist, yet the current open backlog is empty."
+        },
+        {
+          "heading": "Implementation",
+          "body": "Use `.github/governance/backlog.yml` as the only backlog source and sync managed issues via an automated workflow with stable `backlog-id` markers."
+        }
+      ],
+      "acceptance_criteria": [
+        "Managed GitHub issues can be created or updated from the manifest without manual copy/paste.",
+        "Missing labels and milestone are created automatically during sync.",
+        "Removing or closing a manifest item closes the corresponding managed issue."
+      ]
+    },
+    {
+      "id": "docs-current-status-governance-entrypoint",
+      "title": "docs: convert CURRENT_STATUS from checklist backlog to governance entrypoint",
+      "summary": "Remove drift-prone 'next development' checklists from CURRENT_STATUS and turn the section into a pointer to the current roadmap, backlog source, and managed issues.",
+      "labels": [
+        "documentation",
+        "kind:governance",
+        "kind:backlog",
+        "track:docs-governance",
+        "priority:p1"
+      ],
+      "milestone": "Current Roadmap",
+      "priority": "p1",
+      "state": "open",
+      "body_sections": [
+        {
+          "heading": "Background",
+          "body": "`docs/CURRENT_STATUS.md` still contains stale 'next development' items that are already implemented, so readers can misread history as current backlog."
+        },
+        {
+          "heading": "Implementation",
+          "body": "Keep `CURRENT_STATUS` focused on present facts and replace checklist-style next steps with stable pointers to the roadmap and automated backlog."
+        }
+      ],
+      "acceptance_criteria": [
+        "`docs/CURRENT_STATUS.md` no longer carries drift-prone implementation checklists.",
+        "The file links to `docs/roadmaps/ROADMAP_CURRENT.md` and `.github/governance/backlog.yml`.",
+        "Readers can distinguish current facts from current backlog without scanning historical roadmap files."
+      ]
+    },
+    {
+      "id": "governance-analysis-workbench-followup",
+      "title": "analysis: plan drill-down and evidence-linking follow-up workbench upgrades",
+      "summary": "Capture the next product-facing follow-up after governance cleanup: deepen `/analysis` with drill-down links and evidence-chain connections rather than starting a separate dashboard.",
+      "labels": [
+        "enhancement",
+        "kind:backlog",
+        "track:analysis",
+        "priority:p2"
+      ],
+      "milestone": "Current Roadmap",
+      "priority": "p2",
+      "state": "open",
+      "body_sections": [
+        {
+          "heading": "Background",
+          "body": "The repo already has `/analysis`, export APIs, notebooks, and paper outputs, but they are only loosely connected. Governance cleanup should leave a concrete next product item behind."
+        },
+        {
+          "heading": "Implementation",
+          "body": "Design follow-up work so `/analysis` becomes the main research workbench with deep links into Genes, Regulations, Overlap, and evidence/report artifacts."
+        }
+      ],
+      "acceptance_criteria": [
+        "The follow-up issue states why `/analysis` should be deepened instead of introducing a separate research page.",
+        "It identifies drill-down/deep-link behavior for at least High Affinity, Epigenetic, and Disease tabs.",
+        "It references repo-native evidence sources such as `docs/reports/`, `docs/paper/`, or notebook outputs."
+      ]
+    }
+  ]
+}

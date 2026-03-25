@@ -835,7 +835,9 @@ run_scripts_unit_tests() {
         "scripts/tests/test_checkout_tarball_script.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"
+        "scripts/tests/test_check_governance_entrypoints.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
+        "scripts/tests/test_sync_backlog_issues.sh"
         "scripts/tests/test_run_tests_usage_includes_frontend_baselines.sh"
         "scripts/tests/test_run_tests_usage_includes_research_baselines.sh"
         "scripts/tests/test_verify_research_baselines_help.sh"
@@ -945,9 +947,17 @@ run_docs_checks() {
     echo -e "${YELLOW}运行文档状态标注检查...${NC}"
     if python3 scripts/check_docs_status_markers.py; then
         echo -e "${GREEN}文档状态标注检查通过!${NC}"
-        return 0
     else
         echo -e "${RED}文档状态标注检查失败${NC}"
+        return 1
+    fi
+
+    echo -e "${YELLOW}运行治理入口检查...${NC}"
+    if python3 scripts/governance/check_governance_entrypoints.py; then
+        echo -e "${GREEN}治理入口检查通过!${NC}"
+        return 0
+    else
+        echo -e "${RED}治理入口检查失败${NC}"
         return 1
     fi
 }
@@ -1144,7 +1154,7 @@ run_ci_core_checks() {
     echo ""
     run_stage_with_summary "Scripts unit" "scripts/tests shell regressions" run_scripts_unit_tests || failed=1
     echo ""
-    run_stage_with_summary "Docs checks" "docs drift / heading / status markers" run_docs_checks || failed=1
+    run_stage_with_summary "Docs checks" "docs drift / heading / status / governance" run_docs_checks || failed=1
     echo ""
     run_stage_with_summary "DB migrations verify" "frontend/backend/scripts/db_migrate.sh verify" run_db_migrations_verify || failed=1
     echo ""
@@ -1421,7 +1431,7 @@ main() {
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
             echo "  unit         - 运行前端单元测试"
             echo "  etl-checks   - 运行 ETL 输入校验单元测试 (pytest etl/tests)"
-            echo "  docs-check   - 检查文档命令漂移（启动命令示例）"
+            echo "  docs-check   - 检查文档命令漂移、状态标注与治理入口"
             echo "  frontend-baselines - 校验前端 bundle baselines（本地可选；会执行 npm run build）"
             echo "  research-baselines - 校验 research baselines（本地可选；会创建临时 sample DB）"
             echo "  scripts-tests - 运行 scripts/tests 下的脚本级单元测试（对齐 CI）"

@@ -1,5 +1,7 @@
 # Human LncRNA Atlas 文档索引
 
+> 说明：本页为历史索引快照。当前开发 / 维护入口请优先查看 `docs/README.md`，当前事实以 `docs/CURRENT_STATUS.md` 为准。
+
 > **更新日期**: 2025-12-09
 > **当前版本**: Phase 4.0+
 > **维护者**: Claude Code (Opus 4.5)

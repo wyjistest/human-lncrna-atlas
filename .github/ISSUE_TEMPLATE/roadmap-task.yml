@@ -1,0 +1,48 @@
+name: Roadmap Task
+description: 手工补录一个 roadmap/backlog 事项（若属于正式 backlog，优先更新 `.github/governance/backlog.yml`）
+title: "[roadmap] <task title>"
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        优先规则：
+
+        - 若这是“当前正式 backlog”的一部分，请优先更新 `.github/governance/backlog.yml`
+        - 本模板适用于临时讨论、人工补录或自动化尚未覆盖的事项
+        - 若后续改为自动管理 issue，请在正文中加入稳定 `backlog-id`
+  - type: input
+    id: track
+    attributes:
+      label: Track
+      description: 任务所属主线（例如 docs-governance / analysis / research）
+      placeholder: docs-governance
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: 一句话描述为什么要做这件事
+      placeholder: 说明背景与目标
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Notes
+      description: 期望实现方式、约束或影响范围
+      placeholder: 列出关键实现点
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: 用 checklist 写验收标准
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true

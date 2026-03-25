@@ -791,10 +791,12 @@ jobs:
           find app -name "*.py" -exec python -m py_compile {} \;
           echo "All Python files have valid syntax"
 
-      - name: Docs drift check (startup commands)
+      - name: Docs drift and governance checks
         run: |
           python3 scripts/check_docs_commands.py
+          python3 scripts/check_docs_heading_artifacts.py
           python3 scripts/check_docs_status_markers.py
+          python3 scripts/governance/check_governance_entrypoints.py
 
       - name: Run ETL input checks (unit tests)
         run: |
@@ -816,7 +818,10 @@ jobs:
           bash scripts/tests/test_run_tests_backend_bootstrap_venv.sh
           bash scripts/tests/test_checkout_tarball_script.sh
           bash scripts/tests/test_check_docs_status_markers.sh
+          bash scripts/tests/test_check_docs_status_markers_marker_position.sh
+          bash scripts/tests/test_check_governance_entrypoints.sh
           bash scripts/tests/test_gh_push_commit_range_dry_run.sh
+          bash scripts/tests/test_sync_backlog_issues.sh
 
   lint:
     name: Lint
