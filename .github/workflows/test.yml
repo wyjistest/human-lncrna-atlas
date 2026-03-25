@@ -820,6 +820,7 @@ jobs:
           bash scripts/tests/test_check_docs_status_markers.sh
           bash scripts/tests/test_check_docs_status_markers_marker_position.sh
           bash scripts/tests/test_check_governance_entrypoints.sh
+          bash scripts/tests/test_governance_sync_workflow_runs_on.sh
           bash scripts/tests/test_gh_push_commit_range_dry_run.sh
           bash scripts/tests/test_sync_backlog_issues.sh
 

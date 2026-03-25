@@ -37,7 +37,7 @@ env:
 jobs:
   governance-check:
     name: Governance Check
-    runs-on: ${{ env.CI_RUNS_ON }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Configure git transport (self-hosted)
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
@@ -110,7 +110,7 @@ jobs:
     name: Sync Backlog Issues
     needs: [governance-check]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ${{ env.CI_RUNS_ON }}
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.runs_on) || vars.CI_RUNS_ON || 'ubuntu-latest' }}
     steps:
       - name: Configure git transport (self-hosted)
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
