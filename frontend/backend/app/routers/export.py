@@ -785,8 +785,8 @@ def export_disease_network(
     for row in disease_gene_result:
         trait_id = row.trait_id
         trait_name_val = row.trait_name
-        ontology_id = row.ontology_id
-        evidence_species_id = row.evidence_species_id
+        ontology_id = getattr(row, "ontology_id", None)
+        evidence_species_id = getattr(row, "evidence_species_id", None)
         gene_id = row.gene_id
         gene_name = row.gene_name
         gene_species_id = getattr(row, "species_id", evidence_species_id)

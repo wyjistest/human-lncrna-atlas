@@ -53,3 +53,6 @@ def test_export_disease_network_limit_caps_total_edges():
 
     assert len(response.edges) == 3
     assert [edge.type for edge in response.edges] == ["disease-gene", "disease-gene", "regulation"]
+    disease_node = next(node for node in response.nodes if node.type == "disease")
+    assert disease_node.ontology_id is None
+    assert disease_node.species_id is None
