@@ -1,104 +1,108 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-02-07T03:51:03.278Z",
+  "generatedAt": "2026-03-26T04:03:37.335Z",
   "dist": "dist",
   "entry": {
-    "href": "/assets/index-BgP9FlAT.js",
-    "file": "index-BgP9FlAT.js",
-    "bytes": 149811,
-    "gzipBytes": 51808
+    "href": "/assets/index-BKMBSC8L.js",
+    "file": "index-BKMBSC8L.js",
+    "bytes": 79840,
+    "gzipBytes": 29006
   },
   "modulePreloads": [
     {
-      "href": "/assets/react-vendor-Cv9GDcm1.js",
-      "file": "react-vendor-Cv9GDcm1.js",
-      "bytes": 47680,
-      "gzipBytes": 16959
+      "href": "/assets/i18n-vendor-sxbZ3Dhc.js",
+      "file": "i18n-vendor-sxbZ3Dhc.js",
+      "bytes": 64314,
+      "gzipBytes": 21245
     },
     {
-      "href": "/assets/query-vendor-CM9nhtG3.js",
-      "file": "query-vendor-CM9nhtG3.js",
-      "bytes": 40172,
-      "gzipBytes": 11927
+      "href": "/assets/query-vendor-yxLtCcqa.js",
+      "file": "query-vendor-yxLtCcqa.js",
+      "bytes": 40448,
+      "gzipBytes": 12000
     },
     {
-      "href": "/assets/i18n-vendor-B_gW3OEL.js",
-      "file": "i18n-vendor-B_gW3OEL.js",
-      "bytes": 54962,
-      "gzipBytes": 17924
-    },
-    {
-      "href": "/assets/antd-vendor-9HFCXqmc.js",
-      "file": "antd-vendor-9HFCXqmc.js",
-      "bytes": 1162744,
-      "gzipBytes": 371273
+      "href": "/assets/react-vendor-O4Gikvp0.js",
+      "file": "react-vendor-O4Gikvp0.js",
+      "bytes": 40244,
+      "gzipBytes": 14393
     }
   ],
   "assets": [
     {
-      "file": "CacheKeysTable-CklTv92O.js",
-      "bytes": 3256,
-      "gzipBytes": 878
+      "file": "CacheKeysTable-BX2QBA9-.js",
+      "bytes": 3255,
+      "gzipBytes": 877
     },
     {
-      "file": "ChIPSeqComparePage-L79UllS4.js",
-      "bytes": 21717,
-      "gzipBytes": 6620
+      "file": "ChIPSeqComparePage-Dp0PfwnV.js",
+      "bytes": 22136,
+      "gzipBytes": 7792
     },
     {
-      "file": "ConservationTab-CbW8hO0B.js",
-      "bytes": 4930,
-      "gzipBytes": 1999
+      "file": "ConservationTab-CWwDN-x_.js",
+      "bytes": 5332,
+      "gzipBytes": 2182
     },
     {
-      "file": "DiseaseTab-CAzFenBW.js",
-      "bytes": 4781,
-      "gzipBytes": 2078
-    },
-    {
-      "file": "EpigeneticTab-CpoBEEoJ.js",
-      "bytes": 5939,
-      "gzipBytes": 2414
-    },
-    {
-      "file": "ErrorState-DlGHC1yy.js",
-      "bytes": 1553,
-      "gzipBytes": 832
-    },
-    {
-      "file": "GenomeBrowserToolbar-DAnfnnEv.js",
-      "bytes": 2998,
-      "gzipBytes": 1457
-    },
-    {
-      "file": "HighAffinityTab-EGUyeurG.js",
-      "bytes": 5746,
+      "file": "DiseaseTab-jwV05EbW.js",
+      "bytes": 5214,
       "gzipBytes": 2278
     },
     {
-      "file": "LncRNAChIPSeqOverlapPage-B4dQZo7M.js",
-      "bytes": 63629,
-      "gzipBytes": 17583
+      "file": "EpigeneticTab-QaeJIukQ.js",
+      "bytes": 6346,
+      "gzipBytes": 2605
     },
     {
-      "file": "LoadingState-B1hFd7nK.js",
-      "bytes": 1532,
-      "gzipBytes": 795
+      "file": "ErrorState-a9mwEJzP.js",
+      "bytes": 1553,
+      "gzipBytes": 830
     },
     {
-      "file": "MarkSelector-GPDjsIBu.js",
-      "bytes": 2389,
-      "gzipBytes": 1263
+      "file": "GenomeBrowserToolbar-fYFAnJSN.js",
+      "bytes": 2993,
+      "gzipBytes": 1452
     },
     {
-      "file": "admin-CDUucO-0.js",
+      "file": "HighAffinityTab-VfwC7ZUt.js",
+      "bytes": 6159,
+      "gzipBytes": 2460
+    },
+    {
+      "file": "LncRNAChIPSeqOverlapPage-DUUOrMxo.js",
+      "bytes": 63627,
+      "gzipBytes": 17588
+    },
+    {
+      "file": "LoadingState-DnoyM6I0.js",
+      "bytes": 1504,
+      "gzipBytes": 785
+    },
+    {
+      "file": "MarkSelector-CyjW0EbO.js",
+      "bytes": 2348,
+      "gzipBytes": 1247
+    },
+    {
+      "file": "admin-C4f9bf2w.js",
       "bytes": 820,
-      "gzipBytes": 344
+      "gzipBytes": 343
     },
     {
-      "file": "antd-vendor-9HFCXqmc.js",
-      "bytes": 1162744,
-      "gzipBytes": 371273
+      "file": "analysis-B2KoH5XB.js",
+      "bytes": 2964,
+      "gzipBytes": 1222
+    },
+    {
+      "file": "analysis-DNR8BRzN.js",
+      "bytes": 2738,
+      "gzipBytes": 1400
+    },
+    {
+      "file": "antd-vendor-DkATHJrp.js",
+      "bytes": 1165997,
+      "gzipBytes": 372484
     },
     {
       "file": "cellTypeConfigs-Dog0xieJ.js",
@@ -111,14 +115,29 @@
       "gzipBytes": 693
     },
     {
+      "file": "chipseq-D4TCnVsk.js",
+      "bytes": 3000,
+      "gzipBytes": 951
+    },
+    {
+      "file": "conservation-BC_fVbvr.js",
+      "bytes": 1699,
+      "gzipBytes": 753
+    },
+    {
+      "file": "conservation-DiZ7J2p8.js",
+      "bytes": 1662,
+      "gzipBytes": 917
+    },
+    {
       "file": "conservation-DzRe0uQz.js",
       "bytes": 481,
       "gzipBytes": 330
     },
     {
-      "file": "csv-8OLDPAVM.js",
+      "file": "csv-Ds73wvhI.js",
       "bytes": 295,
-      "gzipBytes": 233
+      "gzipBytes": 232
     },
     {
       "file": "cytoscape-vendor-Cz3ECXF_.js",
@@ -126,14 +145,24 @@
       "gzipBytes": 148412
     },
     {
-      "file": "debounce-Bg79Gf-r.js",
-      "bytes": 3186,
-      "gzipBytes": 1476
+      "file": "debounce-Ckl-_cFb.js",
+      "bytes": 3185,
+      "gzipBytes": 1478
     },
     {
-      "file": "diseases-ddBAtspt.js",
+      "file": "diseases-DHjrZU2O.js",
+      "bytes": 655,
+      "gzipBytes": 451
+    },
+    {
+      "file": "diseases-VeVMcFRk.js",
+      "bytes": 667,
+      "gzipBytes": 382
+    },
+    {
+      "file": "diseases-kDnqneD1.js",
       "bytes": 359,
-      "gzipBytes": 218
+      "gzipBytes": 221
     },
     {
       "file": "echarts-CX2yIdHB.js",
@@ -146,9 +175,9 @@
       "gzipBytes": 375628
     },
     {
-      "file": "echarts-react-lRNm_csO.js",
-      "bytes": 8484,
-      "gzipBytes": 2985
+      "file": "echarts-react-DzDj5RKa.js",
+      "bytes": 8483,
+      "gzipBytes": 2986
     },
     {
       "file": "escapeHtml-DNBRM3UA.js",
@@ -156,129 +185,169 @@
       "gzipBytes": 152
     },
     {
-      "file": "features-B3yDTPoo.js",
-      "bytes": 2183,
-      "gzipBytes": 922
+      "file": "export-vVhB2u62.js",
+      "bytes": 3716,
+      "gzipBytes": 1699
     },
     {
-      "file": "file-vendor-DqB_ndYB.js",
-      "bytes": 2634,
-      "gzipBytes": 1263
+      "file": "exportUtils-h-P3broA.js",
+      "bytes": 147,
+      "gzipBytes": 155
     },
     {
-      "file": "i18n-vendor-B_gW3OEL.js",
-      "bytes": 54962,
-      "gzipBytes": 17924
+      "file": "features-Aqxbx4fh.js",
+      "bytes": 1299,
+      "gzipBytes": 501
     },
     {
-      "file": "igv-vendor-DDxOgb18.js",
-      "bytes": 1415561,
-      "gzipBytes": 408598
+      "file": "file-vendor-CekzewNC.js",
+      "bytes": 2633,
+      "gzipBytes": 1264
     },
     {
-      "file": "index-B45ueOFw.js",
-      "bytes": 4737,
-      "gzipBytes": 1855
+      "file": "genes-CFiXCirU.js",
+      "bytes": 7873,
+      "gzipBytes": 3576
     },
     {
-      "file": "index-B9IJueQC.js",
-      "bytes": 10048,
-      "gzipBytes": 3519
+      "file": "genes-NxYmuQ3f.js",
+      "bytes": 8058,
+      "gzipBytes": 3045
     },
     {
-      "file": "index-BgP9FlAT.js",
-      "bytes": 149811,
-      "gzipBytes": 51808
+      "file": "genes-X3jN0coD.js",
+      "bytes": 411,
+      "gzipBytes": 226
     },
     {
-      "file": "index-BkxY4aoH.js",
-      "bytes": 2976,
-      "gzipBytes": 1134
+      "file": "genomeBrowser-1Qx2xDUB.js",
+      "bytes": 6353,
+      "gzipBytes": 3151
     },
     {
-      "file": "index-Bl9WU_Bf.js",
-      "bytes": 4401,
-      "gzipBytes": 1784
+      "file": "genomeBrowser-BURfElKr.js",
+      "bytes": 6327,
+      "gzipBytes": 2688
     },
     {
-      "file": "index-C6ZYNSZa.js",
-      "bytes": 80185,
-      "gzipBytes": 20699
+      "file": "globalCompare-BZqCUYMk.js",
+      "bytes": 2332,
+      "gzipBytes": 1062
     },
     {
-      "file": "index-CHOseQmm.js",
-      "bytes": 7948,
-      "gzipBytes": 3029
+      "file": "globalCompare-ys-Q4nUy.js",
+      "bytes": 2359,
+      "gzipBytes": 1314
     },
     {
-      "file": "index-CRGaesm6.js",
-      "bytes": 2729,
-      "gzipBytes": 1335
+      "file": "i18n-vendor-sxbZ3Dhc.js",
+      "bytes": 64314,
+      "gzipBytes": 21245
     },
     {
-      "file": "index-CdKx5MEX.js",
-      "bytes": 19259,
-      "gzipBytes": 6479
+      "file": "igv-vendor-DMTXVDHq.js",
+      "bytes": 1416598,
+      "gzipBytes": 408639
     },
     {
-      "file": "index-CkGt4Pv5.js",
-      "bytes": 9164,
-      "gzipBytes": 3651
-    },
-    {
-      "file": "index-CyrgvuCA.js",
-      "bytes": 4099,
-      "gzipBytes": 1551
-    },
-    {
-      "file": "index-D1gedkHE.js",
-      "bytes": 8181,
-      "gzipBytes": 3205
-    },
-    {
-      "file": "index-DAoGROGa.js",
-      "bytes": 5178,
-      "gzipBytes": 1909
-    },
-    {
-      "file": "index-DKlwnOfX.js",
-      "bytes": 17529,
-      "gzipBytes": 5623
-    },
-    {
-      "file": "index-DhMZvASR.js",
-      "bytes": 21931,
-      "gzipBytes": 7632
-    },
-    {
-      "file": "index-Dk9y-ePQ.js",
-      "bytes": 23718,
-      "gzipBytes": 6319
-    },
-    {
-      "file": "index-WrH9inLo.js",
-      "bytes": 34395,
-      "gzipBytes": 11354
-    },
-    {
-      "file": "index-xc7FpUIP.js",
+      "file": "index-B92XvjPB.js",
       "bytes": 8104,
-      "gzipBytes": 2975
+      "gzipBytes": 2974
     },
     {
-      "file": "index.es-C4-6bzhK.js",
-      "bytes": 158156,
-      "gzipBytes": 52762
+      "file": "index-BKMBSC8L.js",
+      "bytes": 79840,
+      "gzipBytes": 29006
     },
     {
-      "file": "jszip.min-BXvc6Nz_.js",
-      "bytes": 234,
-      "gzipBytes": 201
+      "file": "index-BL9Dcbdo.js",
+      "bytes": 77549,
+      "gzipBytes": 19972
     },
     {
-      "file": "markConfigs-BGK-nRCz.js",
-      "bytes": 7849,
-      "gzipBytes": 1917
+      "file": "index-BQ9KROa_.js",
+      "bytes": 2689,
+      "gzipBytes": 1321
+    },
+    {
+      "file": "index-BYfd2oQd.js",
+      "bytes": 34389,
+      "gzipBytes": 11348
+    },
+    {
+      "file": "index-BhwotAfn.js",
+      "bytes": 18963,
+      "gzipBytes": 6548
+    },
+    {
+      "file": "index-BrZh3yZI.js",
+      "bytes": 8170,
+      "gzipBytes": 3203
+    },
+    {
+      "file": "index-BvwVmytO.js",
+      "bytes": 5178,
+      "gzipBytes": 1913
+    },
+    {
+      "file": "index-C5A8gVPJ.js",
+      "bytes": 23718,
+      "gzipBytes": 6321
+    },
+    {
+      "file": "index-CLdRbzAV.js",
+      "bytes": 17545,
+      "gzipBytes": 5627
+    },
+    {
+      "file": "index-CMsMM3kf.js",
+      "bytes": 19259,
+      "gzipBytes": 6473
+    },
+    {
+      "file": "index-Cdum8CaW.js",
+      "bytes": 4099,
+      "gzipBytes": 1549
+    },
+    {
+      "file": "index-ChKWxJze.js",
+      "bytes": 7948,
+      "gzipBytes": 3024
+    },
+    {
+      "file": "index-Cm0kqHwr.js",
+      "bytes": 3093,
+      "gzipBytes": 1184
+    },
+    {
+      "file": "index-Cw12D2RX.js",
+      "bytes": 9206,
+      "gzipBytes": 3655
+    },
+    {
+      "file": "index-DExCXFkp.js",
+      "bytes": 8252,
+      "gzipBytes": 2935
+    },
+    {
+      "file": "index-DQ04YpuZ.js",
+      "bytes": 10021,
+      "gzipBytes": 3481
+    },
+    {
+      "file": "index-DtjDCIj8.js",
+      "bytes": 4401,
+      "gzipBytes": 1781
+    },
+    {
+      "file": "index.es-B6tErlgI.js",
+      "bytes": 158190,
+      "gzipBytes": 52779
+    },
+    {
+      "file": "jszip.min-B844h0G3.js",
+      "bytes": 508,
+      "gzipBytes": 360
     },
     {
       "file": "minMax-CXqNj8wG.js",
@@ -286,29 +355,64 @@
       "gzipBytes": 266
     },
     {
-      "file": "pdf-vendor-C7_KImp4.js",
-      "bytes": 586891,
-      "gzipBytes": 173571
+      "file": "network-CdUJC0yK.js",
+      "bytes": 4448,
+      "gzipBytes": 1846
     },
     {
-      "file": "purify.es-Bzr520pe.js",
-      "bytes": 22449,
-      "gzipBytes": 8627
+      "file": "network-JINTe938.js",
+      "bytes": 4354,
+      "gzipBytes": 2185
     },
     {
-      "file": "query-vendor-CM9nhtG3.js",
-      "bytes": 40172,
-      "gzipBytes": 11927
+      "file": "overlap-BmzWXuVH.js",
+      "bytes": 5307,
+      "gzipBytes": 2069
     },
     {
-      "file": "react-vendor-Cv9GDcm1.js",
-      "bytes": 47680,
-      "gzipBytes": 16959
+      "file": "overlap-Qz8k85VX.js",
+      "bytes": 5182,
+      "gzipBytes": 2511
     },
     {
-      "file": "regulations-BQvuccsX.js",
+      "file": "pdf-vendor-DxucxG2t.js",
+      "bytes": 587618,
+      "gzipBytes": 173902
+    },
+    {
+      "file": "purify.es-CovBOfck.js",
+      "bytes": 22582,
+      "gzipBytes": 8671
+    },
+    {
+      "file": "query-vendor-yxLtCcqa.js",
+      "bytes": 40448,
+      "gzipBytes": 12000
+    },
+    {
+      "file": "react-vendor-O4Gikvp0.js",
+      "bytes": 40244,
+      "gzipBytes": 14393
+    },
+    {
+      "file": "regulations-BAK83whQ.js",
+      "bytes": 3090,
+      "gzipBytes": 1297
+    },
+    {
+      "file": "regulations-Ck15TT5O.js",
       "bytes": 401,
-      "gzipBytes": 215
+      "gzipBytes": 216
+    },
+    {
+      "file": "regulations-U1Ny-rj_.js",
+      "bytes": 3000,
+      "gzipBytes": 1572
+    },
+    {
+      "file": "safeWindow-B-YfBu9o.js",
+      "bytes": 8796,
+      "gzipBytes": 2393
     },
     {
       "file": "species-BGj5iuLe.js",
@@ -316,28 +420,48 @@
       "gzipBytes": 204
     },
     {
-      "file": "useAnalysis-e_x6swnW.js",
-      "bytes": 1251,
-      "gzipBytes": 429
+      "file": "stats-BerrJUe4.js",
+      "bytes": 1214,
+      "gzipBytes": 605
     },
     {
-      "file": "useDetailedStats-DO2wA6ZY.js",
+      "file": "stats-DKyO_ivE.js",
+      "bytes": 1179,
+      "gzipBytes": 746
+    },
+    {
+      "file": "useAnalysis-C9BWrkA2.js",
+      "bytes": 2080,
+      "gzipBytes": 724
+    },
+    {
+      "file": "useDetailedStats-BsbrLbX1.js",
       "bytes": 488,
-      "gzipBytes": 287
+      "gzipBytes": 286
     },
     {
-      "file": "useGenes-Dk0qM0UA.js",
-      "bytes": 1632,
-      "gzipBytes": 645
+      "file": "useGenes-1y3X7mvR.js",
+      "bytes": 1308,
+      "gzipBytes": 554
     },
     {
-      "file": "useRegulations-DdhMkKjt.js",
-      "bytes": 1036,
-      "gzipBytes": 470
+      "file": "useRegulations-CWh9xUEr.js",
+      "bytes": 1035,
+      "gzipBytes": 473
     },
     {
-      "file": "zip-vendor-D-y_QI8U.js",
-      "bytes": 96726,
+      "file": "visualization-46fbC9sD.js",
+      "bytes": 2844,
+      "gzipBytes": 1229
+    },
+    {
+      "file": "visualization-SN2DMNpY.js",
+      "bytes": 3047,
+      "gzipBytes": 1079
+    },
+    {
+      "file": "zip-vendor-CCQ4yz51.js",
+      "bytes": 96725,
       "gzipBytes": 29872
     }
   ]

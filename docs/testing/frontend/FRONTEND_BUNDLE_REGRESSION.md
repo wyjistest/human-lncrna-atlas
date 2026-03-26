@@ -12,6 +12,20 @@
 - bundle size 快照（含 entry/modulepreload/assets）：`frontend/web/scripts/report-bundle-sizes.mjs`
 - 两份快照对比 + 回归门禁：`frontend/web/scripts/compare-bundle-sizes.mjs`
 
+## 当前首屏 i18n 策略
+
+为了避免入口 chunk 因翻译资源持续膨胀，前端当前采用“基础 namespace 首屏 eager，其它页面 namespace 路由级 lazy”的策略：
+
+- 首屏只在 `frontend/web/src/i18n/index.ts` 中静态注册 `common` / `nav` / `home`
+- 其它页面命名空间通过 `ensureNamespaces()` 显式动态导入后，再渲染对应路由
+- 路由级包装统一走 `frontend/web/src/i18n/lazyWithNamespaces.ts`
+
+如果后续出现 entry chunk 或 `i18n-vendor` 明显回归，优先检查：
+
+- 是否把页面 namespace 重新改回了入口静态 import
+- 是否新增页面绕过了 `lazyWithNamespaces()`，导致页面在 namespace 注册前先渲染
+- 是否把不该首屏出现的翻译资源重新放回 `EAGER_NAMESPACES`
+
 ## 最短路径（本地）
 
 在前端目录执行：
@@ -53,4 +67,3 @@ node scripts/compare-bundle-sizes.mjs \
 - 关键 vendor family（如 `antd-vendor`、`igv-vendor`、`pdf-vendor`）的稳定对比视图
 
 并在超过阈值时返回非 0 退出码（可用于 CI 或本地门禁止损）。
-

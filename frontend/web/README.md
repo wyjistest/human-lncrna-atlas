@@ -48,6 +48,19 @@ src/
 └── test/          # Test utilities
 ```
 
+## i18n Loading Strategy
+
+- 首屏只 eager 加载 `common`、`nav`、`home`
+- 页面级 namespace 通过 `src/i18n/index.ts` 中的 `ensureNamespaces()` 按需动态导入
+- 路由级懒加载统一使用 `src/i18n/lazyWithNamespaces.ts`，确保页面模块渲染前翻译资源已注册
+
+对首屏性能敏感的改动，建议在提交前执行：
+
+```bash
+npm run build
+node scripts/report-bundle-sizes.mjs --json "../../docs/baselines/frontend/bundle-sizes.baseline.json"
+```
+
 ## Key Features
 
 - **Gene Browser**: Search, filter, and batch query genes (with CSV export)
