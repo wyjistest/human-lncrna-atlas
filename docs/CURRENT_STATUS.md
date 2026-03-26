@@ -57,6 +57,10 @@
 3. **feature/worktree 分支 CI 核验路径写清楚**
    - 由于 `Tests` / `Security Audit` 默认只对 `main` 分支 `push` 自动触发，这类隔离分支在 push 后需要用 `workflow_dispatch` 手动核验，避免误把“未触发”当成“已通过”
 
+4. **修复后端 constraints 内部冲突**
+   - `frontend/backend/constraints.txt` 中 `pydantic_core` 已回调到与 `pydantic==2.12.5` 兼容的 `2.41.5`，恢复 `pip install -r requirements-dev.txt -c constraints.txt` 的可解析状态
+   - 直接收益是本地 pre-push 与 GitHub Actions 后端依赖安装不再被 `ResolutionImpossible` 阻断
+
 ### 2026-03-25 ⭐ backlog 治理自动化与文档稳定入口
 
 1. **开发入口稳定化**
