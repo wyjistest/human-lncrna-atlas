@@ -825,6 +825,7 @@ run_scripts_unit_tests() {
         "scripts/tests/test_compare_performance_metrics_gate.sh"
         "scripts/tests/test_aggregate_performance_metrics_median.sh"
         "scripts/tests/test_perf_report_scenario_drift.sh"
+        "scripts/tests/test_backend_constraints_resolution.sh"
         "scripts/tests/test_run_tests_backend_deps.sh"
         "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
         "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"

@@ -813,6 +813,7 @@ jobs:
       - name: Run scripts unit tests (run-tests.sh)
         run: |
           bash scripts/tests/test_run_tests_frontend_deps.sh
+          bash scripts/tests/test_backend_constraints_resolution.sh
           bash scripts/tests/test_run_tests_backend_deps.sh
           bash scripts/tests/test_run_tests_backend_checks_propagates_failures.sh
           bash scripts/tests/test_run_tests_backend_bootstrap_venv.sh
