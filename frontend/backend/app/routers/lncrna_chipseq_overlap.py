@@ -22,7 +22,7 @@ Phase 3.2 Enhancements (2025-12-09):
 """
 from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import bindparam, column, func, literal, select, table
+from sqlalchemy import and_, bindparam, column, func, literal, or_, select, table
 from sqlalchemy.orm import Session, aliased
 from typing import Optional, List, Tuple, Literal, Generator
 import logging
@@ -394,38 +394,54 @@ def _get_ortholog_gene_map(db: Session, core_id: int) -> dict[int, int]:
     return {int(species_id): int(gene_id) for gene_id, species_id in rows}
 
 
-def _compute_overlap_statistics_impl(
+def _build_empty_overlap_statistics_map(
+    species_ids: List[int],
+    *,
+    effective_chromosome: Optional[str],
+    default_filter_applied: bool,
+) -> dict[int, dict]:
+    stats_map: dict[int, dict] = {}
+    for species_id in species_ids:
+        empty = _empty_overlap_statistics(effective_chromosome=effective_chromosome)
+        empty["default_filter_applied"] = bool(default_filter_applied)
+        empty["effective_chromosome"] = effective_chromosome
+        stats_map[int(species_id)] = empty
+    return stats_map
+
+
+def _compute_overlap_statistics_batch_impl(
     *,
     db: Session,
-    species_id: int,
-    lncrna_gene_id: Optional[int],
-    target_gene_id: Optional[int],
+    species_gene_pairs: dict[int, dict[str, Optional[int]]],
     mark_type: Optional[str],
     cell_type: Optional[str],
     chromosome: Optional[str],
     min_binding_affinity: Optional[float],
     max_qvalue: Optional[float],
     top_n: Optional[int],
-) -> dict:
+) -> dict[int, dict]:
     """
-    物种可参数化的 overlap statistics 计算。
+    批量计算多个物种的 overlap statistics。
 
-    返回 dict（JSON-safe），便于跨物种 compare 汇总与缓存。
+    通过单次 grouped query 汇总多个 species，避免 compare 端点按物种重复执行
+    stats / by_mark / by_cell 三轮聚合查询。
     """
-    if lncrna_gene_id is None:
-        return _empty_overlap_statistics(effective_chromosome=chromosome)
+    if not species_gene_pairs:
+        return {}
 
-    # MV 仅 human 支持；其它物种一律走 JOIN（partition pruning 由 species_id filter 触发）。
-    use_materialized_view = species_id == 1 and check_materialized_view_exists(db)
+    sorted_species_ids = sorted(int(species_id) for species_id in species_gene_pairs)
 
-    # Performance optimization: apply default chromosome only when query is too broad.
-    # Note: In compare mode we always provide lncrna_gene_id, so default is normally not used.
-    DEFAULT_CHROMOSOME = DEFAULT_QUERY_CHROMOSOME
+    # MV 仅 human 支持；compare 同时覆盖多物种时仍走 partitioned parent table。
+    use_materialized_view = (sorted_species_ids == [1]) and check_materialized_view_exists(db)
 
+    default_chromosome = DEFAULT_QUERY_CHROMOSOME
+    has_gene_filter = any(
+        pair.get("lncrna_gene_id") is not None or pair.get("target_gene_id") is not None
+        for pair in species_gene_pairs.values()
+    )
     has_selective_filter = any(
         [
-            lncrna_gene_id,
-            target_gene_id,
+            has_gene_filter,
             chromosome,
             mark_type,
             cell_type,
@@ -433,15 +449,13 @@ def _compute_overlap_statistics_impl(
         ]
     )
 
-    effective_chromosome = chromosome or (DEFAULT_CHROMOSOME if not has_selective_filter else None)
-    default_filter_applied = (effective_chromosome == DEFAULT_CHROMOSOME and not chromosome)
+    effective_chromosome = chromosome or (default_chromosome if not has_selective_filter else None)
+    default_filter_applied = (effective_chromosome == default_chromosome and not chromosome)
 
-    # Guard: even with a chromosome filter, chr1/chr2/chr3 can still be too broad without MV.
     if not use_materialized_view and chromosome in LARGE_CHROMOSOMES_NO_MV_GUARD:
         has_narrowing_filter = any(
             [
-                lncrna_gene_id,
-                target_gene_id,
+                has_gene_filter,
                 mark_type,
                 cell_type,
                 min_binding_affinity and min_binding_affinity > 0,
@@ -462,7 +476,6 @@ def _compute_overlap_statistics_impl(
     mark_types_array = parse_comma_list(mark_type, param_name="mark_type")
     cell_types_array = parse_comma_list(cell_type, param_name="cell_type")
 
-    # Use the partitioned parent table to support all species (partition pruning).
     p = table(
         "chipseq_peaks",
         column("peak_id"),
@@ -480,8 +493,8 @@ def _compute_overlap_statistics_impl(
     overlap_length_base = overlap_end_base - overlap_start_base
 
     filter_conditions, params = _build_overlap_where_and_params(
-        lncrna_gene_id=lncrna_gene_id,
-        target_gene_id=target_gene_id,
+        lncrna_gene_id=None,
+        target_gene_id=None,
         chromosome=effective_chromosome,
         mark_types=mark_types_array,
         cell_types=cell_types_array,
@@ -500,10 +513,25 @@ def _compute_overlap_statistics_impl(
         overlap_length_expr=overlap_length_base,
     )
 
-    params["species_id"] = species_id
+    species_scope_conditions = []
+    for idx, species_id in enumerate(sorted_species_ids):
+        pair = species_gene_pairs[int(species_id)]
+        scope = [
+            Regulation.species_id == bindparam(f"species_id_{idx}"),
+            Regulation.lncrna_gene_id == bindparam(f"lncrna_gene_id_{idx}"),
+        ]
+        params[f"species_id_{idx}"] = int(species_id)
+        params[f"lncrna_gene_id_{idx}"] = int(pair["lncrna_gene_id"])
+
+        target_gene_id = pair.get("target_gene_id")
+        if target_gene_id is not None:
+            scope.append(Regulation.target_gene_id == bindparam(f"target_gene_id_{idx}"))
+            params[f"target_gene_id_{idx}"] = int(target_gene_id)
+
+        species_scope_conditions.append(and_(*scope))
 
     where_conditions = [
-        Regulation.species_id == bindparam("species_id"),
+        or_(*species_scope_conditions),
         ChIPSeqExperiment.is_active.is_(True),
         *filter_conditions,
     ]
@@ -516,6 +544,7 @@ def _compute_overlap_statistics_impl(
 
     stats_stmt = (
         select(
+            Regulation.species_id.label("species_id"),
             func.count().label("total_overlaps"),
             func.count(func.distinct(Regulation.lncrna_gene_id)).label("unique_lncrnas"),
             func.count(func.distinct(Regulation.target_gene_id)).label("unique_target_genes"),
@@ -530,10 +559,12 @@ def _compute_overlap_statistics_impl(
         .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
         .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
         .where(*where_conditions)
+        .group_by(Regulation.species_id)
     )
 
     by_mark_stmt = (
         select(
+            Regulation.species_id.label("species_id"),
             EpigeneticMarkType.mark_name.label("mark_type"),
             func.count().label("count"),
             func.avg(Regulation.binding_affinity).label("avg_strength"),
@@ -543,16 +574,14 @@ def _compute_overlap_statistics_impl(
         .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
         .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
         .where(*where_conditions)
-        .group_by(EpigeneticMarkType.mark_name)
-        .order_by(func.count().desc())
+        .group_by(Regulation.species_id, EpigeneticMarkType.mark_name)
+        .order_by(Regulation.species_id, func.count().desc(), EpigeneticMarkType.mark_name.asc())
     )
-    if top_n is not None:
-        by_mark_stmt = by_mark_stmt.limit(bindparam("top_n"))
-        params["top_n"] = int(top_n)
 
     by_cell_stmt = (
         select(
-            ChIPSeqExperiment.cell_type,
+            Regulation.species_id.label("species_id"),
+            ChIPSeqExperiment.cell_type.label("cell_type"),
             func.count().label("count"),
         )
         .select_from(Regulation)
@@ -560,59 +589,195 @@ def _compute_overlap_statistics_impl(
         .join(ChIPSeqExperiment, p.c.experiment_id == ChIPSeqExperiment.experiment_id)
         .join(EpigeneticMarkType, ChIPSeqExperiment.mark_type_id == EpigeneticMarkType.mark_type_id)
         .where(*where_conditions)
-        .group_by(ChIPSeqExperiment.cell_type)
-        .order_by(func.count().desc())
+        .group_by(Regulation.species_id, ChIPSeqExperiment.cell_type)
+        .order_by(Regulation.species_id, func.count().desc(), ChIPSeqExperiment.cell_type.asc())
     )
-    if top_n is not None:
-        by_cell_stmt = by_cell_stmt.limit(bindparam("top_n"))
+
+    empty_map = _build_empty_overlap_statistics_map(
+        sorted_species_ids,
+        effective_chromosome=effective_chromosome,
+        default_filter_applied=default_filter_applied,
+    )
 
     try:
-        result = db.execute(stats_stmt, params).fetchone()
-        if not result or result.total_overlaps == 0:
-            empty = _empty_overlap_statistics(effective_chromosome=effective_chromosome)
-            empty["default_filter_applied"] = bool(default_filter_applied)
-            empty["effective_chromosome"] = effective_chromosome
-            return empty
+        stats_rows = {
+            int(row.species_id): row
+            for row in db.execute(stats_stmt, params).fetchall()
+        }
 
-        mark_results = db.execute(by_mark_stmt, params).fetchall()
-        by_mark_type = [
-            MarkTypeStats(
-                mark_type=row.mark_type,
-                count=row.count,
-                avg_strength=float(row.avg_strength) if row.avg_strength else 0.0,
+        by_mark_type: dict[int, List[MarkTypeStats]] = {species_id: [] for species_id in sorted_species_ids}
+        for row in db.execute(by_mark_stmt, params).fetchall():
+            species_id = int(row.species_id)
+            if top_n is not None and len(by_mark_type[species_id]) >= top_n:
+                continue
+            by_mark_type[species_id].append(
+                MarkTypeStats(
+                    mark_type=row.mark_type,
+                    count=row.count,
+                    avg_strength=float(row.avg_strength) if row.avg_strength else 0.0,
+                )
             )
-            for row in mark_results
-        ]
 
-        cell_results = db.execute(by_cell_stmt, params).fetchall()
-        by_cell_type = [CellTypeStats(cell_type=row.cell_type, count=row.count) for row in cell_results]
+        by_cell_type: dict[int, List[CellTypeStats]] = {species_id: [] for species_id in sorted_species_ids}
+        for row in db.execute(by_cell_stmt, params).fetchall():
+            species_id = int(row.species_id)
+            if top_n is not None and len(by_cell_type[species_id]) >= top_n:
+                continue
+            by_cell_type[species_id].append(
+                CellTypeStats(
+                    cell_type=row.cell_type,
+                    count=row.count,
+                )
+            )
 
-        return OverlapStatistics(
-            total_overlaps=result.total_overlaps,
-            unique_lncrnas=result.unique_lncrnas,
-            unique_target_genes=result.unique_target_genes,
-            unique_cell_types=result.unique_cell_types,
-            unique_marks=result.unique_marks,
-            avg_overlap_length=float(result.avg_overlap_length) if result.avg_overlap_length else 0.0,
-            avg_binding_affinity=float(result.avg_binding_affinity) if result.avg_binding_affinity else 0.0,
-            avg_peak_strength=float(result.avg_peak_strength) if result.avg_peak_strength else 0.0,
-            by_mark_type=by_mark_type,
-            by_cell_type=by_cell_type,
-            default_filter_applied=default_filter_applied,
-            effective_chromosome=effective_chromosome,
-        ).model_dump(mode="json")
+        results = dict(empty_map)
+        for species_id in sorted_species_ids:
+            row = stats_rows.get(species_id)
+            if row is None or row.total_overlaps == 0:
+                continue
+
+            results[species_id] = OverlapStatistics(
+                total_overlaps=row.total_overlaps,
+                unique_lncrnas=row.unique_lncrnas,
+                unique_target_genes=row.unique_target_genes,
+                unique_cell_types=row.unique_cell_types,
+                unique_marks=row.unique_marks,
+                avg_overlap_length=float(row.avg_overlap_length) if row.avg_overlap_length else 0.0,
+                avg_binding_affinity=float(row.avg_binding_affinity) if row.avg_binding_affinity else 0.0,
+                avg_peak_strength=float(row.avg_peak_strength) if row.avg_peak_strength else 0.0,
+                by_mark_type=by_mark_type.get(species_id, []),
+                by_cell_type=by_cell_type.get(species_id, []),
+                default_filter_applied=default_filter_applied,
+                effective_chromosome=effective_chromosome,
+            ).model_dump(mode="json")
+
+        return results
 
     except Exception as e:
         if _is_chipseq_overlap_schema_missing_error(e):
             logger.warning(
-                "ChIP-seq overlap tables are missing; returning empty overlap statistics (join query): %s",
+                "ChIP-seq overlap tables are missing; returning empty overlap statistics (batch query): %s",
                 sanitize_for_log(e, max_length=2000),
             )
-            empty = _empty_overlap_statistics(effective_chromosome=effective_chromosome)
-            empty["default_filter_applied"] = bool(default_filter_applied)
-            empty["effective_chromosome"] = effective_chromosome
-            return empty
+            return empty_map
         raise sanitize_db_error(e, logger)
+
+
+def _compute_overlap_statistics_impl(
+    *,
+    db: Session,
+    species_id: int,
+    lncrna_gene_id: Optional[int],
+    target_gene_id: Optional[int],
+    mark_type: Optional[str],
+    cell_type: Optional[str],
+    chromosome: Optional[str],
+    min_binding_affinity: Optional[float],
+    max_qvalue: Optional[float],
+    top_n: Optional[int],
+) -> dict:
+    """
+    物种可参数化的 overlap statistics 计算。
+
+    返回 dict（JSON-safe），便于跨物种 compare 汇总与缓存。
+    """
+    if lncrna_gene_id is None:
+        return _empty_overlap_statistics(effective_chromosome=chromosome)
+    result = _compute_overlap_statistics_batch_impl(
+        db=db,
+        species_gene_pairs={
+            int(species_id): {
+                "lncrna_gene_id": int(lncrna_gene_id),
+                "target_gene_id": int(target_gene_id) if target_gene_id is not None else None,
+            }
+        },
+        mark_type=mark_type,
+        cell_type=cell_type,
+        chromosome=chromosome,
+        min_binding_affinity=min_binding_affinity,
+        max_qvalue=max_qvalue,
+        top_n=top_n,
+    )
+    return result.get(int(species_id), _empty_overlap_statistics(effective_chromosome=chromosome))
+
+
+def _build_overlap_count_cache_kwargs(
+    filters: OverlapFilters,
+    *,
+    source: str,
+    mark_types_array: Optional[List[str]],
+    cell_types_array: Optional[List[str]],
+) -> dict:
+    return {
+        "source": source,
+        "lncrna_gene_id": filters.lncrna_gene_id,
+        "target_gene_id": filters.target_gene_id,
+        "chromosome": filters.chromosome,
+        "mark_types": sorted(set(mark_types_array)) if mark_types_array else None,
+        "cell_types": sorted(set(cell_types_array)) if cell_types_array else None,
+        "min_binding_affinity": filters.min_binding_affinity,
+        "min_peak_strength": filters.min_peak_strength,
+        "max_qvalue": filters.max_qvalue,
+        "min_overlap_length": filters.min_overlap_length,
+    }
+
+
+def _build_overlap_item(row) -> dict:
+    return {
+        "overlap_id": row.overlap_id,
+        "regulation_id": row.regulation_id,
+        "lncrna_gene_id": row.lncrna_gene_id,
+        "lncrna_name": row.lncrna_name,
+        "target_gene_id": row.target_gene_id,
+        "target_gene_name": row.target_gene_name,
+        "mark_type": row.mark_type,
+        "mark_category": row.mark_category,
+        "cell_type": row.cell_type,
+        "chromosome": row.chromosome,
+        "lncrna_binding_start": row.lncrna_binding_start,
+        "lncrna_binding_end": row.lncrna_binding_end,
+        "peak_start": row.peak_start,
+        "peak_end": row.peak_end,
+        "overlap_start": row.overlap_start,
+        "overlap_end": row.overlap_end,
+        "overlap_length": row.overlap_length,
+        "binding_affinity": row.binding_affinity,
+        "peak_fold_enrichment": row.peak_fold_enrichment,
+        "peak_qvalue": row.peak_qvalue,
+    }
+
+
+def _execute_overlap_paginated_query(
+    *,
+    db: Session,
+    count_stmt,
+    data_stmt,
+    params: dict,
+    filters: OverlapFilters,
+    source: str,
+    mark_types_array: Optional[List[str]],
+    cell_types_array: Optional[List[str]],
+) -> Tuple[List[dict], int]:
+    def compute_total() -> int:
+        count_result = db.execute(count_stmt, params).fetchone()
+        return int(count_result[0] if count_result else 0)
+
+    total = int(
+        cache.get_or_compute(
+            "overlap:list_count",
+            compute_total,
+            ttl=cache.TTL_COUNT,
+            **_build_overlap_count_cache_kwargs(
+                filters,
+                source=source,
+                mark_types_array=mark_types_array,
+                cell_types_array=cell_types_array,
+            ),
+        )
+        or 0
+    )
+    results = db.execute(data_stmt, params).fetchall()
+    return [_build_overlap_item(row) for row in results], total
 
 
 def get_lncrna_chipseq_overlaps_from_mv(
@@ -636,9 +801,6 @@ def get_lncrna_chipseq_overlaps_from_mv(
     # Parse comma-separated filters
     mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
     cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
-    # Cache key normalization: order does not matter for "= ANY(:array)" semantics.
-    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
-    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
     mv = table(
         MV_LNCRNA_CHIPSEQ_OVERLAPS,
@@ -736,60 +898,16 @@ def get_lncrna_chipseq_overlaps_from_mv(
     )
 
     try:
-        def compute_total() -> int:
-            count_result = db.execute(count_stmt, params).fetchone()
-            return int(count_result[0] if count_result else 0)
-
-        # Cache COUNT(*) separately (hot path for pagination) with singleflight stampede protection.
-        total = int(
-            cache.get_or_compute(
-                "overlap:list_count",
-                compute_total,
-                ttl=cache.TTL_COUNT,
-                source="mv",
-                lncrna_gene_id=filters.lncrna_gene_id,
-                target_gene_id=filters.target_gene_id,
-                chromosome=filters.chromosome,
-                mark_types=cache_mark_types,
-                cell_types=cache_cell_types,
-                min_binding_affinity=filters.min_binding_affinity,
-                min_peak_strength=filters.min_peak_strength,
-                max_qvalue=filters.max_qvalue,
-                min_overlap_length=filters.min_overlap_length,
-            )
-            or 0
+        return _execute_overlap_paginated_query(
+            db=db,
+            count_stmt=count_stmt,
+            data_stmt=data_stmt,
+            params=params,
+            filters=filters,
+            source="mv",
+            mark_types_array=mark_types_array,
+            cell_types_array=cell_types_array,
         )
-
-        # Get data
-        results = db.execute(data_stmt, params).fetchall()
-
-        # Convert to dictionary list
-        items = []
-        for row in results:
-            items.append({
-                "overlap_id": row.overlap_id,
-                "regulation_id": row.regulation_id,
-                "lncrna_gene_id": row.lncrna_gene_id,
-                "lncrna_name": row.lncrna_name,
-                "target_gene_id": row.target_gene_id,
-                "target_gene_name": row.target_gene_name,
-                "mark_type": row.mark_type,
-                "mark_category": row.mark_category,
-                "cell_type": row.cell_type,
-                "chromosome": row.chromosome,
-                "lncrna_binding_start": row.lncrna_binding_start,
-                "lncrna_binding_end": row.lncrna_binding_end,
-                "peak_start": row.peak_start,
-                "peak_end": row.peak_end,
-                "overlap_start": row.overlap_start,
-                "overlap_end": row.overlap_end,
-                "overlap_length": row.overlap_length,
-                "binding_affinity": row.binding_affinity,
-                "peak_fold_enrichment": row.peak_fold_enrichment,
-                "peak_qvalue": row.peak_qvalue
-            })
-
-        return items, total
 
     except Exception as e:
         # Allow MV-missing errors to propagate so the router can auto-fallback to join query.
@@ -817,8 +935,6 @@ def get_lncrna_chipseq_overlaps_cursor_from_mv(
     # Parse comma-separated filters
     mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
     cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
-    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
-    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
     mv = table(
         MV_LNCRNA_CHIPSEQ_OVERLAPS,
@@ -977,59 +1093,16 @@ def get_lncrna_chipseq_overlaps_cursor_from_mv(
     params["limit"] = page_size + 1
 
     try:
-
-        def compute_total() -> int:
-            count_result = db.execute(count_stmt, params).fetchone()
-            return int(count_result[0] if count_result else 0)
-
-        total = int(
-            cache.get_or_compute(
-                "overlap:list_count",
-                compute_total,
-                ttl=cache.TTL_COUNT,
-                source="mv",
-                lncrna_gene_id=filters.lncrna_gene_id,
-                target_gene_id=filters.target_gene_id,
-                chromosome=filters.chromosome,
-                mark_types=cache_mark_types,
-                cell_types=cache_cell_types,
-                min_binding_affinity=filters.min_binding_affinity,
-                min_peak_strength=filters.min_peak_strength,
-                max_qvalue=filters.max_qvalue,
-                min_overlap_length=filters.min_overlap_length,
-            )
-            or 0
+        return _execute_overlap_paginated_query(
+            db=db,
+            count_stmt=count_stmt,
+            data_stmt=data_stmt,
+            params=params,
+            filters=filters,
+            source="mv",
+            mark_types_array=mark_types_array,
+            cell_types_array=cell_types_array,
         )
-
-        results = db.execute(data_stmt, params).fetchall()
-        items: List[dict] = []
-        for row in results:
-            items.append(
-                {
-                    "overlap_id": row.overlap_id,
-                    "regulation_id": row.regulation_id,
-                    "lncrna_gene_id": row.lncrna_gene_id,
-                    "lncrna_name": row.lncrna_name,
-                    "target_gene_id": row.target_gene_id,
-                    "target_gene_name": row.target_gene_name,
-                    "mark_type": row.mark_type,
-                    "mark_category": row.mark_category,
-                    "cell_type": row.cell_type,
-                    "chromosome": row.chromosome,
-                    "lncrna_binding_start": row.lncrna_binding_start,
-                    "lncrna_binding_end": row.lncrna_binding_end,
-                    "peak_start": row.peak_start,
-                    "peak_end": row.peak_end,
-                    "overlap_start": row.overlap_start,
-                    "overlap_end": row.overlap_end,
-                    "overlap_length": row.overlap_length,
-                    "binding_affinity": row.binding_affinity,
-                    "peak_fold_enrichment": row.peak_fold_enrichment,
-                    "peak_qvalue": row.peak_qvalue,
-                }
-            )
-
-        return items, total
 
     except Exception as e:
         if is_mv_missing_error(e):
@@ -1055,9 +1128,6 @@ def get_lncrna_chipseq_overlaps_query(
     # Parse comma-separated filters
     mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
     cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
-    # Cache key normalization: order does not matter for "= ANY(:array)" semantics.
-    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
-    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
     p = table(
         "chipseq_peaks_human",
@@ -1173,60 +1243,16 @@ def get_lncrna_chipseq_overlaps_query(
     )
 
     try:
-        def compute_total() -> int:
-            count_result = db.execute(count_stmt, params).fetchone()
-            return int(count_result[0] if count_result else 0)
-
-        # Cache COUNT(*) separately (hot path for pagination) with singleflight stampede protection.
-        total = int(
-            cache.get_or_compute(
-                "overlap:list_count",
-                compute_total,
-                ttl=cache.TTL_COUNT,
-                source="join",
-                lncrna_gene_id=filters.lncrna_gene_id,
-                target_gene_id=filters.target_gene_id,
-                chromosome=filters.chromosome,
-                mark_types=cache_mark_types,
-                cell_types=cache_cell_types,
-                min_binding_affinity=filters.min_binding_affinity,
-                min_peak_strength=filters.min_peak_strength,
-                max_qvalue=filters.max_qvalue,
-                min_overlap_length=filters.min_overlap_length,
-            )
-            or 0
+        return _execute_overlap_paginated_query(
+            db=db,
+            count_stmt=count_stmt,
+            data_stmt=data_stmt,
+            params=params,
+            filters=filters,
+            source="join",
+            mark_types_array=mark_types_array,
+            cell_types_array=cell_types_array,
         )
-
-        # Get data
-        results = db.execute(data_stmt, params).fetchall()
-
-        # Convert to dictionary list
-        items = []
-        for row in results:
-            items.append({
-                "overlap_id": row.overlap_id,
-                "regulation_id": row.regulation_id,
-                "lncrna_gene_id": row.lncrna_gene_id,
-                "lncrna_name": row.lncrna_name,
-                "target_gene_id": row.target_gene_id,
-                "target_gene_name": row.target_gene_name,
-                "mark_type": row.mark_type,
-                "mark_category": row.mark_category,
-                "cell_type": row.cell_type,
-                "chromosome": row.chromosome,
-                "lncrna_binding_start": row.lncrna_binding_start,
-                "lncrna_binding_end": row.lncrna_binding_end,
-                "peak_start": row.peak_start,
-                "peak_end": row.peak_end,
-                "overlap_start": row.overlap_start,
-                "overlap_end": row.overlap_end,
-                "overlap_length": row.overlap_length,
-                "binding_affinity": row.binding_affinity,
-                "peak_fold_enrichment": row.peak_fold_enrichment,
-                "peak_qvalue": row.peak_qvalue
-            })
-
-        return items, total
 
     except Exception as e:
         if _is_chipseq_overlap_schema_missing_error(e):
@@ -1256,8 +1282,6 @@ def get_lncrna_chipseq_overlaps_cursor_query(
     """
     mark_types_array = _normalize_array_param(parse_comma_list(filters.mark_type, param_name="mark_type"))
     cell_types_array = _normalize_array_param(parse_comma_list(filters.cell_type, param_name="cell_type"))
-    cache_mark_types = sorted(set(mark_types_array)) if mark_types_array else None
-    cache_cell_types = sorted(set(cell_types_array)) if cell_types_array else None
 
     p = table(
         "chipseq_peaks_human",
@@ -1434,59 +1458,16 @@ def get_lncrna_chipseq_overlaps_cursor_query(
     params["limit"] = page_size + 1
 
     try:
-
-        def compute_total() -> int:
-            count_result = db.execute(count_stmt, params).fetchone()
-            return int(count_result[0] if count_result else 0)
-
-        total = int(
-            cache.get_or_compute(
-                "overlap:list_count",
-                compute_total,
-                ttl=cache.TTL_COUNT,
-                source="join",
-                lncrna_gene_id=filters.lncrna_gene_id,
-                target_gene_id=filters.target_gene_id,
-                chromosome=filters.chromosome,
-                mark_types=cache_mark_types,
-                cell_types=cache_cell_types,
-                min_binding_affinity=filters.min_binding_affinity,
-                min_peak_strength=filters.min_peak_strength,
-                max_qvalue=filters.max_qvalue,
-                min_overlap_length=filters.min_overlap_length,
-            )
-            or 0
+        return _execute_overlap_paginated_query(
+            db=db,
+            count_stmt=count_stmt,
+            data_stmt=data_stmt,
+            params=params,
+            filters=filters,
+            source="join",
+            mark_types_array=mark_types_array,
+            cell_types_array=cell_types_array,
         )
-
-        results = db.execute(data_stmt, params).fetchall()
-        items: List[dict] = []
-        for row in results:
-            items.append(
-                {
-                    "overlap_id": row.overlap_id,
-                    "regulation_id": row.regulation_id,
-                    "lncrna_gene_id": row.lncrna_gene_id,
-                    "lncrna_name": row.lncrna_name,
-                    "target_gene_id": row.target_gene_id,
-                    "target_gene_name": row.target_gene_name,
-                    "mark_type": row.mark_type,
-                    "mark_category": row.mark_category,
-                    "cell_type": row.cell_type,
-                    "chromosome": row.chromosome,
-                    "lncrna_binding_start": row.lncrna_binding_start,
-                    "lncrna_binding_end": row.lncrna_binding_end,
-                    "peak_start": row.peak_start,
-                    "peak_end": row.peak_end,
-                    "overlap_start": row.overlap_start,
-                    "overlap_end": row.overlap_end,
-                    "overlap_length": row.overlap_length,
-                    "binding_affinity": row.binding_affinity,
-                    "peak_fold_enrichment": row.peak_fold_enrichment,
-                    "peak_qvalue": row.peak_qvalue,
-                }
-            )
-
-        return items, total
 
     except Exception as e:
         if _is_chipseq_overlap_schema_missing_error(e):
@@ -2187,6 +2168,7 @@ def compare_species_overlaps(
 
     species_names = {str(sid): SPECIES_NAMES.get(sid, f"Unknown ({sid})") for sid in compare_species_ids}
     species_stats: dict[int, dict] = {}
+    species_gene_pairs: dict[int, dict[str, Optional[int]]] = {}
 
     for sid in compare_species_ids:
         sid_lncrna_gene_id = lncrna_map.get(sid)
@@ -2197,18 +2179,11 @@ def compare_species_overlaps(
         elif target_gene_id is not None and sid_target_gene_id is None:
             stats = _empty_overlap_statistics(effective_chromosome=chromosome)
         else:
-            stats = _compute_overlap_statistics_impl(
-                db=db,
-                species_id=sid,
-                lncrna_gene_id=sid_lncrna_gene_id,
-                target_gene_id=sid_target_gene_id,
-                mark_type=mark_type,
-                cell_type=cell_type,
-                chromosome=chromosome,
-                min_binding_affinity=min_binding_affinity,
-                max_qvalue=max_qvalue,
-                top_n=top_n,
-            )
+            species_gene_pairs[sid] = {
+                "lncrna_gene_id": sid_lncrna_gene_id,
+                "target_gene_id": sid_target_gene_id,
+            }
+            stats = None
 
         species_stats[sid] = {
             "species_id": sid,
@@ -2217,6 +2192,24 @@ def compare_species_overlaps(
             "target_gene_id": sid_target_gene_id,
             "statistics": stats,
         }
+
+    if species_gene_pairs:
+        batch_stats = _compute_overlap_statistics_batch_impl(
+            db=db,
+            species_gene_pairs=species_gene_pairs,
+            mark_type=mark_type,
+            cell_type=cell_type,
+            chromosome=chromosome,
+            min_binding_affinity=min_binding_affinity,
+            max_qvalue=max_qvalue,
+            top_n=top_n,
+        )
+        for sid, payload in species_stats.items():
+            if payload["statistics"] is None:
+                payload["statistics"] = batch_stats.get(
+                    sid,
+                    _empty_overlap_statistics(effective_chromosome=chromosome),
+                )
 
     result = {
         "lncrna_core_id": lncrna_core_id,

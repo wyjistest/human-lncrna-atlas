@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-03-25
+> 最后更新: 2026-03-26
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -43,6 +43,25 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-03-26 ⭐ overlap compare 批量化与 regulations 查询收敛
+
+1. **跨物种 overlap compare 改为批量统计**
+   - `GET /api/v1/lncrna-chipseq-overlap/compare` 不再按物种逐个调用统计 helper，而是先构建 `species_gene_pairs`，再通过单次 grouped stats/by_mark/by_cell 查询批量返回各物种统计。
+   - 单物种 `_compute_overlap_statistics_impl()` 现复用批量 helper，空结果、`default_filter_applied`、`effective_chromosome` 与 schema 缺失时的优雅降级语义保持不变。
+   - `species_ids` 现在不仅缩小返回集合，也直接缩小批量聚合范围，减少不必要的 compare 查询工作量。
+
+2. **overlap 列表 / cursor 路径内部去重**
+   - overlap 的 MV / fallback 列表与 cursor 分页路径现共享 count-cache 参数构造、分页查询执行与 row→item 映射逻辑。
+   - 外部 API 契约未变：响应 schema、count cache key 语义、MV 缺失自动 fallback 与大染色体保护策略均保持兼容。
+
+3. **`/api/v1/regulations` 过滤与计数逻辑收敛**
+   - `list_regulations()` 的数据查询与 count 查询现共用同一套过滤构建器，避免列表与总数在 species/chromosome/name/BA 条件上出现语义漂移。
+   - `get_gene_regulations()` 复用了统一分页响应构造逻辑，减少重复的响应组装代码。
+
+4. **定向验证已补齐**
+   - 单元测试：新增 / 更新 `frontend/backend/tests/test_overlap_compare_species_unit.py`、`frontend/backend/tests/test_regulations_list_unit.py`，覆盖 compare 批量 helper 接入与 regulations 统一过滤构建。
+   - 回归验证：`test_overlap_compare_cache_unit.py`、`test_overlap_cursor_pagination_unit.py`、`test_lncrna_chipseq_overlap_mv_fallback_unit.py`、`test_api_snapshot_overlap_compare_unit.py`、`test_security_input_validation.py -m unit`、`ruff check` 与 `scripts/baselines/run_overlap_perf_regression_docker.sh`（`MODE=check SOAK_RUNS=1 SOAK_MAX_FAILURES=0`）均已通过。
 
 ### 2026-03-25 ⭐ backlog 治理自动化与文档稳定入口
 

@@ -58,15 +58,19 @@ def test_overlap_compare_species_builds_per_species_stats_on_cache_miss(monkeypa
         raising=False,
     )
 
-    def fake_stats(**kwargs):  # noqa: ANN001 - test double
-        species_id = int(kwargs["species_id"])
-        if species_id == 1:
-            return _stats(10)
-        if species_id == 2:
-            return _stats(3)
-        return _stats(0)
+    def fake_batch_stats(**kwargs):  # noqa: ANN001 - test double
+        pairs = kwargs["species_gene_pairs"]
+        result = {}
+        for species_id in pairs:
+            if species_id == 1:
+                result[species_id] = _stats(10)
+            elif species_id == 2:
+                result[species_id] = _stats(3)
+            else:
+                result[species_id] = _stats(0)
+        return result
 
-    monkeypatch.setattr(overlap_router, "_compute_overlap_statistics_impl", fake_stats, raising=False)
+    monkeypatch.setattr(overlap_router, "_compute_overlap_statistics_batch_impl", fake_batch_stats, raising=False)
 
     func = _unwrap(overlap_router.compare_species_overlaps)
     result = func(
@@ -127,7 +131,12 @@ def test_overlap_compare_species_ids_filters_output(monkeypatch):
         lambda db, core_id: {1: 101, 3: 301},
         raising=False,
     )
-    monkeypatch.setattr(overlap_router, "_compute_overlap_statistics_impl", lambda **kwargs: _stats(1), raising=False)
+    monkeypatch.setattr(
+        overlap_router,
+        "_compute_overlap_statistics_batch_impl",
+        lambda **kwargs: {species_id: _stats(1) for species_id in kwargs["species_gene_pairs"]},
+        raising=False,
+    )
 
     func = _unwrap(overlap_router.compare_species_overlaps)
     result = func(
@@ -149,6 +158,83 @@ def test_overlap_compare_species_ids_filters_output(monkeypatch):
     assert calls["make_key"]["namespace"] == "overlap:compare"
     assert calls["make_key"]["kwargs"]["species_ids"] == "1,3"
 
+
+@pytest.mark.unit
+def test_overlap_compare_species_uses_batch_stats_builder(monkeypatch):
+    calls: dict[str, object] = {}
+    db_token = object()
+
+    monkeypatch.setattr(overlap_router.cache, "make_key", lambda *args, **kwargs: "dummy-key")
+    monkeypatch.setattr(overlap_router.cache, "get", lambda key: None)
+    monkeypatch.setattr(overlap_router.cache, "set", lambda *args, **kwargs: True)
+
+    def fake_get_gene(db, gene_id, label):  # noqa: ANN001 - test double
+        core_id = 11 if label == "LncRNA" else 22
+        return SimpleNamespace(gene_id=gene_id, core_id=core_id)
+
+    monkeypatch.setattr(overlap_router, "_get_gene_or_404", fake_get_gene, raising=False)
+
+    def fake_ortholog_map(db, core_id):  # noqa: ANN001 - test double
+        if core_id == 11:
+            return {1: 101, 3: 301}
+        if core_id == 22:
+            return {1: 501, 3: 701}
+        raise AssertionError(f"unexpected core_id: {core_id}")
+
+    monkeypatch.setattr(overlap_router, "_get_ortholog_gene_map", fake_ortholog_map, raising=False)
+
+    def fail_if_called(**kwargs):  # noqa: ANN001 - test double
+        raise AssertionError("compare route should use batch statistics helper")
+
+    monkeypatch.setattr(
+        overlap_router,
+        "_compute_overlap_statistics_impl",
+        fail_if_called,
+        raising=False,
+    )
+
+    def fake_batch_stats(**kwargs):  # noqa: ANN001 - test double
+        calls.update(kwargs)
+        return {
+            1: _stats(10),
+            3: _stats(4),
+        }
+
+    monkeypatch.setattr(
+        overlap_router,
+        "_compute_overlap_statistics_batch_impl",
+        fake_batch_stats,
+        raising=False,
+    )
+
+    func = _unwrap(overlap_router.compare_species_overlaps)
+    result = func(
+        request=None,
+        lncrna_gene_id=17276,
+        target_gene_id=24680,
+        mark_type="H3K27me3",
+        cell_type="K562",
+        chromosome="chr1",
+        min_binding_affinity=50.0,
+        max_qvalue=0.01,
+        top_n=5,
+        species_ids="1,3",
+        db=db_token,
+    )
+
+    assert calls["db"] is db_token
+    assert calls["species_gene_pairs"] == {
+        1: {"lncrna_gene_id": 101, "target_gene_id": 501},
+        3: {"lncrna_gene_id": 301, "target_gene_id": 701},
+    }
+    assert calls["mark_type"] == "H3K27me3"
+    assert calls["cell_type"] == "K562"
+    assert calls["chromosome"] == "chr1"
+    assert calls["min_binding_affinity"] == 50.0
+    assert calls["max_qvalue"] == 0.01
+    assert calls["top_n"] == 5
+    assert result["species_stats"][1]["statistics"]["total_overlaps"] == 10
+    assert result["species_stats"][3]["statistics"]["total_overlaps"] == 4
 
 class _MissingSchemaSession:
     def execute(self, stmt, params=None):  # noqa: ANN001
