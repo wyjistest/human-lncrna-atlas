@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-03-25
+> 最后更新: 2026-03-26
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -43,6 +43,19 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-03-26 ⭐ 本地 CI 入口止血与工作区纪律
+
+1. **`run-tests` 依赖同步改为 fail-fast**
+   - `scripts/run-tests.sh` 在自动依赖同步阶段若遇到前端 `npm ci` 或后端 `pip install` 失败，会立即返回非 0，不再继续执行后续 lint / unit / build 阶段
+   - 新增脚本级回归测试覆盖“依赖漂移 + 安装失败”场景，避免再次出现“依赖安装已失败但脚本仍显示后续阶段通过”的假阳性
+
+2. **开发入口补充 worktree 使用规则**
+   - `docs/README.md` 与 `README.md` 现明确建议：根工作区保持干净并跟进 `origin/main`，依赖升级 / PR 验证 / 高风险修复统一放入 `.worktrees/<topic>`
+   - 目标是降低临时评估分支、生成产物漂移和未提交状态长期滞留在根工作区的风险
+
+3. **feature/worktree 分支 CI 核验路径写清楚**
+   - 由于 `Tests` / `Security Audit` 默认只对 `main` 分支 `push` 自动触发，这类隔离分支在 push 后需要用 `workflow_dispatch` 手动核验，避免误把“未触发”当成“已通过”
 
 ### 2026-03-25 ⭐ backlog 治理自动化与文档稳定入口
 

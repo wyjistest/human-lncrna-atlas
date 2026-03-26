@@ -226,6 +226,8 @@ These match the checks in `.github/workflows/test.yml`.
 # One-shot (mirrors CI core checks, excluding secret scan / security-audit)
 ./scripts/run-tests.sh ci
 # Note: does NOT require PostgreSQL/Redis (unit tests + import/syntax checks only).
+# Note: auto dependency sync is fail-fast. If the script's implicit `npm ci` / `pip install`
+#       step fails, run-tests exits non-zero immediately instead of continuing to later stages.
 # Note: if you use a backend venv at `frontend/backend/.venv` or `frontend/backend/venv`,
 #       the script will auto-run `pip install -r requirements-dev.txt -c constraints.txt`
 #       when those files drift (e.g. after `git pull` dependency updates).
@@ -263,9 +265,18 @@ Optional (recommended before push): install a local pre-push hook that runs the 
 bash scripts/install_git_hooks.sh
 ```
 
+For dependency upgrades, PR evaluation, or any change likely to leave temporary state behind, prefer a dedicated git worktree and keep the repository root clean on `main`:
+
+```bash
+git fetch origin
+git worktree add ".worktrees/<topic>" -b "<branch>" origin/main
+```
+
 Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run a lighter gate, use `LOCAL_CI_TARGET=smoke git push`. To include Playwright smoke, use `LOCAL_CI_TARGET=ci-plus git push` (or `ci-full` for the strictest gate).
 
 GitHub Actions CI 默认对 `main` 分支 `push` 自动触发（`Tests`），`Security Audit` 会在依赖清单变化时自动触发；也支持 `workflow_dispatch` 手动触发。
+
+如果你是在 `.worktrees/<topic>` 或普通 feature branch 上做依赖升级 / PR 验证 / 高风险修复，push 分支本身不会自动触发这些 main-only workflow；请在推送后手动运行 `gh workflow run test.yml --ref <branch>`，若依赖清单有变化，再补跑 `gh workflow run security-audit.yml --ref <branch>`。
 
 出于安全考虑，PR CI（`pull_request`）默认不启用（避免在 self-hosted runner 上执行不受信任代码）。
 

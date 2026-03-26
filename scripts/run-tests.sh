@@ -395,7 +395,10 @@ ensure_frontend_deps() {
     # 仅在 node_modules 缺失或检测到锁文件漂移时自动安装，避免每次都重装依赖导致本地过慢。
     if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
         echo -e "${YELLOW}前端依赖未安装，执行 npm ci...${NC}"
-        (cd "$FRONTEND_DIR" && npm ci)
+        if ! (cd "$FRONTEND_DIR" && npm ci); then
+            echo -e "${RED}前端依赖安装失败（npm ci）${NC}"
+            return 1
+        fi
         return 0
     fi
 
@@ -404,13 +407,19 @@ ensure_frontend_deps() {
     local installed_lock="$FRONTEND_DIR/node_modules/.package-lock.json"
     if [ ! -f "$installed_lock" ]; then
         echo -e "${YELLOW}未找到 ${installed_lock}，执行 npm ci...${NC}"
-        (cd "$FRONTEND_DIR" && npm ci)
+        if ! (cd "$FRONTEND_DIR" && npm ci); then
+            echo -e "${RED}前端依赖安装失败（npm ci）${NC}"
+            return 1
+        fi
         return 0
     fi
 
     if [ "$FRONTEND_DIR/package-lock.json" -nt "$installed_lock" ]; then
         echo -e "${YELLOW}检测到前端依赖可能已漂移（package-lock.json 更新），执行 npm ci...${NC}"
-        (cd "$FRONTEND_DIR" && npm ci)
+        if ! (cd "$FRONTEND_DIR" && npm ci); then
+            echo -e "${RED}前端依赖安装失败（npm ci）${NC}"
+            return 1
+        fi
         return 0
     fi
 
@@ -549,7 +558,10 @@ ensure_backend_deps() {
     cd "$BACKEND_DIR"
 
     # 仅在漂移时同步依赖，避免每次 pre-push 都重装导致本地过慢。
-    "$python_bin" -m pip install -r requirements-dev.txt -c constraints.txt
+    if ! "$python_bin" -m pip install -r requirements-dev.txt -c constraints.txt; then
+        echo -e "${RED}后端依赖安装失败（pip install）${NC}"
+        return 1
+    fi
     printf "%s\n" "$current_hash" > "$stamp_file"
     return 0
 }
@@ -817,6 +829,7 @@ run_scripts_unit_tests() {
 
     local tests=(
         "scripts/tests/test_run_tests_frontend_deps.sh"
+        "scripts/tests/test_run_tests_frontend_deps_install_failure.sh"
         "scripts/tests/test_frontend_entry_bundle_budget.sh"
         "scripts/tests/test_frontend_bundle_size_report.sh"
         "scripts/tests/test_frontend_bundle_size_snapshot_json.sh"
@@ -826,6 +839,7 @@ run_scripts_unit_tests() {
         "scripts/tests/test_aggregate_performance_metrics_median.sh"
         "scripts/tests/test_perf_report_scenario_drift.sh"
         "scripts/tests/test_run_tests_backend_deps.sh"
+        "scripts/tests/test_run_tests_backend_deps_install_failure.sh"
         "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
         "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
         "scripts/tests/test_run_tests_ci_summary.sh"
