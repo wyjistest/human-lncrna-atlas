@@ -106,6 +106,8 @@ python3 scripts/verify_baselines.py --mode local
 bash scripts/run-tests.sh ci-postgres
 ```
 
+The snapshot normalizes volatile fields such as `generated_at`, `git_sha`, `base_url`, and ChIP-seq experiment `created_at`, so timezone differences between local machines and GitHub runners do not cause false-positive baseline diffs.
+
 如果是 GitHub 上的 `Self-hosted Fast CI` 失败，建议按这个顺序排查：
 
 1. 先看 run 页面的 `Summary` 顶部 overview，确认 `first_failed_stage`

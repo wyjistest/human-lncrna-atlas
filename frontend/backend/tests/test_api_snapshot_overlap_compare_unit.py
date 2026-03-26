@@ -202,3 +202,113 @@ def test_api_snapshot_includes_overlap_compare_endpoints(monkeypatch):
     assert summaries["overlap_compare_species_ids"] == ["1"]
     assert summaries["overlap_compare_subset_species_count"] == 1
     assert summaries["overlap_compare_subset_species_ids"] == ["1"]
+
+
+@pytest.mark.unit
+def test_api_snapshot_normalizes_chipseq_experiment_created_at(monkeypatch):
+    api_snapshot = _load_api_snapshot_module()
+
+    def ok(payload):
+        digest = api_snapshot._sha256_hex(api_snapshot._stable_json_bytes(payload))
+        return api_snapshot.EndpointResult(status_code=200, json=payload, sha256=digest, error=None)
+
+    def http_get_json(url: str, *, timeout_seconds: float):
+        parsed = urlparse(url)
+        path = parsed.path
+
+        if path == "/health":
+            return ok({"status": "ok", "db_name": "temp_baseline_db"})
+        if path == "/api/v1/stats/overview":
+            return ok({"status": "ok"})
+        if path == "/api/v1/genes":
+            return ok({"total": 1, "items": [{"gene_id": 1}]})
+        if path == "/api/v1/genes/options":
+            return ok({"genes": []})
+        if path.startswith("/api/v1/genes/"):
+            return ok({"gene_id": 1, "core_id": 1})
+        if path == "/api/v1/regulations":
+            return ok({"total": 1, "items": [{"regulation_id": 1}]})
+        if path.startswith("/api/v1/regulations/"):
+            return ok({"regulation_id": 1})
+        if path == "/api/v1/regulations/lncrna-options":
+            return ok({"lncrnas": []})
+        if path == "/api/v1/regulations/target-options":
+            return ok({"targets": []})
+        if path == "/api/v1/diseases/options":
+            return ok({"traits": []})
+        if path.startswith("/api/v1/stats/top-genes"):
+            return ok({"items": []})
+        if path.startswith("/api/v1/stats/top-diseases"):
+            return ok({"items": []})
+        if path == "/api/v1/analysis/summary":
+            return ok({"status": "ok"})
+        if path == "/api/v1/network/available-combinations":
+            return ok({"combinations": []})
+        if path.startswith("/api/v1/network/gene/") and path.endswith("/detail"):
+            return ok({"gene_id": 1, "nodes": [], "edges": []})
+        if path == "/api/v1/visualization/sankey-data":
+            return ok({"nodes": [], "links": []})
+        if path == "/api/v1/visualization/chord-data":
+            return ok({"nodes": [], "links": []})
+        if path == "/api/v1/features/chipseq/marks":
+            return ok({"items": []})
+        if path == "/api/v1/features/chipseq/marks/relationships":
+            return ok({"items": []})
+        if path == "/api/v1/features/chipseq/marks/1":
+            return ok({"items": []})
+        if path == "/api/v1/features/chipseq/stats":
+            return ok({"status": "ok"})
+        if path == "/api/v1/features/chipseq/experiments":
+            return ok(
+                {
+                    "total": 1,
+                    "items": [
+                        {
+                            "experiment_id": 1,
+                            "created_at": "1970-01-01T08:00:00+08:00",
+                        }
+                    ],
+                    "page": 1,
+                    "page_size": 1,
+                }
+            )
+        if path == "/api/v1/features/chipseq/experiments/1":
+            return ok(
+                {
+                    "experiment_id": 1,
+                    "created_at": "1970-01-01T08:00:00+08:00",
+                }
+            )
+        if path.startswith("/api/v1/features/chipseq/regions/"):
+            return ok({"items": [], "total": 0})
+        if path.startswith("/api/v1/igv/chipseq/marks/"):
+            return ok({"items": []})
+        if path == "/api/v1/lncrna-chipseq-overlap":
+            return ok({"items": [], "total": 0})
+        if path == "/api/v1/lncrna-chipseq-overlap/cursor":
+            return ok({"items": [], "total": 0})
+        if path == "/api/v1/lncrna-chipseq-overlap/statistics":
+            return ok({"total_overlaps": 0})
+        if path == "/api/v1/export/regulations":
+            return ok({"total": 0, "items": []})
+        if path == "/api/v1/conservation/regulations":
+            return ok({"total": 0, "items": []})
+        if path == "/api/v1/export/high-affinity":
+            return ok({"total": 0, "items": []})
+        if path == "/api/v1/export/conservation":
+            return ok({"total": 0, "items": []})
+        if path == "/api/v1/export/disease-network":
+            return ok({"nodes": [], "edges": []})
+        if path == "/api/v1/lncrna-chipseq-overlap/compare":
+            return ok({"species_stats": {}, "species_names": {}, "lncrna_core_id": 1, "target_core_id": None})
+        raise AssertionError(f"Unexpected URL in api_snapshot: {url}")
+
+    monkeypatch.setattr(api_snapshot, "_http_get_json", http_get_json)
+
+    snap = api_snapshot._snapshot("http://example.test", timeout_seconds=0.1)
+    endpoints = snap["endpoints"]
+
+    assert endpoints["chipseq_experiments_page_1_species_1_page_size_1"]["json"]["items"][0]["created_at"] == (
+        "1970-01-01T00:00:00Z"
+    )
+    assert endpoints["chipseq_experiment_detail_first"]["json"]["created_at"] == "1970-01-01T00:00:00Z"
