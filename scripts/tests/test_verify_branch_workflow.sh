@@ -56,6 +56,7 @@ log_path="${VERIFY_BRANCH_TEST_LOG:?}"
 real_git="${VERIFY_BRANCH_REAL_GIT:?}"
 
 printf 'git' >> "$log_path"
+printf ' [SKIP_LOCAL_CI=%s]' "${SKIP_LOCAL_CI:-}" >> "$log_path"
 for arg in "$@"; do
   printf ' [%s]' "$arg" >> "$log_path"
 done
@@ -200,6 +201,11 @@ grep -F "run-tests [ci]" "$log_path" >/dev/null || {
 
 grep -E "git .*\\[push\\] \\[origin\\] \\[feature/verify\\]" "$log_path" >/dev/null || {
   echo "expected target branch to be pushed to origin" >&2
+  exit 1
+}
+
+grep -E "git \\[SKIP_LOCAL_CI=1\\].*\\[push\\] \\[origin\\] \\[feature/verify\\]" "$log_path" >/dev/null || {
+  echo "expected verify_branch push to bypass duplicate pre-push local CI" >&2
   exit 1
 }
 

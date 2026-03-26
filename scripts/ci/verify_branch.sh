@@ -185,7 +185,9 @@ run_local_gate() {
 push_branch() {
   local branch="$1"
   log "推送分支到 origin/$branch"
-  if ! git -C "$REPO_ROOT" push origin "$branch"; then
+  # verify_branch 已在 push 前显式跑过本地门禁；这里透传 SKIP_LOCAL_CI=1，
+  # 避免 pre-push hook 再重复执行一次 scripts/run-tests.sh。
+  if ! env SKIP_LOCAL_CI=1 git -C "$REPO_ROOT" push origin "$branch"; then
     echo "[verify-branch] git push 失败：origin/$branch" >&2
     echo "[verify-branch] 可重试：bash scripts/ci/git_with_proxy.sh push origin \"$branch\"" >&2
     echo "[verify-branch] 若仍失败，可按需使用 scripts/gh_push_commit.py 作为 GitHub API 止损路径（本脚本不会自动切换）。" >&2

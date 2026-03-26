@@ -166,7 +166,7 @@ bash scripts/ci/verify_branch.sh --pr <PR_NUMBER> --runs-on self-hosted
 默认行为：
 - 先校验工作区干净（tracked 改动会直接失败）
 - 先跑本地 `bash scripts/run-tests.sh ci`
-- 再 `git push origin <branch>`
+- 再 `git push origin <branch>`（脚本内部会自动透传 `SKIP_LOCAL_CI=1`，避免 pre-push hook 重复跑本地 CI）
 - 然后手动触发 `Tests`
 - 若相对 `origin/main` 检测到依赖清单或 `.github/workflows/security-audit.yml` 变更，则自动补跑 `Security Audit`
 

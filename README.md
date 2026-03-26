@@ -272,7 +272,7 @@ git fetch origin
 git worktree add ".worktrees/<topic>" -b "<branch>" origin/main
 ```
 
-Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run a lighter gate, use `LOCAL_CI_TARGET=smoke git push`. To include Playwright smoke, use `LOCAL_CI_TARGET=ci-plus git push` (or `ci-full` for the strictest gate).
+Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run a lighter gate, use `LOCAL_CI_TARGET=smoke git push`. To include Playwright smoke, use `LOCAL_CI_TARGET=ci-plus git push` (or `ci-full` for the strictest gate).这些开关主要用于手工 `git push`；`verify_branch.sh` 在自身已跑过本地门禁后，会在内部 push 时自动透传 `SKIP_LOCAL_CI=1`，避免重复执行 pre-push 本地 CI。
 
 GitHub Actions CI 默认对 `main` 分支 `push` 自动触发（`Tests`），`Security Audit` 会在依赖清单变化时自动触发；也支持 `workflow_dispatch` 手动触发。
 
@@ -287,7 +287,7 @@ gh pr checkout <PR_NUMBER>
 bash scripts/ci/verify_branch.sh --pr <PR_NUMBER>
 ```
 
-该脚本会默认串联本地 `bash scripts/run-tests.sh ci`、`git push origin <branch>`、`Tests` workflow_dispatch，并在依赖清单或 `.github/workflows/security-audit.yml` 发生变化时自动补跑 `Security Audit`。如需覆盖 runner，可追加 `--runs-on self-hosted`；若只想复用远端 workflow_dispatch，可按需使用 `--skip-local` / `--skip-push`。
+该脚本会默认串联本地 `bash scripts/run-tests.sh ci`、`git push origin <branch>`、`Tests` workflow_dispatch，并在依赖清单或 `.github/workflows/security-audit.yml` 发生变化时自动补跑 `Security Audit`。其中内部 `git push` 会自动透传 `SKIP_LOCAL_CI=1`，避免与前面这次本地门禁重复。若需覆盖 runner，可追加 `--runs-on self-hosted`；若只想复用远端 workflow_dispatch，可按需使用 `--skip-local` / `--skip-push`。
 
 出于安全考虑，PR CI（`pull_request`）默认不启用（避免在 self-hosted runner 上执行不受信任代码）。
 
