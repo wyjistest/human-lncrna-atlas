@@ -28,7 +28,7 @@ git worktree add ".worktrees/<topic>" -b "<branch>" origin/main
 
 - 统一入口脚本：`scripts/run-tests.sh`
 - 若脚本在自动依赖同步阶段遇到 `npm ci` / `pip install` 失败，会立即返回非 0；不要再把后续 lint/test/build 输出视为有效结果。
-- `Tests` / `Security Audit` 默认只对 `main` 分支 `push` 自动触发；若你在 `.worktrees/<topic>` 或普通 feature branch 上验证改动，请在 push 后用 `workflow_dispatch` 手动触发对应 workflow。
+- `Tests` / `Security Audit` 默认只对 `main` 分支 `push` 自动触发；若你在 `.worktrees/<topic>` 或普通 feature branch 上验证改动，优先使用 `bash scripts/ci/verify_branch.sh --branch "<branch>"`（PR 可在 `gh pr checkout <PR_NUMBER>` 后使用 `--pr <PR_NUMBER>`）。
 - 文档检查：`bash scripts/run-tests.sh docs-check`
 - backlog 同步 dry-run：`python3 scripts/governance/sync_backlog_issues.py --repo "wyjistest/human-lncrna-atlas" --dry-run`
 - 前端首屏 bundle / modulepreload 回归锚点：`docs/testing/frontend/FRONTEND_BUNDLE_REGRESSION.md`

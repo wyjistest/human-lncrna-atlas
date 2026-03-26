@@ -276,11 +276,22 @@ Skip once with `git push --no-verify`, or set `SKIP_LOCAL_CI=1 git push`. To run
 
 GitHub Actions CI 默认对 `main` 分支 `push` 自动触发（`Tests`），`Security Audit` 会在依赖清单变化时自动触发；也支持 `workflow_dispatch` 手动触发。
 
-如果你是在 `.worktrees/<topic>` 或普通 feature branch 上做依赖升级 / PR 验证 / 高风险修复，push 分支本身不会自动触发这些 main-only workflow；请在推送后手动运行 `gh workflow run test.yml --ref <branch>`，若依赖清单有变化，再补跑 `gh workflow run security-audit.yml --ref <branch>`。
+如果你是在 `.worktrees/<topic>` 或普通 feature branch 上做依赖升级 / PR 验证 / 高风险修复，push 分支本身不会自动触发这些 main-only workflow；推荐直接使用统一入口：
+
+```bash
+# 当前分支 / 显式分支
+bash scripts/ci/verify_branch.sh --branch "<branch>"
+
+# PR 分支（建议先 checkout；脚本会解析同仓库 PR 的 head branch）
+gh pr checkout <PR_NUMBER>
+bash scripts/ci/verify_branch.sh --pr <PR_NUMBER>
+```
+
+该脚本会默认串联本地 `bash scripts/run-tests.sh ci`、`git push origin <branch>`、`Tests` workflow_dispatch，并在依赖清单或 `.github/workflows/security-audit.yml` 发生变化时自动补跑 `Security Audit`。如需覆盖 runner，可追加 `--runs-on self-hosted`；若只想复用远端 workflow_dispatch，可按需使用 `--skip-local` / `--skip-push`。
 
 出于安全考虑，PR CI（`pull_request`）默认不启用（避免在 self-hosted runner 上执行不受信任代码）。
 
-If you trigger a workflow run manually, you can check the latest run with:
+If you trigger a workflow run manually outside `verify_branch.sh`, you can check the latest run with:
 
 ```bash
 gh run list --limit 1

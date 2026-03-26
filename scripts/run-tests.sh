@@ -852,6 +852,8 @@ run_scripts_unit_tests() {
         "scripts/tests/test_check_governance_entrypoints.sh"
         "scripts/tests/test_governance_sync_workflow_runs_on.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
+        "scripts/tests/test_verify_branch_workflow.sh"
+        "scripts/tests/test_verify_branch_workflow_security_audit_auto.sh"
         "scripts/tests/test_sync_backlog_issues.sh"
         "scripts/tests/test_run_tests_usage_includes_frontend_baselines.sh"
         "scripts/tests/test_run_tests_usage_includes_research_baselines.sh"

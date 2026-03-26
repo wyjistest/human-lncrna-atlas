@@ -151,6 +151,31 @@ run_id="$(gh run list --branch main --workflow Tests --limit 1 --json databaseId
 gh run watch "$run_id" --exit-status
 ```
 
+补充：上面这些命令主要用于 `main` 分支的“手动全量回归”或需要显式传入 `api_base_url` / `enable_e2e_tests` / `enable_performance_audit` 的场景。
+如果你是在 feature branch / `.worktrees/<topic>` / 同仓库 PR 上做“合并前验证”，优先使用统一入口：
+
+```bash
+# 当前分支 / 显式分支
+bash scripts/ci/verify_branch.sh --branch "<branch>" --runs-on self-hosted
+
+# PR 分支（建议先 checkout；脚本会解析同仓库 PR 的 head branch）
+gh pr checkout <PR_NUMBER>
+bash scripts/ci/verify_branch.sh --pr <PR_NUMBER> --runs-on self-hosted
+```
+
+默认行为：
+- 先校验工作区干净（tracked 改动会直接失败）
+- 先跑本地 `bash scripts/run-tests.sh ci`
+- 再 `git push origin <branch>`
+- 然后手动触发 `Tests`
+- 若相对 `origin/main` 检测到依赖清单或 `.github/workflows/security-audit.yml` 变更，则自动补跑 `Security Audit`
+
+常用选项：
+- `--security-audit always|never|auto`：默认 `auto`
+- `--skip-local`：跳过本地 `run-tests.sh`
+- `--skip-push`：跳过 `git push`，适合远端分支已存在时复用 `workflow_dispatch`
+- `--local-target ci-plus` / `ci-full`：需要更重的本地门禁时可切换
+
 ### 4.3) 每周自动全量回归（schedule + 开关）
 
 除上面的 `Tests` workflow 外，本仓库还提供一个“每周自动全量回归”workflow：
@@ -242,14 +267,14 @@ gh run watch "$run_id" --exit-status
 
 ```bash
 gh pr checkout <PR_NUMBER>
-bash scripts/run-tests.sh ci
+bash scripts/ci/verify_branch.sh --pr <PR_NUMBER>
 gh pr merge <PR_NUMBER> --squash --delete-branch
 ```
 
-如你确实需要“合并前验证”，可以手动对 PR 分支触发一次 `workflow_dispatch`：
+如你确实需要“合并前验证”但暂时不想跑本地门禁，也可以只复用远端 `workflow_dispatch`：
 
 ```bash
-gh workflow run Tests --ref "<PR_BRANCH>"
+bash scripts/ci/verify_branch.sh --pr <PR_NUMBER> --skip-local
 ```
 
 ### 6) 常见排障：Actions 下载失败（SSL / Proxy）
@@ -355,6 +380,7 @@ python3 scripts/gh_push_commit.py --branch main --range "HEAD~3..HEAD"
 说明：
 - 该脚本会把“本地 commit 引入的文件变更”重放到远端分支 HEAD 上，并创建一个新的远端 commit（SHA 与本地不相同，这是预期行为）。
 - 默认带“远端覆盖护栏”：若远端同一路径在你本地父提交之后已发生变更，会中止推送，避免误覆盖。
+- `scripts/ci/verify_branch.sh` 在普通 `git push` 失败时，也会先提示尝试 `bash scripts/ci/git_with_proxy.sh push origin "<branch>"`；必要时再使用本节的 GitHub API 止损路径。
 
 ---
 
