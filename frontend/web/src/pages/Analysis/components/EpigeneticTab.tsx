@@ -21,7 +21,7 @@ import { getChartToolbox } from '@/utils/chart-export'
 import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { ChIPSeqOverlapRecord } from '@/api/analysis'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 const HISTONE_MARKS = [
   { value: 'H3K4me1', label: 'H3K4me1', color: '#1890ff', type: 'active' },
@@ -37,6 +37,7 @@ const ALLOWED_MARK_VALUES = new Set(ALL_HISTONE_MARK_VALUES)
 
 const DEFAULT_PAGE = 1
 const MAX_PAGE = 1_000_000
+const DEFAULT_OVERLAP_MIN_BINDING_AFFINITY = 100
 
 function parseIntParam(value: string | null, min: number, max: number): number | undefined {
   if (!value) return undefined
@@ -148,6 +149,22 @@ export default function EpigeneticTab() {
       dataIndex: 'target_name',
       key: 'target_name',
       width: 120,
+      render: (_targetName: string, record: ChIPSeqOverlapRecord) => {
+        const href =
+          `/lncrna-chipseq-overlap?lncrna_gene_id=${record.lncrna_gene_id}` +
+          `&target_gene_id=${record.target_gene_id}` +
+          `&mark_type=${encodeURIComponent(record.mark_name)}` +
+          `&min_binding_affinity=${DEFAULT_OVERLAP_MIN_BINDING_AFFINITY}`
+
+        return (
+          <Link
+            data-testid={`analysis-epigenetic-overlap-${record.lncrna_gene_id}-${record.target_gene_id}-${record.mark_name}`}
+            to={href}
+          >
+            {record.target_name || `Gene ${record.target_gene_id}`}
+          </Link>
+        )
+      },
     },
     {
       title: t('epigenetic.table.mark'),

@@ -15,6 +15,42 @@ GET /api/v1/analysis/summary
 
 ---
 
+## Shareable URLs and Drill-down
+
+`/analysis` 页面现在支持把关键状态编码进 URL，便于分享和复现：
+
+- `tab=highAffinity|conservation|epigenetic|disease`
+- `min_ba` / `species_id`（High Affinity）
+- `mark_names`（Epigenetic，可重复 query param）
+- `trait_name`（Disease）
+
+示例：
+
+```text
+/analysis?tab=highAffinity&min_ba=150&species_id=2
+/analysis?tab=epigenetic&mark_names=H3K27me3&mark_names=H3K4me3
+/analysis?tab=disease&trait_name=diabetes
+```
+
+Analysis 表格中的 drill-down link 会把行级 metadata 带到下游页面：
+
+- High Affinity → `/regulations?lncrna_gene_id=<id>&target_gene_id=<id>&min_ba=<current>`
+- Epigenetic → `/lncrna-chipseq-overlap?lncrna_gene_id=<id>&target_gene_id=<id>&mark_type=<mark>&min_binding_affinity=100`
+- Disease node → `/network?species_ids=<species_id>&trait_id=<trait_id>&ontology_id=<ontology_id>&min_ba=0`
+
+对应导出接口也已经暴露这些导航字段，前端类型以 `frontend/web/src/api/analysis.ts` 为准：
+
+- `/api/v1/export/chipseq-overlaps`：包含 `lncrna_gene_id`、`target_gene_id`
+- `/api/v1/export/disease-network`：节点包含 `gene_id`、`trait_id`、`ontology_id`、`species_id`
+
+`/network` 页面在 URL 提供完整参数时会自动发起查询：
+
+```text
+/network?species_ids=1,3&trait_id=40&ontology_id=46&min_ba=25
+```
+
+---
+
 ## TypeScript Types
 
 ```typescript

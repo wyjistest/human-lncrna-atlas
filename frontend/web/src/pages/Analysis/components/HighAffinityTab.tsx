@@ -23,7 +23,7 @@ import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { HighAffinityRecord } from '@/api/analysis'
 import type { TooltipFormatterParams } from '@/types/echarts'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 const DEFAULT_PAGE = 1
 const MAX_PAGE = 1_000_000
@@ -179,6 +179,17 @@ export default function HighAffinityTab() {
       dataIndex: 'target_name',
       key: 'target_name',
       width: 150,
+      render: (_targetName: string, record: HighAffinityRecord) => {
+        const href = `/regulations?lncrna_gene_id=${record.lncrna_gene_id}&target_gene_id=${record.target_gene_id}&min_ba=${minBa}`
+        return (
+          <Link
+            data-testid={`analysis-high-affinity-regulations-${record.lncrna_gene_id}-${record.target_gene_id}`}
+            to={href}
+          >
+            {record.target_name || `Gene ${record.target_gene_id}`}
+          </Link>
+        )
+      },
     },
     {
       title: t('highAffinity.table.ba'),

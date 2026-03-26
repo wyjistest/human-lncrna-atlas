@@ -66,7 +66,9 @@ export interface ConservationRecord {
 
 export interface ChIPSeqOverlapRecord {
   regulation_id: number
+  lncrna_gene_id: number
   lncrna_name: string
+  target_gene_id: number
   target_name: string
   binding_affinity: number
   mark_name: string
@@ -81,6 +83,10 @@ export interface DiseaseNetworkNode {
   id: string
   type: 'disease' | 'gene' | 'lncrna'
   name: string
+  gene_id?: number
+  trait_id?: number
+  ontology_id?: number
+  species_id?: number
 }
 
 export interface DiseaseNetworkEdge {

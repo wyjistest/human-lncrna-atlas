@@ -21,7 +21,7 @@ import { getChartToolbox } from '@/utils/chart-export'
 import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { DiseaseNetworkNode, DiseaseNetworkEdge } from '@/api/analysis'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 export default function DiseaseTab() {
   const { t } = useTranslation('analysis')
@@ -174,6 +174,29 @@ export default function DiseaseTab() {
       key: 'name',
       width: 200,
       ellipsis: true,
+      render: (_name: string, record: DiseaseNetworkNode) => {
+        const canNavigateToNetwork =
+          record.type === 'disease' &&
+          record.trait_id !== undefined &&
+          record.ontology_id !== undefined &&
+          record.species_id !== undefined
+
+        if (!canNavigateToNetwork) {
+          return record.name
+        }
+
+        const href =
+          `/network?species_ids=${record.species_id}` +
+          `&trait_id=${record.trait_id}` +
+          `&ontology_id=${record.ontology_id}` +
+          '&min_ba=0'
+
+        return (
+          <Link data-testid={`analysis-disease-network-${record.id}`} to={href}>
+            {record.name}
+          </Link>
+        )
+      },
     },
     {
       title: 'Type',

@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import threading
+import importlib.util
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,9 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
             parsed = urlparse(self.path)
 
             if parsed.path == "/api/v1/genes":
+                hit_counts = state.setdefault("request_hits", {})
+                if isinstance(hit_counts, dict):
+                    hit_counts["/api/v1/genes"] = int(hit_counts.get("/api/v1/genes", 0)) + 1
                 qs = parse_qs(parsed.query)
                 if "page" not in qs or "page_size" not in qs:
                     self.send_response(400)
@@ -38,6 +42,9 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
                 return
 
             if parsed.path == "/api/v1/regulations":
+                hit_counts = state.setdefault("request_hits", {})
+                if isinstance(hit_counts, dict):
+                    hit_counts["/api/v1/regulations"] = int(hit_counts.get("/api/v1/regulations", 0)) + 1
                 qs = parse_qs(parsed.query)
                 if "page" not in qs or "page_size" not in qs:
                     self.send_response(400)
@@ -61,7 +68,21 @@ def _start_mock_server(state: dict[str, Any]) -> ThreadingHTTPServer:
                 return
 
             if parsed.path == "/api/v1/admin/metrics":
-                payload = state.get("metrics_payload")
+                metrics_from_hits = state.get("metrics_from_hits")
+                if metrics_from_hits:
+                    payload = _base_metrics_payload(
+                        response_p95=1000.0,
+                        response_p99=1200.0,
+                        db_p95=200.0,
+                        db_p99=250.0,
+                    )
+                    hit_counts = state.get("request_hits")
+                    if isinstance(hit_counts, dict):
+                        for endpoint in payload["endpoints"]:
+                            path = endpoint["path"]
+                            endpoint["requests"] = int(hit_counts.get(path, 0))
+                else:
+                    payload = state.get("metrics_payload")
                 if not isinstance(payload, dict):
                     self.send_response(500)
                     self.end_headers()
@@ -117,6 +138,29 @@ def _base_metrics_payload(*, response_p95: float, response_p99: float, db_p95: f
             },
         ],
     }
+
+
+def _latest_report_paths(out_dir: Path) -> tuple[Path, Path]:
+    markdown_reports = sorted(out_dir.glob("perf-genes-regulations-*.md"))
+    json_reports = sorted(
+        path
+        for path in out_dir.glob("perf-genes-regulations-*.json")
+        if "raw-metrics" not in path.name
+    )
+    assert markdown_reports, "missing markdown reports"
+    assert json_reports, "missing compact json reports"
+    return markdown_reports[-1], json_reports[-1]
+
+
+def _load_perf_module():
+    repo_root = Path(__file__).resolve().parents[2]
+    script_path = repo_root / "scripts" / "perf_genes_regulations_regression.py"
+    spec = importlib.util.spec_from_file_location("perf_genes_regulations_regression", script_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_perf_genes_regulations_generate_baseline_and_check_passes(tmp_path: Path) -> None:
@@ -285,3 +329,131 @@ def test_perf_genes_regulations_warmup_retries_on_503_then_succeeds(tmp_path: Pa
         assert gen.returncode == 0, f"generate-baseline should succeed after retrying warmup:\n{output}"
     finally:
         server.shutdown()
+
+
+def test_perf_genes_regulations_backfills_samples_to_minimum() -> None:
+    perf = _load_perf_module()
+
+    seeded_metrics = _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0)
+    seeded_metrics["endpoints"][0]["requests"] = 2
+    seeded_metrics["endpoints"][1]["requests"] = 1
+
+    filled_metrics = _base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0)
+    filled_metrics["endpoints"][0]["requests"] = 3
+    filled_metrics["endpoints"][1]["requests"] = 3
+
+    metrics_sequence = [filled_metrics]
+    warmup_urls: list[str] = []
+
+    def fetch_metrics() -> dict[str, Any]:
+        assert metrics_sequence, "metrics sequence exhausted"
+        return metrics_sequence.pop(0)
+
+    diagnostics = perf._empty_run_diagnostics()
+    result_metrics = perf._backfill_min_samples(
+        raw_metrics=seeded_metrics,
+        base_url="http://example.test",
+        genes_species_id=1,
+        genes_gene_type="lncRNA",
+        genes_page_size=100,
+        regulations_species_id=1,
+        regulations_page_size=100,
+        min_samples=3,
+        warmup_max_retries=2,
+        warmup_retry_base_sleep_ms=0,
+        timeout_seconds=1.0,
+        diagnostics=diagnostics,
+        fetch_metrics=fetch_metrics,
+        warmup_get=lambda url, **_: warmup_urls.append(url),
+    )
+
+    assert result_metrics["endpoints"][0]["requests"] == 3
+    assert result_metrics["endpoints"][1]["requests"] == 3
+    assert diagnostics["sample_fill_rounds"] == 1
+    assert diagnostics["sample_fill_requests"]["/api/v1/genes"] == 1
+    assert diagnostics["sample_fill_requests"]["/api/v1/regulations"] == 2
+    assert len(warmup_urls) == 3
+
+
+def test_perf_genes_regulations_build_markdown_includes_response_only_triage_hint() -> None:
+    perf = _load_perf_module()
+
+    baseline = perf._build_compact_snapshot(
+        raw_metrics=_base_metrics_payload(response_p95=1000.0, response_p99=1200.0, db_p95=200.0, db_p99=250.0),
+        base_url="http://example.test",
+        mode="generate-baseline",
+        baseline_file=Path("docs/baselines/performance/test.json"),
+        baseline_raw_metrics_file=None,
+        admin_metrics_reset=None,
+        genes_species_id=1,
+        genes_gene_type="lncRNA",
+        genes_page_size=100,
+        regulations_species_id=1,
+        regulations_page_size=100,
+        pre_warmup_rounds=0,
+        warmup_rounds=1,
+        warmup_max_retries=2,
+        warmup_retry_base_sleep_ms=200,
+        min_samples=1,
+        response_regression_pct=4.0,
+        response_regression_abs_ms=2.0,
+        db_regression_pct=4.0,
+        db_regression_abs_ms=1.0,
+        generated_at="2026-03-26T00-00-00Z",
+        diagnostics=perf._empty_run_diagnostics(),
+    )
+    current_diagnostics = perf._empty_run_diagnostics()
+    current_diagnostics["response_only_regressions"] = [perf.GENES_LIST_PATH, perf.REGULATIONS_LIST_PATH]
+    current = perf._build_compact_snapshot(
+        raw_metrics=_base_metrics_payload(response_p95=1200.0, response_p99=1400.0, db_p95=200.0, db_p99=250.0),
+        base_url="http://example.test",
+        mode="check",
+        baseline_file=Path("docs/baselines/performance/test.json"),
+        baseline_raw_metrics_file=None,
+        admin_metrics_reset=None,
+        genes_species_id=1,
+        genes_gene_type="lncRNA",
+        genes_page_size=100,
+        regulations_species_id=1,
+        regulations_page_size=100,
+        pre_warmup_rounds=0,
+        warmup_rounds=1,
+        warmup_max_retries=2,
+        warmup_retry_base_sleep_ms=200,
+        min_samples=1,
+        response_regression_pct=4.0,
+        response_regression_abs_ms=2.0,
+        db_regression_pct=4.0,
+        db_regression_abs_ms=1.0,
+        generated_at="2026-03-26T00-00-01Z",
+        diagnostics=current_diagnostics,
+    )
+
+    ok, failures = perf._gate_regressions(
+        baseline,
+        current,
+        response_pct_th=4.0,
+        response_abs_th=2.0,
+        db_pct_th=4.0,
+        db_abs_th=1.0,
+    )
+    assert not ok
+
+    markdown = perf._build_markdown(
+        mode="check",
+        base_url="http://example.test",
+        generated_at="2026-03-26T00-00-01Z",
+        baseline_file=Path("docs/baselines/performance/test.json"),
+        baseline=baseline,
+        current=current,
+        ok=ok,
+        failures=failures,
+        admin_metrics_diff_path=None,
+        min_samples=1,
+        response_regression_pct=4.0,
+        response_regression_abs_ms=2.0,
+        db_regression_pct=4.0,
+        db_regression_abs_ms=1.0,
+    )
+
+    assert "response regressed but db metrics stayed flat" in markdown

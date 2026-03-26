@@ -124,6 +124,69 @@ MODE=generate-baseline bash scripts/baselines/run_genes_regulations_perf_regress
 
 > 如需临时调整：可通过参数覆盖（例如 `--response-regression-pct`、`--db-regression-pct`、`--min-samples`）。
 
+## sample backfill（自动补足样本）
+
+当 warmup 结束后，`/api/v1/admin/metrics` 里某个端点的 `requests < min_samples`，脚本不会立刻失败，而是进入一次短路补样流程：
+
+- 仅对样本不足的端点继续发请求
+- 每补一轮后重新拉取 `/api/v1/admin/metrics`
+- 达到 `min_samples` 后继续正常比对
+- 若补样后仍不足，最终仍会按 `insufficient samples` 失败
+
+这一步会写入 compact snapshot / markdown 的 `diagnostics.sample_fill_*` 字段，方便区分：
+
+- 是真实性能回归
+- 还是 warmup 轮数偏少、runner 抖动导致的样本不足
+
+如果 `sample_fill_rounds > 0` 经常出现，优先处理方式不是放宽门禁，而是：
+
+- 提高 `warmup_rounds`
+- 保证 baseline 与 check 使用同一组 warmup 参数
+- 在 self-hosted runner 上减少并行干扰
+
+## diagnostics 字段说明
+
+每次运行都会把一组诊断信息写入 snapshot 的 `meta.scenario.diagnostics`，并在 markdown 报告里展开：
+
+- `warmup_retry_attempts`
+  表示 warmup 阶段一共触发了多少次重试
+- `warmup_retry_statuses`
+  按状态码统计重试来源，例如 `429`、`503`、`network_error`
+- `sample_fill_rounds`
+  为补足 `min_samples` 额外执行了多少轮采样
+- `sample_fill_requests`
+  各端点实际补了多少请求
+- `response_only_regressions`
+  哪些端点出现了“response p95 回归，但 db p95 没回归”
+
+可以把这组字段当作第一层定位入口：
+
+- 重试多：先看 rate limit / 临时 5xx / 网络抖动
+- 补样多：先看 warmup 配置是否过小
+- `response_only_regressions` 非空：优先怀疑应用层抖动，而不是数据库
+
+## response-only regression 如何解读
+
+脚本会额外标记一种常见但容易误判的情况：
+
+- Response `p95_ms` 超过门禁阈值
+- DB `p95_ms` 没有同步回归
+
+此时 markdown 的 `Triage Hints` 会提示 `response_only_regressions`。这通常更像：
+
+- cache miss / 序列化开销 / 应用层逻辑抖动
+- runner 抢占、CPU 抖动
+- 非数据库路径的临时波动
+
+排查顺序建议：
+
+1. 先看 `diagnostics.warmup_retry_*` 与 `sample_fill_*`
+2. 再对比 `admin metrics diff`，确认慢点是否真在 DB
+3. 若 DB 平稳但 response 抖动，优先检查缓存命中、JSON 序列化、应用层额外计算
+4. 如果是 self-hosted runner，复跑一次确认是否为环境噪声
+
+不要在 `response_only_regressions` 场景里直接把问题归因到 SQL 或索引。
+
 ## GitHub Actions（workflow_dispatch）
 
 工作流：`Performance Genes/Regulations`（见 `.github/workflows/performance-genes-regulations.yml`）

@@ -138,9 +138,14 @@ const mockEpigeneticData = {
     {
       lncrna_gene_id: 1,
       lncrna_name: 'MALAT1',
+      target_gene_id: 100,
+      target_name: 'TP53',
       mark_name: 'H3K27me3',
+      peak_score: 12.5,
+      peak_chr: 'chr1',
+      peak_start: 100,
+      peak_end: 200,
       cell_type: 'GM12878',
-      overlap_count: 15,
       binding_affinity: 85.5,
     },
   ],
@@ -150,19 +155,18 @@ const mockEpigeneticData = {
 // Mock data for Disease Network
 const mockDiseaseData = {
   nodes: [
-    { id: 'lncrna_1', name: 'MALAT1', type: 'lncrna' },
-    { id: 'gene_100', name: 'TP53', type: 'gene' },
-    { id: 'disease_1', name: 'Cancer', type: 'disease' },
+    { id: 'lncrna_1', name: 'MALAT1', type: 'lncrna', gene_id: 1, species_id: 1 },
+    { id: 'gene_100', name: 'TP53', type: 'gene', gene_id: 100, species_id: 1 },
+    { id: 'disease_1', name: 'Cancer', type: 'disease', trait_id: 1, ontology_id: 9, species_id: 1 },
   ],
   edges: [
-    { source: 'lncrna_1', target: 'gene_100', value: 150.5 },
-    { source: 'gene_100', target: 'disease_1', value: 10.5 },
+    { source: 'lncrna_1', target: 'gene_100', type: 'regulation', weight: 150.5 },
+    { source: 'gene_100', target: 'disease_1', type: 'disease-gene', weight: 10.5 },
   ],
-  stats: {
-    total_lncrnas: 10,
-    total_genes: 50,
-    total_diseases: 20,
-    total_edges: 100,
+  query_params: {
+    trait_name: 'Cancer',
+    limit: 100,
+    format: 'json',
   },
 }
 
@@ -414,6 +418,13 @@ describe('Analysis Tab Content Integration', () => {
         limit: 1000,
       })
     })
+
+    it('renders a regulations deep link for each high-affinity row', async () => {
+      render(<Analysis />, { wrapper: createWrapper() })
+
+      const link = await screen.findByTestId('analysis-high-affinity-regulations-1-100')
+      expect(link).toHaveAttribute('href', '/regulations?lncrna_gene_id=1&target_gene_id=100&min_ba=100')
+    })
   })
 
   describe('Conservation Tab', () => {
@@ -434,6 +445,18 @@ describe('Analysis Tab Content Integration', () => {
       expect(epigeneticTab).toBeInTheDocument()
       expect(epigeneticTab.closest('[role="tab"]')).not.toBeDisabled()
     })
+
+    it('renders an overlap deep link with gene ids and mark filters', async () => {
+      window.history.pushState({}, '', '/analysis?tab=epigenetic')
+
+      render(<Analysis />, { wrapper: createWrapper() })
+
+      const link = await screen.findByTestId('analysis-epigenetic-overlap-1-100-H3K27me3')
+      expect(link).toHaveAttribute(
+        'href',
+        '/lncrna-chipseq-overlap?lncrna_gene_id=1&target_gene_id=100&mark_type=H3K27me3&min_binding_affinity=100',
+      )
+    })
   })
 
   describe('Disease Networks Tab', () => {
@@ -443,6 +466,15 @@ describe('Analysis Tab Content Integration', () => {
       const diseaseTab = screen.getByText('Disease Networks')
       expect(diseaseTab).toBeInTheDocument()
       expect(diseaseTab.closest('[role="tab"]')).not.toBeDisabled()
+    })
+
+    it('renders a network deep link for disease nodes', async () => {
+      window.history.pushState({}, '', '/analysis?tab=disease')
+
+      render(<Analysis />, { wrapper: createWrapper() })
+
+      const link = await screen.findByTestId('analysis-disease-network-disease_1')
+      expect(link).toHaveAttribute('href', '/network?species_ids=1&trait_id=1&ontology_id=9&min_ba=0')
     })
   })
 })

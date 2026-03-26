@@ -69,7 +69,9 @@ class ChipseqOverlapExport(BaseModel):
     """ChIP-seq 重叠导出模型"""
 
     regulation_id: int = Field(description="调控关系 ID")
+    lncrna_gene_id: int = Field(description="lncRNA 基因 ID")
     lncrna_name: str = Field(description="lncRNA 名称")
+    target_gene_id: int = Field(description="靶基因 ID")
     target_name: str = Field(description="靶基因名称")
     binding_affinity: float = Field(description="结合亲和力")
     mark_name: str = Field(description="组蛋白标记名称")
@@ -102,6 +104,10 @@ class NetworkNode(BaseModel):
     id: str = Field(description="节点 ID")
     type: str = Field(description="节点类型 (disease/gene/lncrna)")
     name: str = Field(description="节点名称")
+    gene_id: Optional[int] = Field(None, description="基因 ID（gene/lncrna 节点）")
+    trait_id: Optional[int] = Field(None, description="疾病/性状 ID（disease 节点）")
+    ontology_id: Optional[int] = Field(None, description="Ontology ID（disease 节点）")
+    species_id: Optional[int] = Field(None, description="证据物种 ID（disease 节点）")
 
     model_config = ConfigDict(from_attributes=True)
 
