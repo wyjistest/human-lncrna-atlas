@@ -82,6 +82,36 @@ Create `.env.local` for local development:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
+## Dev Server Troubleshooting
+
+### `Failed to fetch dynamically imported module`
+
+If a route suddenly shows an error like:
+
+```text
+Failed to fetch dynamically imported module: http://<host>:5173/src/pages/<Page>/index.tsx
+```
+
+check the browser network tab first. If the route module itself is `200`, but one of the Vite pre-bundled deps under `/node_modules/.vite/deps/` returns:
+
+```text
+504 Outdated Optimize Dep
+```
+
+then the usual root cause is a stale Vite optimize cache in a long-running dev server, not a broken route module.
+
+Restart the frontend dev server with forced re-optimization:
+
+```bash
+npm run dev -- --host 0.0.0.0 --port 5173 --strictPort --force
+```
+
+If you access the app via LAN IP, keep the same host/port you are using in the browser.
+
+### Heavy Cytoscape dependencies
+
+`/regulations` now delays loading `cytoscape` until the batch visualization modal is actually opened. This keeps the list page usable even if the network graph dependency fails to load during local development.
+
 ## Testing
 
 ```bash
