@@ -49,6 +49,8 @@ env:
   API_BASE_URL: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.api_base_url) || vars.CI_API_BASE_URL || 'http://127.0.0.1:8000' }}
   # 可选：在 workflow_dispatch 时额外跑一轮 Firefox smoke（默认 false，不影响 push CI）
   ENABLE_FIREFOX_SMOKE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_firefox_smoke == 'true' }}
+  # gitleaks-action 目前最新发布仍声明 runs.using=node20，先按 GitHub 官方建议强制在 Node 24 上运行。
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   NODE_VERSION: '20'
   PYTHON_VERSION: '3.11'
 
@@ -291,12 +293,12 @@ jobs:
           fi
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -659,13 +661,13 @@ jobs:
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Set up Node.js (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -750,13 +752,13 @@ jobs:
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set up Python (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -882,13 +884,13 @@ jobs:
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Set up Node.js (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -960,13 +962,13 @@ jobs:
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set up Python (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -1062,13 +1064,13 @@ jobs:
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set up Python (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -1320,13 +1322,13 @@ jobs:
 
       - name: Set up Python
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set up Python (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -1460,13 +1462,13 @@ jobs:
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Set up Node.js (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1581,13 +1583,13 @@ jobs:
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Set up Node.js (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -1804,7 +1806,7 @@ jobs:
           TARBALL_PATH="$tar_path" WORKSPACE="$GITHUB_WORKSPACE" REPO="$REPO" EXPECTED_SHA="$EXPECTED_SHA" bash "$script_path"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -2023,13 +2025,13 @@ jobs:
 
       - name: Set up Node.js
         if: ${{ env.CI_RUNS_ON == 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Set up Node.js (with cache)
         if: ${{ env.CI_RUNS_ON != 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
