@@ -62,6 +62,10 @@
    - `frontend/web/src/pages/Analysis/__tests__/index.test.tsx` 新增 workspace panel、证据链接、copy share link、统一 row action CTA、Conservation `coming soon` 与导出参数透传断言。
    - 定向验证：`cd frontend/web && npx vitest run src/pages/Analysis/__tests__/index.test.tsx`
 
+5. **API snapshot baseline 对齐当前导出契约**
+   - `docs/baselines/api-snapshot.sample.json` 已刷新 `export_disease_network_limit_1` 的稳定哈希，和当前 `GET /api/v1/export/disease-network?limit=1&format=json` 的实际输出重新对齐。
+   - 本地 Docker baseline 复现与 GitHub Actions `API Snapshot Baseline (Postgres)` 失败日志一致，确认这次漂移仅涉及该单一基线项，而不是其它 API 契约回归。
+
 ### 2026-03-26 ⭐ overlap compare 批量化与 regulations 查询收敛
 
 1. **跨物种 overlap compare 改为批量统计**
