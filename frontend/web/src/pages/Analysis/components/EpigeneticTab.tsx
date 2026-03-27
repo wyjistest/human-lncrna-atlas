@@ -9,7 +9,6 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { Card, Row, Col, Statistic, Table, Space, Button, Select, Tag, message } from 'antd'
-import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import ReactECharts from 'echarts-for-react'
 import { analysisApi } from '@/api/analysis'
@@ -22,6 +21,7 @@ import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { ChIPSeqOverlapRecord } from '@/api/analysis'
 import { Link, useSearchParams } from 'react-router-dom'
+import AnalysisTabActionBar from './AnalysisTabActionBar'
 
 const HISTONE_MARKS = [
   { value: 'H3K4me1', label: 'H3K4me1', color: '#1890ff', type: 'active' },
@@ -149,22 +149,7 @@ export default function EpigeneticTab() {
       dataIndex: 'target_name',
       key: 'target_name',
       width: 120,
-      render: (_targetName: string, record: ChIPSeqOverlapRecord) => {
-        const href =
-          `/lncrna-chipseq-overlap?lncrna_gene_id=${record.lncrna_gene_id}` +
-          `&target_gene_id=${record.target_gene_id}` +
-          `&mark_type=${encodeURIComponent(record.mark_name)}` +
-          `&min_binding_affinity=${DEFAULT_OVERLAP_MIN_BINDING_AFFINITY}`
-
-        return (
-          <Link
-            data-testid={`analysis-epigenetic-overlap-${record.lncrna_gene_id}-${record.target_gene_id}-${record.mark_name}`}
-            to={href}
-          >
-            {record.target_name || `Gene ${record.target_gene_id}`}
-          </Link>
-        )
-      },
+      render: (_targetName: string, record: ChIPSeqOverlapRecord) => record.target_name || `Gene ${record.target_gene_id}`,
     },
     {
       title: t('epigenetic.table.mark'),
@@ -206,6 +191,27 @@ export default function EpigeneticTab() {
       render: (ba: number) => ba?.toFixed(2) || '-',
       sorter: (a: ChIPSeqOverlapRecord, b: ChIPSeqOverlapRecord) =>
         a.binding_affinity - b.binding_affinity,
+    },
+    {
+      title: t('workspace.actions'),
+      key: 'actions',
+      width: 160,
+      render: (_value: unknown, record: ChIPSeqOverlapRecord) => {
+        const href =
+          `/lncrna-chipseq-overlap?lncrna_gene_id=${record.lncrna_gene_id}` +
+          `&target_gene_id=${record.target_gene_id}` +
+          `&mark_type=${encodeURIComponent(record.mark_name)}` +
+          `&min_binding_affinity=${DEFAULT_OVERLAP_MIN_BINDING_AFFINITY}`
+
+        return (
+          <Link
+            data-testid={`analysis-epigenetic-overlap-${record.lncrna_gene_id}-${record.target_gene_id}-${record.mark_name}`}
+            to={href}
+          >
+            {t('workspace.openOverlap')}
+          </Link>
+        )
+      },
     },
   ]
 
@@ -303,7 +309,19 @@ export default function EpigeneticTab() {
       </Row>
 
       {/* Filters and Table */}
-      <Card title={t('epigenetic.title')} style={{ marginBottom: 16 }}>
+      <Card
+        title={t('epigenetic.title')}
+        extra={(
+          <AnalysisTabActionBar
+            tabKey="epigenetic"
+            exportLabel={t('common.exportCsv')}
+            exportDisabled={!data?.data?.length}
+            isExporting={isExporting}
+            onExport={handleExport}
+          />
+        )}
+        style={{ marginBottom: 16 }}
+      >
         <Space wrap style={{ marginBottom: 16 }}>
           <span>Filter by Mark:</span>
           <Select
@@ -333,14 +351,6 @@ export default function EpigeneticTab() {
           </Select>
           <Button type="primary" onClick={() => refetch()}>
             {t('common.refresh')}
-          </Button>
-          <Button
-            icon={<DownloadOutlined />}
-            loading={isExporting}
-            disabled={!data?.data?.length}
-            onClick={() => { void handleExport() }}
-          >
-            {t('common.exportCsv')}
           </Button>
         </Space>
 

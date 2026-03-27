@@ -98,12 +98,27 @@
       "connectionScore": "Connection Score"
     }
   },
+  "workspace": {
+    "copyLink": "Copy share link",
+    "copyLinkSuccess": "Link copied",
+    "copyLinkError": "Copy failed",
+    "evidence": "Evidence",
+    "moreEvidence": "More evidence",
+    "downstream": "Downstream",
+    "viewEvidence": "View evidence",
+    "comingSoon": "Downstream evidence chain coming soon",
+    "actions": "Actions",
+    "openRegulations": "Open regulations",
+    "openOverlap": "Open overlap",
+    "openNetwork": "Open network"
+  },
   "common": {
     "loading": "Loading analysis data...",
     "error": "Failed to load analysis data",
     "noData": "No data available",
     "export": "Export Data",
     "exportCsv": "Export CSV",
+    "exportJson": "Export JSON",
     "exportExcel": "Export Excel",
     "refresh": "Refresh",
     "viewDetails": "View Details",

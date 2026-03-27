@@ -1,6 +1,6 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-03-26
+> 最后更新: 2026-03-27
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
@@ -43,6 +43,24 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-03-27 ⭐ `/analysis` 工作台证据链闭环第一阶段
+
+1. **页头 workspace panel 收口分享与证据入口**
+   - `/analysis` 标题区下新增统一 workspace panel，固定展示当前 tab 摘要、`Copy share link`、主证据与补充证据链接。
+   - 证据链接由 `frontend/web/src/pages/Analysis/evidenceRegistry.ts` 集中维护，当前映射到 `docs/paper/results_summary.md`、`docs/reports/HOW_TO_TEST_OVERLAP_PAGE.md`、`docs/reports/CHIPSEQ_HG19_AUDIT_AND_ASSOCIATIONS_2026-02-12.md` 等稳定研究产物。
+
+2. **三条成熟分析链路统一 CTA 语义**
+   - High Affinity / Epigenetic / Disease 三个 tab 的名称列回退为纯文本，统一改为末列 `Actions` 承担 drill-down。
+   - 行级 CTA 分别稳定为 `Open regulations`、`Open overlap`、`Open network`，继续复用现有 `/regulations`、`/lncrna-chipseq-overlap`、`/network` 路由与 URL 参数语义。
+
+3. **当前筛选导出与 Conservation 状态说明补齐**
+   - 三个成熟 tab 的 card 右上角 action bar 统一保留“导出当前筛选 + 查看主证据”两类动作，不扩后端 export/schema。
+   - Conservation 继续保留筛选与导出，但在 workspace panel 明确标记为“下游证据链待稳定导航主键后接入”，避免误导用户以为已有 drill-down。
+
+4. **前端回归测试扩展**
+   - `frontend/web/src/pages/Analysis/__tests__/index.test.tsx` 新增 workspace panel、证据链接、copy share link、统一 row action CTA、Conservation `coming soon` 与导出参数透传断言。
+   - 定向验证：`cd frontend/web && npx vitest run src/pages/Analysis/__tests__/index.test.tsx`
 
 ### 2026-03-26 ⭐ overlap compare 批量化与 regulations 查询收敛
 

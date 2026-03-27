@@ -98,12 +98,27 @@
       "connectionScore": "连接评分"
     }
   },
+  "workspace": {
+    "copyLink": "复制分享链接",
+    "copyLinkSuccess": "链接已复制",
+    "copyLinkError": "复制失败",
+    "evidence": "证据",
+    "moreEvidence": "更多证据",
+    "downstream": "下游入口",
+    "viewEvidence": "查看证据",
+    "comingSoon": "下游证据链即将提供",
+    "actions": "操作",
+    "openRegulations": "打开调控详情",
+    "openOverlap": "打开 overlap 详情",
+    "openNetwork": "打开网络详情"
+  },
   "common": {
     "loading": "正在加载分析数据...",
     "error": "加载分析数据失败",
     "noData": "暂无数据",
     "export": "导出数据",
     "exportCsv": "导出 CSV",
+    "exportJson": "导出 JSON",
     "exportExcel": "导出 Excel",
     "refresh": "刷新",
     "viewDetails": "查看详情",

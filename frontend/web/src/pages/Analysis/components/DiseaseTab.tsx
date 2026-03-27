@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, Row, Col, Statistic, Table, Space, Button, Input, Tag, Empty, message } from 'antd'
-import { DownloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { SearchOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import ReactECharts from 'echarts-for-react'
 import { analysisApi } from '@/api/analysis'
@@ -22,6 +22,7 @@ import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { DiseaseNetworkNode, DiseaseNetworkEdge } from '@/api/analysis'
 import { Link, useSearchParams } from 'react-router-dom'
+import AnalysisTabActionBar from './AnalysisTabActionBar'
 
 export default function DiseaseTab() {
   const { t } = useTranslation('analysis')
@@ -174,29 +175,7 @@ export default function DiseaseTab() {
       key: 'name',
       width: 200,
       ellipsis: true,
-      render: (_name: string, record: DiseaseNetworkNode) => {
-        const canNavigateToNetwork =
-          record.type === 'disease' &&
-          record.trait_id !== undefined &&
-          record.ontology_id !== undefined &&
-          record.species_id !== undefined
-
-        if (!canNavigateToNetwork) {
-          return record.name
-        }
-
-        const href =
-          `/network?species_ids=${record.species_id}` +
-          `&trait_id=${record.trait_id}` +
-          `&ontology_id=${record.ontology_id}` +
-          '&min_ba=0'
-
-        return (
-          <Link data-testid={`analysis-disease-network-${record.id}`} to={href}>
-            {record.name}
-          </Link>
-        )
-      },
+      render: (_name: string, record: DiseaseNetworkNode) => record.name,
     },
     {
       title: 'Type',
@@ -217,6 +196,34 @@ export default function DiseaseTab() {
         { text: 'lncRNA', value: 'lncrna' },
       ],
       onFilter: (value: boolean | React.Key, record: DiseaseNetworkNode) => record.type === value,
+    },
+    {
+      title: t('workspace.actions'),
+      key: 'actions',
+      width: 160,
+      render: (_value: unknown, record: DiseaseNetworkNode) => {
+        const canNavigateToNetwork =
+          record.type === 'disease' &&
+          record.trait_id !== undefined &&
+          record.ontology_id !== undefined &&
+          record.species_id !== undefined
+
+        if (!canNavigateToNetwork) {
+          return '-'
+        }
+
+        const href =
+          `/network?species_ids=${record.species_id}` +
+          `&trait_id=${record.trait_id}` +
+          `&ontology_id=${record.ontology_id}` +
+          '&min_ba=0'
+
+        return (
+          <Link data-testid={`analysis-disease-network-${record.id}`} to={href}>
+            {t('workspace.openNetwork')}
+          </Link>
+        )
+      },
     },
   ]
 
@@ -293,14 +300,6 @@ export default function DiseaseTab() {
           <Button type="primary" onClick={applyTraitFilter}>
             {t('common.refresh')}
           </Button>
-          <Button
-            icon={<DownloadOutlined />}
-            loading={isExporting}
-            disabled={!data?.nodes?.length}
-            onClick={() => { void handleExport() }}
-          >
-            {t('common.exportJson', 'Export JSON')}
-          </Button>
         </Space>
       </Card>
 
@@ -326,7 +325,18 @@ export default function DiseaseTab() {
       )}
 
       {/* Node Table */}
-      <Card title={`Network Nodes (${data?.nodes?.length || 0})`}>
+      <Card
+        title={`Network Nodes (${data?.nodes?.length || 0})`}
+        extra={(
+          <AnalysisTabActionBar
+            tabKey="disease"
+            exportLabel={t('common.exportJson', 'Export JSON')}
+            exportDisabled={!data?.nodes?.length}
+            isExporting={isExporting}
+            onExport={handleExport}
+          />
+        )}
+      >
         <Table
           columns={columns}
           dataSource={data?.nodes || []}
