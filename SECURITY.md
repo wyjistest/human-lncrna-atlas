@@ -53,7 +53,9 @@ brew install gitleaks  # macOS
 apt install gitleaks   # Ubuntu
 
 # Run before commit
-gitleaks detect --source . --verbose
+gitleaks git --verbose   # 扫描当前仓库的 git 历史
+# or
+gitleaks dir . --verbose # 仅扫描当前工作区文件
 ```
 
 ## Security Configuration

@@ -49,7 +49,7 @@ env:
   API_BASE_URL: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.api_base_url) || vars.CI_API_BASE_URL || 'http://127.0.0.1:8000' }}
   # 可选：在 workflow_dispatch 时额外跑一轮 Firefox smoke（默认 false，不影响 push CI）
   ENABLE_FIREFOX_SMOKE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_firefox_smoke == 'true' }}
-  # gitleaks-action 目前最新发布仍声明 runs.using=node20，先按 GitHub 官方建议强制在 Node 24 上运行。
+  # 过渡期开关：若仍有未迁移到 Node 24 的 JavaScript action，按 GitHub 官方建议优先在 Node 24 上运行。
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   NODE_VERSION: '20'
   PYTHON_VERSION: '3.11'
@@ -120,7 +120,7 @@ jobs:
             exit 0
           fi
 
-          # tarball 兜底会移除 .git（无 commit 历史），此时 gitleaks-action 的 `${base}^..${head}` 范围会失败；
+          # tarball 兜底会移除 .git（无 commit 历史），此时 git history 扫描无法收窄到提交范围；
           # 改为 filesystem 扫描当前工作区，保证“可用且可审计”。
           echo "has_git=false" >> "$GITHUB_OUTPUT"
 
@@ -128,16 +128,7 @@ jobs:
         run: |
           rm -f /tmp/gitleaks.tmp
 
-      - name: Run Gitleaks (git history)
-        if: ${{ steps.gitleaks_repo.outputs.has_git == 'true' }}
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # self-hosted runner 上 artifact 上传偶发路径兼容性问题；这里直接关闭上传。
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
-
-      - name: Install gitleaks (filesystem fallback)
-        if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
+      - name: Install gitleaks CLI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_VERSION: "8.24.3"
@@ -212,20 +203,51 @@ jobs:
             install -m 0755 "${tmp_dir}/gitleaks" "${cached_bin}" || true
           fi
 
-      - name: Run Gitleaks (filesystem fallback)
-        if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
+      - name: Run Gitleaks (git history)
+        if: ${{ steps.gitleaks_repo.outputs.has_git == 'true' }}
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
 
-          gitleaks detect \
-            --no-git \
-            --source . \
+          log_opts=()
+
+          # 对齐 gitleaks-action 在 push 事件下的默认语义：仅扫描本次 push 带来的 commit 范围；
+          # 对 workflow_dispatch 则保持默认 git 扫描，不额外收窄范围。
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ -n "${GITHUB_EVENT_BEFORE:-}" ] && ! printf '%s' "${GITHUB_EVENT_BEFORE}" | grep -Eq '^0+$'; then
+            first_commit="$(git rev-list --reverse "${GITHUB_EVENT_BEFORE}..${GITHUB_SHA}" 2>/dev/null | sed -n '1p' || true)"
+            if [ -n "${first_commit}" ]; then
+              if [ "${first_commit}" = "${GITHUB_SHA}" ]; then
+                log_opts+=(--log-opts=-1)
+              else
+                log_opts+=("--log-opts=--no-merges --first-parent ${first_commit}^..${GITHUB_SHA}")
+              fi
+            fi
+          fi
+
+          gitleaks git \
             --redact \
             -v \
             --exit-code=2 \
             --report-format=sarif \
             --report-path=results.sarif \
-            --log-level=debug
+            --log-level=debug \
+            "${log_opts[@]}" \
+            .
+
+      - name: Run Gitleaks (filesystem fallback)
+        if: ${{ steps.gitleaks_repo.outputs.has_git != 'true' }}
+        run: |
+          set -euo pipefail
+
+          gitleaks dir \
+            --redact \
+            -v \
+            --exit-code=2 \
+            --report-format=sarif \
+            --report-path=results.sarif \
+            --log-level=debug \
+            .
 
   # self-hosted runner 的 CI 默认只有 1 个 runner 并行度，拆分成多个 job 会导致重复 checkout / install，
   # 总耗时接近线性叠加。这里提供一个“快路径”：在 self-hosted 上把核心门禁合并到单个 job 内串行执行。
