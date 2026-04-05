@@ -23,11 +23,11 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@ant-design/icons": "^6.1.0",
+    "@ant-design/icons": "^6.1.1",
     "@popperjs/core": "^2.11.8",
-    "@tanstack/react-query": "^5.94.5",
-    "antd": "^6.3.3",
-    "axios": "^1.13.6",
+    "@tanstack/react-query": "^5.96.2",
+    "antd": "^6.3.5",
+    "axios": "^1.14.0",
     "cytoscape": "^3.33.1",
     "cytoscape-popper": "^4.0.1",
     "cytoscape-svg": "^0.4.0",
@@ -41,11 +41,11 @@
     "igv": "^3.8.0",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
-    "lodash": "^4.17.23",
+    "lodash": "^4.18.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-i18next": "^16.6.0",
-    "react-router-dom": "^7.13.1"
+    "react-router-dom": "^7.14.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.1",
