@@ -1,4 +1,4 @@
-import cytoscape from 'cytoscape'
+import type { Core } from 'cytoscape'
 
 /** PNG export options for Cytoscape */
 export interface CytoscapePngOptions {
@@ -33,7 +33,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 }
 
 export function exportCytoscapePngBlob(
-  cy: cytoscape.Core,
+  cy: Core,
   options: CytoscapePngOptions
 ): Blob {
   const blobOptions: CytoscapePngOptions & { output: 'blob' } = {
@@ -52,4 +52,3 @@ export function exportCytoscapePngBlob(
 
   throw new Error('Unexpected Cytoscape PNG export type')
 }
-

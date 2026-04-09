@@ -8,16 +8,9 @@ import { networkApi } from '@/api/network'
 import { diseasesApi } from '@/api/diseases'
 import type { DiseaseOption } from '@/api/diseases'
 import type { AvailableCombination } from '@/types/network'
-import cytoscape from 'cytoscape'
-import cytoscapeSvg from 'cytoscape-svg'
 import { NetworkCard } from './components/NetworkCard'
 import { handleBatchExport, type NetworkCardRef } from './utils/batchExport.tsx'
 import { SPECIES_KEYS } from './types'
-
-// 注册 cytoscape-svg 插件
-if (typeof window !== 'undefined') {
-  cytoscape.use(cytoscapeSvg)
-}
 
 const DEFAULT_SPECIES_IDS = [1]
 const DEFAULT_MIN_BA = 0

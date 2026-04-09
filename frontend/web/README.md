@@ -110,7 +110,7 @@ If you access the app via LAN IP, keep the same host/port you are using in the b
 
 ### Heavy Cytoscape dependencies
 
-`/regulations` now delays loading `cytoscape` until the batch visualization modal is actually opened. This keeps the list page usable even if the network graph dependency fails to load during local development.
+`/regulations` now delays loading `cytoscape` until the batch visualization modal is actually opened, and `/network` only initializes `cytoscape` when a network card actually needs to render graph data. This keeps the route shell and filters usable even if the graph dependency fails to load during local development.
 
 ## Testing
 
