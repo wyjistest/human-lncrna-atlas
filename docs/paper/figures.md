@@ -82,7 +82,7 @@ This file tracks the target figure and table set for the research-first manuscri
 ## Tables
 
 1. **Table 1 — Frozen-snapshot study scope across four primate species**
-   Goal: summarize species coverage, node counts, edge counts, and sequence coverage from the submission snapshot only.
+   Goal: summarize species coverage, node counts, and edge counts from the submission snapshot only.
    Source: frozen export summary
    Status: pending
 
