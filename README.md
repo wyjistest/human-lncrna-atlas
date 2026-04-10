@@ -11,13 +11,15 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **IGV Genome Browser**: Integrated genome browser with multi-species support
   - Genome assemblies: hg19 (Human), panTro5 (Chimpanzee), rheMac10 (Macaque), calJac3 (Marmoset)
   - Reference genomes optimized for IGV.js visualization
-- **ChIP-seq Epigenetic Marks**: ENCODE histone peaks (8 core marks; see `docs/CURRENT_STATUS.md` for coverage/stats)
+- **ChIP-seq Epigenetic Marks**: ENCODE histone peaks (paper-facing baseline: 8 core marks; see `docs/CURRENT_STATUS.md` for the complete current inventory)
   - H3K27me3, H3K4me3, H3K4me2, H3K4me1, H3K27ac, H3K36me3, H3K9ac, H3K9me3
   - Bivalent domain detection (H3K27me3 + H3K4me3)
   - Multi-mark comparison and visualization
-- **DNase-seq Open Chromatin**: ENCODE DNase-HS peaks (~1.22M peaks, 7 cell lines; see `docs/CURRENT_STATUS.md`)
+- **Extended Human ChIP-seq Tracks**: Additional current-snapshot coverage for CTCF and H4K20me1 is available in the database, but these remain outside the fixed main-text epigenomic baseline and should be labeled separately as extended human tracks.
+- **DNase-seq Open Chromatin**: ENCODE DNase-HS peaks (1,223,622 peaks across 7 cell lines; together with the 8 core histone marks this forms the fixed paper-facing epigenomic baseline)
   - Pre-indexed bigBed (`/genomes/dnase_hs_peaks.bb`) for optimal IGV.js region streaming
   - "Open Chromatin" category in genome browser track selector（ChIP-seq toggle → DNase-HS）
+  - Paper freeze note: main-text cross-mark comparisons use `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, `K562`; `MCF-7` remains outside multi-mark paper panels due to sparse frozen baseline coverage
 - **RepeatMasker Annotations**: 5.48M repeat elements (hg19)
 - **Data Export**: CSV/XLSX export support
 

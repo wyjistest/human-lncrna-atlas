@@ -1,10 +1,13 @@
 # Paper (Article) Draft
 
-This directory contains the working draft of an academic **article** describing the *Human LncRNA Atlas* dataset and platform (cross-species lncRNA regulatory relationships across four primates, with integrated epigenomic context).
+This directory contains the working draft of a research-first academic **article** on orthology-aware, triplex-informed primate lncRNA regulatory networks, with the web platform treated as a secondary delivery layer.
+
+Paper-facing epigenomic baseline is fixed to `8 core histone marks + DNase-HS`. The current repository snapshot additionally contains `CTCF` and `H4K20me1` human-track coverage, but those remain extended inventory outside the main-text baseline. Orthology provenance, conserved-edge definitions, and BA strategy are also frozen. See `docs/paper/submission_snapshot.md` for the fixed counts, subset rules, and method definitions.
 
 ## Files
 
 - `docs/paper/manuscript.md`: main manuscript draft (Markdown; can be converted to PDF/LaTeX via Pandoc if needed).
+- `docs/paper/submission_snapshot.md`: frozen paper-facing inventory and subset rules used by the manuscript and figure plan.
 - `plan/2025-12-30_16-57-53-epigenetic-reg-network-article.md`: execution plan for writing + analysis.
 - `notebooks/`: Phase 6 research notebooks + pre-generated results/figures used by the manuscript.
 

@@ -7,6 +7,12 @@
 
 ### Epigenomic Data (ChIP-seq + DNase-seq)
 
+> 论文主文固定口径：`8 core histone marks + DNase-HS`，其中 8 个核心组蛋白 marks 为 `H3K27me3`、`H3K4me3`、`H3K4me2`、`H3K4me1`、`H3K27ac`、`H3K36me3`、`H3K9ac`、`H3K9me3`。
+>
+> 当前数据库快照的完整 human inventory 还额外包含 `CTCF` 和 `H4K20me1`。下表总计 `4,924,916` peaks 统计的是完整快照库存，而不只是论文主文固定口径。
+>
+> 主文多 mark 比较默认只使用 `A549`、`GM12878`、`H1-hESC`、`HepG2`、`HMEC`、`K562` 这 6 个 cell lines；`MCF-7` 因当前 hg19 基线下仅有 `H3K4me3`，保留在 inventory reporting / 单 mark 浏览，不进入主文多 mark 对比面板。详见 `docs/paper/submission_snapshot.md`。
+
 | Mark 类型    | 分类           | 细胞系数 | 实验数 | Peaks 数量    |
 | ------------ | -------------- | -------- | ------ | ------------- |
 | **DNase-HS** | Open Chromatin | **7**    | **7**  | **1,223,622** |
