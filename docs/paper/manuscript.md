@@ -64,7 +64,7 @@ Current source material: `notebooks/figures/01_ba_distribution_analysis.png`, `n
 
 Cross-species comparison should be framed primarily at the edge level, not only at the node level. Orthologous lncRNAs and protein-coding genes can be conserved without preserving the same lncRNA to target-gene connections, so the main claim of this section is the distinction between conserved regulatory modules and lineage-specific rewiring.
 
-For the paper, node conservation and edge conservation are fixed as separate definitions. Node conservation is computed from `genes.core_id` presence across the four species in the fixed order human, chimpanzee, macaque, and marmoset. Conserved regulatory edges are defined at the `(lncrna_core_id, target_core_id)` level: a species contributes presence if at least one regulation links that core pair in that species. Genes with `core_id = NULL` are excluded from cross-species conservation analyses. Species-pair sharing, conservation strata across one to four species, and representative examples of conserved versus lineage-specific modules should therefore be interpreted at the core-pair level rather than from node-only ortholog lists.
+For the paper, node conservation and edge conservation are fixed as separate definitions. Node conservation is computed from `genes.core_id` presence across the four species in the fixed order human, chimpanzee, macaque, and marmoset. Conserved regulatory edges are defined at the `(lncrna_core_id, target_core_id)` level: a species contributes presence if at least one regulation links that core pair in that species. Genes with `core_id = NULL` are excluded from cross-species conservation analyses. The main overview in Figure 3 should show only two- to four-species conserved-edge strata under the fixed all-edge workflow (`min_species_count >= 2`, no additional BA cutoff), while singleton edges are reported in Supplementary material. Species-pair sharing and representative examples of conserved versus lineage-specific modules should therefore be interpreted at the core-pair level rather than from node-only ortholog lists.
 
 **Figure 3.** Cross-species conservation and lineage-specific rewiring of lncRNA regulatory edges.
 Recommended content: conservation strata or UpSet-style overview, node versus edge conservation summary, species-pair heatmaps, and representative conserved and lineage-specific modules.
@@ -76,13 +76,13 @@ Epigenomic data are most useful here as contextual support that helps prioritize
 For the main text, the epigenomic inventory is fixed to `8 core histone marks + DNase-HS`, while `CTCF` and `H4K20me1` remain excluded from the core baseline and may appear only as explicitly labeled extended human tracks. Cross-mark comparisons in Figure 4 and related tables default to the six-cell-line subset `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, and `K562`; `MCF-7` is excluded from multi-mark main-text comparisons because the frozen hg19 baseline only contributes `H3K4me3` there.
 
 **Figure 4.** Epigenomic context for candidate regulatory loci and modules.
-Recommended content: mark-overlap summary, chromatin-state or mark-composition comparisons, bivalent versus non-bivalent contrasts, and representative IGV snapshots.
+Recommended content: mark-overlap summary, direct mark-overlap signatures or mark-combination comparisons, bivalent versus non-bivalent contrasts, and representative IGV snapshots.
 
 ### 5. Trait-centered subnetworks prioritize candidate disease-relevant lncRNAs
 
 Trait-associated biology should be presented through tripartite subnetworks that connect trait terms to lncRNAs and protein-coding genes through the reconstructed candidate regulatory edges. This framing turns gene lists into interpretable programs and allows integrated prioritization of candidate lncRNAs using trait coverage, conservation, network centrality, and epigenomic context.
 
-The strongest version of this section should combine one flagship trait case study with a cross-trait summary that distinguishes shared regulators from trait-specific ones. The emphasis should remain on prioritization and interpretation rather than on claiming direct validation.
+The strongest version of this section should combine one flagship trait case study with a cross-trait summary that distinguishes shared regulators from trait-specific ones. The flagship tripartite network should remain visually simple, using at most two quantitative encodings in the network view, while additional evidence layers such as conservation and epigenomic support are summarized in the ranking matrix. The emphasis should remain on prioritization and interpretation rather than on claiming direct validation.
 
 **Figure 5.** Trait-centered subnetworks highlight candidate functional lncRNAs.
 Recommended content: trait to lncRNA to protein-coding gene tripartite network, integrated ranking, shared versus trait-specific regulator summary, and one or two representative case studies.

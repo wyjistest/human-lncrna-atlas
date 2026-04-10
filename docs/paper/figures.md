@@ -11,19 +11,19 @@ This file tracks the target figure and table set for the research-first manuscri
 1. **Figure 1 — From prior trait-associated gene catalogs to orthology-aware candidate regulatory edges**
    Goal: establish the conceptual gap and the reconstruction workflow.
    Recommended panels:
-   - prior trait-associated lncRNA / protein-coding gene catalogs do not specify regulatory edges;
-   - ortholog mapping across human, chimpanzee, macaque, and marmoset;
-   - triplex-informed edge reconstruction workflow;
-   - frozen-snapshot overview of nodes, edges, and species coverage.
+   - catalog-gap schematic: prior trait-associated lncRNA / protein-coding gene catalogs nominate nodes, not edges;
+   - ortholog mapping across human, chimpanzee, macaque, and marmoset into comparable `core_id` groups;
+   - triplex-informed edge reconstruction workflow using conservative wording such as candidate regulatory edges;
+   - frozen-snapshot KPI tiles using only already frozen metrics (`4` primate species, `804,630` predicted lncRNA to protein-coding gene relationships, `56` experiments, `4,567,525` peaks).
    Source: new composite figure required (workflow + data overview from frozen snapshot)
    Status: pending
 
 2. **Figure 2 — Global architecture of primate lncRNA regulatory networks**
    Goal: summarize hub structure, affinity landscape, and readable modules after Figure 1 establishes the workflow.
    Recommended panels:
-   - degree / target-count / binding-affinity summaries;
+   - binding-affinity landscape with the high-affinity zone (`BA >= 100`) highlighted for prioritization;
    - top hub lncRNAs;
-   - centrality or module statistics;
+   - centrality or module statistics that separate broad hubs from network organizers;
    - filtered readable subnetworks.
    Provisional source material:
    - `notebooks/figures/01_ba_distribution_analysis.png`
@@ -37,10 +37,10 @@ This file tracks the target figure and table set for the research-first manuscri
    Fixed definition: a conserved regulatory edge is a `(lncrna_core_id, target_core_id)` core pair observed in at least one regulation within a species; species presence is summarized in the fixed order human, chimpanzee, macaque, marmoset.
    Fixed BA rule: main conservation / rewiring overview uses all orthology-mappable edges with `min_species_count >= 2` and no additional BA cutoff.
    Recommended panels:
-   - conservation strata across one to four species (UpSet preferred over Venn);
+   - main-text UpSet overview of conserved-edge strata across two to four species (`1`-species singleton edges move to Supplementary);
    - node conservation versus edge conservation;
    - species-pair sharing heatmaps;
-   - representative conserved and lineage-specific modules.
+   - paired exemplars in a shared layout: one conserved module and one lineage-specific rewiring module.
    Source: new figure required; existing conservation notebook outputs are starting material
    Status: pending
 
@@ -49,8 +49,8 @@ This file tracks the target figure and table set for the research-first manuscri
    Paper-facing fixed inventory: `8 core histone marks + DNase-HS` (`56` experiments, `4,567,525` peaks); `CTCF` and `H4K20me1` are excluded from the main-text baseline and may appear only as explicitly labeled extended human tracks.
    Cross-mark comparison subset: `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, and `K562`; exclude `MCF-7` from main-text multi-mark panels.
    Recommended panels:
-   - histone-mark / DNase overlap summary;
-   - mark-composition or chromatin-context comparison;
+   - histone-mark / DNase overlap summary, using `NA` rather than `0` when a mark-by-cell-line combination has no experiment in the frozen baseline;
+   - direct mark-overlap signatures / mark-combination classes unless chromatin-state calling rules are separately frozen;
    - bivalent versus non-bivalent contrast;
    - representative IGV snapshots.
    Source: new figure required; use final frozen mark inventory only
@@ -59,7 +59,7 @@ This file tracks the target figure and table set for the research-first manuscri
 5. **Figure 5 — Trait-centered subnetworks prioritize candidate functional lncRNAs**
    Goal: turn trait-associated gene lists into interpretable regulatory programs.
    Recommended panels:
-   - tripartite trait to lncRNA to protein-coding gene subnetwork;
+   - simplified tripartite trait to lncRNA to protein-coding gene subnetwork;
    - integrated ranking of candidate lncRNAs;
    - shared versus trait-specific regulators;
    - one or two focused case studies.
@@ -110,7 +110,34 @@ This file tracks the target figure and table set for the research-first manuscri
 - Figure 3 must explicitly report edge conservation or rewiring; node-only ortholog comparisons are not sufficient.
 - Figure 3 should define conserved edges at the `(lncrna_core_id, target_core_id)` level and use the fixed species order human, chimpanzee, macaque, marmoset for all conservation labels.
 - Figure 3 main overview should use the fixed all-edge conservation workflow (`min_species_count >= 2`, no BA cutoff), while Figure 2 / Figure 4 priority analyses continue to use `BA >= 100`.
+- Main-text Figure 3A should show only `2`/`3`/`4`-species conserved-edge strata; `1`-species singleton edges belong in Supplementary panels.
 - Figure 4 should use conservative wording such as context, overlap, or co-localization unless a matched-background enrichment workflow is frozen for submission.
+- Figure 4 panel titles and legends should use direct mark-overlap signatures / mark-combination classes unless chromatin-state calling rules are separately frozen.
 - Paper-facing inventory language is fixed to `8 core histone marks + DNase-HS`; `CTCF` and `H4K20me1` remain extended human tracks outside the main-text baseline.
 - Main-text cross-mark comparisons should use the fixed six-cell-line subset `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, and `K562`; `MCF-7` should remain outside those panels.
+- Figure 5 tripartite network panels should use at most two quantitative encodings; additional evidence layers belong in the ranking matrix rather than in the network layout.
 - Figure 6 is optional and should be the first figure moved out of the main text when targeting a research-first journal.
+
+---
+
+## Figure Caption Drafts
+
+### Figure 1. From prior trait-associated gene catalogs to orthology-aware candidate regulatory edges
+
+Prior trait-associated lncRNA and protein-coding gene catalogs nominate relevant genes but do not specify candidate regulatory edges. We therefore map lncRNA and protein-coding orthologs across human, chimpanzee, macaque, and marmoset into comparable `core_id` groups and apply triplex-informed inference to reconstruct candidate lncRNA-to-protein-coding-gene edges. The frozen submission snapshot shown here is limited to paper-facing metrics fixed in `docs/paper/submission_snapshot.md`, including four primate species, `804,630` predicted lncRNA-to-protein-coding-gene relationships, and the main-text epigenomic baseline of `56` experiments and `4,567,525` peaks.
+
+### Figure 2. Global architecture of primate lncRNA regulatory networks
+
+After network reconstruction, the inferred primate regulatory networks can be summarized by their binding-affinity landscape, hub structure, and readable modules. The main-text prioritization view highlights the high-affinity zone at `BA >= 100`, identifies lncRNAs with unusually broad target coverage, and separates broad hubs from network organizers using centrality-aware summaries. Filtered subnetworks are shown instead of full-network hairballs so that hub-centered and modular candidate regulatory programs remain interpretable.
+
+### Figure 3. Cross-species conservation and lineage-specific rewiring of regulatory edges
+
+Cross-species comparison is evaluated primarily at the edge level rather than only at the node level. Conserved regulatory edges are defined as `(lncrna_core_id, target_core_id)` core pairs observed in at least one regulation within a species, using the fixed species order human, chimpanzee, macaque, and marmoset. The main-text overview shows only two-, three-, and four-species conserved-edge strata under the fixed all-edge workflow (`min_species_count >= 2`, no additional BA cutoff), whereas singleton edges are reported in Supplementary material. Node conservation, edge conservation, species-pair sharing, and paired conserved-versus-rewired exemplars are displayed separately to distinguish preserved modules from lineage-specific rewiring.
+
+### Figure 4. Epigenomic context prioritizes candidate regulatory loci and modules
+
+Epigenomic data are used here as contextual support rather than causal proof. Main-text analyses are restricted to the frozen paper-facing baseline of eight core histone marks plus DNase-HS (`56` experiments, `4,567,525` peaks), with cross-mark comparisons limited to `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, and `K562`. Overlap summaries should distinguish unavailable experiments (`NA`) from measured combinations with low overlap, and mark-combination classes should be described directly unless a separate chromatin-state calling workflow is frozen. Representative IGV snapshots place prioritized loci in active-like or bivalent-like chromatin contexts.
+
+### Figure 5. Trait-centered subnetworks prioritize candidate functional lncRNAs
+
+Trait-associated gene lists are reorganized into interpretable candidate regulatory programs by linking traits to lncRNAs and protein-coding genes through reconstructed edges. The flagship tripartite network should remain visually simple, using no more than two quantitative encodings in the network view, while additional evidence layers such as conservation and epigenomic support are summarized in the integrated ranking matrix. Trait-centered prioritization treats binding affinity as a ranking feature rather than a hidden hard inclusion threshold and highlights both shared regulators and trait-specific candidates through focused case studies.
