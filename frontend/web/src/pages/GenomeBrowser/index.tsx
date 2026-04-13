@@ -873,6 +873,13 @@ export default function GenomeBrowserPage() {
                         ),
                         children: (
                           <Space orientation="vertical" style={{ width: '100%' }}>
+                            <Alert
+                              type="info"
+                              showIcon
+                              title={t('chipseq.baselineTitle')}
+                              description={t('chipseq.baselineGuide')}
+                            />
+
                             {/* ChIP-seq Toggle */}
                             <Space align="center">
                               <Switch

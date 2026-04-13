@@ -1,15 +1,21 @@
 {
-  "title": "分析结果",
-  "description": "Jupyter Notebooks 科研分析结果摘要",
+  "title": "证据中心",
+  "description": "与论文主图对齐的交互式证据摘要。",
   "tabs": {
-    "highAffinity": "高亲和力",
-    "conservation": "保守性",
-    "epigenetic": "表观遗传",
-    "disease": "疾病网络"
+    "highAffinity": "全局架构",
+    "conservation": "保守性与重连",
+    "epigenetic": "表观组学背景",
+    "disease": "性状中心子网络"
+  },
+  "tabIntro": {
+    "highAffinity": "图 2：同源感知、triplex 约束候选调控边的全局架构。",
+    "conservation": "图 3：跨 2/3/4 个灵长类物种的保守与重连候选边。",
+    "epigenetic": "图 4：候选位点周围的表观组学重叠与共定位背景。",
+    "disease": "图 5：连接性状、基因与 lncRNA 的性状中心子网络。"
   },
   "highAffinity": {
-    "title": "高亲和力调控网络分析",
-    "description": "分析 lncRNA 与靶基因之间的高结合亲和力调控关系",
+    "title": "全局架构",
+    "description": "展示候选调控边总览、高可信切片及主导性 lncRNA-靶基因结构。",
     "stats": {
       "totalRegulations": "高亲和力调控",
       "uniqueLncrnas": "lncRNA 数量",
@@ -30,8 +36,8 @@
     }
   },
   "conservation": {
-    "title": "跨物种保守性模式分析",
-    "description": "揭示 lncRNA 在 4 种灵长类物种中的进化保守性规律",
+    "title": "保守性与重连",
+    "description": "展示 4 种灵长类物种之间保守或重连的候选调控边。",
     "stats": {
       "fourSpecies": "4 物种保守",
       "threeSpecies": "3 物种保守",
@@ -50,8 +56,8 @@
     }
   },
   "epigenetic": {
-    "title": "表观遗传标记关联分析",
-    "description": "分析 lncRNA 调控位点与 ChIP-seq 组蛋白修饰标记的关联",
+    "title": "表观组学背景",
+    "description": "展示候选位点周围的重叠与共定位特征。",
     "stats": {
       "totalOverlaps": "ChIP-seq 重叠",
       "bivalentDomains": "双价域",
@@ -79,8 +85,8 @@
     }
   },
   "disease": {
-    "title": "疾病关联网络分析",
-    "description": "构建疾病-基因-lncRNA 三层调控网络，识别潜在治疗靶点",
+    "title": "性状中心子网络",
+    "description": "为 reviewer 提供围绕性状、基因与 lncRNA 的示例子网络。",
     "stats": {
       "totalDiseases": "分析疾病数",
       "totalLncrnas": "关联 lncRNA",

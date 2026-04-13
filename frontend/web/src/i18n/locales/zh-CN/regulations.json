@@ -1,5 +1,5 @@
 {
-  "title": "调控关系",
+  "title": "候选调控边",
   "export": {
     "button": "导出数据",
     "exporting": "导出中 {{percent}}%",

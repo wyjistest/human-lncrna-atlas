@@ -102,6 +102,8 @@
   "chipseq": {
     "title": "表观基因组轨道",
     "enableTracks": "启用表观基因组轨道",
+    "baselineTitle": "论文主文基线",
+    "baselineGuide": "主文基线为 8 种核心组蛋白标记 + DNase-HS；CTCF 和 H4K20me1 作为人类扩展轨道提供。",
     "loadingMarks": "正在加载可用标记...",
     "loadMarksFailed": "加载表观基因组标记失败",
     "prereqHint": "需要 ChIP-seq 数据与数据库就绪；参考 docs/QUICKSTART_CHIPSEQ.md",

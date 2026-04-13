@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import { Button, Space, Select, Alert } from 'antd'
+import { Alert, Button, InputNumber, Select, Space } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -76,7 +76,7 @@ export default function Network() {
   const [speciesIds, setSpeciesIds] = useState<number[]>(initialFilters.speciesIds)
   const [traitId, setTraitId] = useState<number | undefined>(initialFilters.traitId)
   const [ontologyId, setOntologyId] = useState<number | undefined>(initialFilters.ontologyId)
-  const [minBa] = useState<number>(initialFilters.minBa)
+  const [minBa, setMinBa] = useState<number>(initialFilters.minBa)
   const [queryTrigger, setQueryTrigger] = useState(initialFilters.shouldAutoQuery ? 1 : 0)
 
   // 本地化物种选项
@@ -273,6 +273,15 @@ export default function Network() {
           }}
           options={ontologies?.map((o: { ontology_id: number; ontology_name: string }) => ({ label: o.ontology_name, value: o.ontology_id }))}
         />
+        <span>{t('query.minBaLabel')}</span>
+        <InputNumber
+          min={0}
+          max={100}
+          precision={0}
+          value={minBa}
+          onChange={(value) => setMinBa(typeof value === 'number' ? value : 0)}
+          style={{ width: 120 }}
+        />
         <Button data-testid="network-query-button" type="primary" onClick={handleQuery} disabled={!traitId || !ontologyId}>
           {t('query.button')}
         </Button>
@@ -287,6 +296,14 @@ export default function Network() {
           </Button>
         )}
       </Space>
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        title={t('query.minBaHelper')}
+        description={t('query.visualFilterNote')}
+      />
 
       {diseaseOptionsError && (
         <Alert

@@ -1,17 +1,17 @@
 {
-  "home": "首页",
+  "home": "总览",
   "stats": "统计概览",
-  "genes": "基因列表",
-  "regulations": "调控关系",
-  "overlap": "重叠分析",
+  "genes": "基因",
+  "regulations": "候选调控边",
+  "overlap": "表观组学背景",
   "chipseqCompare": "ChIP-seq对比",
-  "diseases": "疾病关联",
-  "network": "网络可视化",
-  "conservation": "保守性分析",
-  "analysis": "分析结果",
+  "diseases": "性状",
+  "network": "性状中心网络",
+  "conservation": "保守性与重连",
+  "analysis": "证据中心",
   "genomeBrowser": "基因组浏览器",
   "cache": "缓存管理",
   "materializedViews": "物化视图",
   "monitoring": "系统监控",
-  "siteTitle": "Human LncRNA Atlas"
+  "siteTitle": "Human LncRNA Atlas Companion"
 }

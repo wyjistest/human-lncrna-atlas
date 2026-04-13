@@ -1,6 +1,6 @@
-# Human LncRNA Atlas - Frontend
+# Human LncRNA Atlas Companion - Frontend
 
-React frontend for the Human LncRNA Atlas database and visualization platform.
+React frontend for the Human LncRNA Atlas database and its reviewer-facing companion site.
 
 ## Tech Stack
 
@@ -63,13 +63,29 @@ node scripts/report-bundle-sizes.mjs --json "../../docs/baselines/frontend/bundl
 
 ## Key Features
 
-- **Gene Browser**: Search, filter, and batch query genes (with CSV export)
-- **Regulation Analysis**: View regulatory relationships with binding affinity
-- **Genome Browser**: IGV.js integration for genomic visualization
-- **ChIP-seq Overlap**: Visualize lncRNA-ChIP-seq peak overlaps
-- **Network Visualization**: Cytoscape.js for gene-disease networks
-- **Conservation Analysis**: Cross-species conservation patterns
+- **Overview**: Paper-facing freeze snapshot, live provenance, and reviewer entry points
+- **Genes / Traits**: Search, filter, batch query, and expandable association tables
+- **Candidate Regulatory Edges**: Sortable edge tables with export and sequence detail
+- **Trait-centered Networks**: Cytoscape.js-based multi-species candidate subnetworks
+- **Conservation & Rewiring**: Cross-species candidate edge browsing with edge-level framing
+- **Epigenomic Context**: Overlap and co-localization around candidate loci
+- **Evidence Hub**: Figure-aligned analysis summaries for the paper companion
+- **Genome Browser**: IGV.js integration with baseline vs extended epigenomic track guidance
 - **Data Export**: CSV, Excel, and image export support
+
+## Paper-Facing IA
+
+Current public navigation is intentionally compact:
+
+- `Overview`
+- `Genes`
+- `Traits`
+- `Trait-centered Networks`
+- `Conservation & Rewiring`
+- `Epigenomic Context`
+- `Evidence Hub`
+
+Admin and toolbox-style routes still exist, but they are no longer exposed in the public sidebar.
 
 ## Environment Variables
 

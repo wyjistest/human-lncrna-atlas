@@ -1,14 +1,14 @@
 {
   "breadcrumb": {
-    "regulations": "调控关系",
-    "overlap": "lncRNA-ChIP-seq 重叠分析"
+    "regulations": "候选调控边",
+    "overlap": "表观组学背景"
   },
   "page": {
-    "title": "lncRNA-ChIP-seq 重叠分析",
-    "description": "分析 lncRNA 结合位点与 ChIP-seq peaks 的基因组重叠。揭示哪些表观遗传标记富集在 lncRNA 靶位点区域。"
+    "title": "表观组学背景",
+    "description": "查看候选位点与 ChIP-seq peaks 的重叠与共定位背景。论文主文基线为 8 种核心组蛋白标记 + DNase-HS，CTCF 和 H4K20me1 作为人类扩展轨道提供。"
   },
   "menu": {
-    "overlap": "lncRNA-ChIP-seq 重叠"
+    "overlap": "表观组学背景"
   },
   "filters": {
     "title": "高级筛选",

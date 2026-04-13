@@ -4,6 +4,19 @@ This directory contains the working draft of a research-first academic **article
 
 Paper-facing epigenomic baseline is fixed to `8 core histone marks + DNase-HS`. The current repository snapshot additionally contains `CTCF` and `H4K20me1` human-track coverage, but those remain extended inventory outside the main-text baseline. Orthology provenance, conserved-edge definitions, and BA strategy are also frozen. See `docs/paper/submission_snapshot.md` for the fixed counts, subset rules, and method definitions.
 
+## Companion Site Mapping
+
+The current frontend is aligned to the paper-facing narrative as follows:
+
+- `Overview`: frozen snapshot + live provenance
+- `Traits`: trait-associated catalogs and associations
+- `Trait-centered Networks`: candidate subnetworks across up to 4 species
+- `Conservation & Rewiring`: conserved / rewired candidate edges
+- `Epigenomic Context`: overlap and co-localization around candidate loci
+- `Evidence Hub`: figure-aligned summaries corresponding to the manuscript figures
+
+This mapping is intentionally narrative-first: public labels favor `trait`, `candidate edge`, `conservation & rewiring`, and `epigenomic context` over older toolbox-era labels.
+
 ## Files
 
 - `docs/paper/manuscript.md`: main manuscript draft (Markdown; can be converted to PDF/LaTeX via Pandoc if needed).

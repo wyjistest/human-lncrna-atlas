@@ -1,28 +1,62 @@
 {
-  "title": "Human LncRNA Atlas",
-  "subtitle": "跨物种lncRNA调控网络数据库",
+  "title": "Human LncRNA Atlas Companion",
+  "subtitle": "面向灵长类的同源感知、triplex 约束候选调控网络",
+  "hero": {
+    "description": "为论文提供围绕性状相关目录、候选调控边、保守性与表观组学背景的交互式证据层。",
+    "paperFreeze": "Paper-facing freeze",
+    "paperBaseline": "8 core histone marks + DNase-HS",
+    "snapshotLink": "投稿冻结快照",
+    "currentStatusLink": "当前平台状态"
+  },
   "stats": {
-    "totalGenes": "总基因数",
-    "lncRNA": "lncRNA",
-    "regulations": "调控关系",
-    "diseaseAssociations": "疾病关联"
+    "species": "灵长类物种",
+    "candidateEdges": "候选调控边",
+    "experiments": "表观组学实验",
+    "peaks": "论文快照 peaks"
+  },
+  "sections": {
+    "startHere": "从这里开始",
+    "advancedTools": "高级工具",
+    "provenance": "快照来源信息"
+  },
+  "status": {
+    "apiVersion": "API 版本",
+    "dbMode": "数据库模式",
+    "dbName": "数据库名称",
+    "unavailable": "不可用"
   },
   "cards": {
-    "genes": {
-      "title": "基因列表",
-      "desc": "浏览和搜索基因信息"
+    "byGene": {
+      "title": "按基因浏览",
+      "desc": "从基因名、ID 和候选边证据切入。"
     },
-    "regulations": {
-      "title": "调控关系",
-      "desc": "查看lncRNA调控网络"
+    "byTrait": {
+      "title": "按性状浏览",
+      "desc": "从性状目录进入，查看相关基因程序。"
     },
-    "diseases": {
-      "title": "疾病关联",
-      "desc": "探索基因-疾病关系"
+    "conservation": {
+      "title": "保守性与重连",
+      "desc": "比较跨灵长类物种的保守与重连候选边。"
     },
-    "network": {
-      "title": "网络可视化",
-      "desc": "交互式网络图谱"
+    "epigenomic": {
+      "title": "表观组学背景",
+      "desc": "查看候选位点周围的重叠与共定位背景。"
+    },
+    "edges": {
+      "title": "候选调控边",
+      "desc": "浏览可筛选表格、导出能力和序列级细节。"
+    },
+    "genomeBrowser": {
+      "title": "基因组浏览器",
+      "desc": "在 IGV 中查看位点、标记和重复序列背景。"
+    },
+    "statistics": {
+      "title": "统计概览",
+      "desc": "查看区别于论文冻结快照的实时平台总览。"
+    },
+    "compare": {
+      "title": "ChIP-seq 对比",
+      "desc": "比较不同输入下的标记特征和重叠摘要。"
     }
   }
 }

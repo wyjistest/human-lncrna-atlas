@@ -14,6 +14,11 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
       if (key === 'batchExport.buttonWithCount') return `Export ${options?.count ?? ''}`.trim()
+      if (key === 'query.minBaLabel') return 'Query BA threshold'
+      if (key === 'query.minBaHelper') return 'Applies to fetched edges before drawing any species card.'
+      if (key === 'query.visualFilterNote') {
+        return 'Card filters only refine the current graph and do not refetch edges.'
+      }
       return key
     },
     i18n: { language: 'en', changeLanguage: vi.fn() },
@@ -99,5 +104,9 @@ describe('Network page', () => {
     expect(screen.getByTestId('network-species-select')).toBeInTheDocument()
     expect(screen.getByTestId('network-disease-select')).toBeInTheDocument()
     expect(screen.getByTestId('network-ontology-select')).toBeInTheDocument()
+    expect(screen.getByText('Query BA threshold')).toBeInTheDocument()
+    expect(
+      screen.getByText('Card filters only refine the current graph and do not refetch edges.'),
+    ).toBeInTheDocument()
   })
 })

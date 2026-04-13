@@ -1,9 +1,14 @@
 {
   "breadcrumb": {
-    "conservation": "保守性分析"
+    "conservation": "保守性与重连"
   },
-  "title": "跨物种保守性分析",
-  "description": "分析灵长类物种间保守的 lncRNA 调控关系。比较人类、黑猩猩、猕猴和狨猴，识别进化保守的调控关系。",
+  "title": "保守性与重连",
+  "description": "追踪人类、黑猩猩、猕猴和狨猴之间保守或发生重连的候选调控边。",
+  "summary": {
+    "title": "边级阅读指南",
+    "edgeFocus": "下方表格展示跨 2/3/4 个物种保守的候选调控边。",
+    "matrixGuide": "矩阵用于查看共享背景，表格用于查看边级证据。"
+  },
   "stats": {
     "totalConserved": "总保守数",
     "totalConservedHelp": "在 2 种以上物种中发现的调控关系",

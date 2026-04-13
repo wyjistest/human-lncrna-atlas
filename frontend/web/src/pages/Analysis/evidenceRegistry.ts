@@ -21,7 +21,7 @@ function createDocHref(path: string): string {
 
 const ANALYSIS_TAB_DESCRIPTORS: Record<AnalysisTabKey, AnalysisTabDescriptor> = {
   highAffinity: {
-    summaryKey: 'highAffinity.description',
+    summaryKey: 'tabIntro.highAffinity',
     downstreamActionKey: 'workspace.openRegulations',
     downstreamReady: true,
     evidence: [
@@ -33,7 +33,7 @@ const ANALYSIS_TAB_DESCRIPTORS: Record<AnalysisTabKey, AnalysisTabDescriptor> = 
     ],
   },
   conservation: {
-    summaryKey: 'conservation.description',
+    summaryKey: 'tabIntro.conservation',
     downstreamReady: false,
     evidence: [
       {
@@ -44,7 +44,7 @@ const ANALYSIS_TAB_DESCRIPTORS: Record<AnalysisTabKey, AnalysisTabDescriptor> = 
     ],
   },
   epigenetic: {
-    summaryKey: 'epigenetic.description',
+    summaryKey: 'tabIntro.epigenetic',
     downstreamActionKey: 'workspace.openOverlap',
     downstreamReady: true,
     evidence: [
@@ -61,7 +61,7 @@ const ANALYSIS_TAB_DESCRIPTORS: Record<AnalysisTabKey, AnalysisTabDescriptor> = 
     ],
   },
   disease: {
-    summaryKey: 'disease.description',
+    summaryKey: 'tabIntro.disease',
     downstreamActionKey: 'workspace.openNetwork',
     downstreamReady: true,
     evidence: [

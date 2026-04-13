@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Drawer, Grid, Layout, Menu } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { MenuOutlined, HomeOutlined, DatabaseOutlined, LinkOutlined, MedicineBoxOutlined, BarChartOutlined, ApartmentOutlined, DashboardOutlined, ExperimentOutlined, InteractionOutlined, RadarChartOutlined, BranchesOutlined, LineChartOutlined, DeleteOutlined, TableOutlined } from '@ant-design/icons'
+import {
+  ApartmentOutlined,
+  BranchesOutlined,
+  DatabaseOutlined,
+  HomeOutlined,
+  InteractionOutlined,
+  LineChartOutlined,
+  MedicineBoxOutlined,
+  MenuOutlined,
+} from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '@/components/LanguageSwitch'
 
@@ -25,7 +34,6 @@ export default function MainLayout() {
   // This handles child routes like /genes/:id highlighting the parent /genes menu item
   const selectedKeys = useMemo(() => {
     const pathname = location.pathname
-    // Define menu paths in order of specificity (longer paths first)
     const menuPaths = [
       '/admin/materialized-views',
       '/admin/cache',
@@ -54,20 +62,12 @@ export default function MainLayout() {
 
   const menuItems = useMemo(() => [
     { key: '/', icon: <HomeOutlined />, label: t('home') },
-    { key: '/stats', icon: <BarChartOutlined />, label: t('stats') },
     { key: '/genes', icon: <DatabaseOutlined />, label: t('genes') },
-    { key: '/regulations', icon: <LinkOutlined />, label: t('regulations') },
     { key: '/diseases', icon: <MedicineBoxOutlined />, label: t('diseases') },
     { key: '/network', icon: <ApartmentOutlined />, label: t('network') },
     { key: '/conservation', icon: <BranchesOutlined />, label: t('conservation', 'Conservation') },
     { key: '/analysis', icon: <LineChartOutlined />, label: t('analysis', 'Analysis') },
     { key: '/lncrna-chipseq-overlap', icon: <InteractionOutlined />, label: t('overlap') },
-    { key: '/chipseq-compare', icon: <RadarChartOutlined />, label: t('chipseqCompare', 'ChIP-seq Compare') },
-    { key: '/genome-browser', icon: <ExperimentOutlined />, label: t('genomeBrowser') },
-    { type: 'divider' as const },
-    { key: '/admin/cache', icon: <DeleteOutlined />, label: t('cache', 'Cache') },
-    { key: '/admin/materialized-views', icon: <TableOutlined />, label: t('materializedViews', 'Materialized Views') },
-    { key: '/admin/monitoring', icon: <DashboardOutlined />, label: t('monitoring', 'Monitoring') },
   ], [t])
 
   return (

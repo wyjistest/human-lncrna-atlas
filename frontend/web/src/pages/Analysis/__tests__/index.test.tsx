@@ -26,12 +26,20 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown> | string) => {
       const translations: Record<string, string> = {
-        'title': 'Scientific Analysis Results',
-        'description': 'Explore analysis results from Jupyter Notebooks',
-        'tabs.highAffinity': 'High Affinity',
-        'tabs.conservation': 'Conservation',
-        'tabs.epigenetic': 'Epigenetic',
-        'tabs.disease': 'Disease Networks',
+        'title': 'Evidence Hub',
+        'description': 'Figure-aligned evidence summaries for the paper companion.',
+        'tabs.highAffinity': 'Global Architecture',
+        'tabs.conservation': 'Conservation & Rewiring',
+        'tabs.epigenetic': 'Epigenomic Context',
+        'tabs.disease': 'Trait-centered Subnetworks',
+        'tabIntro.highAffinity':
+          'Figure 2. Global architecture of orthology-aware, triplex-informed candidate edges.',
+        'tabIntro.conservation':
+          'Figure 3. Conserved and rewired candidate edges across 2/3/4 primate species.',
+        'tabIntro.epigenetic':
+          'Figure 4. Epigenomic overlap and co-localization around candidate loci.',
+        'tabIntro.disease':
+          'Figure 5. Trait-centered subnetworks connecting traits, genes and lncRNAs.',
         // High Affinity Tab
         'highAffinity.title': 'High Affinity Regulatory Networks',
         'highAffinity.description': 'Analysis of high binding affinity regulations',
@@ -285,17 +293,17 @@ describe('Analysis Page', () => {
     it('renders the page title and description', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
-      expect(screen.getByText('Scientific Analysis Results')).toBeInTheDocument()
-      expect(screen.getByText(/Explore analysis results/)).toBeInTheDocument()
+      expect(screen.getByText('Evidence Hub')).toBeInTheDocument()
+      expect(screen.getByText(/Figure-aligned evidence summaries/)).toBeInTheDocument()
     })
 
     it('renders all tab labels', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
-      expect(screen.getByText('High Affinity')).toBeInTheDocument()
-      expect(screen.getByText('Conservation')).toBeInTheDocument()
-      expect(screen.getByText('Epigenetic')).toBeInTheDocument()
-      expect(screen.getByText('Disease Networks')).toBeInTheDocument()
+      expect(screen.getByText('Global Architecture')).toBeInTheDocument()
+      expect(screen.getByText('Conservation & Rewiring')).toBeInTheDocument()
+      expect(screen.getByText('Epigenomic Context')).toBeInTheDocument()
+      expect(screen.getByText('Trait-centered Subnetworks')).toBeInTheDocument()
     })
 
     it('shows High Affinity tab as default active tab', async () => {
@@ -303,7 +311,7 @@ describe('Analysis Page', () => {
 
       // Check that High Affinity tab is active (has aria-selected)
       const tabList = screen.getByRole('tablist')
-      const highAffinityTab = within(tabList).getByText('High Affinity')
+      const highAffinityTab = within(tabList).getByText('Global Architecture')
       const tabElement = highAffinityTab.closest('[role="tab"]')
       expect(tabElement).toHaveAttribute('aria-selected', 'true')
     })
@@ -314,9 +322,28 @@ describe('Analysis Page', () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
       const tabList = screen.getByRole('tablist')
-      const epigeneticTab = within(tabList).getByText('Epigenetic')
+      const epigeneticTab = within(tabList).getByText('Epigenomic Context')
       const tabElement = epigeneticTab.closest('[role="tab"]')
       expect(tabElement).toHaveAttribute('aria-selected', 'true')
+    })
+
+    it('renders a figure-style intro that follows the active tab narrative', async () => {
+      const user = userEvent.setup()
+      render(<Analysis />, { wrapper: createWrapper() })
+
+      expect(
+        screen.getByText(
+          'Figure 2. Global architecture of orthology-aware, triplex-informed candidate edges.',
+        ),
+      ).toBeInTheDocument()
+
+      await user.click(screen.getByText('Conservation & Rewiring'))
+
+      expect(
+        screen.getByText(
+          'Figure 3. Conserved and rewired candidate edges across 2/3/4 primate species.',
+        ),
+      ).toBeInTheDocument()
     })
   })
 
@@ -325,7 +352,7 @@ describe('Analysis Page', () => {
       const user = userEvent.setup()
       render(<Analysis />, { wrapper: createWrapper() })
 
-      const conservationTab = screen.getByText('Conservation')
+      const conservationTab = screen.getByText('Conservation & Rewiring')
       await user.click(conservationTab)
 
       // Verify tab is now active
@@ -337,7 +364,7 @@ describe('Analysis Page', () => {
       const user = userEvent.setup()
       render(<Analysis />, { wrapper: createWrapper() })
 
-      const epigeneticTab = screen.getByText('Epigenetic')
+      const epigeneticTab = screen.getByText('Epigenomic Context')
       await user.click(epigeneticTab)
 
       const tabElement = epigeneticTab.closest('[role="tab"]')
@@ -348,7 +375,7 @@ describe('Analysis Page', () => {
       const user = userEvent.setup()
       render(<Analysis />, { wrapper: createWrapper() })
 
-      const diseaseTab = screen.getByText('Disease Networks')
+      const diseaseTab = screen.getByText('Trait-centered Subnetworks')
       await user.click(diseaseTab)
 
       const tabElement = diseaseTab.closest('[role="tab"]')
@@ -364,7 +391,7 @@ describe('Analysis Page', () => {
       // This tests the lazy loading mechanism
       await waitFor(() => {
         // After load completes, the tab content should be visible
-        expect(screen.getByText('High Affinity')).toBeInTheDocument()
+        expect(screen.getByText('Global Architecture')).toBeInTheDocument()
       })
     })
   })
@@ -420,8 +447,8 @@ describe('Analysis Page', () => {
       expect(screen.getByRole('tablist')).toBeInTheDocument()
       expect(screen.getAllByRole('tab').length).toBe(4)
 
-      // Default tab (High Affinity) should be selected
-      const highAffinityTab = screen.getByText('High Affinity').closest('[role="tab"]')
+      // Default tab (Global Architecture) should be selected
+      const highAffinityTab = screen.getByText('Global Architecture').closest('[role="tab"]')
       expect(highAffinityTab).toHaveAttribute('aria-selected', 'true')
     })
   })
@@ -431,14 +458,14 @@ describe('Analysis Page', () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
       // Check that the main container has padding style
-      const container = screen.getByText('Scientific Analysis Results').parentElement?.parentElement
+      const container = screen.getByText('Evidence Hub').parentElement?.parentElement
       expect(container).toHaveStyle({ padding: '24px' })
     })
 
     it('renders title and description with proper spacing', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
-      const titleContainer = screen.getByText('Scientific Analysis Results').parentElement
+      const titleContainer = screen.getByText('Evidence Hub').parentElement
       expect(titleContainer).toHaveStyle({ marginBottom: '24px' })
     })
   })
@@ -531,7 +558,7 @@ describe('Analysis Tab Content Integration', () => {
     it('renders Conservation tab as clickable', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
-      const conservationTab = screen.getByText('Conservation')
+      const conservationTab = screen.getByText('Conservation & Rewiring')
       expect(conservationTab).toBeInTheDocument()
       expect(conservationTab.closest('[role="tab"]')).not.toBeDisabled()
     })
@@ -549,7 +576,7 @@ describe('Analysis Tab Content Integration', () => {
     it('renders Epigenetic tab as clickable', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
-      const epigeneticTab = screen.getByText('Epigenetic')
+      const epigeneticTab = screen.getByText('Epigenomic Context')
       expect(epigeneticTab).toBeInTheDocument()
       expect(epigeneticTab.closest('[role="tab"]')).not.toBeDisabled()
     })
@@ -583,7 +610,7 @@ describe('Analysis Tab Content Integration', () => {
     it('renders Disease Networks tab as clickable', async () => {
       render(<Analysis />, { wrapper: createWrapper() })
 
-      const diseaseTab = screen.getByText('Disease Networks')
+      const diseaseTab = screen.getByText('Trait-centered Subnetworks')
       expect(diseaseTab).toBeInTheDocument()
       expect(diseaseTab.closest('[role="tab"]')).not.toBeDisabled()
     })

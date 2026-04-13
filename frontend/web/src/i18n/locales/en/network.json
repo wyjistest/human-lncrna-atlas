@@ -1,6 +1,6 @@
 {
-  "title": "Network Visualization",
-  "description": "Build lncRNA regulatory networks based on Disease-Ontology combinations (supports multi-species comparison, up to 4)",
+  "title": "Trait-centered Networks",
+  "description": "Build trait-centered candidate subnetworks across up to 4 primate species.",
 
   "species": {
     "label": "Species",
@@ -26,7 +26,10 @@
 
   "query": {
     "button": "Query Network",
-    "selectDiseaseOntology": "Please select disease and Ontology"
+    "selectDiseaseOntology": "Please select disease and Ontology",
+    "minBaLabel": "Query BA threshold",
+    "minBaHelper": "Applies to fetched edges before drawing any species card.",
+    "visualFilterNote": "Card filters only refine the current graph and do not refetch edges."
   },
 
   "card": {
@@ -43,8 +46,8 @@
   "filters": {
     "title": "Advanced Filters",
     "enabled": "Enabled",
-    "baThreshold": "Binding Affinity Threshold",
-    "baTooltip": "BA ≥ {{value}}",
+    "baThreshold": "Visual BA filter",
+    "baTooltip": "Display BA ≥ {{value}}",
     "nodeType": "Node Type",
     "all": "All",
     "targetGene": "Target Gene",
