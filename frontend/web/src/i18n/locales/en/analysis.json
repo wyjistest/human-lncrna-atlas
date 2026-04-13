@@ -1,15 +1,21 @@
 {
-  "title": "Analysis Results",
-  "description": "Summary of scientific analysis from Jupyter Notebooks",
+  "title": "Evidence Hub",
+  "description": "Figure-aligned evidence summaries for the paper companion.",
   "tabs": {
-    "highAffinity": "High Affinity",
-    "conservation": "Conservation",
-    "epigenetic": "Epigenetic Marks",
-    "disease": "Disease Networks"
+    "highAffinity": "Global Architecture",
+    "conservation": "Conservation & Rewiring",
+    "epigenetic": "Epigenomic Context",
+    "disease": "Trait-centered Subnetworks"
+  },
+  "tabIntro": {
+    "highAffinity": "Figure 2. Global architecture of orthology-aware, triplex-informed candidate edges.",
+    "conservation": "Figure 3. Conserved and rewired candidate edges across 2/3/4 primate species.",
+    "epigenetic": "Figure 4. Epigenomic overlap and co-localization around candidate loci.",
+    "disease": "Figure 5. Trait-centered subnetworks connecting traits, genes and lncRNAs."
   },
   "highAffinity": {
-    "title": "High Affinity Regulatory Network Analysis",
-    "description": "Analysis of high binding affinity regulatory relationships between lncRNAs and target genes",
+    "title": "Global Architecture",
+    "description": "Candidate edge totals, high-confidence slices and dominant lncRNA-target structure.",
     "stats": {
       "totalRegulations": "High BA Regulations",
       "uniqueLncrnas": "Unique lncRNAs",
@@ -30,8 +36,8 @@
     }
   },
   "conservation": {
-    "title": "Cross-Species Conservation Pattern Analysis",
-    "description": "Revealing evolutionary conservation patterns of lncRNAs across 4 primate species",
+    "title": "Conservation & Rewiring",
+    "description": "Conserved and rewired candidate edges across 4 primate species.",
     "stats": {
       "fourSpecies": "4 Species Conserved",
       "threeSpecies": "3 Species Conserved",
@@ -50,8 +56,8 @@
     }
   },
   "epigenetic": {
-    "title": "Epigenetic Mark Association Analysis",
-    "description": "Analysis of lncRNA regulatory site associations with ChIP-seq histone modification marks",
+    "title": "Epigenomic Context",
+    "description": "Overlap and co-localization signatures around candidate loci.",
     "stats": {
       "totalOverlaps": "ChIP-seq Overlaps",
       "bivalentDomains": "Bivalent Domains",
@@ -79,24 +85,38 @@
     }
   },
   "disease": {
-    "title": "Disease Association Network Analysis",
-    "description": "Building disease-gene-lncRNA three-layer regulatory networks to identify therapeutic targets",
+    "title": "Trait-centered Subnetworks",
+    "description": "Trait-gene-lncRNA subnetworks for reviewer-facing follow-up examples.",
     "stats": {
-      "totalDiseases": "Diseases Analyzed",
+      "totalDiseases": "Traits Analyzed",
       "totalLncrnas": "Associated lncRNAs",
       "totalGenes": "Associated Genes",
       "avgConnections": "Avg Connections"
     },
     "charts": {
-      "sharedMatrix": "Disease Shared lncRNA Matrix",
+      "sharedMatrix": "Trait-shared lncRNA Matrix",
       "networkPreview": "Network Preview"
     },
     "table": {
-      "disease": "Disease/Trait",
+      "disease": "Trait",
       "lncrna": "lncRNA",
       "gene": "Target Gene",
       "connectionScore": "Connection Score"
     }
+  },
+  "workspace": {
+    "copyLink": "Copy share link",
+    "copyLinkSuccess": "Link copied",
+    "copyLinkError": "Copy failed",
+    "evidence": "Evidence",
+    "moreEvidence": "More evidence",
+    "downstream": "Downstream",
+    "viewEvidence": "View evidence",
+    "comingSoon": "Downstream evidence chain coming soon",
+    "actions": "Actions",
+    "openRegulations": "Open regulations",
+    "openOverlap": "Open overlap",
+    "openNetwork": "Open network"
   },
   "common": {
     "loading": "Loading analysis data...",
@@ -104,6 +124,7 @@
     "noData": "No data available",
     "export": "Export Data",
     "exportCsv": "Export CSV",
+    "exportJson": "Export JSON",
     "exportExcel": "Export Excel",
     "refresh": "Refresh",
     "viewDetails": "View Details",

@@ -200,7 +200,13 @@ def _post_json_result(url: str, *, admin_api_key: Optional[str], timeout_seconds
 
 
 def _warmup_get(url: str, *, timeout_seconds: float) -> None:
-    _warmup_get_with_retry(url, timeout_seconds=timeout_seconds, max_retries=0, retry_base_sleep_ms=0)
+    _warmup_get_with_retry(
+        url,
+        timeout_seconds=timeout_seconds,
+        max_retries=0,
+        retry_base_sleep_ms=0,
+        diagnostics=None,
+    )
 
 
 def _warmup_get_with_retry(
@@ -209,6 +215,7 @@ def _warmup_get_with_retry(
     timeout_seconds: float,
     max_retries: int,
     retry_base_sleep_ms: int,
+    diagnostics: Optional[dict[str, Any]] = None,
 ) -> None:
     retryable_status = {429, 500, 502, 503, 504}
     total_attempts = max(1, int(max_retries) + 1)
@@ -224,6 +231,12 @@ def _warmup_get_with_retry(
             status_code = int(e.code)
             is_retryable = status_code in retryable_status
             if attempt < total_attempts - 1 and is_retryable:
+                if diagnostics is not None:
+                    diagnostics["warmup_retry_attempts"] = int(diagnostics.get("warmup_retry_attempts", 0)) + 1
+                    retry_statuses = diagnostics.setdefault("warmup_retry_statuses", {})
+                    if isinstance(retry_statuses, dict):
+                        key = str(status_code)
+                        retry_statuses[key] = int(retry_statuses.get(key, 0)) + 1
                 sleep_seconds = min((base_sleep_ms / 1000.0) * (2**attempt), 2.0)
                 if sleep_seconds > 0:
                     print(
@@ -240,6 +253,11 @@ def _warmup_get_with_retry(
             ) from e
         except Exception as e:
             if attempt < total_attempts - 1:
+                if diagnostics is not None:
+                    diagnostics["warmup_retry_attempts"] = int(diagnostics.get("warmup_retry_attempts", 0)) + 1
+                    retry_statuses = diagnostics.setdefault("warmup_retry_statuses", {})
+                    if isinstance(retry_statuses, dict):
+                        retry_statuses["network_error"] = int(retry_statuses.get("network_error", 0)) + 1
                 sleep_seconds = min((base_sleep_ms / 1000.0) * (2**attempt), 2.0)
                 if sleep_seconds > 0:
                     print(
@@ -264,6 +282,19 @@ class EndpointCompact:
     response_p99_ms: float
     db_p95_ms: float
     db_p99_ms: float
+
+
+def _empty_run_diagnostics() -> dict[str, Any]:
+    return {
+        "warmup_retry_attempts": 0,
+        "warmup_retry_statuses": {},
+        "sample_fill_rounds": 0,
+        "sample_fill_requests": {
+            GENES_LIST_PATH: 0,
+            REGULATIONS_LIST_PATH: 0,
+        },
+        "response_only_regressions": [],
+    }
 
 
 def _extract_endpoint(metrics: dict[str, Any], path: str) -> Optional[EndpointCompact]:
@@ -316,6 +347,7 @@ def _warmup_genes_regulations(
     warmup_max_retries: int,
     warmup_retry_base_sleep_ms: int,
     timeout_seconds: float,
+    diagnostics: Optional[dict[str, Any]] = None,
 ) -> None:
     if warmup_rounds <= 0:
         return
@@ -339,13 +371,89 @@ def _warmup_genes_regulations(
             timeout_seconds=timeout_seconds,
             max_retries=warmup_max_retries,
             retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+            diagnostics=diagnostics,
         )
         _warmup_get_with_retry(
             regs_url,
             timeout_seconds=timeout_seconds,
             max_retries=warmup_max_retries,
             retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+            diagnostics=diagnostics,
         )
+
+
+def _sample_shortages(raw_metrics: dict[str, Any], *, min_samples: int) -> dict[str, int]:
+    shortages: dict[str, int] = {}
+    for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
+        ep = _extract_endpoint(raw_metrics, path)
+        requests = ep.requests if ep is not None else 0
+        if requests < min_samples:
+            shortages[path] = max(0, int(min_samples) - int(requests))
+    return shortages
+
+
+def _backfill_min_samples(
+    *,
+    raw_metrics: dict[str, Any],
+    base_url: str,
+    genes_species_id: Optional[int],
+    genes_gene_type: Optional[str],
+    genes_page_size: int,
+    regulations_species_id: Optional[int],
+    regulations_page_size: int,
+    min_samples: int,
+    warmup_max_retries: int,
+    warmup_retry_base_sleep_ms: int,
+    timeout_seconds: float,
+    diagnostics: dict[str, Any],
+    fetch_metrics: Any,
+    warmup_get: Any,
+) -> dict[str, Any]:
+    shortages = _sample_shortages(raw_metrics, min_samples=min_samples)
+    if not shortages:
+        return raw_metrics
+
+    genes_params: dict[str, Any] = {"page": 1, "page_size": genes_page_size}
+    if genes_species_id is not None:
+        genes_params["species_id"] = genes_species_id
+    if genes_gene_type:
+        genes_params["gene_type"] = genes_gene_type
+
+    regs_params: dict[str, Any] = {"page": 1, "page_size": regulations_page_size}
+    if regulations_species_id is not None:
+        regs_params["species_id"] = regulations_species_id
+
+    endpoint_urls = {
+        GENES_LIST_PATH: f"{base_url}{GENES_LIST_PATH}?{urlencode(genes_params)}",
+        REGULATIONS_LIST_PATH: f"{base_url}{REGULATIONS_LIST_PATH}?{urlencode(regs_params)}",
+    }
+
+    max_rounds = max(1, int(min_samples))
+    for _ in range(max_rounds):
+        shortages = _sample_shortages(raw_metrics, min_samples=min_samples)
+        if not shortages:
+            return raw_metrics
+
+        diagnostics["sample_fill_rounds"] = int(diagnostics.get("sample_fill_rounds", 0)) + 1
+        for path, missing in shortages.items():
+            url = endpoint_urls[path]
+            for _ in range(max(0, int(missing))):
+                warmup_get(
+                    url,
+                    timeout_seconds=timeout_seconds,
+                    max_retries=warmup_max_retries,
+                    retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+                    diagnostics=diagnostics,
+                )
+                sample_fill_requests = diagnostics.setdefault("sample_fill_requests", {})
+                if isinstance(sample_fill_requests, dict):
+                    sample_fill_requests[path] = int(sample_fill_requests.get(path, 0)) + 1
+
+        next_metrics = fetch_metrics()
+        if isinstance(next_metrics, dict):
+            raw_metrics = next_metrics
+
+    return raw_metrics
 
 
 def _empty_endpoint_row() -> dict[str, Any]:
@@ -368,6 +476,7 @@ def _build_warmup_failure_snapshot(
     regulations_species_id: Optional[int],
     regulations_page_size: int,
     admin_metrics_reset: Optional[dict[str, Any]],
+    diagnostics: dict[str, Any],
 ) -> dict[str, Any]:
     return {
         "meta": {
@@ -386,6 +495,7 @@ def _build_warmup_failure_snapshot(
                     "page_size": regulations_page_size,
                 },
                 "admin_metrics_reset": admin_metrics_reset,
+                "diagnostics": diagnostics,
             }
         },
         "endpoints": {
@@ -418,6 +528,7 @@ def _build_compact_snapshot(
     db_regression_pct: float,
     db_regression_abs_ms: float,
     generated_at: str,
+    diagnostics: dict[str, Any],
 ) -> dict[str, Any]:
     def path_meta(p: Optional[Path]) -> Optional[str]:
         if p is None:
@@ -464,6 +575,7 @@ def _build_compact_snapshot(
                     "page_size": regulations_page_size,
                 },
                 "admin_metrics_reset": admin_metrics_reset,
+                "diagnostics": diagnostics,
             },
             "thresholds": {
                 "response": {"pct": response_regression_pct, "abs_ms": response_regression_abs_ms},
@@ -558,6 +670,59 @@ def _gate_regressions(
     return not failures, failures
 
 
+def _detect_response_only_regressions(
+    baseline: dict[str, Any],
+    current: dict[str, Any],
+    *,
+    response_pct_th: float,
+    response_abs_th: float,
+    db_pct_th: float,
+    db_abs_th: float,
+) -> list[str]:
+    response_only: list[str] = []
+
+    def row(snapshot: dict[str, Any], path: str) -> dict[str, Any]:
+        eps = snapshot.get("endpoints") or {}
+        if not isinstance(eps, dict):
+            return {}
+        raw = eps.get(path) or {}
+        return raw if isinstance(raw, dict) else {}
+
+    def exceeds(base_v: Optional[float], cur_v: Optional[float], pct_th: float, abs_th: float) -> bool:
+        if base_v is None or cur_v is None or base_v <= 0:
+            return False
+        delta = cur_v - base_v
+        if delta <= 0:
+            return False
+        pct = delta / base_v * 100.0
+        return pct > pct_th and delta > abs_th
+
+    for path in (GENES_LIST_PATH, REGULATIONS_LIST_PATH):
+        base = row(baseline, path)
+        cur = row(current, path)
+        base_response = base.get("response") if isinstance(base.get("response"), dict) else {}
+        cur_response = cur.get("response") if isinstance(cur.get("response"), dict) else {}
+        base_db = base.get("db") if isinstance(base.get("db"), dict) else {}
+        cur_db = cur.get("db") if isinstance(cur.get("db"), dict) else {}
+
+        response_regressed = exceeds(
+            _to_float((base_response or {}).get("p95_ms")),
+            _to_float((cur_response or {}).get("p95_ms")),
+            response_pct_th,
+            response_abs_th,
+        )
+        db_regressed = exceeds(
+            _to_float((base_db or {}).get("p95_ms")),
+            _to_float((cur_db or {}).get("p95_ms")),
+            db_pct_th,
+            db_abs_th,
+        )
+        if response_regressed and not db_regressed:
+            response_only.append(path)
+
+    return response_only
+
+
 def _build_markdown(
     *,
     mode: str,
@@ -580,7 +745,15 @@ def _build_markdown(
     scenario_genes = scenario.get("genes")
     scenario_regs = scenario.get("regulations")
     admin_metrics_reset = scenario.get("admin_metrics_reset") if isinstance(scenario.get("admin_metrics_reset"), dict) else None
+    diagnostics = scenario.get("diagnostics") if isinstance(scenario.get("diagnostics"), dict) else {}
     pre_warmup_rounds = _to_int(scenario.get("pre_warmup_rounds")) or 0
+    warmup_retry_attempts = _to_int(diagnostics.get("warmup_retry_attempts")) or 0
+    warmup_retry_statuses = diagnostics.get("warmup_retry_statuses") if isinstance(diagnostics.get("warmup_retry_statuses"), dict) else {}
+    sample_fill_rounds = _to_int(diagnostics.get("sample_fill_rounds")) or 0
+    sample_fill_requests = diagnostics.get("sample_fill_requests") if isinstance(diagnostics.get("sample_fill_requests"), dict) else {}
+    response_only_regressions = diagnostics.get("response_only_regressions")
+    if not isinstance(response_only_regressions, list):
+        response_only_regressions = []
     thresholds = meta.get("thresholds") if isinstance(meta.get("thresholds"), dict) else {}
 
     baseline_meta = baseline.get("meta") if baseline and isinstance(baseline.get("meta"), dict) else {}
@@ -640,6 +813,18 @@ def _build_markdown(
         triage_hints.append(
             "- ⚠️ admin_metrics_reset failed. Metrics may include historical samples; rerun after fixing backend/auth."
         )
+    if warmup_retry_attempts > 0:
+        triage_hints.append(
+            "- ℹ️ warmup retries were needed before metrics stabilized. Check transient 429/5xx/network issues if this becomes frequent."
+        )
+    if sample_fill_rounds > 0:
+        triage_hints.append(
+            "- ℹ️ sample backfill was used to reach min_samples. If this happens often, prefer increasing warmup_rounds in the baseline scenario."
+        )
+    if response_only_regressions:
+        triage_hints.append(
+            "- ⚠️ response regressed but db metrics stayed flat. Suspect app-layer jitter, cache misses, serialization overhead, or runner noise."
+        )
 
     current_eps = current.get("endpoints") or {}
     if isinstance(current_eps, dict):
@@ -688,6 +873,11 @@ def _build_markdown(
         f"- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
             f"- admin_metrics_reset: `enabled` (status: `{admin_metrics_reset.get('status_code')}`, ok: `{admin_metrics_reset.get('ok')}`)"
         ),
+        f"- diagnostics.warmup_retry_attempts: `{warmup_retry_attempts}`",
+        f"- diagnostics.warmup_retry_statuses: `{warmup_retry_statuses}`",
+        f"- diagnostics.sample_fill_rounds: `{sample_fill_rounds}`",
+        f"- diagnostics.sample_fill_requests: `{sample_fill_requests}`",
+        f"- diagnostics.response_only_regressions: `{response_only_regressions}`",
         "",
         "## Scenario Drift",
         "",
@@ -945,6 +1135,7 @@ def main() -> int:
             return meta
 
     admin_metrics_reset: Optional[dict[str, Any]] = None
+    diagnostics = _empty_run_diagnostics()
 
     def emit_warmup_failure_report(*, failures: list[str]) -> int:
         current = _build_warmup_failure_snapshot(
@@ -958,6 +1149,7 @@ def main() -> int:
             regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
             regulations_page_size=int(args.regulations_page_size),
             admin_metrics_reset=admin_metrics_reset,
+            diagnostics=diagnostics,
         )
 
         snap_path = out_dir / f"perf-genes-regulations-{ts}.json"
@@ -1009,6 +1201,7 @@ def main() -> int:
                 warmup_max_retries=warmup_max_retries,
                 warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
                 timeout_seconds=float(args.timeout_seconds),
+                diagnostics=diagnostics,
             )
         except WarmupRequestError as e:
             if e.status_code == 429:
@@ -1039,6 +1232,7 @@ def main() -> int:
             warmup_max_retries=warmup_max_retries,
             warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
             timeout_seconds=float(args.timeout_seconds),
+            diagnostics=diagnostics,
         )
     except WarmupRequestError as e:
         if e.status_code == 429:
@@ -1060,6 +1254,27 @@ def main() -> int:
     except Exception as e:
         print(f"[ERROR] {e}", file=sys.stderr)
         return 2
+
+    raw_metrics = _backfill_min_samples(
+        raw_metrics=raw_metrics,
+        base_url=base_url,
+        genes_species_id=int(args.genes_species_id) if args.genes_species_id else None,
+        genes_gene_type=str(args.genes_gene_type or "").strip() or None,
+        genes_page_size=int(args.genes_page_size),
+        regulations_species_id=int(args.regulations_species_id) if args.regulations_species_id else None,
+        regulations_page_size=int(args.regulations_page_size),
+        min_samples=min_samples,
+        warmup_max_retries=warmup_max_retries,
+        warmup_retry_base_sleep_ms=warmup_retry_base_sleep_ms,
+        timeout_seconds=float(args.timeout_seconds),
+        diagnostics=diagnostics,
+        fetch_metrics=lambda: _fetch_json(
+            metrics_url,
+            admin_api_key=admin_api_key,
+            timeout_seconds=float(args.timeout_seconds),
+        ),
+        warmup_get=_warmup_get_with_retry,
+    )
 
     raw_path = out_dir / f"perf-genes-regulations-raw-metrics-{ts}.json"
     raw_path.write_text(_stable_json_text(raw_metrics), encoding="utf-8")
@@ -1086,8 +1301,8 @@ def main() -> int:
         db_regression_pct=db_regression_pct,
         db_regression_abs_ms=db_regression_abs_ms,
         generated_at=ts,
+        diagnostics=diagnostics,
     )
-
     compact_path = out_dir / f"perf-genes-regulations-{ts}.json"
     compact_path.write_text(_stable_json_text(current), encoding="utf-8")
 
@@ -1112,6 +1327,7 @@ def main() -> int:
                 db_regression_pct=db_regression_pct,
                 db_regression_abs_ms=db_regression_abs_ms,
             )
+            compact_path.write_text(_stable_json_text(current), encoding="utf-8")
             md_path = out_dir / f"perf-genes-regulations-{ts}.md"
             md_path.write_text(md, encoding="utf-8")
             print(f"[ERROR] {e}", file=sys.stderr)
@@ -1138,6 +1354,7 @@ def main() -> int:
             db_regression_pct=db_regression_pct,
             db_regression_abs_ms=db_regression_abs_ms,
         )
+        compact_path.write_text(_stable_json_text(current), encoding="utf-8")
         md_path = out_dir / f"perf-genes-regulations-{ts}.md"
         md_path.write_text(md, encoding="utf-8")
         print(f"[OK] Baseline generated: {baseline_file}")
@@ -1198,7 +1415,20 @@ def main() -> int:
                 )
                 ok = gate_ok
                 failures.extend(gate_failures)
+                diagnostics["response_only_regressions"] = _detect_response_only_regressions(
+                    baseline,
+                    current,
+                    response_pct_th=response_regression_pct,
+                    response_abs_th=response_regression_abs_ms,
+                    db_pct_th=db_regression_pct,
+                    db_abs_th=db_regression_abs_ms,
+                )
                 exit_code = 0 if ok else 3
+    if isinstance(current.get("meta"), dict):
+        scenario = current["meta"].get("scenario")
+        if isinstance(scenario, dict):
+            scenario["diagnostics"] = diagnostics
+    compact_path.write_text(_stable_json_text(current), encoding="utf-8")
 
     admin_metrics_diff_path: Optional[Path] = None
     emit_diff = bool(args.emit_admin_metrics_diff) or (exit_code != 0)

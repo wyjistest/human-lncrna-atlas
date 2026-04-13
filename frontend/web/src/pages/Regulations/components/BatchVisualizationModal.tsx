@@ -9,14 +9,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Button, Space, Badge, message, Spin, Alert, Select, Tooltip } from 'antd'
 import { DownloadOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
-import cytoscape from 'cytoscape'
 
-// 类型定义 (cytoscape 3.x 类型在命名空间下)
-type Core = cytoscape.Core
 import type { components } from '@/types/api'
 import { BATCH_LIMITS } from '@/config/constants'
 
 type RegulationListItem = components['schemas']['RegulationListItem']
+type Core = import('cytoscape').Core
+type CytoscapeNodeSingular = import('cytoscape').NodeSingular
+type CytoscapeOptions = import('cytoscape').CytoscapeOptions
 
 // ============ 布局配置 ============
 
@@ -29,14 +29,11 @@ interface LayoutOptions {
   spacingFactor?: number
   nodeRepulsion?: () => number
   idealEdgeLength?: () => number
-  concentric?: (node: cytoscape.NodeSingular) => number
+  concentric?: (node: CytoscapeNodeSingular) => number
   levelWidth?: () => number
   directed?: boolean
   condense?: boolean
 }
-
-// cytoscape 调用包装
-const createCytoscape = cytoscape as unknown as (options: cytoscape.CytoscapeOptions) => Core
 
 const LAYOUT_CONFIGS: Record<LayoutName, LayoutOptions> = {
   cose: {
@@ -86,6 +83,7 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
   const [nodeCount, setNodeCount] = useState(0)
   const [edgeCount, setEdgeCount] = useState(0)
   const [layout, setLayout] = useState<LayoutName>('cose')
+  const [loadError, setLoadError] = useState<string | null>(null)
   const layoutRef = useRef<LayoutName>('cose')
 
   useEffect(() => {
@@ -111,6 +109,7 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
     if (!open || !containerRef.current || displayData.length === 0) return
 
     setLoading(true)
+    setLoadError(null)
 
     // 构建节点和边
     const nodes = new Map<string, { id: string; type: 'lncrna' | 'target'; label: string }>()
@@ -150,11 +149,15 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
     setEdgeCount(edges.length)
 
     // 延迟创建以确保 DOM 准备好
-    const timer = setTimeout(() => {
+    let cancelled = false
+    const timer = setTimeout(async () => {
       if (!containerRef.current) return
 
       try {
-        cyRef.current = createCytoscape({
+        const { default: cytoscape } = await import('cytoscape')
+        if (cancelled || !containerRef.current) return
+
+        cyRef.current = (cytoscape as unknown as (options: CytoscapeOptions) => Core)({
           container: containerRef.current,
           elements: [
             ...Array.from(nodes.values()).map(n => ({
@@ -220,15 +223,25 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
           wheelSensitivity: 0.3
         })
 
-        setLoading(false)
+        setLoadError(null)
       } catch (error) {
+        if (cancelled) return
         console.error('Failed to create Cytoscape instance:', error)
-        message.error('网络图创建失败')
-        setLoading(false)
+        const fallbackMessage = i18n.language?.startsWith('en')
+          ? 'Failed to load network graph. Refresh the page and try again.'
+          : '网络图加载失败，请刷新页面后重试。'
+        const detail = error instanceof Error ? error.message : String(error)
+        setLoadError(detail)
+        message.error(fallbackMessage)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }, 100)
 
     return () => {
+      cancelled = true
       clearTimeout(timer)
       if (layoutTimerRef.current) {
         clearTimeout(layoutTimerRef.current)
@@ -239,7 +252,7 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
         cyRef.current = null
       }
     }
-  }, [open, displayData])
+  }, [displayData, i18n.language, open])
 
   // 布局切换处理
   const handleLayoutChange = (newLayout: LayoutName) => {
@@ -321,6 +334,16 @@ export function BatchVisualizationModal({ open, onClose, data }: BatchVisualizat
         <Alert
           type="warning"
           title={t('visualization.overLimit', { limit: BATCH_LIMITS.MAX_VISUALIZATION })}
+          style={{ marginBottom: 12 }}
+          showIcon
+        />
+      )}
+
+      {loadError && (
+        <Alert
+          type="error"
+          message={i18n.language?.startsWith('en') ? 'Network graph failed to load' : '网络图加载失败'}
+          description={loadError}
           style={{ marginBottom: 12 }}
           showIcon
         />

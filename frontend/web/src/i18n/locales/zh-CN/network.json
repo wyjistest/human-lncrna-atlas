@@ -1,6 +1,6 @@
 {
-  "title": "网络可视化",
-  "description": "根据疾病-Ontology组合构建lncRNA调控网络（支持多物种对比，最多4个）",
+  "title": "性状中心网络",
+  "description": "围绕性状构建候选子网络，支持最多 4 个灵长类物种联查。",
 
   "species": {
     "label": "物种",
@@ -15,8 +15,8 @@
   },
 
   "disease": {
-    "label": "疾病",
-    "placeholder": "选择疾病"
+    "label": "性状",
+    "placeholder": "选择性状"
   },
 
   "ontology": {
@@ -26,7 +26,10 @@
 
   "query": {
     "button": "查询网络",
-    "selectDiseaseOntology": "请选择疾病和Ontology"
+    "selectDiseaseOntology": "请选择性状和Ontology",
+    "minBaLabel": "查询 BA 阈值",
+    "minBaHelper": "该阈值会在绘制任何物种卡片前限制实际拉取的候选边。",
+    "visualFilterNote": "卡片内过滤器只会细化当前图形显示，不会重新请求底层边。"
   },
 
   "card": {
@@ -43,8 +46,8 @@
   "filters": {
     "title": "高级过滤器",
     "enabled": "已启用",
-    "baThreshold": "Binding Affinity 阈值",
-    "baTooltip": "BA ≥ {{value}}",
+    "baThreshold": "可视化 BA 过滤",
+    "baTooltip": "显示 BA ≥ {{value}}",
     "nodeType": "节点类型",
     "all": "全部",
     "targetGene": "靶基因",
@@ -86,7 +89,7 @@
     "buttonWithCount": "批量导出所有物种 ({{count}})",
     "title": "批量导出所有物种网络图",
     "speciesCount": "将导出 {{count}} 个物种的网络图",
-    "diseaseLabel": "疾病",
+    "diseaseLabel": "性状",
     "ontologyLabel": "Ontology",
     "selectFormats": "选择导出格式",
     "pngFormat": "PNG 图片 (高分辨率 2x)",

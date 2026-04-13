@@ -1,11 +1,17 @@
 # Human LncRNA Atlas - 当前进度报告
 
-> 最后更新: 2026-03-25
+> 最后更新: 2026-03-27
 > 当前版本: Phase 3.5 (动态 Overlap 轨道加载)
 
 ## 📊 数据库统计
 
 ### Epigenomic Data (ChIP-seq + DNase-seq)
+
+> 论文主文固定口径：`8 core histone marks + DNase-HS`，其中 8 个核心组蛋白 marks 为 `H3K27me3`、`H3K4me3`、`H3K4me2`、`H3K4me1`、`H3K27ac`、`H3K36me3`、`H3K9ac`、`H3K9me3`。
+>
+> 当前数据库快照的完整 human inventory 还额外包含 `CTCF` 和 `H4K20me1`。下表总计 `4,924,916` peaks 统计的是完整快照库存，而不只是论文主文固定口径。
+>
+> 主文多 mark 比较默认只使用 `A549`、`GM12878`、`H1-hESC`、`HepG2`、`HMEC`、`K562` 这 6 个 cell lines；`MCF-7` 因当前 hg19 基线下仅有 `H3K4me3`，保留在 inventory reporting / 单 mark 浏览，不进入主文多 mark 对比面板。详见 `docs/paper/submission_snapshot.md`。
 
 | Mark 类型    | 分类           | 细胞系数 | 实验数 | Peaks 数量    |
 | ------------ | -------------- | -------- | ------ | ------------- |
@@ -43,6 +49,47 @@
 - **调控关系**: 804,630
 
 ## ✅ 最近完成的功能
+
+### 2026-03-27 ⭐ `/analysis` 工作台证据链闭环第一阶段
+
+1. **页头 workspace panel 收口分享与证据入口**
+   - `/analysis` 标题区下新增统一 workspace panel，固定展示当前 tab 摘要、`Copy share link`、主证据与补充证据链接。
+   - 证据链接由 `frontend/web/src/pages/Analysis/evidenceRegistry.ts` 集中维护，当前映射到 `docs/paper/results_summary.md`、`docs/reports/HOW_TO_TEST_OVERLAP_PAGE.md`、`docs/reports/CHIPSEQ_HG19_AUDIT_AND_ASSOCIATIONS_2026-02-12.md` 等稳定研究产物。
+
+2. **三条成熟分析链路统一 CTA 语义**
+   - High Affinity / Epigenetic / Disease 三个 tab 的名称列回退为纯文本，统一改为末列 `Actions` 承担 drill-down。
+   - 行级 CTA 分别稳定为 `Open regulations`、`Open overlap`、`Open network`，继续复用现有 `/regulations`、`/lncrna-chipseq-overlap`、`/network` 路由与 URL 参数语义。
+
+3. **当前筛选导出与 Conservation 状态说明补齐**
+   - 三个成熟 tab 的 card 右上角 action bar 统一保留“导出当前筛选 + 查看主证据”两类动作，不扩后端 export/schema。
+   - Conservation 继续保留筛选与导出，但在 workspace panel 明确标记为“下游证据链待稳定导航主键后接入”，避免误导用户以为已有 drill-down。
+
+4. **前端回归测试扩展**
+   - `frontend/web/src/pages/Analysis/__tests__/index.test.tsx` 新增 workspace panel、证据链接、copy share link、统一 row action CTA、Conservation `coming soon` 与导出参数透传断言。
+   - 定向验证：`cd frontend/web && npx vitest run src/pages/Analysis/__tests__/index.test.tsx`
+
+5. **API snapshot baseline 对齐当前导出契约**
+   - `docs/baselines/api-snapshot.sample.json` 已刷新 `export_disease_network_limit_1` 的稳定哈希，和当前 `GET /api/v1/export/disease-network?limit=1&format=json` 的实际输出重新对齐。
+   - 本地 Docker baseline 复现与 GitHub Actions `API Snapshot Baseline (Postgres)` 失败日志一致，确认这次漂移仅涉及该单一基线项，而不是其它 API 契约回归。
+
+### 2026-03-26 ⭐ overlap compare 批量化与 regulations 查询收敛
+
+1. **跨物种 overlap compare 改为批量统计**
+   - `GET /api/v1/lncrna-chipseq-overlap/compare` 不再按物种逐个调用统计 helper，而是先构建 `species_gene_pairs`，再通过单次 grouped stats/by_mark/by_cell 查询批量返回各物种统计。
+   - 单物种 `_compute_overlap_statistics_impl()` 现复用批量 helper，空结果、`default_filter_applied`、`effective_chromosome` 与 schema 缺失时的优雅降级语义保持不变。
+   - `species_ids` 现在不仅缩小返回集合，也直接缩小批量聚合范围，减少不必要的 compare 查询工作量。
+
+2. **overlap 列表 / cursor 路径内部去重**
+   - overlap 的 MV / fallback 列表与 cursor 分页路径现共享 count-cache 参数构造、分页查询执行与 row→item 映射逻辑。
+   - 外部 API 契约未变：响应 schema、count cache key 语义、MV 缺失自动 fallback 与大染色体保护策略均保持兼容。
+
+3. **`/api/v1/regulations` 过滤与计数逻辑收敛**
+   - `list_regulations()` 的数据查询与 count 查询现共用同一套过滤构建器，避免列表与总数在 species/chromosome/name/BA 条件上出现语义漂移。
+   - `get_gene_regulations()` 复用了统一分页响应构造逻辑，减少重复的响应组装代码。
+
+4. **定向验证已补齐**
+   - 单元测试：新增 / 更新 `frontend/backend/tests/test_overlap_compare_species_unit.py`、`frontend/backend/tests/test_regulations_list_unit.py`，覆盖 compare 批量 helper 接入与 regulations 统一过滤构建。
+   - 回归验证：`test_overlap_compare_cache_unit.py`、`test_overlap_cursor_pagination_unit.py`、`test_lncrna_chipseq_overlap_mv_fallback_unit.py`、`test_api_snapshot_overlap_compare_unit.py`、`test_security_input_validation.py -m unit`、`ruff check` 与 `scripts/baselines/run_overlap_perf_regression_docker.sh`（`MODE=check SOAK_RUNS=1 SOAK_MAX_FAILURES=0`）均已通过。
 
 ### 2026-03-25 ⭐ backlog 治理自动化与文档稳定入口
 

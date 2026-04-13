@@ -1,28 +1,62 @@
 {
-  "title": "Human LncRNA Atlas",
-  "subtitle": "Cross-species lncRNA Regulatory Network Database",
+  "title": "Human LncRNA Atlas Companion",
+  "subtitle": "Orthology-aware, triplex-informed candidate regulatory networks across primates",
+  "hero": {
+    "description": "Interactive evidence layer for trait-associated catalogs, candidate regulatory edges, conservation and epigenomic context.",
+    "paperFreeze": "Paper-facing freeze",
+    "paperBaseline": "8 core histone marks + DNase-HS",
+    "snapshotLink": "Submission snapshot",
+    "currentStatusLink": "Current status"
+  },
   "stats": {
-    "totalGenes": "Total Genes",
-    "lncRNA": "lncRNA",
-    "regulations": "Regulations",
-    "diseaseAssociations": "Disease Associations"
+    "species": "Primate species",
+    "candidateEdges": "Candidate edges",
+    "experiments": "Epigenomic experiments",
+    "peaks": "Paper-facing peaks"
+  },
+  "sections": {
+    "startHere": "Start here",
+    "advancedTools": "Advanced tools",
+    "provenance": "Snapshot provenance"
+  },
+  "status": {
+    "apiVersion": "API version",
+    "dbMode": "DB mode",
+    "dbName": "DB name",
+    "unavailable": "Unavailable"
   },
   "cards": {
-    "genes": {
-      "title": "Gene List",
-      "desc": "Browse and search gene information"
+    "byGene": {
+      "title": "By gene",
+      "desc": "Search genes, identifiers and candidate edge evidence."
     },
-    "regulations": {
-      "title": "Regulations",
-      "desc": "View lncRNA regulatory networks"
+    "byTrait": {
+      "title": "By trait",
+      "desc": "Start from trait catalogs and inspect associated programs."
     },
-    "diseases": {
-      "title": "Disease Associations",
-      "desc": "Explore gene-disease relationships"
+    "conservation": {
+      "title": "Conservation & Rewiring",
+      "desc": "Compare conserved and rewired candidate edges across primates."
     },
-    "network": {
-      "title": "Network Visualization",
-      "desc": "Interactive network graphs"
+    "epigenomic": {
+      "title": "Epigenomic Context",
+      "desc": "Inspect overlap and co-localization around candidate loci."
+    },
+    "edges": {
+      "title": "Candidate Regulatory Edges",
+      "desc": "Browse sortable edge tables, exports and sequence-level details."
+    },
+    "genomeBrowser": {
+      "title": "Genome Browser",
+      "desc": "Open IGV tracks for loci, marks and repeat context."
+    },
+    "statistics": {
+      "title": "Statistics",
+      "desc": "Review live platform totals outside the frozen paper snapshot."
+    },
+    "compare": {
+      "title": "ChIP-seq Compare",
+      "desc": "Compare mark signatures and overlap summaries across inputs."
     }
   }
 }

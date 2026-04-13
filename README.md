@@ -1,6 +1,6 @@
 # Human LncRNA Atlas
 
-A cross-species lncRNA (long non-coding RNA) regulatory relationship database and visualization platform. This project integrates regulatory relationship data between lncRNAs and protein-coding genes across four primate species: Human, Chimpanzee, Macaque, and Marmoset.
+A cross-species lncRNA (long non-coding RNA) regulatory relationship database and visualization platform. The public web entry is now presented as **Human LncRNA Atlas Companion**, a paper-facing evidence layer for orthology-aware, triplex-informed candidate regulatory networks across four primate species: Human, Chimpanzee, Macaque, and Marmoset.
 
 ## Features
 
@@ -11,15 +11,31 @@ A cross-species lncRNA (long non-coding RNA) regulatory relationship database an
 - **IGV Genome Browser**: Integrated genome browser with multi-species support
   - Genome assemblies: hg19 (Human), panTro5 (Chimpanzee), rheMac10 (Macaque), calJac3 (Marmoset)
   - Reference genomes optimized for IGV.js visualization
-- **ChIP-seq Epigenetic Marks**: ENCODE histone peaks (8 core marks; see `docs/CURRENT_STATUS.md` for coverage/stats)
+- **ChIP-seq Epigenetic Marks**: ENCODE histone peaks (paper-facing baseline: 8 core marks; see `docs/CURRENT_STATUS.md` for the complete current inventory)
   - H3K27me3, H3K4me3, H3K4me2, H3K4me1, H3K27ac, H3K36me3, H3K9ac, H3K9me3
   - Bivalent domain detection (H3K27me3 + H3K4me3)
   - Multi-mark comparison and visualization
-- **DNase-seq Open Chromatin**: ENCODE DNase-HS peaks (~1.22M peaks, 7 cell lines; see `docs/CURRENT_STATUS.md`)
+- **Extended Human ChIP-seq Tracks**: Additional current-snapshot coverage for CTCF and H4K20me1 is available in the database, but these remain outside the fixed main-text epigenomic baseline and should be labeled separately as extended human tracks.
+- **DNase-seq Open Chromatin**: ENCODE DNase-HS peaks (1,223,622 peaks across 7 cell lines; together with the 8 core histone marks this forms the fixed paper-facing epigenomic baseline)
   - Pre-indexed bigBed (`/genomes/dnase_hs_peaks.bb`) for optimal IGV.js region streaming
   - "Open Chromatin" category in genome browser track selector（ChIP-seq toggle → DNase-HS）
+  - Paper freeze note: main-text cross-mark comparisons use `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, `K562`; `MCF-7` remains outside multi-mark paper panels due to sparse frozen baseline coverage
 - **RepeatMasker Annotations**: 5.48M repeat elements (hg19)
 - **Data Export**: CSV/XLSX export support
+
+## Paper-Facing Companion UI
+
+The current public information architecture is organized around reviewer-facing entry points rather than a toolbox-first homepage:
+
+- `Overview`: frozen paper snapshot, live provenance (`version / db_mode / db_name`), and quick reviewer entry points
+- `Genes`: search genes, IDs, and batch inputs
+- `Traits`: trait-associated catalogs and expandable association tables
+- `Trait-centered Networks`: multi-species candidate subnetworks with explicit query-level BA threshold
+- `Conservation & Rewiring`: conserved / rewired candidate edges plus edge-level reading guidance
+- `Epigenomic Context`: overlap and co-localization around candidate loci
+- `Evidence Hub`: figure-aligned companion summaries for the paper
+
+The homepage frozen snapshot currently highlights `4 species`, `804,630 candidate edges`, `56 epigenomic experiments`, and `4,567,525 peaks`.
 
 ## Tech Stack
 
@@ -194,6 +210,12 @@ npm ci
 npm run dev -- --host 0.0.0.0
 ```
 
+Reviewer-facing frontend notes:
+
+- Home / nav copy is intentionally paper-first; URLs and API contracts remain backward compatible.
+- The homepage fetches `/` to surface live provenance fields: `version`, `db_mode`, `db_name`.
+- Genome Browser labels `8 core histone marks + DNase-HS` as the paper baseline, while `CTCF` and `H4K20me1` remain extended human tracks.
+
 前端环境变量说明：
 
 - `VITE_API_BASE_URL` 只能填写站点 origin，例如 `http://localhost:8000` 或 `https://your-domain.com`。
@@ -255,6 +277,13 @@ pytest -m unit -v
 python3 -c "import main"
 python3 -m py_compile main.py
 find app -name "*.py" -exec python3 -m py_compile {} \;
+```
+
+If you need a branch-level CI confirmation before merging, manually dispatch the `Tests` workflow on your branch:
+
+```bash
+gh workflow run test.yml --ref <branch> -f runs_on=ubuntu-latest
+gh run watch
 ```
 
 Optional (recommended before push): install a local pre-push hook that runs the CI gate automatically.

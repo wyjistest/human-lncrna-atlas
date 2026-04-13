@@ -1,6 +1,6 @@
-# Human LncRNA Atlas - Frontend
+# Human LncRNA Atlas Companion - Frontend
 
-React frontend for the Human LncRNA Atlas database and visualization platform.
+React frontend for the Human LncRNA Atlas database and its reviewer-facing companion site.
 
 ## Tech Stack
 
@@ -48,15 +48,44 @@ src/
 └── test/          # Test utilities
 ```
 
+## i18n Loading Strategy
+
+- 首屏只 eager 加载 `common`、`nav`、`home`
+- 页面级 namespace 通过 `src/i18n/index.ts` 中的 `ensureNamespaces()` 按需动态导入
+- 路由级懒加载统一使用 `src/i18n/lazyWithNamespaces.ts`，确保页面模块渲染前翻译资源已注册
+
+对首屏性能敏感的改动，建议在提交前执行：
+
+```bash
+npm run build
+node scripts/report-bundle-sizes.mjs --json "../../docs/baselines/frontend/bundle-sizes.baseline.json"
+```
+
 ## Key Features
 
-- **Gene Browser**: Search, filter, and batch query genes (with CSV export)
-- **Regulation Analysis**: View regulatory relationships with binding affinity
-- **Genome Browser**: IGV.js integration for genomic visualization
-- **ChIP-seq Overlap**: Visualize lncRNA-ChIP-seq peak overlaps
-- **Network Visualization**: Cytoscape.js for gene-disease networks
-- **Conservation Analysis**: Cross-species conservation patterns
+- **Overview**: Paper-facing freeze snapshot, live provenance, and reviewer entry points
+- **Genes / Traits**: Search, filter, batch query, and expandable association tables
+- **Candidate Regulatory Edges**: Sortable edge tables with export and sequence detail
+- **Trait-centered Networks**: Cytoscape.js-based multi-species candidate subnetworks
+- **Conservation & Rewiring**: Cross-species candidate edge browsing with edge-level framing
+- **Epigenomic Context**: Overlap and co-localization around candidate loci
+- **Evidence Hub**: Figure-aligned analysis summaries for the paper companion
+- **Genome Browser**: IGV.js integration with baseline vs extended epigenomic track guidance
 - **Data Export**: CSV, Excel, and image export support
+
+## Paper-Facing IA
+
+Current public navigation is intentionally compact:
+
+- `Overview`
+- `Genes`
+- `Traits`
+- `Trait-centered Networks`
+- `Conservation & Rewiring`
+- `Epigenomic Context`
+- `Evidence Hub`
+
+Admin and toolbox-style routes still exist, but they are no longer exposed in the public sidebar.
 
 ## Environment Variables
 
@@ -68,6 +97,36 @@ Create `.env.local` for local development:
 # This helps when accessing the Vite dev server via LAN IP.
 VITE_API_BASE_URL=http://localhost:8000
 ```
+
+## Dev Server Troubleshooting
+
+### `Failed to fetch dynamically imported module`
+
+If a route suddenly shows an error like:
+
+```text
+Failed to fetch dynamically imported module: http://<host>:5173/src/pages/<Page>/index.tsx
+```
+
+check the browser network tab first. If the route module itself is `200`, but one of the Vite pre-bundled deps under `/node_modules/.vite/deps/` returns:
+
+```text
+504 Outdated Optimize Dep
+```
+
+then the usual root cause is a stale Vite optimize cache in a long-running dev server, not a broken route module.
+
+Restart the frontend dev server with forced re-optimization:
+
+```bash
+npm run dev -- --host 0.0.0.0 --port 5173 --strictPort --force
+```
+
+If you access the app via LAN IP, keep the same host/port you are using in the browser.
+
+### Heavy Cytoscape dependencies
+
+`/regulations` now delays loading `cytoscape` until the batch visualization modal is actually opened, and `/network` only initializes `cytoscape` when a network card actually needs to render graph data. This keeps the route shell and filters usable even if the graph dependency fails to load during local development.
 
 ## Testing
 

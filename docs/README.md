@@ -6,10 +6,11 @@
 
 1. 当前状态：`docs/CURRENT_STATUS.md`
 2. 当前路线图（稳定入口）：`docs/roadmaps/ROADMAP_CURRENT.md`
-3. backlog 自动化与治理规则：`docs/governance/BACKLOG_AUTOMATION.md`
-4. CI / Self-hosted Runner（含代理/网络止损）：`docs/CI_SELF_HOSTED_RUNNER.md`
-5. 性能定位入口：`docs/PERFORMANCE_TRIAGE.md`
-6. 仓库总览与快速开始：`README.md`
+3. 论文 / companion 入口：`docs/paper/README.md`
+4. backlog 自动化与治理规则：`docs/governance/BACKLOG_AUTOMATION.md`
+5. CI / Self-hosted Runner（含代理/网络止损）：`docs/CI_SELF_HOSTED_RUNNER.md`
+6. 性能定位入口：`docs/PERFORMANCE_TRIAGE.md`
+7. 仓库总览与快速开始：`README.md`
 
 ## 日常开发
 

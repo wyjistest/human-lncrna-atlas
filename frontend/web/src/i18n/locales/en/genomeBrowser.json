@@ -102,6 +102,8 @@
   "chipseq": {
     "title": "Epigenomic Tracks",
     "enableTracks": "Enable Epigenomic Tracks",
+    "baselineTitle": "Paper-facing baseline",
+    "baselineGuide": "Main-text baseline: 8 core histone marks + DNase-HS. Extended human tracks: CTCF and H4K20me1.",
     "loadingMarks": "Loading available marks...",
     "loadMarksFailed": "Failed to load epigenomic marks",
     "prereqHint": "Requires ChIP-seq data and a ready database schema; see docs/QUICKSTART_CHIPSEQ.md",

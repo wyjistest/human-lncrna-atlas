@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, memo } from 'react'
-import { Button, Space, Input, Dropdown, message, Collapse, Tag, Slider, Radio, Select } from 'antd'
+import { Button, Space, Input, Dropdown, message, Collapse, Tag, Slider, Radio, Select, Alert, Spin } from 'antd'
 import { SearchOutlined, DownloadOutlined, FileImageOutlined, FileTextOutlined, FilterOutlined, SwapOutlined } from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { saveAs } from 'file-saver'
-import cytoscape from 'cytoscape'
+import type { Core, NodeSingular, EdgeSingular, EventObject, CytoscapeOptions } from 'cytoscape'
 import type { GeneDetail, NetworkNode, NetworkEdge } from '@/types/network'
 import { LoadingState } from '@/components/LoadingState'
 import { ErrorState } from '@/components/ErrorState'
@@ -14,18 +14,11 @@ import { networkApi } from '@/api/network'
 import { escapeCSV } from '@/utils/csv'
 import { getLayoutConfig } from '../utils/cytoscapeLayouts'
 import { exportCytoscapePngBlob } from '../utils/cytoscapeExport'
+import { loadNetworkCytoscape } from '../utils/loadCytoscape'
 import { applyNetworkFilters } from '../utils/networkFiltering'
 import { GeneDetailDrawer } from './GeneDetailDrawer'
 import { ComparisonDrawer } from './ComparisonDrawer'
 import type { NetworkCardProps } from '../types'
-
-// 类型别名
-type Core = cytoscape.Core
-type NodeSingular = cytoscape.NodeSingular
-type EdgeSingular = cytoscape.EdgeSingular
-
-// cytoscape 调用包装（绕过 TypeScript 类型检查）
-const createCytoscape = cytoscape as unknown as (options: cytoscape.CytoscapeOptions) => Core
 
 /**
  * NetworkCard Component
@@ -65,6 +58,8 @@ export const NetworkCard = memo(({
   const prevVisibleNodeIdsRef = useRef<Set<string> | null>(null)
   const prevVisibleEdgeIdsRef = useRef<Set<string> | null>(null)
   const filterCyInstanceRef = useRef<Core | null>(null)
+  const [graphInitializing, setGraphInitializing] = useState(false)
+  const [graphLoadError, setGraphLoadError] = useState<string | null>(null)
 
   const searchIndex = useMemo(() => {
     if (!data?.nodes) return []
@@ -252,115 +247,10 @@ export const NetworkCard = memo(({
     const useHaystackEdges = edgeCount > 2000
 
     const layoutName = currentLayoutRef.current
-
-    const cy = createCytoscape({
-      container: containerRef.current,
-      hideEdgesOnViewport,
-      hideLabelsOnViewport,
-      textureOnViewport: hideEdgesOnViewport || hideLabelsOnViewport,
-      pixelRatio: hideEdgesOnViewport || hideLabelsOnViewport ? 1 : 'auto',
-      elements,
-      style: [
-        {
-          selector: 'node.filtered-out',
-          style: {
-            'display': 'none'
-          }
-        },
-        {
-          selector: 'edge.filtered-out',
-          style: {
-            'display': 'none'
-          }
-        },
-        {
-          selector: 'node[type="lncRNA"]',
-          style: {
-            'shape': 'ellipse',
-            'background-color': '#1890ff',
-            'label': showNodeLabels ? 'data(label)' : '',
-            'width': 50,
-            'height': 50,
-            'font-size': showNodeLabels ? 10 : 0,
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'color': '#000',
-            'text-outline-width': showNodeLabels ? 2 : 0,
-            'text-outline-color': '#fff'
-          }
-        },
-        {
-          selector: 'node[type="protein_coding"]',
-          style: {
-            'shape': 'rectangle',
-            'background-color': '#52c41a',
-            'label': showNodeLabels ? 'data(label)' : '',
-            'width': 45,
-            'height': 45,
-            'font-size': showNodeLabels ? 10 : 0,
-            'text-valign': 'center',
-            'text-halign': 'center',
-            'color': '#000',
-            'text-outline-width': showNodeLabels ? 2 : 0,
-            'text-outline-color': '#fff'
-          }
-        },
-        {
-          selector: 'edge',
-          style: {
-            'width': `mapData(ba, ${minBARange}, ${maxBARange}, 1, 5)`,
-            'line-color': `mapData(ba, ${minBARange}, ${maxBARange}, #d9d9d9, #ff4d4f)`,
-            'target-arrow-color': `mapData(ba, ${minBARange}, ${maxBARange}, #d9d9d9, #ff4d4f)`,
-            'target-arrow-shape': 'triangle',
-            'curve-style': useHaystackEdges ? 'haystack' : 'bezier',
-            ...(useHaystackEdges ? { 'haystack-radius': 0 } : {}),
-            'opacity': 0.8
-          }
-        },
-        {
-          selector: 'node.highlighted',
-          style: {
-            'border-width': 4,
-            'border-color': '#faad14',
-            'label': 'data(label)',
-            'font-size': 10,
-            'text-outline-width': 2,
-            'z-index': 999
-          }
-        },
-        {
-          selector: 'node[conservation="high"]',
-          style: {
-            'background-color': CONSERVATION_COLORS.high
-          }
-        },
-        {
-          selector: 'node[conservation="medium"]',
-          style: {
-            'background-color': CONSERVATION_COLORS.medium
-          }
-        },
-        {
-          selector: 'node[conservation="low"]',
-          style: {
-            'background-color': CONSERVATION_COLORS.low
-          }
-        },
-        {
-          selector: 'node[conservation="unknown"]',
-          style: {
-            'background-color': CONSERVATION_COLORS.unknown
-          }
-        }
-      ],
-      layout: getLayoutConfig(layoutName, {
-        animate: shouldAnimate,
-        animationDuration: shouldAnimate ? 500 : 0
-      })
-    })
-
-    cyRef.current = cy
-    onRefReadyRef.current?.(cyRef as React.RefObject<Core>, true)
+    let cancelled = false
+    let cy: Core | null = null
+    let tooltipRafId: number | null = null
+    let pendingMouseEvent: MouseEvent | null = null
 
     const hideTooltip = () => {
       hoveredEdgeIdRef.current = null
@@ -377,11 +267,7 @@ export const NetworkCard = memo(({
       tooltipDiv.style.top = `${mouseEvent.clientY + 10}px`
     }
 
-    // Throttle tooltip updates to animation frames to reduce layout thrash on large graphs.
-    let tooltipRafId: number | null = null
-    let pendingMouseEvent: MouseEvent | null = null
-
-    const scheduleTooltipPosition = (evt: cytoscape.EventObject) => {
+    const scheduleTooltipPosition = (evt: EventObject) => {
       const mouseEvent = evt.originalEvent as MouseEvent | undefined
       if (!mouseEvent) return
 
@@ -397,8 +283,7 @@ export const NetworkCard = memo(({
       })
     }
 
-    // tooltip：使用 delegated 事件，避免为每条 edge 绑定 mousemove
-    const handleEdgeMouseOver = (evt: cytoscape.EventObject) => {
+    const handleEdgeMouseOver = (evt: EventObject) => {
       const edge = evt.target as EdgeSingular
       const baRaw = edge.data('ba')
       if (baRaw === undefined || baRaw === null) return
@@ -419,19 +304,19 @@ export const NetworkCard = memo(({
       scheduleTooltipPosition(evt)
     }
 
-    const handleEdgeMouseMove = (evt: cytoscape.EventObject) => {
+    const handleEdgeMouseMove = (evt: EventObject) => {
       const edge = evt.target as EdgeSingular
       if (hoveredEdgeIdRef.current !== edge.id()) return
       scheduleTooltipPosition(evt)
     }
 
-    const handleEdgeMouseOut = (evt: cytoscape.EventObject) => {
+    const handleEdgeMouseOut = (evt: EventObject) => {
       const edge = evt.target as EdgeSingular
       if (hoveredEdgeIdRef.current !== edge.id()) return
       hideTooltip()
     }
 
-    const handleNodeTap = (evt: cytoscape.EventObject) => {
+    const handleNodeTap = (evt: EventObject) => {
       const node = evt.target as NodeSingular
       const geneId = node.data('gene_id') as number | undefined
       if (geneId) {
@@ -440,29 +325,174 @@ export const NetworkCard = memo(({
       }
     }
 
-    cy.on('mouseover', 'edge', handleEdgeMouseOver)
-    cy.on('mousemove', 'edge', handleEdgeMouseMove)
-    cy.on('mouseout', 'edge', handleEdgeMouseOut)
-    cy.on('tap', 'node', handleNodeTap)
-
-    return () => {
+    const cleanupCy = () => {
       if (tooltipRafId != null) {
         window.cancelAnimationFrame(tooltipRafId)
         tooltipRafId = null
       }
+      pendingMouseEvent = null
       hideTooltip()
       removeTooltipDiv()
 
-      cy.off('mouseover', 'edge', handleEdgeMouseOver)
-      cy.off('mousemove', 'edge', handleEdgeMouseMove)
-      cy.off('mouseout', 'edge', handleEdgeMouseOut)
-      cy.off('tap', 'node', handleNodeTap)
+      if (cy) {
+        cy.off('mouseover', 'edge', handleEdgeMouseOver)
+        cy.off('mousemove', 'edge', handleEdgeMouseMove)
+        cy.off('mouseout', 'edge', handleEdgeMouseOut)
+        cy.off('tap', 'node', handleNodeTap)
+        cy.destroy()
+        cy = null
+      }
 
-      cy.destroy()
-      if (cyRef.current === cy) {
+      if (cyRef.current) {
         cyRef.current = null
       }
       onRefReadyRef.current?.(cyRef as React.RefObject<Core>, false)
+    }
+
+    setGraphInitializing(true)
+    setGraphLoadError(null)
+
+    void (async () => {
+      try {
+        const createCytoscape = await loadNetworkCytoscape()
+        if (cancelled || !containerRef.current) return
+
+        cy = createCytoscape({
+          container: containerRef.current,
+          hideEdgesOnViewport,
+          hideLabelsOnViewport,
+          textureOnViewport: hideEdgesOnViewport || hideLabelsOnViewport,
+          pixelRatio: hideEdgesOnViewport || hideLabelsOnViewport ? 1 : 'auto',
+          elements,
+          style: [
+            {
+              selector: 'node.filtered-out',
+              style: {
+                'display': 'none'
+              }
+            },
+            {
+              selector: 'edge.filtered-out',
+              style: {
+                'display': 'none'
+              }
+            },
+            {
+              selector: 'node[type="lncRNA"]',
+              style: {
+                'shape': 'ellipse',
+                'background-color': '#1890ff',
+                'label': showNodeLabels ? 'data(label)' : '',
+                'width': 50,
+                'height': 50,
+                'font-size': showNodeLabels ? 10 : 0,
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'color': '#000',
+                'text-outline-width': showNodeLabels ? 2 : 0,
+                'text-outline-color': '#fff'
+              }
+            },
+            {
+              selector: 'node[type="protein_coding"]',
+              style: {
+                'shape': 'rectangle',
+                'background-color': '#52c41a',
+                'label': showNodeLabels ? 'data(label)' : '',
+                'width': 45,
+                'height': 45,
+                'font-size': showNodeLabels ? 10 : 0,
+                'text-valign': 'center',
+                'text-halign': 'center',
+                'color': '#000',
+                'text-outline-width': showNodeLabels ? 2 : 0,
+                'text-outline-color': '#fff'
+              }
+            },
+            {
+              selector: 'edge',
+              style: {
+                'width': `mapData(ba, ${minBARange}, ${maxBARange}, 1, 5)`,
+                'line-color': `mapData(ba, ${minBARange}, ${maxBARange}, #d9d9d9, #ff4d4f)`,
+                'target-arrow-color': `mapData(ba, ${minBARange}, ${maxBARange}, #d9d9d9, #ff4d4f)`,
+                'target-arrow-shape': 'triangle',
+                'curve-style': useHaystackEdges ? 'haystack' : 'bezier',
+                ...(useHaystackEdges ? { 'haystack-radius': 0 } : {}),
+                'opacity': 0.8
+              }
+            },
+            {
+              selector: 'node.highlighted',
+              style: {
+                'border-width': 4,
+                'border-color': '#faad14',
+                'label': 'data(label)',
+                'font-size': 10,
+                'text-outline-width': 2,
+                'z-index': 999
+              }
+            },
+            {
+              selector: 'node[conservation="high"]',
+              style: {
+                'background-color': CONSERVATION_COLORS.high
+              }
+            },
+            {
+              selector: 'node[conservation="medium"]',
+              style: {
+                'background-color': CONSERVATION_COLORS.medium
+              }
+            },
+            {
+              selector: 'node[conservation="low"]',
+              style: {
+                'background-color': CONSERVATION_COLORS.low
+              }
+            },
+            {
+              selector: 'node[conservation="unknown"]',
+              style: {
+                'background-color': CONSERVATION_COLORS.unknown
+              }
+            }
+          ],
+          layout: getLayoutConfig(layoutName, {
+            animate: shouldAnimate,
+            animationDuration: shouldAnimate ? 500 : 0
+          })
+        } as CytoscapeOptions)
+
+        if (cancelled) {
+          cleanupCy()
+          return
+        }
+
+        cyRef.current = cy
+        onRefReadyRef.current?.(cyRef as React.RefObject<Core>, true)
+      } catch (loadError) {
+        if (cancelled) return
+        console.error('Failed to initialize Cytoscape network graph:', loadError)
+        const detail = loadError instanceof Error ? loadError.message : String(loadError)
+        setGraphLoadError(detail)
+        onRefReadyRef.current?.(cyRef as React.RefObject<Core>, false)
+      } finally {
+        if (!cancelled) {
+          setGraphInitializing(false)
+        }
+      }
+
+      if (!cy) return
+
+      cy.on('mouseover', 'edge', handleEdgeMouseOver)
+      cy.on('mousemove', 'edge', handleEdgeMouseMove)
+      cy.on('mouseout', 'edge', handleEdgeMouseOut)
+      cy.on('tap', 'node', handleNodeTap)
+    })()
+
+    return () => {
+      cancelled = true
+      cleanupCy()
     }
   }, [data, error, loading])
 
@@ -991,8 +1021,33 @@ export const NetworkCard = memo(({
 
         {/* Network container with conservation legend */}
         <div style={{ position: 'relative', aspectRatio: '1/1', width: '100%' }}>
-          <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-          <ConservationLegend position="top-right" compact />
+          {graphLoadError ? (
+            <div style={{ paddingTop: 24 }}>
+              <Alert
+                type="error"
+                showIcon
+                message={t('export.networkNotLoaded')}
+                description={graphLoadError}
+              />
+            </div>
+          ) : (
+            <>
+              <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+              {graphInitializing && (
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(255, 255, 255, 0.85)'
+                }}>
+                  <Spin size="large" />
+                </div>
+              )}
+              <ConservationLegend position="top-right" compact />
+            </>
+          )}
         </div>
       </div>
 

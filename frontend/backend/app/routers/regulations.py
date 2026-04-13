@@ -260,6 +260,163 @@ def _normalize_list_param(value: str | None, *, param_name: str = "parameter") -
     return ",".join(items)
 
 
+def _apply_regulation_list_filters(
+    query,
+    *,
+    species_id: Optional[int],
+    normalized_species_ids: str | None,
+    lncrna_gene_id: Optional[int],
+    target_gene_id: Optional[int],
+    normalized_lncrna_gene_name: Optional[str],
+    normalized_target_gene_name: Optional[str],
+    min_ba: Optional[float],
+    max_ba: Optional[float],
+    normalized_chromosome: Optional[str],
+    normalized_chromosomes: str | None,
+    lncrna_gene_name_col,
+    target_gene_name_col,
+    chromosome_col,
+):
+    if normalized_species_ids:
+        parsed_species_ids = parse_int_list(normalized_species_ids, param_name="species_ids", min_value=1, max_value=4)
+        if parsed_species_ids:
+            query = query.filter(Regulation.species_id.in_(parsed_species_ids))
+    elif species_id:
+        query = query.filter(Regulation.species_id == species_id)
+
+    if lncrna_gene_id:
+        query = query.filter(Regulation.lncrna_gene_id == lncrna_gene_id)
+    if target_gene_id:
+        query = query.filter(Regulation.target_gene_id == target_gene_id)
+
+    if normalized_lncrna_gene_name:
+        escaped = escape_like_pattern(normalized_lncrna_gene_name)
+        query = query.filter(lncrna_gene_name_col.ilike(f"%{escaped}%", escape="\\"))
+
+    if normalized_target_gene_name:
+        escaped = escape_like_pattern(normalized_target_gene_name)
+        query = query.filter(target_gene_name_col.ilike(f"%{escaped}%", escape="\\"))
+
+    if min_ba is not None:
+        query = query.filter(Regulation.binding_affinity >= min_ba)
+    if max_ba is not None:
+        query = query.filter(Regulation.binding_affinity <= max_ba)
+
+    if normalized_chromosomes:
+        chrs = parse_comma_list(normalized_chromosomes, param_name="chromosomes")
+        if chrs:
+            invalid_chrs = [c for c in chrs if not _CHR_PATTERN.match(c)]
+            if invalid_chrs:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid chromosome format: {invalid_chrs[:5]}. Expected format: chr1, chr2, ..., chr22, chrX, chrY, chrM"
+                )
+            query = query.filter(chromosome_col.in_(list({c.lower() for c in chrs})))
+    elif normalized_chromosome:
+        if not _CHR_PATTERN.match(normalized_chromosome):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid chromosome format: {normalized_chromosome!r}. "
+                    "Expected format: chr1, chr2, ..., chr22, chrX, chrY, chrM"
+                ),
+            )
+        query = query.filter(chromosome_col == normalized_chromosome)
+
+    return query
+
+
+def _build_filtered_regulation_list_queries(
+    db: Session,
+    *,
+    species_id: Optional[int],
+    normalized_species_ids: str | None,
+    lncrna_gene_id: Optional[int],
+    target_gene_id: Optional[int],
+    normalized_lncrna_gene_name: Optional[str],
+    normalized_target_gene_name: Optional[str],
+    min_ba: Optional[float],
+    max_ba: Optional[float],
+    normalized_chromosome: Optional[str],
+    normalized_chromosomes: str | None,
+):
+    data_query, LncRNAGene, TargetGene = _build_regulation_list_query(db)
+    data_query = _apply_regulation_list_filters(
+        data_query,
+        species_id=species_id,
+        normalized_species_ids=normalized_species_ids,
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        normalized_lncrna_gene_name=normalized_lncrna_gene_name,
+        normalized_target_gene_name=normalized_target_gene_name,
+        min_ba=min_ba,
+        max_ba=max_ba,
+        normalized_chromosome=normalized_chromosome,
+        normalized_chromosomes=normalized_chromosomes,
+        lncrna_gene_name_col=LncRNAGene.gene_name,
+        target_gene_name_col=TargetGene.gene_name,
+        chromosome_col=Regulation.target_chromosome,
+    ).order_by(desc(Regulation.binding_affinity), Regulation.regulation_id)
+
+    CountLncRNAGene = aliased(Gene, name="count_lncrna_gene")
+    CountTargetGene = aliased(Gene, name="count_target_gene")
+    count_query = db.query(Regulation.regulation_id)
+    if normalized_lncrna_gene_name:
+        count_query = count_query.join(CountLncRNAGene, Regulation.lncrna_gene_id == CountLncRNAGene.gene_id)
+    if normalized_target_gene_name:
+        count_query = count_query.join(CountTargetGene, Regulation.target_gene_id == CountTargetGene.gene_id)
+    count_query = _apply_regulation_list_filters(
+        count_query,
+        species_id=species_id,
+        normalized_species_ids=normalized_species_ids,
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        normalized_lncrna_gene_name=normalized_lncrna_gene_name,
+        normalized_target_gene_name=normalized_target_gene_name,
+        min_ba=min_ba,
+        max_ba=max_ba,
+        normalized_chromosome=normalized_chromosome,
+        normalized_chromosomes=normalized_chromosomes,
+        lncrna_gene_name_col=CountLncRNAGene.gene_name,
+        target_gene_name_col=CountTargetGene.gene_name,
+        chromosome_col=Regulation.target_chromosome,
+    )
+
+    return data_query, count_query
+
+
+def _build_regulation_list_response(query, *, total: int, page: int, page_size: int) -> PaginatedResponse[RegulationListItem]:
+    offset = compute_pagination_offset(page, page_size)
+    items = query.offset(offset).limit(page_size).all()
+
+    regulation_list = [
+        RegulationListItem(
+            regulation_id=item.regulation_id,
+            species_id=item.species_id,
+            species_name=item.species_name,
+            lncrna_gene_id=item.lncrna_gene_id,
+            lncrna_gene_name=item.lncrna_gene_name,
+            target_gene_id=item.target_gene_id,
+            target_gene_name=item.target_gene_name,
+            target_chromosome=item.target_chromosome,
+            target_start=item.target_start,
+            target_end=item.target_end,
+            binding_affinity=item.binding_affinity,
+            best_avg_ba=item.best_avg_ba,
+            num_peaks=item.num_peaks,
+        )
+        for item in items
+    ]
+
+    return PaginatedResponse(
+        items=regulation_list,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=ceil(total / page_size) if total > 0 else 0,
+    )
+
+
 @router.get("", response_model=PaginatedResponse[RegulationListItem])
 @rate_limit("60/minute")
 def list_regulations(
@@ -288,8 +445,6 @@ def list_regulations(
     # 规范化列表参数，提升缓存命中率（去空格、排序）
     normalized_species_ids = _normalize_list_param(species_ids, param_name="species_ids")
     normalized_chromosomes = _normalize_list_param(chromosomes, param_name="chromosomes")
-    parsed_species_ids = None
-    chrs_normalized = None
     if normalized_chromosomes:
         # Chromosome values are case-insensitive; normalize to reduce cache fragmentation.
         normalized_chromosomes = normalized_chromosomes.lower()
@@ -324,67 +479,19 @@ def list_regulations(
         return cached
 
     logger.debug("[CACHE MISS] regulations:list")
-
-    query, LncRNAGene, TargetGene = _build_regulation_list_query(db)
-
-    # 物种筛选：优先使用数组参数
-    # Phase 9.15: 使用安全验证器防止 DoS 攻击（限制项数和长度）
-    if normalized_species_ids:
-        parsed_species_ids = parse_int_list(normalized_species_ids, param_name="species_ids", min_value=1, max_value=4)
-        if parsed_species_ids:
-            query = query.filter(Regulation.species_id.in_(parsed_species_ids))
-    elif species_id:
-        query = query.filter(Regulation.species_id == species_id)
-
-    if lncrna_gene_id:
-        query = query.filter(Regulation.lncrna_gene_id == lncrna_gene_id)
-    if target_gene_id:
-        query = query.filter(Regulation.target_gene_id == target_gene_id)
-
-    # lncRNA基因名模糊搜索（转义特殊字符防止意外匹配）
-    if normalized_lncrna_gene_name:
-        escaped = escape_like_pattern(normalized_lncrna_gene_name)
-        query = query.filter(LncRNAGene.gene_name.ilike(f"%{escaped}%", escape='\\'))
-
-    # 靶基因名模糊搜索（转义特殊字符防止意外匹配）
-    if normalized_target_gene_name:
-        escaped = escape_like_pattern(normalized_target_gene_name)
-        query = query.filter(TargetGene.gene_name.ilike(f"%{escaped}%", escape='\\'))
-
-    # BA范围筛选
-    if min_ba is not None:
-        query = query.filter(Regulation.binding_affinity >= min_ba)
-    if max_ba is not None:
-        query = query.filter(Regulation.binding_affinity <= max_ba)
-
-    # 染色体筛选：优先使用数组参数
-    # Phase 9.15: 使用安全验证器防止 DoS 攻击，并校验染色体格式
-    if normalized_chromosomes:
-        chrs = parse_comma_list(normalized_chromosomes, param_name="chromosomes")
-        if chrs:
-            # 校验染色体格式 (chr1-chr22, chrX, chrY, chrM)
-            invalid_chrs = [c for c in chrs if not _CHR_PATTERN.match(c)]
-            if invalid_chrs:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid chromosome format: {invalid_chrs[:5]}. Expected format: chr1, chr2, ..., chr22, chrX, chrY, chrM"
-                )
-            # 规范化为小写并去重，确保与数据库一致且减少 IN 参数
-            chrs_normalized = list({c.lower() for c in chrs})
-            query = query.filter(Regulation.target_chromosome.in_(chrs_normalized))
-    elif normalized_chromosome:
-        if not _CHR_PATTERN.match(normalized_chromosome):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"Invalid chromosome format: {normalized_chromosome!r}. "
-                    "Expected format: chr1, chr2, ..., chr22, chrX, chrY, chrM"
-                ),
-            )
-        query = query.filter(Regulation.target_chromosome == normalized_chromosome)
-
-    # 添加排序，确保分页结果稳定
-    query = query.order_by(desc(Regulation.binding_affinity), Regulation.regulation_id)
+    query, count_query = _build_filtered_regulation_list_queries(
+        db,
+        species_id=species_id,
+        normalized_species_ids=normalized_species_ids,
+        lncrna_gene_id=lncrna_gene_id,
+        target_gene_id=target_gene_id,
+        normalized_lncrna_gene_name=normalized_lncrna_gene_name,
+        normalized_target_gene_name=normalized_target_gene_name,
+        min_ba=min_ba,
+        max_ba=max_ba,
+        normalized_chromosome=normalized_chromosome,
+        normalized_chromosomes=normalized_chromosomes,
+    )
 
     # 总数（使用缓存，使用规范化后的参数确保与列表缓存键一致）
     count_cache_key = cache.make_list_key(
@@ -400,74 +507,9 @@ def list_regulations(
         chromosome=normalized_chromosome,
         chromosomes=normalized_chromosomes,
     )
-    # 性能优化：count() 不需要 JOIN species/genes（仅在 name 模糊搜索时需要 JOIN）
-    count_query = db.query(Regulation.regulation_id)
-
-    if parsed_species_ids:
-        count_query = count_query.filter(Regulation.species_id.in_(parsed_species_ids))
-    elif species_id:
-        count_query = count_query.filter(Regulation.species_id == species_id)
-
-    if lncrna_gene_id:
-        count_query = count_query.filter(Regulation.lncrna_gene_id == lncrna_gene_id)
-    if target_gene_id:
-        count_query = count_query.filter(Regulation.target_gene_id == target_gene_id)
-
-    if normalized_lncrna_gene_name:
-        escaped = escape_like_pattern(normalized_lncrna_gene_name)
-        count_query = count_query.join(LncRNAGene, Regulation.lncrna_gene_id == LncRNAGene.gene_id).filter(
-            LncRNAGene.gene_name.ilike(f"%{escaped}%", escape="\\")
-        )
-
-    if normalized_target_gene_name:
-        escaped = escape_like_pattern(normalized_target_gene_name)
-        count_query = count_query.join(TargetGene, Regulation.target_gene_id == TargetGene.gene_id).filter(
-            TargetGene.gene_name.ilike(f"%{escaped}%", escape="\\")
-        )
-
-    if min_ba is not None:
-        count_query = count_query.filter(Regulation.binding_affinity >= min_ba)
-    if max_ba is not None:
-        count_query = count_query.filter(Regulation.binding_affinity <= max_ba)
-
-    if chrs_normalized:
-        count_query = count_query.filter(Regulation.target_chromosome.in_(chrs_normalized))
-    elif normalized_chromosome:
-        count_query = count_query.filter(Regulation.target_chromosome == normalized_chromosome)
 
     total = cache.get_cached_count(count_query, count_cache_key)
-
-    # 分页
-    offset = compute_pagination_offset(page, page_size)
-    items = query.offset(offset).limit(page_size).all()
-
-    # 转换为响应模型
-    regulation_list = [
-        RegulationListItem(
-            regulation_id=item.regulation_id,
-            species_id=item.species_id,
-            species_name=item.species_name,
-            lncrna_gene_id=item.lncrna_gene_id,
-            lncrna_gene_name=item.lncrna_gene_name,
-            target_gene_id=item.target_gene_id,
-            target_gene_name=item.target_gene_name,
-            target_chromosome=item.target_chromosome,
-            target_start=item.target_start,
-            target_end=item.target_end,
-            binding_affinity=item.binding_affinity,
-            best_avg_ba=item.best_avg_ba,
-            num_peaks=item.num_peaks,
-        )
-        for item in items
-    ]
-
-    result = PaginatedResponse(
-        items=regulation_list,
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=ceil(total / page_size) if total > 0 else 0,
-    )
+    result = _build_regulation_list_response(query, total=total, page=page, page_size=page_size)
 
     # 写入缓存（15 分钟 = 900 秒）
     cache.set(cache_key, result, 900)
@@ -600,34 +642,4 @@ def get_gene_regulations(
         min_ba=min_ba,
     )
     total = cache.get_cached_count(query, count_cache_key)
-
-    # 分页
-    offset = compute_pagination_offset(page, page_size)
-    items = query.offset(offset).limit(page_size).all()
-
-    regulation_list = [
-        RegulationListItem(
-            regulation_id=item.regulation_id,
-            species_id=item.species_id,
-            species_name=item.species_name,
-            lncrna_gene_id=item.lncrna_gene_id,
-            lncrna_gene_name=item.lncrna_gene_name,
-            target_gene_id=item.target_gene_id,
-            target_gene_name=item.target_gene_name,
-            target_chromosome=item.target_chromosome,
-            target_start=item.target_start,
-            target_end=item.target_end,
-            binding_affinity=item.binding_affinity,
-            best_avg_ba=item.best_avg_ba,
-            num_peaks=item.num_peaks,
-        )
-        for item in items
-    ]
-
-    return PaginatedResponse(
-        items=regulation_list,
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=ceil(total / page_size) if total > 0 else 0,
-    )
+    return _build_regulation_list_response(query, total=total, page=page, page_size=page_size)

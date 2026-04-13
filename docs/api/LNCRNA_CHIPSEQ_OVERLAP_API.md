@@ -1,6 +1,6 @@
 # lncRNA-ChIP-seq Overlap API Documentation
 
-> 更新（2026-01-24）：本文档为 API 文档快照；如与当前实现不一致，以 `docs/CURRENT_STATUS.md` 与实际接口行为为准。
+> 更新（2026-03-26）：本文档为 API 文档快照；如与当前实现不一致，以 `docs/CURRENT_STATUS.md` 与实际接口行为为准。
 
 ## Overview
 
@@ -15,6 +15,7 @@ Get paginated list of lncRNA-ChIP-seq overlaps with flexible filtering.
 #### Performance Notes
 
 - When the materialized view `mv_lncrna_chipseq_overlaps` is available and populated, the API uses it automatically (`using_materialized_view=true`).
+- The page-based and cursor-based overlap endpoints share the same COUNT cache normalization and row-to-item mapping logic across MV and fallback paths, reducing drift between pagination modes without changing the public response schema.
 - When MV is **not** available (fallback join query):
   - If no selective filters are provided (`lncrna_gene_id`, `target_gene_id`, `chromosome`, `mark_type`, `cell_type`, or `min_binding_affinity > 0`), the server applies a default `chromosome=chr22` (`default_filter_applied=true`) to prevent timeouts.
   - For large chromosomes (`chr1`, `chr2`, `chr3`), a **chromosome-only** request is rejected with `400` (`error=QUERY_TOO_BROAD`) unless you add at least one additional narrowing filter (e.g. `mark_type`, `cell_type`, `lncrna_gene_id`, `target_gene_id`, `min_binding_affinity`, `min_peak_strength`, `min_overlap_length`).
@@ -217,6 +218,7 @@ curl "http://localhost:8000/api/v1/lncrna-chipseq-overlap/statistics?mark_type=H
 #### Notes
 
 - 若某物种缺少同源基因（或指定了 `target_gene_id` 但缺少 target 同源基因），该物种返回 empty stats（`total_overlaps=0`）。
+- 实现说明（2026-03-26）：compare 端点会先收集参与对比的 `species_gene_pairs`，再批量执行 grouped statistics / `by_mark_type` / `by_cell_type` 聚合，避免按物种重复执行三轮统计查询。
 - `top_n` 用于限制每个物种的 breakdown（`by_mark_type/by_cell_type`）返回条数，避免 payload 过大。
 - 可选参数 `species_ids` 可限制参与对比的物种集合（用于减少查询量/提升响应速度）；未指定时默认对比 `1,2,3,4`。
 
@@ -385,6 +387,7 @@ Overlap coordinates:
 ### Current Performance
 
 - **With MV (`mv_lncrna_chipseq_overlaps`)**: optimized for interactive queries, including large chromosomes.
+- **Cross-species compare (`/compare`)**: species-level statistics are batched into grouped queries, so adding species no longer implies one full statistics round-trip per species.
 - **Without MV (fallback join query)**: can be slow for broad requests; the API applies safety defaults (chr22) and rejects chromosome-only queries for chr1/chr2/chr3 unless additional filters are provided.
 
 ### Optimization Opportunities

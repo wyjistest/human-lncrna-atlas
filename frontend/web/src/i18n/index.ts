@@ -10,110 +10,176 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 
-// ============ 导入翻译资源 ============
-
-// 简体中文
 import zhCommon from './locales/zh-CN/common.json'
 import zhNav from './locales/zh-CN/nav.json'
 import zhHome from './locales/zh-CN/home.json'
-import zhStats from './locales/zh-CN/stats.json'
-import zhGenes from './locales/zh-CN/genes.json'
-import zhDiseases from './locales/zh-CN/diseases.json'
-import zhRegulations from './locales/zh-CN/regulations.json'
-import zhNetwork from './locales/zh-CN/network.json'
-import zhConservation from './locales/zh-CN/conservation.json'
-import zhGenomeBrowser from './locales/zh-CN/genomeBrowser.json'
-import zhOverlap from './locales/zh-CN/overlap.json'
-import zhGlobalCompare from './locales/zh-CN/globalCompare.json'
-import zhAnalysis from './locales/zh-CN/analysis.json'
-import zhVisualization from './locales/zh-CN/visualization.json'
-
-// English
 import enCommon from './locales/en/common.json'
 import enNav from './locales/en/nav.json'
 import enHome from './locales/en/home.json'
-import enStats from './locales/en/stats.json'
-import enGenes from './locales/en/genes.json'
-import enDiseases from './locales/en/diseases.json'
-import enRegulations from './locales/en/regulations.json'
-import enNetwork from './locales/en/network.json'
-import enConservation from './locales/en/conservation.json'
-import enGenomeBrowser from './locales/en/genomeBrowser.json'
-import enOverlap from './locales/en/overlap.json'
-import enGlobalCompare from './locales/en/globalCompare.json'
-import enAnalysis from './locales/en/analysis.json'
-import enVisualization from './locales/en/visualization.json'
 
-// ============ 资源配置 ============
-
-const resources = {
-  'zh-CN': {
-    common: zhCommon,
-    nav: zhNav,
-    home: zhHome,
-    stats: zhStats,
-    genes: zhGenes,
-    diseases: zhDiseases,
-	    regulations: zhRegulations,
-	    network: zhNetwork,
-	    conservation: zhConservation,
-	    genomeBrowser: zhGenomeBrowser,
-	    overlap: zhOverlap,
-	    globalCompare: zhGlobalCompare,
-	    analysis: zhAnalysis,
-	    visualization: zhVisualization
-	  },
-  en: {
-    common: enCommon,
-    nav: enNav,
-    home: enHome,
-    stats: enStats,
-    genes: enGenes,
-    diseases: enDiseases,
-	    regulations: enRegulations,
-	    network: enNetwork,
-	    conservation: enConservation,
-	    genomeBrowser: enGenomeBrowser,
-	    overlap: enOverlap,
-	    globalCompare: enGlobalCompare,
-	    analysis: enAnalysis,
-	    visualization: enVisualization
-	  }
-	}
-
-// ============ 支持的语言 ============
+type TranslationResource = Record<string, unknown>
+type TranslationModule = { default: TranslationResource }
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'zh-CN', label: '简体中文', flag: '🇨🇳' },
-  { code: 'en', label: 'English', flag: '🇺🇸' }
+  { code: 'en', label: 'English', flag: '🇺🇸' },
 ] as const
 
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]['code']
 
-// ============ 初始化 ============
+export const EAGER_NAMESPACES = ['common', 'nav', 'home'] as const
+export const LAZY_NAMESPACES = [
+  'stats',
+  'genes',
+  'diseases',
+  'regulations',
+  'network',
+  'conservation',
+  'genomeBrowser',
+  'overlap',
+  'globalCompare',
+  'analysis',
+  'visualization',
+] as const
+
+export type EagerNamespace = (typeof EAGER_NAMESPACES)[number]
+export type LazyNamespace = (typeof LAZY_NAMESPACES)[number]
+export type TranslationNamespace = EagerNamespace | LazyNamespace
+
+const ALL_NAMESPACES = [...EAGER_NAMESPACES, ...LAZY_NAMESPACES] as const
+const EAGER_NAMESPACE_SET = new Set<TranslationNamespace>(EAGER_NAMESPACES)
+
+const eagerResources: Record<SupportedLanguage, Record<EagerNamespace, TranslationResource>> = {
+  'zh-CN': {
+    common: zhCommon,
+    nav: zhNav,
+    home: zhHome,
+  },
+  en: {
+    common: enCommon,
+    nav: enNav,
+    home: enHome,
+  },
+}
+
+const lazyResourceLoaders: Record<SupportedLanguage, Record<LazyNamespace, () => Promise<TranslationModule>>> = {
+  'zh-CN': {
+    stats: () => import('./locales/zh-CN/stats.json'),
+    genes: () => import('./locales/zh-CN/genes.json'),
+    diseases: () => import('./locales/zh-CN/diseases.json'),
+    regulations: () => import('./locales/zh-CN/regulations.json'),
+    network: () => import('./locales/zh-CN/network.json'),
+    conservation: () => import('./locales/zh-CN/conservation.json'),
+    genomeBrowser: () => import('./locales/zh-CN/genomeBrowser.json'),
+    overlap: () => import('./locales/zh-CN/overlap.json'),
+    globalCompare: () => import('./locales/zh-CN/globalCompare.json'),
+    analysis: () => import('./locales/zh-CN/analysis.json'),
+    visualization: () => import('./locales/zh-CN/visualization.json'),
+  },
+  en: {
+    stats: () => import('./locales/en/stats.json'),
+    genes: () => import('./locales/en/genes.json'),
+    diseases: () => import('./locales/en/diseases.json'),
+    regulations: () => import('./locales/en/regulations.json'),
+    network: () => import('./locales/en/network.json'),
+    conservation: () => import('./locales/en/conservation.json'),
+    genomeBrowser: () => import('./locales/en/genomeBrowser.json'),
+    overlap: () => import('./locales/en/overlap.json'),
+    globalCompare: () => import('./locales/en/globalCompare.json'),
+    analysis: () => import('./locales/en/analysis.json'),
+    visualization: () => import('./locales/en/visualization.json'),
+  },
+}
+
+const namespaceLoadPromises = new Map<LazyNamespace, Promise<void>>()
+
+function toNamespaceList(
+  namespaces: TranslationNamespace | readonly TranslationNamespace[],
+): TranslationNamespace[] {
+  if (typeof namespaces === 'string') {
+    return [namespaces]
+  }
+
+  return [...new Set(namespaces)]
+}
+
+function waitForInitialization() {
+  if (i18n.isInitialized) {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve) => {
+    const handleInitialized = () => {
+      i18n.off('initialized', handleInitialized)
+      resolve()
+    }
+
+    i18n.on('initialized', handleInitialized)
+  })
+}
+
+async function loadNamespace(namespace: LazyNamespace) {
+  const existingPromise = namespaceLoadPromises.get(namespace)
+  if (existingPromise) {
+    return existingPromise
+  }
+
+  const loadPromise = Promise.all(
+    SUPPORTED_LANGUAGES.map(async ({ code }) => {
+      if (i18n.hasResourceBundle(code, namespace)) {
+        return
+      }
+
+      const resourceModule = await lazyResourceLoaders[code][namespace]()
+      i18n.addResourceBundle(code, namespace, resourceModule.default, true, true)
+    }),
+  ).then(() => undefined)
+
+  namespaceLoadPromises.set(namespace, loadPromise)
+
+  try {
+    await loadPromise
+  } catch (error) {
+    namespaceLoadPromises.delete(namespace)
+    throw error
+  }
+}
+
+export async function ensureNamespaces(
+  namespaces: TranslationNamespace | readonly TranslationNamespace[],
+) {
+  await waitForInitialization()
+
+  const lazyNamespaces = toNamespaceList(namespaces).filter(
+    (namespace): namespace is LazyNamespace => !EAGER_NAMESPACE_SET.has(namespace),
+  )
+
+  if (lazyNamespaces.length === 0) {
+    return
+  }
+
+  await Promise.all(lazyNamespaces.map((namespace) => loadNamespace(namespace)))
+}
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-	    resources,
-	    fallbackLng: 'zh-CN',
-	    defaultNS: 'common',
-	    ns: ['common', 'nav', 'home', 'stats', 'genes', 'diseases', 'regulations', 'network', 'conservation', 'genomeBrowser', 'overlap', 'globalCompare', 'analysis', 'visualization'],
-
+    resources: eagerResources,
+    fallbackLng: 'zh-CN',
+    defaultNS: 'common',
+    ns: ALL_NAMESPACES,
     interpolation: {
-      escapeValue: false // React 已处理 XSS
+      escapeValue: false,
     },
-
     detection: {
       order: ['localStorage', 'navigator'],
       caches: ['localStorage'],
-      lookupLocalStorage: 'i18n_lang'
+      lookupLocalStorage: 'i18n_lang',
     },
-
     react: {
-      useSuspense: false // 避免 SSR 问题
-    }
+      useSuspense: false,
+    },
   })
 
 export default i18n

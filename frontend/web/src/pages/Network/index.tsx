@@ -1,21 +1,44 @@
 import { useState, useRef, useMemo } from 'react'
-import { Button, Space, Select, Alert } from 'antd'
+import { Alert, Button, InputNumber, Select, Space } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { networkApi } from '@/api/network'
 import { diseasesApi } from '@/api/diseases'
 import type { DiseaseOption } from '@/api/diseases'
 import type { AvailableCombination } from '@/types/network'
-import cytoscape from 'cytoscape'
-import cytoscapeSvg from 'cytoscape-svg'
 import { NetworkCard } from './components/NetworkCard'
 import { handleBatchExport, type NetworkCardRef } from './utils/batchExport.tsx'
 import { SPECIES_KEYS } from './types'
 
-// 注册 cytoscape-svg 插件
-if (typeof window !== 'undefined') {
-  cytoscape.use(cytoscapeSvg)
+const DEFAULT_SPECIES_IDS = [1]
+const DEFAULT_MIN_BA = 0
+
+function parseIntegerParam(value: string | null, min: number, max = Number.MAX_SAFE_INTEGER): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) return undefined
+  return parsed
+}
+
+function parseNumberParam(value: string | null, min: number, max = Number.MAX_SAFE_INTEGER): number | undefined {
+  if (!value) return undefined
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < min || parsed > max) return undefined
+  return parsed
+}
+
+function parseSpeciesIdsParam(value: string | null): number[] {
+  if (!value) return []
+
+  const uniqueSpeciesIds = new Set<number>()
+  for (const rawValue of value.split(',')) {
+    const speciesId = parseIntegerParam(rawValue.trim(), 1, 4)
+    if (speciesId !== undefined) uniqueSpeciesIds.add(speciesId)
+  }
+
+  return Array.from(uniqueSpeciesIds).slice(0, 4)
 }
 
 /**
@@ -29,10 +52,32 @@ if (typeof window !== 'undefined') {
  */
 export default function Network() {
   const { t } = useTranslation('network')
-  const [speciesIds, setSpeciesIds] = useState<number[]>([1])
-  const [traitId, setTraitId] = useState<number>()
-  const [ontologyId, setOntologyId] = useState<number>()
-  const [queryTrigger, setQueryTrigger] = useState(0)
+  const [searchParams] = useSearchParams()
+
+  const initialFilters = useMemo(() => {
+    const parsedSpeciesIds = parseSpeciesIdsParam(searchParams.get('species_ids'))
+    const parsedTraitId = parseIntegerParam(searchParams.get('trait_id'), 1)
+    const parsedOntologyId = parseIntegerParam(searchParams.get('ontology_id'), 1)
+    const parsedMinBa = parseNumberParam(searchParams.get('min_ba'), 0)
+
+    return {
+      speciesIds: parsedSpeciesIds.length > 0 ? parsedSpeciesIds : DEFAULT_SPECIES_IDS,
+      traitId: parsedTraitId,
+      ontologyId: parsedOntologyId,
+      minBa: parsedMinBa ?? DEFAULT_MIN_BA,
+      shouldAutoQuery:
+        parsedSpeciesIds.length > 0 &&
+        parsedTraitId !== undefined &&
+        parsedOntologyId !== undefined &&
+        parsedMinBa !== undefined,
+    }
+  }, [searchParams])
+
+  const [speciesIds, setSpeciesIds] = useState<number[]>(initialFilters.speciesIds)
+  const [traitId, setTraitId] = useState<number | undefined>(initialFilters.traitId)
+  const [ontologyId, setOntologyId] = useState<number | undefined>(initialFilters.ontologyId)
+  const [minBa, setMinBa] = useState<number>(initialFilters.minBa)
+  const [queryTrigger, setQueryTrigger] = useState(initialFilters.shouldAutoQuery ? 1 : 0)
 
   // 本地化物种选项
   const speciesOptions = useMemo(() => [
@@ -110,14 +155,14 @@ export default function Network() {
   // 使用 useQueries 并行查询多个物种
   const networkQueries = useQueries({
     queries: speciesIds.map(speciesId => ({
-      queryKey: ['network', speciesId, traitId, ontologyId, queryTrigger],
+      queryKey: ['network', speciesId, traitId, ontologyId, minBa, queryTrigger],
       queryFn: async ({ signal }) => {
         if (!traitId || !ontologyId) return null
         const res = await networkApi.getDiseaseNetwork({
           species_id: speciesId,
           trait_id: traitId,
           ontology_id: ontologyId,
-          min_ba: 0
+          min_ba: minBa
         }, signal)
         return res.data
       },
@@ -228,6 +273,15 @@ export default function Network() {
           }}
           options={ontologies?.map((o: { ontology_id: number; ontology_name: string }) => ({ label: o.ontology_name, value: o.ontology_id }))}
         />
+        <span>{t('query.minBaLabel')}</span>
+        <InputNumber
+          min={0}
+          max={100}
+          precision={0}
+          value={minBa}
+          onChange={(value) => setMinBa(typeof value === 'number' ? value : 0)}
+          style={{ width: 120 }}
+        />
         <Button data-testid="network-query-button" type="primary" onClick={handleQuery} disabled={!traitId || !ontologyId}>
           {t('query.button')}
         </Button>
@@ -242,6 +296,14 @@ export default function Network() {
           </Button>
         )}
       </Space>
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        title={t('query.minBaHelper')}
+        description={t('query.visualFilterNote')}
+      />
 
       {diseaseOptionsError && (
         <Alert

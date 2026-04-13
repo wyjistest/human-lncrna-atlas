@@ -589,7 +589,9 @@ def export_chipseq_overlaps(
     sql = text("""
         SELECT
             o.regulation_id,
+            o.lncrna_gene_id,
             o.lncrna_name as lncrna_name,
+            o.target_gene_id,
             o.target_gene_name as target_name,
             o.binding_affinity,
             o.mark_name,
@@ -607,7 +609,7 @@ def export_chipseq_overlaps(
 
     # 定义列名
     fieldnames = [
-        "regulation_id", "lncrna_name", "target_name", "binding_affinity",
+        "regulation_id", "lncrna_gene_id", "lncrna_name", "target_gene_id", "target_name", "binding_affinity",
         "mark_name", "peak_score", "peak_chr", "peak_start", "peak_end", "cell_type"
     ]
 
@@ -757,8 +759,11 @@ def export_disease_network(
         select(
             Trait.trait_name,
             Trait.trait_id,
+            TraitGeneAssociation.ontology_id,
+            TraitGeneAssociation.evidence_species_id,
             Gene.gene_id,
             Gene.gene_name,
+            Gene.species_id,
             TraitGeneAssociation.trait_snp_pvalue.label("pvalue"),
         )
         .select_from(TraitGeneAssociation)
@@ -780,8 +785,11 @@ def export_disease_network(
     for row in disease_gene_result:
         trait_id = row.trait_id
         trait_name_val = row.trait_name
+        ontology_id = getattr(row, "ontology_id", None)
+        evidence_species_id = getattr(row, "evidence_species_id", None)
         gene_id = row.gene_id
         gene_name = row.gene_name
+        gene_species_id = getattr(row, "species_id", evidence_species_id)
         pvalue = float(row.pvalue) if row.pvalue else None
 
         # 添加疾病节点
@@ -790,7 +798,10 @@ def export_disease_network(
             nodes.append(NetworkNode(
                 id=disease_node_id,
                 type="disease",
-                name=trait_name_val
+                name=trait_name_val,
+                trait_id=trait_id,
+                ontology_id=ontology_id,
+                species_id=evidence_species_id,
             ))
             node_ids.add(disease_node_id)
             trait_ids_seen.add(trait_id)
@@ -801,7 +812,9 @@ def export_disease_network(
             nodes.append(NetworkNode(
                 id=gene_node_id,
                 type="gene",
-                name=gene_name
+                name=gene_name,
+                gene_id=gene_id,
+                species_id=gene_species_id,
             ))
             node_ids.add(gene_node_id)
             gene_ids.add(gene_id)
@@ -824,8 +837,10 @@ def export_disease_network(
             SELECT
                 r.target_gene_id,
                 tgt.gene_name as target_name,
+                tgt.species_id as target_species_id,
                 r.lncrna_gene_id,
                 lnc.gene_name as lncrna_name,
+                lnc.species_id as lncrna_species_id,
                 r.binding_affinity
             FROM regulations r
             JOIN genes lnc ON r.lncrna_gene_id = lnc.gene_id
@@ -844,6 +859,7 @@ def export_disease_network(
             target_gene_id = row.target_gene_id
             lncrna_gene_id = row.lncrna_gene_id
             lncrna_name = row.lncrna_name
+            lncrna_species_id = getattr(row, "lncrna_species_id", None)
             binding_affinity = float(row.binding_affinity) if row.binding_affinity else None
 
             # 添加 lncRNA 节点
@@ -852,7 +868,9 @@ def export_disease_network(
                 nodes.append(NetworkNode(
                     id=lncrna_node_id,
                     type="lncrna",
-                    name=lncrna_name
+                    name=lncrna_name,
+                    gene_id=lncrna_gene_id,
+                    species_id=lncrna_species_id,
                 ))
                 node_ids.add(lncrna_node_id)
 

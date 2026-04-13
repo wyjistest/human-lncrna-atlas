@@ -10,7 +10,6 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { Card, Row, Col, Statistic, Table, Space, Button, InputNumber, Select, message } from 'antd'
-import { DownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import ReactECharts from 'echarts-for-react'
 import { analysisApi } from '@/api/analysis'
@@ -23,7 +22,8 @@ import { escapeHtml } from '@/utils/escapeHtml'
 import type { ECOption } from '@/utils/echarts'
 import type { HighAffinityRecord } from '@/api/analysis'
 import type { TooltipFormatterParams } from '@/types/echarts'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import AnalysisTabActionBar from './AnalysisTabActionBar'
 
 const DEFAULT_PAGE = 1
 const MAX_PAGE = 1_000_000
@@ -179,6 +179,7 @@ export default function HighAffinityTab() {
       dataIndex: 'target_name',
       key: 'target_name',
       width: 150,
+      render: (_targetName: string, record: HighAffinityRecord) => record.target_name || `Gene ${record.target_gene_id}`,
     },
     {
       title: t('highAffinity.table.ba'),
@@ -199,6 +200,22 @@ export default function HighAffinityTab() {
       dataIndex: 'chr',
       key: 'chr',
       width: 100,
+    },
+    {
+      title: t('workspace.actions'),
+      key: 'actions',
+      width: 160,
+      render: (_value: unknown, record: HighAffinityRecord) => {
+        const href = `/regulations?lncrna_gene_id=${record.lncrna_gene_id}&target_gene_id=${record.target_gene_id}&min_ba=${minBa}`
+        return (
+          <Link
+            data-testid={`analysis-high-affinity-regulations-${record.lncrna_gene_id}-${record.target_gene_id}`}
+            to={href}
+          >
+            {t('workspace.openRegulations')}
+          </Link>
+        )
+      },
     },
   ]
 
@@ -296,7 +313,19 @@ export default function HighAffinityTab() {
       </Row>
 
       {/* Filters */}
-      <Card title={t('highAffinity.title')} style={{ marginBottom: 16 }}>
+      <Card
+        title={t('highAffinity.title')}
+        extra={(
+          <AnalysisTabActionBar
+            tabKey="highAffinity"
+            exportLabel={t('common.exportCsv')}
+            exportDisabled={!data?.data?.length}
+            isExporting={isExporting}
+            onExport={handleExport}
+          />
+        )}
+        style={{ marginBottom: 16 }}
+      >
         <Space wrap style={{ marginBottom: 16 }}>
           <span>Minimum BA:</span>
           <InputNumber
@@ -336,14 +365,6 @@ export default function HighAffinityTab() {
           </Select>
           <Button type="primary" onClick={() => refetch()}>
             {t('common.refresh')}
-          </Button>
-          <Button
-            icon={<DownloadOutlined />}
-            loading={isExporting}
-            disabled={!data?.data?.length}
-            onClick={() => { void handleExport() }}
-          >
-            {t('common.exportCsv')}
           </Button>
         </Space>
 

@@ -1,17 +1,17 @@
 {
-  "home": "Home",
+  "home": "Overview",
   "stats": "Statistics",
-  "genes": "Gene List",
-  "regulations": "Regulations",
-  "overlap": "Overlap Analysis",
+  "genes": "Genes",
+  "regulations": "Candidate Regulatory Edges",
+  "overlap": "Epigenomic Context",
   "chipseqCompare": "ChIP-seq Compare",
-  "diseases": "Diseases",
-  "network": "Network",
-  "conservation": "Conservation",
-  "analysis": "Analysis Results",
+  "diseases": "Traits",
+  "network": "Trait-centered Networks",
+  "conservation": "Conservation & Rewiring",
+  "analysis": "Evidence Hub",
   "genomeBrowser": "Genome Browser",
   "cache": "Cache",
   "materializedViews": "Materialized Views",
   "monitoring": "Monitoring",
-  "siteTitle": "Human LncRNA Atlas"
+  "siteTitle": "Human LncRNA Atlas Companion"
 }

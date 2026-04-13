@@ -5,33 +5,46 @@ import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import { useTranslation } from 'react-i18next'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { lazyWithNamespaces } from './i18n/lazyWithNamespaces'
 import MainLayout from './layouts/MainLayout'
 import Home from './pages/Home'
 
 // Lazy load route pages to keep initial bundle small
 // Network: Cytoscape.js (~460KB gzipped)
-const Network = lazy(() => import('./pages/Network'))
+const Network = lazyWithNamespaces(() => import('./pages/Network'), ['network'])
 // Analysis: Various analysis components
-const Analysis = lazy(() => import('./pages/Analysis'))
+const Analysis = lazyWithNamespaces(() => import('./pages/Analysis'), ['analysis'])
 // Visualization: ECharts (~375KB gzipped)
-const VisualizationHub = lazy(() => import('./pages/Visualization'))
-const SankeyFlow = lazy(() => import('./pages/Visualization/SankeyFlow'))
-const ChordDiagram = lazy(() => import('./pages/Visualization/ChordDiagram'))
+const VisualizationHub = lazyWithNamespaces(() => import('./pages/Visualization'), ['visualization'])
+const SankeyFlow = lazyWithNamespaces(() => import('./pages/Visualization/SankeyFlow'), ['visualization'])
+const ChordDiagram = lazyWithNamespaces(() => import('./pages/Visualization/ChordDiagram'), ['visualization'])
 // GenomeBrowser: IGV.js (~396KB gzipped)
-const GenomeBrowser = lazy(() => import('./pages/GenomeBrowser'))
+const GenomeBrowser = lazyWithNamespaces(() => import('./pages/GenomeBrowser'), ['genomeBrowser'])
 
 // Other pages (lazy to avoid pulling charts/export libs into the home route)
-const Stats = lazy(() => import('./pages/Stats'))
-const Genes = lazy(() => import('./pages/Genes'))
-const GeneDetail = lazy(() => import('./pages/GeneDetail'))
-const Regulations = lazy(() => import('./pages/Regulations'))
-const Diseases = lazy(() => import('./pages/Diseases'))
-const Conservation = lazy(() => import('./pages/Conservation'))
+const Stats = lazyWithNamespaces(() => import('./pages/Stats'), ['stats'])
+const Genes = lazyWithNamespaces(() => import('./pages/Genes'), ['genes'])
+const GeneDetail = lazyWithNamespaces(
+  () => import('./pages/GeneDetail'),
+  ['genes', 'regulations', 'genomeBrowser'],
+)
+const Regulations = lazyWithNamespaces(
+  () => import('./pages/Regulations'),
+  ['regulations', 'genomeBrowser'],
+)
+const Diseases = lazyWithNamespaces(() => import('./pages/Diseases'), ['diseases'])
+const Conservation = lazyWithNamespaces(() => import('./pages/Conservation'), ['conservation'])
 const Monitoring = lazy(() => import('./pages/Admin/Monitoring'))
 const CacheManagement = lazy(() => import('./pages/Admin/Cache'))
 const MaterializedViews = lazy(() => import('./pages/Admin/MaterializedViews'))
-const LncRNAChIPSeqOverlapPage = lazy(() => import('./pages/LncRNAChIPSeqOverlapPage'))
-const ChIPSeqComparePage = lazy(() => import('./pages/ChIPSeqComparePage'))
+const LncRNAChIPSeqOverlapPage = lazyWithNamespaces(
+  () => import('./pages/LncRNAChIPSeqOverlapPage'),
+  ['overlap'],
+)
+const ChIPSeqComparePage = lazyWithNamespaces(
+  () => import('./pages/ChIPSeqComparePage'),
+  ['globalCompare', 'genes'],
+)
 
 // Loading fallback for lazy loaded routes
 const LazyLoadFallback = () => (

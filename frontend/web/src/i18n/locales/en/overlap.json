@@ -1,14 +1,14 @@
 {
   "breadcrumb": {
-    "regulations": "Regulations",
-    "overlap": "lncRNA-ChIP-seq Overlap"
+    "regulations": "Candidate Regulatory Edges",
+    "overlap": "Epigenomic Context"
   },
   "page": {
-    "title": "lncRNA-ChIP-seq Overlap Analysis",
-    "description": "Analyze the genomic overlap between lncRNA binding sites and ChIP-seq peaks. This reveals which epigenetic marks are enriched at lncRNA target regions."
+    "title": "Epigenomic Context",
+    "description": "Review overlap and co-localization context between candidate loci and ChIP-seq peaks. The paper-facing baseline uses 8 core histone marks + DNase-HS, while CTCF and H4K20me1 remain available as extended human tracks."
   },
   "menu": {
-    "overlap": "lncRNA-ChIP-seq Overlap"
+    "overlap": "Epigenomic Context"
   },
   "filters": {
     "title": "Advanced Filters",

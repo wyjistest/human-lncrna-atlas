@@ -1,9 +1,14 @@
 {
   "breadcrumb": {
-    "conservation": "Conservation"
+    "conservation": "Conservation & Rewiring"
   },
-  "title": "Cross-Species Conservation Analysis",
-  "description": "Analyze conserved lncRNA regulatory relationships across primate species. Compare Human, Chimpanzee, Macaque, and Marmoset to identify evolutionarily conserved regulations.",
+  "title": "Conservation & Rewiring",
+  "description": "Track conserved and rewired candidate edges across Human, Chimpanzee, Macaque and Marmoset.",
+  "summary": {
+    "title": "Edge-level reading guide",
+    "edgeFocus": "The table reports candidate edges conserved across 2/3/4 species.",
+    "matrixGuide": "Use the matrix for shared context and the table for edge evidence."
+  },
   "stats": {
     "totalConserved": "Total Conserved",
     "totalConservedHelp": "Regulations found in 2+ species",

@@ -93,13 +93,26 @@ def _normalize_endpoint_result(
     return EndpointResult(status_code=result.status_code, json=normalized, sha256=digest, error=result.error)
 
 
+def _normalize_created_at_fields(payload: Any) -> Any:
+    if isinstance(payload, dict):
+        normalized: dict[str, Any] = {}
+        for key, value in payload.items():
+            if key == "created_at" and value:
+                normalized[key] = "1970-01-01T00:00:00Z"
+            else:
+                normalized[key] = _normalize_created_at_fields(value)
+        return normalized
+    if isinstance(payload, list):
+        return [_normalize_created_at_fields(item) for item in payload]
+    return payload
+
+
 def _normalize_gene_detail_payload(payload: Any) -> Any:
-    if not isinstance(payload, dict):
-        return payload
-    normalized = dict(payload)
-    if normalized.get("created_at"):
-        normalized["created_at"] = "1970-01-01T00:00:00Z"
-    return normalized
+    return _normalize_created_at_fields(payload)
+
+
+def _normalize_chipseq_experiment_payload(payload: Any) -> Any:
+    return _normalize_created_at_fields(payload)
 
 
 def _normalize_health_payload(payload: Any) -> Any:
@@ -223,12 +236,15 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         timeout_seconds=timeout_seconds,
     )
 
-    endpoints["chipseq_experiments_page_1_species_1_page_size_1"] = _http_get_json(
-        _join(
-            base_url,
-            "/api/v1/features/chipseq/experiments?" + urlencode({"page": 1, "page_size": 1, "species_id": 1}),
+    endpoints["chipseq_experiments_page_1_species_1_page_size_1"] = _normalize_endpoint_result(
+        _http_get_json(
+            _join(
+                base_url,
+                "/api/v1/features/chipseq/experiments?" + urlencode({"page": 1, "page_size": 1, "species_id": 1}),
+            ),
+            timeout_seconds=timeout_seconds,
         ),
-        timeout_seconds=timeout_seconds,
+        normalize=_normalize_chipseq_experiment_payload,
     )
 
     endpoints["chipseq_regions_species_1_chr22_100000_100200_page_size_1"] = _http_get_json(
@@ -461,9 +477,12 @@ def _snapshot(base_url: str, *, timeout_seconds: float) -> dict[str, Any]:
         )
 
     if chipseq_experiment_first_id is not None:
-        endpoints["chipseq_experiment_detail_first"] = _http_get_json(
-            _join(base_url, f"/api/v1/features/chipseq/experiments/{chipseq_experiment_first_id}"),
-            timeout_seconds=timeout_seconds,
+        endpoints["chipseq_experiment_detail_first"] = _normalize_endpoint_result(
+            _http_get_json(
+                _join(base_url, f"/api/v1/features/chipseq/experiments/{chipseq_experiment_first_id}"),
+                timeout_seconds=timeout_seconds,
+            ),
+            normalize=_normalize_chipseq_experiment_payload,
         )
 
     if endpoints["diseases_options"].json:

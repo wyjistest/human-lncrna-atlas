@@ -11,6 +11,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import {
+  Alert,
   Card,
   Row,
   Col,
@@ -383,7 +384,7 @@ export default function Conservation() {
               <>
                 <BranchesOutlined />
                 <span style={{ marginLeft: 4 }}>
-                  {t('breadcrumb.conservation', 'Conservation')}
+                  {t('breadcrumb.conservation')}
                 </span>
               </>
             )
@@ -394,16 +395,25 @@ export default function Conservation() {
       {/* Page Header */}
       <Space orientation="vertical" size="small" style={{ width: '100%', marginBottom: 24 }}>
         <Title level={2}>
-          {t('title', 'Cross-Species Conservation Analysis')}
+          {t('title')}
         </Title>
         <Paragraph type="secondary">
-          {t(
-            'description',
-            'Analyze conserved lncRNA regulatory relationships across primate species. ' +
-            'Compare Human, Chimpanzee, Macaque, and Marmoset to identify evolutionarily conserved regulations.'
-          )}
+          {t('description')}
         </Paragraph>
       </Space>
+
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 24 }}
+        title={t('summary.title')}
+        description={
+          <Space orientation="vertical" size={2}>
+            <Text>{t('summary.edgeFocus')}</Text>
+            <Text type="secondary">{t('summary.matrixGuide')}</Text>
+          </Space>
+        }
+      />
 
       {/* Overview Statistics */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

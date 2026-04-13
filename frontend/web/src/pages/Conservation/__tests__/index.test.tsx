@@ -25,8 +25,11 @@ vi.mock('react-i18next', () => ({
       // Handle object default values (e.g., { count: number })
       if (typeof defaultValue === 'string') return defaultValue
       const translations: Record<string, string> = {
-        'title': 'Cross-Species Conservation Analysis',
-        'description': 'Analyze conserved lncRNA regulatory relationships across primate species.',
+        'title': 'Conservation & Rewiring',
+        'description': 'Track conserved and rewired candidate edges across primate species.',
+        'summary.title': 'Edge-level reading guide',
+        'summary.edgeFocus': 'The table reports candidate edges conserved across 2/3/4 species.',
+        'summary.matrixGuide': 'Use the matrix for shared context and the table for edge evidence.',
         'stats.totalConserved': 'Total Conserved',
         'stats.fourSpecies': '4 Species',
         'stats.threeSpecies': '3 Species',
@@ -45,7 +48,7 @@ vi.mock('react-i18next', () => ({
         'filters.minConservation': 'Min. Conservation',
         'filters.minBA': 'Min. Binding Affinity',
         'matrix.title': 'Conservation Matrix',
-        'breadcrumb.conservation': 'Conservation',
+        'breadcrumb.conservation': 'Conservation & Rewiring',
         'species.human': 'Human',
         'species.chimpanzee': 'Chimpanzee',
         'species.macaque': 'Macaque',
@@ -256,16 +259,31 @@ describe('Conservation Page', () => {
       render(<Conservation />, { wrapper: createWrapper() })
 
       await waitFor(() => {
-        expect(screen.getByText('Cross-Species Conservation Analysis')).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: 'Conservation & Rewiring' })).toBeInTheDocument()
       })
-      expect(screen.getByText(/Analyze conserved lncRNA/)).toBeInTheDocument()
+      expect(screen.getByText(/Track conserved and rewired candidate edges/)).toBeInTheDocument()
+    })
+
+    it('renders an edge-level reviewer guide above the matrix and table', async () => {
+      render(<Conservation />, { wrapper: createWrapper() })
+
+      await waitFor(() => {
+        expect(screen.getByText('Edge-level reading guide')).toBeInTheDocument()
+      })
+
+      expect(
+        screen.getByText('The table reports candidate edges conserved across 2/3/4 species.'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText('Use the matrix for shared context and the table for edge evidence.'),
+      ).toBeInTheDocument()
     })
 
     it('renders breadcrumb navigation', async () => {
       render(<Conservation />, { wrapper: createWrapper() })
 
       await waitFor(() => {
-        expect(screen.getByText('Conservation')).toBeInTheDocument()
+        expect(screen.getAllByText('Conservation & Rewiring')[0]).toBeInTheDocument()
       })
     })
 

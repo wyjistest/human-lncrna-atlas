@@ -15,6 +15,73 @@ GET /api/v1/analysis/summary
 
 ---
 
+## Shareable URLs and Drill-down
+
+`/analysis` 页面现在支持把关键状态编码进 URL，便于分享和复现：
+
+- `tab=highAffinity|conservation|epigenetic|disease`
+- `min_ba` / `species_id`（High Affinity）
+- `mark_names`（Epigenetic，可重复 query param）
+- `trait_name`（Disease）
+
+示例：
+
+```text
+/analysis?tab=highAffinity&min_ba=150&species_id=2
+/analysis?tab=epigenetic&mark_names=H3K27me3&mark_names=H3K4me3
+/analysis?tab=disease&trait_name=diabetes
+```
+
+Analysis 表格中的 drill-down link 会把行级 metadata 带到下游页面：
+
+- High Affinity → `/regulations?lncrna_gene_id=<id>&target_gene_id=<id>&min_ba=<current>`
+- Epigenetic → `/lncrna-chipseq-overlap?lncrna_gene_id=<id>&target_gene_id=<id>&mark_type=<mark>&min_binding_affinity=100`
+- Disease node → `/network?species_ids=<species_id>&trait_id=<trait_id>&ontology_id=<ontology_id>&min_ba=0`
+
+### Workspace Panel and Evidence Links
+
+`/analysis` 现在在页头标题区下方提供统一的 workspace panel，用于把“分享 / 证据 / 下游动作状态”收口到一个固定入口：
+
+- `Copy share link`：复制当前 URL（包含 `tab` 与当前 tab 的筛选参数）
+- `Evidence`：显示当前 tab 的主证据文档
+- `More evidence`：显示该 tab 的补充文档入口（如果存在）
+- `Downstream`：提示当前 tab 行级 action 的目标；Conservation 在补齐稳定导航主键前会显示 `coming soon`
+
+当前 evidence registry 固定映射为：
+
+- High Affinity → `docs/paper/results_summary.md`
+- Epigenetic → `docs/reports/HOW_TO_TEST_OVERLAP_PAGE.md`、`docs/reports/CHIPSEQ_HG19_AUDIT_AND_ASSOCIATIONS_2026-02-12.md`
+- Disease → `docs/paper/results_summary.md`
+- Conservation → `docs/paper/results_summary.md`（仅证据入口，不提供下游 drill-down）
+
+这些文档链接由前端 `frontend/web/src/pages/Analysis/evidenceRegistry.ts` 集中维护，统一指向 GitHub 仓库 `main` 分支的稳定 blob URL。
+
+### Unified Row Actions
+
+High Affinity / Epigenetic / Disease 三个成熟 tab 现统一使用表格末列 `Actions` 作为 drill-down CTA，名称列保持纯文本：
+
+- High Affinity → `Open regulations`
+- Epigenetic → `Open overlap`
+- Disease → `Open network`
+
+对应 tab 的 card 右上角 action bar 只保留两类动作：
+
+- 导出当前筛选结果（沿用现有 export API）
+- 打开该 tab 的主证据文档
+
+对应导出接口也已经暴露这些导航字段，前端类型以 `frontend/web/src/api/analysis.ts` 为准：
+
+- `/api/v1/export/chipseq-overlaps`：包含 `lncrna_gene_id`、`target_gene_id`
+- `/api/v1/export/disease-network`：节点包含 `gene_id`、`trait_id`、`ontology_id`、`species_id`
+
+`/network` 页面在 URL 提供完整参数时会自动发起查询：
+
+```text
+/network?species_ids=1,3&trait_id=40&ontology_id=46&min_ba=25
+```
+
+---
+
 ## TypeScript Types
 
 ```typescript

@@ -1,8 +1,9 @@
 /**
- * Analysis Results Page
+ * Evidence Hub 页面
  *
- * Displays scientific analysis results from Jupyter Notebooks (Phase 6.0-B)
- * with 4 tabs: High Affinity, Conservation, Epigenetic, Disease Networks
+ * 对齐论文 Figure 2-5 的交互式证据层：
+ * Global Architecture / Conservation & Rewiring /
+ * Epigenomic Context / Trait-centered Subnetworks
  */
 
 import { lazy, Suspense } from 'react'
@@ -11,6 +12,8 @@ import { ExperimentOutlined, BranchesOutlined, RadarChartOutlined, ApartmentOutl
 import { useTranslation } from 'react-i18next'
 import type { TabsProps } from 'antd'
 import { useSearchParams } from 'react-router-dom'
+import AnalysisWorkspacePanel from './components/AnalysisWorkspacePanel'
+import type { AnalysisTabKey } from './evidenceRegistry'
 
 // Lazy load tab components for better performance
 const HighAffinityTab = lazy(() => import('./components/HighAffinityTab'))
@@ -24,8 +27,6 @@ const TabLoadingFallback = () => (
     <Spin size="large" />
   </div>
 )
-
-type AnalysisTabKey = 'highAffinity' | 'conservation' | 'epigenetic' | 'disease'
 
 const DEFAULT_TAB: AnalysisTabKey = 'highAffinity'
 const ANALYSIS_TABS: AnalysisTabKey[] = ['highAffinity', 'conservation', 'epigenetic', 'disease']
@@ -114,6 +115,8 @@ export default function Analysis() {
         <h1 style={{ margin: 0, marginBottom: 8 }}>{t('title')}</h1>
         <p style={{ color: '#666', margin: 0 }}>{t('description')}</p>
       </div>
+
+      <AnalysisWorkspacePanel activeTab={activeTab} />
 
       <div data-testid="analysis-tabs">
         <Tabs
