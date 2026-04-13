@@ -2,7 +2,7 @@
   "title": "Traits & Associations",
   "description": "Click a row to expand associated genes, ontology context and cross-species support.",
   "search": {
-    "placeholder": "Search disease name"
+    "placeholder": "Search trait name"
   },
   "columns": {
     "traitId": "Trait ID",

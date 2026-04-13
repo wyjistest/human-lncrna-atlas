@@ -88,17 +88,17 @@
     "title": "Trait-centered Subnetworks",
     "description": "Trait-gene-lncRNA subnetworks for reviewer-facing follow-up examples.",
     "stats": {
-      "totalDiseases": "Diseases Analyzed",
+      "totalDiseases": "Traits Analyzed",
       "totalLncrnas": "Associated lncRNAs",
       "totalGenes": "Associated Genes",
       "avgConnections": "Avg Connections"
     },
     "charts": {
-      "sharedMatrix": "Disease Shared lncRNA Matrix",
+      "sharedMatrix": "Trait-shared lncRNA Matrix",
       "networkPreview": "Network Preview"
     },
     "table": {
-      "disease": "Disease/Trait",
+      "disease": "Trait",
       "lncrna": "lncRNA",
       "gene": "Target Gene",
       "connectionScore": "Connection Score"

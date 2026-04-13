@@ -1,8 +1,9 @@
 /**
- * Analysis Results Page
+ * Evidence Hub 页面
  *
- * Displays scientific analysis results from Jupyter Notebooks (Phase 6.0-B)
- * with 4 tabs: High Affinity, Conservation, Epigenetic, Disease Networks
+ * 对齐论文 Figure 2-5 的交互式证据层：
+ * Global Architecture / Conservation & Rewiring /
+ * Epigenomic Context / Trait-centered Subnetworks
  */
 
 import { lazy, Suspense } from 'react'

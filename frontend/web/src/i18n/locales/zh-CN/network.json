@@ -15,8 +15,8 @@
   },
 
   "disease": {
-    "label": "疾病",
-    "placeholder": "选择疾病"
+    "label": "性状",
+    "placeholder": "选择性状"
   },
 
   "ontology": {
@@ -26,7 +26,7 @@
 
   "query": {
     "button": "查询网络",
-    "selectDiseaseOntology": "请选择疾病和Ontology",
+    "selectDiseaseOntology": "请选择性状和Ontology",
     "minBaLabel": "查询 BA 阈值",
     "minBaHelper": "该阈值会在绘制任何物种卡片前限制实际拉取的候选边。",
     "visualFilterNote": "卡片内过滤器只会细化当前图形显示，不会重新请求底层边。"
@@ -89,7 +89,7 @@
     "buttonWithCount": "批量导出所有物种 ({{count}})",
     "title": "批量导出所有物种网络图",
     "speciesCount": "将导出 {{count}} 个物种的网络图",
-    "diseaseLabel": "疾病",
+    "diseaseLabel": "性状",
     "ontologyLabel": "Ontology",
     "selectFormats": "选择导出格式",
     "pngFormat": "PNG 图片 (高分辨率 2x)",

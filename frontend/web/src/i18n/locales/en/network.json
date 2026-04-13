@@ -15,8 +15,8 @@
   },
 
   "disease": {
-    "label": "Disease",
-    "placeholder": "Select disease"
+    "label": "Trait",
+    "placeholder": "Select trait"
   },
 
   "ontology": {
@@ -26,7 +26,7 @@
 
   "query": {
     "button": "Query Network",
-    "selectDiseaseOntology": "Please select disease and Ontology",
+    "selectDiseaseOntology": "Please select a trait and ontology",
     "minBaLabel": "Query BA threshold",
     "minBaHelper": "Applies to fetched edges before drawing any species card.",
     "visualFilterNote": "Card filters only refine the current graph and do not refetch edges."
@@ -89,7 +89,7 @@
     "buttonWithCount": "Batch Export All Species ({{count}})",
     "title": "Batch Export All Species Networks",
     "speciesCount": "Will export networks for {{count}} species",
-    "diseaseLabel": "Disease",
+    "diseaseLabel": "Trait",
     "ontologyLabel": "Ontology",
     "selectFormats": "Select export formats",
     "pngFormat": "PNG Images (High-res 2x)",

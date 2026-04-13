@@ -2,7 +2,7 @@
   "title": "性状与关联",
   "description": "点击行可展开查看关联基因、Ontology 背景和跨物种支持信息。",
   "search": {
-    "placeholder": "搜索疾病名称"
+    "placeholder": "搜索性状名称"
   },
   "columns": {
     "traitId": "Trait ID",
