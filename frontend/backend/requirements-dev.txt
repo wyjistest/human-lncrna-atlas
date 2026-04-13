@@ -9,10 +9,10 @@
 -r requirements.txt
 
 # 代码质量
-ruff==0.15.7
+ruff==0.15.10
 
 # 测试
-pytest==9.0.2
+pytest==9.0.3
 pytest-asyncio==1.3.0
 # Starlette TestClient 依赖 httpx；与较新的 FastAPI/Starlette 组合时需保持兼容版本
 # 参考：Starlette "full" extra 要求 httpx>=0.27.0
