@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import {
   ApartmentOutlined,
   BarChartOutlined,
@@ -28,7 +28,7 @@ type EntryCard = {
   titleKey: string
   descKey: string
   path: string
-  icon: JSX.Element
+  icon: ReactNode
 }
 
 const startHereCards: EntryCard[] = [
