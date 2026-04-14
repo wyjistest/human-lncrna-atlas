@@ -81,6 +81,16 @@ export default function Snapshot() {
                 label: t('status.dbName'),
                 children: rootStatus?.db_name ?? t('status.unavailable'),
               },
+              {
+                key: 'freeze_date',
+                label: t('status.freezeDate'),
+                children: PAPER_SNAPSHOT.freezeDate,
+              },
+              {
+                key: 'release_commit',
+                label: t('status.releaseCommit'),
+                children: PAPER_SNAPSHOT.releaseCommit,
+              },
             ]}
           />
         </Card>

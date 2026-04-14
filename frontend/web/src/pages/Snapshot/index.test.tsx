@@ -27,6 +27,8 @@ vi.mock('react-i18next', () => ({
         'status.apiVersion': 'API version',
         'status.dbMode': 'DB mode',
         'status.dbName': 'DB name',
+        'status.freezeDate': 'Freeze date',
+        'status.releaseCommit': 'Release commit',
         'status.unavailable': 'Unavailable',
       }
       return translations[key] ?? key
@@ -75,5 +77,9 @@ describe('Snapshot page', () => {
     expect(screen.getByText('0.1.0')).toBeInTheDocument()
     expect(screen.getByText('production')).toBeInTheDocument()
     expect(screen.getByText('lncrna_production')).toBeInTheDocument()
+    expect(screen.getByText('Freeze date')).toBeInTheDocument()
+    expect(screen.getByText('2026-04-14')).toBeInTheDocument()
+    expect(screen.getByText('Release commit')).toBeInTheDocument()
+    expect(screen.getByText('be27817')).toBeInTheDocument()
   })
 })

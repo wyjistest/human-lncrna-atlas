@@ -78,12 +78,15 @@ node scripts/report-bundle-sizes.mjs --json "../../docs/baselines/frontend/bundl
 Current public navigation is intentionally compact:
 
 - `Overview`
+- `Submission Snapshot`
 - `Genes`
 - `Traits`
 - `Trait-centered Networks`
 - `Conservation & Rewiring`
 - `Epigenomic Context`
 - `Evidence Hub`
+
+The `Submission Snapshot` route exposes the frozen paper-facing metrics together with reviewer provenance, including the freeze date and release commit.
 
 Admin and toolbox-style routes still exist, but they are no longer exposed in the public sidebar.
 
@@ -106,6 +109,7 @@ VITE_API_BASE_URL=http://localhost:8000
 - 使用 `npm run build`
 - 让站点通过本地反代以同源方式提供 `/api`
 - 没有 Nginx 时，直接使用 `npm run preview:reviewer`
+- reviewer 可以直接从公共导航进入 `Submission Snapshot` 查看 frozen metrics、freeze date 和 release commit
 
 完整流程见：`docs/preview/FRP_SINGLE_PORT_REVIEWER_PREVIEW.md`
 

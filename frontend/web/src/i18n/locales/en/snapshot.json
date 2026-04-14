@@ -20,6 +20,8 @@
     "apiVersion": "API version",
     "dbMode": "DB mode",
     "dbName": "DB name",
+    "freezeDate": "Freeze date",
+    "releaseCommit": "Release commit",
     "unavailable": "Unavailable"
   }
 }

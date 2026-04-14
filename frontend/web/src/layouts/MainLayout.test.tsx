@@ -15,6 +15,7 @@ vi.mock('react-i18next', () => ({
         home: 'Overview',
         genes: 'Genes',
         diseases: 'Traits',
+        snapshot: 'Submission Snapshot',
         network: 'Trait-centered Networks',
         conservation: 'Conservation & Rewiring',
         overlap: 'Epigenomic Context',
@@ -65,6 +66,7 @@ function renderLayout(initialEntry = '/') {
           <Route index element={<Outlet />} />
           <Route path="genes" element={<Outlet />} />
           <Route path="diseases" element={<Outlet />} />
+          <Route path="snapshot" element={<Outlet />} />
           <Route path="network" element={<Outlet />} />
           <Route path="conservation" element={<Outlet />} />
           <Route path="lncrna-chipseq-overlap" element={<Outlet />} />
@@ -97,6 +99,7 @@ describe('MainLayout', () => {
 
     expect(screen.getByText('Human LncRNA Atlas Companion')).toBeInTheDocument()
     expect(screen.getByText('Overview')).toBeInTheDocument()
+    expect(screen.getByText('Submission Snapshot')).toBeInTheDocument()
     expect(screen.getByText('Genes')).toBeInTheDocument()
     expect(screen.getByText('Traits')).toBeInTheDocument()
     expect(screen.getByText('Trait-centered Networks')).toBeInTheDocument()

@@ -20,6 +20,8 @@
     "apiVersion": "API 版本",
     "dbMode": "数据库模式",
     "dbName": "数据库名称",
+    "freezeDate": "冻结日期",
+    "releaseCommit": "发布提交",
     "unavailable": "不可用"
   }
 }

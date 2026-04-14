@@ -78,6 +78,7 @@ npm run preview:reviewer
 - 提供 `frontend/web/dist`
 - 把 `/api`、`/health`、`/genomes` 代理到 `127.0.0.1:8010`
 - 对 `/snapshot`、`/stats`、`/genes` 等子路由返回 `index.html`
+- 让 reviewer 通过公共导航直接访问 `Submission Snapshot`
 
 ### 方案 B：Nginx
 
@@ -125,6 +126,7 @@ curl -sS 'http://45.62.117.191:6003/api/v1/genes?page=1&page_size=100' | python3
 浏览器验收重点：
 
 - `/`、`/genes`、`/snapshot`、`/stats` 都能直接打开
+- `Submission Snapshot` 页面能看到 freeze date 和 release commit
 - 没有 `Failed to fetch dynamically imported module`
 - 没有 CORS 错误
 - 没有请求打到 `8000`、`8010` 或 `6004`

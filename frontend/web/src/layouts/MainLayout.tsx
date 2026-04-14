@@ -5,6 +5,7 @@ import {
   ApartmentOutlined,
   BranchesOutlined,
   DatabaseOutlined,
+  FileSearchOutlined,
   HomeOutlined,
   InteractionOutlined,
   LineChartOutlined,
@@ -48,6 +49,7 @@ export default function MainLayout() {
       '/conservation',
       '/regulations',
       '/analysis',
+      '/snapshot',
       '/diseases',
       '/network',
       '/genes',
@@ -66,6 +68,7 @@ export default function MainLayout() {
 
   const menuItems = useMemo(() => [
     { key: '/', icon: <HomeOutlined />, label: t('home') },
+    { key: '/snapshot', icon: <FileSearchOutlined />, label: t('snapshot') },
     { key: '/genes', icon: <DatabaseOutlined />, label: t('genes') },
     { key: '/diseases', icon: <MedicineBoxOutlined />, label: t('diseases') },
     { key: '/network', icon: <ApartmentOutlined />, label: t('network') },
