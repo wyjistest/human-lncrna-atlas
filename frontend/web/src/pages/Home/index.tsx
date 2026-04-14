@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode } from 'react'
 import {
   ApartmentOutlined,
   BarChartOutlined,
@@ -13,16 +13,10 @@ import { Button, Card, Col, Descriptions, Row, Space, Statistic, Tag, Typography
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 
-import { apiClient } from '@/api/client'
 import { PAPER_SNAPSHOT } from '@/config/paperSnapshot'
+import { useRootStatus } from '@/hooks/useRootStatus'
 
 const { Title, Paragraph, Text } = Typography
-
-type RootStatus = {
-  version?: string
-  db_mode?: string
-  db_name?: string
-}
 
 type EntryCard = {
   titleKey: string
@@ -105,7 +99,7 @@ function EntrySection({
               hoverable
               onClick={() => onNavigate(card.path)}
               style={{ height: '100%' }}
-              bodyStyle={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+              styles={{ body: { display: 'flex', flexDirection: 'column', gap: 12 } }}
             >
               {card.icon}
               <Title level={4} style={{ margin: 0 }}>
@@ -123,32 +117,11 @@ function EntrySection({
 export default function Home() {
   const navigate = useNavigate()
   const { t } = useTranslation('home')
-  const [rootStatus, setRootStatus] = useState<RootStatus | null>(null)
-
-  useEffect(() => {
-    let active = true
-
-    apiClient
-      .get<RootStatus>('/')
-      .then(({ data }) => {
-        if (active) {
-          setRootStatus(data)
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setRootStatus(null)
-        }
-      })
-
-    return () => {
-      active = false
-    }
-  }, [])
+  const { data: rootStatus } = useRootStatus()
 
   return (
     <div style={{ padding: 24 }}>
-      <Space direction="vertical" size={24} style={{ display: 'flex' }}>
+      <Space orientation="vertical" size={24} style={{ display: 'flex' }}>
         <Card
           style={{
             borderRadius: 16,
@@ -156,7 +129,7 @@ export default function Home() {
               'linear-gradient(135deg, rgba(15,118,110,0.08), rgba(29,78,216,0.08))',
           }}
         >
-          <Space direction="vertical" size={16} style={{ width: '100%' }}>
+          <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <Space wrap size={[8, 8]}>
               <Tag color="blue">{t('hero.paperFreeze')}</Tag>
               <Tag color="gold">{t('hero.paperBaseline')}</Tag>
@@ -174,7 +147,7 @@ export default function Home() {
             </Paragraph>
 
             <Space wrap size={[12, 12]}>
-              <Button type="link" style={{ paddingInline: 0 }} onClick={() => navigate('/analysis')}>
+              <Button type="link" style={{ paddingInline: 0 }} onClick={() => navigate('/snapshot')}>
                 {t('hero.snapshotLink')}
               </Button>
               <Button type="link" style={{ paddingInline: 0 }} onClick={() => navigate('/stats')}>

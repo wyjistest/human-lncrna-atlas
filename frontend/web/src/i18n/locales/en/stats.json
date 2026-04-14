@@ -1,11 +1,11 @@
 {
-  "title": "Database Statistics Overview",
+  "title": "Live Platform Status",
   "exportReport": "Export Report",
   "cards": {
     "totalGenes": "Total Genes",
     "lncRNA": "lncRNA",
     "regulations": "Regulations",
-    "diseaseAssociations": "Disease Associations"
+    "diseaseAssociations": "Trait Associations"
   },
   "sections": {
     "distribution": "Data Distribution",

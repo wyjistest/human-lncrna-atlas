@@ -29,6 +29,7 @@ export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number]['code']
 
 export const EAGER_NAMESPACES = ['common', 'nav', 'home'] as const
 export const LAZY_NAMESPACES = [
+  'snapshot',
   'stats',
   'genes',
   'diseases',
@@ -64,6 +65,7 @@ const eagerResources: Record<SupportedLanguage, Record<EagerNamespace, Translati
 
 const lazyResourceLoaders: Record<SupportedLanguage, Record<LazyNamespace, () => Promise<TranslationModule>>> = {
   'zh-CN': {
+    snapshot: () => import('./locales/zh-CN/snapshot.json'),
     stats: () => import('./locales/zh-CN/stats.json'),
     genes: () => import('./locales/zh-CN/genes.json'),
     diseases: () => import('./locales/zh-CN/diseases.json'),
@@ -77,6 +79,7 @@ const lazyResourceLoaders: Record<SupportedLanguage, Record<LazyNamespace, () =>
     visualization: () => import('./locales/zh-CN/visualization.json'),
   },
   en: {
+    snapshot: () => import('./locales/en/snapshot.json'),
     stats: () => import('./locales/en/stats.json'),
     genes: () => import('./locales/en/genes.json'),
     diseases: () => import('./locales/en/diseases.json'),

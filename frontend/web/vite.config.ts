@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   // Any VITE_* env var is statically embedded into dist/ by Vite.
   const env = loadEnv(mode, process.cwd(), '')
   const adminKey = (env.VITE_ADMIN_API_KEY || '').trim()
+  const devProxyTarget = (env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8000').trim()
   if (mode === 'production' && adminKey) {
     throw new Error(
       'SECURITY: VITE_ADMIN_API_KEY must NOT be set for production builds. ' +
@@ -16,11 +17,24 @@ export default defineConfig(({ mode }) => {
   }
 
   return ({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+	  plugins: [react()],
+	  server: {
+	    proxy: {
+	      // 开发模式统一走同源入口，避免公网访问 dev server 时浏览器直接跨域请求后端。
+	      '/api': {
+	        target: devProxyTarget,
+	        changeOrigin: true,
+	      },
+	      '/genomes': {
+	        target: devProxyTarget,
+	        changeOrigin: true,
+	      },
+	    },
+	  },
+	  resolve: {
+	    alias: {
+	      '@': path.resolve(__dirname, './src'),
+	    },
   },
   // Phase 9.17: 生产环境只删除 console.log/debug/info，保留 warn/error
   // console.warn/error 用于显示安全警告和错误信息，不应被删除

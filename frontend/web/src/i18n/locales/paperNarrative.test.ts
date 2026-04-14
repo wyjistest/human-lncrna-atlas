@@ -7,6 +7,7 @@ import enNav from './en/nav.json'
 import enNetwork from './en/network.json'
 import enOverlap from './en/overlap.json'
 import enRegulations from './en/regulations.json'
+import enStats from './en/stats.json'
 import zhAnalysis from './zh-CN/analysis.json'
 import zhConservation from './zh-CN/conservation.json'
 import zhDiseases from './zh-CN/diseases.json'
@@ -16,10 +17,12 @@ import zhNav from './zh-CN/nav.json'
 import zhNetwork from './zh-CN/network.json'
 import zhOverlap from './zh-CN/overlap.json'
 import zhRegulations from './zh-CN/regulations.json'
+import zhStats from './zh-CN/stats.json'
 
 describe('paper-first narrative locale content', () => {
   it('aligns English public labels with the paper-facing narrative', () => {
     expect(enHome.title).toBe('Human LncRNA Atlas Companion')
+    expect(enHome.hero.currentStatusLink).toBe('Live platform status')
     expect(enNav.home).toBe('Overview')
     expect(enNav.diseases).toBe('Traits')
     expect(enNav.network).toBe('Trait-centered Networks')
@@ -37,6 +40,7 @@ describe('paper-first narrative locale content', () => {
     expect(enNetwork.batchExport.diseaseLabel).toBe('Trait')
     expect(enConservation.title).toBe('Conservation & Rewiring')
     expect(enAnalysis.title).toBe('Evidence Hub')
+    expect(enStats.title).toBe('Live Platform Status')
     expect(enAnalysis.tabs.highAffinity).toBe('Global Architecture')
     expect(enAnalysis.tabs.conservation).toBe('Conservation & Rewiring')
     expect(enAnalysis.tabs.epigenetic).toBe('Epigenomic Context')
@@ -54,6 +58,7 @@ describe('paper-first narrative locale content', () => {
 
   it('aligns Simplified Chinese public labels with the same narrative', () => {
     expect(zhHome.title).toBe('Human LncRNA Atlas Companion')
+    expect(zhHome.hero.currentStatusLink).toBe('实时平台状态')
     expect(zhNav.home).toBe('总览')
     expect(zhNav.diseases).toBe('性状')
     expect(zhNav.network).toBe('性状中心网络')
@@ -71,6 +76,7 @@ describe('paper-first narrative locale content', () => {
     expect(zhNetwork.batchExport.diseaseLabel).toBe('性状')
     expect(zhConservation.title).toBe('保守性与重连')
     expect(zhAnalysis.title).toBe('证据中心')
+    expect(zhStats.title).toBe('实时平台状态')
     expect(zhAnalysis.tabs.highAffinity).toBe('全局架构')
     expect(zhAnalysis.tabs.conservation).toBe('保守性与重连')
     expect(zhAnalysis.tabs.epigenetic).toBe('表观组学背景')

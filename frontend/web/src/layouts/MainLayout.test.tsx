@@ -4,6 +4,10 @@ import { vi } from 'vitest'
 
 import MainLayout from './MainLayout'
 
+const mocks = vi.hoisted(() => ({
+  rootStatus: vi.fn(),
+}))
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, fallback?: string) => {
@@ -23,6 +27,11 @@ vi.mock('react-i18next', () => ({
         cache: 'Cache',
         materializedViews: 'Materialized Views',
         monitoring: 'Monitoring',
+        'sections.provenance': 'Snapshot provenance',
+        'status.apiVersion': 'API version',
+        'status.dbMode': 'DB mode',
+        'status.dbName': 'DB name',
+        'status.unavailable': 'Unavailable',
       }
       return translations[key] ?? fallback ?? key
     },
@@ -44,6 +53,10 @@ vi.mock('antd', async () => {
   }
 })
 
+vi.mock('@/hooks/useRootStatus', () => ({
+  useRootStatus: mocks.rootStatus,
+}))
+
 function renderLayout(initialEntry = '/') {
   render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -63,6 +76,22 @@ function renderLayout(initialEntry = '/') {
 }
 
 describe('MainLayout', () => {
+  beforeEach(() => {
+    mocks.rootStatus.mockReturnValue({
+      data: {
+        version: '0.1.0',
+        db_mode: 'production',
+        db_name: 'lncrna_production',
+      },
+      isLoading: false,
+      error: null,
+    })
+  })
+
+  afterEach(() => {
+    mocks.rootStatus.mockReset()
+  })
+
   it('shows the reviewer-facing public navigation without admin or toolbox clutter', () => {
     renderLayout()
 
@@ -82,5 +111,14 @@ describe('MainLayout', () => {
     expect(screen.queryByText('Cache')).not.toBeInTheDocument()
     expect(screen.queryByText('Materialized Views')).not.toBeInTheDocument()
     expect(screen.queryByText('Monitoring')).not.toBeInTheDocument()
+  })
+
+  it('shows compact provenance in the shared layout footer', () => {
+    renderLayout()
+
+    expect(screen.getByText(/Snapshot provenance/)).toBeInTheDocument()
+    expect(screen.getByText(/API version: 0.1.0/)).toBeInTheDocument()
+    expect(screen.getByText(/DB mode: production/)).toBeInTheDocument()
+    expect(screen.getByText(/DB name: lncrna_production/)).toBeInTheDocument()
   })
 })

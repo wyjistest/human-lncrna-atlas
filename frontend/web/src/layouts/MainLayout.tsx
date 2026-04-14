@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Drawer, Grid, Layout, Menu } from 'antd'
+import { Button, Drawer, Grid, Layout, Menu, Typography } from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   ApartmentOutlined,
@@ -13,16 +13,20 @@ import {
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { LanguageSwitch } from '@/components/LanguageSwitch'
+import { useRootStatus } from '@/hooks/useRootStatus'
 
-const { Header, Sider, Content } = Layout
+const { Header, Sider, Content, Footer } = Layout
+const { Text } = Typography
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { t } = useTranslation('nav')
+  const { t: tHome } = useTranslation('home')
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const { data: rootStatus } = useRootStatus()
 
   useEffect(() => {
     if (!isMobile) {
@@ -109,6 +113,17 @@ export default function MainLayout() {
           <Outlet />
         </Content>
       </Layout>
+      <Footer style={{ padding: '12px 24px', background: '#fff', borderTop: '1px solid #f0f0f0' }}>
+        <Text type="secondary">
+          {tHome('sections.provenance')}
+          {' · '}
+          {tHome('status.apiVersion')}: {rootStatus?.version ?? tHome('status.unavailable')}
+          {' · '}
+          {tHome('status.dbMode')}: {rootStatus?.db_mode ?? tHome('status.unavailable')}
+          {' · '}
+          {tHome('status.dbName')}: {rootStatus?.db_name ?? tHome('status.unavailable')}
+        </Text>
+      </Footer>
 
       <Drawer
         placement="left"

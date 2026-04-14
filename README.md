@@ -150,6 +150,11 @@ If you are behind FRP/NAT and the public ports differ from local ports, set them
 PUBLIC_HOST=<public-ip-or-domain> PUBLIC_FRONTEND_PORT=6003 PUBLIC_BACKEND_PORT=6004 ./scripts/dev.sh
 ```
 
+如果目标是 reviewer-facing / public companion 预览，而不是临时开发访问，请不要长期直接暴露
+`vite dev server`。改用单端口静态预览：先构建前端，再让 FRP 只转发一个本地反代端口。
+没有系统级 `nginx` 时，可直接使用仓库内置的 `npm run preview:reviewer`。
+参考：`docs/preview/FRP_SINGLE_PORT_REVIEWER_PREVIEW.md`
+
 Quick self-check (backend):
 
 ```bash
@@ -506,6 +511,7 @@ cd frontend/backend && ./.venv/bin/python scripts/explain_hot_queries.py
 
 - `ERR_CONNECTION_REFUSED` when opening `http://<server-ip>`: the frontend is on `:5173` by default → open `http://<server-ip>:5173` and check status via `./scripts/stop.sh -s`.
 - `http://<server-ip>` (port 80/443) shows `ERR_CONNECTION_REFUSED` or `502`: this repo does not start a reverse proxy by default → access `http://<server-ip>:5173` (frontend) / `http://<server-ip>:8000/docs` (backend), or set up Nginx/Caddy to proxy 80/443 to those ports.
+- 如果你通过 FRP 只开放高位端口给 reviewer，优先使用 `docs/preview/FRP_SINGLE_PORT_REVIEWER_PREVIEW.md` 里的“单端口静态 preview”方案，而不是直接暴露 `5173/8000/6004`。
 
 ## License
 

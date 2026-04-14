@@ -1,0 +1,25 @@
+{
+  "title": "Submission Snapshot",
+  "subtitle": "Frozen paper-facing counts and provenance for the current companion release.",
+  "sections": {
+    "snapshot": "Frozen paper-facing metrics",
+    "baseline": "Main-text baseline",
+    "provenance": "Snapshot provenance"
+  },
+  "cards": {
+    "species": "Primate species",
+    "candidateEdges": "Candidate edges",
+    "experiments": "Epigenomic experiments",
+    "peaks": "Paper-facing peaks"
+  },
+  "baseline": {
+    "title": "Baseline guide",
+    "description": "Main-text baseline remains 8 core histone marks + DNase-HS, while CTCF and H4K20me1 remain extended human tracks."
+  },
+  "status": {
+    "apiVersion": "API version",
+    "dbMode": "DB mode",
+    "dbName": "DB name",
+    "unavailable": "Unavailable"
+  }
+}

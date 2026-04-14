@@ -1,13 +1,21 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
 
 import { renderWithProviders } from '@/test/testUtils'
 import Home from './index'
 
 const mocks = vi.hoisted(() => ({
-  useStats: vi.fn(),
-  apiGet: vi.fn(),
+  navigate: vi.fn(),
+  rootStatus: vi.fn(),
 }))
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
+  return {
+    ...actual,
+    useNavigate: () => mocks.navigate,
+  }
+})
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -21,7 +29,7 @@ vi.mock('react-i18next', () => ({
         'hero.paperFreeze': 'Paper-facing freeze',
         'hero.paperBaseline': '8 core histone marks + DNase-HS',
         'hero.snapshotLink': 'Submission snapshot',
-        'hero.currentStatusLink': 'Current status',
+        'hero.currentStatusLink': 'Live platform status',
         'stats.species': 'Primate species',
         'stats.candidateEdges': 'Candidate edges',
         'stats.experiments': 'Epigenomic experiments',
@@ -37,7 +45,7 @@ vi.mock('react-i18next', () => ({
         'cards.epigenomic.title': 'Epigenomic Context',
         'cards.edges.title': 'Candidate Regulatory Edges',
         'cards.genomeBrowser.title': 'Genome Browser',
-        'cards.statistics.title': 'Statistics',
+        'cards.statistics.title': 'Live Platform Status',
         'cards.compare.title': 'ChIP-seq Compare',
       }
       return translations[key] ?? key
@@ -46,40 +54,26 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/hooks/useStats', () => ({
-  useStats: mocks.useStats,
-}))
-
-vi.mock('@/api/client', () => ({
-  apiClient: {
-    get: mocks.apiGet,
-  },
+vi.mock('@/hooks/useRootStatus', () => ({
+  useRootStatus: mocks.rootStatus,
 }))
 
 describe('Home page', () => {
   beforeEach(() => {
-    mocks.useStats.mockReturnValue({
-      data: {
-        total_genes: 17248,
-        total_lncrna: 5484,
-        total_regulations: 804630,
-        total_trait_associations: 67763,
-      },
-      isLoading: false,
-      error: null,
-    })
-    mocks.apiGet.mockResolvedValue({
+    mocks.rootStatus.mockReturnValue({
       data: {
         version: '0.1.0',
         db_mode: 'production',
         db_name: 'lncrna_production',
       },
+      isLoading: false,
+      error: null,
     })
   })
 
   afterEach(() => {
-    mocks.useStats.mockReset()
-    mocks.apiGet.mockReset()
+    mocks.navigate.mockReset()
+    mocks.rootStatus.mockReset()
   })
 
   it('renders a paper-first hero with frozen snapshot KPIs and reviewer entrypoints', () => {
@@ -106,8 +100,18 @@ describe('Home page', () => {
     expect(screen.getByText('Advanced tools')).toBeInTheDocument()
     expect(screen.getByText('Candidate Regulatory Edges')).toBeInTheDocument()
     expect(screen.getByText('Genome Browser')).toBeInTheDocument()
-    expect(screen.getByText('Statistics')).toBeInTheDocument()
+    expect(screen.getByText('Live Platform Status')).toBeInTheDocument()
     expect(screen.getByText('ChIP-seq Compare')).toBeInTheDocument()
+  })
+
+  it('routes hero actions to snapshot and live status pages', () => {
+    renderWithProviders(<Home />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submission snapshot' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Live platform status' }))
+
+    expect(mocks.navigate).toHaveBeenNthCalledWith(1, '/snapshot')
+    expect(mocks.navigate).toHaveBeenNthCalledWith(2, '/stats')
   })
 
   it('shows live platform provenance from the root status endpoint', async () => {

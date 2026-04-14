@@ -98,6 +98,17 @@ Create `.env.local` for local development:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
+## Reviewer Preview
+
+如果是 reviewer-facing / FRP 单端口公开预览：
+
+- 不要直接暴露 `vite dev server`
+- 使用 `npm run build`
+- 让站点通过本地反代以同源方式提供 `/api`
+- 没有 Nginx 时，直接使用 `npm run preview:reviewer`
+
+完整流程见：`docs/preview/FRP_SINGLE_PORT_REVIEWER_PREVIEW.md`
+
 ## Dev Server Troubleshooting
 
 ### `Failed to fetch dynamically imported module`

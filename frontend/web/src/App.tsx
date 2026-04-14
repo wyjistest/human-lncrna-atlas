@@ -14,6 +14,7 @@ import Home from './pages/Home'
 const Network = lazyWithNamespaces(() => import('./pages/Network'), ['network'])
 // Analysis: Various analysis components
 const Analysis = lazyWithNamespaces(() => import('./pages/Analysis'), ['analysis'])
+const Snapshot = lazyWithNamespaces(() => import('./pages/Snapshot'), ['snapshot'])
 // Visualization: ECharts (~375KB gzipped)
 const VisualizationHub = lazyWithNamespaces(() => import('./pages/Visualization'), ['visualization'])
 const SankeyFlow = lazyWithNamespaces(() => import('./pages/Visualization/SankeyFlow'), ['visualization'])
@@ -114,6 +115,11 @@ function App() {
             <Route path="analysis" element={
               <Suspense fallback={<LazyLoadFallback />}>
                 <Analysis />
+              </Suspense>
+            } />
+            <Route path="snapshot" element={
+              <Suspense fallback={<LazyLoadFallback />}>
+                <Snapshot />
               </Suspense>
             } />
             <Route path="genome-browser" element={

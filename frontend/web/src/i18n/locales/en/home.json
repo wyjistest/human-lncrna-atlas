@@ -6,7 +6,7 @@
     "paperFreeze": "Paper-facing freeze",
     "paperBaseline": "8 core histone marks + DNase-HS",
     "snapshotLink": "Submission snapshot",
-    "currentStatusLink": "Current status"
+    "currentStatusLink": "Live platform status"
   },
   "stats": {
     "species": "Primate species",
@@ -51,8 +51,8 @@
       "desc": "Open IGV tracks for loci, marks and repeat context."
     },
     "statistics": {
-      "title": "Statistics",
-      "desc": "Review live platform totals outside the frozen paper snapshot."
+      "title": "Live Platform Status",
+      "desc": "Review live platform totals and current database status outside the frozen paper snapshot."
     },
     "compare": {
       "title": "ChIP-seq Compare",

@@ -6,7 +6,7 @@
     "paperFreeze": "Paper-facing freeze",
     "paperBaseline": "8 core histone marks + DNase-HS",
     "snapshotLink": "投稿冻结快照",
-    "currentStatusLink": "当前平台状态"
+    "currentStatusLink": "实时平台状态"
   },
   "stats": {
     "species": "灵长类物种",
@@ -51,8 +51,8 @@
       "desc": "在 IGV 中查看位点、标记和重复序列背景。"
     },
     "statistics": {
-      "title": "统计概览",
-      "desc": "查看区别于论文冻结快照的实时平台总览。"
+      "title": "实时平台状态",
+      "desc": "查看区别于论文冻结快照的实时平台总量与当前数据库状态。"
     },
     "compare": {
       "title": "ChIP-seq 对比",

@@ -1,11 +1,11 @@
 {
-  "title": "数据库统计概览",
+  "title": "实时平台状态",
   "exportReport": "导出报告",
   "cards": {
     "totalGenes": "总基因数",
     "lncRNA": "lncRNA",
     "regulations": "调控关系",
-    "diseaseAssociations": "疾病关联"
+    "diseaseAssociations": "性状关联"
   },
   "sections": {
     "distribution": "数据分布",
