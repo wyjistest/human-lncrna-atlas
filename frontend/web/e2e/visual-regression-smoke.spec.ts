@@ -16,6 +16,16 @@ test.use({
   viewport: { width: 1280, height: 720 },
 })
 
+const defaultScreenshotOptions = {
+  animations: 'disabled' as const,
+}
+
+// 图表页在 self-hosted runner 上存在轻微亚像素渲染差异，给一个很小的容差避免误报。
+const chartScreenshotOptions = {
+  ...defaultScreenshotOptions,
+  maxDiffPixels: 3000,
+}
+
 async function prepareForDeterministicScreenshot(page: Page) {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.addStyleTag({
@@ -286,7 +296,7 @@ test.describe('Visual regression smoke', () => {
     await expect(page.getByTestId('genes-page')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('MALAT1')).toBeVisible({ timeout: 15000 })
 
-    await expect(page.getByTestId('genes-page')).toHaveScreenshot('genes-page.png', { animations: 'disabled' })
+    await expect(page.getByTestId('genes-page')).toHaveScreenshot('genes-page.png', defaultScreenshotOptions)
   })
 
   test('Regulations', async ({ page }) => {
@@ -313,7 +323,7 @@ test.describe('Visual regression smoke', () => {
     await expect(page.getByTestId('regulations-page')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('MALAT1')).toBeVisible({ timeout: 15000 })
 
-    await expect(page.getByTestId('regulations-page')).toHaveScreenshot('regulations-page.png', { animations: 'disabled' })
+    await expect(page.getByTestId('regulations-page')).toHaveScreenshot('regulations-page.png', defaultScreenshotOptions)
   })
 
   test('Stats', async ({ page }) => {
@@ -340,7 +350,7 @@ test.describe('Visual regression smoke', () => {
     await expect(page.getByTestId('stats-page')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('MALAT1')).toBeVisible({ timeout: 15000 })
 
-    await expect(page.getByTestId('stats-page')).toHaveScreenshot('stats-page.png', { animations: 'disabled' })
+    await expect(page.getByTestId('stats-page')).toHaveScreenshot('stats-page.png', chartScreenshotOptions)
   })
 
   test('Diseases', async ({ page }) => {
@@ -359,7 +369,7 @@ test.describe('Visual regression smoke', () => {
     await expect(page.getByTestId('diseases-page')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('Type 2 Diabetes')).toBeVisible({ timeout: 15000 })
 
-    await expect(page.getByTestId('diseases-page')).toHaveScreenshot('diseases-page.png', { animations: 'disabled' })
+    await expect(page.getByTestId('diseases-page')).toHaveScreenshot('diseases-page.png', defaultScreenshotOptions)
   })
 
   test('Analysis', async ({ page }) => {
@@ -386,7 +396,7 @@ test.describe('Visual regression smoke', () => {
     await expect(page.getByTestId('analysis-page')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('MALAT1')).toBeVisible({ timeout: 15000 })
 
-    await expect(page.getByTestId('analysis-page')).toHaveScreenshot('analysis-page.png', { animations: 'disabled' })
+    await expect(page.getByTestId('analysis-page')).toHaveScreenshot('analysis-page.png', chartScreenshotOptions)
   })
 
   test('Conservation', async ({ page }) => {
@@ -421,7 +431,7 @@ test.describe('Visual regression smoke', () => {
     await expect(page.getByTestId('conservation-page')).toBeVisible({ timeout: 15000 })
     await expect(page.getByText('MALAT1')).toBeVisible({ timeout: 15000 })
 
-    await expect(page.getByTestId('conservation-page')).toHaveScreenshot('conservation-page.png', { animations: 'disabled' })
+    await expect(page.getByTestId('conservation-page')).toHaveScreenshot('conservation-page.png', defaultScreenshotOptions)
   })
 
   test('Visualization hub', async ({ page }) => {
@@ -431,7 +441,7 @@ test.describe('Visual regression smoke', () => {
     await page.waitForLoadState('domcontentloaded')
     await expect(page.getByTestId('visualization-page')).toBeVisible({ timeout: 15000 })
 
-    await expect(page.getByTestId('visualization-page')).toHaveScreenshot('visualization-page.png', { animations: 'disabled' })
+    await expect(page.getByTestId('visualization-page')).toHaveScreenshot('visualization-page.png', defaultScreenshotOptions)
   })
 
   test('Overlap (QUERY_TOO_BROAD view)', async ({ page }) => {
