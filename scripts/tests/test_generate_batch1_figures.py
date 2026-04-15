@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 import math
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -236,6 +237,110 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
         self.assertEqual(human_chimp["intersection_count"], 2)
         self.assertEqual(human_chimp["union_count"], 4)
         self.assertTrue(math.isclose(human_chimp["jaccard"], 0.5))
+
+    def test_parse_args_exposes_source_commit_override(self):
+        module = load_module()
+        original_argv = sys.argv[:]
+        try:
+            sys.argv = ["generate_batch1_figures.py"]
+            args = module.parse_args()
+        finally:
+            sys.argv = original_argv
+
+        self.assertTrue(hasattr(args, "source_commit"))
+        self.assertIsNone(args.source_commit)
+
+    def test_with_generation_provenance_uses_source_commit_key(self):
+        module = load_module()
+
+        payload = module.with_generation_provenance(
+            {"panel_id": "Figure2A"},
+            generated_at="2026-04-15T06:20:58Z",
+            source_commit="bcd67cc7986d39112cf5c361b12934289b61a518",
+        )
+
+        self.assertEqual(payload["generated_at"], "2026-04-15T06:20:58Z")
+        self.assertEqual(payload["source_commit"], "bcd67cc7986d39112cf5c361b12934289b61a518")
+        self.assertNotIn("release_commit", payload)
+
+    def test_load_fig2b_alias_manifest_reads_rows_by_core_id(self):
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = Path(tmpdir) / "fig2b_aliases.tsv"
+            manifest_path.write_text(
+                "\n".join(
+                    [
+                        "lncrna_core_id\treference_accession\tdisplay_label\tnotes",
+                        "83332\tCATG00000083332.1\tHub-A\tshared conserved hub",
+                        "944\tCATG00000000944.1\t\tleave blank to fallback",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            alias_rows = module.load_fig2b_alias_manifest(manifest_path)
+
+        self.assertEqual(alias_rows[83332]["display_label"], "Hub-A")
+        self.assertEqual(alias_rows[944]["reference_accession"], "CATG00000000944.1")
+
+    def test_apply_fig2b_alias_manifest_prefers_alias_and_falls_back_to_shortened_id(self):
+        module = load_module()
+
+        hub_rows = [
+            {
+                "lncrna_core_id": 83332,
+                "lncrna_symbol": "CATG00000083332.1",
+                "lncrna_human_ensembl_id": "CATG00000083332.1",
+            },
+            {
+                "lncrna_core_id": 944,
+                "lncrna_symbol": "CATG00000000944.1",
+                "lncrna_human_ensembl_id": "CATG00000000944.1",
+            },
+        ]
+        alias_rows = {
+            83332: {
+                "lncrna_core_id": 83332,
+                "reference_accession": "CATG00000083332.1",
+                "display_label": "Hub-A",
+                "notes": "shared conserved hub",
+            },
+            944: {
+                "lncrna_core_id": 944,
+                "reference_accession": "CATG00000000944.1",
+                "display_label": "",
+                "notes": "fallback",
+            },
+        }
+
+        applied_rows = module.apply_fig2b_alias_manifest(hub_rows, alias_rows)
+
+        self.assertEqual(applied_rows[0]["display_label"], "Hub-A")
+        self.assertEqual(applied_rows[1]["display_label"], "CATG000944")
+
+    def test_apply_fig2b_alias_manifest_rejects_reference_mismatch_when_alias_is_nonempty(self):
+        module = load_module()
+
+        hub_rows = [
+            {
+                "lncrna_core_id": 83332,
+                "lncrna_symbol": "CATG00000083332.1",
+                "lncrna_human_ensembl_id": "CATG00000083332.1",
+            }
+        ]
+        alias_rows = {
+            83332: {
+                "lncrna_core_id": 83332,
+                "reference_accession": "ENSG00000255197.1",
+                "display_label": "Hub-A",
+                "notes": "mismatch should fail",
+            }
+        }
+
+        with self.assertRaisesRegex(ValueError, "reference_accession"):
+            module.apply_fig2b_alias_manifest(hub_rows, alias_rows)
 
 
 if __name__ == "__main__":

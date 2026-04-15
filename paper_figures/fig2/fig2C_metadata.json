@@ -2,8 +2,6 @@
   "panel_id": "Figure2C",
   "title": "Centrality landscape",
   "script": "scripts/paper/generate_batch1_figures.py",
-  "generated_at": "2026-04-15T06:20:58Z",
-  "release_commit": "cb0fa150427f823149a01cdc7cbc685bde543f56",
   "inputs": [
     "paper_figures/shared/high_affinity_core_edges.tsv"
   ],
@@ -17,5 +15,7 @@
     "x_metric": "out_degree",
     "y_metric": "eigenvector_centrality_undirected"
   },
-  "notes": []
+  "notes": [],
+  "generated_at": "2026-04-15T07:27:26Z",
+  "source_commit": "bcd67cc7986d39112cf5c361b12934289b61a518"
 }

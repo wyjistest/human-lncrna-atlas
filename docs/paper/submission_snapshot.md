@@ -9,6 +9,27 @@ This note records the paper-facing submission freeze decisions that are no longe
 - Paper entry note: `docs/paper/README.md`
 - Repository status source: `docs/CURRENT_STATUS.md`
 
+## Generated Figure Provenance
+
+Batch-1 figure assets under `paper_figures/` record generation provenance with
+two explicit metadata fields:
+
+- `generated_at`: UTC timestamp for the asset generation event
+- `source_commit`: git revision used as the frozen source context for that generation run
+
+Interpretation rule:
+
+- `source_commit` is **not required** to match the later commit that adds regenerated
+  SVG / PNG / TSV files back into the branch
+- when a paper-facing freeze needs deterministic provenance, regenerate with
+  `python3 scripts/paper/generate_batch1_figures.py --generated-at <UTC> --source-commit <git-ref>`
+
+Figure 2B label rule:
+
+- `docs/paper/fig2b_aliases.tsv` is the paper-facing alias manifest for top hub labels
+- if `display_label` is blank, Figure 2B falls back to the automatic shortened accession label
+- if `display_label` is non-empty, its `reference_accession` must match the current hub accession for that `lncrna_core_id`
+
 ## Epigenomic Inventory: Fixed Main-Text Rule
 
 The main-text epigenomic baseline is fixed to:

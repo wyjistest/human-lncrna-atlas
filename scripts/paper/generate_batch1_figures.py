@@ -52,6 +52,7 @@ PAPER_BASELINE_MARKS = [
 ]
 
 EXTENDED_TRACKS = ["CTCF", "H4K20me1"]
+DEFAULT_FIG2B_ALIAS_MANIFEST = "docs/paper/fig2b_aliases.tsv"
 
 
 def utc_now_iso() -> str:
@@ -280,6 +281,58 @@ def format_lncRNA_display_label(symbol: str, fallback_id: str) -> str:
     if secondary:
         return _short_accession_label(secondary)
     return ""
+
+
+def fig2b_reference_accession(row: dict[str, Any]) -> str:
+    return str(row.get("lncrna_human_ensembl_id") or row.get("lncrna_symbol") or "").strip()
+
+
+def load_fig2b_alias_manifest(path: Path) -> dict[int, dict[str, str]]:
+    alias_rows: dict[int, dict[str, str]] = {}
+    if not path.exists():
+        return alias_rows
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        for raw_row in reader:
+            core_id_raw = str(raw_row.get("lncrna_core_id") or "").strip()
+            if not core_id_raw:
+                continue
+            core_id = int(core_id_raw)
+            alias_rows[core_id] = {
+                "lncrna_core_id": core_id_raw,
+                "reference_accession": str(raw_row.get("reference_accession") or "").strip(),
+                "display_label": str(raw_row.get("display_label") or "").strip(),
+                "notes": str(raw_row.get("notes") or "").strip(),
+            }
+    return alias_rows
+
+
+def apply_fig2b_alias_manifest(
+    hub_rows: Sequence[dict[str, Any]],
+    alias_rows: dict[int, dict[str, str]],
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for row in hub_rows:
+        updated = dict(row)
+        default_label = format_lncRNA_display_label(
+            str(updated.get("lncrna_symbol") or ""),
+            str(updated.get("lncrna_human_ensembl_id") or ""),
+        ) or str(updated["lncrna_core_id"])
+        updated["display_label"] = default_label
+        alias_row = alias_rows.get(int(updated["lncrna_core_id"]))
+        if alias_row:
+            alias_label = str(alias_row.get("display_label") or "").strip()
+            if alias_label:
+                expected_accession = str(alias_row.get("reference_accession") or "").strip()
+                actual_accession = fig2b_reference_accession(updated)
+                if expected_accession != actual_accession:
+                    raise ValueError(
+                        "Figure 2B alias reference_accession mismatch for "
+                        f"core {updated['lncrna_core_id']}: expected {actual_accession}, got {expected_accession}"
+                    )
+                updated["display_label"] = alias_label
+        output.append(updated)
+    return output
 
 
 def build_ba_summary_rows(
@@ -676,29 +729,44 @@ def save_figure(fig: plt.Figure, svg_path: Path, png_path: Path) -> None:
     plt.close(fig)
 
 
+def with_generation_provenance(
+    payload: dict[str, Any],
+    *,
+    generated_at: str,
+    source_commit: str,
+) -> dict[str, Any]:
+    output = dict(payload)
+    output["generated_at"] = generated_at
+    output["source_commit"] = source_commit
+    output.pop("release_commit", None)
+    return output
+
+
 def panel_metadata(
     *,
     panel_id: str,
     title: str,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
     input_paths: Sequence[Path],
     output_paths: Sequence[Path],
     filters: dict[str, Any],
     notes: Sequence[str] | None = None,
 ) -> dict[str, Any]:
-    return {
-        "panel_id": panel_id,
-        "title": title,
-        "script": display_path(SCRIPT_PATH, repo_root),
-        "generated_at": generated_at,
-        "release_commit": commit_sha,
-        "inputs": [display_path(path, repo_root) for path in input_paths],
-        "outputs": [display_path(path, repo_root) for path in output_paths],
-        "filters": filters,
-        "notes": list(notes or []),
-    }
+    return with_generation_provenance(
+        {
+            "panel_id": panel_id,
+            "title": title,
+            "script": display_path(SCRIPT_PATH, repo_root),
+            "inputs": [display_path(path, repo_root) for path in input_paths],
+            "outputs": [display_path(path, repo_root) for path in output_paths],
+            "filters": filters,
+            "notes": list(notes or []),
+        },
+        generated_at=generated_at,
+        source_commit=source_commit,
+    )
 
 
 def query_dict_rows(
@@ -711,11 +779,11 @@ def query_dict_rows(
         return [dict(row) for row in cursor.fetchall()]
 
 
-def git_commit_sha(repo_root: Path) -> str:
+def git_commit_sha(repo_root: Path, ref: str = "HEAD") -> str:
     try:
         return (
             subprocess.run(
-                ["git", "rev-parse", "HEAD"],
+                ["git", "rev-parse", ref],
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
@@ -867,7 +935,7 @@ def generate_fig1d(
     fig_dir: Path,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
 ) -> None:
     tsv_path = fig_dir / "fig1D_kpi.tsv"
     svg_path = fig_dir / "fig1D_kpi.svg"
@@ -934,7 +1002,7 @@ def generate_fig1d(
             title="Frozen submission snapshot KPI tiles",
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=[
                 repo_root / "docs/paper/figures.md",
                 repo_root / "docs/paper/submission_snapshot.md",
@@ -952,7 +1020,7 @@ def generate_fig2a(
     fig_dir: Path,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
 ) -> None:
     tsv_path = fig_dir / "fig2A_ba_distribution.tsv"
     summary_tsv_path = fig_dir / "fig2A_summary.tsv"
@@ -1071,7 +1139,7 @@ def generate_fig2a(
             title="Binding-affinity landscape",
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=[],
             output_paths=[tsv_path, summary_tsv_path, svg_path, png_path],
             filters={
@@ -1089,10 +1157,12 @@ def generate_fig2a(
 def generate_fig2b(
     *,
     hub_rows: Sequence[dict[str, Any]],
+    alias_rows: dict[int, dict[str, str]],
+    alias_manifest_path: Path,
     fig_dir: Path,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
     input_paths: Sequence[Path],
 ) -> None:
     tsv_path = fig_dir / "fig2B_hubs.tsv"
@@ -1100,12 +1170,7 @@ def generate_fig2b(
     png_path = fig_dir / "fig2B_hubs.png"
     meta_path = fig_dir / "fig2B_metadata.json"
 
-    top_rows = list(hub_rows[:12])
-    for row in top_rows:
-        row["display_label"] = format_lncRNA_display_label(
-            str(row.get("lncrna_symbol") or ""),
-            str(row.get("lncrna_human_ensembl_id") or ""),
-        ) or str(row["lncrna_core_id"])
+    top_rows = apply_fig2b_alias_manifest(list(hub_rows[:12]), alias_rows)
     write_tsv(
         tsv_path,
         top_rows,
@@ -1162,14 +1227,14 @@ def generate_fig2b(
             title="Top hub lncRNAs",
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
-            input_paths=input_paths,
+            source_commit=source_commit,
+            input_paths=[*input_paths, alias_manifest_path],
             output_paths=[tsv_path, svg_path, png_path],
             filters={
                 "min_ba": 100,
                 "ranking_metric": "unique_target_core_count",
                 "top_n": 12,
-                "label_strategy": "shortened_id_fallback",
+                "label_strategy": "alias_manifest_then_shortened_id_fallback",
                 "color_metric": "species_count",
             },
         ),
@@ -1182,7 +1247,7 @@ def generate_fig2c(
     fig_dir: Path,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
     input_paths: Sequence[Path],
 ) -> None:
     tsv_path = fig_dir / "fig2C_centrality.tsv"
@@ -1266,7 +1331,7 @@ def generate_fig2c(
             title="Centrality landscape",
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=input_paths,
             output_paths=[tsv_path, svg_path, png_path],
             filters={
@@ -1285,7 +1350,7 @@ def generate_fig3a(
     fig_dir: Path,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
     input_paths: Sequence[Path],
 ) -> None:
     tsv_path = fig_dir / "fig3A_edge_upset.tsv"
@@ -1352,7 +1417,7 @@ def generate_fig3a(
             title="UpSet of conserved-edge strata",
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=input_paths,
             output_paths=[tsv_path, svg_path, png_path],
             filters={"min_species_count": 2, "singleton_edges_excluded": True},
@@ -1366,7 +1431,7 @@ def generate_fig3b(
     fig_dir: Path,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
     input_paths: Sequence[Path],
 ) -> None:
     tsv_path = fig_dir / "fig3B_node_vs_edge.tsv"
@@ -1403,7 +1468,7 @@ def generate_fig3b(
             title="Node conservation versus edge conservation",
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=input_paths,
             output_paths=[tsv_path, svg_path, png_path],
             filters={"species_order": [spec["species_code"] for spec in DEFAULT_SPECIES_ORDER]},
@@ -1417,7 +1482,7 @@ def generate_fig3c(
     fig_dir: Path,
     repo_root: Path,
     generated_at: str,
-    commit_sha: str,
+    source_commit: str,
     input_paths: Sequence[Path],
 ) -> None:
     tsv_path = fig_dir / "fig3C_pairwise_sharing.tsv"
@@ -1492,7 +1557,7 @@ def generate_fig3c(
             title="Species-pair sharing heatmaps",
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=input_paths,
             output_paths=[tsv_path, svg_path, png_path],
             filters={"metric": "jaccard", "species_order": species_codes},
@@ -1518,6 +1583,11 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Optional fixed UTC timestamp for metadata (default: now)",
     )
+    parser.add_argument(
+        "--source-commit",
+        default=None,
+        help="Optional git ref to record as source_commit provenance (default: HEAD)",
+    )
     return parser.parse_args()
 
 
@@ -1530,17 +1600,24 @@ def main() -> int:
     fig1_dir = out_dir / "fig1"
     fig2_dir = out_dir / "fig2"
     fig3_dir = out_dir / "fig3"
+    fig2b_alias_manifest_path = (repo_root / DEFAULT_FIG2B_ALIAS_MANIFEST).resolve()
 
     generated_at = args.generated_at or utc_now_iso()
-    commit_sha = git_commit_sha(repo_root)
+    source_commit_ref = str(args.source_commit or "HEAD").strip() or "HEAD"
+    source_commit = git_commit_sha(repo_root, source_commit_ref)
+    if args.source_commit and source_commit == "unknown":
+        raise RuntimeError(f"Unable to resolve --source-commit {args.source_commit!r} via git rev-parse")
 
-    snapshot_payload = build_frozen_snapshot_payload(repo_root)
-    snapshot_payload["generated_at"] = generated_at
-    snapshot_payload["release_commit"] = commit_sha
+    snapshot_payload = with_generation_provenance(
+        build_frozen_snapshot_payload(repo_root),
+        generated_at=generated_at,
+        source_commit=source_commit,
+    )
     snapshot_json_path = shared_dir / "frozen_submission_snapshot.json"
     write_json(snapshot_json_path, snapshot_payload)
 
     with connect_db(env_path) as conn:
+        fig2b_alias_rows = load_fig2b_alias_manifest(fig2b_alias_manifest_path)
         species_rows = normalize_species_rows(fetch_species_rows(conn), DEFAULT_SPECIES_ORDER)
         node_presence_rows = build_node_presence_rows(fetch_node_presence_input(conn), DEFAULT_SPECIES_ORDER)
         edge_presence_rows = build_edge_presence_rows(fetch_edge_presence_input(conn), DEFAULT_SPECIES_ORDER)
@@ -1614,7 +1691,7 @@ def main() -> int:
             fig_dir=fig1_dir,
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
         )
 
         generate_fig2a(
@@ -1622,17 +1699,19 @@ def main() -> int:
             fig_dir=fig2_dir,
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
         )
 
         hub_rows = build_hub_rows(high_affinity_edge_rows)
         centrality_rows = build_centrality_rows(high_affinity_edge_rows)
         generate_fig2b(
             hub_rows=hub_rows,
+            alias_rows=fig2b_alias_rows,
+            alias_manifest_path=fig2b_alias_manifest_path,
             fig_dir=fig2_dir,
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=[high_affinity_tsv_path],
         )
         generate_fig2c(
@@ -1640,7 +1719,7 @@ def main() -> int:
             fig_dir=fig2_dir,
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=[high_affinity_tsv_path],
         )
 
@@ -1660,7 +1739,7 @@ def main() -> int:
             fig_dir=fig3_dir,
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=[edge_tsv_path],
         )
         generate_fig3b(
@@ -1668,7 +1747,7 @@ def main() -> int:
             fig_dir=fig3_dir,
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=[node_tsv_path, edge_tsv_path],
         )
         generate_fig3c(
@@ -1676,7 +1755,7 @@ def main() -> int:
             fig_dir=fig3_dir,
             repo_root=repo_root,
             generated_at=generated_at,
-            commit_sha=commit_sha,
+            source_commit=source_commit,
             input_paths=[node_tsv_path, edge_tsv_path],
         )
 

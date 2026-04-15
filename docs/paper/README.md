@@ -58,9 +58,23 @@ Figure 2A/B/C, Figure 3A/B/C):
 python3 scripts/paper/generate_batch1_figures.py
 ```
 
+To pin figure metadata to a specific frozen revision while keeping the generated
+timestamp deterministic:
+
+```bash
+python3 scripts/paper/generate_batch1_figures.py \
+  --generated-at 2026-04-15T06:20:58Z \
+  --source-commit bcd67cc
+```
+
 This writes:
 
 - `paper_figures/shared/`: frozen snapshot JSON + shared TSV working tables
 - `paper_figures/fig1/`: Figure 1D KPI table + revised draft SVG/PNG + metadata
 - `paper_figures/fig2/`: Figure 2A/B/C source tables, including `fig2A_summary.tsv`, plus revised draft SVG/PNG + metadata
 - `paper_figures/fig3/`: Figure 3A/B/C source tables + revised draft SVG/PNG + metadata
+
+Additional inputs used by the batch-1 generator:
+
+- `docs/paper/fig2b_aliases.tsv`: optional paper-facing aliases for the Figure 2B top hubs; leave `display_label` blank to keep the automatic shortened accession fallback
+- metadata output now records `source_commit`, meaning the git revision used to generate the assets; this is intentionally separate from the later commit that may add regenerated files to the branch
