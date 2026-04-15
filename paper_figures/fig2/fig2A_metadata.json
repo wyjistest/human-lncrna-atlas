@@ -1,0 +1,23 @@
+{
+  "panel_id": "Figure2A",
+  "title": "Binding-affinity landscape",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "generated_at": "2026-04-15T03:36:08Z",
+  "release_commit": "5143f2bdb072775675885a7789d82d8c7ea7b0b9",
+  "inputs": [],
+  "outputs": [
+    "paper_figures/fig2/fig2A_ba_distribution.tsv",
+    "paper_figures/fig2/fig2A_ba_distribution.svg",
+    "paper_figures/fig2/fig2A_ba_distribution.png"
+  ],
+  "filters": {
+    "priority_line_ba": 100,
+    "species_order": [
+      "human",
+      "chimp",
+      "macaque",
+      "marmoset"
+    ]
+  },
+  "notes": []
+}

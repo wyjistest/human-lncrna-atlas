@@ -1,0 +1,36 @@
+{
+  "species_count": 4,
+  "candidate_relationships": 804630,
+  "baseline_experiments": 56,
+  "baseline_peaks": 4567525,
+  "baseline_marks": [
+    "H3K27me3",
+    "H3K4me3",
+    "H3K4me2",
+    "H3K4me1",
+    "H3K27ac",
+    "H3K36me3",
+    "H3K9ac",
+    "H3K9me3",
+    "DNase-HS"
+  ],
+  "extended_tracks": [
+    "CTCF",
+    "H4K20me1"
+  ],
+  "cell_line_subset": [
+    "A549",
+    "GM12878",
+    "H1-hESC",
+    "HepG2",
+    "HMEC",
+    "K562"
+  ],
+  "source_documents": [
+    "docs/paper/figures.md",
+    "docs/paper/submission_snapshot.md",
+    "docs/paper/manuscript.md"
+  ],
+  "generated_at": "2026-04-15T03:36:08Z",
+  "release_commit": "5143f2bdb072775675885a7789d82d8c7ea7b0b9"
+}

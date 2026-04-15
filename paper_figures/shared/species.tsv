@@ -1,0 +1,5 @@
+species_id	species_code	display_name	genome_assembly
+1	human	Human	hg19
+2	chimp	Chimpanzee	panTro5
+3	macaque	Macaque	rheMac10
+4	marmoset	Marmoset	calJac3

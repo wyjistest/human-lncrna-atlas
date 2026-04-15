@@ -1,0 +1,21 @@
+{
+  "panel_id": "Figure1D",
+  "title": "Frozen submission snapshot KPI tiles",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "generated_at": "2026-04-15T03:36:08Z",
+  "release_commit": "5143f2bdb072775675885a7789d82d8c7ea7b0b9",
+  "inputs": [
+    "docs/paper/figures.md",
+    "docs/paper/submission_snapshot.md",
+    "docs/paper/manuscript.md"
+  ],
+  "outputs": [
+    "paper_figures/fig1/fig1D_kpi.tsv",
+    "paper_figures/fig1/fig1D_kpi.svg",
+    "paper_figures/fig1/fig1D_kpi.png"
+  ],
+  "filters": {
+    "frozen_snapshot_only": true
+  },
+  "notes": []
+}

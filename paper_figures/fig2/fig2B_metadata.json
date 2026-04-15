@@ -1,0 +1,21 @@
+{
+  "panel_id": "Figure2B",
+  "title": "Top hub lncRNAs",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "generated_at": "2026-04-15T03:36:08Z",
+  "release_commit": "5143f2bdb072775675885a7789d82d8c7ea7b0b9",
+  "inputs": [
+    "paper_figures/shared/high_affinity_core_edges.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig2/fig2B_hubs.tsv",
+    "paper_figures/fig2/fig2B_hubs.svg",
+    "paper_figures/fig2/fig2B_hubs.png"
+  ],
+  "filters": {
+    "min_ba": 100,
+    "ranking_metric": "unique_target_core_count",
+    "top_n": 12
+  },
+  "notes": []
+}

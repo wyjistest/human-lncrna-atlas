@@ -1,0 +1,5 @@
+metric_key	display_label	value	note
+species_count	Primate species	4	Frozen submission snapshot
+candidate_relationships	Candidate lncRNA→PCG relationships	804630	Frozen submission snapshot
+baseline_experiments	Baseline experiments	56	8 core histone marks + DNase-HS
+baseline_peaks	Baseline peaks	4567525	8 core histone marks + DNase-HS

@@ -1,0 +1,25 @@
+{
+  "panel_id": "Figure3B",
+  "title": "Node conservation versus edge conservation",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "generated_at": "2026-04-15T03:36:08Z",
+  "release_commit": "5143f2bdb072775675885a7789d82d8c7ea7b0b9",
+  "inputs": [
+    "paper_figures/shared/node_core_presence.tsv",
+    "paper_figures/shared/edge_corepair_presence.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig3/fig3B_node_vs_edge.tsv",
+    "paper_figures/fig3/fig3B_node_vs_edge.svg",
+    "paper_figures/fig3/fig3B_node_vs_edge.png"
+  ],
+  "filters": {
+    "species_order": [
+      "human",
+      "chimp",
+      "macaque",
+      "marmoset"
+    ]
+  },
+  "notes": []
+}
