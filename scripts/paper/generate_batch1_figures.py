@@ -19,9 +19,12 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import psycopg2
 import psycopg2.extras
 import seaborn as sns
+from matplotlib.lines import Line2D
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -234,6 +237,85 @@ def _weighted_mean(total_weight: int, weighted_sum: float) -> float:
     if total_weight <= 0:
         return 0.0
     return weighted_sum / float(total_weight)
+
+
+def _quantile(values: Sequence[float], q: float) -> float:
+    if not values:
+        return 0.0
+    if len(values) == 1:
+        return float(values[0])
+    ordered = sorted(float(value) for value in values)
+    index = (len(ordered) - 1) * max(0.0, min(1.0, q))
+    lower = math.floor(index)
+    upper = math.ceil(index)
+    if lower == upper:
+        return float(ordered[lower])
+    lower_value = ordered[lower]
+    upper_value = ordered[upper]
+    return float(lower_value * (upper - index) + upper_value * (index - lower))
+
+
+def _round_up_to_step(value: float, step: float) -> float:
+    if value <= 0:
+        return float(step)
+    return float(math.ceil(value / step) * step)
+
+
+def _short_accession_label(value: str) -> str:
+    stripped = value.split(".", 1)[0].strip()
+    match = re.match(r"^(CATG|ENSG)0*([0-9]+)$", stripped)
+    if not match:
+        return stripped
+    prefix, digits = match.groups()
+    return f"{prefix}{digits[-6:].zfill(6)}"
+
+
+def format_lncRNA_display_label(symbol: str, fallback_id: str) -> str:
+    primary = (symbol or "").strip()
+    secondary = (fallback_id or "").strip()
+    if primary and not re.match(r"^(CATG|ENSG)[0-9]+\.[0-9]+$", primary):
+        return primary
+    if primary:
+        return _short_accession_label(primary)
+    if secondary:
+        return _short_accession_label(secondary)
+    return ""
+
+
+def build_ba_summary_rows(
+    species_values: dict[str, Sequence[float]],
+    species_order: Sequence[dict[str, Any]],
+    *,
+    priority_line: float,
+    clip_quantile: float = 0.995,
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for spec in species_order:
+        code = str(spec["species_code"])
+        display_name = str(spec["display_name"])
+        values = [float(value) for value in species_values.get(code, [])]
+        full_plot_ymax = max(values) if values else 0.0
+        p99 = _quantile(values, 0.99)
+        p995 = _quantile(values, clip_quantile)
+        n_ge_priority = sum(1 for value in values if value >= priority_line)
+        total_edges = len(values)
+        frac_ge_priority = 0.0 if total_edges == 0 else n_ge_priority / float(total_edges)
+        clipped_upper = min(full_plot_ymax, p995) if values else 0.0
+        main_plot_ymax = max(priority_line * 2.0, _round_up_to_step(clipped_upper, 10.0))
+        output.append(
+            {
+                "species_code": code,
+                "species_name": display_name,
+                "total_edges": total_edges,
+                "n_ge_100": n_ge_priority,
+                "frac_ge_100": round(frac_ge_priority, 6),
+                "p99": round(float(p99), 6),
+                "p995": round(float(p995), 6),
+                "main_plot_ymax": round(float(main_plot_ymax), 6),
+                "full_plot_ymax": round(float(full_plot_ymax), 6),
+            }
+        )
+    return output
 
 
 def build_edge_presence_rows(
@@ -539,12 +621,12 @@ def build_centrality_rows(edge_rows: Sequence[dict[str, Any]]) -> list[dict[str,
         outgoing_supports[lncrna_core_id] += int(row.get("supporting_regulation_count") or 0)
         outgoing_targets[lncrna_core_id].add(target_core_id)
 
-    node_count = graph.number_of_nodes()
-    kwargs: dict[str, Any] = {"weight": "distance", "normalized": True}
-    if node_count > 2500:
-        kwargs["k"] = min(512, node_count)
-        kwargs["seed"] = 42
-    betweenness = nx.betweenness_centrality(graph, **kwargs)
+    undirected = graph.to_undirected()
+    try:
+        eigenvector = nx.eigenvector_centrality_numpy(undirected, weight="weight") if undirected.number_of_nodes() else {}
+    except Exception:
+        eigenvector = {node: 0.0 for node in undirected.nodes}
+    clamped_eigenvector = {node: max(float(value), 0.0) for node, value in eigenvector.items()}
 
     output: list[dict[str, Any]] = []
     for lncrna_core_id in sorted(outgoing_targets):
@@ -556,7 +638,7 @@ def build_centrality_rows(edge_rows: Sequence[dict[str, Any]]) -> list[dict[str,
                 "canonical_symbol": symbol_by_core.get(lncrna_core_id, ""),
                 "human_ensembl_id": ensembl_by_core.get(lncrna_core_id, ""),
                 "out_degree": len(outgoing_targets[lncrna_core_id]),
-                "betweenness": round(float(betweenness.get(lncrna_core_id, 0.0)), 8),
+                "eigenvector_centrality": round(float(clamped_eigenvector.get(lncrna_core_id, 0.0)), 8),
                 "mean_outgoing_ba": round(float(mean_outgoing_ba), 6),
                 "supporting_edge_count": int(outgoing_supports[lncrna_core_id]),
             }
@@ -564,7 +646,7 @@ def build_centrality_rows(edge_rows: Sequence[dict[str, Any]]) -> list[dict[str,
 
     output.sort(
         key=lambda row: (
-            -float(row["betweenness"]),
+            -float(row["eigenvector_centrality"]),
             -int(row["out_degree"]),
             -float(row["mean_outgoing_ba"]),
             int(row["core_id"]),
@@ -797,25 +879,25 @@ def generate_fig1d(
             "metric_key": "species_count",
             "display_label": "Primate species",
             "value": snapshot_payload["species_count"],
-            "note": "Frozen submission snapshot",
+            "note": "Paper-facing freeze",
         },
         {
             "metric_key": "candidate_relationships",
-            "display_label": "Candidate lncRNA→PCG relationships",
+            "display_label": "Candidate regulatory edges",
             "value": snapshot_payload["candidate_relationships"],
-            "note": "Frozen submission snapshot",
+            "note": "Paper-facing freeze",
         },
         {
             "metric_key": "baseline_experiments",
-            "display_label": "Baseline experiments",
+            "display_label": "Epigenomic experiments",
             "value": snapshot_payload["baseline_experiments"],
-            "note": "8 core histone marks + DNase-HS",
+            "note": "Main-text baseline",
         },
         {
             "metric_key": "baseline_peaks",
-            "display_label": "Baseline peaks",
+            "display_label": "Main-text baseline peaks",
             "value": snapshot_payload["baseline_peaks"],
-            "note": "8 core histone marks + DNase-HS",
+            "note": "Main-text baseline",
         },
     ]
     write_tsv(tsv_path, rows, ["metric_key", "display_label", "value", "note"])
@@ -832,9 +914,17 @@ def generate_fig1d(
         ax.set_yticks([])
         ax.text(0.05, 0.78, row["display_label"], fontsize=11, color="#404040", transform=ax.transAxes)
         ax.text(0.05, 0.38, f"{int(row['value']):,}", fontsize=24, fontweight="bold", color=color, transform=ax.transAxes)
-        ax.text(0.05, 0.12, row["note"], fontsize=9, color="#6A6A6A", transform=ax.transAxes)
-    fig.suptitle("Figure 1D · Frozen Submission Snapshot KPI Tiles", fontsize=14, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.suptitle("Figure 1D · Frozen paper-facing study scope", fontsize=14, fontweight="bold")
+    fig.text(
+        0.5,
+        0.03,
+        "Paper-facing freeze; main-text baseline = 8 core histone marks + DNase-HS",
+        ha="center",
+        va="center",
+        fontsize=9,
+        color="#6A6A6A",
+    )
+    fig.tight_layout(rect=[0, 0.06, 1, 0.94])
     save_figure(fig, svg_path, png_path)
 
     write_json(
@@ -865,6 +955,7 @@ def generate_fig2a(
     commit_sha: str,
 ) -> None:
     tsv_path = fig_dir / "fig2A_ba_distribution.tsv"
+    summary_tsv_path = fig_dir / "fig2A_summary.tsv"
     svg_path = fig_dir / "fig2A_ba_distribution.svg"
     png_path = fig_dir / "fig2A_ba_distribution.png"
     meta_path = fig_dir / "fig2A_metadata.json"
@@ -895,6 +986,25 @@ def generate_fig2a(
     ordered_codes = [spec["species_code"] for spec in DEFAULT_SPECIES_ORDER]
     ordered_names = [spec["display_name"] for spec in DEFAULT_SPECIES_ORDER]
     ordered_data = [species_values[code] for code in ordered_codes]
+    summary_rows = build_ba_summary_rows(species_values, DEFAULT_SPECIES_ORDER, priority_line=100.0)
+    write_tsv(
+        summary_tsv_path,
+        summary_rows,
+        [
+            "species_code",
+            "species_name",
+            "total_edges",
+            "n_ge_100",
+            "frac_ge_100",
+            "p99",
+            "p995",
+            "main_plot_ymax",
+            "full_plot_ymax",
+        ],
+    )
+    summary_by_code = {row["species_code"]: row for row in summary_rows}
+    main_plot_ymax = max(float(row["main_plot_ymax"]) for row in summary_rows) if summary_rows else 200.0
+    full_plot_ymax = max(float(row["full_plot_ymax"]) for row in summary_rows) if summary_rows else 0.0
 
     fig, ax = plt.subplots(figsize=(10, 6))
     violin = ax.violinplot(ordered_data, showmeans=False, showmedians=False, showextrema=False)
@@ -914,9 +1024,43 @@ def generate_fig2a(
     ax.set_xticks(range(1, len(ordered_names) + 1))
     ax.set_xticklabels(ordered_names)
     ax.set_ylabel("Binding affinity")
-    ax.set_title("Figure 2A · Binding-affinity landscape across four primates")
+    ax.set_ylim(40, main_plot_ymax)
+    for index, code in enumerate(ordered_codes, start=1):
+        summary = summary_by_code[code]
+        ax.text(
+            index,
+            44.0,
+            f">=100: {float(summary['frac_ge_100']) * 100:.1f}%",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            color="#404040",
+        )
+    ax.set_title("Figure 2A · Binding-affinity landscape with priority-zone focus")
     ax.legend(loc="upper right")
     ax.grid(axis="y", alpha=0.2)
+
+    inset = inset_axes(ax, width="34%", height="38%", loc="upper left", borderpad=1.2)
+    inset_violin = inset.violinplot(ordered_data, showmeans=False, showmedians=False, showextrema=False)
+    for body, color in zip(inset_violin["bodies"], palette, strict=True):
+        body.set_facecolor(color)
+        body.set_edgecolor("#2B2B2B")
+        body.set_alpha(0.65)
+    inset_box = inset.boxplot(ordered_data, widths=0.18, patch_artist=True, showfliers=False)
+    for patch in inset_box["boxes"]:
+        patch.set_facecolor("#F7F5F2")
+        patch.set_edgecolor("#2B2B2B")
+    for median in inset_box["medians"]:
+        median.set_color("#C81D25")
+        median.set_linewidth(1.2)
+    inset.axhline(100.0, color="#C81D25", linestyle="--", linewidth=1.0)
+    inset.set_ylim(0, max(full_plot_ymax, main_plot_ymax))
+    inset.set_xticks(range(1, len(ordered_names) + 1))
+    inset.set_xticklabels(["H", "C", "M", "Mm"], fontsize=8)
+    inset.set_title("Full range", fontsize=9)
+    inset.tick_params(axis="y", labelsize=8)
+    inset.grid(axis="y", alpha=0.15)
+
     fig.subplots_adjust(top=0.88, bottom=0.14, hspace=0.08)
     save_figure(fig, svg_path, png_path)
 
@@ -929,8 +1073,15 @@ def generate_fig2a(
             generated_at=generated_at,
             commit_sha=commit_sha,
             input_paths=[],
-            output_paths=[tsv_path, svg_path, png_path],
-            filters={"priority_line_ba": 100, "species_order": ordered_codes},
+            output_paths=[tsv_path, summary_tsv_path, svg_path, png_path],
+            filters={
+                "priority_line_ba": 100,
+                "species_order": ordered_codes,
+                "main_plot_ylim": [40, main_plot_ymax],
+                "inset_full_range": True,
+                "clip_quantile": 0.995,
+                "priority_fraction_metric": "fraction_ge_100",
+            },
         ),
     )
 
@@ -950,6 +1101,11 @@ def generate_fig2b(
     meta_path = fig_dir / "fig2B_metadata.json"
 
     top_rows = list(hub_rows[:12])
+    for row in top_rows:
+        row["display_label"] = format_lncRNA_display_label(
+            str(row.get("lncrna_symbol") or ""),
+            str(row.get("lncrna_human_ensembl_id") or ""),
+        ) or str(row["lncrna_core_id"])
     write_tsv(
         tsv_path,
         top_rows,
@@ -957,6 +1113,7 @@ def generate_fig2b(
             "lncrna_core_id",
             "lncrna_symbol",
             "lncrna_human_ensembl_id",
+            "display_label",
             "unique_target_core_count",
             "supporting_edge_count",
             "mean_outgoing_ba",
@@ -970,15 +1127,31 @@ def generate_fig2b(
     y_positions = list(range(len(plot_rows)))
 
     fig, ax = plt.subplots(figsize=(10, 6))
+    species_color_map = {
+        1: "#C81D25",
+        2: "#FF8C42",
+        3: "#087E8B",
+        4: "#0B3954",
+    }
     for y_pos, row in zip(y_positions, plot_rows, strict=True):
         value = int(row["unique_target_core_count"])
-        ax.hlines(y=y_pos, xmin=0, xmax=value, color="#BFD7EA", linewidth=2.5)
-        ax.plot(value, y_pos, "o", color="#0B3954", markersize=8)
+        species_count = int(row["species_count"])
+        ax.hlines(y=y_pos, xmin=0, xmax=value, color="#D7DCE2", linewidth=2.5)
+        ax.plot(value, y_pos, "o", color=species_color_map.get(species_count, "#0B3954"), markersize=8)
     ax.set_yticks(y_positions)
-    ax.set_yticklabels([row["lncrna_symbol"] or row["lncrna_core_id"] for row in plot_rows])
+    ax.set_yticklabels([row["display_label"] or row["lncrna_core_id"] for row in plot_rows])
     ax.set_xlabel("Unique target core count (BA ≥ 100)")
     ax.set_title("Figure 2B · Top hub lncRNAs in the high-affinity core network")
     ax.grid(axis="x", alpha=0.2)
+    ax.legend(
+        handles=[
+            Line2D([0], [0], marker="o", color="w", label=f"{count} species", markerfacecolor=color, markersize=8)
+            for count, color in sorted(species_color_map.items())
+        ],
+        title="Species count",
+        loc="lower right",
+        frameon=True,
+    )
     fig.subplots_adjust(top=0.88, bottom=0.16, hspace=0.06)
     save_figure(fig, svg_path, png_path)
 
@@ -992,7 +1165,13 @@ def generate_fig2b(
             commit_sha=commit_sha,
             input_paths=input_paths,
             output_paths=[tsv_path, svg_path, png_path],
-            filters={"min_ba": 100, "ranking_metric": "unique_target_core_count", "top_n": 12},
+            filters={
+                "min_ba": 100,
+                "ranking_metric": "unique_target_core_count",
+                "top_n": 12,
+                "label_strategy": "shortened_id_fallback",
+                "color_metric": "species_count",
+            },
         ),
     )
 
@@ -1019,31 +1198,56 @@ def generate_fig2c(
             "canonical_symbol",
             "human_ensembl_id",
             "out_degree",
-            "betweenness",
+            "eigenvector_centrality",
             "mean_outgoing_ba",
             "supporting_edge_count",
         ],
     )
 
-    top_labels = list(centrality_rows[:8])
+    top_labels: list[dict[str, Any]] = []
+    labeled_ids: set[int] = set()
+    for row in list(centrality_rows[:5]) + sorted(
+        centrality_rows,
+        key=lambda row: (
+            -int(row["out_degree"]),
+            -float(row["eigenvector_centrality"]),
+            int(row["core_id"]),
+        ),
+    )[:3]:
+        core_id = int(row["core_id"])
+        if core_id in labeled_ids:
+            continue
+        labeled_ids.add(core_id)
+        top_labels.append(row)
     max_ba = max(float(row["mean_outgoing_ba"]) for row in centrality_rows) if centrality_rows else 1.0
+    max_support = max(int(row["supporting_edge_count"]) for row in centrality_rows) if centrality_rows else 1
 
     fig, ax = plt.subplots(figsize=(10, 6))
     x = [int(row["out_degree"]) for row in centrality_rows]
-    y = [float(row["betweenness"]) for row in centrality_rows]
-    sizes = [80 + 240 * (float(row["mean_outgoing_ba"]) / max(max_ba, 1.0)) for row in centrality_rows]
+    y = [float(row["eigenvector_centrality"]) for row in centrality_rows]
+    sizes = [60 + 260 * (int(row["supporting_edge_count"]) / max(max_support, 1)) for row in centrality_rows]
     colors = [float(row["mean_outgoing_ba"]) for row in centrality_rows]
     scatter = ax.scatter(x, y, s=sizes, c=colors, cmap="viridis", alpha=0.8, edgecolor="black", linewidth=0.3)
     for row in top_labels:
+        label = format_lncRNA_display_label(
+            str(row.get("canonical_symbol") or ""),
+            str(row.get("human_ensembl_id") or ""),
+        ) or str(row["core_id"])
+        x_value = int(row["out_degree"])
+        y_value = float(row["eigenvector_centrality"])
+        x_offset = -6 if x and x_value >= max(x) * 0.9 else 4
+        horizontal_alignment = "right" if x_offset < 0 else "left"
         ax.annotate(
-            row["canonical_symbol"] or str(row["core_id"]),
-            (int(row["out_degree"]), float(row["betweenness"])),
+            label,
+            (x_value, y_value),
             textcoords="offset points",
-            xytext=(4, 4),
+            xytext=(x_offset, 4),
             fontsize=8,
+            ha=horizontal_alignment,
         )
     ax.set_xlabel("Out-degree (unique target cores)")
-    ax.set_ylabel("Betweenness centrality")
+    ax.set_ylabel("Eigenvector centrality")
+    ax.set_xlim(-10, max(x) * 1.1 if x else 1.0)
     ax.set_title("Figure 2C · Centrality landscape of high-affinity lncRNA hubs")
     ax.grid(alpha=0.2)
     colorbar = fig.colorbar(scatter, ax=ax, pad=0.02)
@@ -1065,7 +1269,11 @@ def generate_fig2c(
             commit_sha=commit_sha,
             input_paths=input_paths,
             output_paths=[tsv_path, svg_path, png_path],
-            filters={"min_ba": 100, "x_metric": "out_degree", "y_metric": "betweenness"},
+            filters={
+                "min_ba": 100,
+                "x_metric": "out_degree",
+                "y_metric": "eigenvector_centrality_undirected",
+            },
             notes=notes,
         ),
     )
@@ -1098,7 +1306,13 @@ def generate_fig3a(
 
     x_positions = list(range(len(upset_rows)))
     counts = [int(row["count"]) for row in upset_rows]
-    ax_bar.bar(x_positions, counts, color="#0B3954")
+    color_by_species_count = {
+        4: "#0B3954",
+        3: "#087E8B",
+        2: "#BFD7EA",
+    }
+    bar_colors = [color_by_species_count.get(int(row["conservation_count"]), "#0B3954") for row in upset_rows]
+    ax_bar.bar(x_positions, counts, color=bar_colors)
     ax_bar.set_ylabel("Core-pair count")
     ax_bar.set_title("Figure 3A · Conserved-edge strata across two to four species")
     ax_bar.grid(axis="y", alpha=0.2)
@@ -1113,14 +1327,20 @@ def generate_fig3a(
     ax_matrix.set_xticklabels([row["conservation_label"] for row in upset_rows], rotation=0)
     ax_matrix.grid(False)
     for x_pos, row in zip(x_positions, upset_rows, strict=True):
+        row_color = color_by_species_count.get(int(row["conservation_count"]), "#0B3954")
         present_points: list[int] = []
         for y_pos, code in zip(y_positions, species_codes, strict=True):
             present = int(row[code])
-            ax_matrix.scatter(x_pos, y_pos, s=80, color="#0B3954" if present else "#D0D0D0", zorder=3)
+            ax_matrix.scatter(x_pos, y_pos, s=80, color=row_color if present else "#D0D0D0", zorder=3)
             if present:
                 present_points.append(y_pos)
         if len(present_points) >= 2:
-            ax_matrix.plot([x_pos, x_pos], [min(present_points), max(present_points)], color="#0B3954", linewidth=2)
+            ax_matrix.plot([x_pos, x_pos], [min(present_points), max(present_points)], color=row_color, linewidth=2)
+    for index in range(1, len(upset_rows)):
+        if int(upset_rows[index]["conservation_count"]) != int(upset_rows[index - 1]["conservation_count"]):
+            separator = index - 0.5
+            ax_bar.axvline(separator, color="#D0D0D0", linewidth=1.0)
+            ax_matrix.axvline(separator, color="#D0D0D0", linewidth=1.0)
 
     fig.subplots_adjust(top=0.88, bottom=0.16, hspace=0.06)
     save_figure(fig, svg_path, png_path)
@@ -1157,14 +1377,19 @@ def generate_fig3b(
     write_tsv(tsv_path, list(summary_rows), ["item_type", "conservation_count", "raw_count", "proportion"])
 
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.8), sharey=True)
+    y_limit = max(float(row["proportion"]) for row in summary_rows) * 1.15 if summary_rows else 1.0
     for ax, item_type, color in zip(axes, ["node", "edge"], ["#087E8B", "#C81D25"], strict=True):
         rows = [row for row in summary_rows if row["item_type"] == item_type]
         xs = [int(row["conservation_count"]) for row in rows]
         ys = [float(row["proportion"]) for row in rows]
         ax.bar(xs, ys, color=color)
+        total = sum(int(row["raw_count"]) for row in rows)
+        for x_value, y_value, row in zip(xs, ys, rows, strict=True):
+            ax.text(x_value, y_value + y_limit * 0.015, f"{int(row['raw_count']):,}", ha="center", va="bottom", fontsize=8)
         ax.set_xticks([1, 2, 3, 4])
         ax.set_xlabel("Species count")
-        ax.set_title(f"{item_type.capitalize()} conservation")
+        ax.set_ylim(0, y_limit)
+        ax.set_title(f"{item_type.capitalize()} conservation (n={total})")
         ax.grid(axis="y", alpha=0.2)
     axes[0].set_ylabel("Proportion")
     fig.suptitle("Figure 3B · Node conservation versus edge conservation", fontsize=13, fontweight="bold")
@@ -1228,16 +1453,21 @@ def generate_fig3c(
     node_matrix = matrix_for("node")
     edge_matrix = matrix_for("edge")
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
-    for ax, matrix, title in zip(
-        axes,
-        [node_matrix, edge_matrix],
-        ["Node sharing (Jaccard)", "Edge sharing (Jaccard)"],
-        strict=True,
+    mask = np.eye(len(species_codes), dtype=bool)
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.8))
+    cbar_ax = fig.add_axes([0.92, 0.2, 0.015, 0.6])
+    for index, (ax, matrix, title) in enumerate(
+        zip(
+            axes,
+            [node_matrix, edge_matrix],
+            ["Node sharing (Jaccard)", "Edge sharing (Jaccard)"],
+            strict=True,
+        )
     ):
         sns.heatmap(
-            matrix,
+            np.array(matrix),
             ax=ax,
+            mask=mask,
             cmap="Blues",
             vmin=0.0,
             vmax=1.0,
@@ -1245,11 +1475,14 @@ def generate_fig3c(
             fmt=".2f",
             xticklabels=species_labels,
             yticklabels=species_labels,
-            cbar=False,
+            cbar=index == 1,
+            cbar_ax=cbar_ax if index == 1 else None,
+            square=True,
         )
         ax.set_title(title)
+    cbar_ax.set_ylabel("Jaccard index")
     fig.suptitle("Figure 3C · Species-pair sharing heatmaps", fontsize=13, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.subplots_adjust(left=0.06, right=0.9, bottom=0.13, top=0.83, wspace=0.08)
     save_figure(fig, svg_path, png_path)
 
     write_json(
@@ -1455,6 +1688,7 @@ def main() -> int:
         high_affinity_tsv_path,
         fig1_dir / "fig1D_kpi.tsv",
         fig2_dir / "fig2A_ba_distribution.tsv",
+        fig2_dir / "fig2A_summary.tsv",
         fig2_dir / "fig2B_hubs.tsv",
         fig2_dir / "fig2C_centrality.tsv",
         fig3_dir / "fig3A_edge_upset.tsv",

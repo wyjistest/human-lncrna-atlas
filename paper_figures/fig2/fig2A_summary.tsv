@@ -1,0 +1,5 @@
+species_code	species_name	total_edges	n_ge_100	frac_ge_100	p99	p995	main_plot_ymax	full_plot_ymax
+human	Human	496064	28179	0.056805	147.99	172.0	200.0	755.99
+chimp	Chimpanzee	156136	4625	0.029622	127.01	149.0	200.0	379.99
+macaque	Macaque	102430	3002	0.029308	121.9971	142.8479	200.0	307.02
+marmoset	Marmoset	50000	1628	0.03256	118.0	128.0801	200.0	295.12

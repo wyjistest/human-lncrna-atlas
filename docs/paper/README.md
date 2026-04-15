@@ -51,7 +51,8 @@ python3 scripts/paper/generate_results_summary.py
 ```
 
 To regenerate the batch-1 paper figures and shared source tables used by the
-research-first narrative skeleton (Figure 1D, Figure 2A/B/C, Figure 3A/B/C):
+research-first narrative skeleton and revised main-text drafts (Figure 1D,
+Figure 2A/B/C, Figure 3A/B/C):
 
 ```bash
 python3 scripts/paper/generate_batch1_figures.py
@@ -60,6 +61,6 @@ python3 scripts/paper/generate_batch1_figures.py
 This writes:
 
 - `paper_figures/shared/`: frozen snapshot JSON + shared TSV working tables
-- `paper_figures/fig1/`: Figure 1D KPI table + draft SVG/PNG + metadata
-- `paper_figures/fig2/`: Figure 2A/B/C source tables + draft SVG/PNG + metadata
-- `paper_figures/fig3/`: Figure 3A/B/C source tables + draft SVG/PNG + metadata
+- `paper_figures/fig1/`: Figure 1D KPI table + revised draft SVG/PNG + metadata
+- `paper_figures/fig2/`: Figure 2A/B/C source tables, including `fig2A_summary.tsv`, plus revised draft SVG/PNG + metadata
+- `paper_figures/fig3/`: Figure 3A/B/C source tables + revised draft SVG/PNG + metadata

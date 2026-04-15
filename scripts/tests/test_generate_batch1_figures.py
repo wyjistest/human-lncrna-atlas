@@ -119,6 +119,88 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
         self.assertEqual(hub_rows[0]["unique_target_core_count"], 2)
         self.assertEqual(hub_rows[0]["supporting_edge_count"], 3)
 
+    def test_format_lncRNA_display_label_shortens_accession_like_symbols(self):
+        module = load_module()
+
+        self.assertEqual(module.format_lncRNA_display_label("LINC00152", "ENSG00000222041.8"), "LINC00152")
+        self.assertEqual(
+            module.format_lncRNA_display_label("CATG00000083332.1", "CATG00000083332.1"),
+            "CATG083332",
+        )
+        self.assertEqual(
+            module.format_lncRNA_display_label("ENSG00000255197.1", "ENSG00000255197.1"),
+            "ENSG255197",
+        )
+        self.assertEqual(
+            module.format_lncRNA_display_label("", "ENSG00000224078.8"),
+            "ENSG224078",
+        )
+
+    def test_build_ba_summary_rows_reports_priority_fraction_and_plot_limits(self):
+        module = load_module()
+
+        rows = module.build_ba_summary_rows(
+            {
+                "human": [50.0, 60.0, 100.0, 120.0],
+                "chimp": [55.0, 65.0, 75.0, 85.0],
+            },
+            [
+                {"species_code": "human", "display_name": "Human"},
+                {"species_code": "chimp", "display_name": "Chimpanzee"},
+            ],
+            priority_line=100.0,
+        )
+
+        self.assertEqual([row["species_code"] for row in rows], ["human", "chimp"])
+        self.assertEqual(rows[0]["total_edges"], 4)
+        self.assertEqual(rows[0]["n_ge_100"], 2)
+        self.assertTrue(math.isclose(rows[0]["frac_ge_100"], 0.5))
+        self.assertEqual(rows[0]["full_plot_ymax"], 120.0)
+        self.assertEqual(rows[0]["main_plot_ymax"], 200.0)
+        self.assertEqual(rows[1]["n_ge_100"], 0)
+        self.assertTrue(math.isclose(rows[1]["frac_ge_100"], 0.0))
+
+    def test_build_centrality_rows_uses_eigenvector_metric_for_lncRNAs(self):
+        module = load_module()
+
+        edge_rows = [
+            {
+                "lncrna_core_id": 1,
+                "target_core_id": 10,
+                "lncrna_symbol": "L1",
+                "lncrna_human_ensembl_id": "ENSG-L1",
+                "mean_ba": 180.0,
+                "supporting_regulation_count": 2,
+            },
+            {
+                "lncrna_core_id": 1,
+                "target_core_id": 11,
+                "lncrna_symbol": "L1",
+                "lncrna_human_ensembl_id": "ENSG-L1",
+                "mean_ba": 150.0,
+                "supporting_regulation_count": 1,
+            },
+            {
+                "lncrna_core_id": 2,
+                "target_core_id": 10,
+                "lncrna_symbol": "L2",
+                "lncrna_human_ensembl_id": "ENSG-L2",
+                "mean_ba": 130.0,
+                "supporting_regulation_count": 1,
+            },
+        ]
+
+        centrality_rows = module.build_centrality_rows(edge_rows)
+
+        self.assertEqual(centrality_rows[0]["core_id"], 1)
+        self.assertIn("eigenvector_centrality", centrality_rows[0])
+        self.assertNotIn("betweenness", centrality_rows[0])
+        self.assertGreater(float(centrality_rows[0]["eigenvector_centrality"]), 0.0)
+        self.assertGreater(
+            float(centrality_rows[0]["eigenvector_centrality"]),
+            float(centrality_rows[1]["eigenvector_centrality"]),
+        )
+
     def test_normalize_species_rows_prefers_fixed_english_display_names(self):
         module = load_module()
 

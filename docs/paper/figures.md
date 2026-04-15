@@ -16,7 +16,7 @@ This file tracks the target figure and table set for the research-first manuscri
    - triplex-informed edge reconstruction workflow using conservative wording such as candidate regulatory edges;
    - frozen-snapshot KPI tiles using only already frozen metrics (`4` primate species, `804,630` predicted lncRNA to protein-coding gene relationships, `56` experiments, `4,567,525` peaks).
    Source: new composite figure required (workflow + data overview from frozen snapshot)
-   Status: batch 1 skeleton available for panel D (`paper_figures/fig1/fig1D_*`); panels A-C still pending manual design
+   Status: revised draft available for panel D (`paper_figures/fig1/fig1D_*`); panels A-C still pending manual design
 
 2. **Figure 2 — Global architecture of primate lncRNA regulatory networks**
    Goal: summarize hub structure, affinity landscape, and readable modules after Figure 1 establishes the workflow.
@@ -30,7 +30,7 @@ This file tracks the target figure and table set for the research-first manuscri
    - `notebooks/figures/02_top_lncrnas_visualization.png`
    - `notebooks/figures/03_centrality_analysis.png`
    - `notebooks/figures/04_regulatory_network_visualization.png`
-   Status: batch 1 skeleton available for panels A/B/C (`paper_figures/fig2/`); panel D exemplar selection still pending
+   Status: revised draft available for panels A/B/C (`paper_figures/fig2/`); panel D exemplar selection still pending
 
 3. **Figure 3 — Cross-species conservation and lineage-specific rewiring of regulatory edges**
    Goal: make edge conservation, not only node conservation, a core result.
@@ -42,7 +42,7 @@ This file tracks the target figure and table set for the research-first manuscri
    - species-pair sharing heatmaps;
    - paired exemplars in a shared layout: one conserved module and one lineage-specific rewiring module.
    Source: new figure required; existing conservation notebook outputs are starting material
-   Status: batch 1 skeleton available for panels A/B/C (`paper_figures/fig3/`); panel D exemplar selection still pending
+   Status: revised draft available for panels A/B/C (`paper_figures/fig3/`); panel D exemplar selection still pending
 
 4. **Figure 4 — Epigenomic context prioritizes candidate regulatory loci and modules**
    Goal: show contextual support without over-claiming causality.
