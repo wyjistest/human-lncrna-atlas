@@ -202,6 +202,34 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
             float(centrality_rows[1]["eigenvector_centrality"]),
         )
 
+    def test_select_fig2c_label_rows_uses_only_first_five_centrality_rows(self):
+        module = load_module()
+
+        centrality_rows = [
+            {"core_id": 101, "out_degree": 320, "eigenvector_centrality": 0.24, "mean_outgoing_ba": 160.0},
+            {"core_id": 102, "out_degree": 300, "eigenvector_centrality": 0.21, "mean_outgoing_ba": 155.0},
+            {"core_id": 103, "out_degree": 280, "eigenvector_centrality": 0.20, "mean_outgoing_ba": 150.0},
+            {"core_id": 104, "out_degree": 260, "eigenvector_centrality": 0.18, "mean_outgoing_ba": 148.0},
+            {"core_id": 105, "out_degree": 240, "eigenvector_centrality": 0.16, "mean_outgoing_ba": 145.0},
+            {"core_id": 106, "out_degree": 999, "eigenvector_centrality": 0.10, "mean_outgoing_ba": 120.0},
+        ]
+
+        label_rows = module.select_fig2c_label_rows(centrality_rows)
+
+        self.assertEqual([row["core_id"] for row in label_rows], [101, 102, 103, 104, 105])
+
+    def test_select_fig2c_label_rows_returns_all_rows_when_fewer_than_limit(self):
+        module = load_module()
+
+        centrality_rows = [
+            {"core_id": 201, "out_degree": 120, "eigenvector_centrality": 0.14, "mean_outgoing_ba": 140.0},
+            {"core_id": 202, "out_degree": 110, "eigenvector_centrality": 0.11, "mean_outgoing_ba": 130.0},
+        ]
+
+        label_rows = module.select_fig2c_label_rows(centrality_rows)
+
+        self.assertEqual([row["core_id"] for row in label_rows], [201, 202])
+
     def test_normalize_species_rows_prefers_fixed_english_display_names(self):
         module = load_module()
 

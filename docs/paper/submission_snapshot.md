@@ -27,8 +27,18 @@ Interpretation rule:
 Figure 2B label rule:
 
 - `docs/paper/fig2b_aliases.tsv` is the paper-facing alias manifest for top hub labels
+- the current batch-1 draft fills this manifest with neutral `Hub-XX (short accession)` labels rather than inventing human gene-like names
 - if `display_label` is blank, Figure 2B falls back to the automatic shortened accession label
 - if `display_label` is non-empty, its `reference_accession` must match the current hub accession for that `lncrna_core_id`
+
+Figure 2A count check:
+
+- the current frozen snapshot contains `50,000` marmoset regulations with non-null binding affinity in the Figure 2A export; this is the repository database state, not a plotting or export cap
+
+Figure 2C label rule:
+
+- the centrality scatter remains ordered by eigenvector-centrality-first summaries, but the main-text draft labels only the top five rows of the current centrality ranking
+- no extra out-degree-only labels are reintroduced unless the figure plan is revised again
 
 ## Epigenomic Inventory: Fixed Main-Text Rule
 

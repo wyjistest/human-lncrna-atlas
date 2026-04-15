@@ -76,5 +76,6 @@ This writes:
 
 Additional inputs used by the batch-1 generator:
 
-- `docs/paper/fig2b_aliases.tsv`: optional paper-facing aliases for the Figure 2B top hubs; leave `display_label` blank to keep the automatic shortened accession fallback
+- `docs/paper/fig2b_aliases.tsv`: paper-facing aliases for the Figure 2B top hubs; the current draft uses neutral `Hub-XX (short accession)` labels, and leaving `display_label` blank still falls back to the automatic shortened accession
+- `Figure 2C` keeps the eigenvector-centrality view but now labels only the top five ranked lncRNA hubs in the current centrality ordering, reducing plot clutter without changing the underlying metric
 - metadata output now records `source_commit`, meaning the git revision used to generate the assets; this is intentionally separate from the later commit that may add regenerated files to the branch

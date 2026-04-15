@@ -708,6 +708,10 @@ def build_centrality_rows(edge_rows: Sequence[dict[str, Any]]) -> list[dict[str,
     return output
 
 
+def select_fig2c_label_rows(centrality_rows: Sequence[dict[str, Any]], *, max_labels: int = 5) -> list[dict[str, Any]]:
+    return [dict(row) for row in list(centrality_rows)[:max_labels]]
+
+
 def write_tsv(path: Path, rows: Sequence[dict[str, Any]], fieldnames: Sequence[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as handle:
@@ -1269,21 +1273,7 @@ def generate_fig2c(
         ],
     )
 
-    top_labels: list[dict[str, Any]] = []
-    labeled_ids: set[int] = set()
-    for row in list(centrality_rows[:5]) + sorted(
-        centrality_rows,
-        key=lambda row: (
-            -int(row["out_degree"]),
-            -float(row["eigenvector_centrality"]),
-            int(row["core_id"]),
-        ),
-    )[:3]:
-        core_id = int(row["core_id"])
-        if core_id in labeled_ids:
-            continue
-        labeled_ids.add(core_id)
-        top_labels.append(row)
+    top_labels = select_fig2c_label_rows(centrality_rows)
     max_ba = max(float(row["mean_outgoing_ba"]) for row in centrality_rows) if centrality_rows else 1.0
     max_support = max(int(row["supporting_edge_count"]) for row in centrality_rows) if centrality_rows else 1
 
@@ -1338,6 +1328,7 @@ def generate_fig2c(
                 "min_ba": 100,
                 "x_metric": "out_degree",
                 "y_metric": "eigenvector_centrality_undirected",
+                "label_strategy": "top_5_centrality_rows",
             },
             notes=notes,
         ),
