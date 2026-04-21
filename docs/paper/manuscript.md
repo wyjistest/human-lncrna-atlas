@@ -58,7 +58,7 @@ After the construction workflow is established, the manuscript can summarize the
 This is the correct place for the current high-affinity and centrality analyses. Those outputs remain useful, but they no longer define the opening claim of the manuscript. Instead, they support a second-stage result: once candidate edges are reconstructed, the global network architecture identifies lncRNAs with broad target coverage, modular structures that organize target gene programs, and filtered subnetworks suitable for biological interpretation.
 
 **Figure 2.** Global architecture of primate lncRNA regulatory networks.
-Current source material: `notebooks/figures/01_ba_distribution_analysis.png`, `notebooks/figures/02_top_lncrnas_visualization.png`, `notebooks/figures/03_centrality_analysis.png`, and `notebooks/figures/04_regulatory_network_visualization.png` should be reorganized into a research-first figure or redistributed between the main text and Supplementary material.
+Final panel set: A. binding-affinity landscape; B. top hub lncRNAs; C. hub breadth versus eigenvector centrality; D. representative filtered subnetwork. The main-text high-affinity view keeps `BA >= 100` as a prioritization zone rather than a universal inclusion threshold.
 
 ### 3. Conserved and rewired lncRNA regulatory edges across primate evolution
 
@@ -67,7 +67,7 @@ Cross-species comparison should be framed primarily at the edge level, not only 
 For the paper, node conservation and edge conservation are fixed as separate definitions. Node conservation is computed from `genes.core_id` presence across the four species in the fixed order human, chimpanzee, macaque, and marmoset. Conserved regulatory edges are defined at the `(lncrna_core_id, target_core_id)` level: a species contributes presence if at least one regulation links that core pair in that species. Genes with `core_id = NULL` are excluded from cross-species conservation analyses. The main overview in Figure 3 should show only two- to four-species conserved-edge strata under the fixed all-edge workflow (`min_species_count >= 2`, no additional BA cutoff), while singleton edges are reported in Supplementary material. Species-pair sharing and representative examples of conserved versus lineage-specific modules should therefore be interpreted at the core-pair level rather than from node-only ortholog lists.
 
 **Figure 3.** Cross-species conservation and lineage-specific rewiring of lncRNA regulatory edges.
-Recommended content: conservation strata or UpSet-style overview, node versus edge conservation summary, species-pair heatmaps, and representative conserved and lineage-specific modules.
+Final panel set: A. conserved-edge strata across two to four species; B. node conservation versus edge conservation; C. species-pair edge sharing heatmap; D1 / D2. paired conserved-versus-rewired module exemplars in a shared layout. Conserved-edge summaries remain defined at the `(lncrna_core_id, target_core_id)` level and keep the fixed all-edge overview rule (`min_species_count >= 2`, no additional BA cutoff).
 
 ### 4. Epigenomic context prioritizes candidate regulatory loci and modules
 
@@ -76,7 +76,7 @@ Epigenomic data are most useful here as contextual support that helps prioritize
 For the main text, the epigenomic inventory is fixed to `8 core histone marks + DNase-HS`, while `CTCF` and `H4K20me1` remain excluded from the core baseline and may appear only as explicitly labeled extended human tracks. Cross-mark comparisons in Figure 4 and related tables default to the six-cell-line subset `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, and `K562`; `MCF-7` is excluded from multi-mark main-text comparisons because the frozen hg19 baseline only contributes `H3K4me3` there.
 
 **Figure 4.** Epigenomic context for candidate regulatory loci and modules.
-Recommended content: mark-overlap summary, direct mark-overlap signatures or mark-combination comparisons, bivalent versus non-bivalent contrasts, and representative IGV snapshots.
+Final structure: an unnumbered baseline strip plus A. histone-mark / DNase overlap summary, B. direct mark-overlap signature classes, C. bivalent versus non-bivalent contrast, and D. representative IGV snapshots. The formal inventory now lives in Table 2; the strip is informational and is not a lettered panel.
 
 ### 5. Trait-centered subnetworks prioritize candidate disease-relevant lncRNAs
 
@@ -85,7 +85,7 @@ Trait-associated biology should be presented through tripartite subnetworks that
 The strongest version of this section should combine one flagship trait case study with a cross-trait summary that distinguishes shared regulators from trait-specific ones. The flagship tripartite network should remain visually simple, using at most two quantitative encodings in the network view, while additional evidence layers such as conservation and epigenomic support are summarized in the ranking matrix. The emphasis should remain on prioritization and interpretation rather than on claiming direct validation.
 
 **Figure 5.** Trait-centered subnetworks highlight candidate functional lncRNAs.
-Recommended content: trait to lncRNA to protein-coding gene tripartite network, integrated ranking, shared versus trait-specific regulator summary, and one or two representative case studies.
+Final panel set: A. simplified trait to lncRNA to protein-coding gene tripartite network, B. integrated ranking matrix, C. shared versus trait-specific regulators, and D. one focused flagship case study. Binding affinity remains a ranking feature in this section rather than a hidden hard cutoff.
 
 ### 6. Web resource and programmatic access
 
@@ -93,8 +93,8 @@ The platform remains valuable, but it is now positioned as supporting infrastruc
 
 The web layer supports filtered regulation queries, network visualization, genome-browser inspection, and exportable downstream analyses. Example endpoints currently exposed by the backend include `GET /api/v1/regulations`, `GET /api/v1/network/gene/{id}`, `GET /api/v1/network/compare`, and `GET /api/v1/export/*`.
 
-**Figure 6.** Web resource and programmatic access (optional main-text figure).
-Recommended placement: main text only for resource-oriented submissions; otherwise Supplementary / Extended Data.
+**Figure 6.** Web resource and programmatic access (optional figure).
+Recommended placement: Supplementary / Extended Data by default for research-first submissions; reserve main-text placement for resource-oriented journals only.
 
 ---
 
@@ -144,9 +144,11 @@ Main-text cross-mark comparisons should default to the six-cell-line subset `A54
 
 ### 8. Visualization platform and reproducibility
 
-The repository provides analysis notebooks under `notebooks/` and pre-generated outputs under `notebooks/results/` and `notebooks/figures/`. A lightweight summary of CSV outputs can be regenerated with:
+The repository provides upstream analysis notebooks under `notebooks/`, while the paper-facing figure package now lives under `paper_figures/fig1/` through `paper_figures/fig5/` and `paper_figures/tables/`. Refresh the paper-facing package with:
 
 ```bash
+python3 scripts/paper/generate_batch1_figures.py
+python3 scripts/paper/generate_batch2_figures.py
 python3 scripts/paper/generate_results_summary.py
 ```
 

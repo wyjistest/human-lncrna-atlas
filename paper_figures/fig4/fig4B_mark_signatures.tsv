@@ -1,0 +1,19 @@
+cohort	signature_label	display_label	regulation_cell_count	fraction	rank
+all_human_edges	H3K36me3	H3K36me3	268945	0.24677	1
+all_human_edges	H3K9me3	H3K9me3	157515	0.144528	2
+all_human_edges	DNase-HS	DNase-HS	130937	0.120141	3
+all_human_edges	H3K27me3	H3K27me3	101585	0.093209	4
+all_human_edges	DNase-HS | H3K36me3	DNase-HS | H3K36me3	54971	0.050439	5
+all_human_edges	H3K36me3 | H3K9me3	H3K36me3 | H3K9me3	51284	0.047056	6
+all_human_edges	H3K4me1	H3K4me1	34057	0.031249	7
+all_human_edges	H3K36me3 | H3K4me1	H3K36me3 | H3K4me1	17880	0.016406	8
+all_human_edges	Other	Other	272686	0.250203	9
+high_affinity	DNase-HS	DNase-HS	14168	0.201752	1
+high_affinity	H3K36me3	H3K36me3	11838	0.168572	2
+high_affinity	H3K9me3	H3K9me3	7592	0.10811	3
+high_affinity	H3K27me3	H3K27me3	5930	0.084443	4
+high_affinity	DNase-HS | H3K36me3	DNase-HS | H3K36me3	5420	0.07718	5
+high_affinity	H3K36me3 | H3K9me3	H3K36me3 | H3K9me3	2327	0.033136	6
+high_affinity	H3K4me1	H3K4me1	1781	0.025361	7
+high_affinity	DNase-HS | H3K9me3	DNase-HS | H3K9me3	1591	0.022656	8
+high_affinity	Other	Other	19578	0.27879	9

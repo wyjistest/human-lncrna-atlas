@@ -1,0 +1,39 @@
+{
+  "panel_id": "Figure4A",
+  "title": "Histone-mark / DNase overlap summary",
+  "script": "scripts/paper/generate_batch2_figures.py",
+  "inputs": [
+    "docs/paper/submission_snapshot.md"
+  ],
+  "outputs": [
+    "paper_figures/fig4/fig4A_overlap_summary.tsv",
+    "paper_figures/fig4/fig4A_overlap_summary.svg",
+    "paper_figures/fig4/fig4A_overlap_summary.png"
+  ],
+  "filters": {
+    "marks": [
+      "H3K27me3",
+      "H3K4me3",
+      "H3K4me2",
+      "H3K4me1",
+      "H3K27ac",
+      "H3K36me3",
+      "H3K9ac",
+      "H3K9me3",
+      "DNase-HS"
+    ],
+    "cell_lines": [
+      "A549",
+      "GM12878",
+      "H1-hESC",
+      "HepG2",
+      "HMEC",
+      "K562"
+    ],
+    "min_ba": 100,
+    "na_rule": "inventory_defined_absence"
+  },
+  "notes": [],
+  "generated_at": "2026-04-21T09:26:47Z",
+  "source_commit": "a310ffc9038d89374402fe8df5f76fe6a2a3c1c1"
+}

@@ -1,0 +1,26 @@
+{
+  "panel_id": "Figure5C",
+  "title": "Shared versus trait-specific regulators",
+  "script": "scripts/paper/generate_batch2_figures.py",
+  "inputs": [
+    "paper_figures/fig5/fig5B_ranking_matrix.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig5/fig5C_trait_specificity.tsv",
+    "paper_figures/fig5/fig5C_trait_specificity.svg",
+    "paper_figures/fig5/fig5C_trait_specificity.png"
+  ],
+  "filters": {
+    "trait_names": [
+      "obesity",
+      "Abnormality of the nervous system",
+      "Rheumatoid arthritis",
+      "Arteriosclerosis",
+      "Glomerulosclerosis",
+      "Sclerosis of metaphyses of the upper limbs"
+    ]
+  },
+  "notes": [],
+  "generated_at": "2026-04-21T09:26:47Z",
+  "source_commit": "a310ffc9038d89374402fe8df5f76fe6a2a3c1c1"
+}

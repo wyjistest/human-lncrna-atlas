@@ -1,0 +1,12 @@
+mark_name	inventory_group	cell_line_count	experiment_count	peak_count
+H3K27me3	main_text_baseline	6	6	317558
+H3K4me3	main_text_baseline	7	7	447224
+H3K4me2	main_text_baseline	6	6	505389
+H3K4me1	main_text_baseline	6	6	803334
+H3K27ac	main_text_baseline	6	6	334361
+H3K36me3	main_text_baseline	6	6	241345
+H3K9ac	main_text_baseline	6	6	318090
+H3K9me3	main_text_baseline	6	6	376602
+DNase-HS	main_text_baseline	7	7	1223622
+CTCF	extended_tracks	5	5	248106
+H4K20me1	extended_tracks	3	3	109285

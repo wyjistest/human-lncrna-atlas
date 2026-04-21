@@ -1,0 +1,23 @@
+{
+  "panel_id": "Figure5A",
+  "title": "Simplified trait–lncRNA–PCG tripartite network",
+  "script": "scripts/paper/generate_batch2_figures.py",
+  "inputs": [
+    "paper_figures/shared/edge_corepair_presence.tsv",
+    "paper_figures/shared/node_core_presence.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig5/fig5A_tripartite_nodes.tsv",
+    "paper_figures/fig5/fig5A_tripartite_edges.tsv",
+    "paper_figures/fig5/fig5A_tripartite_network.svg",
+    "paper_figures/fig5/fig5A_tripartite_network.png"
+  ],
+  "filters": {
+    "flagship_trait": "obesity",
+    "top_lncrnas": 3,
+    "top_targets": 12
+  },
+  "notes": [],
+  "generated_at": "2026-04-21T09:26:47Z",
+  "source_commit": "a310ffc9038d89374402fe8df5f76fe6a2a3c1c1"
+}

@@ -1,0 +1,20 @@
+{
+  "panel_id": "Figure4C",
+  "title": "Bivalent versus non-bivalent contrast",
+  "script": "scripts/paper/generate_batch2_figures.py",
+  "inputs": [
+    "docs/paper/manuscript.md"
+  ],
+  "outputs": [
+    "paper_figures/fig4/fig4C_bivalent_contrast.tsv",
+    "paper_figures/fig4/fig4C_bivalent_contrast.svg",
+    "paper_figures/fig4/fig4C_bivalent_contrast.png"
+  ],
+  "filters": {
+    "min_ba": 100,
+    "bivalent_rule": "same regulation_id and same cell_line contain H3K4me3 + H3K27me3"
+  },
+  "notes": [],
+  "generated_at": "2026-04-21T09:26:47Z",
+  "source_commit": "a310ffc9038d89374402fe8df5f76fe6a2a3c1c1"
+}

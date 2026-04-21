@@ -1,0 +1,29 @@
+{
+  "panel_id": "Figure5B",
+  "title": "Integrated candidate lncRNA ranking matrix",
+  "script": "scripts/paper/generate_batch2_figures.py",
+  "inputs": [
+    "paper_figures/shared/edge_corepair_presence.tsv",
+    "paper_figures/shared/node_core_presence.tsv",
+    "paper_figures/fig4/fig4C_bivalent_contrast.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig5/fig5B_ranking_matrix.tsv",
+    "paper_figures/fig5/fig5B_ranking_matrix.svg",
+    "paper_figures/fig5/fig5B_ranking_matrix.png"
+  ],
+  "filters": {
+    "top_n": 20,
+    "ranking_sort": [
+      "trait_count desc",
+      "target_count desc",
+      "high_affinity_edge_count desc",
+      "best_edge_conservation_count desc",
+      "max_ba desc",
+      "lncrna_gene_id asc"
+    ]
+  },
+  "notes": [],
+  "generated_at": "2026-04-21T09:26:47Z",
+  "source_commit": "a310ffc9038d89374402fe8df5f76fe6a2a3c1c1"
+}

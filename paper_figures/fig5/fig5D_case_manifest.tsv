@@ -1,0 +1,2 @@
+trait_name	lncrna_gene_id	lncrna_name	candidate_targets	high_affinity_edges	ba_range	best_edge_conservation_count	rewiring_label	epigenomic_support_class
+obesity	17738	CATG00000045621.1	8	8	145.99-213.99	2	conserved	bivalent_like

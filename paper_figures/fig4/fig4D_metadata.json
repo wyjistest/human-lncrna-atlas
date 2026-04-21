@@ -1,0 +1,24 @@
+{
+  "panel_id": "Figure4D",
+  "title": "Representative IGV-like snapshots",
+  "script": "scripts/paper/generate_batch2_figures.py",
+  "inputs": [
+    "paper_figures/fig4/fig4C_bivalent_contrast.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig4/fig4D_igv_manifest.tsv",
+    "paper_figures/fig4/fig4D_overlap_tracks.tsv",
+    "paper_figures/fig4/fig4D_igv_snapshots.svg",
+    "paper_figures/fig4/fig4D_igv_snapshots.png"
+  ],
+  "filters": {
+    "selection_rule": "BA desc -> mark_count desc -> supporting_cell_line_count desc -> regulation_id asc",
+    "exemplar_classes": [
+      "active_like",
+      "bivalent_like"
+    ]
+  },
+  "notes": [],
+  "generated_at": "2026-04-21T09:26:47Z",
+  "source_commit": "a310ffc9038d89374402fe8df5f76fe6a2a3c1c1"
+}
