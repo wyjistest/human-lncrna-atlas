@@ -6,11 +6,11 @@ uvicorn[standard]>=0.30.0,<1.0.0
 pydantic>=2.5.0,<3.0.0
 
 # 数据库
-psycopg2-binary==2.9.11
-sqlalchemy==2.0.48
+psycopg2-binary==2.9.12
+sqlalchemy==2.0.49
 
 # 缓存
-redis==7.3.0
+redis==7.4.0
 hiredis==3.3.1
 
 # 限流 (Rate Limiting)
@@ -18,7 +18,7 @@ slowapi==0.1.9
 
 # 工具库
 python-dotenv==1.2.2
-pydantic-settings==2.13.1
+pydantic-settings==2.14.0
 requests>=2.31.0,<3.0.0
 
 # 数据处理和导出
