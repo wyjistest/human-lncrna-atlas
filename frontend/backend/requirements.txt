@@ -1,16 +1,16 @@
 # Web框架
 # 注意：fastapi>=0.118.0 修复了 StreamingResponse 中 yield 依赖的生命周期问题
 # (依赖清理可能早于流式发送完成)，并包含 PYSEC-2024-38 的安全修复
-fastapi>=0.118.0,<1.0.0
-uvicorn[standard]>=0.30.0,<1.0.0
-pydantic>=2.5.0,<3.0.0
+fastapi>=0.136.1,<1.0.0
+uvicorn[standard]>=0.46.0,<1.0.0
+pydantic>=2.13.4,<3.0.0
 
 # 数据库
-psycopg2-binary==2.9.11
-sqlalchemy==2.0.48
+psycopg2-binary==2.9.12
+sqlalchemy==2.0.49
 
 # 缓存
-redis==7.3.0
+redis==7.4.0
 hiredis==3.3.1
 
 # 限流 (Rate Limiting)
@@ -18,11 +18,11 @@ slowapi==0.1.9
 
 # 工具库
 python-dotenv==1.2.2
-pydantic-settings==2.13.1
-requests>=2.31.0,<3.0.0
+pydantic-settings==2.14.1
+requests>=2.33.1,<3.0.0
 
 # 数据处理和导出
-pandas>=2.0.0,<4.0.0
+pandas>=3.0.2,<4.0.0
 openpyxl>=3.1.0,<4.0.0
 
 # 监控
