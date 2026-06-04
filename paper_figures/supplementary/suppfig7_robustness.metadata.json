@@ -1,0 +1,36 @@
+{
+  "panel_id": "SupplementaryFigure7",
+  "title": "Robustness of edge-level conservation and rewiring summaries",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "inputs": [
+    "paper_figures/shared/edge_corepair_presence.tsv"
+  ],
+  "outputs": [
+    "paper_figures/supplementary/suppfig7A_threshold_sensitivity.tsv",
+    "paper_figures/supplementary/suppfig7B_null_counts.tsv",
+    "paper_figures/supplementary/suppfig7C_null_pairwise.tsv",
+    "paper_figures/supplementary/suppfig7D_degree_null_counts.tsv",
+    "paper_figures/supplementary/suppfig7E_marmoset_downsampling.tsv",
+    "paper_figures/supplementary/suppfig7_robustness.svg",
+    "paper_figures/supplementary/suppfig7_robustness.png"
+  ],
+  "filters": {
+    "ba_thresholds": [
+      0,
+      100,
+      150
+    ],
+    "null_iterations": 1000,
+    "rng_seed": 42,
+    "strict_null_model": "degree_bin_matched_target_permutation",
+    "coverage_sensitivity": "marmoset_edge_count_downsampling_target_permutation"
+  },
+  "notes": [
+    "BA sensitivity summarizes retained overview edges across fixed thresholds.",
+    "Null comparisons permute target assignments within species while preserving species-level lncRNA and target marginals.",
+    "Degree-bin matched null comparisons additionally preserve lncRNA row-degree tiers and target row-degree tiers within species.",
+    "Marmoset-edge-count downsampling repeats shared-edge calibration with seeded random downsampling for both observed and target-permutation null summaries."
+  ],
+  "generated_at": "2026-05-07T03:47:12Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

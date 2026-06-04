@@ -1,0 +1,63 @@
+{
+  "figure_id": "figure1",
+  "figure_number": 1,
+  "title": "Figure 1. From trait catalogs to orthology-aware candidate lncRNA\u2013PCG edges",
+  "script": "scripts/paper/generate_composite_figures.py",
+  "inputs": [
+    "paper_figures/fig1/fig1A_catalog_gap.png",
+    "paper_figures/fig1/fig1A_catalog_gap.svg",
+    "paper_figures/fig1/fig1B_ortholog_mapping.png",
+    "paper_figures/fig1/fig1B_ortholog_mapping.svg",
+    "paper_figures/fig1/fig1C_workflow.png",
+    "paper_figures/fig1/fig1C_workflow.svg",
+    "paper_figures/fig1/fig1D_kpi.png",
+    "paper_figures/fig1/fig1D_kpi.svg"
+  ],
+  "outputs": {
+    "svg": "paper_figures/composites/figure1_composite.svg",
+    "png": "paper_figures/composites/figure1_composite.png",
+    "metadata": "paper_figures/composites/figure1_composite.metadata.json"
+  },
+  "panels": [
+    {
+      "panel_id": "fig1A",
+      "letter": "A",
+      "title": "Catalog gap: nodes, not edges",
+      "svg_path": "paper_figures/fig1/fig1A_catalog_gap.svg",
+      "png_path": "paper_figures/fig1/fig1A_catalog_gap.png"
+    },
+    {
+      "panel_id": "fig1B",
+      "letter": "B",
+      "title": "Ortholog mapping across four primates",
+      "svg_path": "paper_figures/fig1/fig1B_ortholog_mapping.svg",
+      "png_path": "paper_figures/fig1/fig1B_ortholog_mapping.png"
+    },
+    {
+      "panel_id": "fig1C",
+      "letter": "C",
+      "title": "Orthology-aware triplex workflow",
+      "svg_path": "paper_figures/fig1/fig1C_workflow.svg",
+      "png_path": "paper_figures/fig1/fig1C_workflow.png"
+    },
+    {
+      "panel_id": "fig1D",
+      "letter": "D",
+      "title": "Frozen submission snapshot",
+      "svg_path": "paper_figures/fig1/fig1D_kpi.svg",
+      "png_path": "paper_figures/fig1/fig1D_kpi.png"
+    }
+  ],
+  "layout": {
+    "canvas_width": 2200,
+    "canvas_height": 1993,
+    "content_width": 2056,
+    "row_count": 3,
+    "header_strip_count": 0
+  },
+  "notes": [
+    "Composite figure assembled from existing paper-facing panel assets."
+  ],
+  "generated_at": "2026-05-11T02:30:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

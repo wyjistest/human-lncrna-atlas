@@ -123,7 +123,7 @@ def summarize_fig1(paths: AssetPaths) -> str:
         "Current draft language:",
         "",
         "- Figure 1A keeps the paper-facing framing that prior trait-associated catalogs nominate `nodes, not edges`",
-        "- Figure 1C fixes the workflow to `trait-associated catalogs -> ortholog mapping -> repository-frozen ortholog import snapshot -> triplex-informed inference -> candidate regulatory edges`",
+        "- Figure 1C fixes the workflow to `trait-associated catalogs -> ortholog mapping -> repository-frozen ortholog import snapshot -> triplex-informed inference -> candidate lncRNA-PCG edges`",
     ])
     if snapshot:
         lines.append(
@@ -324,7 +324,7 @@ def summarize_fig4(paths: AssetPaths) -> str:
             )
 
         if fig4d_rows:
-            lines.append("- Figure 4D current IGV exemplars:")
+            lines.append("- Figure 4D current local epigenomic exemplars:")
             for row in fig4d_rows:
                 lines.append(
                     "  - "

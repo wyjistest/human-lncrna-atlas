@@ -1,0 +1,4 @@
+evidence_layer	observed_value	null_or_background_value	supporting_count	tested_count	evidence_label	interpretation
+trait_gene_provenance	0.665957		626	940	Trait-gene provenance overlap	Prior trait-gene support for the target program; not lncRNA regulation validation
+flagship_module_provenance	0.75		6	8	Flagship displayed targets with trait support	Displayed obesity targets trace to trait-gene provenance
+edge_conservation_null	8799.0	3206.15	8799	100	Four-species edge conservation calibration	Observed shared candidate edges exceed matched target-permutation null p95

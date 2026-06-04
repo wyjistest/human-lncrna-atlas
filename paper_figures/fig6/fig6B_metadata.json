@@ -1,0 +1,42 @@
+{
+  "panel_id": "Figure6B",
+  "title": "PCG target-program expression context",
+  "script": "scripts/paper/generate_cellgenomics_validation.py",
+  "inputs": [
+    "paper_figures/external/cellgenomics_expression_support.tsv",
+    "paper_figures/external/cellgenomics_expression_aliases.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig6/fig6B_expression_support.tsv",
+    "paper_figures/fig6/fig6B_expression_support.svg",
+    "paper_figures/fig6/fig6B_expression_support.png"
+  ],
+  "external_data_versions": {
+    "ENCODE_RNA_seq": {
+      "version": "processed compact matrix supplied by paper_figures/external/cellgenomics_expression_support.tsv",
+      "url": "https://www.encodeproject.org/",
+      "license_or_terms": "ENCODE data use terms; cite ENCODE Project Consortium"
+    },
+    "GTEx_v8": {
+      "version": "GTEx Analysis V8 processed expression context",
+      "url": "https://gtexportal.org/home/datasets",
+      "license_or_terms": "GTEx Portal data use terms"
+    },
+    "GO_functional_terms": {
+      "version": "GO biological-process annotations supplied by paper_figures/external/cellgenomics_functional_terms.tsv",
+      "url": "https://geneontology.org/; https://mygene.info/",
+      "license_or_terms": "GO and MyGene.info source terms"
+    }
+  },
+  "generation_parameters": {
+    "analysis_mode": "pcg_target_program_mappable_subset",
+    "min_tpm": 1.0
+  },
+  "notes": [
+    "Unmapped or ambiguous lncRNA IDs are reported as missing or ambiguous, not as zero expression.",
+    "Figure 6B summarizes PCG target-program expression context rather than direct lncRNA–PCG co-expression.",
+    "Expression matrices are expected as compact processed TSV inputs for reviewer reproducibility."
+  ],
+  "generated_at": "2026-05-09T08:54:55Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

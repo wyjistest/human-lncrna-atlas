@@ -1,0 +1,35 @@
+{
+  "figure_id": "figure2",
+  "figure_number": 2,
+  "title": "Figure 2. Global architecture of primate candidate lncRNA–gene networks",
+  "script": "scripts/paper/generate_native_main_figures.py",
+  "rendering_mode": "native_matplotlib_single_figure",
+  "uses_panel_png_paste": false,
+  "inputs": [
+    "paper_figures/fig2/fig2A_ba_distribution.tsv",
+    "paper_figures/fig2/fig2A_summary.tsv",
+    "paper_figures/fig2/fig2B_hubs.tsv",
+    "paper_figures/fig2/fig2C_centrality.tsv",
+    "paper_figures/fig2/fig2D_hub_module_nodes.tsv",
+    "paper_figures/fig2/fig2D_hub_module_edges.tsv",
+    "paper_figures/fig2/fig2D_community_nodes.tsv",
+    "paper_figures/fig2/fig2D_community_edges.tsv"
+  ],
+  "outputs": {
+    "svg": "paper_figures/native/figure2_native.svg",
+    "png": "paper_figures/native/figure2_native.png",
+    "metadata": "paper_figures/native/figure2_native.metadata.json"
+  },
+  "panels": [
+    "fig2A",
+    "fig2B",
+    "fig2C",
+    "fig2D"
+  ],
+  "notes": [
+    "Native main figure rendered as one matplotlib figure.",
+    "Panel data are read from frozen TSV exports; no panel PNG or SVG assets are pasted."
+  ],
+  "generated_at": "2026-05-12T09:15:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

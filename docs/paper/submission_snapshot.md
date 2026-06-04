@@ -24,6 +24,16 @@ Interpretation rule:
 - when a paper-facing freeze needs deterministic provenance, regenerate with
   `python3 scripts/paper/generate_batch1_figures.py --generated-at <UTC> --source-commit <git-ref>`
 
+Cell Genomics benchmarking package rule:
+
+- `scripts/paper/generate_cellgenomics_validation.py` consumes frozen Figure 5D, Supplementary Figure 7, Supplementary Table 1, and compact processed external evidence TSVs
+- `scripts/paper/rebuild_cellgenomics_package.py --skip-manuscript` is the single reviewer-facing rebuild entrypoint for Figure 3E, atlas-wide Figure 6, Supplementary Data, known-evidence benchmark, and manifest outputs
+- reviewer traceability is recorded in `paper_figures/cell_genomics_manifest.tsv`
+- external evidence provenance is recorded in `paper_figures/cell_genomics_external_data_manifest.tsv`
+- Figure 6B summarizes PCG target-program expression context; missing or ambiguous lead-lncRNA aliases are reported as missing or ambiguous rather than zero expression
+- Figure 3E and Supplementary Figure 7 target-permutation null summaries use 1,000 permutations with `rng_seed=42`
+- Supplementary Figure 7D adds a degree-bin matched target-permutation null preserving lncRNA row-degree tiers and target row-degree tiers within species
+
 Figure 2B label rule:
 
 - `docs/paper/fig2b_aliases.tsv` is the paper-facing alias manifest for top hub labels
@@ -31,9 +41,10 @@ Figure 2B label rule:
 - if `display_label` is blank, Figure 2B falls back to the automatic shortened accession label
 - if `display_label` is non-empty, its `reference_accession` must match the current hub accession for that `lncrna_core_id`
 
-Figure 2A count check:
+Figure 2A / conservation-matrix count check:
 
-- the current frozen snapshot contains `50,000` marmoset regulations with non-null binding affinity in the Figure 2A export; this is the repository database state, not a plotting or export cap
+- the upstream frozen marmoset LongTarget prediction input contains approximately `50,000` candidate rows, reflecting upstream pipeline coverage rather than a plotting or export cap
+- after restricting to non-null binding affinity and orthology-mappable edges for the conservation matrix, `31,798` marmoset species-edge rows entered the marmoset-edge-count downsampling sensitivity
 
 Figure 2C label rule:
 
@@ -132,7 +143,7 @@ Node conservation is defined at the `core_id` level using species presence in th
 
 ### Conserved edge
 
-Conserved regulatory edges are defined at the **core-pair** level:
+Conserved candidate lncRNA–PCG edges are defined at the **core-pair** level:
 
 - edge key: `(lncrna_core_id, target_core_id)`
 - a species contributes presence for that edge if there is at least one regulation linking any gene with `lncrna_core_id` to any gene with `target_core_id` in that species
@@ -179,9 +190,28 @@ The current disease notebook uses `GET /api/v1/export/disease-network` without a
 - current export behavior: no hard BA filter; regulation edges are ordered by `binding_affinity DESC`
 - fixed paper interpretation: treat BA as a **ranking feature** in the current disease-network workflow, not as a hidden hard inclusion threshold
 
+
+## Submission package checklist
+
+Before a submission build is finalized, the paper package should be checked for the following manuscript-facing invariants:
+
+1. orthology provenance is described as the repository-frozen import snapshot;
+2. conserved-edge claims use the `(lncrna_core_id, target_core_id)` core-pair rule;
+3. Figure 3 keeps the fixed all-edge overview with `min_species_count >= 2` and no additional BA cutoff;
+4. high-affinity prioritization and epigenomic-overlap summaries use `BA >= 100` only as the prioritization tier;
+5. the main-text epigenomic baseline remains `8 core histone marks + DNase-HS`;
+6. cross-mark main-text comparisons remain restricted to `A549`, `GM12878`, `H1-hESC`, `HepG2`, `HMEC`, and `K562`;
+7. abstract, tables, legends, and manuscript prose all use the same frozen snapshot counts.
+8. Figure 3 includes the compact observed-vs-null calibration summary in the main-text figure, with full BA sensitivity and pairwise null details retained in Supplementary Figure 7.
+9. Figure 3E and Supplementary Figure 7 null summaries use 1,000 permutations with random seed 42, including the Supplementary Figure 7D degree-bin matched null sensitivity layer.
+10. Figure 6 remains benchmarking / contextualization only and must preserve candidate-prioritization language.
+11. Figure 6A is atlas-wide across top prioritized, conserved, rewired, and obesity flagship modules; Figure 6D keeps the obesity case as representative.
+12. expression mapping uses PCG target-program mappable subset wording and must not treat missing or ambiguous lncRNA aliases as zero expression.
+
 ## Remaining Items Outside This Freeze
 
 The following items still require independent paper-level freezing, but they are outside the epigenomic inventory decision captured here:
 
 - final figure panel exports and legend wording
 - final commit SHA for the submission package
+- final GitHub release and Zenodo/Figshare DOI

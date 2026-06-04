@@ -1,5 +1,5 @@
 node_id	node_type	display_label	value
-trait_102	trait	obesity	12
+trait_102	trait	Obesity	10
 lncrna_17738	lncrna	CATG045621	870
 lncrna_18789	lncrna	RP5-1120P11.1	750
 lncrna_18079	lncrna	CATG080231	622
@@ -13,5 +13,3 @@ gene_28233	gene	SRPK2	3
 gene_18832	gene	RP11-85M11.2	3
 gene_33425	gene	RYR3	3
 gene_32366	gene	NTM	3
-gene_31503	gene	DSCAM	3
-gene_28918	gene	PRDM16	3

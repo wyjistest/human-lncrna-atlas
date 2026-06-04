@@ -1,0 +1,22 @@
+{
+  "panel_id": "Figure1C",
+  "title": "Triplex-informed edge reconstruction workflow",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "inputs": [
+    "docs/paper/figures.md",
+    "docs/paper/submission_snapshot.md",
+    "docs/paper/manuscript.md"
+  ],
+  "outputs": [
+    "paper_figures/fig1/fig1C_workflow.tsv",
+    "paper_figures/fig1/fig1C_workflow.svg",
+    "paper_figures/fig1/fig1C_workflow.png"
+  ],
+  "filters": {
+    "workflow_step_count": 4,
+    "candidate_edge_language": true
+  },
+  "notes": [],
+  "generated_at": "2026-05-09T04:33:44Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

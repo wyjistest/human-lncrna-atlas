@@ -1,0 +1,108 @@
+{
+  "figures": [
+    {
+      "figure_id": "figure1",
+      "figure_number": 1,
+      "title": "Figure 1. From trait catalogs to orthology-aware candidate lncRNA\u2013PCG edges",
+      "inputs": [
+        "paper_figures/fig1/fig1A_catalog_gap.png",
+        "paper_figures/fig1/fig1A_catalog_gap.svg",
+        "paper_figures/fig1/fig1B_ortholog_mapping.png",
+        "paper_figures/fig1/fig1B_ortholog_mapping.svg",
+        "paper_figures/fig1/fig1C_workflow.png",
+        "paper_figures/fig1/fig1C_workflow.svg",
+        "paper_figures/fig1/fig1D_kpi.png",
+        "paper_figures/fig1/fig1D_kpi.svg"
+      ],
+      "outputs": {
+        "svg": "paper_figures/composites/figure1_composite.svg",
+        "png": "paper_figures/composites/figure1_composite.png",
+        "metadata": "paper_figures/composites/figure1_composite.metadata.json"
+      }
+    },
+    {
+      "figure_id": "figure2",
+      "figure_number": 2,
+      "title": "Figure 2. Global architecture of primate candidate lncRNA\u2013gene networks",
+      "inputs": [
+        "paper_figures/fig2/fig2A_ba_distribution.png",
+        "paper_figures/fig2/fig2A_ba_distribution.svg",
+        "paper_figures/fig2/fig2B_hubs.png",
+        "paper_figures/fig2/fig2B_hubs.svg",
+        "paper_figures/fig2/fig2C_centrality.png",
+        "paper_figures/fig2/fig2C_centrality.svg",
+        "paper_figures/fig2/fig2D_readable_subnetworks.png",
+        "paper_figures/fig2/fig2D_readable_subnetworks.svg"
+      ],
+      "outputs": {
+        "svg": "paper_figures/composites/figure2_composite.svg",
+        "png": "paper_figures/composites/figure2_composite.png",
+        "metadata": "paper_figures/composites/figure2_composite.metadata.json"
+      }
+    },
+    {
+      "figure_id": "figure3",
+      "figure_number": 3,
+      "title": "Figure 3. Cross-species conservation and lineage-specific rewiring of candidate lncRNA\u2013PCG edges",
+      "inputs": [
+        "paper_figures/fig3/fig3A_edge_upset.png",
+        "paper_figures/fig3/fig3A_edge_upset.svg",
+        "paper_figures/fig3/fig3B_node_vs_edge.png",
+        "paper_figures/fig3/fig3B_node_vs_edge.svg",
+        "paper_figures/fig3/fig3C_pairwise_sharing.png",
+        "paper_figures/fig3/fig3C_pairwise_sharing.svg",
+        "paper_figures/fig3/fig3D_examples.png",
+        "paper_figures/fig3/fig3D_examples.svg",
+        "paper_figures/fig3/fig3E_null_calibration.png",
+        "paper_figures/fig3/fig3E_null_calibration.svg"
+      ],
+      "outputs": {
+        "svg": "paper_figures/composites/figure3_composite.svg",
+        "png": "paper_figures/composites/figure3_composite.png",
+        "metadata": "paper_figures/composites/figure3_composite.metadata.json"
+      }
+    },
+    {
+      "figure_id": "figure4",
+      "figure_number": 4,
+      "title": "Figure 4. Epigenomic context of candidate loci",
+      "inputs": [
+        "paper_figures/fig4/fig4A_overlap_summary.png",
+        "paper_figures/fig4/fig4A_overlap_summary.svg",
+        "paper_figures/fig4/fig4B_mark_signatures.png",
+        "paper_figures/fig4/fig4B_mark_signatures.svg",
+        "paper_figures/fig4/fig4C_bivalent_contrast.png",
+        "paper_figures/fig4/fig4C_bivalent_contrast.svg",
+        "paper_figures/fig4/fig4D_igv_snapshots.png",
+        "paper_figures/fig4/fig4D_igv_snapshots.svg"
+      ],
+      "outputs": {
+        "svg": "paper_figures/composites/figure4_composite.svg",
+        "png": "paper_figures/composites/figure4_composite.png",
+        "metadata": "paper_figures/composites/figure4_composite.metadata.json"
+      }
+    },
+    {
+      "figure_id": "figure5",
+      "figure_number": 5,
+      "title": "Figure 5. Trait-centered prioritization of candidate lncRNAs",
+      "inputs": [
+        "paper_figures/fig5/fig5A_tripartite_network.png",
+        "paper_figures/fig5/fig5A_tripartite_network.svg",
+        "paper_figures/fig5/fig5B_ranking_matrix.png",
+        "paper_figures/fig5/fig5B_ranking_matrix.svg",
+        "paper_figures/fig5/fig5C_trait_specificity.png",
+        "paper_figures/fig5/fig5C_trait_specificity.svg",
+        "paper_figures/fig5/fig5D_case_study.png",
+        "paper_figures/fig5/fig5D_case_study.svg"
+      ],
+      "outputs": {
+        "svg": "paper_figures/composites/figure5_composite.svg",
+        "png": "paper_figures/composites/figure5_composite.png",
+        "metadata": "paper_figures/composites/figure5_composite.metadata.json"
+      }
+    }
+  ],
+  "generated_at": "2026-05-11T02:30:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

@@ -1,5 +1,5 @@
 node_id	node_type	display_label	value
-trait_obesity	trait	obesity	8
+trait_obesity	trait	Obesity	8
 lncrna_17738	lncrna	CATG045621	8
 gene_29927	gene	ATP2B2	213.99
 gene_31992	gene	ULK1	168.99

@@ -1,0 +1,4 @@
+null_model	conservation_count	observed_edge_count	null_mean_edge_count	null_median_edge_count	null_p05_edge_count	null_p95_edge_count	null_iterations	matching_rule
+degree_bin_matched_target_permutation	2	73667	26634.308	26636.0	26416.95	26849.1	1000	species_id;lncrna_degree_tier;target_degree_tier
+degree_bin_matched_target_permutation	3	35701	2082.746	2083.0	2014.0	2151.05	1000	species_id;lncrna_degree_tier;target_degree_tier
+degree_bin_matched_target_permutation	4	8799	101.438	102.0	85.0	118.0	1000	species_id;lncrna_degree_tier;target_degree_tier

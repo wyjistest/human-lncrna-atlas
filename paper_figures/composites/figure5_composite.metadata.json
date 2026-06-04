@@ -1,0 +1,63 @@
+{
+  "figure_id": "figure5",
+  "figure_number": 5,
+  "title": "Figure 5. Trait-centered prioritization of candidate lncRNAs",
+  "script": "scripts/paper/generate_composite_figures.py",
+  "inputs": [
+    "paper_figures/fig5/fig5A_tripartite_network.png",
+    "paper_figures/fig5/fig5A_tripartite_network.svg",
+    "paper_figures/fig5/fig5B_ranking_matrix.png",
+    "paper_figures/fig5/fig5B_ranking_matrix.svg",
+    "paper_figures/fig5/fig5C_trait_specificity.png",
+    "paper_figures/fig5/fig5C_trait_specificity.svg",
+    "paper_figures/fig5/fig5D_case_study.png",
+    "paper_figures/fig5/fig5D_case_study.svg"
+  ],
+  "outputs": {
+    "svg": "paper_figures/composites/figure5_composite.svg",
+    "png": "paper_figures/composites/figure5_composite.png",
+    "metadata": "paper_figures/composites/figure5_composite.metadata.json"
+  },
+  "panels": [
+    {
+      "panel_id": "fig5A",
+      "letter": "A",
+      "title": "Simplified flagship trait\u2013lncRNA\u2013PCG subnetwork",
+      "svg_path": "paper_figures/fig5/fig5A_tripartite_network.svg",
+      "png_path": "paper_figures/fig5/fig5A_tripartite_network.png"
+    },
+    {
+      "panel_id": "fig5B",
+      "letter": "B",
+      "title": "Integrated candidate lncRNA ranking matrix",
+      "svg_path": "paper_figures/fig5/fig5B_ranking_matrix.svg",
+      "png_path": "paper_figures/fig5/fig5B_ranking_matrix.png"
+    },
+    {
+      "panel_id": "fig5C",
+      "letter": "C",
+      "title": "Shared versus trait-specific regulators",
+      "svg_path": "paper_figures/fig5/fig5C_trait_specificity.svg",
+      "png_path": "paper_figures/fig5/fig5C_trait_specificity.png"
+    },
+    {
+      "panel_id": "fig5D",
+      "letter": "D",
+      "title": "Focused flagship case study",
+      "svg_path": "paper_figures/fig5/fig5D_case_study.svg",
+      "png_path": "paper_figures/fig5/fig5D_case_study.png"
+    }
+  ],
+  "layout": {
+    "canvas_width": 2200,
+    "canvas_height": 1512,
+    "content_width": 2056,
+    "row_count": 2,
+    "header_strip_count": 0
+  },
+  "notes": [
+    "Composite figure assembled from existing paper-facing panel assets."
+  ],
+  "generated_at": "2026-05-11T02:30:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

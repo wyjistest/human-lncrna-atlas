@@ -1,5 +1,5 @@
 metric_key	display_label	value	note
 species_count	Primate species	4	Paper-facing freeze
-candidate_relationships	Candidate regulatory edges	804630	Paper-facing freeze
+candidate_relationships	Candidate lncRNA–PCG edges	804630	Paper-facing freeze
 baseline_experiments	Epigenomic experiments	56	Main-text baseline
 baseline_peaks	Main-text baseline peaks	4567525	Main-text baseline

@@ -1,0 +1,7 @@
+flagship_rank	trait_id	trait_name	unique_lncrna_count	unique_target_gene_count	regulation_count	max_ba	is_flagship
+1	102	obesity	1711	940	229767	581.02	True
+2	143	Abnormality of the nervous system	1461	426	60602	755.99	False
+3	149	Rheumatoid arthritis	1377	418	58494	495.01	False
+4	162	Arteriosclerosis	1366	413	61212	495.01	False
+5	141	Glomerulosclerosis	1366	409	61021	495.01	False
+6	170	Sclerosis of metaphyses of the upper limbs	1366	409	61021	495.01	False

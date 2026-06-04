@@ -1,0 +1,63 @@
+{
+  "figure_id": "figure2",
+  "figure_number": 2,
+  "title": "Figure 2. Global architecture of primate candidate lncRNA\u2013gene networks",
+  "script": "scripts/paper/generate_composite_figures.py",
+  "inputs": [
+    "paper_figures/fig2/fig2A_ba_distribution.png",
+    "paper_figures/fig2/fig2A_ba_distribution.svg",
+    "paper_figures/fig2/fig2B_hubs.png",
+    "paper_figures/fig2/fig2B_hubs.svg",
+    "paper_figures/fig2/fig2C_centrality.png",
+    "paper_figures/fig2/fig2C_centrality.svg",
+    "paper_figures/fig2/fig2D_readable_subnetworks.png",
+    "paper_figures/fig2/fig2D_readable_subnetworks.svg"
+  ],
+  "outputs": {
+    "svg": "paper_figures/composites/figure2_composite.svg",
+    "png": "paper_figures/composites/figure2_composite.png",
+    "metadata": "paper_figures/composites/figure2_composite.metadata.json"
+  },
+  "panels": [
+    {
+      "panel_id": "fig2A",
+      "letter": "A",
+      "title": "Binding-affinity landscape",
+      "svg_path": "paper_figures/fig2/fig2A_ba_distribution.svg",
+      "png_path": "paper_figures/fig2/fig2A_ba_distribution.png"
+    },
+    {
+      "panel_id": "fig2B",
+      "letter": "B",
+      "title": "Unadjusted target-core breadth prioritization",
+      "svg_path": "paper_figures/fig2/fig2B_hubs.svg",
+      "png_path": "paper_figures/fig2/fig2B_hubs.png"
+    },
+    {
+      "panel_id": "fig2C",
+      "letter": "C",
+      "title": "Hub breadth versus eigenvector centrality",
+      "svg_path": "paper_figures/fig2/fig2C_centrality.svg",
+      "png_path": "paper_figures/fig2/fig2C_centrality.png"
+    },
+    {
+      "panel_id": "fig2D",
+      "letter": "D",
+      "title": "Representative filtered subnetworks",
+      "svg_path": "paper_figures/fig2/fig2D_readable_subnetworks.svg",
+      "png_path": "paper_figures/fig2/fig2D_readable_subnetworks.png"
+    }
+  ],
+  "layout": {
+    "canvas_width": 2200,
+    "canvas_height": 1499,
+    "content_width": 2056,
+    "row_count": 2,
+    "header_strip_count": 0
+  },
+  "notes": [
+    "Composite figure assembled from existing paper-facing panel assets."
+  ],
+  "generated_at": "2026-05-11T02:30:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

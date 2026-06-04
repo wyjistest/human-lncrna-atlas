@@ -1,0 +1,10 @@
+metric	value	source
+lead_lncRNA	CATG00000045621.1	fig5D_case_manifest.tsv
+displayed_targets	8	fig5D_case_manifest.tsv
+high_affinity_edges	8	fig5D_case_manifest.tsv
+binding_affinity_range	145.99-213.99	fig5D_case_manifest.tsv
+conservation_rewiring_class	2-species / conserved	fig5D_case_manifest.tsv
+epigenomic_class	bivalent_like	fig5D_case_manifest.tsv
+literature_backed_targets	6/8	supp_table1_trait_literature_support.tsv
+best_expression_context	GTEx:Muscle_Skeletal (0.62)	fig6B_expression_support.tsv
+functional_coherence	0.29 vs null mean 0.22	fig6C_functional_coherence.tsv

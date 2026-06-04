@@ -1,0 +1,5 @@
+species_id	species_code	species_name	lncrna_core_count	protein_coding_core_count	comparable_core_group_count
+1	human	Human	1969	3515	4679
+2	chimp	Chimpanzee	1797	2544	4341
+3	macaque	Macaque	1489	2428	3917
+4	marmoset	Marmoset	1299	2207	3506

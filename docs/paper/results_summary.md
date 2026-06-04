@@ -26,8 +26,8 @@ Source assets:
 Current draft language:
 
 - Figure 1A keeps the paper-facing framing that prior trait-associated catalogs nominate `nodes, not edges`
-- Figure 1C fixes the workflow to `trait-associated catalogs -> ortholog mapping -> repository-frozen ortholog import snapshot -> triplex-informed inference -> candidate regulatory edges`
-- Figure 1D uses the frozen submission snapshot: `4` primate species, `804,630` candidate relationships, `56` baseline experiments, `4,567,525` baseline peaks (source commit `a310ffc`)
+- Figure 1C fixes the workflow to `trait-associated catalogs -> ortholog mapping -> repository-frozen ortholog import snapshot -> triplex-informed inference -> candidate lncRNA-PCG edges`
+- Figure 1D uses the frozen submission snapshot: `4` primate species, `804,630` candidate relationships, `56` baseline experiments, `4,567,525` baseline peaks (source commit `e052da5`)
 ## Figure 2 Draft Assets
 
 ### Figure 2A-C
@@ -114,7 +114,7 @@ Source assets:
 - Figure 4B top all-edge signatures: `H3K36me3` (24.7%), `H3K9me3` (14.5%), `DNase-HS` (12.0%)
 - Figure 4B top high-affinity signatures: `DNase-HS` (20.2%), `H3K36me3` (16.9%), `H3K9me3` (10.8%)
 - Figure 4C context counts: `active_like_non_bivalent` = `13,764`, `bivalent_like` = `2,400`, `other` = `54,061`
-- Figure 4D current IGV exemplars:
+- Figure 4D current local epigenomic exemplars:
   - active_like: `CATG00000042135.1` -> `CTD-2545M3.8` in `H1-hESC`, BA `755.99`, signature `H3K27ac | H3K4me1 | H3K4me3`
   - bivalent_like: `CATG00000109197.1` -> `IFNAR1` in `K562`, BA `432.04`, signature `H3K27ac | H3K27me3 | H3K36me3 | H3K4me1 | H3K4me2 | H3K4me3 | H3K9ac | H3K9me3`
 ## Figure 5 Draft Assets
@@ -129,7 +129,7 @@ Source assets:
 - `paper_figures/fig5/fig5D_*`
 - `paper_figures/tables/table4_trait_prioritization.tsv`
 
-- Figure 5A flagship trait: `obesity` with `16` displayed nodes and `225` edges
+- Figure 5A flagship trait: `Obesity` with `14` displayed nodes and `188` edges
 - Figure 5A top displayed lncRNAs: `CATG045621` (870 targets), `RP5-1120P11.1` (750 targets), `CATG080231` (622 targets)
 - Figure 5B top ranking candidates: `RP11-356I2.4`, `CATG00000043927.1`, `CATG00000090178.1`, `CATG00000077557.1`, `CATG00000035185.1`
 - Figure 5B keeps `1` flagship-member lncRNA inside the top-20 ranking matrix

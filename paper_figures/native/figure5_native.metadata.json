@@ -1,0 +1,34 @@
+{
+  "figure_id": "figure5",
+  "figure_number": 5,
+  "title": "Figure 5. Trait-centered prioritization of candidate lncRNAs",
+  "script": "scripts/paper/generate_native_main_figures.py",
+  "rendering_mode": "native_matplotlib_single_figure",
+  "uses_panel_png_paste": false,
+  "inputs": [
+    "paper_figures/fig5/fig5A_tripartite_nodes.tsv",
+    "paper_figures/fig5/fig5A_tripartite_edges.tsv",
+    "paper_figures/fig5/fig5B_ranking_matrix.tsv",
+    "paper_figures/fig5/fig5C_trait_specificity.tsv",
+    "paper_figures/fig5/fig5D_case_manifest.tsv",
+    "paper_figures/fig5/fig5D_case_nodes.tsv",
+    "paper_figures/fig5/fig5D_case_edges.tsv"
+  ],
+  "outputs": {
+    "svg": "paper_figures/native/figure5_native.svg",
+    "png": "paper_figures/native/figure5_native.png",
+    "metadata": "paper_figures/native/figure5_native.metadata.json"
+  },
+  "panels": [
+    "fig5A",
+    "fig5B",
+    "fig5C",
+    "fig5D"
+  ],
+  "notes": [
+    "Native main figure rendered as one matplotlib figure.",
+    "Panel data are read from frozen TSV exports; no panel PNG or SVG assets are pasted."
+  ],
+  "generated_at": "2026-05-12T09:15:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

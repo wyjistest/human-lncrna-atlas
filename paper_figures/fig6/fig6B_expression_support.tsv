@@ -1,0 +1,12 @@
+source	context	tested_node_count	mappable_node_count	mapping_rate	expression_supported_node_count	expression_supported_fraction	analysis_mode	analysis_scope
+ENCODE	A549	8	0	0.0	0	0.0	mappable_subset	pcg_target_program
+ENCODE	GM12878	8	0	0.0	0	0.0	mappable_subset	pcg_target_program
+ENCODE	H1-hESC	8	0	0.0	0	0.0	mappable_subset	pcg_target_program
+ENCODE	HMEC	8	0	0.0	0	0.0	mappable_subset	pcg_target_program
+ENCODE	HepG2	8	0	0.0	0	0.0	mappable_subset	pcg_target_program
+ENCODE	K562	8	0	0.0	0	0.0	mappable_subset	pcg_target_program
+GTEx	Adipose_Subcutaneous	8	8	1.0	4	0.5	mappable_subset	pcg_target_program
+GTEx	Adipose_Visceral_Omentum	8	8	1.0	4	0.5	mappable_subset	pcg_target_program
+GTEx	Liver	8	8	1.0	5	0.625	mappable_subset	pcg_target_program
+GTEx	Muscle_Skeletal	8	8	1.0	5	0.625	mappable_subset	pcg_target_program
+GTEx	Whole_Blood	8	8	1.0	3	0.375	mappable_subset	pcg_target_program

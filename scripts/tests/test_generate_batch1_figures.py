@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import importlib.util
+import csv
+import json
 import math
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO_ROOT / "scripts/paper/generate_batch1_figures.py"
@@ -230,6 +234,85 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
 
         self.assertEqual([row["core_id"] for row in label_rows], [201, 202])
 
+    def test_generated_suppfig7_metadata_uses_script_provenance_and_permutation_wording(self):
+        metadata_path = REPO_ROOT / "paper_figures/supplementary/suppfig7_robustness.metadata.json"
+        self.assertTrue(metadata_path.exists(), f"missing generated metadata: {metadata_path}")
+
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(metadata.get("script"), "scripts/paper/generate_batch1_figures.py")
+        self.assertEqual(
+            metadata.get("filters", {}).get("ba_thresholds"),
+            [0, 100, 150],
+        )
+        self.assertIn(
+            "permute target assignments within species",
+            "\n".join(metadata.get("notes", [])),
+        )
+
+    def test_generated_suppfig7e_marmoset_downsampling_tsv_reports_coverage_sensitivity(self):
+        tsv_path = REPO_ROOT / "paper_figures/supplementary/suppfig7E_marmoset_downsampling.tsv"
+        self.assertTrue(tsv_path.exists(), f"missing generated TSV: {tsv_path}")
+
+        with tsv_path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle, delimiter="\t"))
+        by_count = {int(row["conservation_count"]): row for row in rows}
+
+        self.assertEqual(by_count[4]["null_model"], "marmoset_edge_count_downsampling_target_permutation")
+        self.assertEqual(by_count[4]["reference_species"], "marmoset")
+        self.assertEqual(int(by_count[4]["reference_edge_count"]), 31798)
+        self.assertEqual(int(by_count[4]["downsampled_edge_count_per_species"]), 31798)
+        self.assertEqual(float(by_count[4]["observed_median_edge_count"]), 228.0)
+        self.assertEqual(float(by_count[4]["observed_p05_edge_count"]), 203.0)
+        self.assertEqual(float(by_count[4]["observed_p95_edge_count"]), 254.0)
+        self.assertEqual(float(by_count[4]["null_p95_edge_count"]), 7.0)
+        self.assertEqual(int(by_count[4]["null_iterations"]), 1000)
+        self.assertIn(
+            "human;chimp;macaque downsampled to marmoset edge count",
+            by_count[4]["sampling_rule"],
+        )
+        self.assertIn("observed and null samples use seeded random subsampling", by_count[4]["sampling_rule"])
+
+    def test_draw_species_specific_exemplar_uses_larger_target_labels(self):
+        module = load_module()
+
+        fig, ax = plt.subplots(figsize=(4, 3))
+        try:
+            module._draw_species_specific_exemplar(
+                ax,
+                species_code="human",
+                species_name="Human",
+                node_rows=[
+                    {"node_role": "lncrna", "core_id": 1, "display_label": "LNC1"},
+                    {"node_role": "target", "core_id": 2, "display_label": "TARGET1"},
+                    {"node_role": "target", "core_id": 3, "display_label": "TARGET2"},
+                ],
+                edge_rows=[
+                    {"target_core_id": 2, "human": 1, "max_ba": 180.0},
+                    {"target_core_id": 3, "human": 1, "max_ba": 150.0},
+                ],
+            )
+
+            target_font_sizes = [
+                text.get_fontsize()
+                for text in ax.texts
+                if text.get_text() in {"TARGET1", "TARGET2"}
+            ]
+        finally:
+            plt.close(fig)
+
+        self.assertEqual(len(target_font_sizes), 2)
+        self.assertTrue(all(size >= 10.0 for size in target_font_sizes))
+
+    def test_fig1d_metadata_uses_short_submission_snapshot_title(self):
+        metadata_path = REPO_ROOT / "paper_figures/fig1/fig1D_metadata.json"
+        self.assertTrue(metadata_path.exists(), f"missing generated metadata: {metadata_path}")
+
+        import json
+        metadata = json.loads(metadata_path.read_text())
+
+        self.assertEqual(metadata.get("title"), "Frozen submission snapshot")
+
     def test_normalize_species_rows_prefers_fixed_english_display_names(self):
         module = load_module()
 
@@ -266,6 +349,137 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
         self.assertEqual(human_chimp["union_count"], 4)
         self.assertTrue(math.isclose(human_chimp["jaccard"], 0.5))
 
+    def test_build_robustness_threshold_rows_tracks_counts_across_ba_tiers(self):
+        module = load_module()
+
+        species_edge_rows = [
+            {"lncrna_core_id": 1, "target_core_id": 11, "species_id": 1, "lncrna_symbol": "L1", "target_symbol": "T11", "max_ba": 180.0},
+            {"lncrna_core_id": 1, "target_core_id": 11, "species_id": 2, "lncrna_symbol": "L1", "target_symbol": "T11", "max_ba": 170.0},
+            {"lncrna_core_id": 2, "target_core_id": 22, "species_id": 1, "lncrna_symbol": "L2", "target_symbol": "T22", "max_ba": 120.0},
+            {"lncrna_core_id": 2, "target_core_id": 22, "species_id": 3, "lncrna_symbol": "L2", "target_symbol": "T22", "max_ba": 80.0},
+            {"lncrna_core_id": 3, "target_core_id": 33, "species_id": 1, "lncrna_symbol": "L3", "target_symbol": "T33", "max_ba": 155.0},
+            {"lncrna_core_id": 3, "target_core_id": 33, "species_id": 2, "lncrna_symbol": "L3", "target_symbol": "T33", "max_ba": 150.0},
+            {"lncrna_core_id": 3, "target_core_id": 33, "species_id": 3, "lncrna_symbol": "L3", "target_symbol": "T33", "max_ba": 149.0},
+        ]
+
+        rows = module.build_robustness_threshold_rows(
+            species_edge_rows,
+            module.DEFAULT_SPECIES_ORDER,
+            thresholds=(0.0, 100.0, 150.0),
+        )
+
+        by_key = {(row["threshold_label"], row["conservation_count"]): row for row in rows}
+        self.assertEqual(by_key[("All edges", 2)]["edge_count"], 2)
+        self.assertEqual(by_key[("All edges", 3)]["edge_count"], 1)
+        self.assertEqual(by_key[("BA ≥ 100", 2)]["edge_count"], 3)
+        self.assertEqual(by_key[("BA ≥ 150", 2)]["edge_count"], 2)
+        self.assertEqual(by_key[("BA ≥ 150", 3)]["edge_count"], 0)
+
+    def test_permute_species_edge_rows_preserves_species_level_marginals(self):
+        module = load_module()
+
+        species_edge_rows = [
+            {"lncrna_core_id": 1, "target_core_id": 11, "species_id": 1, "lncrna_symbol": "L1", "target_symbol": "T11", "max_ba": 90.0},
+            {"lncrna_core_id": 1, "target_core_id": 12, "species_id": 1, "lncrna_symbol": "L1", "target_symbol": "T12", "max_ba": 95.0},
+            {"lncrna_core_id": 2, "target_core_id": 13, "species_id": 1, "lncrna_symbol": "L2", "target_symbol": "T13", "max_ba": 100.0},
+            {"lncrna_core_id": 3, "target_core_id": 21, "species_id": 2, "lncrna_symbol": "L3", "target_symbol": "T21", "max_ba": 80.0},
+            {"lncrna_core_id": 4, "target_core_id": 22, "species_id": 2, "lncrna_symbol": "L4", "target_symbol": "T22", "max_ba": 85.0},
+            {"lncrna_core_id": 4, "target_core_id": 23, "species_id": 2, "lncrna_symbol": "L4", "target_symbol": "T23", "max_ba": 88.0},
+        ]
+
+        permuted_rows = module.permute_species_edge_rows(
+            species_edge_rows,
+            rng=np.random.default_rng(7),
+        )
+
+        def species_counts(rows, key):
+            summary = {}
+            for row in rows:
+                species_id = int(row["species_id"])
+                summary.setdefault(species_id, {})
+                value = int(row[key])
+                summary[species_id][value] = summary[species_id].get(value, 0) + 1
+            return summary
+
+        self.assertEqual(species_counts(permuted_rows, "lncrna_core_id"), species_counts(species_edge_rows, "lncrna_core_id"))
+        self.assertEqual(species_counts(permuted_rows, "target_core_id"), species_counts(species_edge_rows, "target_core_id"))
+        self.assertEqual(len(permuted_rows), len({(row["species_id"], row["lncrna_core_id"], row["target_core_id"]) for row in permuted_rows}))
+
+    def test_build_node_vs_edge_summary_keeps_two_to_four_species_for_main_text(self):
+        module = load_module()
+
+        node_rows = [
+            {"conservation_count": 1},
+            {"conservation_count": 2},
+            {"conservation_count": 2},
+            {"conservation_count": 4},
+        ]
+        edge_rows = [
+            {"conservation_count": 1},
+            {"conservation_count": 2},
+            {"conservation_count": 3},
+            {"conservation_count": 3},
+            {"conservation_count": 4},
+        ]
+
+        summary_rows = module.build_node_vs_edge_summary(node_rows, edge_rows)
+
+        self.assertEqual(sorted({row["conservation_count"] for row in summary_rows}), [2, 3, 4])
+        node_summary = {(row["item_type"], row["conservation_count"]): row for row in summary_rows}
+        self.assertEqual(node_summary[("node", 2)]["raw_count"], 2)
+        self.assertEqual(node_summary[("node", 4)]["raw_count"], 1)
+        self.assertEqual(node_summary[("edge", 3)]["raw_count"], 2)
+        self.assertEqual(node_summary[("edge", 4)]["raw_count"], 1)
+
+
+    def test_build_fig1c_workflow_rows_uses_four_readable_cards(self):
+        module = load_module()
+
+        rows = module.build_fig1c_workflow_rows()
+
+        self.assertEqual([row["step_key"] for row in rows], [
+            "catalogs",
+            "core_ids",
+            "triplex_inference",
+            "candidate_network",
+        ])
+        self.assertEqual(rows[0]["display_label"], "Catalogs")
+        self.assertEqual(rows[1]["display_label"], "Core IDs")
+        self.assertEqual(rows[2]["display_label"], "Triplex inference")
+        self.assertEqual(rows[3]["display_label"], "Candidate lncRNA–PCG edge network")
+
+    def test_generated_main_figure_wording_uses_candidate_edge_framing(self):
+        checks = {
+            REPO_ROOT / "paper_figures/fig1/fig1A_catalog_gap.svg": [
+                ("Nodes, not candidate edges", True),
+                ("Nodes, not edges", False),
+            ],
+            REPO_ROOT / "paper_figures/fig1/fig1C_workflow.svg": [
+                ("Candidate lncRNA–PCG edge network", True),
+                ("Candidate regulatory network", False),
+            ],
+            REPO_ROOT / "paper_figures/fig1/fig1D_kpi.svg": [
+                ("Candidate lncRNA–PCG edges", True),
+                ("Candidate regulatory edges", False),
+            ],
+            REPO_ROOT / "paper_figures/fig2/fig2A_ba_distribution.svg": [
+                ("BA ≥100 prioritization zone", True),
+                ("BA = 100 priority line", False),
+            ],
+            REPO_ROOT / "paper_figures/fig2/fig2C_centrality.svg": [
+                ("Unique target-core breadth", True),
+                ("Out-degree (unique target cores)", False),
+            ],
+        }
+        for path, expectations in checks.items():
+            self.assertTrue(path.exists(), f"missing generated svg: {path}")
+            text = path.read_text(encoding="utf-8")
+            for needle, should_exist in expectations:
+                if should_exist:
+                    self.assertIn(needle, text, f"{needle!r} missing from {path}")
+                else:
+                    self.assertNotIn(needle, text, f"{needle!r} should not remain in {path}")
+
     def test_parse_args_exposes_source_commit_override(self):
         module = load_module()
         original_argv = sys.argv[:]
@@ -277,6 +491,147 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
 
         self.assertTrue(hasattr(args, "source_commit"))
         self.assertIsNone(args.source_commit)
+
+    def test_generated_supplementary_figure7_robustness_assets_exist(self):
+        svg_path = REPO_ROOT / "paper_figures/supplementary/suppfig7_robustness.svg"
+        metadata_path = REPO_ROOT / "paper_figures/supplementary/suppfig7_robustness.metadata.json"
+        self.assertTrue(svg_path.exists(), f"missing generated svg: {svg_path}")
+        self.assertTrue(metadata_path.exists(), f"missing generated metadata: {metadata_path}")
+
+        import json
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(metadata.get("panel_id"), "SupplementaryFigure7")
+        self.assertEqual(metadata.get("title"), "Robustness of edge-level conservation and rewiring summaries")
+        self.assertEqual(metadata.get("filters", {}).get("ba_thresholds"), [0, 100, 150])
+        self.assertGreaterEqual(int(metadata.get("filters", {}).get("null_iterations", 0)), 1000)
+
+    def test_default_supplementary_figure7_null_iterations_are_publication_strength(self):
+        module = load_module()
+
+        self.assertGreaterEqual(module.SUPP_FIG7_NULL_ITERATIONS, 1000)
+        self.assertEqual(module.SUPP_FIG7_RNG_SEED, 42)
+
+    def test_degree_bin_matched_null_preserves_degree_tiers(self):
+        module = load_module()
+
+        species_edge_rows = [
+            {"species_id": 1, "lncrna_core_id": 10, "target_core_id": 100, "target_symbol": "A"},
+            {"species_id": 1, "lncrna_core_id": 10, "target_core_id": 101, "target_symbol": "B"},
+            {"species_id": 1, "lncrna_core_id": 11, "target_core_id": 102, "target_symbol": "C"},
+            {"species_id": 1, "lncrna_core_id": 12, "target_core_id": 100, "target_symbol": "A"},
+            {"species_id": 1, "lncrna_core_id": 12, "target_core_id": 103, "target_symbol": "D"},
+        ]
+
+        permuted = module.permute_species_edge_rows_degree_bin_matched(
+            species_edge_rows,
+            rng=module.np.random.default_rng(7),
+        )
+
+        observed_lnc_degrees = {}
+        observed_target_degrees = {}
+        for row in species_edge_rows:
+            observed_lnc_degrees[row["lncrna_core_id"]] = observed_lnc_degrees.get(row["lncrna_core_id"], 0) + 1
+            observed_target_degrees[row["target_core_id"]] = observed_target_degrees.get(row["target_core_id"], 0) + 1
+
+        permuted_lnc_degrees = {}
+        for row in permuted:
+            permuted_lnc_degrees[row["lncrna_core_id"]] = permuted_lnc_degrees.get(row["lncrna_core_id"], 0) + 1
+            original_tier = module.degree_tier(observed_lnc_degrees[row["lncrna_core_id"]])
+            assigned_target_tier = module.degree_tier(observed_target_degrees[row["target_core_id"]])
+            self.assertIn(original_tier, {"2-4", "1"})
+            self.assertIn(assigned_target_tier, {"2-4", "1"})
+
+        self.assertEqual(permuted_lnc_degrees, observed_lnc_degrees)
+
+    def test_degree_bin_matched_null_summary_reports_model(self):
+        module = load_module()
+
+        species_order = [
+            {"species_id": 1, "species_code": "sp1", "display_name": "Species 1"},
+            {"species_id": 2, "species_code": "sp2", "display_name": "Species 2"},
+        ]
+        species_edge_rows = [
+            {"species_id": 1, "lncrna_core_id": 10, "target_core_id": 100, "target_symbol": "A"},
+            {"species_id": 1, "lncrna_core_id": 10, "target_core_id": 101, "target_symbol": "B"},
+            {"species_id": 2, "lncrna_core_id": 10, "target_core_id": 100, "target_symbol": "A"},
+            {"species_id": 2, "lncrna_core_id": 11, "target_core_id": 102, "target_symbol": "C"},
+        ]
+
+        rows = module.build_degree_bin_matched_null_conservation_summary_rows(
+            species_edge_rows,
+            species_order,
+            iterations=3,
+            rng_seed=42,
+        )
+
+        self.assertTrue(rows)
+        self.assertTrue(all(row["null_model"] == "degree_bin_matched_target_permutation" for row in rows))
+        self.assertTrue(all(row["null_iterations"] == 3 for row in rows))
+        self.assertIn("lncrna_degree_tier", rows[0]["matching_rule"])
+
+    def test_marmoset_edge_count_downsampling_sensitivity_matches_reference_species_size(self):
+        module = load_module()
+
+        species_order = [
+            {"species_id": 1, "species_code": "human", "display_name": "Human"},
+            {"species_id": 2, "species_code": "chimp", "display_name": "Chimpanzee"},
+            {"species_id": 3, "species_code": "macaque", "display_name": "Macaque"},
+            {"species_id": 4, "species_code": "marmoset", "display_name": "Marmoset"},
+        ]
+        species_edge_rows = []
+        for species_id in [1, 2, 3]:
+            for offset in range(5):
+                species_edge_rows.append(
+                    {
+                        "species_id": species_id,
+                        "lncrna_core_id": 100 + offset,
+                        "target_core_id": 200 + offset,
+                        "target_symbol": f"T{offset}",
+                    }
+                )
+        for offset in range(3):
+            species_edge_rows.append(
+                {
+                    "species_id": 4,
+                    "lncrna_core_id": 100 + offset,
+                    "target_core_id": 200 + offset,
+                    "target_symbol": f"T{offset}",
+                }
+            )
+
+        rows = module.build_marmoset_edge_count_downsampling_sensitivity_rows(
+            species_edge_rows,
+            species_order,
+            iterations=5,
+            rng_seed=42,
+        )
+
+        by_count = {row["conservation_count"]: row for row in rows}
+        self.assertEqual(by_count[4]["reference_species"], "marmoset")
+        self.assertEqual(by_count[4]["reference_edge_count"], 3)
+        self.assertEqual(by_count[4]["downsampled_edge_count_per_species"], 3)
+        self.assertIn("observed_median_edge_count", by_count[4])
+        self.assertNotIn("observed_edge_count", by_count[4])
+        self.assertLessEqual(by_count[4]["null_p95_edge_count"], by_count[4]["observed_p95_edge_count"])
+        self.assertEqual(by_count[4]["null_iterations"], 5)
+        self.assertIn("human;chimp;macaque downsampled to marmoset edge count", by_count[4]["sampling_rule"])
+        self.assertIn("observed and null samples use seeded random subsampling", by_count[4]["sampling_rule"])
+
+    def test_generated_fig2_metadata_marks_unadjusted_hub_prioritization(self):
+        fig2b_metadata_path = REPO_ROOT / "paper_figures/fig2/fig2B_metadata.json"
+        fig2c_metadata_path = REPO_ROOT / "paper_figures/fig2/fig2C_metadata.json"
+        self.assertTrue(fig2b_metadata_path.exists(), f"missing generated metadata: {fig2b_metadata_path}")
+        self.assertTrue(fig2c_metadata_path.exists(), f"missing generated metadata: {fig2c_metadata_path}")
+
+        fig2b_metadata = json.loads(fig2b_metadata_path.read_text(encoding="utf-8"))
+        fig2c_metadata = json.loads(fig2c_metadata_path.read_text(encoding="utf-8"))
+        self.assertEqual(fig2b_metadata.get("title"), "Unadjusted target-core breadth prioritization")
+        self.assertIn(
+            "not normalized for transcript length, GC content, repeat content, or triplex-compatible motif opportunity",
+            "\n".join(fig2b_metadata.get("notes", [])),
+        )
+        self.assertEqual(fig2c_metadata.get("title"), "Network-central candidate organizers")
 
     def test_with_generation_provenance_uses_source_commit_key(self):
         module = load_module()
@@ -369,6 +724,215 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "reference_accession"):
             module.apply_fig2b_alias_manifest(hub_rows, alias_rows)
+
+    def test_build_fig1a_catalog_gap_rows_use_nodes_not_edges_language(self):
+        module = load_module()
+
+        rows = module.build_fig1a_catalog_gap_rows()
+
+        self.assertEqual([row["catalog_type"] for row in rows], ["lncrna_catalog", "protein_coding_catalog"])
+        self.assertTrue(all("nodes, not edges" in row["gap_message"] for row in rows))
+        self.assertEqual(rows[0]["display_label"], "Trait-associated lncRNAs")
+        self.assertEqual(rows[1]["display_label"], "Trait-associated protein-coding genes")
+
+    def test_build_fig1b_species_summary_rows_count_core_coverage_by_species(self):
+        module = load_module()
+
+        node_rows = [
+            {"core_id": 1, "gene_type": "lncRNA", "species_id": 1},
+            {"core_id": 1, "gene_type": "lncRNA", "species_id": 2},
+            {"core_id": 2, "gene_type": "lncRNA", "species_id": 1},
+            {"core_id": 3, "gene_type": "protein_coding", "species_id": 1},
+            {"core_id": 3, "gene_type": "protein_coding", "species_id": 3},
+            {"core_id": 3, "gene_type": "protein_coding", "species_id": 4},
+            {"core_id": 4, "gene_type": "protein_coding", "species_id": 2},
+            {"core_id": 4, "gene_type": "protein_coding", "species_id": 3},
+        ]
+
+        rows = module.build_fig1b_species_summary_rows(node_rows, module.DEFAULT_SPECIES_ORDER)
+
+        self.assertEqual([row["species_code"] for row in rows], ["human", "chimp", "macaque", "marmoset"])
+        self.assertEqual(rows[0]["lncrna_core_count"], 2)
+        self.assertEqual(rows[0]["protein_coding_core_count"], 1)
+        self.assertEqual(rows[0]["comparable_core_group_count"], 2)
+        self.assertEqual(rows[1]["lncrna_core_count"], 1)
+        self.assertEqual(rows[1]["protein_coding_core_count"], 1)
+        self.assertEqual(rows[2]["lncrna_core_count"], 0)
+        self.assertEqual(rows[2]["protein_coding_core_count"], 2)
+        self.assertEqual(rows[3]["comparable_core_group_count"], 1)
+
+    def test_build_fig1c_workflow_rows_follow_research_first_narrative(self):
+        module = load_module()
+
+        rows = module.build_fig1c_workflow_rows()
+
+        self.assertEqual(
+            [row["step_key"] for row in rows],
+            ["catalogs", "core_ids", "triplex_inference", "candidate_network"],
+        )
+        self.assertEqual(rows[0]["subtitle"], "Trait-associated lncRNAs / PCGs")
+        self.assertIn("ortholog tables", rows[1]["subtitle"])
+        self.assertEqual(rows[-1]["display_label"], "Candidate regulatory network")
+
+    def test_select_fig2d_hub_module_chooses_top_hub_and_limits_targets(self):
+        module = load_module()
+
+        edge_rows = []
+        for target_core_id, max_ba in zip(range(100, 109), range(210, 201, -1), strict=True):
+            edge_rows.append(
+                {
+                    "lncrna_core_id": 1,
+                    "target_core_id": target_core_id,
+                    "lncrna_symbol": "L1",
+                    "lncrna_human_ensembl_id": "ENSG-L1",
+                    "target_symbol": f"T{target_core_id}",
+                    "human": 1,
+                    "chimp": 1,
+                    "macaque": 0,
+                    "marmoset": 0,
+                    "conservation_label": "1100",
+                    "conservation_count": 2,
+                    "species_count": 2,
+                    "supporting_regulation_count": 2,
+                    "mean_ba": float(max_ba - 2),
+                    "max_ba": float(max_ba),
+                }
+            )
+        edge_rows.extend(
+            [
+                {
+                    "lncrna_core_id": 2,
+                    "target_core_id": 200,
+                    "lncrna_symbol": "L2",
+                    "lncrna_human_ensembl_id": "ENSG-L2",
+                    "target_symbol": "T200",
+                    "human": 1,
+                    "chimp": 0,
+                    "macaque": 0,
+                    "marmoset": 0,
+                    "conservation_label": "1000",
+                    "conservation_count": 1,
+                    "species_count": 1,
+                    "supporting_regulation_count": 1,
+                    "mean_ba": 180.0,
+                    "max_ba": 180.0,
+                }
+            ]
+        )
+
+        manifest_row, node_rows, module_edges = module.select_fig2d_hub_module(edge_rows, max_targets=8)
+
+        self.assertEqual(manifest_row["module_kind"], "hub")
+        self.assertEqual(manifest_row["lncrna_core_id"], 1)
+        self.assertEqual(manifest_row["node_count"], 9)
+        self.assertEqual(len(module_edges), 8)
+        self.assertEqual([row["target_core_id"] for row in module_edges], list(range(100, 108)))
+        self.assertEqual(sum(1 for row in node_rows if row["node_role"] == "lncrna"), 1)
+
+    def test_select_fig2d_community_module_prefers_best_sized_high_affinity_component(self):
+        module = load_module()
+
+        edge_rows = []
+        for lncrna_core_id in (10, 11):
+            for target_core_id, mean_ba in zip(range(300, 308), range(170, 162, -1), strict=True):
+                edge_rows.append(
+                    {
+                        "lncrna_core_id": lncrna_core_id,
+                        "target_core_id": target_core_id,
+                        "lncrna_symbol": f"L{lncrna_core_id}",
+                        "lncrna_human_ensembl_id": f"ENSG-L{lncrna_core_id}",
+                        "target_symbol": f"T{target_core_id}",
+                        "human": 1,
+                        "chimp": 1,
+                        "macaque": 1,
+                        "marmoset": 0,
+                        "conservation_label": "1110",
+                        "conservation_count": 3,
+                        "species_count": 3,
+                        "supporting_regulation_count": 1,
+                        "mean_ba": float(mean_ba),
+                        "max_ba": float(mean_ba + 5),
+                    }
+                )
+        for lncrna_core_id in (20, 21):
+            for target_core_id, mean_ba in zip(range(400, 408), range(140, 132, -1), strict=True):
+                edge_rows.append(
+                    {
+                        "lncrna_core_id": lncrna_core_id,
+                        "target_core_id": target_core_id,
+                        "lncrna_symbol": f"L{lncrna_core_id}",
+                        "lncrna_human_ensembl_id": f"ENSG-L{lncrna_core_id}",
+                        "target_symbol": f"T{target_core_id}",
+                        "human": 1,
+                        "chimp": 0,
+                        "macaque": 1,
+                        "marmoset": 1,
+                        "conservation_label": "1011",
+                        "conservation_count": 3,
+                        "species_count": 3,
+                        "supporting_regulation_count": 1,
+                        "mean_ba": float(mean_ba),
+                        "max_ba": float(mean_ba + 4),
+                    }
+                )
+
+        manifest_row, node_rows, module_edges = module.select_fig2d_community_module(edge_rows)
+
+        self.assertEqual(manifest_row["module_kind"], "community")
+        self.assertEqual(manifest_row["lncrna_core_id"], 10)
+        self.assertEqual(manifest_row["node_count"], 10)
+        self.assertEqual(len(module_edges), 14)
+        self.assertEqual(sum(1 for row in node_rows if row["node_role"] == "lncrna"), 2)
+        self.assertEqual({row["lncrna_core_id"] for row in module_edges}, {10, 11})
+
+    def test_select_fig3d_conserved_exemplar_prioritizes_multispecies_targets(self):
+        module = load_module()
+
+        node_rows = [
+            {"core_id": 1, "gene_type": "lncRNA", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 1, "conservation_count": 4},
+            {"core_id": 2, "gene_type": "lncRNA", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 0, "conservation_count": 3},
+        ]
+        edge_rows = [
+            {"lncrna_core_id": 1, "target_core_id": 101, "target_symbol": "A", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 1, "conservation_count": 4, "supporting_regulation_count": 4, "mean_ba": 180.0, "max_ba": 200.0},
+            {"lncrna_core_id": 1, "target_core_id": 102, "target_symbol": "B", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 0, "conservation_count": 3, "supporting_regulation_count": 3, "mean_ba": 170.0, "max_ba": 190.0},
+            {"lncrna_core_id": 1, "target_core_id": 103, "target_symbol": "C", "human": 1, "chimp": 1, "macaque": 0, "marmoset": 1, "conservation_count": 3, "supporting_regulation_count": 3, "mean_ba": 160.0, "max_ba": 180.0},
+            {"lncrna_core_id": 2, "target_core_id": 201, "target_symbol": "D", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 0, "conservation_count": 3, "supporting_regulation_count": 3, "mean_ba": 150.0, "max_ba": 170.0},
+            {"lncrna_core_id": 2, "target_core_id": 202, "target_symbol": "E", "human": 1, "chimp": 1, "macaque": 0, "marmoset": 0, "conservation_count": 2, "supporting_regulation_count": 2, "mean_ba": 140.0, "max_ba": 165.0},
+        ]
+
+        manifest_row, node_manifest_rows, edge_manifest_rows = module.select_fig3d_conserved_exemplar(node_rows, edge_rows)
+
+        self.assertEqual(manifest_row["exemplar_kind"], "conserved")
+        self.assertEqual(manifest_row["lncrna_core_id"], 1)
+        self.assertEqual([row["target_core_id"] for row in edge_manifest_rows], [101, 102, 103])
+        self.assertTrue(all(row["lncrna_core_id"] == 1 for row in edge_manifest_rows))
+        self.assertTrue(any(row["node_role"] == "lncrna" for row in node_manifest_rows))
+
+    def test_select_fig3d_rewired_exemplar_prefers_low_jaccard_target_sets(self):
+        module = load_module()
+
+        node_rows = [
+            {"core_id": 30, "gene_type": "lncRNA", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 1, "conservation_count": 4},
+            {"core_id": 40, "gene_type": "lncRNA", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 1, "conservation_count": 4},
+        ]
+        edge_rows = [
+            {"lncrna_core_id": 30, "target_core_id": 501, "target_symbol": "T501", "human": 1, "chimp": 0, "macaque": 0, "marmoset": 0, "conservation_count": 1, "supporting_regulation_count": 1, "mean_ba": 200.0, "max_ba": 210.0},
+            {"lncrna_core_id": 30, "target_core_id": 502, "target_symbol": "T502", "human": 1, "chimp": 1, "macaque": 0, "marmoset": 0, "conservation_count": 2, "supporting_regulation_count": 2, "mean_ba": 180.0, "max_ba": 195.0},
+            {"lncrna_core_id": 30, "target_core_id": 503, "target_symbol": "T503", "human": 0, "chimp": 1, "macaque": 0, "marmoset": 0, "conservation_count": 1, "supporting_regulation_count": 1, "mean_ba": 190.0, "max_ba": 205.0},
+            {"lncrna_core_id": 30, "target_core_id": 504, "target_symbol": "T504", "human": 0, "chimp": 0, "macaque": 1, "marmoset": 1, "conservation_count": 2, "supporting_regulation_count": 2, "mean_ba": 175.0, "max_ba": 188.0},
+            {"lncrna_core_id": 30, "target_core_id": 505, "target_symbol": "T505", "human": 0, "chimp": 0, "macaque": 1, "marmoset": 0, "conservation_count": 1, "supporting_regulation_count": 1, "mean_ba": 165.0, "max_ba": 180.0},
+            {"lncrna_core_id": 30, "target_core_id": 506, "target_symbol": "T506", "human": 0, "chimp": 0, "macaque": 0, "marmoset": 1, "conservation_count": 1, "supporting_regulation_count": 1, "mean_ba": 160.0, "max_ba": 176.0},
+            {"lncrna_core_id": 40, "target_core_id": 601, "target_symbol": "T601", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 1, "conservation_count": 4, "supporting_regulation_count": 4, "mean_ba": 170.0, "max_ba": 182.0},
+            {"lncrna_core_id": 40, "target_core_id": 602, "target_symbol": "T602", "human": 1, "chimp": 1, "macaque": 1, "marmoset": 1, "conservation_count": 4, "supporting_regulation_count": 4, "mean_ba": 168.0, "max_ba": 180.0},
+        ]
+
+        manifest_row, node_manifest_rows, edge_manifest_rows = module.select_fig3d_rewired_exemplar(node_rows, edge_rows)
+
+        self.assertEqual(manifest_row["exemplar_kind"], "rewired")
+        self.assertEqual(manifest_row["lncrna_core_id"], 30)
+        self.assertLessEqual(manifest_row["mean_pairwise_jaccard"], 0.35)
+        self.assertEqual(len(edge_manifest_rows), 6)
+        self.assertTrue(any(row["node_role"] == "lncrna" for row in node_manifest_rows))
 
 
 if __name__ == "__main__":

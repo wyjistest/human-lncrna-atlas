@@ -1,6 +1,6 @@
 {
   "panel_id": "Figure2C",
-  "title": "Centrality landscape",
+  "title": "Network-central candidate organizers",
   "script": "scripts/paper/generate_batch1_figures.py",
   "inputs": [
     "paper_figures/shared/high_affinity_core_edges.tsv"
@@ -17,6 +17,6 @@
     "label_strategy": "top_5_centrality_rows"
   },
   "notes": [],
-  "generated_at": "2026-04-15T08:10:59Z",
-  "source_commit": "47d3ec860efc8b84593835a485b7451a9fd0f0a9"
+  "generated_at": "2026-05-09T04:33:44Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
 }

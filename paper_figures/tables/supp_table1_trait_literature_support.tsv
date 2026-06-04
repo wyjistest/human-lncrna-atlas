@@ -1,0 +1,7 @@
+trait_id	trait_name	unique_target_gene_count	literature_supported_target_gene_count	literature_supported_target_fraction	flagship_lncrna_name	flagship_candidate_target_count	flagship_targets_with_trait_literature_support	flagship_targets_with_trait_literature_support_fraction
+102	obesity	940	626	0.665957	CATG00000045621.1	870	565	0.649425
+143	Abnormality of the nervous system	426	300	0.704225	CATG00000019461.1	290	165	0.568966
+149	Rheumatoid arthritis	418	418	1.0	RP11-356I2.4	363	363	1.0
+162	Arteriosclerosis	413	413	1.0	RP11-356I2.4	374	374	1.0
+141	Glomerulosclerosis	409	391	0.95599	RP11-356I2.4	371	353	0.951482
+170	Sclerosis of metaphyses of the upper limbs	409	409	1.0	RP11-356I2.4	371	371	1.0

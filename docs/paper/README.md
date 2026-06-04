@@ -1,8 +1,23 @@
 # Paper (Article) Draft
 
-This directory contains the working draft of a research-first academic **article** on orthology-aware, triplex-informed primate lncRNA regulatory networks, with the web platform treated as a secondary delivery layer.
+This directory contains the working draft of a Cell Genomics-facing **Resource / atlas** manuscript on orthology-aware, triplex-informed primate lncRNA–gene candidate networks, with the web platform treated as a secondary delivery layer.
 
-Paper-facing epigenomic baseline is fixed to `8 core histone marks + DNase-HS`. The current repository snapshot additionally contains `CTCF` and `H4K20me1` human-track coverage, but those remain extended inventory outside the main-text baseline. Orthology provenance, conserved-edge definitions, and BA strategy are also frozen. See `docs/paper/submission_snapshot.md` for the fixed counts, subset rules, and method definitions.
+Main-text epigenomic baseline is fixed to `8 core histone marks + DNase-HS`. The current repository snapshot additionally contains CTCF and H4K20me1 human-track coverage, but those remain extended inventory outside the main-text baseline. Orthology provenance, conserved-edge definitions, and BA strategy are also frozen. See `docs/paper/submission_snapshot.md` for the fixed counts, subset rules, and method definitions.
+
+The Cell Genomics submission upgrade adds Figure 6 as an atlas-wide external benchmarking and contextualization figure and records reviewer-facing traceability in `paper_figures/cell_genomics_manifest.tsv` plus `paper_figures/cell_genomics_external_data_manifest.tsv`. Figure 6B is framed as PCG target-program expression context, and Supplementary Figure 7 / Figure 3E null calibration defaults to 1,000 permutations with `rng_seed=42`; Supplementary Figure 7D adds the stricter degree-bin matched target-permutation sensitivity layer.
+
+
+## Internal Manuscript Notes
+
+### Title decision log
+
+Selected Resource-safe concept-forward title for the Cell Genomics-facing draft:
+
+- `Triplex-informed lncRNA–gene candidate networks reveal edge-level conservation and rewiring across primates`
+
+Earlier titles over-emphasized regulatory-network language; the current manuscript keeps candidate status in the title while preserving the comparative finding.
+
+The repository-facing strategy, freeze notes, and figure-planning details live outside `docs/paper/manuscript.md` so that the manuscript draft can remain submission-facing.
 
 ## Companion Site Mapping
 
@@ -79,3 +94,58 @@ Additional inputs used by the batch-1 generator:
 - `docs/paper/fig2b_aliases.tsv`: paper-facing aliases for the Figure 2B top hubs; the current draft uses neutral `Hub-XX (short accession)` labels, and leaving `display_label` blank still falls back to the automatic shortened accession
 - `Figure 2C` keeps the eigenvector-centrality view but now labels only the top five ranked lncRNA hubs in the current centrality ordering, reducing plot clutter without changing the underlying metric
 - metadata output now records `source_commit`, meaning the git revision used to generate the assets; this is intentionally separate from the later commit that may add regenerated files to the branch
+
+To regenerate the Cell Genomics benchmarking package (Figure 3E, Figure 6, Supplementary Data, and reviewer manifests) from compact processed inputs:
+
+```bash
+python3 scripts/paper/rebuild_cellgenomics_package.py --skip-manuscript
+```
+
+Primary outputs:
+
+- `paper_figures/fig3/fig3E_null_calibration.*`
+- `paper_figures/fig6/fig6A_*` through `fig6D_*`
+- `paper_figures/tables/supp_data_expression_support.tsv`
+- `paper_figures/tables/supp_data_functional_coherence.tsv`
+- `paper_figures/tables/supp_data_flagship_module.tsv`
+- `paper_figures/tables/table7_known_evidence_benchmark.tsv`
+- `paper_figures/cell_genomics_manifest.tsv`
+- `paper_figures/cell_genomics_external_data_manifest.tsv`
+
+### Formal initial submission archive checklist
+
+Before a full Cell Genomics initial submission, create a frozen GitHub release tag such as `v1.0-cellgenomics-submission`, archive that release through Zenodo/Figshare, and replace the manuscript's provisional archival-release sentence with the resulting Zenodo/Figshare DOI. Until that DOI exists, the manuscript should not claim that an archival copy is already available.
+
+## Rendering a Submission-Prep Draft
+
+The source manuscript now carries Pandoc YAML frontmatter (`bibliography`, `csl`, and `link-citations`) so that the submission-prep draft can move through a Pandoc-native pipeline. Because the current environment provides Pandoc without built-in citeproc support, the repository uses `scripts/paper/pandoc_citation_filter.py` as a local compatibility layer while still keeping `docs/paper/cell.csl` and `docs/paper/references.bib` in the manuscript source.
+
+Use the repository-local Pandoc wrapper to generate a bibliography-expanded Markdown draft for review:
+
+```bash
+python3 scripts/paper/render_manuscript.py
+```
+
+Requirements:
+
+- `pandoc` must be available on `PATH`
+
+Default output:
+
+- `docs/paper/build/manuscript_rendered.md`
+
+The source of truth remains `docs/paper/manuscript.md`; the rendered file is a derived review artifact with inline citations expanded, the bibliography written out explicitly, and the YAML frontmatter removed from the review copy.
+
+To export a Word manuscript whose body paragraphs default to full justification, use:
+
+```bash
+python3 scripts/paper/export_manuscript_docx.py
+```
+
+Default outputs:
+
+- `docs/paper/build/manuscript_rendered.md`
+- `docs/paper/build/reference_justified.docx`
+- `docs/paper/build/manuscript_rendered.docx`
+
+The DOCX exporter regenerates a Pandoc reference document on each run and forces the `Normal`, `BodyText`, and `FirstParagraph` paragraph styles to use `w:jc="both"`, so the main manuscript text opens in Word as two-sided justified paragraphs rather than left-aligned body text.

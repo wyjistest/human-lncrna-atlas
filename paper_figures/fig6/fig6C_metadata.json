@@ -1,0 +1,41 @@
+{
+  "panel_id": "Figure6C",
+  "title": "GO coherence benchmarking",
+  "script": "scripts/paper/generate_cellgenomics_validation.py",
+  "inputs": [
+    "paper_figures/fig5/fig5B_ranking_matrix.tsv",
+    "paper_figures/tables/table4_trait_prioritization.tsv",
+    "paper_figures/fig5/fig5D_case_nodes.tsv",
+    "paper_figures/shared/edge_corepair_presence.tsv",
+    "paper_figures/external/cellgenomics_functional_terms.tsv",
+    "paper_figures/external/cellgenomics_functional_null_sets.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig6/fig6C_functional_coherence.tsv",
+    "paper_figures/fig6/fig6C_functional_coherence.svg",
+    "paper_figures/fig6/fig6C_functional_coherence.png"
+  ],
+  "external_data_versions": {
+    "ENCODE_RNA_seq": {
+      "version": "processed compact matrix supplied by paper_figures/external/cellgenomics_expression_support.tsv",
+      "url": "https://www.encodeproject.org/",
+      "license_or_terms": "ENCODE data use terms; cite ENCODE Project Consortium"
+    },
+    "GTEx_v8": {
+      "version": "GTEx Analysis V8 processed expression context",
+      "url": "https://gtexportal.org/home/datasets",
+      "license_or_terms": "GTEx Portal data use terms"
+    },
+    "GO_functional_terms": {
+      "version": "GO biological-process annotations supplied by paper_figures/external/cellgenomics_functional_terms.tsv",
+      "url": "https://geneontology.org/; https://mygene.info/",
+      "license_or_terms": "GO and MyGene.info source terms"
+    }
+  },
+  "generation_parameters": {
+    "analysis_mode": "multi_module_matched_null_gene_set_coherence"
+  },
+  "notes": [],
+  "generated_at": "2026-05-09T08:54:55Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

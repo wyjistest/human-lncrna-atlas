@@ -1,0 +1,27 @@
+{
+  "panel_id": "SupplementaryFigure6",
+  "title": "Human LncRNA Atlas Companion local access layer",
+  "script": "scripts/paper/generate_batch2_figures.py",
+  "inputs": [],
+  "outputs": [
+    "paper_figures/supplementary/suppfig6_companion_access.svg",
+    "paper_figures/supplementary/suppfig6_companion_access.png"
+  ],
+  "filters": {
+    "panels": [
+      "Query interface",
+      "Network view",
+      "Genome-browser view",
+      "Export / API workflow"
+    ],
+    "public_deployment_url": null
+  },
+  "notes": [
+    "No public deployment URL is used in this manuscript.",
+    "FastAPI /docs is available when the repository-local backend is run locally.",
+    "Supplementary Figure 6 depicts Human LncRNA Atlas Companion local access and programmatic export workflows.",
+    "This companion layer supports reproducibility and evidence inspection rather than serving as a primary result."
+  ],
+  "generated_at": "2026-05-11T02:28:33Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

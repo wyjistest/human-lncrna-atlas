@@ -1,0 +1,29 @@
+{
+  "panel_id": "Figure2D",
+  "title": "Readable subnetworks",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "inputs": [
+    "paper_figures/shared/high_affinity_core_edges.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig2/fig2D_module_manifest.tsv",
+    "paper_figures/fig2/fig2D_hub_module_nodes.tsv",
+    "paper_figures/fig2/fig2D_hub_module_edges.tsv",
+    "paper_figures/fig2/fig2D_community_nodes.tsv",
+    "paper_figures/fig2/fig2D_community_edges.tsv",
+    "paper_figures/fig2/fig2D_readable_subnetworks.svg",
+    "paper_figures/fig2/fig2D_readable_subnetworks.png"
+  ],
+  "filters": {
+    "min_ba": 100,
+    "hub_target_limit": 8,
+    "community_node_bounds": [
+      10,
+      18
+    ],
+    "community_edge_limit": 14
+  },
+  "notes": [],
+  "generated_at": "2026-05-09T04:33:44Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

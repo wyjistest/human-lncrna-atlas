@@ -1,0 +1,6 @@
+step_key	display_label	subtitle
+catalogs	Catalogs	Trait-associated lncRNAs / PCGs
+core_ids	Core IDs	"lncRNA: Infernal
+PCG: ortholog tables"
+triplex_inference	Triplex inference	lncRNA-DNA triplex sites
+candidate_network	Candidate lncRNA–PCG edge network	candidate lncRNA-PCG edges

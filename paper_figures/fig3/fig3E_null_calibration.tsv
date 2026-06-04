@@ -1,0 +1,8 @@
+section	metric	label	value	detail
+main_four_species_calibration	observed_four_species_shared_edges	Observed four-species shared core-pair edges	8799	all orthology-mappable edges; no BA cutoff
+main_four_species_calibration	target_permutation_null_mean	Target-permutation null mean	91.4	1,000 iterations
+main_four_species_calibration	target_permutation_null_p95	Target-permutation p95	107	target-permutation null p95
+main_four_species_calibration	degree_bin_matched_p95	Degree-bin p95	118	degree-bin matched target-permutation p95
+marmoset_downsampling	marmoset_downsampling_observed_median	Observed median	228	1,000 random draws
+marmoset_downsampling	marmoset_downsampling_observed_p05_p95	Observed p05-p95	203-254	human, chimpanzee, and macaque downsampled to marmoset edge count
+marmoset_downsampling	marmoset_downsampling_null_p95	Matched target-permutation null p95	7	matched target-permutation null after downsampling

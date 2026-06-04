@@ -1,0 +1,7 @@
+lncrna_core_id	target_core_id	target_symbol	human	chimp	macaque	marmoset	conservation_count	supporting_regulation_count	mean_ba	max_ba
+106965	500223865	HLA-DPB1	0	1	0	0	1	1	74.0	74.0
+106965	500231389	HLA-DPA1	0	1	0	0	1	1	74.0	74.0
+106965	500138378	STAT4	1	0	0	0	1	1	63.0	63.0
+106965	500132205	EMILIN2	1	0	0	0	1	1	61.0	61.0
+106965	500251916	RNU1-61P	1	0	0	0	1	2	58.0	61.0
+106965	500103811	CTSH	0	1	0	0	1	1	59.0	59.0

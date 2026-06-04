@@ -1,0 +1,15 @@
+node_role	core_id	display_label	species_count	conservation_count
+lncrna	86800	CATG086800	2	2
+lncrna	500261617	ENSG261617	2	2
+target	71563	CATG071563	1	1
+target	500010282	HHATL	1	1
+target	500080854	IGSF9B	2	2
+target	500142611	PRDM16	1	1
+target	500154316	TDH	1	1
+target	500155093	PTPRN2	2	2
+target	500160161	CILP2	1	1
+target	500168952	STXBP6	1	1
+target	500179242	CDH4	1	1
+target	500187664	HAPLN4	2	2
+target	500196132	MYT1	2	2
+target	500197653	DNAH10	1	1

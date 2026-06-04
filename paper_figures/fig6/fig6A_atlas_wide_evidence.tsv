@@ -1,0 +1,7 @@
+evidence_scope	module_count	median_target_count	median_high_affinity_edges	conserved_module_fraction	rewired_module_fraction	observed_value	null_or_background_value	null_iterations	evidence_label	interpretation
+top_prioritized_modules	20	1203.5	21.0	1.0	0.0	20			Top 20 prioritized lncRNA target-program modules	Atlas-wide prioritized modules are summarized across ranking, edge-conservation, and epigenomic-context features.
+conserved_modules	1045	43.0	0.0	1.0	0.0	1045			Conserved candidate modules across the atlas	Conserved modules capture target programs with four-species edge-level support rather than node conservation alone.
+rewired_modules	1993	2.0	0.0	0.0	1.0	1993			Rewired or species-specific candidate modules across the atlas	Rewired modules capture lineage-specific candidate target programs for comparative follow-up.
+obesity_flagship	1	8.0	8.0	1.0	0.0	0.75			Obesity flagship representative case	The obesity module is retained as a representative evidence card, not the sole benchmarking layer.
+edge_conservation_null						8799.0	107.0	1000	Four-species edge conservation null calibration	Observed shared candidate edges are compared against the target-permutation null p95.
+degree_bin_matched_edge_null						8799.0	118.0	1000	Four-species edge conservation degree-bin matched null	Observed shared candidate edges are compared against a stricter degree-bin matched target-permutation null.

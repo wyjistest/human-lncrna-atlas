@@ -1,0 +1,7 @@
+species_a	species_b	pair_label	observed_jaccard	null_mean_jaccard	null_median_jaccard	null_p05_jaccard	null_p95_jaccard	null_iterations
+chimp	macaque	Chimpanzee vs Macaque	0.272646	0.033101	0.0330945	0.0323835	0.0337982	1000
+chimp	marmoset	Chimpanzee vs Marmoset	0.174417	0.021907	0.021902	0.021243849999999998	0.02252915	1000
+human	chimp	Human vs Chimpanzee	0.366847	0.041572	0.041573	0.041007850000000005	0.0421084	1000
+human	macaque	Human vs Macaque	0.24883	0.031255	0.0312455	0.030772949999999997	0.0317261	1000
+human	marmoset	Human vs Marmoset	0.133564	0.017622	0.017628	0.01723585	0.01802315	1000
+macaque	marmoset	Macaque vs Marmoset	0.161499	0.02097	0.0209745	0.02023195	0.021701150000000002	1000

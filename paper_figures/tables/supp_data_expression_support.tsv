@@ -1,0 +1,100 @@
+core_id	node_type	display_label	source	context	expression_tpm	expression_supported	mapping_status
+17738	lncrna	CATG045621	ENCODE	A549		FALSE	missing
+17738	lncrna	CATG045621	ENCODE	GM12878		FALSE	missing
+17738	lncrna	CATG045621	ENCODE	H1-hESC		FALSE	missing
+17738	lncrna	CATG045621	ENCODE	HepG2		FALSE	missing
+17738	lncrna	CATG045621	ENCODE	HMEC		FALSE	missing
+17738	lncrna	CATG045621	ENCODE	K562		FALSE	missing
+17738	lncrna	CATG045621	GTEx	Adipose_Subcutaneous		FALSE	missing
+17738	lncrna	CATG045621	GTEx	Adipose_Visceral_Omentum		FALSE	missing
+17738	lncrna	CATG045621	GTEx	Liver		FALSE	missing
+17738	lncrna	CATG045621	GTEx	Muscle_Skeletal		FALSE	missing
+17738	lncrna	CATG045621	GTEx	Whole_Blood		FALSE	missing
+29927	protein_coding	ATP2B2	ENCODE	A549		FALSE	missing
+29927	protein_coding	ATP2B2	ENCODE	GM12878		FALSE	missing
+29927	protein_coding	ATP2B2	ENCODE	H1-hESC		FALSE	missing
+29927	protein_coding	ATP2B2	ENCODE	HepG2		FALSE	missing
+29927	protein_coding	ATP2B2	ENCODE	HMEC		FALSE	missing
+29927	protein_coding	ATP2B2	ENCODE	K562		FALSE	missing
+29927	protein_coding	ATP2B2	GTEx	Adipose_Subcutaneous	0.142263	FALSE	mapped
+29927	protein_coding	ATP2B2	GTEx	Adipose_Visceral_Omentum	0.101088	FALSE	mapped
+29927	protein_coding	ATP2B2	GTEx	Liver	14.8909	TRUE	mapped
+29927	protein_coding	ATP2B2	GTEx	Muscle_Skeletal	1.98939	TRUE	mapped
+29927	protein_coding	ATP2B2	GTEx	Whole_Blood	0.027383	FALSE	mapped
+31992	protein_coding	ULK1	ENCODE	A549		FALSE	missing
+31992	protein_coding	ULK1	ENCODE	GM12878		FALSE	missing
+31992	protein_coding	ULK1	ENCODE	H1-hESC		FALSE	missing
+31992	protein_coding	ULK1	ENCODE	HepG2		FALSE	missing
+31992	protein_coding	ULK1	ENCODE	HMEC		FALSE	missing
+31992	protein_coding	ULK1	ENCODE	K562		FALSE	missing
+31992	protein_coding	ULK1	GTEx	Adipose_Subcutaneous	44.779	TRUE	mapped
+31992	protein_coding	ULK1	GTEx	Adipose_Visceral_Omentum	33.8383	TRUE	mapped
+31992	protein_coding	ULK1	GTEx	Liver	27.5174	TRUE	mapped
+31992	protein_coding	ULK1	GTEx	Muscle_Skeletal	69.3541	TRUE	mapped
+31992	protein_coding	ULK1	GTEx	Whole_Blood	51.3478	TRUE	mapped
+31560	protein_coding	JMJD1C	ENCODE	A549		FALSE	missing
+31560	protein_coding	JMJD1C	ENCODE	GM12878		FALSE	missing
+31560	protein_coding	JMJD1C	ENCODE	H1-hESC		FALSE	missing
+31560	protein_coding	JMJD1C	ENCODE	HepG2		FALSE	missing
+31560	protein_coding	JMJD1C	ENCODE	HMEC		FALSE	missing
+31560	protein_coding	JMJD1C	ENCODE	K562		FALSE	missing
+31560	protein_coding	JMJD1C	GTEx	Adipose_Subcutaneous	22.8772	TRUE	mapped
+31560	protein_coding	JMJD1C	GTEx	Adipose_Visceral_Omentum	21.4157	TRUE	mapped
+31560	protein_coding	JMJD1C	GTEx	Liver	6.25363	TRUE	mapped
+31560	protein_coding	JMJD1C	GTEx	Muscle_Skeletal	7.4489	TRUE	mapped
+31560	protein_coding	JMJD1C	GTEx	Whole_Blood	7.29028	TRUE	mapped
+31392	protein_coding	DLGAP1	ENCODE	A549		FALSE	missing
+31392	protein_coding	DLGAP1	ENCODE	GM12878		FALSE	missing
+31392	protein_coding	DLGAP1	ENCODE	H1-hESC		FALSE	missing
+31392	protein_coding	DLGAP1	ENCODE	HepG2		FALSE	missing
+31392	protein_coding	DLGAP1	ENCODE	HMEC		FALSE	missing
+31392	protein_coding	DLGAP1	ENCODE	K562		FALSE	missing
+31392	protein_coding	DLGAP1	GTEx	Adipose_Subcutaneous	0.135857	FALSE	mapped
+31392	protein_coding	DLGAP1	GTEx	Adipose_Visceral_Omentum	0.256701	FALSE	mapped
+31392	protein_coding	DLGAP1	GTEx	Liver	0.013283	FALSE	mapped
+31392	protein_coding	DLGAP1	GTEx	Muscle_Skeletal	0.03894	FALSE	mapped
+31392	protein_coding	DLGAP1	GTEx	Whole_Blood	0.015089	FALSE	mapped
+28217	protein_coding	RNFT2	ENCODE	A549		FALSE	missing
+28217	protein_coding	RNFT2	ENCODE	GM12878		FALSE	missing
+28217	protein_coding	RNFT2	ENCODE	H1-hESC		FALSE	missing
+28217	protein_coding	RNFT2	ENCODE	HepG2		FALSE	missing
+28217	protein_coding	RNFT2	ENCODE	HMEC		FALSE	missing
+28217	protein_coding	RNFT2	ENCODE	K562		FALSE	missing
+28217	protein_coding	RNFT2	GTEx	Adipose_Subcutaneous	0.432031	FALSE	mapped
+28217	protein_coding	RNFT2	GTEx	Adipose_Visceral_Omentum	0.274209	FALSE	mapped
+28217	protein_coding	RNFT2	GTEx	Liver	0.062743	FALSE	mapped
+28217	protein_coding	RNFT2	GTEx	Muscle_Skeletal	0.050977	FALSE	mapped
+28217	protein_coding	RNFT2	GTEx	Whole_Blood	0.213248	FALSE	mapped
+29750	protein_coding	TDH	ENCODE	A549		FALSE	missing
+29750	protein_coding	TDH	ENCODE	GM12878		FALSE	missing
+29750	protein_coding	TDH	ENCODE	H1-hESC		FALSE	missing
+29750	protein_coding	TDH	ENCODE	HepG2		FALSE	missing
+29750	protein_coding	TDH	ENCODE	HMEC		FALSE	missing
+29750	protein_coding	TDH	ENCODE	K562		FALSE	missing
+29750	protein_coding	TDH	GTEx	Adipose_Subcutaneous	0.102373	FALSE	mapped
+29750	protein_coding	TDH	GTEx	Adipose_Visceral_Omentum	0.143212	FALSE	mapped
+29750	protein_coding	TDH	GTEx	Liver	0.052573	FALSE	mapped
+29750	protein_coding	TDH	GTEx	Muscle_Skeletal	0.369263	FALSE	mapped
+29750	protein_coding	TDH	GTEx	Whole_Blood	0.076878	FALSE	mapped
+24529	protein_coding	RSF1	ENCODE	A549		FALSE	missing
+24529	protein_coding	RSF1	ENCODE	GM12878		FALSE	missing
+24529	protein_coding	RSF1	ENCODE	H1-hESC		FALSE	missing
+24529	protein_coding	RSF1	ENCODE	HepG2		FALSE	missing
+24529	protein_coding	RSF1	ENCODE	HMEC		FALSE	missing
+24529	protein_coding	RSF1	ENCODE	K562		FALSE	missing
+24529	protein_coding	RSF1	GTEx	Adipose_Subcutaneous	11.6333	TRUE	mapped
+24529	protein_coding	RSF1	GTEx	Adipose_Visceral_Omentum	8.91987	TRUE	mapped
+24529	protein_coding	RSF1	GTEx	Liver	2.30016	TRUE	mapped
+24529	protein_coding	RSF1	GTEx	Muscle_Skeletal	4.4698	TRUE	mapped
+24529	protein_coding	RSF1	GTEx	Whole_Blood	2.35733	TRUE	mapped
+31469	protein_coding	TPPP	ENCODE	A549		FALSE	missing
+31469	protein_coding	TPPP	ENCODE	GM12878		FALSE	missing
+31469	protein_coding	TPPP	ENCODE	H1-hESC		FALSE	missing
+31469	protein_coding	TPPP	ENCODE	HepG2		FALSE	missing
+31469	protein_coding	TPPP	ENCODE	HMEC		FALSE	missing
+31469	protein_coding	TPPP	ENCODE	K562		FALSE	missing
+31469	protein_coding	TPPP	GTEx	Adipose_Subcutaneous	5.40081	TRUE	mapped
+31469	protein_coding	TPPP	GTEx	Adipose_Visceral_Omentum	5.58909	TRUE	mapped
+31469	protein_coding	TPPP	GTEx	Liver	2.04564	TRUE	mapped
+31469	protein_coding	TPPP	GTEx	Muscle_Skeletal	6.35165	TRUE	mapped
+31469	protein_coding	TPPP	GTEx	Whole_Blood	0.308172	FALSE	mapped

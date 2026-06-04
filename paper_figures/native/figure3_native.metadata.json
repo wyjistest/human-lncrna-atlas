@@ -1,0 +1,36 @@
+{
+  "figure_id": "figure3",
+  "figure_number": 3,
+  "title": "Figure 3. Cross-species conservation and lineage-specific rewiring of candidate lncRNA–PCG edges",
+  "script": "scripts/paper/generate_native_main_figures.py",
+  "rendering_mode": "native_matplotlib_single_figure",
+  "uses_panel_png_paste": false,
+  "inputs": [
+    "paper_figures/fig3/fig3A_edge_upset.tsv",
+    "paper_figures/fig3/fig3B_node_vs_edge.tsv",
+    "paper_figures/fig3/fig3C_pairwise_sharing.tsv",
+    "paper_figures/fig3/fig3D_conserved_nodes.tsv",
+    "paper_figures/fig3/fig3D_conserved_edges.tsv",
+    "paper_figures/fig3/fig3D_rewired_nodes.tsv",
+    "paper_figures/fig3/fig3D_rewired_edges.tsv",
+    "paper_figures/fig3/fig3E_null_calibration.tsv"
+  ],
+  "outputs": {
+    "svg": "paper_figures/native/figure3_native.svg",
+    "png": "paper_figures/native/figure3_native.png",
+    "metadata": "paper_figures/native/figure3_native.metadata.json"
+  },
+  "panels": [
+    "fig3A",
+    "fig3B",
+    "fig3C",
+    "fig3D",
+    "fig3E"
+  ],
+  "notes": [
+    "Native main figure rendered as one matplotlib figure.",
+    "Panel data are read from frozen TSV exports; no panel PNG or SVG assets are pasted."
+  ],
+  "generated_at": "2026-05-12T09:15:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

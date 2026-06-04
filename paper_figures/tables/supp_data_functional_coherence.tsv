@@ -1,0 +1,12 @@
+module_id	tested_gene_count	observed_score	null_mean	null_p95	empirical_percentile	empirical_p_value	fdr	best_term_id	best_term_name	best_term_gene_count
+top_prioritized_17722	0	0.0	0.1805	0.25	0.0	1.0	1.0			0
+top_prioritized_18234	0	0.0	0.177	0.25	0.0	1.0	1.0			0
+top_prioritized_18044	0	0.0	0.1745	0.25	0.0	1.0	1.0			0
+top_prioritized_17642	0	0.0	0.185	0.25	0.0	1.0	1.0			0
+top_prioritized_18163	0	0.0	0.183	0.25	0.0	1.0	1.0			0
+top_prioritized_17569	1	1.0	1.0	1.0	1.0	1.0	1.0	GO:0007596	blood coagulation	1
+top_prioritized_18401	0	0.0	0.1745	0.25	0.0	1.0	1.0			0
+conserved_CATG00000070702_1	3	0.333333	0.403333	0.666667	0.8	1.0	1.0	GO:0030953	astral microtubule organization	1
+rewired_CATG00000072898_1	3	0.333333	0.433333	0.666667	0.7	1.0	1.0	GO:0000082	G1/S transition of mitotic cell cycle	1
+rewired_CATG00000088206_1	0	0.0	0.1745	0.25	0.0	1.0	1.0			0
+flagship_obesity	7	0.285714	0.22	0.25	0.96	0.076923	0.846153	GO:0006338	chromatin remodeling	2

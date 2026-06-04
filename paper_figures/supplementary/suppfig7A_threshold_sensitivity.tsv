@@ -1,0 +1,10 @@
+threshold	threshold_label	conservation_count	edge_count	count_mode
+0.0	All edges	2	73667	exact_after_species_threshold
+0.0	All edges	3	35701	exact_after_species_threshold
+0.0	All edges	4	8799	exact_after_species_threshold
+100.0	BA ≥ 100	2	15799	overview_two_plus
+100.0	BA ≥ 100	3	423	exact_after_species_threshold
+100.0	BA ≥ 100	4	82	exact_after_species_threshold
+150.0	BA ≥ 150	2	2813	overview_two_plus
+150.0	BA ≥ 150	3	64	exact_after_species_threshold
+150.0	BA ≥ 150	4	1	exact_after_species_threshold

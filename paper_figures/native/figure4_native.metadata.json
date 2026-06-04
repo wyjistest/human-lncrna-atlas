@@ -1,0 +1,32 @@
+{
+  "figure_id": "figure4",
+  "figure_number": 4,
+  "title": "Figure 4. Epigenomic context of candidate loci",
+  "script": "scripts/paper/generate_native_main_figures.py",
+  "rendering_mode": "native_matplotlib_single_figure",
+  "uses_panel_png_paste": false,
+  "inputs": [
+    "paper_figures/fig4/fig4A_overlap_summary.tsv",
+    "paper_figures/fig4/fig4B_mark_signatures.tsv",
+    "paper_figures/fig4/fig4C_bivalent_contrast.tsv",
+    "paper_figures/fig4/fig4D_igv_manifest.tsv",
+    "paper_figures/fig4/fig4D_overlap_tracks.tsv"
+  ],
+  "outputs": {
+    "svg": "paper_figures/native/figure4_native.svg",
+    "png": "paper_figures/native/figure4_native.png",
+    "metadata": "paper_figures/native/figure4_native.metadata.json"
+  },
+  "panels": [
+    "fig4A",
+    "fig4B",
+    "fig4C",
+    "fig4D"
+  ],
+  "notes": [
+    "Native main figure rendered as one matplotlib figure.",
+    "Panel data are read from frozen TSV exports; no panel PNG or SVG assets are pasted."
+  ],
+  "generated_at": "2026-05-12T09:15:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

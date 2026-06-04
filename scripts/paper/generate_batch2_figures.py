@@ -24,6 +24,7 @@ import psycopg2
 import psycopg2.extras
 import seaborn as sns
 from matplotlib.patches import Rectangle
+from matplotlib.ticker import FuncFormatter
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -46,8 +47,16 @@ FIG4_SIGNATURE_TOP_N = 8
 FIG5_TOP_TRAITS = 6
 FIG5_RANKING_TOP_N = 20
 FIG5_TRIPARTITE_TOP_LNCRNAS = 3
-FIG5_TRIPARTITE_TOP_TARGETS = 12
+FIG5_TRIPARTITE_TOP_TARGETS = 10
 FIG5_CASE_TARGET_LIMIT = 8
+FIG5C_TOP_LNCRNAS = 12
+
+FIG5_TRAIT_LABEL_MAP = {
+    "obesity": "Obesity",
+    "Abnormality of the nervous system": "nervous system",
+    "Arteriosclerosis": "atherosclerosis",
+    "Sclerosis of metaphyses of the upper limbs": "metaphyseal sclerosis",
+}
 
 
 sns.set_theme(style="whitegrid")
@@ -194,6 +203,16 @@ def safe_float(value: Any, default: float = 0.0) -> float:
         return float(value)
     except Exception:
         return default
+
+
+def safe_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (None, ""):
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() in {"1", "true", "t", "yes", "y"}
 
 
 def shorten_gene_label(symbol: str | None) -> str:
@@ -353,7 +372,8 @@ def fetch_trait_network_rows(conn: psycopg2.extensions.connection, trait_ids: Se
                 g.gene_id AS target_gene_id,
                 g.gene_name AS target_gene_name,
                 g.core_id AS target_core_id,
-                MIN(tga.trait_snp_pvalue) AS trait_pvalue
+                MIN(tga.trait_snp_pvalue) AS trait_pvalue,
+                BOOL_OR(COALESCE(tga.literature_support, FALSE)) AS trait_literature_support
             FROM trait_gene_associations tga
             JOIN traits t ON t.trait_id = tga.trait_id
             JOIN genes g ON g.core_id = tga.core_id
@@ -366,6 +386,7 @@ def fetch_trait_network_rows(conn: psycopg2.extensions.connection, trait_ids: Se
             tt.trait_id,
             tt.trait_name,
             tt.trait_pvalue,
+            tt.trait_literature_support,
             r.regulation_id,
             r.binding_affinity,
             r.lncrna_gene_id,
@@ -700,6 +721,28 @@ def build_trait_summary_rows(
     return output
 
 
+def build_flagship_trait_selection_rows(
+    trait_summary_rows: Sequence[dict[str, Any]],
+    *,
+    flagship_trait_name: str,
+) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    for index, row in enumerate(trait_summary_rows, start=1):
+        output.append(
+            {
+                "flagship_rank": index,
+                "trait_id": safe_int(row.get("trait_id")),
+                "trait_name": str(row.get("trait_name") or ""),
+                "unique_lncrna_count": safe_int(row.get("unique_lncrna_count")),
+                "unique_target_gene_count": safe_int(row.get("unique_target_gene_count")),
+                "regulation_count": safe_int(row.get("regulation_count")),
+                "max_ba": round(safe_float(row.get("max_ba")), 6),
+                "is_flagship": str(row.get("trait_name") or "") == flagship_trait_name,
+            }
+        )
+    return output
+
+
 def load_edge_presence_map(path: Path) -> dict[tuple[int, int], dict[str, Any]]:
     rows = read_tsv_rows(path)
     return {
@@ -972,11 +1015,12 @@ def build_fig5a_asset_rows(network_rows: Sequence[dict[str, Any]], *, flagship_t
         row for row in filtered_edges if safe_int(row.get("target_gene_id")) in selected_target_ids
     ]
 
+    trait_node_id = f"trait_{safe_int(trait_rows[0].get('trait_id'))}"
     nodes: list[dict[str, Any]] = [
         {
-            "node_id": f"trait_{safe_int(trait_rows[0].get('trait_id'))}",
+            "node_id": trait_node_id,
             "node_type": "trait",
-            "display_label": flagship_trait_name,
+            "display_label": format_trait_display_label(flagship_trait_name),
             "value": len(selected_target_ids),
         }
     ]
@@ -990,6 +1034,14 @@ def build_fig5a_asset_rows(network_rows: Sequence[dict[str, Any]], *, flagship_t
                 "value": len(row["target_ids"]),
             }
         )
+        edges.append(
+            {
+                "source": trait_node_id,
+                "target": f"lncrna_{row['lncrna_gene_id']}",
+                "edge_type": "trait_anchor",
+                "weight": 1.0,
+            }
+        )
     for row in top_target_rows:
         nodes.append(
             {
@@ -997,14 +1049,6 @@ def build_fig5a_asset_rows(network_rows: Sequence[dict[str, Any]], *, flagship_t
                 "node_type": "gene",
                 "display_label": shorten_gene_label(str(row["target_gene_name"])),
                 "value": len(row["lncrna_ids"]),
-            }
-        )
-        edges.append(
-            {
-                "source": f"trait_{safe_int(trait_rows[0].get('trait_id'))}",
-                "target": f"gene_{row['target_gene_id']}",
-                "edge_type": "trait_gene",
-                "weight": 1.0,
             }
         )
     for row in final_edges:
@@ -1024,25 +1068,36 @@ def build_fig5c_rows(
     *,
     ranked_candidate_rows: Sequence[dict[str, Any]],
     trait_names: Sequence[str],
+    max_lnc_labels: int = FIG5C_TOP_LNCRNAS,
 ) -> list[dict[str, Any]]:
-    selected_lnc_ids = {safe_int(row.get("lncrna_gene_id")) for row in ranked_candidate_rows}
+    selected_ranked_rows = [dict(row) for row in ranked_candidate_rows[:max_lnc_labels]]
+    selected_lnc_ids = [safe_int(row.get("lncrna_gene_id")) for row in selected_ranked_rows]
+    selected_lookup = {lnc_id: index for index, lnc_id in enumerate(selected_lnc_ids)}
     output: list[dict[str, Any]] = []
     for row in pair_rows:
-        if safe_int(row.get("lncrna_gene_id")) not in selected_lnc_ids:
+        lnc_id = safe_int(row.get("lncrna_gene_id"))
+        trait_name = str(row.get("trait_name") or "")
+        if lnc_id not in selected_lookup:
             continue
-        if str(row.get("trait_name") or "") not in trait_names:
+        if trait_name not in trait_names:
             continue
         output.append(
             {
-                "trait_name": str(row.get("trait_name") or ""),
-                "lncrna_gene_id": safe_int(row.get("lncrna_gene_id")),
+                "trait_name": trait_name,
+                "lncrna_gene_id": lnc_id,
                 "lncrna_name": str(row.get("lncrna_name") or ""),
                 "display_label": shorten_gene_label(str(row.get("lncrna_name") or "")),
                 "target_count": safe_int(row.get("target_count")),
                 "mean_ba": round(safe_float(row.get("mean_ba")), 6),
             }
         )
-    output.sort(key=lambda row: (trait_names.index(row["trait_name"]), row["display_label"]))
+    output.sort(
+        key=lambda row: (
+            trait_names.index(row["trait_name"]),
+            selected_lookup.get(row["lncrna_gene_id"], 999),
+            row["display_label"],
+        )
+    )
     return output
 
 
@@ -1068,22 +1123,38 @@ def build_case_assets(
     )[:FIG5_CASE_TARGET_LIMIT]
     if not filtered:
         raise ValueError("No network rows available for selected flagship case")
+    target_literature_support: dict[int, bool] = {}
+    for row in filtered:
+        target_gene_id = safe_int(row.get("target_gene_id"))
+        if target_gene_id <= 0:
+            continue
+        target_literature_support[target_gene_id] = target_literature_support.get(target_gene_id, False) or safe_bool(
+            row.get("trait_literature_support")
+        )
+    candidate_targets = len(target_literature_support)
+    flagship_targets_with_trait_literature_support = sum(
+        1 for supported in target_literature_support.values() if supported
+    )
     manifest = {
         "trait_name": trait_name,
         "lncrna_gene_id": lnc_id,
         "lncrna_name": str(flagship_case.get("lncrna_name") or ""),
-        "candidate_targets": len({safe_int(row.get("target_gene_id")) for row in filtered}),
+        "candidate_targets": candidate_targets,
         "high_affinity_edges": sum(1 for row in filtered if safe_float(row.get("binding_affinity")) >= 100.0),
         "ba_range": f"{min(safe_float(row.get('binding_affinity')) for row in filtered):.2f}-{max(safe_float(row.get('binding_affinity')) for row in filtered):.2f}",
         "best_edge_conservation_count": safe_int(flagship_case.get("best_edge_conservation_count")),
         "rewiring_label": str(flagship_case.get("rewiring_label") or "species_specific"),
         "epigenomic_support_class": str(flagship_case.get("epigenomic_support_class") or "other"),
+        "flagship_targets_with_trait_literature_support": flagship_targets_with_trait_literature_support,
+        "flagship_targets_with_trait_literature_support_fraction": round(
+            flagship_targets_with_trait_literature_support / candidate_targets, 6
+        ) if candidate_targets else 0.0,
     }
     nodes = [
         {
             "node_id": f"trait_{trait_name}",
             "node_type": "trait",
-            "display_label": trait_name,
+            "display_label": format_trait_display_label(trait_name),
             "value": len(filtered),
         },
         {
@@ -1160,6 +1231,135 @@ def build_table4_rows(pair_rows: Sequence[dict[str, Any]], *, trait_order: Seque
     return output
 
 
+def build_table6_rows(
+    trait_summary_rows: Sequence[dict[str, Any]],
+    *,
+    network_rows: Sequence[dict[str, Any]],
+    pair_rows: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    network_by_trait: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in network_rows:
+        trait_name = str(row.get("trait_name") or "")
+        if trait_name:
+            network_by_trait[trait_name].append(dict(row))
+
+    pair_by_trait: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in pair_rows:
+        trait_name = str(row.get("trait_name") or "")
+        if trait_name:
+            pair_by_trait[trait_name].append(dict(row))
+
+    output: list[dict[str, Any]] = []
+    for summary_row in trait_summary_rows:
+        trait_id = safe_int(summary_row.get("trait_id"))
+        trait_name = str(summary_row.get("trait_name") or "")
+        trait_network_rows = network_by_trait.get(trait_name, [])
+        target_support: dict[int, bool] = {}
+        for row in trait_network_rows:
+            target_gene_id = safe_int(row.get("target_gene_id"))
+            if target_gene_id <= 0:
+                continue
+            target_support[target_gene_id] = target_support.get(target_gene_id, False) or safe_bool(
+                row.get("trait_literature_support")
+            )
+        unique_target_gene_count = safe_int(summary_row.get("unique_target_gene_count")) or len(target_support)
+        literature_supported_target_gene_count = sum(1 for supported in target_support.values() if supported)
+        literature_supported_target_fraction = round(
+            literature_supported_target_gene_count / unique_target_gene_count, 6
+        ) if unique_target_gene_count else 0.0
+
+        trait_pair_rows = rank_trait_lnc_candidates(pair_by_trait.get(trait_name, []))
+        if trait_pair_rows:
+            flagship_case = select_flagship_case(trait_pair_rows, flagship_trait_name=trait_name)
+            flagship_lnc_id = safe_int(flagship_case.get("lncrna_gene_id"))
+            flagship_lncrna_name = str(flagship_case.get("lncrna_name") or "")
+        else:
+            flagship_case = {}
+            flagship_lnc_id = 0
+            flagship_lncrna_name = ""
+
+        flagship_target_support: dict[int, bool] = {}
+        for row in trait_network_rows:
+            if safe_int(row.get("lncrna_gene_id")) != flagship_lnc_id:
+                continue
+            target_gene_id = safe_int(row.get("target_gene_id"))
+            if target_gene_id <= 0:
+                continue
+            flagship_target_support[target_gene_id] = flagship_target_support.get(target_gene_id, False) or safe_bool(
+                row.get("trait_literature_support")
+            )
+        flagship_candidate_target_count = len(flagship_target_support)
+        flagship_targets_with_trait_literature_support = sum(
+            1 for supported in flagship_target_support.values() if supported
+        )
+        flagship_targets_with_trait_literature_support_fraction = round(
+            flagship_targets_with_trait_literature_support / flagship_candidate_target_count, 6
+        ) if flagship_candidate_target_count else 0.0
+
+        output.append(
+            {
+                "trait_id": trait_id,
+                "trait_name": trait_name,
+                "unique_target_gene_count": unique_target_gene_count,
+                "literature_supported_target_gene_count": literature_supported_target_gene_count,
+                "literature_supported_target_fraction": literature_supported_target_fraction,
+                "flagship_lncrna_name": flagship_lncrna_name,
+                "flagship_candidate_target_count": flagship_candidate_target_count,
+                "flagship_targets_with_trait_literature_support": flagship_targets_with_trait_literature_support,
+                "flagship_targets_with_trait_literature_support_fraction": flagship_targets_with_trait_literature_support_fraction,
+            }
+        )
+    return output
+
+
+def format_trait_display_label(trait_name: str) -> str:
+    normalized = (trait_name or "").strip()
+    return FIG5_TRAIT_LABEL_MAP.get(normalized, normalized)
+
+
+def format_genomic_window_label(chromosome: str, start: int, end: int) -> str:
+    return f"{chromosome}:{start / 1_000_000:.1f}-{end / 1_000_000:.1f} Mb"
+
+
+def format_conservation_class(count: Any) -> str:
+    numeric = safe_int(count)
+    return f"{numeric}-species" if numeric > 0 else "species-specific"
+
+
+def format_edge_class_label(label: str) -> str:
+    normalized = (label or "species_specific").strip().replace("_", "-")
+    return normalized or "species-specific"
+
+
+def format_epigenomic_context_label(label: str) -> str:
+    normalized = (label or "other").strip()
+    mapping = {
+        "bivalent_like": "bivalent-like",
+        "active_like": "active-like",
+        "active_like_non_bivalent": "active-like",
+    }
+    return mapping.get(normalized, normalized.replace("_", "-"))
+
+
+def format_fig5d_evidence_lines(manifest: dict[str, Any]) -> list[str]:
+    edge_class = format_edge_class_label(str(manifest.get("rewiring_label") or "species_specific"))
+    conservation_class = format_conservation_class(manifest.get("best_edge_conservation_count"))
+    lines = [
+        f"Trait: {format_trait_display_label(str(manifest['trait_name']))}",
+        f"Candidate lncRNA: {manifest['lncrna_name']}",
+        f"Displayed targets: {manifest['candidate_targets']}",
+        f"High-affinity edges: {manifest['high_affinity_edges']}",
+        f"BA range: {manifest['ba_range']}",
+        f"Edge class: {edge_class}, {conservation_class}",
+        f"Epigenomic context: {format_epigenomic_context_label(str(manifest.get('epigenomic_support_class') or 'other'))}",
+    ]
+    if "flagship_targets_with_trait_literature_support" in manifest:
+        lines.append(
+            f"Lit.-backed targets: {safe_int(manifest.get('flagship_targets_with_trait_literature_support'))}/{safe_int(manifest.get('candidate_targets'))}"
+        )
+    return lines
+
+
 def render_fig4a(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path) -> None:
     mark_order = [row["mark_name"] for row in rows if row["cell_line"] == DEFAULT_CELL_LINE_SUBSET[0]]
     cell_lines = DEFAULT_CELL_LINE_SUBSET
@@ -1174,10 +1374,12 @@ def render_fig4a(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path)
             else:
                 values[i, j] = safe_float(row.get("overlap_fraction"))
                 annot[i, j] = f"{100.0 * safe_float(row.get('overlap_fraction')):.1f}%"
+    cmap = plt.get_cmap("YlOrRd").copy()
+    cmap.set_bad("#D9D9D9")
     fig, ax = plt.subplots(figsize=(10.5, 5.8))
     sns.heatmap(
         values,
-        cmap="YlOrRd",
+        cmap=cmap,
         vmin=0.0,
         vmax=np.nanmax(values) if np.isfinite(values).any() else 1.0,
         annot=annot,
@@ -1189,29 +1391,33 @@ def render_fig4a(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path)
         cbar_kws={"label": "Overlap fraction"},
         ax=ax,
     )
-    ax.set_title("Figure 4A · Histone-mark / DNase overlap summary", fontweight="bold")
     ax.set_xlabel("Cell line")
     ax.set_ylabel("Mark")
-    fig.tight_layout()
+    ax.tick_params(axis="x", labelsize=9)
+    ax.tick_params(axis="y", labelsize=9)
+    fig.text(0.73, 0.02, "Gray = unavailable experiment", fontsize=9, color="#4B5563")
+    fig.tight_layout(rect=[0, 0.04, 1, 1])
     save_figure(fig, svg_path, png_path)
 
 
 def render_fig4b(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path) -> None:
     cohorts = ["all_human_edges", "high_affinity"]
     cohort_titles = {
-        "all_human_edges": "All human edges",
-        "high_affinity": "BA >= 100",
+        "all_human_edges": "All human edge-cell-line observations",
+        "high_affinity": "BA ≥ 100 edge-cell-line observations",
     }
     fig, axes = plt.subplots(1, 2, figsize=(13, 5.2), sharex=False)
     for ax, cohort in zip(axes, cohorts, strict=True):
         cohort_rows = [row for row in rows if row["cohort"] == cohort]
         labels = [row["display_label"] for row in reversed(cohort_rows)]
-        counts = [safe_int(row.get("regulation_cell_count")) for row in reversed(cohort_rows)]
-        ax.barh(labels, counts, color="#0B3954" if cohort == "all_human_edges" else "#C81D25")
-        ax.set_title(cohort_titles[cohort])
-        ax.set_xlabel("Regulation × cell-line count")
-    fig.suptitle("Figure 4B · Direct mark-overlap signature classes", fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+        fractions = [safe_float(row.get("fraction")) for row in reversed(cohort_rows)]
+        total = sum(safe_int(row.get("regulation_cell_count")) for row in cohort_rows)
+        ax.barh(labels, fractions, color="#0B3954" if cohort == "all_human_edges" else "#C81D25")
+        ax.set_title(f"{cohort_titles[cohort]} (n={total:,})")
+        ax.set_xlabel("Fraction of regulation × cell-line observations")
+        ax.set_xlim(0.0, max(fractions) * 1.12 if fractions else 1.0)
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _pos: f"{value * 100:.0f}%"))
+    fig.tight_layout()
     save_figure(fig, svg_path, png_path)
 
 
@@ -1224,7 +1430,6 @@ def render_fig4c(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path)
     ax.boxplot(grouped, tick_labels=labels, patch_artist=True, boxprops={"facecolor": "#BFD7EA"})
     for index, values in enumerate(grouped, start=1):
         ax.text(index, max(values) * 1.02 if values else 0.5, f"n={len(values)}", ha="center", va="bottom", fontsize=9)
-    ax.set_title("Figure 4C · Bivalent versus non-bivalent contrast", fontweight="bold")
     ax.set_ylabel("Binding affinity")
     fig.tight_layout()
     save_figure(fig, svg_path, png_path)
@@ -1247,12 +1452,14 @@ def render_fig4d(manifest_rows: Sequence[dict[str, Any]], track_rows: Sequence[d
         mark_names = sorted({str(row.get("mark_name") or "") for row in rows})
         start = min(safe_int(row.get("peak_start")) for row in rows)
         end = max(safe_int(row.get("peak_end")) for row in rows)
-        region_start = min(start, safe_int(manifest.get("target_start"), start))
-        region_end = max(end, safe_int(manifest.get("target_end"), end))
+        target_start = safe_int(manifest.get("target_start"), start)
+        target_end = safe_int(manifest.get("target_end"), end)
+        region_start = min(start, target_start)
+        region_end = max(end, target_end)
         ax.add_patch(
             Rectangle(
-                (safe_int(manifest.get("target_start"), start), -0.3),
-                max(1, safe_int(manifest.get("target_end"), end) - safe_int(manifest.get("target_start"), start)),
+                (target_start, -0.3),
+                max(1, target_end - target_start),
                 len(mark_names) + 0.6,
                 facecolor="#FDE68A",
                 alpha=0.25,
@@ -1269,28 +1476,41 @@ def render_fig4d(manifest_rows: Sequence[dict[str, Any]], track_rows: Sequence[d
                     linewidth=5,
                     color="#0B3954" if mark_name != "DNase-HS" else "#C81D25",
                 )
+        midpoint = target_start + max(1, target_end - target_start) / 2.0
+        ax.text(
+            midpoint,
+            len(mark_names) - 0.28,
+            "predicted triplex target region",
+            ha="center",
+            va="bottom",
+            fontsize=7.5,
+            color="#7C2D12",
+            clip_on=False,
+        )
         ax.set_xlim(region_start, region_end)
+        ax.set_ylim(-0.45, len(mark_names) - 0.05)
         ax.set_yticks(range(len(mark_names)))
         ax.set_yticklabels(mark_names)
         ax.set_title(
             f"{manifest['exemplar_kind'].replace('_', ' ').title()}: {shorten_gene_label(manifest['lncrna_name'])} → {shorten_gene_label(manifest['target_gene_name'])} ({manifest['cell_line']})",
             fontsize=11,
         )
-        ax.set_xlabel(f"{manifest['target_chromosome']} locus")
-    fig.suptitle("Figure 4D · Representative local epigenomic snapshots", fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _pos: f"{value / 1_000_000:.2f}"))
+        ax.tick_params(axis="x", labelsize=8)
+        ax.set_xlabel(format_genomic_window_label(str(manifest['target_chromosome']), region_start, region_end))
+    fig.tight_layout()
     save_figure(fig, svg_path, png_path)
 
 
-def draw_tripartite(ax: plt.Axes, nodes: Sequence[dict[str, Any]], edges: Sequence[dict[str, Any]], *, title: str) -> None:
+def draw_tripartite(ax: plt.Axes, nodes: Sequence[dict[str, Any]], edges: Sequence[dict[str, Any]], *, title: str | None = None) -> None:
     node_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for node in nodes:
         node_groups[str(node.get("node_type") or "other")].append(node)
-    x_positions = {"trait": 0.0, "lncrna": 1.0, "gene": 2.0}
+    x_positions = {"trait": 0.0, "lncrna": 1.0, "gene": 2.18}
     positions: dict[str, tuple[float, float]] = {}
     for node_type, items in node_groups.items():
         count = len(items)
-        y_values = np.linspace(0.85, 0.15, count) if count > 1 else np.array([0.5])
+        y_values = np.linspace(0.84, 0.16, count) if count > 1 else np.array([0.5])
         for y, item in zip(y_values, items, strict=True):
             positions[str(item["node_id"])] = (x_positions.get(node_type, 1.5), float(y))
     max_reg_weight = max((safe_float(edge.get("weight")) for edge in edges if edge.get("edge_type") == "regulation"), default=1.0)
@@ -1303,9 +1523,17 @@ def draw_tripartite(ax: plt.Axes, nodes: Sequence[dict[str, Any]], edges: Sequen
         color = "#B0B0B0"
         alpha = 0.7
         if edge.get("edge_type") == "regulation":
-            linewidth = 1.5 + 3.0 * safe_float(edge.get("weight")) / max(max_reg_weight, 1e-9)
+            linewidth = 0.9 + 2.2 * safe_float(edge.get("weight")) / max(max_reg_weight, 1e-9)
             color = "#C81D25"
-            alpha = 0.5
+            alpha = 0.38
+        elif edge.get("edge_type") in {"trait_anchor", "trait_lncrna"}:
+            linewidth = 1.5
+            color = "#7B8794"
+            alpha = 0.85
+        else:
+            linewidth = 1.1
+            color = "#BCCCDC"
+            alpha = 0.6
         ax.plot(
             [positions[source][0], positions[target][0]],
             [positions[source][1], positions[target][1]],
@@ -1314,22 +1542,43 @@ def draw_tripartite(ax: plt.Axes, nodes: Sequence[dict[str, Any]], edges: Sequen
             alpha=alpha,
             zorder=1,
         )
-    palette = {"trait": "#BFD7EA", "lncrna": "#C81D25", "gene": "#087E8B"}
+    palette = {"trait": "#D97706", "lncrna": "#C81D25", "gene": "#087E8B"}
+    base_sizes = {"trait": 320.0, "lncrna": 180.0, "gene": 90.0}
+    size_scales = {"trait": 28.0, "lncrna": 18.0, "gene": 10.0}
     for node in nodes:
         node_id = str(node.get("node_id") or "")
+        node_type = str(node.get("node_type") or "other")
         x, y = positions[node_id]
-        size = 300 + 40 * safe_float(node.get("value"))
-        ax.scatter([x], [y], s=size, color=palette.get(str(node.get("node_type")), "#999999"), edgecolors="white", linewidth=1.2, zorder=2)
-        ax.text(x, y, str(node.get("display_label") or ""), ha="center", va="center", fontsize=9, color="white", fontweight="bold")
-    ax.set_xlim(-0.3, 2.3)
+        value = max(1.0, safe_float(node.get("value")))
+        size = base_sizes.get(node_type, 120.0) + size_scales.get(node_type, 12.0) * math.sqrt(value)
+        ax.scatter([x], [y], s=size, color=palette.get(node_type, "#999999"), edgecolors="white", linewidth=1.2, zorder=2)
+        label = str(node.get("display_label") or "")
+        if node_type == "gene":
+            ax.text(x + 0.08, y, label, ha="left", va="center", fontsize=8.5, color="#102A43")
+        elif node_type == "trait":
+            ax.text(x, y - 0.085, label, ha="center", va="top", fontsize=9.5, color="#7C2D12", fontweight="bold")
+        else:
+            ax.text(
+                x - 0.08,
+                y,
+                label,
+                ha="right",
+                va="center",
+                fontsize=8.5,
+                color="#7C2D12",
+                fontweight="bold",
+                bbox={"boxstyle": "round,pad=0.16", "facecolor": "white", "edgecolor": "none", "alpha": 0.82},
+            )
+    ax.set_xlim(-0.25, 2.55)
     ax.set_ylim(0.0, 1.0)
     ax.axis("off")
-    ax.set_title(title)
+    if title:
+        ax.set_title(title)
 
 
 def render_fig5a(nodes: Sequence[dict[str, Any]], edges: Sequence[dict[str, Any]], svg_path: Path, png_path: Path) -> None:
     fig, ax = plt.subplots(figsize=(12, 6))
-    draw_tripartite(ax, nodes, edges, title="Figure 5A · Simplified trait–lncRNA–PCG tripartite network")
+    draw_tripartite(ax, nodes, edges, title=None)
     fig.tight_layout()
     save_figure(fig, svg_path, png_path)
 
@@ -1381,7 +1630,7 @@ def render_fig5b(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path)
             normalized[:, col_index] = 0.0
         else:
             normalized[:, col_index] = (column - min_value) / (max_value - min_value)
-    fig, ax = plt.subplots(figsize=(11, max(5, len(rows) * 0.35)))
+    fig, ax = plt.subplots(figsize=(11, max(5.4, len(rows) * 0.38)))
     sns.heatmap(
         normalized,
         cmap="YlGnBu",
@@ -1400,32 +1649,61 @@ def render_fig5b(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path)
         cbar_kws={"label": "Column-normalized score"},
         ax=ax,
     )
-    ax.set_title("Figure 5B · Integrated candidate lncRNA ranking matrix", fontweight="bold")
-    fig.tight_layout()
+    ax.text(
+        0.0,
+        -0.19,
+        "Column-normalized visualization only; not effect size",
+        transform=ax.transAxes,
+        fontsize=9,
+        color="#555555",
+        ha="left",
+        va="top",
+        bbox={"boxstyle": "round,pad=0.24", "facecolor": "#FFFFFF", "edgecolor": "#CBD5E1", "alpha": 0.92},
+    )
+    fig.subplots_adjust(left=0.28, right=0.97, top=0.97, bottom=0.27)
     save_figure(fig, svg_path, png_path)
 
 
 def render_fig5c(rows: Sequence[dict[str, Any]], *, trait_names: Sequence[str], svg_path: Path, png_path: Path) -> None:
-    lnc_labels = sorted({row["display_label"] for row in rows})
+    ordered_trait_names = [name for name in trait_names if any(row["trait_name"] == name for row in rows)]
+    lnc_labels = list(dict.fromkeys(row["display_label"] for row in rows))
     y_index = {label: idx for idx, label in enumerate(lnc_labels)}
-    x_index = {name: idx for idx, name in enumerate(trait_names)}
-    fig, ax = plt.subplots(figsize=(10, max(4.5, len(lnc_labels) * 0.35)))
+    x_index = {name: idx for idx, name in enumerate(ordered_trait_names)}
+    fig, ax = plt.subplots(figsize=(10.6, max(4.8, len(lnc_labels) * 0.42)))
     xs, ys, sizes, colors = [], [], [], []
     for row in rows:
         xs.append(x_index[row["trait_name"]])
         ys.append(y_index[row["display_label"]])
-        sizes.append(80 + 45 * safe_int(row.get("target_count")))
+        sizes.append(35 + 18 * math.sqrt(max(1, safe_int(row.get("target_count")))))
         colors.append(safe_float(row.get("mean_ba")))
-    scatter = ax.scatter(xs, ys, s=sizes, c=colors, cmap="Reds", alpha=0.75, edgecolors="black", linewidth=0.4)
-    ax.set_xticks(range(len(trait_names)))
-    ax.set_xticklabels(trait_names, rotation=20, ha="right")
+    scatter = ax.scatter(xs, ys, s=sizes, c=colors, cmap="OrRd", alpha=0.68, edgecolors="#334E68", linewidth=0.35)
+    ax.set_xticks(range(len(ordered_trait_names)))
+    ax.set_xticklabels([format_trait_display_label(name) for name in ordered_trait_names], rotation=18, ha="right")
     ax.set_yticks(range(len(lnc_labels)))
     ax.set_yticklabels(lnc_labels)
-    ax.set_title("Figure 5C · Shared versus trait-specific regulators", fontweight="bold")
     ax.set_xlabel("Trait")
     ax.set_ylabel("Candidate lncRNA")
+    ax.grid(axis="x", alpha=0.15)
+    ax.grid(axis="y", alpha=0.08)
     fig.colorbar(scatter, ax=ax, label="Mean BA")
-    fig.tight_layout()
+    legend_counts = sorted({max(1, safe_int(row.get("target_count"))) for row in rows})
+    if legend_counts:
+        representative_counts = sorted({legend_counts[0], legend_counts[len(legend_counts) // 2], legend_counts[-1]})
+        handles = [
+            ax.scatter([], [], s=35 + 18 * math.sqrt(count), color="#F8CFA9", alpha=0.9, edgecolors="#334E68", linewidth=0.35)
+            for count in representative_counts
+        ]
+        legend = ax.legend(
+            handles,
+            [str(count) for count in representative_counts],
+            title="Bubble size = number of PCG targets",
+            loc="upper center",
+            bbox_to_anchor=(0.50, -0.30),
+            ncol=len(representative_counts),
+            frameon=True,
+        )
+        legend.get_title().set_fontsize(9)
+    fig.subplots_adjust(left=0.18, right=0.86, top=0.95, bottom=0.34)
     save_figure(fig, svg_path, png_path)
 
 
@@ -1441,22 +1719,81 @@ def render_fig5d(
     grid = fig.add_gridspec(1, 2, width_ratios=[1.5, 1.0])
     ax_network = fig.add_subplot(grid[0])
     ax_text = fig.add_subplot(grid[1])
-    draw_tripartite(ax_network, nodes, edges, title="Flagship trait-centered candidate module")
+    draw_tripartite(ax_network, nodes, edges, title=None)
     ax_text.axis("off")
-    lines = [
-        f"Trait: {manifest['trait_name']}",
-        f"Candidate lncRNA: {shorten_gene_label(manifest['lncrna_name'])}",
-        f"Candidate targets: {manifest['candidate_targets']}",
-        f"High-affinity edges: {manifest['high_affinity_edges']}",
-        f"BA range: {manifest['ba_range']}",
-        f"Best edge conservation: {manifest['best_edge_conservation_count']}",
-        f"Rewiring label: {manifest['rewiring_label']}",
-        f"Epigenomic support: {manifest['epigenomic_support_class']}",
+    evidence_rows = [line.split(": ", 1) if ": " in line else [line, ""] for line in format_fig5d_evidence_lines(manifest)]
+    ax_text.text(0.0, 0.98, "Evidence card", fontsize=13, fontweight="bold", va="top")
+    table = ax_text.table(
+        cellText=evidence_rows,
+        colLabels=["Evidence", "Value"],
+        cellLoc="left",
+        colLoc="left",
+        colWidths=[0.42, 0.56],
+        bbox=[0.0, 0.05, 0.98, 0.84],
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.0, 1.25)
+    for (row_index, col_index), cell in table.get_celld().items():
+        cell.set_edgecolor("#D9E2EC")
+        if row_index == 0:
+            cell.set_facecolor("#EEF2F7")
+            cell.set_text_props(weight="bold", color="#102A43")
+        else:
+            cell.set_facecolor("#FFFFFF" if row_index % 2 else "#F8FAFC")
+            if col_index == 0:
+                cell.set_text_props(weight="bold", color="#334E68")
+    fig.tight_layout()
+    save_figure(fig, svg_path, png_path)
+
+
+def render_suppfig6_companion_access(svg_path: Path, png_path: Path) -> None:
+    panels = [
+        {
+            "label": "A",
+            "title": "Query interface",
+            "body": ["Filter candidate", "lncRNA-PCG edges", "by gene, trait, species"],
+            "accent": "#0B3954",
+        },
+        {
+            "label": "B",
+            "title": "Network view",
+            "body": ["Inspect lncRNA", "target modules", "and evidence layers"],
+            "accent": "#C81D25",
+        },
+        {
+            "label": "C",
+            "title": "Genome-browser view",
+            "body": ["Review target loci", "with local chromatin", "context tracks"],
+            "accent": "#087E8B",
+        },
+        {
+            "label": "D",
+            "title": "Export / API workflow",
+            "body": ["Download tables", "or inspect local", "FastAPI /docs schema"],
+            "accent": "#D97706",
+        },
     ]
-    ax_text.text(0.0, 0.95, "Evidence card", fontsize=13, fontweight="bold", va="top")
-    ax_text.text(0.0, 0.88, "\n".join(lines), fontsize=11, va="top", linespacing=1.6)
-    fig.suptitle("Figure 5D · Focused flagship case study", fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig, axes = plt.subplots(2, 2, figsize=(12, 7.2))
+    fig.patch.set_facecolor("white")
+    for ax, panel in zip(axes.flat, panels, strict=True):
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+        ax.add_patch(Rectangle((0.03, 0.08), 0.94, 0.84, facecolor="#F8FAFC", edgecolor="#CBD5E1", linewidth=1.4))
+        ax.add_patch(Rectangle((0.03, 0.78), 0.94, 0.14, facecolor=panel["accent"], edgecolor=panel["accent"]))
+        ax.text(0.07, 0.85, str(panel["label"]), color="white", fontsize=16, fontweight="bold", va="center")
+        ax.text(0.16, 0.85, str(panel["title"]), color="white", fontsize=13, fontweight="bold", va="center")
+        for index, line in enumerate(panel["body"]):
+            ax.text(0.09, 0.62 - index * 0.15, line, color="#102A43", fontsize=13, va="center")
+        ax.add_patch(Rectangle((0.68, 0.18), 0.20, 0.34, facecolor="#E2E8F0", edgecolor="#94A3B8", linewidth=1.0))
+        ax.add_patch(Rectangle((0.71, 0.46), 0.14, 0.035, facecolor=panel["accent"], edgecolor=panel["accent"]))
+        ax.add_patch(Rectangle((0.71, 0.38), 0.14, 0.035, facecolor="#FFFFFF", edgecolor="#94A3B8"))
+        ax.add_patch(Rectangle((0.71, 0.30), 0.14, 0.035, facecolor="#FFFFFF", edgecolor="#94A3B8"))
+        ax.text(0.78, 0.13, "local", color="#64748B", fontsize=9, ha="center")
+    fig.suptitle("Human LncRNA Atlas Companion: local reproducibility and evidence-inspection layer", fontsize=15, fontweight="bold")
+    fig.text(0.5, 0.025, "No public deployment URL is assumed; API documentation is available through FastAPI /docs when the backend is run locally.", ha="center", fontsize=10, color="#475569")
+    fig.tight_layout(rect=[0, 0.05, 1, 0.94])
     save_figure(fig, svg_path, png_path)
 
 
@@ -1571,6 +1908,7 @@ def main() -> int:
     fig5_dir = out_dir / "fig5"
     tables_dir = out_dir / "tables"
     shared_dir = out_dir / "shared"
+    supp_dir = out_dir / "supplementary"
 
     generated_at = args.generated_at or utc_now_iso()
     source_commit_ref = str(args.source_commit or "HEAD").strip() or "HEAD"
@@ -1650,6 +1988,10 @@ def main() -> int:
         candidate_rows = rank_trait_lnc_candidates(build_lnc_candidate_rows(pair_rows))[:FIG5_RANKING_TOP_N]
 
         flagship_trait_name = trait_summary_rows[0]["trait_name"] if trait_summary_rows else ""
+        flagship_selection_rows = build_flagship_trait_selection_rows(
+            trait_summary_rows,
+            flagship_trait_name=flagship_trait_name,
+        )
         fig5a_nodes, fig5a_edges, selected_lnc_ids, _ = build_fig5a_asset_rows(
             network_rows,
             flagship_trait_name=flagship_trait_name,
@@ -1666,6 +2008,11 @@ def main() -> int:
         trait_names = [str(row.get("trait_name") or "") for row in trait_summary_rows]
         fig5c_rows = build_fig5c_rows(pair_rows, ranked_candidate_rows=candidate_rows, trait_names=trait_names)
         table4_rows = build_table4_rows(pair_rows, trait_order=trait_names)
+        table6_rows = build_table6_rows(
+            trait_summary_rows,
+            network_rows=network_rows,
+            pair_rows=pair_rows,
+        )
 
     fig4a_tsv = fig4_dir / "fig4A_overlap_summary.tsv"
     fig4a_svg = fig4_dir / "fig4A_overlap_summary.svg"
@@ -1718,7 +2065,7 @@ def main() -> int:
         fig4b_meta,
         panel_metadata(
             panel_id="Figure4B",
-            title="Direct mark-overlap signature classes",
+            title="Mark-overlap context classes",
             repo_root=repo_root,
             generated_at=generated_at,
             source_commit=source_commit,
@@ -1819,7 +2166,7 @@ def main() -> int:
         fig4d_meta,
         panel_metadata(
             panel_id="Figure4D",
-            title="Representative IGV-like snapshots",
+            title="Representative local epigenomic tracks",
             repo_root=repo_root,
             generated_at=generated_at,
             source_commit=source_commit,
@@ -1861,6 +2208,14 @@ def main() -> int:
                 "flagship_trait": flagship_trait_name,
                 "top_lncrnas": FIG5_TRIPARTITE_TOP_LNCRNAS,
                 "top_targets": FIG5_TRIPARTITE_TOP_TARGETS,
+                "trait_selection_sort": [
+                    "unique_lncrna_count desc",
+                    "unique_target_gene_count desc",
+                    "max_ba desc",
+                    "trait_id asc",
+                ],
+                "displayed_node_count": len(fig5a_nodes),
+                "full_exported_candidate_edge_count": len(fig5a_edges),
             },
         ),
     )
@@ -1908,6 +2263,7 @@ def main() -> int:
                     "lncrna_gene_id asc",
                 ],
             },
+            notes=["The heatmap is a column-normalized visualization only, not regulatory effect size."],
         ),
     )
 
@@ -1954,6 +2310,8 @@ def main() -> int:
             "best_edge_conservation_count",
             "rewiring_label",
             "epigenomic_support_class",
+            "flagship_targets_with_trait_literature_support",
+            "flagship_targets_with_trait_literature_support_fraction",
         ],
     )
     write_tsv(fig5d_nodes_tsv, fig5d_nodes, ["node_id", "node_type", "display_label", "value"])
@@ -1972,7 +2330,83 @@ def main() -> int:
             filters={
                 "flagship_trait": flagship_trait_name,
                 "case_target_limit": FIG5_CASE_TARGET_LIMIT,
+                "case_selection_filters": [
+                    "best_edge_conservation_count >= 1",
+                    "epigenomic_support_class != other",
+                ],
             },
+            notes=[
+                "Displayed subset is separate from the full exported flagship subnetwork.",
+                f"Displayed targets: {safe_int(fig5d_manifest.get('candidate_targets'))}; high-affinity edges: {safe_int(fig5d_manifest.get('high_affinity_edges'))}.",
+            ],
+        ),
+    )
+
+
+    table5_tsv = tables_dir / "table5_flagship_trait_selection.tsv"
+    write_tsv(
+        table5_tsv,
+        flagship_selection_rows,
+        [
+            "flagship_rank",
+            "trait_id",
+            "trait_name",
+            "unique_lncrna_count",
+            "unique_target_gene_count",
+            "regulation_count",
+            "max_ba",
+            "is_flagship",
+        ],
+    )
+
+    table6_tsv = tables_dir / "table6_trait_literature_support.tsv"
+    supp_table1_tsv = tables_dir / "supp_table1_trait_literature_support.tsv"
+    table6_fieldnames = [
+        "trait_id",
+        "trait_name",
+        "unique_target_gene_count",
+        "literature_supported_target_gene_count",
+        "literature_supported_target_fraction",
+        "flagship_lncrna_name",
+        "flagship_candidate_target_count",
+        "flagship_targets_with_trait_literature_support",
+        "flagship_targets_with_trait_literature_support_fraction",
+    ]
+    write_tsv(
+        table6_tsv,
+        table6_rows,
+        table6_fieldnames,
+    )
+    write_tsv(
+        supp_table1_tsv,
+        table6_rows,
+        table6_fieldnames,
+    )
+
+    suppfig6_svg = supp_dir / "suppfig6_companion_access.svg"
+    suppfig6_png = supp_dir / "suppfig6_companion_access.png"
+    suppfig6_meta = supp_dir / "suppfig6_companion_access.metadata.json"
+    render_suppfig6_companion_access(suppfig6_svg, suppfig6_png)
+    write_json(
+        suppfig6_meta,
+        panel_metadata(
+            panel_id="SupplementaryFigure6",
+            title="Human LncRNA Atlas Companion local access layer",
+            repo_root=repo_root,
+            generated_at=generated_at,
+            source_commit=source_commit,
+            input_paths=[],
+            output_paths=[suppfig6_svg, suppfig6_png],
+            filters={
+                "panels": ["Query interface", "Network view", "Genome-browser view", "Export / API workflow"],
+                "public_deployment_url": None,
+            },
+            notes=[
+                "No public deployment URL is used in this manuscript.",
+                "FastAPI /docs is available when the repository-local backend is run locally.",
+                "Supplementary Figure 6 depicts Human LncRNA Atlas Companion local access and programmatic export workflows.",
+                "This companion layer supports reproducibility and evidence inspection rather than serving as a primary result.",
+            ],
         ),
     )
 
@@ -2007,6 +2441,10 @@ def main() -> int:
         fig5c_tsv,
         fig5d_manifest_tsv,
         table4_tsv,
+        table5_tsv,
+        table6_tsv,
+        supp_table1_tsv,
+        suppfig6_svg,
     ]:
         print(f"Wrote: {display_path(path, repo_root)}")
 

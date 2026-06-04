@@ -1,0 +1,64 @@
+{
+  "figure_id": "figure4",
+  "figure_number": 4,
+  "title": "Figure 4. Epigenomic context of candidate loci",
+  "script": "scripts/paper/generate_composite_figures.py",
+  "inputs": [
+    "paper_figures/fig4/fig4A_overlap_summary.png",
+    "paper_figures/fig4/fig4A_overlap_summary.svg",
+    "paper_figures/fig4/fig4B_mark_signatures.png",
+    "paper_figures/fig4/fig4B_mark_signatures.svg",
+    "paper_figures/fig4/fig4C_bivalent_contrast.png",
+    "paper_figures/fig4/fig4C_bivalent_contrast.svg",
+    "paper_figures/fig4/fig4D_igv_snapshots.png",
+    "paper_figures/fig4/fig4D_igv_snapshots.svg"
+  ],
+  "outputs": {
+    "svg": "paper_figures/composites/figure4_composite.svg",
+    "png": "paper_figures/composites/figure4_composite.png",
+    "metadata": "paper_figures/composites/figure4_composite.metadata.json"
+  },
+  "panels": [
+    {
+      "panel_id": "fig4A",
+      "letter": "A",
+      "title": "Histone-mark / DNase overlap summary",
+      "svg_path": "paper_figures/fig4/fig4A_overlap_summary.svg",
+      "png_path": "paper_figures/fig4/fig4A_overlap_summary.png"
+    },
+    {
+      "panel_id": "fig4B",
+      "letter": "B",
+      "title": "Mark-overlap context classes",
+      "svg_path": "paper_figures/fig4/fig4B_mark_signatures.svg",
+      "png_path": "paper_figures/fig4/fig4B_mark_signatures.png"
+    },
+    {
+      "panel_id": "fig4C",
+      "letter": "C",
+      "title": "Bivalent versus non-bivalent contrast",
+      "svg_path": "paper_figures/fig4/fig4C_bivalent_contrast.svg",
+      "png_path": "paper_figures/fig4/fig4C_bivalent_contrast.png"
+    },
+    {
+      "panel_id": "fig4D",
+      "letter": "D",
+      "title": "Representative local epigenomic tracks",
+      "svg_path": "paper_figures/fig4/fig4D_igv_snapshots.svg",
+      "png_path": "paper_figures/fig4/fig4D_igv_snapshots.png"
+    }
+  ],
+  "layout": {
+    "canvas_width": 2200,
+    "canvas_height": 1633,
+    "content_width": 2056,
+    "row_count": 3,
+    "header_strip_count": 1
+  },
+  "notes": [
+    "Composite figure assembled from existing paper-facing panel assets.",
+    "Figure 4 keeps the baseline strip unnumbered."
+  ],
+  "generated_at": "2026-05-11T02:30:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

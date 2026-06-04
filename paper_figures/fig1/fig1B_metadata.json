@@ -1,0 +1,24 @@
+{
+  "panel_id": "Figure1B",
+  "title": "Ortholog mapping across four primates",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "inputs": [
+    "docs/paper/submission_snapshot.md"
+  ],
+  "outputs": [
+    "paper_figures/fig1/fig1B_ortholog_counts.tsv",
+    "paper_figures/fig1/fig1B_ortholog_mapping.svg",
+    "paper_figures/fig1/fig1B_ortholog_mapping.png"
+  ],
+  "filters": {
+    "species_order": [
+      "human",
+      "chimp",
+      "macaque",
+      "marmoset"
+    ]
+  },
+  "notes": [],
+  "generated_at": "2026-05-09T04:33:44Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

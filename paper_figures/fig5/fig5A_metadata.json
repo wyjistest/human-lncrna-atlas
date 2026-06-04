@@ -15,9 +15,17 @@
   "filters": {
     "flagship_trait": "obesity",
     "top_lncrnas": 3,
-    "top_targets": 12
+    "top_targets": 10,
+    "trait_selection_sort": [
+      "unique_lncrna_count desc",
+      "unique_target_gene_count desc",
+      "max_ba desc",
+      "trait_id asc"
+    ],
+    "displayed_node_count": 14,
+    "full_exported_candidate_edge_count": 188
   },
   "notes": [],
-  "generated_at": "2026-04-21T09:26:47Z",
-  "source_commit": "a310ffc9038d89374402fe8df5f76fe6a2a3c1c1"
+  "generated_at": "2026-05-11T02:28:33Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
 }

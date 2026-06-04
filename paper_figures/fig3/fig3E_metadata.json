@@ -1,0 +1,41 @@
+{
+  "panel_id": "Figure3E",
+  "title": "Observed-vs-null edge conservation calibration and marmoset downsampling sensitivity",
+  "script": "scripts/paper/generate_cellgenomics_validation.py",
+  "inputs": [
+    "paper_figures/supplementary/suppfig7B_null_counts.tsv",
+    "paper_figures/supplementary/suppfig7D_degree_null_counts.tsv",
+    "paper_figures/supplementary/suppfig7E_marmoset_downsampling.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig3/fig3E_null_calibration.tsv",
+    "paper_figures/fig3/fig3E_null_calibration.svg",
+    "paper_figures/fig3/fig3E_null_calibration.png"
+  ],
+  "external_data_versions": {
+    "ENCODE_RNA_seq": {
+      "version": "processed compact matrix supplied by paper_figures/external/cellgenomics_expression_support.tsv",
+      "url": "https://www.encodeproject.org/",
+      "license_or_terms": "ENCODE data use terms; cite ENCODE Project Consortium"
+    },
+    "GTEx_v8": {
+      "version": "GTEx Analysis V8 processed expression context",
+      "url": "https://gtexportal.org/home/datasets",
+      "license_or_terms": "GTEx Portal data use terms"
+    },
+    "GO_functional_terms": {
+      "version": "GO biological-process annotations supplied by paper_figures/external/cellgenomics_functional_terms.tsv",
+      "url": "https://geneontology.org/; https://mygene.info/",
+      "license_or_terms": "GO and MyGene.info source terms"
+    }
+  },
+  "generation_parameters": {
+    "analysis_mode": "main_text_null_calibration_summary"
+  },
+  "notes": [
+    "Figure 3E summarizes the main four-species target-permutation calibration, degree-bin matched p95, and marmoset-edge-count downsampling sensitivity.",
+    "Full BA sensitivity and pairwise null details remain in Supplementary Figure 7."
+  ],
+  "generated_at": "2026-05-09T08:54:55Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

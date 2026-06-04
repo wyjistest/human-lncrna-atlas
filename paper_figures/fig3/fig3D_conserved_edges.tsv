@@ -1,0 +1,7 @@
+lncrna_core_id	target_core_id	target_symbol	human	chimp	macaque	marmoset	conservation_count	supporting_regulation_count	mean_ba	max_ba
+25177	500007372	PAX6	1	1	1	1	4	4	75.5	92.99
+25177	500106852	LHX6	1	1	1	1	4	4	74.245	88.0
+25177	500058404	CAMK2B	1	1	1	1	4	5	74.186	104.01
+25177	500008735	MAPK8IP2	1	1	1	1	4	5	73.804	97.0
+25177	500103449	SALL1	1	1	1	1	4	4	72.7575	86.0
+25177	500080854	IGSF9B	1	1	1	1	4	4	71.995	77.98

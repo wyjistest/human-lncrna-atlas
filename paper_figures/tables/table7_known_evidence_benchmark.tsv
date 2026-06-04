@@ -1,0 +1,9 @@
+benchmark_layer	evidence_scope	observed_value	background_value	module_count	interpretation
+atlas_wide_module_summary	top_prioritized_modules	20		20	Atlas-wide prioritized modules are summarized across ranking, edge-conservation, and epigenomic-context features.
+atlas_wide_module_summary	conserved_modules	1045		1045	Conserved modules capture target programs with four-species edge-level support rather than node conservation alone.
+atlas_wide_module_summary	rewired_modules	1993		1993	Rewired modules capture lineage-specific candidate target programs for comparative follow-up.
+atlas_wide_module_summary	obesity_flagship	0.75		1	The obesity module is retained as a representative evidence card, not the sole benchmarking layer.
+atlas_wide_module_summary	edge_conservation_null	8799.0	107.0		Observed shared candidate edges are compared against the target-permutation null p95.
+atlas_wide_module_summary	degree_bin_matched_edge_null	8799.0	118.0		Observed shared candidate edges are compared against a stricter degree-bin matched target-permutation null.
+pcg_target_program_expression	best_context	0.625		8	Expression context is summarized over the mappable PCG target program, not direct lncRNA–PCG co-expression.
+module_functional_coherence	multi_module_distribution	0.090909	observed_score > null_mean	11	GO coherence is treated as module-level benchmarking context.

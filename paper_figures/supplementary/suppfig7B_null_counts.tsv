@@ -1,0 +1,4 @@
+conservation_count	observed_edge_count	null_mean_edge_count	null_median_edge_count	null_p05_edge_count	null_p95_edge_count	null_iterations
+2	73667	26132.689	26128.0	25935.0	26345.15	1000
+3	35701	1969.385	1970.0	1905.0	2036.0	1000
+4	8799	91.387	91.0	75.95	107.0	1000

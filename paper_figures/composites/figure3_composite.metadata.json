@@ -1,0 +1,72 @@
+{
+  "figure_id": "figure3",
+  "figure_number": 3,
+  "title": "Figure 3. Cross-species conservation and lineage-specific rewiring of candidate lncRNA\u2013PCG edges",
+  "script": "scripts/paper/generate_composite_figures.py",
+  "inputs": [
+    "paper_figures/fig3/fig3A_edge_upset.png",
+    "paper_figures/fig3/fig3A_edge_upset.svg",
+    "paper_figures/fig3/fig3B_node_vs_edge.png",
+    "paper_figures/fig3/fig3B_node_vs_edge.svg",
+    "paper_figures/fig3/fig3C_pairwise_sharing.png",
+    "paper_figures/fig3/fig3C_pairwise_sharing.svg",
+    "paper_figures/fig3/fig3D_examples.png",
+    "paper_figures/fig3/fig3D_examples.svg",
+    "paper_figures/fig3/fig3E_null_calibration.png",
+    "paper_figures/fig3/fig3E_null_calibration.svg"
+  ],
+  "outputs": {
+    "svg": "paper_figures/composites/figure3_composite.svg",
+    "png": "paper_figures/composites/figure3_composite.png",
+    "metadata": "paper_figures/composites/figure3_composite.metadata.json"
+  },
+  "panels": [
+    {
+      "panel_id": "fig3A",
+      "letter": "A",
+      "title": "Conserved-edge strata across 2 to 4 species",
+      "svg_path": "paper_figures/fig3/fig3A_edge_upset.svg",
+      "png_path": "paper_figures/fig3/fig3A_edge_upset.png"
+    },
+    {
+      "panel_id": "fig3B",
+      "letter": "B",
+      "title": "Node conservation versus edge conservation",
+      "svg_path": "paper_figures/fig3/fig3B_node_vs_edge.svg",
+      "png_path": "paper_figures/fig3/fig3B_node_vs_edge.png"
+    },
+    {
+      "panel_id": "fig3C",
+      "letter": "C",
+      "title": "Species-pair node and edge sharing",
+      "svg_path": "paper_figures/fig3/fig3C_pairwise_sharing.svg",
+      "png_path": "paper_figures/fig3/fig3C_pairwise_sharing.png"
+    },
+    {
+      "panel_id": "fig3D",
+      "letter": "D",
+      "title": "Illustrative conserved and rewired candidate examples",
+      "svg_path": "paper_figures/fig3/fig3D_examples.svg",
+      "png_path": "paper_figures/fig3/fig3D_examples.png"
+    },
+    {
+      "panel_id": "fig3E",
+      "letter": "E",
+      "title": "Observed-vs-null calibration",
+      "svg_path": "paper_figures/fig3/fig3E_null_calibration.svg",
+      "png_path": "paper_figures/fig3/fig3E_null_calibration.png"
+    }
+  ],
+  "layout": {
+    "canvas_width": 2200,
+    "canvas_height": 2056,
+    "content_width": 2056,
+    "row_count": 3,
+    "header_strip_count": 0
+  },
+  "notes": [
+    "Composite figure assembled from existing paper-facing panel assets."
+  ],
+  "generated_at": "2026-05-11T02:30:04Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}

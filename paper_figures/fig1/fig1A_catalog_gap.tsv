@@ -1,0 +1,3 @@
+catalog_type	display_label	support_label	gap_message
+lncrna_catalog	Trait-associated lncRNAs	Candidate lncRNA nodes from prior catalogs	Trait-associated catalogs nominate relevant nodes, not edges.
+protein_coding_catalog	Trait-associated protein-coding genes	Candidate target-gene nodes from prior catalogs	Trait-associated catalogs nominate relevant nodes, not edges.

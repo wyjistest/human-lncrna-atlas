@@ -1,0 +1,30 @@
+{
+  "panel_id": "Figure3D",
+  "title": "Paired conserved and rewired exemplars",
+  "script": "scripts/paper/generate_batch1_figures.py",
+  "inputs": [
+    "paper_figures/shared/node_core_presence.tsv",
+    "paper_figures/shared/edge_corepair_presence.tsv"
+  ],
+  "outputs": [
+    "paper_figures/fig3/fig3D_exemplar_manifest.tsv",
+    "paper_figures/fig3/fig3D_conserved_nodes.tsv",
+    "paper_figures/fig3/fig3D_conserved_edges.tsv",
+    "paper_figures/fig3/fig3D_rewired_nodes.tsv",
+    "paper_figures/fig3/fig3D_rewired_edges.tsv",
+    "paper_figures/fig3/fig3D_examples.svg",
+    "paper_figures/fig3/fig3D_examples.png"
+  ],
+  "filters": {
+    "species_order": [
+      "human",
+      "chimp",
+      "macaque",
+      "marmoset"
+    ],
+    "max_targets_per_exemplar": 6
+  },
+  "notes": [],
+  "generated_at": "2026-05-09T04:33:44Z",
+  "source_commit": "e052da5c073c6a3c91392ae06ecd8ec9037d6437"
+}
