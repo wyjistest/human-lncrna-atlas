@@ -520,6 +520,28 @@ PY
     )
 }
 
+compute_paper_deps_hash() {
+    local python_bin="$1"
+
+    (
+        cd "$PROJECT_ROOT"
+        "$python_bin" - <<'PY'
+import hashlib
+from pathlib import Path
+
+h = hashlib.sha256()
+for name in ("scripts/paper/requirements.txt", "frontend/backend/constraints.txt"):
+    p = Path(name)
+    if not p.exists():
+        continue
+    h.update(p.read_bytes())
+    h.update(b"\n")
+
+print(h.hexdigest())
+PY
+    )
+}
+
 ensure_backend_deps() {
     local python_bin="$1"
     local venv_dir
@@ -549,8 +571,67 @@ ensure_backend_deps() {
     cd "$BACKEND_DIR"
 
     # 仅在漂移时同步依赖，避免每次 pre-push 都重装导致本地过慢。
-    "$python_bin" -m pip install -r requirements-dev.txt -c constraints.txt
+    local pip_args=()
+    if [ -n "${PIP_PROXY:-}" ]; then
+        pip_args+=(--proxy "$PIP_PROXY")
+    fi
+    if ! "$python_bin" -m pip "${pip_args[@]}" install -r requirements-dev.txt -c constraints.txt; then
+        echo -e "${RED}后端依赖安装失败${NC}"
+        return 1
+    fi
     printf "%s\n" "$current_hash" > "$stamp_file"
+    return 0
+}
+
+ensure_paper_python_deps() {
+    local python_bin="$1"
+    local venv_dir
+    local stamp_file
+    local current_hash
+    local previous_hash
+
+    ensure_backend_pytest "$python_bin" || return 1
+    require_cmd pandoc || return 1
+
+    if [ -f "${PROJECT_ROOT}/scripts/paper/requirements.txt" ] && venv_dir="$(backend_venv_dir_from_python "$python_bin")"; then
+        stamp_file="${venv_dir}/.hla_paper_requirements.sha256"
+        current_hash="$(compute_paper_deps_hash "$python_bin")"
+        previous_hash=""
+        if [ -f "$stamp_file" ]; then
+            previous_hash="$(cat "$stamp_file" 2>/dev/null || true)"
+        fi
+
+        if [ "$current_hash" != "$previous_hash" ]; then
+            echo -e "${YELLOW}检测到论文脚本依赖可能已漂移，执行 pip install...${NC}"
+            cd "$PROJECT_ROOT"
+            local pip_args=()
+            if [ -n "${PIP_PROXY:-}" ]; then
+                pip_args+=(--proxy "$PIP_PROXY")
+            fi
+            if ! "$python_bin" -m pip "${pip_args[@]}" install -r scripts/paper/requirements.txt -c frontend/backend/constraints.txt; then
+                echo -e "${RED}论文脚本依赖安装失败${NC}"
+                return 1
+            fi
+            printf "%s\n" "$current_hash" > "$stamp_file"
+        fi
+    fi
+
+    if ! "$python_bin" - <<'PY'
+import importlib.util
+import sys
+
+modules = ["matplotlib", "networkx", "numpy", "pandocfilters", "PIL", "psycopg2", "seaborn"]
+missing = [module for module in modules if importlib.util.find_spec(module) is None]
+if missing:
+    print(", ".join(missing), file=sys.stderr)
+    raise SystemExit(1)
+PY
+    then
+        echo -e "${RED}论文脚本 Python 依赖不可用${NC}"
+        echo -e "${YELLOW}建议：${python_bin} -m pip install -r scripts/paper/requirements.txt -c frontend/backend/constraints.txt${NC}"
+        return 1
+    fi
+
     return 0
 }
 
@@ -600,6 +681,102 @@ ensure_backend_pip_audit() {
     fi
 
     return 0
+}
+
+export_pip_proxy_env() {
+    if [ -z "${PIP_PROXY:-}" ]; then
+        return 0
+    fi
+
+    export HTTP_PROXY="${HTTP_PROXY:-$PIP_PROXY}"
+    export HTTPS_PROXY="${HTTPS_PROXY:-$PIP_PROXY}"
+    export http_proxy="${http_proxy:-$PIP_PROXY}"
+    export https_proxy="${https_proxy:-$PIP_PROXY}"
+}
+
+run_pip_audit_with_retry() {
+    local python_bin="$1"
+    shift
+
+    local max_attempts="${PIP_AUDIT_ATTEMPTS:-3}"
+    local retry_delay_seconds="${PIP_AUDIT_RETRY_DELAY_SECONDS:-2}"
+    local audit_timeout_seconds="${PIP_AUDIT_TIMEOUT:-8}"
+    if ! [[ "$max_attempts" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${RED}PIP_AUDIT_ATTEMPTS 必须是正整数${NC}"
+        return 1
+    fi
+    if ! [[ "$retry_delay_seconds" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}PIP_AUDIT_RETRY_DELAY_SECONDS 必须是非负整数${NC}"
+        return 1
+    fi
+    if ! [[ "$audit_timeout_seconds" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${RED}PIP_AUDIT_TIMEOUT 必须是正整数${NC}"
+        return 1
+    fi
+
+    local attempt=1
+    local status=0
+    while true; do
+        if "$python_bin" -m pip_audit --timeout "$audit_timeout_seconds" "$@"; then
+            return 0
+        fi
+        status=$?
+        if [ "$attempt" -ge "$max_attempts" ]; then
+            return "$status"
+        fi
+        echo -e "${YELLOW}pip-audit 失败（尝试 ${attempt}/${max_attempts}），准备重试...${NC}" >&2
+        attempt=$((attempt + 1))
+        sleep "$retry_delay_seconds"
+    done
+}
+
+npm_audit_output_has_endpoint_error() {
+    local output="${1:-}"
+    [[ "$output" == *"audit endpoint returned an error"* ]] \
+        || [[ "$output" == *"npm warn audit request"* ]] \
+        || [[ "$output" == *"Client network socket disconnected before secure TLS connection was established"* ]]
+}
+
+run_npm_audit_with_retry() {
+    local max_attempts="${NPM_AUDIT_ATTEMPTS:-3}"
+    local retry_delay_seconds="${NPM_AUDIT_RETRY_DELAY_SECONDS:-2}"
+    if ! [[ "$max_attempts" =~ ^[1-9][0-9]*$ ]]; then
+        echo -e "${RED}NPM_AUDIT_ATTEMPTS 必须是正整数${NC}"
+        return 1
+    fi
+    if ! [[ "$retry_delay_seconds" =~ ^[0-9]+$ ]]; then
+        echo -e "${RED}NPM_AUDIT_RETRY_DELAY_SECONDS 必须是非负整数${NC}"
+        return 1
+    fi
+
+    local attempt=1
+    local status=0
+    local output=""
+    local output_file="${NPM_AUDIT_OUTPUT_FILE:-}"
+    while true; do
+        if output="$("$@" 2>&1)"; then
+            status=0
+        else
+            status=$?
+        fi
+        if [ -n "$output_file" ]; then
+            printf '%s\n' "$output" > "$output_file"
+        elif [ -n "$output" ]; then
+            printf '%s\n' "$output"
+        fi
+        if [ "$status" -eq 0 ] && ! npm_audit_output_has_endpoint_error "$output"; then
+            return 0
+        fi
+        if [ "$status" -eq 0 ]; then
+            status=1
+        fi
+        if [ "$attempt" -ge "$max_attempts" ]; then
+            return "$status"
+        fi
+        echo -e "${YELLOW}npm audit 失败（尝试 ${attempt}/${max_attempts}），准备重试...${NC}" >&2
+        attempt=$((attempt + 1))
+        sleep "$retry_delay_seconds"
+    done
 }
 
 # 运行后端 Lint（ruff）
@@ -664,18 +841,23 @@ check_services() {
 }
 
 run_backend_security_audit() {
-    echo -e "${YELLOW}运行后端依赖安全审计 (pip-audit --strict)...${NC}"
+    echo -e "${YELLOW}运行后端/论文 Python 依赖安全审计 (pip-audit --strict)...${NC}"
     local python_bin
     python_bin="$(resolve_backend_python)"
     ensure_backend_pip_audit "$python_bin" || return 1
 
     cd "$BACKEND_DIR"
+    export_pip_proxy_env
 
-    if "$python_bin" -m pip_audit -r requirements.txt --strict --progress-spinner off; then
-        echo -e "${GREEN}后端依赖安全审计通过!${NC}"
+    local failed=0
+    run_pip_audit_with_retry "$python_bin" -s osv -r constraints.txt --no-deps --disable-pip --strict --progress-spinner off || failed=1
+    run_pip_audit_with_retry "$python_bin" -s osv -r ../../scripts/paper/requirements.txt --no-deps --disable-pip --strict --progress-spinner off || failed=1
+
+    if [ "$failed" -eq 0 ]; then
+        echo -e "${GREEN}后端/论文 Python 依赖安全审计通过!${NC}"
         return 0
     else
-        echo -e "${RED}后端依赖安全审计失败（发现漏洞）${NC}"
+        echo -e "${RED}后端/论文 Python 依赖安全审计失败（发现漏洞或审计服务/网络错误）${NC}"
         return 1
     fi
 }
@@ -825,21 +1007,41 @@ run_scripts_unit_tests() {
         "scripts/tests/test_compare_performance_metrics_gate.sh"
         "scripts/tests/test_aggregate_performance_metrics_median.sh"
         "scripts/tests/test_perf_report_scenario_drift.sh"
+        "scripts/tests/test_backend_dockerfile_pip_install_honors_proxy.sh"
         "scripts/tests/test_backend_constraints_resolution.sh"
+        "scripts/tests/test_backend_constraints_resolution_proxy_and_retry.sh"
+        "scripts/tests/test_constraints_cover_resolved_backend_and_paper_deps.sh"
         "scripts/tests/test_run_tests_backend_deps.sh"
         "scripts/tests/test_run_tests_backend_checks_propagates_failures.sh"
         "scripts/tests/test_run_tests_backend_bootstrap_venv.sh"
         "scripts/tests/test_run_tests_ci_summary.sh"
         "scripts/tests/test_run_tests_ci_github_annotations.sh"
         "scripts/tests/test_run_tests_ci_summary_success.sh"
+        "scripts/tests/test_paper_requirements_are_pinned.sh"
+        "scripts/tests/test_security_audit_includes_paper_requirements.sh"
+        "scripts/tests/test_run_tests_security_audit_declares_pip_audit_dependency.sh"
+        "scripts/tests/test_run_tests_security_audit_proxy_env.sh"
+        "scripts/tests/test_run_tests_security_audit_retries_pip_audit.sh"
+        "scripts/tests/test_run_tests_security_audit_retries_npm_audit.sh"
+        "scripts/tests/test_run_tests_scripts_python_tests.sh"
+        "scripts/tests/test_run_tests_scripts_smoke_mode.sh"
         "scripts/tests/test_render_run_tests_summary_overview.sh"
+        "scripts/tests/test_run_tests_usage_synopsis_includes_described_modes.sh"
         "scripts/tests/test_checkout_tarball_script.sh"
         "scripts/tests/test_check_docs_status_markers.sh"
         "scripts/tests/test_check_docs_status_markers_marker_position.sh"
         "scripts/tests/test_check_governance_entrypoints.sh"
+        "scripts/tests/test_check_materialized_views_operability.sh"
         "scripts/tests/test_governance_sync_workflow_runs_on.sh"
+        "scripts/tests/test_workflow_uses_scripts_tests_entrypoint.sh"
+        "scripts/tests/test_workflow_uses_scripts_smoke_entrypoint.sh"
+        "scripts/tests/test_workflows_pip_installs_honor_proxy.sh"
+        "scripts/tests/test_weekly_regression_ci_plus_installs_paper_deps.sh"
         "scripts/tests/test_gh_push_commit_range_dry_run.sh"
+        "scripts/tests/test_gitleaks_workflow_uses_cli.sh"
         "scripts/tests/test_sync_backlog_issues.sh"
+        "scripts/tests/test_run_tests_includes_all_script_shell_tests.sh"
+        "scripts/tests/test_run_tests_scripts_tests_missing_shell_test_fails.sh"
         "scripts/tests/test_run_tests_usage_includes_frontend_baselines.sh"
         "scripts/tests/test_run_tests_usage_includes_research_baselines.sh"
         "scripts/tests/test_verify_research_baselines_help.sh"
@@ -853,8 +1055,8 @@ run_scripts_unit_tests() {
     done
 
     if [ "$missing" = "true" ]; then
-        echo -e "${YELLOW}部分 scripts/tests 缺失，跳过脚本单元测试${NC}"
-        return 0
+        echo -e "${RED}部分 scripts/tests 缺失，脚本单元测试失败${NC}"
+        return 1
     fi
 
     for t in "${tests[@]}"; do
@@ -866,6 +1068,22 @@ run_scripts_unit_tests() {
             return 1
         fi
     done
+
+    local python_tests=()
+    while IFS= read -r -d '' test_path; do
+        python_tests+=("$test_path")
+    done < <(find scripts/tests -maxdepth 1 -type f -name "test_*.py" -print0 | sort -z)
+
+    if [ "${#python_tests[@]}" -gt 0 ]; then
+        local python_bin
+        python_bin="$(resolve_backend_python)"
+        ensure_paper_python_deps "$python_bin" || return 1
+        cd "$PROJECT_ROOT"
+        if ! "$python_bin" -m pytest -q "${python_tests[@]}"; then
+            echo -e "${RED}脚本 Python 单元测试失败${NC}"
+            return 1
+        fi
+    fi
 
     echo -e "${GREEN}脚本单元测试通过!${NC}"
     return 0
@@ -1002,11 +1220,11 @@ run_frontend_security_audit() {
     ensure_frontend_deps || return 1
     cd "$FRONTEND_DIR"
 
-    if npm audit --registry=https://registry.npmjs.org --audit-level=high; then
+    if run_npm_audit_with_retry npm audit --registry=https://registry.npmjs.org --audit-level=high; then
         echo -e "${GREEN}前端依赖安全审计通过!${NC}"
         return 0
     else
-        echo -e "${RED}前端依赖安全审计失败（发现 high/critical 漏洞）${NC}"
+        echo -e "${RED}前端依赖安全审计失败（发现 high/critical 漏洞或审计服务/网络错误）${NC}"
         return 1
     fi
 }
@@ -1154,7 +1372,7 @@ run_ci_core_checks() {
     echo ""
     run_stage_with_summary "Scripts smoke" "offline/download + research syntax smoke" run_scripts_smoke_tests || failed=1
     echo ""
-    run_stage_with_summary "Scripts unit" "scripts/tests shell regressions" run_scripts_unit_tests || failed=1
+    run_stage_with_summary "Scripts unit" "scripts/tests shell + Python regressions" run_scripts_unit_tests || failed=1
     echo ""
     run_stage_with_summary "Docs checks" "docs drift / heading / status / governance" run_docs_checks || failed=1
     echo ""
@@ -1179,7 +1397,7 @@ run_ci_core_checks() {
 
     if [ "$include_security_audit" = "true" ]; then
         echo ""
-        run_stage_with_summary "Backend security audit" "pip-audit --strict" run_backend_security_audit || failed=1
+        run_stage_with_summary "Backend security audit" "pip-audit --strict backend + paper requirements" run_backend_security_audit || failed=1
         echo ""
         run_stage_with_summary "Frontend security audit" "npm audit --audit-level=high" run_frontend_security_audit || failed=1
     fi
@@ -1423,11 +1641,14 @@ main() {
         research-baselines)
             run_research_baselines_checks || failed=1
             ;;
+        scripts-smoke)
+            run_scripts_smoke_tests || failed=1
+            ;;
         scripts-tests)
             run_scripts_unit_tests || failed=1
             ;;
         *)
-            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|frontend-baselines|research-baselines|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|ci-postgres|backend|e2e|status|all]"
+            echo "用法: $0 [smoke|security-audit|unit|etl-checks|docs-check|frontend-baselines|research-baselines|scripts-smoke|scripts-tests|backend-unit|backend-checks|backend-lint|frontend-lint|frontend-build|e2e-smoke|e2e-smoke-firefox|e2e-a11y-smoke|e2e-visual-smoke|performance-audit|ci|ci-postgres|ci-plus|ci-full|backend|e2e|status|all]"
             echo ""
             echo "  smoke        - 运行所有单元测试（默认，无外部依赖）"
             echo "  security-audit - 运行依赖安全审计（pip-audit + npm audit）"
@@ -1436,7 +1657,8 @@ main() {
             echo "  docs-check   - 检查文档命令漂移、状态标注与治理入口"
             echo "  frontend-baselines - 校验前端 bundle baselines（本地可选；会执行 npm run build）"
             echo "  research-baselines - 校验 research baselines（本地可选；会创建临时 sample DB）"
-            echo "  scripts-tests - 运行 scripts/tests 下的脚本级单元测试（对齐 CI）"
+            echo "  scripts-smoke - 运行脚本冒烟测试（离线下载脚本 + research 语法检查）"
+            echo "  scripts-tests - 运行 scripts/tests 下的 shell/Python 单元测试（对齐 CI）"
             echo "  backend-unit - 运行后端单元测试 (pytest -m unit)"
             echo "  backend-checks - 运行后端导入与语法检查（对齐 CI）"
             echo "  backend-lint - 运行后端 Lint (ruff check)"

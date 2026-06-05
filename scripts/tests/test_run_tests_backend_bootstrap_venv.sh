@@ -65,7 +65,7 @@ set -euo pipefail
 
 called_file="${FAKE_PIP_CALLED_FILE:?}"
 
-if [[ "${1:-}" == "-m" && "${2:-}" == "pip" && "${3:-}" == "install" ]]; then
+if [[ "${1:-}" == "-m" && "${2:-}" == "pip" && "$*" == *" install "* ]]; then
   touch "$called_file"
   exit 0
 fi

@@ -39,16 +39,19 @@ starlette==0.0.0
 EOF
 
 pip_called="$tmp_root/pip-install-called"
+pip_args_log="$tmp_root/pip-install-args.log"
 cat > "$tmp_root/frontend/backend/.venv/bin/python" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 called_file="${FAKE_PIP_CALLED_FILE:?}"
+args_log="${FAKE_PIP_ARGS_LOG:?}"
 
-if [[ "${1:-}" == "-m" && "${2:-}" == "pip" && "${3:-}" == "install" ]]; then
+if [[ "${1:-}" == "-m" && "${2:-}" == "pip" && "$*" == *" install "* ]]; then
   echo "[fake-python] pip install" >&2
+  printf '%s\n' "$*" > "$args_log"
   touch "$called_file"
-  exit 0
+  exit "${FAKE_PIP_EXIT_CODE:-0}"
 fi
 
 if [[ "${1:-}" == "-c" ]]; then
@@ -72,13 +75,39 @@ chmod +x "$tmp_root/frontend/backend/.venv/bin/python"
 echo "deadbeef" > "$tmp_root/frontend/backend/.venv/.hla_requirements.sha256"
 
 export FAKE_PIP_CALLED_FILE="$pip_called"
+export FAKE_PIP_ARGS_LOG="$pip_args_log"
 
-(cd "$tmp_root" && bash scripts/run-tests.sh backend-unit)
+(cd "$tmp_root" && PIP_PROXY="http://localhost:7890" bash scripts/run-tests.sh backend-unit)
 
 if [ ! -f "$pip_called" ]; then
   echo "expected backend deps drift to trigger python -m pip install (venv requirements out of date)" >&2
   exit 1
 fi
 
+grep -F -- "--proxy http://localhost:7890" "$pip_args_log" >/dev/null || {
+  echo "expected backend deps pip install to include --proxy from PIP_PROXY" >&2
+  cat "$pip_args_log" >&2
+  exit 1
+}
+
 echo "OK: ensure_backend_deps triggered pip install on requirements/constraints drift"
 
+echo "deadbeef" > "$tmp_root/frontend/backend/.venv/.hla_requirements.sha256"
+rm -f "$pip_called" "$pip_args_log"
+
+set +e
+(cd "$tmp_root" && PIP_PROXY="http://localhost:7890" FAKE_PIP_EXIT_CODE=42 bash scripts/run-tests.sh backend-unit >/dev/null 2>&1)
+status=$?
+set -e
+
+if [ "$status" -eq 0 ]; then
+  echo "expected backend deps pip install failure to fail backend-unit" >&2
+  exit 1
+fi
+
+if [ "$(cat "$tmp_root/frontend/backend/.venv/.hla_requirements.sha256")" != "deadbeef" ]; then
+  echo "expected failed backend deps install to leave dependency stamp unchanged" >&2
+  exit 1
+fi
+
+echo "OK: ensure_backend_deps propagates pip install failures"

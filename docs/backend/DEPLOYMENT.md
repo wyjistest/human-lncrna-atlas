@@ -207,9 +207,14 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# 复制依赖文件
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 复制依赖文件；constraints.txt 锁定解析版本，避免 fresh build 漂移
+COPY requirements.txt constraints.txt ./
+ARG PIP_PROXY=""
+RUN if [ -n "$PIP_PROXY" ]; then \
+      pip install --proxy "$PIP_PROXY" -r requirements.txt -c constraints.txt; \
+    else \
+      pip install -r requirements.txt -c constraints.txt; \
+    fi
 
 # 复制应用代码
 COPY . .

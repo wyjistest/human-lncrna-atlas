@@ -1,0 +1,13 @@
+# 论文图表/稿件生成依赖。
+#
+# 这些依赖有意与 FastAPI 后端运行时依赖分离；仅在重新生成论文资产、
+# 导出稿件或运行 scripts/paper 相关 Python 测试时安装。直接依赖使用精确
+# 版本 pin，避免 CI 或稿件导出在 fresh 环境中受 PyPI 新版本影响而漂移。
+
+matplotlib==3.10.9
+networkx==3.6.1
+numpy==2.4.3
+pandocfilters==1.5.1
+Pillow==12.2.0
+psycopg2-binary==2.9.11
+seaborn==0.13.2

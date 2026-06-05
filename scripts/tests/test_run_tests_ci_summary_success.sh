@@ -22,6 +22,20 @@ mkdir -p \
 cp "$REPO_ROOT/scripts/run-tests.sh" "$tmp_root/scripts/run-tests.sh"
 chmod +x "$tmp_root/scripts/run-tests.sh"
 
+python3 - "$tmp_root/scripts/run-tests.sh" "$tmp_root" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+script = Path(sys.argv[1])
+root = Path(sys.argv[2])
+for rel in sorted(set(re.findall(r'"(scripts/tests/test_[^"]+\.sh)"', script.read_text(encoding="utf-8")))):
+    path = root / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("#!/usr/bin/env bash\nset -euo pipefail\nexit 0\n", encoding="utf-8")
+    path.chmod(0o755)
+PY
+
 cat > "$tmp_root/frontend/backend/main.py" <<'EOF'
 print("backend ok")
 EOF
@@ -98,7 +112,7 @@ if [[ "${1:-}" == "-m" && "${2:-}" == "py_compile" ]]; then
   exit 0
 fi
 
-if [[ "${1:-}" == "-m" && "${2:-}" == "pip" && "${3:-}" == "install" ]]; then
+if [[ "${1:-}" == "-m" && "${2:-}" == "pip" && "$*" == *" install "* ]]; then
   echo "pip install ok"
   exit 0
 fi
@@ -214,6 +228,7 @@ assert data["passed_stages"] == len(data["stages"]), data
 stages = {stage["stage_id"]: stage for stage in data["stages"]}
 assert stages["backend-lint"]["status"] == "PASS", stages
 assert stages["backend-lint"]["log_relpath"] == "run-tests-stage-logs/backend-lint.log", stages
+assert stages["scripts-unit"]["hint"] == "scripts/tests shell + Python regressions", stages
 assert stages["frontend-build"]["status"] == "PASS", stages
 assert stages["frontend-build"]["log_relpath"] == "run-tests-stage-logs/frontend-build.log", stages
 PY

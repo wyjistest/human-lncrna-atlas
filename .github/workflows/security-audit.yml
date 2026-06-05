@@ -19,6 +19,7 @@ on:
       - ".github/workflows/security-audit.yml"
       - "frontend/backend/requirements*.txt"
       - "frontend/backend/constraints.txt"
+      - "scripts/paper/requirements.txt"
       - "frontend/web/package.json"
       - "frontend/web/package-lock.json"
   workflow_dispatch:  # 允许手动触发
@@ -112,32 +113,93 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: frontend/backend/requirements*.txt
+          cache-dependency-path: |
+            frontend/backend/requirements*.txt
+            frontend/backend/constraints.txt
+            scripts/paper/requirements.txt
 
       - name: Install pip-audit
-        run: pip install pip-audit
+        run: |
+          pip_args=()
+          if [ -n "${PIP_PROXY:-}" ]; then
+            pip_args+=(--proxy "$PIP_PROXY")
+          fi
+          pip "${pip_args[@]}" install pip-audit -c constraints.txt
 
       - name: Run pip-audit
         run: |
           echo "::group::pip-audit results"
-          pip-audit -r requirements.txt --progress-spinner off \
+          backend_report="$(mktemp)"
+          paper_report="$(mktemp)"
+          if [ -n "${PIP_PROXY:-}" ]; then
+            export HTTP_PROXY="${HTTP_PROXY:-${PIP_PROXY:-}}"
+            export HTTPS_PROXY="${HTTPS_PROXY:-${PIP_PROXY:-}}"
+            export http_proxy="${http_proxy:-${PIP_PROXY:-}}"
+            export https_proxy="${https_proxy:-${PIP_PROXY:-}}"
+          fi
+          run_pip_audit_with_retry() {
+            local attempt=1
+            local max_attempts="${PIP_AUDIT_ATTEMPTS:-3}"
+            local retry_delay_seconds="${PIP_AUDIT_RETRY_DELAY_SECONDS:-2}"
+            local audit_timeout_seconds="${PIP_AUDIT_TIMEOUT:-8}"
+            if ! [[ "$max_attempts" =~ ^[1-9][0-9]*$ ]]; then
+              echo "PIP_AUDIT_ATTEMPTS must be a positive integer" >&2
+              return 2
+            fi
+            if ! [[ "$retry_delay_seconds" =~ ^[0-9]+$ ]]; then
+              echo "PIP_AUDIT_RETRY_DELAY_SECONDS must be a non-negative integer" >&2
+              return 2
+            fi
+            if ! [[ "$audit_timeout_seconds" =~ ^[1-9][0-9]*$ ]]; then
+              echo "PIP_AUDIT_TIMEOUT must be a positive integer" >&2
+              return 2
+            fi
+            while true; do
+              if "$@" --timeout "$audit_timeout_seconds"; then
+                return 0
+              fi
+              local status=$?
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                return "$status"
+              fi
+              echo "pip-audit failed (attempt ${attempt}/${max_attempts}); retrying..." >&2
+              attempt=$((attempt + 1))
+              sleep "$retry_delay_seconds"
+            done
+          }
+
+          run_pip_audit_with_retry pip-audit -s osv -r constraints.txt --no-deps --disable-pip --progress-spinner off \
             --desc on \
             --format markdown \
-            --output pip-audit-report.md || true
+            --output "$backend_report" || true
+          run_pip_audit_with_retry pip-audit -s osv -r ../../scripts/paper/requirements.txt --no-deps --disable-pip --progress-spinner off \
+            --desc on \
+            --format markdown \
+            --output "$paper_report" || true
           echo "::endgroup::"
 
-          # pip-audit 在“无漏洞/无输出”等场景可能不会生成文件；为 artifact 上传创建占位文件，避免 CI 注释噪音。
-          if [ ! -f pip-audit-report.md ]; then
-            echo "_pip-audit did not generate a report file._" > pip-audit-report.md
-          fi
+          {
+            echo "## Backend locked Python constraints"
+            if [ -s "$backend_report" ]; then
+              cat "$backend_report"
+            else
+              echo "_pip-audit did not generate a backend report._"
+            fi
+            echo
+            echo "## Paper script Python requirements"
+            if [ -s "$paper_report" ]; then
+              cat "$paper_report"
+            else
+              echo "_pip-audit did not generate a paper script report._"
+            fi
+          } > pip-audit-report.md
 
           # 输出报告内容
-          if [ -f pip-audit-report.md ]; then
-            cat pip-audit-report.md
-          fi
+          cat pip-audit-report.md
 
           # 严格模式: 发现漏洞时失败
-          pip-audit -r requirements.txt --strict --progress-spinner off
+          run_pip_audit_with_retry pip-audit -s osv -r constraints.txt --no-deps --disable-pip --strict --progress-spinner off
+          run_pip_audit_with_retry pip-audit -s osv -r ../../scripts/paper/requirements.txt --no-deps --disable-pip --strict --progress-spinner off
 
       - name: Upload audit report
         uses: actions/upload-artifact@v7
@@ -226,16 +288,63 @@ jobs:
       - name: Run npm audit
         run: |
           echo "::group::npm audit results"
+          npm_audit_output_has_endpoint_error() {
+            local output="${1:-}"
+            [[ "$output" == *"audit endpoint returned an error"* ]] \
+              || [[ "$output" == *"npm warn audit request"* ]] \
+              || [[ "$output" == *"Client network socket disconnected before secure TLS connection was established"* ]]
+          }
+
+          run_npm_audit_with_retry() {
+            local attempt=1
+            local max_attempts="${NPM_AUDIT_ATTEMPTS:-3}"
+            local retry_delay_seconds="${NPM_AUDIT_RETRY_DELAY_SECONDS:-2}"
+            if ! [[ "$max_attempts" =~ ^[1-9][0-9]*$ ]]; then
+              echo "NPM_AUDIT_ATTEMPTS must be a positive integer" >&2
+              return 2
+            fi
+            if ! [[ "$retry_delay_seconds" =~ ^[0-9]+$ ]]; then
+              echo "NPM_AUDIT_RETRY_DELAY_SECONDS must be a non-negative integer" >&2
+              return 2
+            fi
+            local output=""
+            local output_file="${NPM_AUDIT_OUTPUT_FILE:-}"
+            while true; do
+              if output="$("$@" 2>&1)"; then
+                local status=0
+              else
+                local status=$?
+              fi
+              if [ -n "$output_file" ]; then
+                printf '%s\n' "$output" > "$output_file"
+              elif [ -n "$output" ]; then
+                printf '%s\n' "$output"
+              fi
+              if [ "$status" -eq 0 ] && ! npm_audit_output_has_endpoint_error "$output"; then
+                return 0
+              fi
+              if [ "$status" -eq 0 ]; then
+                status=1
+              fi
+              if [ "$attempt" -ge "$max_attempts" ]; then
+                return "$status"
+              fi
+              echo "npm audit failed (attempt ${attempt}/${max_attempts}); retrying..." >&2
+              attempt=$((attempt + 1))
+              sleep "$retry_delay_seconds"
+            done
+          }
+
           # 某些环境默认 registry（例如 npmmirror）不支持 npm audit API；显式指定 npmjs registry 提升 CI 稳定性。
           # 生成 JSON 报告
-          npm audit --registry=https://registry.npmjs.org --json > npm-audit-report.json 2>&1 || true
+          NPM_AUDIT_OUTPUT_FILE=npm-audit-report.json run_npm_audit_with_retry npm audit --registry=https://registry.npmjs.org --json || true
 
           # 人类可读格式输出
-          npm audit --registry=https://registry.npmjs.org --audit-level=moderate || true
+          run_npm_audit_with_retry npm audit --registry=https://registry.npmjs.org --audit-level=moderate || true
           echo "::endgroup::"
 
           # 严格模式: high/critical 漏洞时失败
-          npm audit --registry=https://registry.npmjs.org --audit-level=high
+          run_npm_audit_with_retry npm audit --registry=https://registry.npmjs.org --audit-level=high
 
       - name: Upload audit report
         uses: actions/upload-artifact@v7

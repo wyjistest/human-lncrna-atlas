@@ -12,7 +12,12 @@ WORKDIR /app
 RUN useradd --create-home --home-dir /home/app --shell /usr/sbin/nologin --uid 10001 app
 
 COPY requirements.txt constraints.txt ./
-RUN pip install -r requirements.txt -c constraints.txt
+ARG PIP_PROXY=""
+RUN if [ -n "$PIP_PROXY" ]; then \
+      pip install --proxy "$PIP_PROXY" -r requirements.txt -c constraints.txt; \
+    else \
+      pip install -r requirements.txt -c constraints.txt; \
+    fi
 
 COPY . .
 RUN chown -R app:app /app

@@ -787,12 +787,41 @@ jobs:
           cache-dependency-path: |
             frontend/backend/requirements*.txt
             frontend/backend/constraints.txt
+            scripts/paper/requirements.txt
+
+      - name: Set up Node.js for scripts tests
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install paper script system dependencies
+        run: |
+          if ! command -v pandoc >/dev/null 2>&1; then
+            if ! command -v apt-get >/dev/null 2>&1; then
+              echo "::error::pandoc is required for scripts/tests Python tests, but apt-get is unavailable."
+              exit 1
+            fi
+            apt_get=(apt-get)
+            if command -v sudo >/dev/null 2>&1; then
+              apt_get=(sudo apt-get)
+            elif [ "$(id -u)" != "0" ]; then
+              echo "::error::pandoc is required for scripts/tests Python tests, but neither sudo nor root apt-get is available."
+              exit 1
+            fi
+            "${apt_get[@]}" update
+            "${apt_get[@]}" install -y pandoc
+          fi
 
       - name: Install dependencies
         working-directory: frontend/backend
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt -c constraints.txt
+          pip_args=()
+          if [ -n "${PIP_PROXY:-}" ]; then
+            pip_args+=(--proxy "$PIP_PROXY")
+          fi
+          python -m pip "${pip_args[@]}" install --upgrade pip
+          pip "${pip_args[@]}" install -r requirements-dev.txt -c constraints.txt
+          pip "${pip_args[@]}" install -r ../../scripts/paper/requirements.txt -c constraints.txt
 
       - name: Run Ruff (backend)
         working-directory: frontend/backend
@@ -830,24 +859,15 @@ jobs:
         run: |
           python -m etl.input_manifest verify etl/sample_inputs/etl-inputs.manifest.tsv
 
-      - name: Run scripts smoke tests (offline genome assets)
+      - name: Run scripts smoke tests (run-tests.sh)
         run: |
-          bash scripts/genomes/tests/test_download_igv_assets.sh
+          bash scripts/run-tests.sh scripts-smoke
 
       - name: Run scripts unit tests (run-tests.sh)
+        env:
+          BACKEND_PYTHON: python
         run: |
-          bash scripts/tests/test_run_tests_frontend_deps.sh
-          bash scripts/tests/test_backend_constraints_resolution.sh
-          bash scripts/tests/test_run_tests_backend_deps.sh
-          bash scripts/tests/test_run_tests_backend_checks_propagates_failures.sh
-          bash scripts/tests/test_run_tests_backend_bootstrap_venv.sh
-          bash scripts/tests/test_checkout_tarball_script.sh
-          bash scripts/tests/test_check_docs_status_markers.sh
-          bash scripts/tests/test_check_docs_status_markers_marker_position.sh
-          bash scripts/tests/test_check_governance_entrypoints.sh
-          bash scripts/tests/test_governance_sync_workflow_runs_on.sh
-          bash scripts/tests/test_gh_push_commit_range_dry_run.sh
-          bash scripts/tests/test_sync_backlog_issues.sh
+          bash scripts/run-tests.sh scripts-tests
 
   lint:
     name: Lint
@@ -1001,8 +1021,12 @@ jobs:
       - name: Install dependencies
         working-directory: frontend/backend
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt -c constraints.txt
+          pip_args=()
+          if [ -n "${PIP_PROXY:-}" ]; then
+            pip_args+=(--proxy "$PIP_PROXY")
+          fi
+          python -m pip "${pip_args[@]}" install --upgrade pip
+          pip "${pip_args[@]}" install -r requirements-dev.txt -c constraints.txt
 
       - name: Run unit tests (marked with @pytest.mark.unit)
         working-directory: frontend/backend
@@ -1102,8 +1126,12 @@ jobs:
 
       - name: Install ETL dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install psycopg2-binary==2.9.9
+          pip_args=()
+          if [ -n "${PIP_PROXY:-}" ]; then
+            pip_args+=(--proxy "$PIP_PROXY")
+          fi
+          python -m pip "${pip_args[@]}" install --upgrade pip
+          pip "${pip_args[@]}" install psycopg2-binary -c frontend/backend/constraints.txt
 
       - name: Wait for Postgres
         env:
@@ -1361,8 +1389,12 @@ jobs:
       - name: Install backend dependencies
         working-directory: frontend/backend
         run: |
-          python3 -m pip install --upgrade pip
-          pip install -r requirements.txt -c constraints.txt
+          pip_args=()
+          if [ -n "${PIP_PROXY:-}" ]; then
+            pip_args+=(--proxy "$PIP_PROXY")
+          fi
+          python3 -m pip "${pip_args[@]}" install --upgrade pip
+          pip "${pip_args[@]}" install -r requirements.txt -c constraints.txt
 
       - name: Init schema + sample data (v2.3)
         env:

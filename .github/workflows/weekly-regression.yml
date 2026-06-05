@@ -97,11 +97,34 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
+      - name: Install paper script system dependencies
+        run: |
+          if ! command -v pandoc >/dev/null 2>&1; then
+            if ! command -v apt-get >/dev/null 2>&1; then
+              echo "::error::pandoc is required for scripts/tests Python tests, but apt-get is unavailable."
+              exit 1
+            fi
+            apt_get=(apt-get)
+            if command -v sudo >/dev/null 2>&1; then
+              apt_get=(sudo apt-get)
+            elif [ "$(id -u)" != "0" ]; then
+              echo "::error::pandoc is required for scripts/tests Python tests, but neither sudo nor root apt-get is available."
+              exit 1
+            fi
+            "${apt_get[@]}" update
+            "${apt_get[@]}" install -y pandoc
+          fi
+
       - name: Install backend dependencies
         working-directory: frontend/backend
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt -c constraints.txt
+          pip_args=()
+          if [ -n "${PIP_PROXY:-}" ]; then
+            pip_args+=(--proxy "$PIP_PROXY")
+          fi
+          python -m pip "${pip_args[@]}" install --upgrade pip
+          pip "${pip_args[@]}" install -r requirements-dev.txt -c constraints.txt
+          pip "${pip_args[@]}" install -r ../../scripts/paper/requirements.txt -c constraints.txt
 
       - name: Install frontend dependencies
         working-directory: frontend/web
