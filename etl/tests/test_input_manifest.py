@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 
 def test_build_and_verify_manifest_roundtrip(tmp_path: Path) -> None:
     from etl.input_manifest import build_manifest_entries, verify_manifest_file, write_manifest_tsv
@@ -33,4 +31,3 @@ def test_verify_manifest_detects_sha_mismatch(tmp_path: Path) -> None:
     errors = verify_manifest_file(manifest)
     assert errors
     assert any("sha256" in e.lower() for e in errors)
-

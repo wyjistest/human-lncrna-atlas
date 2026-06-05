@@ -725,7 +725,7 @@ def _build_markdown(
         f"- warmup_rounds: `{scenario.get('warmup_rounds')}`",
         f"- warmup_max_retries: `{scenario.get('warmup_max_retries')}`",
         f"- warmup_retry_base_sleep_ms: `{scenario.get('warmup_retry_base_sleep_ms')}`",
-        f"- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
+        "- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
             f"- admin_metrics_reset: `enabled` (status: `{admin_metrics_reset.get('status_code')}`, ok: `{admin_metrics_reset.get('ok')}`)"
         ),
         "",

@@ -870,7 +870,7 @@ def _build_markdown(
         f"- warmup_retry_base_sleep_ms: `{scenario.get('warmup_retry_base_sleep_ms')}`",
         f"- genes: `{scenario_genes}`",
         f"- regulations: `{scenario_regs}`",
-        f"- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
+        "- admin_metrics_reset: `disabled`" if admin_metrics_reset is None else (
             f"- admin_metrics_reset: `enabled` (status: `{admin_metrics_reset.get('status_code')}`, ok: `{admin_metrics_reset.get('ok')}`)"
         ),
         f"- diagnostics.warmup_retry_attempts: `{warmup_retry_attempts}`",
