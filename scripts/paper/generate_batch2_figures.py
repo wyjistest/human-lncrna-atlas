@@ -18,7 +18,6 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
-import networkx as nx
 import numpy as np
 import psycopg2
 import psycopg2.extras
@@ -1590,17 +1589,6 @@ def render_fig5b(rows: Sequence[dict[str, Any]], svg_path: Path, png_path: Path)
         ax.axis("off")
         save_figure(fig, svg_path, png_path)
         return
-    metric_keys = [
-        "trait_count",
-        "target_count",
-        "high_affinity_edge_count",
-        "mean_ba",
-        "max_ba",
-        "best_edge_conservation_count",
-        "rewiring_score",
-        "epigenomic_score",
-        "flagship_score",
-    ]
     heatmap = []
     row_labels = []
     for row in rows:
@@ -1848,10 +1836,6 @@ def build_fig4d_track_rows(
     manifest_rows: Sequence[dict[str, Any]],
     overlap_rows: Sequence[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    manifest_keys = {
-        (safe_int(row.get("regulation_id")), str(row.get("cell_line") or ""), str(row.get("exemplar_kind") or ""))
-        for row in manifest_rows
-    }
     output: list[dict[str, Any]] = []
     for row in overlap_rows:
         for manifest in manifest_rows:

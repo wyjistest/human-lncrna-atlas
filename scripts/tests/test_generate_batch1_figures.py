@@ -772,7 +772,7 @@ class GenerateBatch1FiguresTests(unittest.TestCase):
         )
         self.assertEqual(rows[0]["subtitle"], "Trait-associated lncRNAs / PCGs")
         self.assertIn("ortholog tables", rows[1]["subtitle"])
-        self.assertEqual(rows[-1]["display_label"], "Candidate regulatory network")
+        self.assertEqual(rows[-1]["display_label"], "Candidate lncRNA–PCG edge network")
 
     def test_select_fig2d_hub_module_chooses_top_hub_and_limits_targets(self):
         module = load_module()

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 import subprocess
+import sys
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -16,6 +18,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "scripts/paper/export_manuscript_docx.py"
 WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 STYLE_IDS_TO_JUSTIFY = {"Normal", "BodyText", "FirstParagraph"}
+
+
+def load_module():
+    if not SCRIPT_PATH.exists():
+        raise AssertionError(f"missing module under test: {SCRIPT_PATH}")
+    spec = importlib.util.spec_from_file_location("export_manuscript_docx", SCRIPT_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def style_alignment_map(docx_path: Path) -> dict[str, str]:
@@ -48,6 +61,63 @@ def docx_body_text(docx_path: Path) -> str:
 
 
 class ExportManuscriptDocxTests(unittest.TestCase):
+    def test_native_figure_refresh_uses_current_python_interpreter(self):
+        module = load_module()
+        captured_commands: list[list[str]] = []
+
+        class Result:
+            returncode = 0
+            stdout = ""
+            stderr = ""
+
+        def capture_run_step(command: list[str], *, cwd: Path):
+            captured_commands.append(command)
+            return Result()
+
+        module.run_step = capture_run_step
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            module.render_native_main_figures(Path(temp_dir))
+
+        self.assertEqual(1, len(captured_commands))
+        self.assertEqual(sys.executable, captured_commands[0][0])
+
+    def test_figure_asset_map_reuses_existing_assets_without_regenerating_tracked_figures(self):
+        module = load_module()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            asset_paths = (
+                "paper_figures/composites/figure1_composite.png",
+                "paper_figures/native/figure2_native.png",
+                "paper_figures/native/figure3_native.png",
+                "paper_figures/native/figure4_native.png",
+                "paper_figures/native/figure5_native.png",
+                "paper_figures/composites/figure6_composite.png",
+            )
+            for asset_path_text in asset_paths:
+                asset_path = repo_root / asset_path_text
+                asset_path.parent.mkdir(parents=True, exist_ok=True)
+                Image.new("RGB", (8, 8), color=(255, 255, 255)).save(asset_path)
+
+            def fail_render(*_args, **_kwargs):
+                raise AssertionError("figure generators should not run when assets already exist")
+
+            module.render_native_main_figures = fail_render
+            module.render_figure6_composite = fail_render
+
+            self.assertEqual(
+                {
+                    "Figure 1": "paper_figures/composites/figure1_composite.png",
+                    "Figure 2": "paper_figures/native/figure2_native.png",
+                    "Figure 3": "paper_figures/native/figure3_native.png",
+                    "Figure 4": "paper_figures/native/figure4_native.png",
+                    "Figure 5": "paper_figures/native/figure5_native.png",
+                    "Figure 6": "paper_figures/composites/figure6_composite.png",
+                },
+                module.figure_asset_map(repo_root),
+            )
+
     def test_export_script_generates_justified_reference_doc_and_docx(self):
         self.assertTrue(SCRIPT_PATH.exists(), "DOCX export script missing")
 
@@ -60,7 +130,7 @@ class ExportManuscriptDocxTests(unittest.TestCase):
 
             result = subprocess.run(
                 [
-                    "python3",
+                    sys.executable,
                     str(SCRIPT_PATH),
                     "--rendered-markdown",
                     str(rendered_markdown_path),

@@ -70,6 +70,7 @@ research-first narrative skeleton and revised main-text drafts (Figure 1D,
 Figure 2A/B/C, Figure 3A/B/C):
 
 ```bash
+python3 -m pip install -r scripts/paper/requirements.txt -c frontend/backend/constraints.txt
 python3 scripts/paper/generate_batch1_figures.py
 ```
 
@@ -149,3 +150,4 @@ Default outputs:
 - `docs/paper/build/manuscript_rendered.docx`
 
 The DOCX exporter regenerates a Pandoc reference document on each run and forces the `Normal`, `BodyText`, and `FirstParagraph` paragraph styles to use `w:jc="both"`, so the main manuscript text opens in Word as two-sided justified paragraphs rather than left-aligned body text.
+It reuses existing main-figure assets by default; pass `--refresh-figures` when native Figures 2-5 and the Figure 6 composite should be regenerated before export.

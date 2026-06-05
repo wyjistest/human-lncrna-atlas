@@ -646,7 +646,6 @@ def build_node_vs_edge_summary(
     start = max(1, int(min_conservation_count))
     stop = max(start, int(max_conservation_count))
     for item_type, rows in (("node", list(node_rows)), ("edge", list(edge_rows))):
-        total = len(rows)
         filtered_total = sum(1 for row in rows if start <= int(row["conservation_count"]) <= stop)
         for conservation_count in range(start, stop + 1):
             raw_count = sum(1 for row in rows if int(row["conservation_count"]) == conservation_count)
@@ -2678,7 +2677,6 @@ def generate_fig2c(
     )
 
     top_labels = select_fig2c_label_rows(centrality_rows)
-    max_ba = max(float(row["mean_outgoing_ba"]) for row in centrality_rows) if centrality_rows else 1.0
     max_support = max(int(row["supporting_edge_count"]) for row in centrality_rows) if centrality_rows else 1
 
     fig, ax = plt.subplots(figsize=(10, 6))

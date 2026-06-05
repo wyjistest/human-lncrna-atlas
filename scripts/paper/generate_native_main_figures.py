@@ -803,7 +803,7 @@ def render_fig3e(ax: plt.Axes, rows: Sequence[dict[str, str]]) -> None:
     ax_main.set_xticks(range(4))
     ax_main.set_xticklabels(main_labels, rotation=18, ha="right", fontsize=7)
     ax_main.set_title("Main calibration", loc="left", fontsize=8.5, fontweight="bold")
-    ax_main.text(0.02, 0.92, f"8,799 vs 107/118", transform=ax_main.transAxes, fontsize=7, va="top")
+    ax_main.text(0.02, 0.92, "8,799 vs 107/118", transform=ax_main.transAxes, fontsize=7, va="top")
     ax_down.bar([0, 1], [down_null, down_median], color=["#A6BDD7", "#D62728"], edgecolor="#4A5568", linewidth=0.6)
     ax_down.set_yscale("log")
     ax_down.set_xticks([0, 1])
@@ -1050,7 +1050,6 @@ def draw_tripartite(ax: plt.Axes, nodes: Sequence[dict[str, str]], edges: Sequen
 
 
 def render_fig5b(ax: plt.Axes, rows: Sequence[dict[str, str]]) -> None:
-    metric_keys = ["trait_count", "target_count", "high_affinity_edge_count", "mean_ba", "max_ba", "best_edge_conservation_count", "rewiring_score", "epigenomic_score", "flagship_score"]
     heatmap = []
     row_labels = []
     for row in rows:

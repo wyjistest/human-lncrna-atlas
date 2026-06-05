@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 import random
 import re
 import statistics
@@ -19,7 +18,7 @@ import subprocess
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 import matplotlib
 
@@ -1451,7 +1450,6 @@ def write_package(
         raise FileNotFoundError("Missing paper_figures/fig5/fig5D_case_manifest.tsv")
     flagship_manifest = manifest_rows[0]
     case_nodes = read_tsv_rows(fig5_dir / "fig5D_case_nodes.tsv")
-    case_edges = read_tsv_rows(fig5_dir / "fig5D_case_edges.tsv")
     ranking_rows = read_tsv_rows(fig5_dir / "fig5B_ranking_matrix.tsv")
     trait_prioritization_rows = read_tsv_rows(tables_dir / "table4_trait_prioritization.tsv")
     trait_support_rows = read_tsv_rows(tables_dir / "supp_table1_trait_literature_support.tsv")

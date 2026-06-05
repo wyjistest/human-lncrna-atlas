@@ -69,6 +69,11 @@ def parse_args() -> argparse.Namespace:
         default="pandoc",
         help="Pandoc executable to invoke",
     )
+    parser.add_argument(
+        "--refresh-figures",
+        action="store_true",
+        help="Regenerate native Figures 2-5 and the Figure 6 composite before exporting the DOCX",
+    )
     return parser.parse_args()
 
 
@@ -253,7 +258,7 @@ def render_figure6_composite(repo_root: Path) -> Path:
 
 def render_native_main_figures(repo_root: Path) -> None:
     script_path = repo_root / "scripts/paper/generate_native_main_figures.py"
-    result = run_step(["python3", str(script_path)], cwd=repo_root)
+    result = run_step([sys.executable, str(script_path)], cwd=repo_root)
     if result.returncode != 0:
         raise RuntimeError(result.stderr or result.stdout or "native main figure generation failed")
 
@@ -262,9 +267,23 @@ def figure_markdown(figure_label: str, asset_text: str) -> str:
     return f"![{figure_label}]({asset_text}){{width=6.5in}}"
 
 
-def figure_asset_map(repo_root: Path) -> dict[str, str]:
-    render_native_main_figures(repo_root)
-    render_figure6_composite(repo_root)
+def _asset_exists(repo_root: Path, asset_text: str) -> bool:
+    return (repo_root / asset_text).exists()
+
+
+def figure_asset_map(repo_root: Path, *, refresh_figures: bool = False) -> dict[str, str]:
+    native_assets = [
+        asset_text
+        for _, paths in MAIN_FIGURE_ASSETS
+        for asset_text in paths
+        if "/native/" in asset_text
+    ]
+    if refresh_figures or any(not _asset_exists(repo_root, asset_text) for asset_text in native_assets):
+        render_native_main_figures(repo_root)
+
+    if refresh_figures or not _asset_exists(repo_root, FIGURE6_COMPOSITE_PATH):
+        render_figure6_composite(repo_root)
+
     assets: dict[str, str] = {}
     missing_assets: list[str] = []
 
@@ -283,8 +302,14 @@ def figure_asset_map(repo_root: Path) -> dict[str, str]:
     return assets
 
 
-def insert_figures_after_context(markdown_text: str, legends_text: str, repo_root: Path) -> str:
-    assets = figure_asset_map(repo_root)
+def insert_figures_after_context(
+    markdown_text: str,
+    legends_text: str,
+    repo_root: Path,
+    *,
+    refresh_figures: bool = False,
+) -> str:
+    assets = figure_asset_map(repo_root, refresh_figures=refresh_figures)
     legends = figure_legend_map(legends_text)
     paragraphs = markdown_text.split("\n\n")
     inserted: set[str] = set()
@@ -309,10 +334,21 @@ def insert_figures_after_context(markdown_text: str, legends_text: str, repo_roo
     return "\n\n".join(output_paragraphs).rstrip()
 
 
-def write_docx_markdown_with_figures(rendered_markdown_path: Path, docx_markdown_path: Path, repo_root: Path) -> None:
+def write_docx_markdown_with_figures(
+    rendered_markdown_path: Path,
+    docx_markdown_path: Path,
+    repo_root: Path,
+    *,
+    refresh_figures: bool = False,
+) -> None:
     rendered_text = rendered_markdown_path.read_text(encoding="utf-8")
     before_legends, legends = split_figure_legends(rendered_text)
-    before_legends = insert_figures_after_context(before_legends, legends, repo_root)
+    before_legends = insert_figures_after_context(
+        before_legends,
+        legends,
+        repo_root,
+        refresh_figures=refresh_figures,
+    )
     sections = [before_legends]
 
     docx_markdown_path.parent.mkdir(parents=True, exist_ok=True)
@@ -361,7 +397,12 @@ def main() -> int:
         return reference_status
 
     try:
-        write_docx_markdown_with_figures(rendered_markdown_path, docx_markdown_path, repo_root)
+        write_docx_markdown_with_figures(
+            rendered_markdown_path,
+            docx_markdown_path,
+            repo_root,
+            refresh_figures=args.refresh_figures,
+        )
     except FileNotFoundError as exc:
         sys.stderr.write(f"{exc}\n")
         return 1

@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import base64
 import json
-import math
 import subprocess
 import textwrap
 import xml.etree.ElementTree as ET
