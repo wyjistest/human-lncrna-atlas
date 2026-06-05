@@ -34,6 +34,7 @@ from app.middleware import (
     LoggingMiddleware,
     RequestLimitsMiddleware,
     add_security_headers,
+    is_prometheus_metrics_enabled,
     metrics_auth_middleware,
 )
 from app.mounts import mount_genomes_app
@@ -517,7 +518,10 @@ if PROMETHEUS_AVAILABLE and Instrumentator:
     # 生产环境应通过网关 ACL 或内网访问控制进一步保护此端点
     instrumentator.expose(app, endpoint="/metrics", include_in_schema=False)
 
-    logger.info("Prometheus metrics enabled at /metrics endpoint")
+    if is_prometheus_metrics_enabled():
+        logger.info("Prometheus metrics enabled at /metrics endpoint")
+    else:
+        logger.info("Prometheus metrics disabled; set ENABLE_METRICS=true to expose /metrics")
 else:
     logger.warning("prometheus-fastapi-instrumentator not available, /metrics endpoint disabled")
 

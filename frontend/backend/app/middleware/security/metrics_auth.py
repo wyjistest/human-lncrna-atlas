@@ -5,6 +5,7 @@ Phase 9.16: 从 main.py 提取
 保护 Prometheus /metrics 端点，要求 API Key 认证
 """
 import logging
+import os
 import secrets
 
 from fastapi import Request
@@ -15,6 +16,10 @@ from app.core.ip_utils import get_client_ip, is_private_ip
 from app.core.utils import sanitize_for_log
 
 logger = logging.getLogger(__name__)
+
+
+def is_prometheus_metrics_enabled() -> bool:
+    return os.getenv("ENABLE_METRICS", "False").lower() in {"true", "1"}
 
 
 async def metrics_auth_middleware(request: Request, call_next):
@@ -45,6 +50,9 @@ async def metrics_auth_middleware(request: Request, call_next):
     # - 兼容反向代理 root_path 与尾随斜杠（如 root_path=/api 且 path=/metrics，或 /metrics/）
     scope_path = (request.scope.get("path") or "").rstrip("/")
     if scope_path == "/metrics":
+        if not is_prometheus_metrics_enabled():
+            return await call_next(request)
+
         client_ip = get_client_ip(request)
         safe_ip = sanitize_for_log(client_ip, max_length=100)
         api_key = request.headers.get("X-Admin-API-Key")

@@ -36,8 +36,23 @@ async def _call_next(_request: Request) -> JSONResponse:
     return JSONResponse(status_code=200, content={"ok": True})
 
 
+async def _not_found(_request: Request) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": "Not Found"})
+
+
+@pytest.mark.unit
+def test_metrics_auth_does_not_intercept_when_prometheus_metrics_disabled(monkeypatch):
+    monkeypatch.delenv("ENABLE_METRICS", raising=False)
+    monkeypatch.setattr(settings, "ADMIN_REQUIRE_API_KEY", True)
+    monkeypatch.setattr(settings, "ADMIN_API_KEY", None)
+
+    resp = asyncio.run(metrics_auth_middleware(_make_request(), _not_found))
+    assert resp.status_code == 404
+
+
 @pytest.mark.unit
 def test_metrics_auth_strict_mode_requires_valid_key(monkeypatch):
+    monkeypatch.setenv("ENABLE_METRICS", "true")
     monkeypatch.setattr(settings, "ADMIN_REQUIRE_API_KEY", True)
     monkeypatch.setattr(settings, "ADMIN_API_KEY", SecretStr("secret"))
 
@@ -58,6 +73,7 @@ def test_metrics_auth_strict_mode_requires_valid_key(monkeypatch):
 
 @pytest.mark.unit
 def test_metrics_auth_non_strict_private_ip_allows_no_key_but_denies_wrong_key(monkeypatch):
+    monkeypatch.setenv("ENABLE_METRICS", "true")
     monkeypatch.setattr(settings, "ADMIN_REQUIRE_API_KEY", False)
     monkeypatch.setattr(settings, "ADMIN_API_KEY", SecretStr("secret"))
 
@@ -78,6 +94,7 @@ def test_metrics_auth_non_strict_private_ip_allows_no_key_but_denies_wrong_key(m
 
 @pytest.mark.unit
 def test_metrics_auth_only_applies_to_prometheus_metrics_path(monkeypatch):
+    monkeypatch.setenv("ENABLE_METRICS", "true")
     monkeypatch.setattr(settings, "ADMIN_REQUIRE_API_KEY", True)
     monkeypatch.setattr(settings, "ADMIN_API_KEY", SecretStr("secret"))
 
